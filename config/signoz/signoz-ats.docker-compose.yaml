@@ -1,0 +1,116 @@
+version: "3.8"
+
+# SigNoz deployment for ATS Platform
+# Modified to avoid port conflicts and use ATS network
+
+networks:
+  ats-network:
+    external: true
+  signoz-internal:
+    driver: bridge
+
+services:
+  # ClickHouse for data storage
+  signoz-clickhouse:
+    image: clickhouse/clickhouse-server:25.5.6
+    container_name: signoz-clickhouse
+    hostname: clickhouse
+    restart: unless-stopped
+    networks:
+      - ats-network
+      - signoz-internal
+    ports:
+      - "9123:8123"  # HTTP port (avoid conflict with your 8123)
+      - "9001:9000"  # Native port (avoid conflict)
+    volumes:
+      - signoz-clickhouse-data:/var/lib/clickhouse/
+      - ./signoz/deploy/docker/clickhouse-setup/clickhouse-config.xml:/etc/clickhouse-server/config.xml
+      - ./signoz/deploy/docker/clickhouse-setup/clickhouse-users.xml:/etc/clickhouse-server/users.xml
+    environment:
+      - CLICKHOUSE_SKIP_USER_SETUP=1
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Zookeeper for coordination
+  signoz-zookeeper:
+    image: signoz/zookeeper:3.7.1
+    container_name: signoz-zookeeper
+    hostname: zookeeper
+    restart: unless-stopped
+    networks:
+      - signoz-internal
+    ports:
+      - "2181:2181"
+    volumes:
+      - signoz-zookeeper-data:/bitnami/zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  # OpenTelemetry Collector
+  signoz-otel-collector:
+    image: signoz/signoz-otel-collector:0.102.9
+    container_name: signoz-otel-collector
+    restart: unless-stopped
+    networks:
+      - ats-network
+      - signoz-internal
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # OTel metrics
+    volumes:
+      - ./signoz/deploy/docker/otel-collector-config.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
+    depends_on:
+      - signoz-clickhouse
+      - signoz-zookeeper
+    command: ["--config=/etc/otelcol-contrib/otel-collector-config.yaml"]
+
+  # Query Service (Backend API)
+  signoz-query-service:
+    image: signoz/query-service:0.53.0
+    container_name: signoz-query-service
+    restart: unless-stopped
+    networks:
+      - ats-network
+      - signoz-internal
+    ports:
+      - "8080:8080"   # API port (might conflict - we'll adjust)
+    volumes:
+      - signoz-query-service-data:/var/lib/signoz/
+    environment:
+      - ClickHouseUrl=tcp://signoz-clickhouse:9000/?database=signoz_traces
+      - STORAGE=clickhouse
+      - GODEBUG=netdns=go
+      - TELEMETRY_ENABLED=true
+      - DEPLOYMENT_TYPE=docker-standalone-amd
+    depends_on:
+      - signoz-clickhouse
+      - signoz-otel-collector
+
+  # Frontend (Web UI)
+  signoz-frontend:
+    image: signoz/frontend:0.53.0
+    container_name: signoz-frontend
+    restart: unless-stopped
+    networks:
+      - ats-network
+      - signoz-internal
+    ports:
+      - "3301:3301"   # Web UI (avoiding your 3000/3001)
+    environment:
+      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080
+    depends_on:
+      - signoz-query-service
+
+volumes:
+  signoz-clickhouse-data:
+  signoz-zookeeper-data:
+  signoz-query-service-data:

@@ -40,6 +40,13 @@ import pandas as pd
 from collections import defaultdict, Counter
 import glob
 
+# Ray for parallel processing
+try:
+    import ray
+    RAY_AVAILABLE = True
+except ImportError:
+    RAY_AVAILABLE = False
+
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
@@ -74,6 +81,9 @@ class DailyCoverageMetrics:
     symbols_with_t0_data: int  # T-0 (most recent trading day)
     symbols_with_t1_data: int  # T-1 (previous trading day)  
     symbols_with_t2_data: int  # T-2 (2 trading days ago)
+    symbols_with_t3_data: int  # T-3 (3 trading days ago)
+    symbols_with_t4_data: int  # T-4 (4 trading days ago)
+    symbols_with_t5_data: int  # T-5 (5 trading days ago)
     symbols_with_recent_5_days: int  # Last 5 trading days cumulative
     symbols_with_recent_10_days: int  # Last 10 trading days cumulative
     last_trading_date: date  # Most recent trading day found
@@ -86,6 +96,22 @@ class DailyCoverageMetrics:
     @property
     def t1_coverage_percentage(self) -> float:
         return (self.symbols_with_t1_data / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+    
+    @property
+    def t2_coverage_percentage(self) -> float:
+        return (self.symbols_with_t2_data / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+    
+    @property
+    def t3_coverage_percentage(self) -> float:
+        return (self.symbols_with_t3_data / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+    
+    @property
+    def t4_coverage_percentage(self) -> float:
+        return (self.symbols_with_t4_data / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+    
+    @property
+    def t5_coverage_percentage(self) -> float:
+        return (self.symbols_with_t5_data / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
     
     @property
     def recent_coverage_percentage(self) -> float:
@@ -105,6 +131,76 @@ def get_recent_trading_days(num_days: int = 10) -> List[date]:
         days_checked += 1
     
     return sorted(trading_days, reverse=True)  # Most recent first
+
+@ray.remote
+def analyze_symbol_trading_days(symbol: str, letter_path: str, trading_days: List[date]) -> Dict:
+    """Ray remote function to analyze trading day coverage for a single symbol"""
+    import pandas as pd
+    from pathlib import Path
+    
+    t0_date = trading_days[0] if len(trading_days) > 0 else None
+    t1_date = trading_days[1] if len(trading_days) > 1 else None
+    t2_date = trading_days[2] if len(trading_days) > 2 else None
+    t3_date = trading_days[3] if len(trading_days) > 3 else None
+    t4_date = trading_days[4] if len(trading_days) > 4 else None
+    t5_date = trading_days[5] if len(trading_days) > 5 else None
+    
+    symbol_trading_dates = set()
+    last_trading_date = None
+    minute_bars_count = 0
+    
+    # Check recent months for trading data
+    for month in ['08', '09']:
+        file_path = Path(letter_path) / symbol / f'2025/{month}' / f'{symbol}_2025_{month}.parquet'
+        if file_path.exists():
+            try:
+                df = pd.read_parquet(file_path)
+                df['date'] = pd.to_datetime(df['timestamp']).dt.date
+                
+                # Get unique trading dates from this file
+                file_trading_dates = set(df['date'].unique())
+                symbol_trading_dates.update(file_trading_dates)
+                
+                # Count minute bars for recent trading days only
+                recent_dates = set(trading_days[:10])  # Last 10 trading days
+                recent_bars = df[df['date'].isin(recent_dates)]
+                minute_bars_count += len(recent_bars)
+                
+                # Update last trading date seen
+                if file_trading_dates:
+                    file_last_date = max(file_trading_dates)
+                    if last_trading_date is None or file_last_date > last_trading_date:
+                        last_trading_date = file_last_date
+                        
+            except Exception as e:
+                continue
+    
+    # Calculate coverage flags
+    has_t0 = t0_date in symbol_trading_dates if t0_date else False
+    has_t1 = t1_date in symbol_trading_dates if t1_date else False
+    has_t2 = t2_date in symbol_trading_dates if t2_date else False
+    has_t3 = t3_date in symbol_trading_dates if t3_date else False
+    has_t4 = t4_date in symbol_trading_dates if t4_date else False
+    has_t5 = t5_date in symbol_trading_dates if t5_date else False
+    
+    # Check recent coverage (last 5 and 10 trading days)
+    recent_5_found = any(td in symbol_trading_dates for td in trading_days[:5])
+    recent_10_found = any(td in symbol_trading_dates for td in trading_days[:10])
+    
+    return {
+        'symbol': symbol,
+        'has_t0': has_t0,
+        'has_t1': has_t1, 
+        'has_t2': has_t2,
+        'has_t3': has_t3,
+        'has_t4': has_t4,
+        'has_t5': has_t5,
+        'has_recent_5': recent_5_found,
+        'has_recent_10': recent_10_found,
+        'last_trading_date': last_trading_date,
+        'minute_bars_count': minute_bars_count,
+        'trading_dates': list(symbol_trading_dates)
+    }
 
 class MinuteBarValidator:
     """Minute bar validation engine with file and database analysis"""
@@ -376,54 +472,120 @@ class MinuteBarValidator:
         
         try:
             if vendor == 'firstrate':
-                # FirstRate uses alphabetic directory structure
-                for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-                    letter_path = os.path.join(vendor_path, letter)
-                    if os.path.exists(letter_path):
-                        symbols = [d for d in os.listdir(letter_path) if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
-                        total_symbols += len(symbols)
+                if RAY_AVAILABLE:
+                    self.logger.info(f"🚀 Using Ray parallel processing for FirstRate analysis")
+                    # Initialize Ray if not already initialized
+                    if not ray.is_initialized():
+                        ray.init(num_cpus=os.cpu_count())
+                    
+                    # Collect all symbols across all letters
+                    all_symbol_tasks = []
+                    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+                        letter_path = os.path.join(vendor_path, letter)
+                        if os.path.exists(letter_path):
+                            symbols = [d for d in os.listdir(letter_path) 
+                                     if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
+                            total_symbols += len(symbols)
+                            
+                            # Create Ray tasks for each symbol
+                            for symbol in symbols:
+                                task = analyze_symbol_trading_days.remote(symbol, letter_path, trading_days)
+                                all_symbol_tasks.append(task)
+                    
+                    self.logger.info(f"📊 Processing {total_symbols} symbols in parallel with Ray ({len(all_symbol_tasks)} tasks)")
+                    
+                    # Execute all tasks in parallel and get results
+                    try:
+                        symbol_results = ray.get(all_symbol_tasks)
                         
-                        for symbol in symbols:
-                            symbol_trading_dates = set()
-                            
-                            # Check recent months for trading data
-                            for month in ['08', '09']:
-                                file_path = os.path.join(letter_path, symbol, f'2025/{month}', f'{symbol}_2025_{month}.parquet')
-                                if os.path.exists(file_path):
-                                    try:
-                                        import pandas as pd
-                                        df = pd.read_parquet(file_path)
-                                        df['date'] = pd.to_datetime(df['timestamp']).dt.date
-                                        
-                                        # Get unique trading dates from this file
-                                        file_trading_dates = set(df['date'].unique())
-                                        symbol_trading_dates.update(file_trading_dates)
-                                        
-                                        # Update last trading date seen
-                                        if file_trading_dates:
-                                            file_last_date = max(file_trading_dates)
-                                            if last_trading_date is None or file_last_date > last_trading_date:
-                                                last_trading_date = file_last_date
-                                                
-                                    except Exception as e:
-                                        continue
-                            
-                            # Check coverage for this symbol
-                            if t0_date in symbol_trading_dates:
+                        # Aggregate results
+                        symbols_with_t3 = 0
+                        symbols_with_t4 = 0
+                        symbols_with_t5 = 0
+                        total_minute_bars_t1 = 0
+                        total_minute_bars_t2 = 0
+                        total_minute_bars_t3 = 0
+                        total_minute_bars_t4 = 0
+                        total_minute_bars_t5 = 0
+                        
+                        for result in symbol_results:
+                            if result['has_t0']:
                                 symbols_with_t0 += 1
-                            if t1_date and t1_date in symbol_trading_dates:
+                            if result['has_t1']:
                                 symbols_with_t1 += 1
-                            if t2_date and t2_date in symbol_trading_dates:
+                            if result['has_t2']:
                                 symbols_with_t2 += 1
-                            
-                            # Check recent coverage (last 5 and 10 trading days)
-                            recent_5_found = any(td in symbol_trading_dates for td in trading_days[:5])
-                            recent_10_found = any(td in symbol_trading_dates for td in trading_days[:10])
-                            
-                            if recent_5_found:
+                            if result['has_t3']:
+                                symbols_with_t3 += 1
+                            if result['has_t4']:
+                                symbols_with_t4 += 1
+                            if result['has_t5']:
+                                symbols_with_t5 += 1
+                            if result['has_recent_5']:
                                 symbols_with_recent_5 += 1
-                            if recent_10_found:
+                            if result['has_recent_10']:
                                 symbols_with_recent_10 += 1
+                                
+                            # Update last trading date
+                            if result['last_trading_date']:
+                                if last_trading_date is None or result['last_trading_date'] > last_trading_date:
+                                    last_trading_date = result['last_trading_date']
+                        
+                        self.logger.info(f"📊 Ray parallel processing completed: T-0: {symbols_with_t0}, T-1: {symbols_with_t1}, T-2: {symbols_with_t2}, T-3: {symbols_with_t3}, T-4: {symbols_with_t4}, T-5: {symbols_with_t5}")
+                        
+                    except Exception as e:
+                        self.logger.error(f"❌ Ray parallel processing failed: {e}")
+                        return None
+                else:
+                    self.logger.warning(f"📊 Ray not available, falling back to sequential processing")
+                    # Original sequential code as fallback
+                    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+                        letter_path = os.path.join(vendor_path, letter)
+                        if os.path.exists(letter_path):
+                            symbols = [d for d in os.listdir(letter_path) if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
+                            total_symbols += len(symbols)
+                            
+                            for symbol in symbols:
+                                symbol_trading_dates = set()
+                                
+                                # Check recent months for trading data
+                                for month in ['08', '09']:
+                                    file_path = os.path.join(letter_path, symbol, f'2025/{month}', f'{symbol}_2025_{month}.parquet')
+                                    if os.path.exists(file_path):
+                                        try:
+                                            import pandas as pd
+                                            df = pd.read_parquet(file_path)
+                                            df['date'] = pd.to_datetime(df['timestamp']).dt.date
+                                            
+                                            # Get unique trading dates from this file
+                                            file_trading_dates = set(df['date'].unique())
+                                            symbol_trading_dates.update(file_trading_dates)
+                                            
+                                            # Update last trading date seen
+                                            if file_trading_dates:
+                                                file_last_date = max(file_trading_dates)
+                                                if last_trading_date is None or file_last_date > last_trading_date:
+                                                    last_trading_date = file_last_date
+                                                    
+                                        except Exception as e:
+                                            continue
+                                
+                                # Check coverage for this symbol
+                                if t0_date in symbol_trading_dates:
+                                    symbols_with_t0 += 1
+                                if t1_date and t1_date in symbol_trading_dates:
+                                    symbols_with_t1 += 1
+                                if t2_date and t2_date in symbol_trading_dates:
+                                    symbols_with_t2 += 1
+                                
+                                # Check recent coverage (last 5 and 10 trading days)
+                                recent_5_found = any(td in symbol_trading_dates for td in trading_days[:5])
+                                recent_10_found = any(td in symbol_trading_dates for td in trading_days[:10])
+                                
+                                if recent_5_found:
+                                    symbols_with_recent_5 += 1
+                                if recent_10_found:
+                                    symbols_with_recent_10 += 1
             else:
                 # Other vendors - simplified implementation for now
                 # TODO: Implement vendor-specific trading day analysis
@@ -435,6 +597,8 @@ class MinuteBarValidator:
             return None
         
         self.logger.info(f"📅 {vendor} Trading Day Coverage: T-0: {symbols_with_t0}, T-1: {symbols_with_t1}, T-2: {symbols_with_t2}")
+        if 'symbols_with_t3' in locals():
+            self.logger.info(f"📅 Extended coverage: T-3: {symbols_with_t3}, T-4: {symbols_with_t4}, T-5: {symbols_with_t5}")
         
         return DailyCoverageMetrics(
             vendor=vendor,
@@ -442,6 +606,9 @@ class MinuteBarValidator:
             symbols_with_t0_data=symbols_with_t0,
             symbols_with_t1_data=symbols_with_t1,
             symbols_with_t2_data=symbols_with_t2,
+            symbols_with_t3_data=symbols_with_t3 if 'symbols_with_t3' in locals() else 0,
+            symbols_with_t4_data=symbols_with_t4 if 'symbols_with_t4' in locals() else 0,
+            symbols_with_t5_data=symbols_with_t5 if 'symbols_with_t5' in locals() else 0,
             symbols_with_recent_5_days=symbols_with_recent_5,
             symbols_with_recent_10_days=symbols_with_recent_10,
             last_trading_date=last_trading_date or t0_date,
@@ -469,6 +636,9 @@ class MinuteBarValidator:
                     f'ats_minute_bars_trading_t0_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t0_data} {timestamp}',
                     f'ats_minute_bars_trading_t1_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t1_data} {timestamp}',
                     f'ats_minute_bars_trading_t2_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t2_data} {timestamp}',
+                    f'ats_minute_bars_trading_t3_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t3_data} {timestamp}',
+                    f'ats_minute_bars_trading_t4_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t4_data} {timestamp}',
+                    f'ats_minute_bars_trading_t5_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t5_data} {timestamp}',
                     f'ats_minute_bars_trading_recent_5_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_5_days} {timestamp}',
                     f'ats_minute_bars_trading_recent_10_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_10_days} {timestamp}',
                 ])
@@ -477,6 +647,10 @@ class MinuteBarValidator:
                 prometheus_metrics.extend([
                     f'ats_minute_bars_trading_t0_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t0_coverage_percentage:.2f} {timestamp}',
                     f'ats_minute_bars_trading_t1_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t1_coverage_percentage:.2f} {timestamp}',
+                    f'ats_minute_bars_trading_t2_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t2_coverage_percentage:.2f} {timestamp}',
+                    f'ats_minute_bars_trading_t3_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t3_coverage_percentage:.2f} {timestamp}',
+                    f'ats_minute_bars_trading_t4_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t4_coverage_percentage:.2f} {timestamp}',
+                    f'ats_minute_bars_trading_t5_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t5_coverage_percentage:.2f} {timestamp}',
                     f'ats_minute_bars_trading_recent_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.recent_coverage_percentage:.2f} {timestamp}',
                 ])
                 
@@ -562,7 +736,10 @@ class MinuteBarValidator:
         if daily_metrics_list:
             self.logger.info(f"📅 Trading Day Coverage Summary:")
             for dm in daily_metrics_list:
-                self.logger.info(f"   • {dm.vendor.upper()}: {dm.total_symbols:,} symbols, T-0: {dm.symbols_with_t0_data} ({dm.t0_coverage_percentage:.1f}%), T-1: {dm.symbols_with_t1_data} ({dm.t1_coverage_percentage:.1f}%), Last: {dm.last_trading_date}")
+                self.logger.info(f"   • {dm.vendor.upper()}: {dm.total_symbols:,} symbols")
+                self.logger.info(f"     T-0: {dm.symbols_with_t0_data} ({dm.t0_coverage_percentage:.1f}%), T-1: {dm.symbols_with_t1_data} ({dm.t1_coverage_percentage:.1f}%), T-2: {dm.symbols_with_t2_data} ({dm.t2_coverage_percentage:.1f}%)")
+                self.logger.info(f"     T-3: {dm.symbols_with_t3_data} ({dm.t3_coverage_percentage:.1f}%), T-4: {dm.symbols_with_t4_data} ({dm.t4_coverage_percentage:.1f}%), T-5: {dm.symbols_with_t5_data} ({dm.t5_coverage_percentage:.1f}%)")
+                self.logger.info(f"     Last trading date: {dm.last_trading_date}")
         
         return metrics_list
 

@@ -1,0 +1,322 @@
+{
+  "ats_intg_comprehensive_monitoring": {
+    "title": "ATS Integration Environment - Comprehensive Monitoring",
+    "description": "Complete monitoring dashboard for ATS integration environment",
+    "refresh": "30s",
+    "time_range": "1h",
+    "panels": [
+      {
+        "title": "🚦 Service Health Overview",
+        "type": "stat",
+        "width": 12,
+        "height": 4,
+        "targets": [
+          {
+            "query": "up{job=~'ats-intg-.*'}",
+            "legend": "{{instance}}"
+          }
+        ],
+        "thresholds": [
+          {"color": "red", "value": 0},
+          {"color": "green", "value": 1}
+        ]
+      },
+      
+      {
+        "title": "🧪 Integration Test Success Rate",
+        "type": "gauge", 
+        "width": 6,
+        "height": 6,
+        "targets": [
+          {
+            "query": "rate(ats_intg_tests_passed_total[5m]) / rate(ats_intg_tests_total[5m]) * 100",
+            "legend": "Success Rate %"
+          }
+        ],
+        "thresholds": [
+          {"color": "red", "value": 0},
+          {"color": "yellow", "value": 90}, 
+          {"color": "green", "value": 95}
+        ],
+        "min": 0,
+        "max": 100
+      },
+      
+      {
+        "title": "📊 Data Quality Score by Vendor",
+        "type": "gauge",
+        "width": 6, 
+        "height": 6,
+        "targets": [
+          {
+            "query": "ats_intg_data_quality_score * 100",
+            "legend": "{{vendor}}"
+          }
+        ],
+        "thresholds": [
+          {"color": "red", "value": 0},
+          {"color": "yellow", "value": 90},
+          {"color": "green", "value": 95}
+        ]
+      },
+      
+      {
+        "title": "⏱️ Data Freshness by Vendor (Minutes)",
+        "type": "timeseries",
+        "width": 12,
+        "height": 6, 
+        "targets": [
+          {
+            "query": "ats_intg_data_freshness_minutes",
+            "legend": "{{vendor}}"
+          }
+        ],
+        "alert_rules": [
+          {
+            "condition": "> 60",
+            "severity": "warning",
+            "message": "Data freshness exceeds 1 hour"
+          },
+          {
+            "condition": "> 120", 
+            "severity": "critical",
+            "message": "Data freshness exceeds 2 hours"
+          }
+        ]
+      },
+      
+      {
+        "title": "🌐 External API Response Times (P95)",
+        "type": "timeseries",
+        "width": 12,
+        "height": 6,
+        "targets": [
+          {
+            "query": "histogram_quantile(0.95, ats_intg_external_api_duration_ms)",
+            "legend": "{{api_name}}"
+          }
+        ]
+      },
+      
+      {
+        "title": "🗄️ Database Performance Metrics",
+        "type": "timeseries", 
+        "width": 6,
+        "height": 6,
+        "targets": [
+          {
+            "query": "ats_intg_db_connections_active",
+            "legend": "Active Connections"
+          },
+          {
+            "query": "ats_intg_db_query_duration_ms",
+            "legend": "Avg Query Time (ms)"
+          }
+        ]
+      },
+      
+      {
+        "title": "🤖 ML Pipeline Health",
+        "type": "stat",
+        "width": 6,
+        "height": 6,
+        "targets": [
+          {
+            "query": "ats_intg_feature_completeness_percent",
+            "legend": "Feature Completeness %"
+          },
+          {
+            "query": "rate(ats_intg_ml_training_duration_ms[10m]) / 60000",
+            "legend": "Training Time (min)"
+          }
+        ]
+      },
+      
+      {
+        "title": "📈 Integration Test Execution Timeline", 
+        "type": "timeseries",
+        "width": 12,
+        "height": 6,
+        "targets": [
+          {
+            "query": "ats_intg_test_duration_ms / 1000", 
+            "legend": "{{test_suite}} Duration (s)"
+          }
+        ]
+      },
+      
+      {
+        "title": "🚨 Active Alerts Summary",
+        "type": "table",
+        "width": 12,
+        "height": 4,
+        "targets": [
+          {
+            "query": "ALERTS{alertstate='firing', job=~'ats-intg-.*'}",
+            "format": "table"
+          }
+        ]
+      }
+    ],
+    
+    "alert_rules": [
+      {
+        "name": "ATS-INTG Service Down",
+        "expression": "up{job=~'ats-intg-.*'} == 0",
+        "for": "2m",
+        "severity": "critical",
+        "summary": "ATS Integration service {{$labels.instance}} is down",
+        "description": "Service has been down for more than 2 minutes",
+        "runbook_url": "https://wiki.company.com/ats-intg-service-down"
+      },
+      
+      {
+        "name": "ATS-INTG Data Freshness Alert",
+        "expression": "ats_intg_data_freshness_minutes > 120",
+        "for": "5m", 
+        "severity": "critical",
+        "summary": "ATS-INTG data is stale for {{$labels.vendor}}",
+        "description": "Data from {{$labels.vendor}} is {{$value}} minutes old"
+      },
+      
+      {
+        "name": "ATS-INTG Integration Test Failures",
+        "expression": "rate(ats_intg_tests_passed_total[10m]) / rate(ats_intg_tests_total[10m]) < 0.90",
+        "for": "5m",
+        "severity": "warning", 
+        "summary": "ATS-INTG test success rate below 90%",
+        "description": "Integration test success rate is {{$value | humanizePercentage}}"
+      },
+      
+      {
+        "name": "ATS-INTG Database Connection Pool Alert",
+        "expression": "ats_intg_db_connections_active > 90",
+        "for": "3m",
+        "severity": "warning",
+        "summary": "ATS-INTG database connection pool near exhaustion", 
+        "description": "{{$value}} active connections out of ~100 limit"
+      },
+      
+      {
+        "name": "ATS-INTG External API Performance",
+        "expression": "histogram_quantile(0.95, ats_intg_external_api_duration_ms) > 5000",
+        "for": "5m",
+        "severity": "warning",
+        "summary": "ATS-INTG external API {{$labels.api_name}} slow response",
+        "description": "P95 response time is {{$value}}ms"
+      }
+    ]
+  },
+  
+  "ats_intg_data_pipeline_health": {
+    "title": "ATS Integration - Data Pipeline Health",
+    "description": "Focused monitoring for data pipeline health in integration environment",
+    "panels": [
+      {
+        "title": "📊 Data Pipeline Success Rate by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "query": "ats_intg_pipeline_success_rate * 100",
+            "legend": "{{vendor}}"
+          }
+        ]
+      },
+      
+      {
+        "title": "🔄 Data Processing Volume",
+        "type": "timeseries",
+        "targets": [
+          {
+            "query": "rate(ats_intg_records_processed_total[5m])",
+            "legend": "{{vendor}} Records/sec"
+          }
+        ]
+      },
+      
+      {
+        "title": "❌ Data Quality Issues",
+        "type": "table", 
+        "targets": [
+          {
+            "query": "ats_intg_data_quality_issues_total by (vendor, issue_type)",
+            "format": "table"
+          }
+        ]
+      },
+      
+      {
+        "title": "⏰ Data Processing Latency Distribution", 
+        "type": "heatmap",
+        "targets": [
+          {
+            "query": "ats_intg_data_processing_duration_ms",
+            "format": "heatmap"
+          }
+        ]
+      }
+    ]
+  },
+  
+  "ats_intg_service_integration": {
+    "title": "ATS Integration - Service Integration Health",
+    "description": "Monitor how services integrate and communicate",
+    "panels": [
+      {
+        "title": "🔗 Service Dependency Map",
+        "type": "nodeGraph",
+        "targets": [
+          {
+            "query": "ats_intg_service_calls_total",
+            "format": "nodeGraph"
+          }
+        ]
+      },
+      
+      {
+        "title": "📞 Inter-Service Call Success Rates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "query": "rate(ats_intg_service_calls_success_total[5m]) / rate(ats_intg_service_calls_total[5m]) * 100",
+            "legend": "{{source_service}} -> {{target_service}}"
+          }
+        ]
+      },
+      
+      {
+        "title": "⚡ Service Response Times (P50, P95, P99)",
+        "type": "timeseries", 
+        "targets": [
+          {
+            "query": "histogram_quantile(0.50, ats_intg_service_response_duration_ms)",
+            "legend": "P50"
+          },
+          {
+            "query": "histogram_quantile(0.95, ats_intg_service_response_duration_ms)", 
+            "legend": "P95"
+          },
+          {
+            "query": "histogram_quantile(0.99, ats_intg_service_response_duration_ms)",
+            "legend": "P99"
+          }
+        ]
+      },
+      
+      {
+        "title": "🔄 Message Queue Health",
+        "type": "stat",
+        "targets": [
+          {
+            "query": "ats_intg_queue_depth",
+            "legend": "{{queue_name}} Depth"
+          },
+          {
+            "query": "rate(ats_intg_queue_messages_processed_total[1m])",
+            "legend": "{{queue_name}} Rate/min"
+          }
+        ]
+      }
+    ]
+  }
+}
