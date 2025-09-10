@@ -26,7 +26,7 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
     on minute-level data stored in parquet files.
     """
 
-    def __init__(self, env: Environment, base_path: str = "/mnt/d/ats-data/minute-bars"):
+    def __init__(self, env: Environment, base_path: str = "/data/minute-bars"):
         """
         Initialize with environment and base path to minute bar storage.
 
@@ -36,7 +36,7 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         """
         self.env = env
         self.base_path = Path(base_path)
-        self.minute_manager = FileBasedMinuteManager(self.base_path)
+        self.minute_manager = FileBasedMinuteManager(str(self.base_path))
         self._cache = {}  # Cache for recent queries
 
         logger.info(f"Initialized FileBasedMinuteMarketDataManager with path: {self.base_path}")
