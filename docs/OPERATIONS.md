@@ -68,16 +68,17 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 ```bash
 # ATS-DEV Environment (Development)
 - Analytics Service: http://localhost:3000
-- EDA Dashboard: http://localhost:3000/eda  
+- EDA Dashboard: http://localhost:3000/eda
 - Health Check: http://localhost:3000/health
 - Database: postgresql://postgres:dev_password@localhost:3432/dev_db
 
 # ATS-INTG Environment (Integration Testing)
 - Analytics Service: http://localhost:4000
 - EDA Dashboard: http://localhost:4000/eda
-- Health Check: http://localhost:4000/health  
+- Health Check: http://localhost:4000/health
 - Database: postgresql://postgres:intg_password@localhost:4432/intg_db
 - Prometheus Metrics: http://localhost:4080
+- SigNoz Observability: http://10.0.0.79:4000
 - Daily Minute Bars: /mnt/d/ats-data/firstrate-data/daily/
 ```
 
@@ -87,6 +88,7 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 curl -f http://localhost:3000/health  # ATS-DEV analytics
 curl -f http://localhost:4000/health  # ATS-INTG analytics
 curl -f http://localhost:4080/health  # ATS-INTG prometheus metrics
+curl -f http://10.0.0.79:4000         # SigNoz observability dashboard
 docker ps | grep -E "(ats-dev|intg)"  # Container status
 
 # Daily minute bars system health
@@ -161,7 +163,18 @@ tail -50 /mnt/d/ats-logs/health-check.log
 
 ## 📊 **Real-Time Minute Bar Collection Monitoring**
 
-### **🎯 Primary Dashboard: Grafana**
+### **🎯 Primary Dashboards**
+
+**SigNoz Observability Platform:**
+```bash
+🌐 URL: http://10.0.0.79:4000
+📊 Real-time collector traces and metrics
+🔧 Service performance monitoring
+📈 Error tracking and alerting
+🚀 OpenTelemetry integration
+```
+
+**Grafana Vendor Monitoring:**
 ```bash
 🌐 URL: http://10.0.0.79:4002/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed
 📊 Login: admin/admin (change on first login)
@@ -171,12 +184,12 @@ tail -50 /mnt/d/ats-logs/health-check.log
 # ⚠️ CRITICAL: Grafana Data Source Configuration Fix
 # If dashboard shows "no data" or connection errors:
 # 1. Ensure PostgreSQL started with: docker-compose -f docker-compose.ats.yml up -d postgres-intg
-# 2. Connect networks: docker network connect ats-network ats-grafana-intg  
+# 2. Connect networks: docker network connect ats-network ats-grafana-intg
 # 3. Update data source to use: 172.17.0.1:4432 (Docker bridge gateway)
 #    - URL: http://10.0.0.79:4002/datasources/edit/2
 #    - Host: 172.17.0.1:4432
 #    - Database: intg_db
-#    - User: postgres  
+#    - User: postgres
 #    - Password: intg_password
 ```
 
@@ -200,6 +213,82 @@ ats_daily_minute_backfill_symbols_by_letter{letter="A"}     # Symbols by first l
 
 # Health check endpoint
 curl -f http://localhost:4080/health
+```
+
+### **🚀 Real-Time Minute Bar Collector Service**
+
+**Service Overview:**
+```bash
+# Service: ats-intg-realtime-minute-collector
+# Container: Runs on ats-intg-network
+# Database: ats-intg-postgres (port 5432 internal, 4432 external)
+# Monitoring: SigNoz integration at http://10.0.0.79:4000
+# Collection: Every minute for Polygon, Tiingo, EODHD
+```
+
+**Service Management:**
+```bash
+# Check service status
+python3 scripts/run_intg.py status
+docker ps | grep realtime-minute-collector
+
+# View real-time logs
+docker logs ats-intg-realtime-minute-collector --tail 20 -f
+
+# Restart service
+docker restart ats-intg-realtime-minute-collector
+
+# Stop/Start service
+docker stop ats-intg-realtime-minute-collector
+docker start ats-intg-realtime-minute-collector
+```
+
+**Database Tables:**
+```bash
+# Check collected data from each vendor
+python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_one_minute_live_polygon"
+python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_one_minute_live_tiingo"
+python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_one_minute_live_eodhd"
+
+# View latest collected bars
+python3 scripts/run_intg.py query --query "
+  SELECT vendor, symbol, timestamp, created_at
+  FROM (
+    SELECT 'polygon' as vendor, symbol, timestamp, created_at FROM intg_one_minute_live_polygon
+    UNION ALL
+    SELECT 'tiingo' as vendor, symbol, timestamp, created_at FROM intg_one_minute_live_tiingo
+    UNION ALL
+    SELECT 'eodhd' as vendor, symbol, timestamp, created_at FROM intg_one_minute_live_eodhd
+  ) combined
+  ORDER BY created_at DESC
+  LIMIT 10"
+```
+
+**SigNoz Monitoring Features:**
+- **Service Traces**: Collection cycle performance
+- **Custom Metrics**: Bars collected, API errors, collection duration
+- **Error Tracking**: Vendor-specific API failures
+- **Performance Monitoring**: Collection latency and throughput
+- **Environment Tagging**: INTG environment identification
+
+**Troubleshooting Common Issues:**
+```bash
+# Issue 1: API authentication errors (401/403)
+# Check API keys are properly set in container environment
+docker inspect ats-intg-realtime-minute-collector | grep -A 20 "Env"
+
+# Issue 2: Database connection issues
+# Verify container is on correct network and can reach postgres
+docker exec ats-intg-realtime-minute-collector ping ats-intg-postgres
+
+# Issue 3: No data being collected (422 errors)
+# EODHD 422 errors are common during non-market hours - this is expected
+# Check logs for actual error details
+docker logs ats-intg-realtime-minute-collector --tail 50 | grep -E "(ERROR|422|401|403)"
+
+# Issue 4: Container health issues
+# Check if container needs restart due to memory or connection issues
+docker stats ats-intg-realtime-minute-collector
 ```
 
 ### **🔧 Manual Monitoring Commands**
@@ -270,18 +359,18 @@ else:
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
 
 # Check live minute bar data (WORKING DATA TABLES)
-SELECT vendor, symbol, COUNT(*) as records, MAX(timestamp) as latest_data 
+SELECT vendor, symbol, COUNT(*) as records, MAX(timestamp) as latest_data
 FROM (
-  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_polygon 
-  UNION ALL 
+  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_polygon
+  UNION ALL
   SELECT vendor, symbol, timestamp FROM intg_one_minute_live_tiingo
 ) combined GROUP BY vendor, symbol ORDER BY latest_data DESC;
 
 # Check API call status for minute bar collection
 SELECT vendor, status_code, COUNT(*) as calls, AVG(response_time_ms)::int as avg_ms
-FROM intg_api_calls 
+FROM intg_api_calls
 WHERE endpoint LIKE '%minute%' OR endpoint LIKE '%intraday%'
-GROUP BY vendor, status_code 
+GROUP BY vendor, status_code
 ORDER BY vendor, calls DESC;
 ```
 
@@ -308,7 +397,7 @@ PGPASSWORD=intg_password pg_isready -h localhost -p 4432 -U postgres -d intg_db
 
 # View logs
 docker logs ats-dev-analytics        # ATS-DEV analytics logs
-docker logs ats-dev-postgres         # ATS-DEV database logs  
+docker logs ats-dev-postgres         # ATS-DEV database logs
 docker logs postgres-intg            # ATS-INTG database logs
 docker logs ats-intg-scheduler       # ATS-INTG job scheduler logs
 ```
@@ -343,7 +432,7 @@ ls -lah /mnt/d/ats-logs/     # Log directory usage
 # Polygon Real-Time Collection - Every 30 minutes (9:30 AM - 4:00 PM EST)
 30,0 9-15 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/polygon_realtime_collect.py --database >> /mnt/d/ats-logs/polygon-realtime.log 2>&1
 
-# Tiingo Real-Time Collection - Every 30 minutes (9:30 AM - 4:00 PM EST)  
+# Tiingo Real-Time Collection - Every 30 minutes (9:30 AM - 4:00 PM EST)
 30,0 9-15 * * 1-5 cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/tiingo_realtime_collect.py --database >> /mnt/d/ats-logs/tiingo-realtime.log 2>&1
 
 # ===============================================================================
@@ -373,7 +462,7 @@ ls -lah /mnt/d/ats-logs/     # Log directory usage
 # Script: scripts/multi_vendor_news_backfill.py --vendors tiingo,polygon,eodhd --days 30
 
 # Real-Time News Ingestion - Continuous 24/7 operation via Docker container
-# Managed by: docker ps | grep ats-intg-news-realtime  
+# Managed by: docker ps | grep ats-intg-news-realtime
 # Start: python3 scripts/run_intg.py start --service news-realtime
 # Script: scripts/realtime_news_ingestion.py --vendors tiingo,polygon,eodhd --interval 300 --daemon
 
@@ -390,7 +479,7 @@ ls -lah /mnt/d/ats-logs/     # Log directory usage
 0 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh        # ATS-DEV backup at 2:00 AM
 15 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_intg.sh      # ATS-INTG backup at 2:15 AM
 
-# Backup Monitoring  
+# Backup Monitoring
 0 3 * * * /home/jianjun/ats-genai-data/scripts/backup_monitor.sh              # Monitor at 3:00 AM
 0 18 * * * /home/jianjun/ats-genai-data/scripts/backup_monitor.sh             # Monitor at 6:00 PM
 
@@ -548,7 +637,7 @@ curl -f http://localhost:8081/metrics
 
 **Rate Limits & Collection Intervals:**
 - **Tiingo**: 1-second delays between requests
-- **Polygon**: 12-second delays (5 calls/minute limit)  
+- **Polygon**: 12-second delays (5 calls/minute limit)
 - **EODHD**: 3-second delays between requests
 - **Collection Cycle**: Every 5 minutes (300 seconds)
 
@@ -574,23 +663,23 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db
 
 # Current news data by vendor
 SELECT vendor, COUNT(*) as articles, MAX(published_utc) as latest_article
-FROM intg_realtime_news 
-GROUP BY vendor 
+FROM intg_realtime_news
+GROUP BY vendor
 ORDER BY latest_article DESC;
 
 # Today's news collection activity
-SELECT vendor, COUNT(*) as articles_today, 
+SELECT vendor, COUNT(*) as articles_today,
        AVG(sentiment_score) as avg_sentiment
-FROM intg_realtime_news 
+FROM intg_realtime_news
 WHERE DATE(published_utc) = CURRENT_DATE
 GROUP BY vendor;
 
 # API call status for news endpoints
-SELECT vendor, status_code, COUNT(*) as calls, 
+SELECT vendor, status_code, COUNT(*) as calls,
        AVG(response_time_ms)::int as avg_response_ms
-FROM intg_news_api_calls 
+FROM intg_news_api_calls
 WHERE created_at >= CURRENT_DATE - INTERVAL '24 hours'
-GROUP BY vendor, status_code 
+GROUP BY vendor, status_code
 ORDER BY vendor, calls DESC;
 ```
 
@@ -601,7 +690,7 @@ ORDER BY vendor, calls DESC;
 # Start all news services
 ./scripts/start_news_ingestion_intg.sh
 
-# Stop all news services  
+# Stop all news services
 ./scripts/stop_news_ingestion_intg.sh
 
 # Individual service management via run_intg.py
@@ -615,7 +704,7 @@ docker ps | grep ats-intg-news
 
 # View service logs
 docker logs ats-intg-news-realtime --tail 50
-docker logs ats-intg-news-backfill --tail 50 
+docker logs ats-intg-news-backfill --tail 50
 docker logs ats-intg-news-monitor --tail 50
 
 # Manual backfill execution
@@ -637,7 +726,7 @@ python3 scripts/run_intg.py run --script scripts/news_health_monitor.py
 
 # Health check output includes:
 # - Vendor-specific collection rates and freshness
-# - API response times and error rates  
+# - API response times and error rates
 # - Data quality scores and recommendations
 # - Slack alerts for critical issues (if configured)
 ```
@@ -661,7 +750,7 @@ docker logs ats-intg-news-realtime --tail 50
 # Verify API keys are working
 python3 scripts/run_intg.py run --script scripts/multi_vendor_news_backfill.py --days 1 --vendors tiingo --debug
 
-# Issue 2: Parsing errors in news collection  
+# Issue 2: Parsing errors in news collection
 # Common with Tiingo API - check logs for null value handling
 docker logs ats-intg-news-realtime --tail 100 | grep -i error
 
@@ -702,7 +791,7 @@ SELECT vendor,
        COUNT(CASE WHEN summary IS NOT NULL AND LENGTH(summary) > 50 THEN 1 END) as articles_with_summary,
        COUNT(CASE WHEN sentiment_score IS NOT NULL THEN 1 END) as articles_with_sentiment,
        AVG(CASE WHEN sentiment_score IS NOT NULL THEN sentiment_score END) as avg_sentiment
-FROM intg_realtime_news 
+FROM intg_realtime_news
 WHERE DATE(published_utc) >= CURRENT_DATE - INTERVAL '7 days'
 GROUP BY vendor;
 
@@ -711,7 +800,7 @@ SELECT vendor,
        COUNT(*) as total_processed,
        COUNT(DISTINCT article_id) as unique_articles,
        (COUNT(*) - COUNT(DISTINCT article_id)) as duplicates_removed
-FROM intg_realtime_news 
+FROM intg_realtime_news
 WHERE DATE(published_utc) >= CURRENT_DATE - INTERVAL '7 days'
 GROUP BY vendor;
 ```
@@ -735,7 +824,7 @@ docker ps | grep ats-intg-news
 
 **Resource Requirements:**
 - **Daily Backfill**: Moderate CPU/RAM usage (runs every 6 hours)
-- **Real-time Ingestion**: Low continuous usage (5-minute cycles)  
+- **Real-time Ingestion**: Low continuous usage (5-minute cycles)
 - **Health Monitoring**: Minimal usage (runs every 2 hours)
 
 ---
@@ -816,7 +905,7 @@ docker logs ats-intg-minute-bars-scheduler --tail 20  # Recent processing
 ls -la /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ | wc -l  # Files count today
 
 # News ingestion health check (ATS-INTG)
-curl -s http://localhost:8081/metrics | grep "ats_news"  # News collection metrics  
+curl -s http://localhost:8081/metrics | grep "ats_news"  # News collection metrics
 docker ps | grep ats-intg-news  # News service status
 python3 scripts/run_intg.py run --script scripts/news_health_monitor.py  # News system health assessment
 
@@ -846,7 +935,7 @@ ls -la /mnt/d/ats-backup/ | grep $(date +%Y-%m-%d)
 # (Check Slack #ats-alerts channel for hourly updates)
 
 # Verify news collection is operational
-docker ps | grep ats-intg-news  # Check news service status  
+docker ps | grep ats-intg-news  # Check news service status
 curl -s http://localhost:8081/metrics | head -10  # Check metrics endpoint
 python3 scripts/run_intg.py query --query "SELECT vendor, COUNT(*) as articles_today FROM intg_realtime_news WHERE DATE(published_utc) = CURRENT_DATE GROUP BY vendor"  # Today's articles
 ```
@@ -861,7 +950,7 @@ python3 scripts/run_intg.py query --query "SELECT vendor, COUNT(*) as articles_t
 python3 scripts/run_dev.py stop --service analytics
 python3 scripts/run_dev.py start --service analytics
 
-# ATS-INTG Service Recovery  
+# ATS-INTG Service Recovery
 docker-compose -f docker-compose.intg-jobs.yml restart ats-intg-scheduler
 docker restart grafana-intg prometheus-intg
 
@@ -877,14 +966,14 @@ python3 scripts/run_dev.py query --query "
 SELECT 'Tiingo' as vendor, COUNT(*) as instruments FROM dev_instrument_tiingo
 UNION
 SELECT 'EODHD' as vendor, COUNT(*) as instruments FROM dev_instrument_eodhd
-UNION  
+UNION
 SELECT 'Polygon' as vendor, COUNT(*) as instruments FROM dev_instrument_polygon
 "
 
 # Check data freshness
 python3 scripts/run_dev.py query --query "
 SELECT vendor, MAX(date) as latest_data, COUNT(*) as records_today
-FROM dev_daily_prices 
+FROM dev_daily_prices
 WHERE date >= CURRENT_DATE - 1
 GROUP BY vendor
 "
