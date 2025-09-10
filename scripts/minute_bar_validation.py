@@ -68,27 +68,43 @@ class MinuteBarMetrics:
 
 @dataclass
 class DailyCoverageMetrics:
-    """Daily coverage metrics for file-based minute bar data"""
+    """Daily coverage metrics for file-based minute bar data (trading days only)"""
     vendor: str
     total_symbols: int
-    files_updated_today: int  # T-0
-    files_updated_yesterday: int  # T-1  
-    files_updated_2_days_ago: int  # T-2
-    files_updated_last_week: int  # T-7 cumulative
-    files_updated_last_15_days: int  # T-15 cumulative
+    symbols_with_t0_data: int  # T-0 (most recent trading day)
+    symbols_with_t1_data: int  # T-1 (previous trading day)  
+    symbols_with_t2_data: int  # T-2 (2 trading days ago)
+    symbols_with_recent_5_days: int  # Last 5 trading days cumulative
+    symbols_with_recent_10_days: int  # Last 10 trading days cumulative
+    last_trading_date: date  # Most recent trading day found
     validation_timestamp: datetime
     
     @property
-    def today_coverage_percentage(self) -> float:
-        return (self.files_updated_today / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+    def t0_coverage_percentage(self) -> float:
+        return (self.symbols_with_t0_data / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
     
     @property
-    def yesterday_coverage_percentage(self) -> float:
-        return (self.files_updated_yesterday / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+    def t1_coverage_percentage(self) -> float:
+        return (self.symbols_with_t1_data / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
     
     @property
     def recent_coverage_percentage(self) -> float:
-        return (self.files_updated_last_15_days / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+        return (self.symbols_with_recent_10_days / self.total_symbols * 100) if self.total_symbols > 0 else 0.0
+
+def get_recent_trading_days(num_days: int = 10) -> List[date]:
+    """Get list of recent trading days (Mon-Fri, excluding weekends)"""
+    trading_days = []
+    current_date = date.today()
+    
+    # Go back in time to find trading days
+    days_checked = 0
+    while len(trading_days) < num_days and days_checked < 30:  # Safety limit
+        if current_date.weekday() < 5:  # Monday=0, Friday=4
+            trading_days.append(current_date)
+        current_date -= timedelta(days=1)
+        days_checked += 1
+    
+    return sorted(trading_days, reverse=True)  # Most recent first
 
 class MinuteBarValidator:
     """Minute bar validation engine with file and database analysis"""
@@ -329,7 +345,7 @@ class MinuteBarValidator:
             return False
     
     def validate_daily_coverage(self, vendor: str) -> Optional[DailyCoverageMetrics]:
-        """Validate daily file update coverage for file-based vendors"""
+        """Validate trading day coverage for file-based vendors"""
         config = self.vendors[vendor]
         if not config['has_files']:
             return None
@@ -338,13 +354,26 @@ class MinuteBarValidator:
         if not os.path.exists(vendor_path):
             return None
         
-        today = date.today()
-        coverage_by_date = defaultdict(int)
+        # Get recent trading days (T-0, T-1, T-2, etc.)
+        trading_days = get_recent_trading_days(10)
+        if not trading_days:
+            return None
+            
+        t0_date = trading_days[0]  # Most recent trading day
+        t1_date = trading_days[1] if len(trading_days) > 1 else None
+        t2_date = trading_days[2] if len(trading_days) > 2 else None
+        
+        self.logger.info(f"📊 Analyzing trading day coverage for {vendor}")
+        self.logger.info(f"📅 T-0: {t0_date}, T-1: {t1_date}, T-2: {t2_date}")
+        
         total_symbols = 0
+        symbols_with_t0 = 0
+        symbols_with_t1 = 0  
+        symbols_with_t2 = 0
+        symbols_with_recent_5 = 0
+        symbols_with_recent_10 = 0
+        last_trading_date = None
         
-        self.logger.info(f"📊 Analyzing daily coverage for {vendor}")
-        
-        # Count total symbols
         try:
             if vendor == 'firstrate':
                 # FirstRate uses alphabetic directory structure
@@ -354,65 +383,68 @@ class MinuteBarValidator:
                         symbols = [d for d in os.listdir(letter_path) if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
                         total_symbols += len(symbols)
                         
-                        # Check file modification dates for recent files
                         for symbol in symbols:
-                            symbol_path = os.path.join(letter_path, symbol)
+                            symbol_trading_dates = set()
                             
-                            # Check recent months
+                            # Check recent months for trading data
                             for month in ['08', '09']:
-                                file_path = os.path.join(symbol_path, f'2025/{month}', f'{symbol}_2025_{month}.parquet')
+                                file_path = os.path.join(letter_path, symbol, f'2025/{month}', f'{symbol}_2025_{month}.parquet')
                                 if os.path.exists(file_path):
                                     try:
-                                        mod_time = datetime.fromtimestamp(os.path.getmtime(file_path)).date()
-                                        days_ago = (today - mod_time).days
+                                        import pandas as pd
+                                        df = pd.read_parquet(file_path)
+                                        df['date'] = pd.to_datetime(df['timestamp']).dt.date
                                         
-                                        # Track files updated in last 15 days
-                                        if days_ago <= 15:
-                                            coverage_by_date[mod_time] += 1
-                                            break  # Only count once per symbol
-                                    except:
+                                        # Get unique trading dates from this file
+                                        file_trading_dates = set(df['date'].unique())
+                                        symbol_trading_dates.update(file_trading_dates)
+                                        
+                                        # Update last trading date seen
+                                        if file_trading_dates:
+                                            file_last_date = max(file_trading_dates)
+                                            if last_trading_date is None or file_last_date > last_trading_date:
+                                                last_trading_date = file_last_date
+                                                
+                                    except Exception as e:
                                         continue
+                            
+                            # Check coverage for this symbol
+                            if t0_date in symbol_trading_dates:
+                                symbols_with_t0 += 1
+                            if t1_date and t1_date in symbol_trading_dates:
+                                symbols_with_t1 += 1
+                            if t2_date and t2_date in symbol_trading_dates:
+                                symbols_with_t2 += 1
+                            
+                            # Check recent coverage (last 5 and 10 trading days)
+                            recent_5_found = any(td in symbol_trading_dates for td in trading_days[:5])
+                            recent_10_found = any(td in symbol_trading_dates for td in trading_days[:10])
+                            
+                            if recent_5_found:
+                                symbols_with_recent_5 += 1
+                            if recent_10_found:
+                                symbols_with_recent_10 += 1
             else:
-                # Other vendors (EODHD, Polygon, Tiingo) use different structures
-                # Basic file counting for now
-                pattern = os.path.join(vendor_path, '**', '*.parquet')
-                import glob
-                files = glob.glob(pattern, recursive=True)
-                total_symbols = len(set([os.path.basename(f).split('_')[0] for f in files]))
-                
-                # Check modification dates
-                for file_path in files:
-                    try:
-                        mod_time = datetime.fromtimestamp(os.path.getmtime(file_path)).date()
-                        days_ago = (today - mod_time).days
-                        if days_ago <= 15:
-                            coverage_by_date[mod_time] += 1
-                    except:
-                        continue
+                # Other vendors - simplified implementation for now
+                # TODO: Implement vendor-specific trading day analysis
+                self.logger.warning(f"📊 Trading day analysis not yet implemented for {vendor}")
+                return None
         
         except Exception as e:
-            self.logger.error(f"❌ Error analyzing daily coverage for {vendor}: {e}")
+            self.logger.error(f"❌ Error analyzing trading day coverage for {vendor}: {e}")
             return None
         
-        # Calculate metrics
-        files_updated_today = coverage_by_date.get(today, 0)
-        files_updated_yesterday = coverage_by_date.get(today - timedelta(days=1), 0)
-        files_updated_2_days_ago = coverage_by_date.get(today - timedelta(days=2), 0)
-        
-        # Cumulative counts
-        files_updated_last_week = sum(coverage_by_date.get(today - timedelta(days=i), 0) for i in range(8))
-        files_updated_last_15_days = sum(coverage_by_date.values())
-        
-        self.logger.info(f"📅 {vendor} Daily Coverage: T-0: {files_updated_today}, T-1: {files_updated_yesterday}, 15-day: {files_updated_last_15_days}")
+        self.logger.info(f"📅 {vendor} Trading Day Coverage: T-0: {symbols_with_t0}, T-1: {symbols_with_t1}, T-2: {symbols_with_t2}")
         
         return DailyCoverageMetrics(
             vendor=vendor,
             total_symbols=total_symbols,
-            files_updated_today=files_updated_today,
-            files_updated_yesterday=files_updated_yesterday,
-            files_updated_2_days_ago=files_updated_2_days_ago,
-            files_updated_last_week=files_updated_last_week,
-            files_updated_last_15_days=files_updated_last_15_days,
+            symbols_with_t0_data=symbols_with_t0,
+            symbols_with_t1_data=symbols_with_t1,
+            symbols_with_t2_data=symbols_with_t2,
+            symbols_with_recent_5_days=symbols_with_recent_5,
+            symbols_with_recent_10_days=symbols_with_recent_10,
+            last_trading_date=last_trading_date or t0_date,
             validation_timestamp=datetime.now()
         )
     
@@ -431,22 +463,28 @@ class MinuteBarValidator:
             for metrics in daily_metrics_list:
                 vendor = metrics.vendor
                 
-                # Daily coverage count metrics
+                # Trading day coverage count metrics
                 prometheus_metrics.extend([
-                    f'ats_minute_bars_daily_total_symbols{{vendor="{vendor}",environment="intg"}} {metrics.total_symbols} {timestamp}',
-                    f'ats_minute_bars_daily_updated_today{{vendor="{vendor}",environment="intg"}} {metrics.files_updated_today} {timestamp}',
-                    f'ats_minute_bars_daily_updated_yesterday{{vendor="{vendor}",environment="intg"}} {metrics.files_updated_yesterday} {timestamp}',
-                    f'ats_minute_bars_daily_updated_2_days_ago{{vendor="{vendor}",environment="intg"}} {metrics.files_updated_2_days_ago} {timestamp}',
-                    f'ats_minute_bars_daily_updated_last_week{{vendor="{vendor}",environment="intg"}} {metrics.files_updated_last_week} {timestamp}',
-                    f'ats_minute_bars_daily_updated_last_15_days{{vendor="{vendor}",environment="intg"}} {metrics.files_updated_last_15_days} {timestamp}',
+                    f'ats_minute_bars_trading_total_symbols{{vendor="{vendor}",environment="intg"}} {metrics.total_symbols} {timestamp}',
+                    f'ats_minute_bars_trading_t0_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t0_data} {timestamp}',
+                    f'ats_minute_bars_trading_t1_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t1_data} {timestamp}',
+                    f'ats_minute_bars_trading_t2_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t2_data} {timestamp}',
+                    f'ats_minute_bars_trading_recent_5_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_5_days} {timestamp}',
+                    f'ats_minute_bars_trading_recent_10_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_10_days} {timestamp}',
                 ])
                 
-                # Daily coverage percentage metrics
+                # Trading day coverage percentage metrics
                 prometheus_metrics.extend([
-                    f'ats_minute_bars_daily_today_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.today_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_daily_yesterday_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.yesterday_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_daily_recent_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.recent_coverage_percentage:.2f} {timestamp}',
+                    f'ats_minute_bars_trading_t0_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t0_coverage_percentage:.2f} {timestamp}',
+                    f'ats_minute_bars_trading_t1_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t1_coverage_percentage:.2f} {timestamp}',
+                    f'ats_minute_bars_trading_recent_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.recent_coverage_percentage:.2f} {timestamp}',
                 ])
+                
+                # Last trading date (as timestamp)
+                last_trading_timestamp = int(datetime.combine(metrics.last_trading_date, datetime.min.time()).timestamp())
+                prometheus_metrics.append(
+                    f'ats_minute_bars_trading_last_date{{vendor="{vendor}",environment="intg"}} {last_trading_timestamp} {timestamp}'
+                )
             
             # Push to Prometheus gateway
             metrics_payload = '\n'.join(prometheus_metrics) + '\n'
@@ -520,11 +558,11 @@ class MinuteBarValidator:
         self.logger.info(f"   • Metrics Export: {'✅ Success' if export_success else '❌ Failed'}")
         self.logger.info(f"   • Daily Coverage Export: {'✅ Success' if daily_export_success else '❌ Failed'}")
         
-        # Daily coverage summary
+        # Trading day coverage summary
         if daily_metrics_list:
-            self.logger.info(f"📅 Daily Coverage Summary:")
+            self.logger.info(f"📅 Trading Day Coverage Summary:")
             for dm in daily_metrics_list:
-                self.logger.info(f"   • {dm.vendor.upper()}: {dm.total_symbols:,} symbols, T-0: {dm.files_updated_today} ({dm.today_coverage_percentage:.1f}%), T-1: {dm.files_updated_yesterday} ({dm.yesterday_coverage_percentage:.1f}%)")
+                self.logger.info(f"   • {dm.vendor.upper()}: {dm.total_symbols:,} symbols, T-0: {dm.symbols_with_t0_data} ({dm.t0_coverage_percentage:.1f}%), T-1: {dm.symbols_with_t1_data} ({dm.t1_coverage_percentage:.1f}%), Last: {dm.last_trading_date}")
         
         return metrics_list
 

@@ -585,17 +585,17 @@
       },
       {
         "id": 14,
-        "title": "Daily File Updates - Today vs Yesterday",
+        "title": "Trading Day Coverage - T-0 vs T-1",
         "type": "stat",
         "targets": [
           {
-            "expr": "ats_minute_bars_daily_updated_today{environment=\"intg\"}",
-            "legendFormat": "{{vendor}} Today",
+            "expr": "ats_minute_bars_trading_t0_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-0 (Latest Trading Day)",
             "refId": "A"
           },
           {
-            "expr": "ats_minute_bars_daily_updated_yesterday{environment=\"intg\"}",
-            "legendFormat": "{{vendor}} Yesterday", 
+            "expr": "ats_minute_bars_trading_t1_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-1 (Previous Trading Day)", 
             "refId": "B"
           }
         ],
@@ -627,12 +627,12 @@
       },
       {
         "id": 15,
-        "title": "Daily Coverage Percentage",
+        "title": "Trading Day T-0 Coverage Percentage",
         "type": "gauge",
         "targets": [
           {
-            "expr": "ats_minute_bars_daily_today_coverage_percentage{environment=\"intg\"}",
-            "legendFormat": "{{vendor}} Today",
+            "expr": "ats_minute_bars_trading_t0_coverage_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-0",
             "refId": "A"
           }
         ],
@@ -667,13 +667,18 @@
       },
       {
         "id": 16,
-        "title": "File Update Activity Trend (Last 15 Days)",
+        "title": "Trading Day Coverage Trend",
         "type": "timeseries",
         "targets": [
           {
-            "expr": "ats_minute_bars_daily_updated_today{environment=\"intg\"}",
-            "legendFormat": "{{vendor}} Daily Updates",
+            "expr": "ats_minute_bars_trading_t0_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-0 Coverage",
             "refId": "A"
+          },
+          {
+            "expr": "ats_minute_bars_trading_t1_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-1 Coverage",
+            "refId": "B"
           }
         ],
         "fieldConfig": {
@@ -731,27 +736,33 @@
         "type": "table",
         "targets": [
           {
-            "expr": "ats_minute_bars_daily_total_symbols{environment=\"intg\"}",
+            "expr": "ats_minute_bars_trading_total_symbols{environment=\"intg\"}",
             "legendFormat": "{{vendor}}",
             "refId": "A",
             "format": "table"
           },
           {
-            "expr": "ats_minute_bars_daily_updated_today{environment=\"intg\"}",
+            "expr": "ats_minute_bars_trading_t0_symbols{environment=\"intg\"}",
             "legendFormat": "{{vendor}}",
             "refId": "B",
             "format": "table"
           },
           {
-            "expr": "ats_minute_bars_daily_updated_yesterday{environment=\"intg\"}",
+            "expr": "ats_minute_bars_trading_t1_symbols{environment=\"intg\"}",
             "legendFormat": "{{vendor}}",
             "refId": "C",
             "format": "table"
           },
           {
-            "expr": "ats_minute_bars_daily_recent_coverage_percentage{environment=\"intg\"}",
+            "expr": "ats_minute_bars_trading_t0_coverage_percentage{environment=\"intg\"}",
             "legendFormat": "{{vendor}}",
             "refId": "D",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_trading_last_date{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "E",
             "format": "table"
           }
         ],
