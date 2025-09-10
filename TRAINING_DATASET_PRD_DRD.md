@@ -393,23 +393,57 @@ The **TRIPLE FIX** enables the complete training data generation pipeline with r
    ↓ Example: TSLA open=301.50, high=317.66, low=293.21, close=300.64, volume=101,573,404
 ```
 
-#### **VERIFIED Training Data Directory Structure**
-**Real Working Structure (September 2025)**:
+#### **CORRECTED Training Data Directory Structure** ✅ **FIXED September 10, 2025**
+**Fixed Structure (Issues #1, #2, #3 Resolved)**:
 ```
 /data/training_data/
-├── dataset_20250909_120312/                    ← Dataset ID with timestamp
-│   └── TSLA_20250701_000000_20250701_235959/   ← Symbol with date range
+├── dataset_20250910_123456/                              ← Dataset ID with timestamp
+│   ├── dataset_metadata.json                            ← ✅ FIXED: Metadata inside dataset dir
+│   ├── gin_config.gin                                   ← Gin configuration snapshot
+│   └── TSLA_20250701_000000_20250909_235959/            ← ✅ FIXED: ONE dir per symbol (full range)
 │       ├── 5m/
-│       │   └── TSLA_20250701_000000_20250701_235959.arrayrecord
+│       │   └── TSLA_20250701_000000_20250909_235959.arrayrecord
 │       ├── 15m/
-│       │   └── TSLA_20250701_000000_20250701_235959.arrayrecord  
+│       │   └── TSLA_20250701_000000_20250909_235959.arrayrecord  
 │       ├── 1h/
-│       │   └── TSLA_20250701_000000_20250701_235959.arrayrecord
+│       │   └── TSLA_20250701_000000_20250909_235959.arrayrecord
 │       └── 1d/
-│           └── TSLA_20250701_000000_20250701_235959.arrayrecord
-├── dataset_metadata.json                       ← Global dataset metadata
-└── gin_config.gin                             ← Gin configuration snapshot
+│           └── TSLA_20250701_000000_20250909_235959.arrayrecord
 ```
+
+**❌ PREVIOUS BUGGY STRUCTURE (Fixed)**:
+```
+/data/training_data/
+├── dataset_metadata.json                              ← ❌ WRONG: Should be inside dataset dir
+├── dataset_20250910_004227/                          ← Dataset ID  
+│   ├── TSLA_20250701_000000_20250701_235959/         ← ❌ WRONG: Daily directories
+│   ├── TSLA_20250702_000000_20250702_235959/         ← ❌ WRONG: One per day (45 dirs!)  
+│   ├── TSLA_20250703_000000_20250703_235959/         ← ❌ WRONG: Should be single dir
+│   └── ... (43 more daily directories)               ← ❌ WRONG: Inefficient structure
+```
+
+#### **🚨 CRITICAL FIXES IMPLEMENTED (September 10, 2025)**
+
+**Issue #1: dataset_metadata.json Location** ✅ **FIXED**
+- **Problem**: Metadata placed at `/data/training/dataset_metadata.json` (root level)
+- **Solution**: Moved to `/data/training/{dataset_id}/dataset_metadata.json` (inside dataset directory)
+- **File**: `training_data_callback_runner.py:501` - Fixed metadata file path
+- **Impact**: Each dataset now has its own metadata file for proper isolation
+
+**Issue #2: Daily Directory Structure** ✅ **FIXED** 
+- **Problem**: Created 45+ daily directories (one per day in date range)
+- **Solution**: Single directory per symbol covering full date range
+- **Files**: 
+  - `training_data_callback.py:143-154` - Fixed date range calculation
+  - `training_data_callback_runner.py:519-520` - Pass start/end dates to callback
+- **Before**: `TSLA_20250701_000000_20250701_235959/` (45 directories)
+- **After**: `TSLA_20250701_000000_20250909_235959/` (1 directory per symbol)
+
+**Issue #3: Hardcoded Symbol-to-ID Mapping** ✅ **FIXED**
+- **Problem**: `universe_state_manager.py:209` hardcoded `symbol = 'TSLA'` for `instrument_id = 6`
+- **Solution**: Database lookup via `_get_symbol_from_instrument_id()` method
+- **File**: `universe_state_manager.py:929-957` - Added database lookup method
+- **Impact**: Dynamic symbol resolution from instrument database table
 
 #### **VERIFIED ArrayRecord Data Format**
 **Real ArrayRecord Content (after fixes)**:

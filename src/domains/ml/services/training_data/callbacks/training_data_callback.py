@@ -30,18 +30,40 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                  symbols: List[str],
                  config: Optional[Any] = None,  # Accept any config object
                  storage_format: str = "arrayrecord",
-                 output_dir: str = "/data/training_data"):
-        """Initialize interval-based callback."""
+                 output_dir: str = "/data/training_data",
+                 start_date: Optional[Union[str, date]] = None,
+                 end_date: Optional[Union[str, date]] = None):
+        """Initialize interval-based callback.
+        
+        Args:
+            start_date: Start date for training data range (YYYY-MM-DD string or date object)
+            end_date: End date for training data range (YYYY-MM-DD string or date object)
+        """
         self.symbols = symbols
         self.config = config  # Use provided config or None
         self.storage_format = storage_format
         self.output_dir = Path(output_dir)
+        
+        # FIXED: Store full date range for single symbol directory creation
+        self.start_date = self._parse_date(start_date) if start_date else None
+        self.end_date = self._parse_date(end_date) if end_date else None
 
         self.logger = logging.getLogger(__name__)
         self.training_generator = None
         self.interval_counter = 0
 
         self.logger.info(f"IntervalBasedTrainingDataCallback initialized for symbols: {symbols}")
+        if self.start_date and self.end_date:
+            self.logger.info(f"Training data date range: {self.start_date} to {self.end_date}")
+    
+    def _parse_date(self, date_input: Union[str, date]) -> date:
+        """Parse date string or date object to date object."""
+        if isinstance(date_input, str):
+            return datetime.strptime(date_input, '%Y-%m-%d').date()
+        elif isinstance(date_input, date):
+            return date_input
+        else:
+            raise ValueError(f"Invalid date format: {date_input}")
 
     def handleStart(self, runner: Any, current_time: datetime):
         """Initialize training generator."""
@@ -117,12 +139,19 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             print(f"DEBUG SIMPLE SAVE: Retrieved dataset_id: '{dataset_id}'")
             print(f"DEBUG SIMPLE SAVE: self.output_dir: '{self.output_dir}'")
             
-            # Determine start/end datetime from the training run
-            # For now, use current date for both start and end (can be enhanced later)
-            current_date = current_time.date() if isinstance(current_time, datetime) else date.today()
-            start_datetime = f"{current_date.strftime('%Y%m%d')}_000000"
-            end_datetime = f"{current_date.strftime('%Y%m%d')}_235959"
-            print(f"DEBUG SIMPLE SAVE: start_datetime: '{start_datetime}', end_datetime: '{end_datetime}'")
+            # FIXED: Use full training date range for single directory per symbol
+            if self.start_date and self.end_date:
+                start_datetime = f"{self.start_date.strftime('%Y%m%d')}_000000"
+                end_datetime = f"{self.end_date.strftime('%Y%m%d')}_235959"
+                print(f"DEBUG SIMPLE SAVE: Using full date range: {start_datetime} to {end_datetime}")
+            else:
+                # Fallback to current date if no range specified (should not happen in normal use)
+                current_date = current_time.date() if isinstance(current_time, datetime) else date.today()
+                start_datetime = f"{current_date.strftime('%Y%m%d')}_000000"
+                end_datetime = f"{current_date.strftime('%Y%m%d')}_235959"
+                print(f"DEBUG SIMPLE SAVE: FALLBACK - Using current date: {start_datetime} to {end_datetime}")
+            
+            print(f"DEBUG SIMPLE SAVE: Final start_datetime: '{start_datetime}', end_datetime: '{end_datetime}'")
             
             for example in examples:
                 symbol = example['symbol']

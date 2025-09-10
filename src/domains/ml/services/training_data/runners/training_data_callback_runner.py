@@ -497,23 +497,31 @@ async def main():
         "working_directory": os.getcwd()
     }
     
-    metadata_file = os.path.join(args.output_dir, "dataset_metadata.json")
+    # Generate dataset_id for directory structure (timestamp-based for uniqueness)
+    from datetime import datetime
+    dataset_id = f"dataset_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    # Create dataset directory  
+    dataset_dir = os.path.join(args.output_dir, dataset_id)
+    os.makedirs(dataset_dir, exist_ok=True)
+    
+    # FIXED: Place metadata inside dataset directory, not at root output directory  
+    metadata_file = os.path.join(dataset_dir, "dataset_metadata.json")
     with open(metadata_file, 'w') as f:
         json.dump(dataset_metadata, f, indent=2)
     
     print(f"📊 Saved dataset metadata to: {metadata_file}")
-    
-    # Generate dataset_id for directory structure (timestamp-based for uniqueness)
-    from datetime import datetime
-    dataset_id = f"dataset_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     print(f"📋 Generated dataset_id: {dataset_id}")
 
     # ✅ PURE CALLBACK APPROACH: Create ONLY the callback
+    # FIXED: Pass start_date and end_date for single symbol directory creation
     training_callback = IntervalBasedTrainingDataCallback(
         symbols=args.symbols,
         config=config,
         output_dir=args.output_dir,
-        storage_format=args.storage_format
+        storage_format=args.storage_format,
+        start_date=args.start_date,  # Pass full date range
+        end_date=args.end_date
     )
 
     # Pass dataset_id to callback for completion tracking

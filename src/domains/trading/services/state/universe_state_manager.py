@@ -204,9 +204,8 @@ class UniverseStateManager:
             from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
             
             try:
-                # Get symbol from instrument_id 
-                # For now, assume instrument_id 6 = TSLA (this should come from database lookup in production)
-                symbol = 'TSLA'  # TODO: Get actual symbol from instrument_id via database
+                # FIXED: Get symbol from instrument_id via database lookup
+                symbol = self._get_symbol_from_instrument_id(instrument_id)
                 
                 # Create FileBasedMinuteMarketDataManager - use container data path 
                 # FileBasedMinuteManager adds 'firstrate' itself, so use base path
@@ -926,6 +925,36 @@ class UniverseStateManager:
         self.write_metadata = write_metadata
         # Flag to control metadata file writing
         self.write_metadata = write_metadata
+    
+    def _get_symbol_from_instrument_id(self, instrument_id: int) -> str:
+        """FIXED: Get symbol from instrument_id via database lookup instead of hardcoding.
+        
+        Args:
+            instrument_id: The instrument ID to look up
+            
+        Returns:
+            The symbol string for the instrument
+            
+        Raises:
+            ValueError: If instrument_id not found in database
+        """
+        if not self.env:
+            raise ValueError("Environment not configured - cannot perform database lookup")
+            
+        # Use the environment's database configuration
+        from shared.data_handling.utils.database import get_raw_connection
+        
+        table_name = f"{self.env.table_prefix}instruments"
+        
+        with get_raw_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(f"SELECT symbol FROM {table_name} WHERE id = %s", (instrument_id,))
+                result = cursor.fetchone()
+                
+                if result:
+                    return result[0]
+                else:
+                    raise ValueError(f"Instrument ID {instrument_id} not found in {table_name}")
 
     async def save_universe_state(self, universe_data: pd.DataFrame, timestamp: str, metadata: Optional[Dict[str, Any]] = None, partition_cols: Optional[List[str]] = None) -> str:
         """
