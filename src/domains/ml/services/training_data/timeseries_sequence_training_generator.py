@@ -60,56 +60,13 @@ class TrainingDataConfig:
         if self.timeframes is None:
             raise ValueError("timeframes parameter is required. Please configure via gin config or pass as parameter.")
 
-        self.feature_types = feature_types or [
-            'ohlcv',           # Open, High, Low, Close, Volume
-            'returns',         # Price returns
-            'volatility',      # Volatility measures
-            'volume_profile',  # Volume-based features
-            'technical',       # Technical indicators (computed locally)
-            'indicators',      # Pre-computed indicators from IndicatorBuilder (pldot, envelope_top, etc.)
-            'support_resistance', # Support/resistance level analysis and tests
-            'market_structure' # Support/resistance, trends
-        ]
+        self.feature_types = feature_types
+        if self.feature_types is None:
+            raise ValueError("feature_types parameter is required. Please configure via gin config or pass as parameter.")
 
-        self.signal_names = signal_names or [
-            'etop',           # Envelope top indicator
-            'ebot',           # Envelope bottom indicator
-            'pldot',          # Price/location dot indicator
-            'envelope_top',   # Envelope top (alternative name)
-            'envelope_bot',   # Envelope bottom (alternative name)
-            'z1b',            # Z1 bottom indicator
-            'z2b',            # Z2 bottom indicator
-            'z5t',            # Z5 top indicator
-            'z6t',            # Z6 top indicator
-            'sma_20',         # Simple moving average 20
-            'ema_12',         # Exponential moving average 12
-            'rsi_14',         # Relative strength index 14
-            'macd_line',      # MACD line
-            'macd_signal',    # MACD signal line
-            'bb_upper',       # Bollinger band upper
-            'bb_lower',       # Bollinger band lower
-            'bb_middle'       # Bollinger band middle
-        ]
-        
-        # DEBUG: Comprehensive debugging for gin configuration issues
-        print(f"🔧 DEBUG TrainingDataConfig.__init__:")
-        print(f"  📋 Parameters received:")
-        print(f"    base_interval_minutes: {base_interval_minutes}")
-        print(f"    training_interval_minutes: {training_interval_minutes}")
-        print(f"    timeframes parameter: {timeframes}")
-        print(f"    feature_types parameter: {feature_types}")
-        print(f"    signal_names parameter: {signal_names}")
-        print(f"  📊 Final attribute values:")
-        print(f"    self.timeframes: {self.timeframes}")
-        print(f"    self.feature_types: {self.feature_types}")
-        print(f"    self.signal_names: {self.signal_names}")
-        print(f"  🔄 Gin configuration status:")
-        try:
-            import gin
-            print(f"    gin module available: True")
-            print(f"    gin operative config: {gin.operative_config_str()}")
-        except Exception as e:
-            print(f"    gin error: {e}")
+        self.signal_names = signal_names
+        if self.signal_names is None:
+            raise ValueError("signal_names parameter is required. Please configure via gin config or pass as parameter.")
 
 
 @gin.configurable
@@ -593,15 +550,28 @@ class TimeSeriesSequenceTrainingGenerator:
         if symbol in self._symbol_to_id_cache:
             return self._symbol_to_id_cache[symbol]
 
-        # TODO: Implement symbol to instrument_id lookup using DAO
-        # For now, use hardcoded mapping for AAPL/TSLA
-        symbol_mapping = {'AAPL': 1, 'TSLA': 6}
-        instrument_id = symbol_mapping.get(symbol.upper())
-
-        if instrument_id:
-            self._symbol_to_id_cache[symbol] = instrument_id
-
-        return instrument_id
+        # Use InstrumentXrefDAO for proper symbol to instrument_id lookup
+        try:
+            from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+            
+            if not self.universe_manager.env:
+                raise ValueError("Environment not configured - cannot perform database lookup")
+            
+            # Use InstrumentXrefDAO to resolve instrument_id by symbol
+            xref_dao = InstrumentXrefsDAO(self.universe_manager.env)
+            instrument_id = await xref_dao.resolve_instrument_id_by_symbol(symbol.upper())
+            
+            if instrument_id:
+                self._symbol_to_id_cache[symbol] = instrument_id
+                print(f"🔍 DEBUG: Found instrument_id={instrument_id} for symbol={symbol}")
+                return instrument_id
+            else:
+                print(f"⚠️ WARNING: Symbol {symbol} not found in instruments table")
+                return None
+                        
+        except Exception as e:
+            print(f"❌ ERROR: Failed to lookup instrument_id for {symbol}: {e}")
+            return None
 
     def generate_base_features(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, float]:
         """Generate base scalar features for the prediction timestamp."""
