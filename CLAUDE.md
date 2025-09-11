@@ -435,6 +435,177 @@ docker logs <container> --tail 10
 docker ps | grep <service_name>
 ```
 
+## 🔑 **API KEY MANAGEMENT - SINGLE SOURCE OF TRUTH**
+
+### **🚨 CRITICAL: All API keys MUST use these exact values from .env.test (git commit 5168e8e83)**
+
+**✅ VERIFIED WORKING API KEYS (Last validated: 2025-09-11):**
+```bash
+# These are the ONLY valid API keys - use these exact values everywhere
+POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"      # ✅ VERIFIED WORKING
+TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING  
+EODHD_API_KEY="68aa0c7d2fe831.67386369"                   # ✅ VERIFIED WORKING
+FMP_API_KEY="Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr"            # ✅ Available
+ALPHA_VANTAGE_API_KEY="9GI0NZ3V4VNFX271"                  # ✅ Available
+```
+
+### **🔧 API Key Validation - MANDATORY Before Service Deployment**
+
+**ALWAYS validate API keys before deploying services:**
+```bash
+# Validate all API keys (uses correct keys automatically)
+python3 scripts/validate_api_keys.py
+
+# Expected output: ✅ All API keys are valid!
+```
+
+### **🏗️ Service Integration - Centralized Management**
+
+**All services automatically use correct API keys via run_intg.py and run_dev.py:**
+
+#### **Integration Environment Services:**
+```bash
+# All integration services use centralized API key management
+python3 scripts/run_intg.py start --service realtime-minute-collector
+python3 scripts/run_intg.py start --service analytics  
+python3 scripts/run_intg.py start --service news-realtime
+
+# API keys automatically configured with correct values
+```
+
+#### **Development Environment Services:**
+```bash
+# All dev services use centralized API key management  
+python3 scripts/run_dev.py start --service analytics
+python3 scripts/run_dev.py start --service postgres
+
+# API keys automatically configured with correct values
+```
+
+### **🚫 ZERO TOLERANCE FOR API KEY INCONSISTENCIES**
+
+**❌ FORBIDDEN - These patterns cause authentication failures:**
+- Using old/wrong API key values (like `675b5a33b36f43.67825763`)
+- Manual API key configuration in containers
+- Different keys across different services
+- Hard-coding keys in individual scripts
+- Creating new containers with different keys
+
+**✅ REQUIRED - Consistent API Key Management:**
+- ALL services use run_intg.py and run_dev.py service definitions
+- ALL services inherit the same centralized API key configuration
+- ALL API keys default to verified working values from .env.test
+- Environment variables can override defaults when needed
+
+### **🔍 TROUBLESHOOTING API KEY ISSUES**
+
+#### **Step 1: Validate Current Keys**
+```bash
+# Test all API keys
+python3 scripts/validate_api_keys.py
+
+# Test specific vendor directly
+curl -s "https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/minute/2025-09-11/2025-09-11?adjusted=true&sort=asc&limit=1&apikey=wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"
+```
+
+#### **Step 2: Check Service Configuration**
+```bash
+# Verify service has correct API keys
+docker inspect <service_name> | grep -A 10 "Env"
+
+# Should show: POLYGON_API_KEY=wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
+# Should show: EODHD_API_KEY=68aa0c7d2fe831.67386369
+# Should show: TIINGO_API_KEY=5f40b4f36e171405746304ec0e5a6f3aa9ca77e5
+```
+
+#### **Step 3: Fix Authentication Failures**
+```bash
+# If service shows 401/403 errors, restart with correct keys
+docker stop <service_name>
+docker rm <service_name>
+
+# Use run_intg.py or run_dev.py to ensure correct configuration
+python3 scripts/run_intg.py start --service <service_name>
+```
+
+### **⚡ SERVICE-SPECIFIC API KEY REQUIREMENTS**
+
+| Service | Required Keys | Verification Command |
+|---------|---------------|---------------------|
+| **realtime-minute-collector** | POLYGON, TIINGO, EODHD | `docker logs ats-intg-realtime-minute-collector` |
+| **news-realtime** | POLYGON, TIINGO, EODHD | `docker logs ats-intg-news-realtime` |
+| **analytics** | All keys (fallback) | `curl http://localhost:4000/health` |
+
+### **🚨 API KEY EMERGENCY RECOVERY**
+
+**If ALL API keys fail and services are down:**
+
+#### **Step 1: Immediate Recovery**
+```bash
+# Stop all failing services
+python3 scripts/run_intg.py stop --service realtime-minute-collector
+python3 scripts/run_intg.py stop --service news-realtime
+
+# Validate keys are still working
+python3 scripts/validate_api_keys.py
+```
+
+#### **Step 2: Root Cause Analysis**
+```bash
+# Check git history for .env.test changes
+git log --oneline -p -- .env.test | head -20
+
+# Verify correct keys from specific commit
+git show 5168e8e83:.env.test | grep -E "(POLYGON|TIINGO|EODHD)_API_KEY"
+```
+
+#### **Step 3: System Recovery**
+```bash
+# Update run_intg.py with correct keys if needed
+# Restart services with verified configuration
+python3 scripts/run_intg.py start --service realtime-minute-collector
+
+# Verify recovery
+python3 scripts/run_intg.py status
+```
+
+### **📊 MONITORING API KEY HEALTH**
+
+#### **Continuous Monitoring:**
+```bash
+# Daily API key health check
+python3 scripts/validate_api_keys.py > /tmp/api_key_health.log
+
+# Check service logs for authentication errors
+docker logs ats-intg-realtime-minute-collector --tail 50 | grep -E "(401|403|auth|key)"
+```
+
+#### **Rate Limiting Monitoring:**
+```bash
+# Check for rate limit errors (sign of successful authentication)
+docker logs ats-intg-realtime-minute-collector | grep -E "(429|rate.*limit)"
+
+# Monitor API call frequency
+python3 scripts/run_intg.py query --query "SELECT vendor, COUNT(*) FROM intg_minute_bar_api_calls WHERE created_at > NOW() - INTERVAL '1 hour' GROUP BY vendor"
+```
+
+### **🔒 SECURITY BEST PRACTICES**
+
+#### **✅ SECURE API Key Management:**
+- Use environment variables to override defaults when needed
+- Never commit new API keys to version control
+- Use the validation script before any service deployment
+- Monitor logs for authentication failures
+- Rotate keys proactively if possible
+
+#### **❌ SECURITY VIOLATIONS:**
+- Hard-coding different API keys in source code
+- Using untested/invalid API keys in production
+- Ignoring authentication failures without root cause analysis
+- Creating manual workarounds that bypass centralized management
+
+---
+
 ## 🧪 **Test-Driven Development (MANDATORY)**
 
 ### MANDATORY sequence for ALL code changes:

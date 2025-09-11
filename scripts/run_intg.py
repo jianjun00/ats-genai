@@ -176,7 +176,7 @@ class IntgCLI:
                     "ENVIRONMENT": "intg",
                     "POLYGON_API_KEY": os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'),
                     "TIINGO_API_KEY": os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'),
-                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763'),
+                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '68aa0c7d2fe831.67386369'),
                     "FMP_API_KEY": os.getenv('FMP_API_KEY', 'Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr'),
                     "ALPHA_VANTAGE_API_KEY": os.getenv('ALPHA_VANTAGE_API_KEY', '9GI0NZ3V4VNFX271'),
                     "FIRSTRATE_USER_ID": os.getenv('FIRSTRATE_USER_ID', 'ats-genai-user'),
@@ -228,6 +228,23 @@ class IntgCLI:
                     "DB_PASSWORD": "intg_password",
                     "DB_NAME": "intg_db"
                 }
+            },
+            "realtime-minute-collector": {
+                "image": "dragonflyer762/ats-genai:latest",
+                "command": "python3 scripts/realtime_minute_collector.py --test",
+                "env": {
+                    "DB_HOST": "ats-intg-postgres",
+                    "DB_PORT": "5432",
+                    "DB_USER": "postgres",
+                    "DB_PASSWORD": "intg_password",
+                    "DB_NAME": "intg_db",
+                    "ENVIRONMENT": "intg",
+                    "POLYGON_API_KEY": os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'),
+                    "TIINGO_API_KEY": os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'),
+                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '68aa0c7d2fe831.67386369'),
+                    "PYTHONPATH": "/workspace/src"
+                },
+                "healthcheck": "curl -f http://localhost:8080/ || exit 1"
             }
         }
 
@@ -263,11 +280,17 @@ class IntgCLI:
             for volume in config['volumes']:
                 volume_mounts += f" -v {volume}"
 
+        # Add healthcheck if defined
+        healthcheck_flag = ""
+        if 'healthcheck' in config:
+            healthcheck_flag = f'--health-cmd="{config["healthcheck"]}" --health-interval=30s --health-timeout=10s --health-start-period=5s --health-retries=3'
+
         cmd = f"""docker run -d --name {container_name} {gpu_flag} \\
             --network ats-intg-network \\
             {volume_mounts} \\
             -w /workspace \\
             {port_flag} \\
+            {healthcheck_flag} \\
             -e PYTHONPATH=/workspace/src \\
             -e ATS_DATA_PATH=/data \\
             -e ATS_BACKUP_PATH=/backup \\

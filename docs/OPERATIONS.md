@@ -851,7 +851,7 @@ docker ps | grep ats-intg-news
 
 ### **Market Data Vendor API Keys**
 
-**✅ AUTOMATED: The ATS platform uses [centralized API key management](API_KEY_MANAGEMENT.md) - no manual setup required.**
+**✅ AUTOMATED: The ATS platform uses centralized API key management - no manual setup required.**
 
 | Vendor | Environment Variable | Purpose | Rate Limits | Status |
 |--------|---------------------|---------|-------------|---------|
@@ -864,19 +864,19 @@ docker ps | grep ats-intg-news
 
 ### **API Key Usage (Automatic)**
 ```bash
+# ✅ VALIDATE keys before operations
+python3 scripts/validate_api_keys.py
+
 # ✅ NO SETUP NEEDED - Keys are managed automatically
 python3 scripts/run_dev.py run --script scripts/populate_30year_eodhd_minute_bars.py
 python3 scripts/run_dev.py run --script scripts/tiingo_30_year_daily_backfill.py
-
-# ✅ Test centralized key management
-python3 scripts/run_dev.py run --script scripts/demo_centralized_keys.py
 
 # 🔧 Override with custom keys (optional)
 export EODHD_API_KEY="your-premium-key"
 python3 scripts/run_dev.py run --script scripts/populate_30year_eodhd_minute_bars.py
 ```
 
-**📖 For complete details, see [API Key Management Documentation](API_KEY_MANAGEMENT.md)**
+**📖 For complete API key management, troubleshooting, and emergency procedures, see [CLAUDE.md - API Key Management](../CLAUDE.md#-api-key-management---single-source-of-truth)**
 
 ---
 

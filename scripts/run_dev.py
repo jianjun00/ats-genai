@@ -242,7 +242,7 @@ class DevCLI:
             -e EXCHANGE_FILTER={os.getenv('EXCHANGE_FILTER', 'all')} \
             -e POLYGON_API_KEY={os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD')} \
             -e TIINGO_API_KEY={os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5')} \
-            -e EODHD_API_KEY={os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763')} \
+            -e EODHD_API_KEY={os.getenv('EODHD_API_KEY', '68aa0c7d2fe831.67386369')} \
             -e FMP_API_KEY={os.getenv('FMP_API_KEY', 'Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr')} \
             -e ALPHA_VANTAGE_API_KEY={os.getenv('ALPHA_VANTAGE_API_KEY', '9GI0NZ3V4VNFX271')} \
             -e FIRSTRATE_USER_ID={os.getenv('FIRSTRATE_USER_ID', 'ats-genai-user')} \
@@ -308,7 +308,7 @@ class DevCLI:
                     "ENVIRONMENT": "dev",
                     "POLYGON_API_KEY": os.getenv('POLYGON_API_KEY', 'wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD'),
                     "TIINGO_API_KEY": os.getenv('TIINGO_API_KEY', '5f40b4f36e171405746304ec0e5a6f3aa9ca77e5'),
-                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '675b5a33b36f43.67825763'),
+                    "EODHD_API_KEY": os.getenv('EODHD_API_KEY', '68aa0c7d2fe831.67386369'),
                     "FMP_API_KEY": os.getenv('FMP_API_KEY', 'Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr'),
                     "ALPHA_VANTAGE_API_KEY": os.getenv('ALPHA_VANTAGE_API_KEY', '9GI0NZ3V4VNFX271'),
                     "FIRSTRATE_USER_ID": os.getenv('FIRSTRATE_USER_ID', 'ats-genai-user'),
