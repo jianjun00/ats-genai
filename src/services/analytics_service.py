@@ -1876,6 +1876,7 @@ class UnifiedAnalyticsService:
         logger.info(f"NEW get_economic_events method called with limit={limit}, vendor={vendor}")
         try:
             from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.config.environment import Environment
             import psycopg2.extras
             from datetime import datetime, timedelta
             import os
@@ -1885,6 +1886,11 @@ class UnifiedAnalyticsService:
             earnings_table = f"{environment}_earnings_events"
             news_table = f"{environment}_news"
             gap_table = f"{environment}_gap_events"
+
+            # Get environment-aware table names
+            env = Environment()
+            events_table = env.get_table_name('economic_events')
+            event_types_table = env.get_table_name('economic_event_types')
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -1930,7 +1936,7 @@ class UnifiedAnalyticsService:
                             params.append(end_date)
                         
                         earnings_query += " ORDER BY report_period DESC LIMIT %s"
-                        params.append(min(limit // 3, 50))  # Divide limit among sources
+                        params.append(min(limit // 4, 25))  # Divide limit among 4 sources
                         
                         cursor.execute(earnings_query, params)
                         earnings_events = cursor.fetchall()
@@ -1973,7 +1979,7 @@ class UnifiedAnalyticsService:
                             params.append(end_date)
                         
                         gap_query += " ORDER BY gap_date DESC LIMIT %s"
-                        params.append(min(limit // 3, 50))
+                        params.append(min(limit // 4, 25))
                         
                         cursor.execute(gap_query, params)
                         gap_events = cursor.fetchall()
@@ -1981,6 +1987,64 @@ class UnifiedAnalyticsService:
                         
                     except Exception as e:
                         logger.warning(f"Could not fetch gap events: {e}")
+
+                    # Get economic events (macro indicators) - NEW ADDITION
+                    try:
+                        economic_query = f"""
+                            SELECT DISTINCT
+                                'economic' as event_type,
+                                NULL as symbol,
+                                ee.date as event_date,
+                                ee.release_time as event_datetime,
+                                et.name as title,
+                                CONCAT(et.description, 
+                                    CASE 
+                                        WHEN ee.actual IS NOT NULL THEN ' - Actual: ' || ee.actual
+                                        ELSE ''
+                                    END,
+                                    CASE 
+                                        WHEN ee.estimate IS NOT NULL THEN ' (Est: ' || ee.estimate || ')'
+                                        ELSE ''
+                                    END
+                                ) as description,
+                                CASE 
+                                    WHEN et.importance_level >= 5 THEN 'high'
+                                    WHEN et.importance_level >= 3 THEN 'medium'
+                                    ELSE 'low'
+                                END as importance,
+                                ee.source_vendor as vendor,
+                                ee.created_at,
+                                ee.updated_at
+                            FROM {events_table} ee
+                            JOIN {event_types_table} et ON ee.event_type_id = et.id
+                            WHERE 1=1
+                        """
+
+                        params = []
+
+                        # Add vendor filter
+                        if vendor:
+                            economic_query += " AND LOWER(ee.source_vendor) = LOWER(%s)"
+                            params.append(vendor)
+
+                        # Add date range filters
+                        if start_date:
+                            economic_query += " AND ee.date >= %s"
+                            params.append(start_date)
+
+                        if end_date:
+                            economic_query += " AND ee.date <= %s"
+                            params.append(end_date)
+
+                        economic_query += " ORDER BY ee.date DESC, ee.release_time DESC LIMIT %s"
+                        params.append(min(limit // 4, 25))
+
+                        cursor.execute(economic_query, params)
+                        economic_events = cursor.fetchall()
+                        all_events.extend(economic_events)
+                        
+                    except Exception as e:
+                        logger.warning(f"Could not fetch economic events: {e}")
 
                     # Sort all events by date and limit
                     all_events.sort(key=lambda x: x['event_datetime'] if x['event_datetime'] else x['event_date'], reverse=True)
