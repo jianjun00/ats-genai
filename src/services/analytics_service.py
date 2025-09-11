@@ -36,6 +36,20 @@ from dataclasses import asdict
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import observability components - CRITICAL FOR USAGE TRACKING
+try:
+    from observability.instrumentation_setup import setup_ats_instrumentation, get_instrumentation_status
+    from observability.code_usage_tracker import track_usage
+    OBSERVABILITY_AVAILABLE = True
+    logger.info("✅ Observability instrumentation loaded")
+except ImportError as e:
+    OBSERVABILITY_AVAILABLE = False
+    logger.warning(f"⚠️ Observability not available: {e}")
+    
+    # Fallback decorator when observability not available
+    def track_usage(func):
+        return func
+
 # Import core components
 from core.platform.database.connection_manager import get_connection_manager
 from core.platform.config.settings import get_settings
@@ -94,6 +108,14 @@ class UnifiedAnalyticsService:
         self.type_system_enabled = TYPE_SYSTEM_AVAILABLE
         self.ray_enabled = RAY_AVAILABLE
         self.visualization_enabled = VISUALIZATION_AVAILABLE
+        self.observability_enabled = OBSERVABILITY_AVAILABLE
+
+        # Initialize observability FIRST - critical for usage tracking
+        if self.observability_enabled:
+            logger.info("🔧 Setting up observability instrumentation...")
+            setup_ats_instrumentation(enable_metrics_endpoint=False)  # Service will handle its own metrics
+            status = get_instrumentation_status()
+            logger.info(f"✅ Observability: {status['instrumented_modules_count']} modules instrumented")
 
         # Initialize visualization components
         if self.visualization_enabled:
@@ -101,6 +123,7 @@ class UnifiedAnalyticsService:
             self.feature_extractor = MultiTimeframeFeatureExtractor(TrainingDataConfig())
 
         logger.info("🚀 Unified Analytics Service initialized")
+        logger.info(f"   Observability: {'✅ Enabled' if self.observability_enabled else '❌ Disabled'}")
         logger.info(f"   Type system: {'✅ Enabled' if self.type_system_enabled else '❌ Disabled'}")
         logger.info(f"   Ray computing: {'✅ Enabled' if self.ray_enabled else '❌ Disabled'}")
         logger.info(f"   Multi-panel visualization: {'✅ Enabled' if self.visualization_enabled else '❌ Disabled'}")
@@ -112,6 +135,7 @@ class UnifiedAnalyticsService:
     # TYPE-AWARE ANALYSIS (from analytics_service_class.py)
     # ==============================================
 
+    @track_usage
     async def get_intelligent_filters(self, table_name: str) -> Dict[str, Any]:
         """Generate intelligent filter definitions using type system."""
         if not self.type_system_enabled:
@@ -192,6 +216,7 @@ class UnifiedAnalyticsService:
     # UNIVERSE ANALYTICS (from universe_analytics_service.py)
     # ==============================================
 
+    @track_usage
     async def get_universe_analytics(self, universe_name: str = None) -> Dict[str, Any]:
         """Get comprehensive universe analytics and cross-instrument analysis."""
         try:
@@ -261,6 +286,7 @@ class UnifiedAnalyticsService:
     # TRAINING DATASET MANAGEMENT (from analytics_service.py)
     # ==============================================
 
+    @track_usage
     def get_training_datasets(self):
         """Get training datasets from database for dual-tab functionality."""
         try:
