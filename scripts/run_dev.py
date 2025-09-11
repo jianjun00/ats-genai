@@ -917,48 +917,104 @@ class DevCLI:
                 print(f"\n{icon} Record {record_idx} ({label}):")
                 
                 if isinstance(record, bytes):
-                    # Try JSON decoding first (QR4 format uses JSON objects)
+                    # Try binary format decoding first (optimized ArrayRecord format)
                     try:
-                        decoded_str = record.decode('utf-8')
-                        import json
-                        json_data = json.loads(decoded_str)
+                        import struct
                         
-                        if isinstance(json_data, dict):
-                            print(f"   📋 JSON Record with {len(json_data)} fields")
+                        # Parse binary format: indicator_count(2) + timestamp(8) + symbol_len(4) + symbol + ohlcv(20) + indicators
+                        if len(record) >= 16:  # Minimum size for header
+                            indicator_count = struct.unpack('>H', record[:2])[0]
+                            timestamp = struct.unpack('>d', record[2:10])[0]
+                            symbol_len = struct.unpack('>I', record[10:14])[0]
                             
-                            # Show all fields for examples, limited for samples
-                            field_limit = None if is_example or full_display else 15
+                            if 14 + symbol_len + 20 <= len(record):  # Validate record size
+                                symbol = record[14:14+symbol_len].decode('utf-8')
+                                ohlcv_data = struct.unpack('>fffff', record[14+symbol_len:14+symbol_len+20])
+                                
+                                # Parse core OHLCV data
+                                json_data = {
+                                    'timestamp': timestamp,
+                                    'symbol': symbol,
+                                    'open': ohlcv_data[0],
+                                    'high': ohlcv_data[1],
+                                    'low': ohlcv_data[2],
+                                    'close': ohlcv_data[3],
+                                    'volume': ohlcv_data[4]
+                                }
+                                
+                                # Parse technical indicators
+                                indicator_offset = 14 + symbol_len + 20
+                                for _ in range(indicator_count):
+                                    if indicator_offset + 6 < len(record):  # name_len(2) + value(4) minimum
+                                        key_len = struct.unpack('>H', record[indicator_offset:indicator_offset+2])[0]
+                                        if indicator_offset + 2 + key_len + 4 <= len(record):
+                                            key = record[indicator_offset+2:indicator_offset+2+key_len].decode('utf-8')
+                                            value = struct.unpack('>f', record[indicator_offset+2+key_len:indicator_offset+2+key_len+4])[0]
+                                            json_data[key] = value
+                                            indicator_offset += 2 + key_len + 4
+                                        else:
+                                            break
+                                    else:
+                                        break
+                                
+                                print(f"   📋 Binary Record with {len(json_data)} fields (OHLCV + {indicator_count} indicators)")
+                            else:
+                                raise ValueError("Invalid binary record format")
+                        else:
+                            raise ValueError("Record too short for binary format")
+                        
+                    except (struct.error, ValueError, UnicodeDecodeError):
+                        # Fallback to JSON decoding (legacy format)
+                        try:
+                            decoded_str = record.decode('utf-8')
+                            import json
+                            json_data = json.loads(decoded_str)
                             
-                            # Apply column filter if specified
-                            filtered_fields = list(json_data.items())
-                            if columns_filter:
-                                import fnmatch
-                                filter_patterns = [p.strip().lower() for p in columns_filter.split(',')]
-                                filtered_fields = [(k, v) for k, v in json_data.items() 
-                                                 if any(fnmatch.fnmatch(k.lower(), pattern) for pattern in filter_patterns)]
-                                print(f"   🔍 Filtered to {len(filtered_fields)} fields matching '{columns_filter}'")
-                            
-                            # Group fields by category for better display
-                            field_groups = {
-                                'metadata': [],
-                                'prices': [],
-                                'volume': [], 
-                                'indicators': [],
-                                'other': []
-                            }
-                            
-                            for key, value in filtered_fields:
-                                key_lower = key.lower()
-                                if any(meta_term in key_lower for meta_term in ['timestamp', 'symbol', 'date']):
-                                    field_groups['metadata'].append((key, value))
-                                elif any(price_term in key_lower for price_term in ['open', 'high', 'low', 'close', 'price']):
-                                    field_groups['prices'].append((key, value))
-                                elif 'volume' in key_lower or 'vwap' in key_lower:
-                                    field_groups['volume'].append((key, value))
-                                elif any(ind_term in key_lower for ind_term in ['rsi', 'ema', 'sma', 'macd', 'bb', 'atr']):
-                                    field_groups['indicators'].append((key, value))
-                                else:
-                                    field_groups['other'].append((key, value))
+                            if isinstance(json_data, dict):
+                                print(f"   📋 JSON Record with {len(json_data)} fields")
+                            else:
+                                print(f"   📋 Raw Record: {record[:100]}{'...' if len(record) > 100 else ''}")
+                                continue
+                        except (UnicodeDecodeError, json.JSONDecodeError):
+                            print(f"   📋 Raw Binary Record: {len(record)} bytes")
+                            print(f"       First 50 bytes: {record[:50].hex()}")
+                            continue
+                    
+                    # Display parsed data (either from binary or JSON)
+                    if 'json_data' in locals() and isinstance(json_data, dict):
+                        # Show all fields for examples, limited for samples
+                        field_limit = None if is_example or full_display else 15
+                        
+                        # Apply column filter if specified
+                        filtered_fields = list(json_data.items())
+                        if columns_filter:
+                            import fnmatch
+                            filter_patterns = [p.strip().lower() for p in columns_filter.split(',')]
+                            filtered_fields = [(k, v) for k, v in json_data.items() 
+                                             if any(fnmatch.fnmatch(k.lower(), pattern) for pattern in filter_patterns)]
+                            print(f"   🔍 Filtered to {len(filtered_fields)} fields matching '{columns_filter}'")
+                        
+                        # Group fields by category for better display
+                        field_groups = {
+                            'metadata': [],
+                            'prices': [],
+                            'volume': [], 
+                            'indicators': [],
+                            'other': []
+                        }
+                        
+                        for key, value in filtered_fields:
+                            key_lower = key.lower()
+                            if any(meta_term in key_lower for meta_term in ['timestamp', 'symbol', 'date']):
+                                field_groups['metadata'].append((key, value))
+                            elif any(price_term in key_lower for price_term in ['open', 'high', 'low', 'close', 'price']):
+                                field_groups['prices'].append((key, value))
+                            elif 'volume' in key_lower or 'vwap' in key_lower:
+                                field_groups['volume'].append((key, value))
+                            elif any(ind_term in key_lower for ind_term in ['rsi', 'ema', 'sma', 'macd', 'bb', 'atr']):
+                                field_groups['indicators'].append((key, value))
+                            else:
+                                field_groups['other'].append((key, value))
                             
                             # Display each group
                             displayed_count = 0
@@ -1022,8 +1078,8 @@ class DevCLI:
                                         print(f"      📊 Volume-like values: {len(volume_like)} ({min(volume_like):,.0f}-{max(volume_like):,.0f})")
                         else:
                             print(f"   📋 JSON Array/Value: {json_data}")
-                            
-                    except (UnicodeDecodeError, json.JSONDecodeError) as json_error:
+                    
+                    except Exception as json_error:
                         # Try binary float32 array
                         try:
                             import numpy as np

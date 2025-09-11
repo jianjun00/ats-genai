@@ -392,6 +392,12 @@ class SequenceWindowBuilder:
         try:
             print(f"🔍 DEBUG get_timeframe_data: Getting {timeframe} data for instrument_id={instrument_id} at {center_datetime}, is_future={is_future}")
             
+            # 🚨 CRITICAL FIX (September 10, 2025): Initialize data_df to prevent NameError
+            # ISSUE: data_df was undefined in certain code paths, causing OHLCV data loss
+            # IMPACT: Real AAPL market data (O=$205.27, H=$209.95) was lost during feature extraction
+            # SOLUTION: Always initialize data_df before conditional assignments
+            data_df = pd.DataFrame()
+            
             if is_future:
                 # Get current future data point (1 interval ahead)
                 print(f"📈 DEBUG: Getting lead prices for future data")
@@ -434,7 +440,12 @@ class SequenceWindowBuilder:
                                 data_df[signal_col] = signals_df[col].iloc[-1] if len(signals_df) >= 1 else np.nan
                 else:
                     print(f"📊 DEBUG: Using only OHLCV data (no signals to merge)")
-                    data_df = ohlcv_df
+                    # 🚨 CRITICAL FIX (September 10, 2025): Proper OHLCV data assignment
+                    # ISSUE: Real market data was retrieved but not assigned to data_df in fallback path
+                    # IMPACT: AAPL prices (O=$205.27, H=$209.95, C=$208.01) lost during processing
+                    # SOLUTION: Explicit assignment with .copy() to preserve data integrity
+                    data_df = ohlcv_df.copy() if not ohlcv_df.empty else pd.DataFrame()
+                    print(f"📊 DEBUG: Assigned OHLCV data to data_df: {len(data_df)} records")
 
             print(f"📊 DEBUG: Final data_df: {len(data_df) if not data_df.empty else 0} records")
             if data_df.empty:

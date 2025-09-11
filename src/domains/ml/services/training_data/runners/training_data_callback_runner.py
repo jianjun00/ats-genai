@@ -353,7 +353,18 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
 async def update_training_dataset_completion(environment: Environment, dataset_id: int,
                                            actual_sequences: int, generation_duration_seconds: int,
                                            file_size_mb: float = 0.0, data_quality_score: float = 1.0) -> None:
-    """Update training dataset with completion details."""
+    """Update training dataset with completion details (legacy function)."""
+    await update_training_dataset_completion_with_status(
+        environment, dataset_id, actual_sequences, generation_duration_seconds,
+        file_size_mb, data_quality_score, "completed"
+    )
+
+
+async def update_training_dataset_completion_with_status(environment: Environment, dataset_id: int,
+                                                       actual_sequences: int, generation_duration_seconds: int,
+                                                       file_size_mb: float = 0.0, data_quality_score: float = 1.0,
+                                                       status: str = "completed") -> None:
+    """Update training dataset with completion details and specific status."""
 
     TrainingDatasetDAO(environment)
     conn = await asyncpg.connect(environment.get_database_url())
@@ -363,17 +374,18 @@ async def update_training_dataset_completion(environment: Environment, dataset_i
 
         update_query = f"""
         UPDATE {table_name}
-        SET status = 'completed',
-            total_sequences = $1,
-            generation_duration_seconds = $2,
-            file_size_mb = $3,
-            data_quality_score = $4,
+        SET status = $1,
+            total_sequences = $2,
+            generation_duration_seconds = $3,
+            file_size_mb = $4,
+            data_quality_score = $5,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $5
+        WHERE id = $6
         """
 
         await conn.execute(
             update_query,
+            status,
             actual_sequences,
             generation_duration_seconds,
             file_size_mb,
@@ -382,8 +394,10 @@ async def update_training_dataset_completion(environment: Environment, dataset_i
         )
 
         print(f"✅ Updated dataset {dataset_id} completion status:")
+        print(f"   Status: {status}")
         print(f"   Actual sequences: {actual_sequences:,}")
         print(f"   Duration: {generation_duration_seconds}s")
+        print(f"   File size: {file_size_mb:.2f} MB")
         print(f"   Quality score: {data_quality_score:.2f}")
 
     finally:
@@ -399,25 +413,46 @@ async def main():
     """
     args = parse_args()
 
+    # Set up comprehensive logging for debug mode
+    if args.debug:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler('training_data_generation_debug.log')
+            ]
+        )
+    
+    logger = logging.getLogger(__name__)
+    
+    # DEBUG STEP 1: Configuration Loading
+    logger.info("🔧 STEP 1: Loading configuration files")
+    
     # Load Gin configuration if provided
     if args.gin_config and Path(args.gin_config).exists():
-        print(f"🔧 DEBUG: Loading gin config from {args.gin_config}")
+        logger.debug(f"Loading gin config from {args.gin_config}")
         gin.parse_config_file(args.gin_config)
-        print(f"🔧 DEBUG: Gin config loaded from {args.gin_config}")
+        logger.info(f"✅ Gin config loaded successfully from {args.gin_config}")
     else:
-        print(f"🔧 DEBUG: No gin config file found at {args.gin_config}")
+        logger.warning(f"❌ No gin config file found at {args.gin_config}")
     
     # Also load training data specific config
     training_data_gin = Path("config/training_data.gin")
     if training_data_gin.exists():
-        print(f"🔧 DEBUG: Loading training data gin config from {training_data_gin}")
+        logger.debug(f"Loading training data gin config from {training_data_gin}")
         gin.parse_config_file(str(training_data_gin))
-        print(f"🔧 DEBUG: Training data gin config loaded from {training_data_gin}")
-        print(f"🔧 DEBUG: Current gin operative config after loading:")
-        print(gin.operative_config_str())
+        logger.info(f"✅ Training data gin config loaded from {training_data_gin}")
+        operative_config = gin.operative_config_str()
+        logger.debug(f"Current gin operative config after loading:\n{operative_config}")
     else:
-        print(f"🔧 DEBUG: No training data gin config found at {training_data_gin}")
+        logger.warning(f"❌ No training data gin config found at {training_data_gin}")
+    
+    logger.info("✅ STEP 1 COMPLETE: Configuration loading finished")
 
+    # DEBUG STEP 2: Environment and Data Validation
+    logger.info("🌍 STEP 2: Environment setup and data validation")
+    
     # Map environment string to EnvironmentType
     env_map = {
         'dev': EnvironmentType.DEV,
@@ -428,60 +463,124 @@ async def main():
 
     env_type = env_map.get(args.environment.lower())
     if not env_type:
+        logger.error(f"❌ Unknown environment: {args.environment}")
         raise ValueError(f"Unknown environment: {args.environment}")
+    
+    logger.info(f"✅ Environment type resolved: {env_type} ({args.environment})")
 
     # Create environment
     gin_config_file = args.gin_config if args.gin_config else None
     environment = Environment(gin_config_file, env_type)
+    logger.info(f"✅ Environment object created successfully")
 
-    # Parse dates
+    # Parse and validate dates
     from datetime import datetime as dt
-    start_date = dt.strptime(args.start_date, "%Y-%m-%d").date()
-    end_date = dt.strptime(args.end_date, "%Y-%m-%d").date()
+    try:
+        start_date = dt.strptime(args.start_date, "%Y-%m-%d").date()
+        end_date = dt.strptime(args.end_date, "%Y-%m-%d").date()
+        
+        # Validate date range
+        if end_date < start_date:
+            logger.error(f"❌ Invalid date range: end_date ({end_date}) < start_date ({start_date})")
+            raise ValueError(f"End date {end_date} cannot be before start date {start_date}")
+        
+        date_range_days = (end_date - start_date).days + 1
+        logger.info(f"✅ Date range validated: {start_date} to {end_date} ({date_range_days} days)")
+        
+        # Validate symbols
+        if not args.symbols:
+            logger.error("❌ No symbols provided for training data generation")
+            raise ValueError("At least one symbol must be provided")
+        
+        logger.info(f"✅ Symbols validated: {args.symbols} ({len(args.symbols)} symbols)")
+        
+    except ValueError as e:
+        logger.error(f"❌ Date parsing failed: {e}")
+        raise
+    
+    logger.info("✅ STEP 2 COMPLETE: Environment and data validation finished")
 
+    # DEBUG STEP 3: Training Configuration Creation
+    logger.info("⚙️ STEP 3: Creating training data configuration")
+    
     # Create training data configuration using gin - let gin configure it properly
-    print("🔧 DEBUG: Creating TrainingDataConfig with gin configuration")
-    print(f"🔧 DEBUG: Current gin operative config:")
-    print(gin.operative_config_str())
+    logger.debug("Creating TrainingDataConfig with gin configuration")
+    operative_config = gin.operative_config_str()
+    logger.debug(f"Current gin operative config:\n{operative_config}")
     
     # Force gin to apply the configuration by using gin.get_configurable
     try:
         # Get the configured constructor
-        print("🔧 DEBUG: Attempting to get gin configured TrainingDataConfig")
+        logger.debug("Attempting to get gin configured TrainingDataConfig")
         configurable_constructor = gin.get_configurable('domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig')
-        print(f"🔧 DEBUG: Got configurable constructor: {configurable_constructor}")
+        logger.debug(f"Got configurable constructor: {configurable_constructor}")
         
         # Create using gin-configured constructor
         config = configurable_constructor()
-        print("🔧 DEBUG: Successfully created config with gin configurable constructor")
+        logger.info("✅ Successfully created config with gin configurable constructor")
         
     except Exception as e:
-        print(f"🔧 DEBUG: Failed to use gin configurable constructor: {e}")
-        print("🔧 DEBUG: Falling back to manual TrainingDataConfig() creation")
+        logger.warning(f"⚠️ Failed to use gin configurable constructor: {e}")
+        logger.info("Falling back to manual TrainingDataConfig() creation")
         config = TrainingDataConfig()
     
-    print(f"🔧 DEBUG: TrainingDataConfig created:")
-    print(f"  timeframes: {getattr(config, 'timeframes', 'MISSING')}")
-    print(f"  feature_types: {getattr(config, 'feature_types', 'MISSING')}")
-    print(f"  signal_names: {getattr(config, 'signal_names', 'MISSING')}")
+    # Log configuration details
+    config_details = {
+        'timeframes': getattr(config, 'timeframes', 'MISSING'),
+        'feature_types': getattr(config, 'feature_types', 'MISSING'), 
+        'signal_names': getattr(config, 'signal_names', 'MISSING'),
+        'base_interval_minutes': getattr(config, 'base_interval_minutes', 'MISSING'),
+        'training_interval_minutes': getattr(config, 'training_interval_minutes', 'MISSING')
+    }
+    
+    logger.info(f"✅ TrainingDataConfig created with settings:")
+    for key, value in config_details.items():
+        logger.info(f"  {key}: {value}")
+    
+    logger.info("✅ STEP 3 COMPLETE: Training configuration created successfully")
 
-    # Removed: SequenceStorageManager setup - using simple ArrayRecord storage per PRD/DRD QR5
-    # Simple storage will be handled directly in callback
-
-    # 📝 Simple dataset tracking: copy gin config to dataset directory and log command line
+    # DEBUG STEP 4: Dataset Setup and Metadata Creation
+    logger.info("📁 STEP 4: Setting up dataset directory and metadata")
+    
+    # Create dataset directory
     import shutil
     import os
     
-    # Create dataset directory
-    os.makedirs(args.output_dir, exist_ok=True)
+    # Validate output directory path
+    logger.debug(f"Validating output directory: {args.output_dir}")
+    try:
+        os.makedirs(args.output_dir, exist_ok=True)
+        logger.info(f"✅ Output directory created/verified: {args.output_dir}")
+    except Exception as e:
+        logger.error(f"❌ Failed to create output directory {args.output_dir}: {e}")
+        raise
     
-    # Copy gin config to dataset directory
+    # Copy gin config to dataset directory for reproducibility
     gin_config_path = "config/app_docker.gin"  # Current gin config
     if os.path.exists(gin_config_path):
-        shutil.copy2(gin_config_path, os.path.join(args.output_dir, "gin_config.gin"))
-        print(f"📄 Copied gin config to: {args.output_dir}/gin_config.gin")
+        try:
+            shutil.copy2(gin_config_path, os.path.join(args.output_dir, "gin_config.gin"))
+            logger.info(f"✅ Copied gin config to: {args.output_dir}/gin_config.gin")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to copy gin config: {e}")
+    else:
+        logger.warning(f"⚠️ Gin config file not found at: {gin_config_path}")
     
-    # Save command line and metadata to dataset directory
+    # Generate unique dataset_id 
+    from datetime import datetime
+    dataset_id = f"dataset_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    logger.info(f"✅ Generated dataset_id: {dataset_id}")
+    
+    # Create dataset-specific directory  
+    dataset_dir = os.path.join(args.output_dir, dataset_id)
+    try:
+        os.makedirs(dataset_dir, exist_ok=True)
+        logger.info(f"✅ Dataset directory created: {dataset_dir}")
+    except Exception as e:
+        logger.error(f"❌ Failed to create dataset directory {dataset_dir}: {e}")
+        raise
+    
+    # Create comprehensive dataset metadata
     import json
     from datetime import datetime as dt_now
     import sys
@@ -497,103 +596,180 @@ async def main():
         "generation_timestamp": dt_now.now().isoformat(),
         "gin_config_file": "gin_config.gin",
         "python_executable": sys.executable,
-        "working_directory": os.getcwd()
+        "working_directory": os.getcwd(),
+        "environment": args.environment,
+        "dataset_id": dataset_id,
+        "debug_mode": args.debug if hasattr(args, 'debug') else False
     }
     
-    # Generate dataset_id for directory structure (timestamp-based for uniqueness)
-    from datetime import datetime
-    dataset_id = f"dataset_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
-    # Create dataset directory  
-    dataset_dir = os.path.join(args.output_dir, dataset_id)
-    os.makedirs(dataset_dir, exist_ok=True)
-    
-    # FIXED: Place metadata inside dataset directory, not at root output directory  
+    # Save metadata to dataset directory
     metadata_file = os.path.join(dataset_dir, "dataset_metadata.json")
-    with open(metadata_file, 'w') as f:
-        json.dump(dataset_metadata, f, indent=2)
-    
-    print(f"📊 Saved dataset metadata to: {metadata_file}")
-    print(f"📋 Generated dataset_id: {dataset_id}")
-
-    # ✅ PURE CALLBACK APPROACH: Create ONLY the callback
-    # FIXED: Pass start_date and end_date for single symbol directory creation
-    training_callback = IntervalBasedTrainingDataCallback(
-        symbols=args.symbols,
-        config=config,
-        output_dir=args.output_dir,
-        storage_format=args.storage_format,
-        start_date=args.start_date,  # Pass full date range
-        end_date=args.end_date
-    )
-
-    # Pass dataset_id to callback for completion tracking
-    training_callback.dataset_id = dataset_id
-
-    print(f"🎯 Created PURE callback-based training data generation")
-    print(f"   Callback: {type(training_callback).__name__}")
-    print(f"   NOT creating any TrainingDataRunner class")
-    print(f"   Using existing Runner framework with callback")
-
-    # ✅ Use existing Runner framework with our callback
-    runner = Runner(
-        start_date=start_date.strftime("%Y-%m-%d"),
-        end_date=end_date.strftime("%Y-%m-%d"),
-        environment=environment,
-        universe_id=args.universe_id or 1,
-        callbacks=[training_callback],  # ONLY the callback
-        base_duration=args.base_duration
-    )
-
-    print(f"\n🚀 Starting PURE callback-based training data generation")
-    print(f"   Symbols: {args.symbols}")
-    print(f"   Date range: {start_date} to {end_date}")
-    print(f"   Base duration: {args.base_duration}")
-    print(f"   Output: {args.output_dir}")
-    print(f"   Storage: {args.storage_format}")
-    print(f"   Method: Pure callback (no separate runner class)")
-    print(f"   Registered dataset ID: {dataset_id}")
-
-    # Track generation timing
-    generation_start_time = time.time()
-
-    # ✅ Run using ONLY the existing framework + callback
-    await runner.run()
-
-    # Calculate generation duration
-    generation_duration = int(time.time() - generation_start_time)
-
-    # Update dataset completion status
-    # Note: In a real implementation, we would get actual sequences from callback
-    # For now, we'll estimate based on training intervals generated
-    estimated_actual_sequences = getattr(training_callback, 'sequences_generated', 0)
-    if estimated_actual_sequences == 0:
-        # Fallback estimation
-        days_range = (end_date - start_date).days
-        intervals_per_day = 24 * 60 // config.training_interval_minutes
-        estimated_actual_sequences = days_range * intervals_per_day * len(args.symbols)
-
-    # 📝 Update dataset metadata with completion info
-    if os.path.exists(metadata_file):
-        with open(metadata_file, 'r') as f:
-            metadata = json.load(f)
-        
-        metadata.update({
-            "completion_timestamp": dt_now.now().isoformat(),
-            "generation_duration_seconds": generation_duration,
-            "estimated_sequences": estimated_actual_sequences,
-            "status": "completed"
-        })
-        
+    try:
         with open(metadata_file, 'w') as f:
-            json.dump(metadata, f, indent=2)
-        
-        print(f"📊 Updated dataset metadata with completion info")
+            json.dump(dataset_metadata, f, indent=2)
+        logger.info(f"✅ Dataset metadata saved to: {metadata_file}")
+    except Exception as e:
+        logger.error(f"❌ Failed to save metadata file {metadata_file}: {e}")
+        raise
+    
+    logger.info("✅ STEP 4 COMPLETE: Dataset setup and metadata creation finished")
 
-    # 🗄️ CRITICAL FIX: Register training dataset in database
-    print(f"\n🗄️ Registering training dataset in database...")
+    # DEBUG STEP 5: Callback and Runner Creation
+    logger.info("🔄 STEP 5: Creating training callback and runner")
+    
+    # Create training callback with comprehensive logging
+    try:
+        logger.debug("Creating IntervalBasedTrainingDataCallback")
+        training_callback = IntervalBasedTrainingDataCallback(
+            symbols=args.symbols,
+            config=config,
+            output_dir=args.output_dir,
+            storage_format=args.storage_format,
+            start_date=args.start_date,  # Pass full date range
+            end_date=args.end_date
+        )
+        
+        # Pass dataset_id to callback for completion tracking
+        training_callback.dataset_id = dataset_id
+        logger.info(f"✅ Training callback created successfully")
+        logger.info(f"   Callback type: {type(training_callback).__name__}")
+        logger.info(f"   Dataset ID: {dataset_id}")
+        logger.info(f"   Storage format: {args.storage_format}")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to create training callback: {e}")
+        raise
+
+    # Create Runner with callback
+    try:
+        logger.debug("Creating Runner with training callback")
+        runner = Runner(
+            start_date=start_date.strftime("%Y-%m-%d"),
+            end_date=end_date.strftime("%Y-%m-%d"),
+            environment=environment,
+            universe_id=args.universe_id or 1,
+            callbacks=[training_callback],  # ONLY the callback
+            base_duration=args.base_duration
+        )
+        
+        logger.info(f"✅ Runner created successfully")
+        logger.info(f"   Date range: {start_date} to {end_date}")
+        logger.info(f"   Base duration: {args.base_duration}")
+        logger.info(f"   Universe ID: {args.universe_id or 1}")
+        logger.info(f"   Environment: {args.environment}")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to create runner: {e}")
+        raise
+    
+    logger.info("✅ STEP 5 COMPLETE: Callback and runner created successfully")
+
+    # DEBUG STEP 6: Training Data Generation Execution
+    logger.info("🚀 STEP 6: Starting training data generation execution")
+    
+    # Log execution summary
+    execution_summary = {
+        'symbols': args.symbols,
+        'symbol_count': len(args.symbols),
+        'date_range_days': (end_date - start_date).days + 1,
+        'base_duration': args.base_duration,
+        'output_directory': args.output_dir,
+        'dataset_id': dataset_id,
+        'storage_format': args.storage_format,
+        'environment': args.environment
+    }
+    
+    logger.info("📊 Execution Summary:")
+    for key, value in execution_summary.items():
+        logger.info(f"   {key}: {value}")
+
+    # Track generation timing with detailed logging
+    generation_start_time = time.time()
+    logger.info(f"⏱️ Generation started at: {datetime.now().isoformat()}")
+
+    # Execute training data generation
+    try:
+        logger.info("🔄 Running training data generation...")
+        await runner.run()
+        logger.info("✅ Training data generation runner completed successfully")
+        
+    except Exception as e:
+        logger.error(f"❌ Training data generation failed: {e}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+
+    # Calculate and log generation duration
+    generation_duration = int(time.time() - generation_start_time)
+    generation_end_time = datetime.now()
+    logger.info(f"⏱️ Generation completed at: {generation_end_time.isoformat()}")
+    logger.info(f"⏱️ Total generation duration: {generation_duration} seconds ({generation_duration/60:.1f} minutes)")
+    
+    logger.info("✅ STEP 6 COMPLETE: Training data generation execution finished")
+
+    # DEBUG STEP 7: Post-Generation Analysis and Metadata Update
+    logger.info("📈 STEP 7: Analyzing generation results and updating metadata")
+    
+    # Analyze generated sequences from callback
+    try:
+        estimated_actual_sequences = getattr(training_callback, 'sequences_generated', 0)
+        interval_counter = getattr(training_callback, 'interval_counter', 0)
+        
+        logger.debug(f"Sequences generated by callback: {estimated_actual_sequences}")
+        logger.debug(f"Intervals processed by callback: {interval_counter}")
+        
+        if estimated_actual_sequences == 0:
+            # Fallback estimation based on date range
+            days_range = (end_date - start_date).days + 1
+            intervals_per_day = 24 * 60 // config.training_interval_minutes
+            estimated_actual_sequences = days_range * intervals_per_day * len(args.symbols)
+            logger.warning(f"⚠️ Using fallback sequence estimation: {estimated_actual_sequences}")
+        else:
+            logger.info(f"✅ Actual sequences generated: {estimated_actual_sequences}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error analyzing generation results: {e}")
+        estimated_actual_sequences = 0
+
+    # Update dataset metadata with completion info
+    try:
+        if os.path.exists(metadata_file):
+            logger.debug(f"Updating metadata file: {metadata_file}")
+            
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+            
+            completion_info = {
+                "completion_timestamp": dt_now.now().isoformat(),
+                "generation_duration_seconds": generation_duration,
+                "estimated_sequences": estimated_actual_sequences,
+                "actual_intervals_processed": interval_counter,
+                "status": "completed"
+            }
+            
+            metadata.update(completion_info)
+            
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            logger.info(f"✅ Dataset metadata updated successfully")
+            logger.info(f"   Completion status: {completion_info['status']}")
+            logger.info(f"   Duration: {generation_duration} seconds")
+            logger.info(f"   Sequences: {estimated_actual_sequences}")
+            
+        else:
+            logger.warning(f"⚠️ Metadata file not found for update: {metadata_file}")
+            
+    except Exception as e:
+        logger.error(f"❌ Failed to update metadata file: {e}")
+
+    # DEBUG STEP 8: Database Registration
+    logger.info("🗄️ STEP 8: Registering training dataset in database")
     
     try:
+        logger.debug("Registering dataset in database...")
+        
         # Register the dataset in the database
         db_dataset_id = await register_training_dataset(
             environment=environment,
@@ -605,49 +781,128 @@ async def main():
             storage_format=args.storage_format
         )
         
-        print(f"✅ Dataset registered in database with ID: {db_dataset_id}")
+        logger.info(f"✅ Dataset registered in database with ID: {db_dataset_id}")
         
-        # Update the completion status with actual file information
-        await update_training_dataset_completion(
+        # CRITICAL FIX: Verify actual files were created before marking as completed
+        logger.debug(f"Verifying actual ArrayRecord files were created...")
+        
+        # Check if any ArrayRecord files actually exist
+        dataset_dir = Path(args.output_dir) / dataset_id
+        arrayrecord_files = list(dataset_dir.rglob("*.arrayrecord"))
+        
+        total_file_size_mb = 0.0
+        actual_files_with_content = 0
+        
+        for file_path in arrayrecord_files:
+            file_size_bytes = file_path.stat().st_size
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            total_file_size_mb += file_size_mb
+            
+            # ArrayRecord files have 128KB minimum size, check if they have actual data
+            # Files with only the 128KB header should be considered empty
+            if file_size_bytes > 131072:  # More than 128KB indicates actual data
+                actual_files_with_content += 1
+        
+        logger.info(f"File verification results:")
+        logger.info(f"   ArrayRecord files found: {len(arrayrecord_files)}")
+        logger.info(f"   Files with actual content: {actual_files_with_content}")
+        logger.info(f"   Total file size: {total_file_size_mb:.2f} MB")
+        
+        # Determine actual status and sequences based on file verification
+        if len(arrayrecord_files) == 0:
+            # No files created at all - complete failure
+            actual_status = "failed"
+            actual_sequences = 0
+            actual_file_size_mb = 0.0
+            logger.error(f"❌ CRITICAL: No ArrayRecord files were created - generation failed completely")
+            
+        elif actual_files_with_content == 0:
+            # Files created but empty - partial failure
+            actual_status = "partial"
+            actual_sequences = 0
+            actual_file_size_mb = total_file_size_mb
+            logger.warning(f"⚠️ ArrayRecord files created but contain no actual data - empty generation")
+            
+        else:
+            # Files with content - success
+            actual_status = "completed"
+            actual_sequences = estimated_actual_sequences
+            actual_file_size_mb = total_file_size_mb
+            logger.info(f"✅ ArrayRecord files successfully created with content")
+        
+        # Update database with actual results
+        logger.debug(f"Updating database with actual status: {actual_status}")
+        await update_training_dataset_completion_with_status(
             environment=environment,
             dataset_id=db_dataset_id,
-            actual_sequences=estimated_actual_sequences,
+            actual_sequences=actual_sequences,
             generation_duration_seconds=generation_duration,
-            file_size_mb=0.0  # TODO: Calculate actual file size
+            file_size_mb=actual_file_size_mb,
+            status=actual_status
         )
         
-        print(f"✅ Dataset completion status updated in database")
+        logger.info(f"✅ Dataset completion status updated in database")
         
         # Add database info to metadata file
-        if os.path.exists(metadata_file):
-            with open(metadata_file, 'r') as f:
-                metadata = json.load(f)
-            
-            metadata.update({
-                "database_id": db_dataset_id,
-                "database_registered": True,
-                "database_table": environment.get_table_name("training_dataset")
-            })
-            
-            with open(metadata_file, 'w') as f:
-                json.dump(metadata, f, indent=2)
-            
-            print(f"📊 Added database registration info to metadata file")
+        try:
+            if os.path.exists(metadata_file):
+                logger.debug("Adding database registration info to metadata file")
+                
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+                
+                database_info = {
+                    "database_id": db_dataset_id,
+                    "database_registered": True,
+                    "database_table": environment.get_table_name("training_dataset")
+                }
+                
+                metadata.update(database_info)
+                
+                with open(metadata_file, 'w') as f:
+                    json.dump(metadata, f, indent=2)
+                
+                logger.info(f"✅ Added database registration info to metadata file")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to update metadata with database info: {e}")
+        
+        logger.info("✅ STEP 8 COMPLETE: Database registration completed successfully")
         
     except Exception as e:
-        print(f"❌ Failed to register dataset in database: {e}")
-        print(f"⚠️ Training data files created successfully, but database registration failed")
-        print(f"   Dataset will not appear in UI until manually registered")
+        logger.error(f"❌ Failed to register dataset in database: {e}")
+        logger.warning(f"⚠️ Training data files created successfully, but database registration failed")
+        logger.warning(f"   Dataset will not appear in UI until manually registered")
         # Don't fail the entire process - files are still created successfully
+        
+        logger.info("⚠️ STEP 8 PARTIAL: Database registration failed but files created")
 
-    print(f"\n✅ Training data generation completed!")
-    print(f"   Dataset directory: {args.output_dir}")
-    print(f"   Metadata file: {metadata_file}")
-    print(f"   Gin config: {args.output_dir}/gin_config.gin")
-    print(f"   Command line preserved in metadata for reproducibility")
+    # DEBUG STEP 9: Final Summary and Completion
+    logger.info("🎯 STEP 9: Final summary and completion")
+    
+    # Create completion summary
+    completion_summary = {
+        'status': 'completed',
+        'dataset_directory': args.output_dir,
+        'dataset_id': dataset_id,
+        'metadata_file': metadata_file,
+        'gin_config': f"{args.output_dir}/gin_config.gin",
+        'database_id': locals().get('db_dataset_id', 'not_registered'),
+        'generation_duration': f"{generation_duration} seconds ({generation_duration/60:.1f} minutes)",
+        'estimated_sequences': estimated_actual_sequences,
+        'symbols_processed': len(args.symbols),
+        'date_range': f"{start_date} to {end_date}"
+    }
+    
+    logger.info("🎉 TRAINING DATA GENERATION COMPLETED SUCCESSFULLY!")
+    for key, value in completion_summary.items():
+        logger.info(f"   {key}: {value}")
+    
     if 'db_dataset_id' in locals():
-        print(f"   Database ID: {db_dataset_id} (registered in {environment.get_table_name('training_dataset')})")
-
+        logger.info(f"   Database table: {environment.get_table_name('training_dataset')}")
+    
+    logger.info("✅ STEP 9 COMPLETE: All training data generation steps finished successfully")
+    
     return 0
 
 
