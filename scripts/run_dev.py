@@ -1078,36 +1078,8 @@ class DevCLI:
                                         print(f"      📊 Volume-like values: {len(volume_like)} ({min(volume_like):,.0f}-{max(volume_like):,.0f})")
                         else:
                             print(f"   📋 JSON Array/Value: {json_data}")
-                            
-                        except (UnicodeDecodeError, json.JSONDecodeError):
-                            print(f"   📋 Raw Binary Record: {len(record)} bytes")
-                            print(f"       First 50 bytes: {record[:50].hex()}")
-                            continue
                     
-                    except Exception as json_error:
-                        # Try binary float32 array
-                        try:
-                            import numpy as np
-                            float_array = np.frombuffer(record, dtype=np.float32)
-                            print(f"   🔢 Binary Float32 Array: {len(float_array):,} elements")
-                            
-                            non_zero = np.count_nonzero(float_array)
-                            print(f"   📈 Non-zero: {non_zero:,}/{len(float_array):,} ({100*non_zero/len(float_array):.1f}%)")
-                            
-                            if non_zero > 0:
-                                non_zero_values = float_array[float_array != 0]
-                                print(f"   📊 Range: {non_zero_values.min():.4f} to {non_zero_values.max():.4f}")
-                                if is_example:
-                                    print(f"   📋 First 20 values: {float_array[:20]}")
-                                    print(f"   📋 Sample non-zero: {non_zero_values[:15]}")
-                            else:
-                                print(f"   ⚠️  All values are zero")
-                                
-                        except Exception as binary_error:
-                            print(f"   ❌ Could not decode as JSON or binary array")
-                            print(f"   📄 Raw bytes (first 200): {record[:200]}")
-                            print(f"   📄 Decoded preview: {record[:200].decode('utf-8', errors='replace')}")
-                
+                    # Continue processing records
                 else:
                     # Handle other data types
                     print(f"   📄 Data type: {type(record).__name__}")
