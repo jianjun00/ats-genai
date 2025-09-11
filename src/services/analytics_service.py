@@ -495,14 +495,7 @@ class UnifiedAnalyticsService:
 
         except Exception as e:
             logger.error(f"Error getting sequence data for dataset {dataset_id}: {e}")
-            # Return sample data as fallback
-            sample_data = self._generate_sample_sequence_for_dataset({
-                'dataset_name': f'Dataset {dataset_id}',
-                'symbols': 'DEMO',
-                'sequence_length': 21
-            }, dataset_id, row_index)
-            sample_data['timeframe'] = timeframe
-            return sample_data
+            raise ValueError(f"Unable to load real training data for dataset {dataset_id}: {e}")
 
     def _generate_sample_sequence_for_dataset(self, dataset_info: Dict, dataset_id: int = 0, row_index: int = 0) -> Dict[str, Any]:
         """Generate sample sequence data based on dataset info."""
@@ -1780,7 +1773,7 @@ class UnifiedAnalyticsService:
                             processed,
                             created_at,
                             updated_at
-                        FROM gap_events
+                        FROM intg_gap_events
                         WHERE 1=1
                     """
 
@@ -2040,250 +2033,151 @@ class UnifiedAnalyticsService:
             }
 
     def get_economic_indicators(self, start_date: str = None, end_date: str = None, indicators: str = None) -> Dict[str, Any]:
-        """Get economic indicators using FRED API or mock data for demonstration."""
+        """Get economic indicators using FRED API. Requires FRED_API_KEY environment variable."""
         try:
             from datetime import datetime, date, timedelta
             import os
 
-            # For demonstration, create mock FRED data since we don't have API key configured
-            # In production, this would use the FRED client with actual API key
-            
-            # Set default date range if not provided
-            if not end_date:
-                end_date = date.today()
-            else:
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            
-            if not start_date:
-                start_date = end_date - timedelta(days=365)  # 1 year back
-            else:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-
-            # Parse indicators filter
-            selected_indicators = []
-            if indicators:
-                selected_indicators = indicators.split(',')
-
-            # Mock FRED data structure for demonstration
-            fred_series_map = {
-                "GDP": {"name": "Gross Domestic Product", "unit": "billions_usd", "importance": 5, "frequency": "Quarterly"},
-                "GDPC1": {"name": "Real Gross Domestic Product", "unit": "billions_usd", "importance": 5, "frequency": "Quarterly"},
-                "UNRATE": {"name": "Unemployment Rate", "unit": "percentage", "importance": 5, "frequency": "Monthly"},
-                "PAYEMS": {"name": "Nonfarm Payrolls", "unit": "thousands", "importance": 5, "frequency": "Monthly"},
-                "CPIAUCSL": {"name": "Consumer Price Index (CPI)", "unit": "index", "importance": 5, "frequency": "Monthly"},
-                "CPILFESL": {"name": "Core CPI", "unit": "index", "importance": 4, "frequency": "Monthly"},
-                "PPIFIS": {"name": "Producer Price Index (PPI)", "unit": "index", "importance": 5, "frequency": "Monthly"},
-                "PPIACO": {"name": "Core PPI", "unit": "index", "importance": 4, "frequency": "Monthly"},
-                "FEDFUNDS": {"name": "Federal Funds Rate", "unit": "percentage", "importance": 5, "frequency": "Monthly"},
-                "DGS10": {"name": "10-Year Treasury Rate", "unit": "percentage", "importance": 5, "frequency": "Daily"},
-                "DGS2": {"name": "2-Year Treasury Rate", "unit": "percentage", "importance": 4, "frequency": "Daily"},
-                "RSAFS": {"name": "Retail Sales", "unit": "millions_usd", "importance": 4, "frequency": "Monthly"},
-                "INDPRO": {"name": "Industrial Production", "unit": "index", "importance": 4, "frequency": "Monthly"},
-                "HOUST": {"name": "Housing Starts", "unit": "thousands", "importance": 4, "frequency": "Monthly"},
-                "UMCSENT": {"name": "Consumer Sentiment", "unit": "index", "importance": 3, "frequency": "Monthly"},
-            }
-
-            # Filter series based on indicators parameter
-            if selected_indicators:
-                filtered_series = {k: v for k, v in fred_series_map.items() if k in selected_indicators}
-            else:
-                filtered_series = fred_series_map
-
-            # Generate both historical data and upcoming releases
-            mock_indicators = []
-            upcoming_releases = []
-            
-            # Historical data (past releases)
-            for series_id, series_info in filtered_series.items():
-                # Generate historical data points
-                series_date = start_date
-                for i in range(min(3, int((end_date - start_date).days / 30))):  # Up to 3 historical points
-                    # Mock values based on series type
-                    if "rate" in series_info["name"].lower() or "percentage" in series_info["unit"]:
-                        mock_value = round(2.5 + (i * 0.25), 2)  # Mock interest rates
-                    elif "gdp" in series_info["name"].lower():
-                        mock_value = round(25000 + (i * 100), 1)  # Mock GDP in billions
-                    elif "unemployment" in series_info["name"].lower():
-                        mock_value = round(4.2 - (i * 0.1), 1)  # Mock unemployment rate
-                    elif "index" in series_info["unit"]:
-                        mock_value = round(100 + (i * 2), 1)  # Mock index values
-                    else:
-                        mock_value = round(1000 + (i * 50), 1)  # Generic mock value
-
-                    indicator = {
-                        "event_name": series_info["name"],
-                        "event_date": series_date.strftime('%Y-%m-%d'),
-                        "release_time": f"{series_date.strftime('%Y-%m-%d')}T08:30:00Z",
-                        "actual": mock_value,
-                        "estimate": None,
-                        "previous": mock_value - 0.1 if i > 0 else None,
-                        "unit": series_info["unit"],
-                        "country": "USA",
-                        "importance": series_info["importance"],
-                        "source_vendor": "fred",
-                        "event_type": "historical",
-                        "vendor_specific_data": {
-                            "series_id": series_id,
-                            "frequency": series_info["frequency"],
-                            "series_title": series_info["name"]
-                        }
-                    }
-                    mock_indicators.append(indicator)
-                    
-                    # Increment date based on frequency
-                    if series_info["frequency"] == "Monthly":
-                        series_date += timedelta(days=30)
-                    elif series_info["frequency"] == "Quarterly":
-                        series_date += timedelta(days=90)
-                    else:  # Daily
-                        series_date += timedelta(days=7)  # Weekly for demo
-
-            # Generate upcoming releases (future scheduled events)
-            today = date.today()
-            tomorrow = today + timedelta(days=1)
-            
-            # Add specific high-priority events for today and tomorrow
-            priority_events = []
-            
-            # PPI (Producer Price Index) - typically released around 14th of month at 8:30 AM ET
-            if "PPIFIS" in filtered_series or not selected_indicators:
-                ppi_event = {
-                    "event_name": "Producer Price Index (PPI) Release",
-                    "event_date": today.strftime('%Y-%m-%d'),
-                    "release_time": f"{today.strftime('%Y-%m-%d')}T08:30:00Z",
-                    "actual": None,  # Not released yet
-                    "estimate": 102.8,
-                    "previous": 102.3,
-                    "unit": "index",
-                    "country": "USA",
-                    "importance": 5,
-                    "source_vendor": "fred",
-                    "event_type": "upcoming",
-                    "vendor_specific_data": {
-                        "series_id": "PPIFIS",
-                        "frequency": "Monthly",
-                        "series_title": "Producer Price Index for Final Demand",
-                        "release_schedule": "Monthly release - TODAY"
+            # Check for FRED API key
+            fred_api_key = os.getenv('FRED_API_KEY')
+            if not fred_api_key:
+                return {
+                    "success": False,
+                    "error": "FRED API key not configured",
+                    "indicators": [],
+                    "total_indicators": 0,
+                    "setup_instructions": {
+                        "step_1": "Get free API key from https://research.stlouisfed.org/docs/api/api_key.html",
+                        "step_2": "Set environment variable: export FRED_API_KEY=\"your_32_character_key\"",
+                        "step_3": "Restart analytics service to apply changes",
+                        "note": "FRED provides real economic data from the Federal Reserve Bank of St. Louis"
                     }
                 }
-                priority_events.append(ppi_event)
+            
+            # Use FRED API for real economic indicators data
+            try:
+                from fredapi import Fred
+                import pandas as pd
+                fred = Fred(api_key=fred_api_key)
+                
+                # Set default date range if not provided
+                if not end_date:
+                    end_date = date.today()
+                else:
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                
+                if not start_date:
+                    start_date = end_date - timedelta(days=365)  # 1 year back
+                else:
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
 
-            # CPI (Consumer Price Index) - typically released around 15th of month at 8:30 AM ET  
-            if "CPIAUCSL" in filtered_series or not selected_indicators:
-                cpi_event = {
-                    "event_name": "Consumer Price Index (CPI) Release",
-                    "event_date": tomorrow.strftime('%Y-%m-%d'),
-                    "release_time": f"{tomorrow.strftime('%Y-%m-%d')}T08:30:00Z",
-                    "actual": None,  # Not released yet
-                    "estimate": 315.2,
-                    "previous": 314.1,
-                    "unit": "index",
-                    "country": "USA",
-                    "importance": 5,
-                    "source_vendor": "fred",
-                    "event_type": "upcoming",
-                    "vendor_specific_data": {
-                        "series_id": "CPIAUCSL",
-                        "frequency": "Monthly",
-                        "series_title": "Consumer Price Index for All Urban Consumers",
-                        "release_schedule": "Monthly release - TOMORROW"
+                # Parse indicators filter
+                selected_indicators = []
+                if indicators:
+                    selected_indicators = indicators.split(',')
+
+                # FRED series mapping for real data
+                fred_series_map = {
+                    "CPIAUCSL": {"name": "Consumer Price Index", "unit": "index", "importance": 5, "frequency": "Monthly"},
+                    "PPIFIS": {"name": "Producer Price Index", "unit": "index", "importance": 5, "frequency": "Monthly"},
+                    "UNRATE": {"name": "Unemployment Rate", "unit": "percentage", "importance": 5, "frequency": "Monthly"},
+                    "GDP": {"name": "Gross Domestic Product", "unit": "billions_usd", "importance": 5, "frequency": "Quarterly"},
+                    "FEDFUNDS": {"name": "Federal Funds Rate", "unit": "percentage", "importance": 5, "frequency": "Monthly"}
+                }
+
+                # Filter series based on indicators parameter
+                if selected_indicators:
+                    filtered_series = {k: v for k, v in fred_series_map.items() if k in selected_indicators}
+                else:
+                    filtered_series = fred_series_map
+
+                # Fetch real data from FRED API
+                indicators_list = []
+                
+                for series_id, series_info in filtered_series.items():
+                    try:
+                        # Get the latest data point for this series
+                        data = fred.get_series(series_id, limit=10)  # Get last 10 data points
+                        
+                        if not data.empty:
+                            # Get series metadata
+                            info = fred.get_series_info(series_id)
+                            
+                            # Process the data points
+                            for date_index, value in data.tail(5).items():  # Last 5 data points
+                                indicator = {
+                                    "event_name": series_info["name"],
+                                    "event_date": date_index.strftime('%Y-%m-%d'),
+                                    "release_time": f"{date_index.strftime('%Y-%m-%d')}T08:30:00Z",
+                                    "actual": float(value) if not pd.isna(value) else None,
+                                    "estimate": None,
+                                    "previous": None,
+                                    "unit": series_info["unit"],
+                                    "country": "USA",
+                                    "importance": series_info["importance"],
+                                    "source_vendor": "fred",
+                                    "event_type": "historical",
+                                    "vendor_specific_data": {
+                                        "series_id": series_id,
+                                        "frequency": info.get('frequency', series_info["frequency"]),
+                                        "series_title": info.get('title', series_info["name"]),
+                                        "last_updated": info.get('last_updated', '').strftime('%Y-%m-%d') if info.get('last_updated') else None
+                                    }
+                                }
+                                indicators_list.append(indicator)
+                                
+                    except Exception as series_error:
+                        logger.warning(f"Failed to get FRED data for {series_id}: {series_error}")
+                        continue
+
+                # Sort by date descending (most recent first)
+                indicators_list.sort(key=lambda x: x['event_date'], reverse=True)
+
+                return {
+                    'success': True,
+                    'indicators': indicators_list[:50],  # Limit to 50 most recent
+                    'total_indicators': len(indicators_list),
+                    'summary': {
+                        'series_count': len(filtered_series),
+                        'data_points': len(indicators_list),
+                        'date_range': f"{start_date} to {end_date}",
+                        'data_source': 'FRED (Federal Reserve Economic Data)',
+                        'api_status': 'Connected to FRED API'
+                    },
+                    'filters': {
+                        'start_date': start_date.strftime('%Y-%m-%d'),
+                        'end_date': end_date.strftime('%Y-%m-%d'),
+                        'indicators_filter': indicators
+                    },
+                    'query_timestamp': datetime.now().isoformat()
+                }
+                
+            except ImportError:
+                return {
+                    "success": False,
+                    "error": "fredapi library not installed",
+                    "indicators": [],
+                    "total_indicators": 0,
+                    "setup_instructions": {
+                        "step_1": "Install FRED API library: pip install fredapi",
+                        "step_2": "Get free API key from https://research.stlouisfed.org/docs/api/api_key.html", 
+                        "step_3": "Set environment variable: export FRED_API_KEY=\"your_32_character_key\"",
+                        "step_4": "Restart analytics service to apply changes"
                     }
                 }
-                priority_events.append(cpi_event)
-
-            # Add priority events first
-            upcoming_releases.extend(priority_events)
-            
-            # Generate other upcoming releases for next few weeks
-            for series_id, series_info in filtered_series.items():
-                # Skip PPI and CPI since we added them specifically above
-                if series_id in ["PPIFIS", "CPIAUCSL"]:
-                    continue
-                    
-                # Generate 2-3 other upcoming releases
-                for i in range(2):  # Next 2 releases
-                    # Calculate next release date based on frequency
-                    if series_info["frequency"] == "Monthly":
-                        # Monthly releases typically mid-month
-                        if series_id in ["UNRATE", "PAYEMS"]:  # Employment data
-                            future_date = self._get_next_first_friday(today + timedelta(days=30*(i+1)))
-                            release_time = "08:30"
-                        else:
-                            future_date = today + timedelta(days=14*(i+1))  # Next 2-4 weeks
-                            release_time = "08:30"
-                    elif series_info["frequency"] == "Quarterly":
-                        # Quarterly releases
-                        future_date = today + timedelta(days=30*(i+1))  # Next month, then following
-                        release_time = "08:30"
-                    else:  # Daily
-                        future_date = today + timedelta(days=7*(i+1))
-                        release_time = "08:30"
-
-                    # Generate forecast/estimate for upcoming release
-                    if "rate" in series_info["name"].lower() or "percentage" in series_info["unit"]:
-                        estimate_value = round(2.7 + (i * 0.1), 2)
-                    elif "gdp" in series_info["name"].lower():
-                        estimate_value = round(25200 + (i * 50), 1)
-                    elif "unemployment" in series_info["name"].lower():
-                        estimate_value = round(4.0 - (i * 0.05), 1)
-                    elif "index" in series_info["unit"]:
-                        estimate_value = round(102 + (i * 1), 1)
-                    else:
-                        estimate_value = round(1100 + (i * 25), 1)
-
-                    upcoming_event = {
-                        "event_name": f"{series_info['name']} Release",
-                        "event_date": future_date.strftime('%Y-%m-%d'),
-                        "release_time": f"{future_date.strftime('%Y-%m-%d')}T{release_time}:00Z",
-                        "actual": None,  # Not released yet
-                        "estimate": estimate_value,
-                        "previous": estimate_value - 0.2 if i > 0 else None,
-                        "unit": series_info["unit"],
-                        "country": "USA",
-                        "importance": series_info["importance"],
-                        "source_vendor": "fred",
-                        "event_type": "upcoming",
-                        "vendor_specific_data": {
-                            "series_id": series_id,
-                            "frequency": series_info["frequency"],
-                            "series_title": series_info["name"],
-                            "release_schedule": f"Next {series_info['frequency'].lower()} release"
-                        }
+            except Exception as fred_error:
+                logger.error(f"FRED API error: {fred_error}")
+                return {
+                    "success": False,
+                    "error": f"FRED API connection failed: {str(fred_error)}",
+                    "indicators": [],
+                    "total_indicators": 0,
+                    "troubleshooting": {
+                        "check_api_key": "Verify FRED_API_KEY is a valid 32-character key",
+                        "check_network": "Ensure internet connection to research.stlouisfed.org",
+                        "get_help": "Visit https://research.stlouisfed.org/docs/api/"
                     }
-                    upcoming_releases.append(upcoming_event)
-
-            # Combine historical and upcoming
-            all_indicators = mock_indicators + upcoming_releases
-
-            # Sort by date descending (upcoming first, then historical)
-            all_indicators.sort(key=lambda x: (x['event_date'], x.get('event_type', 'historical')), reverse=True)
-
-            # Generate summary statistics
-            historical_count = len([i for i in all_indicators if i.get('event_type') == 'historical'])
-            upcoming_count = len([i for i in all_indicators if i.get('event_type') == 'upcoming'])
-            high_priority = sum(1 for indicator in all_indicators if indicator['importance'] >= 5)
-            medium_priority = sum(1 for indicator in all_indicators if indicator['importance'] >= 4)
-            
-            return {
-                'success': True,
-                'indicators': all_indicators,
-                'total_indicators': len(all_indicators),
-                'summary': {
-                    'historical_releases': historical_count,
-                    'upcoming_releases': upcoming_count,
-                    'high_priority_indicators': high_priority,
-                    'medium_priority_indicators': medium_priority,
-                    'date_range': f"{start_date} to {end_date}",
-                    'data_source': 'FRED (Federal Reserve Economic Data)',
-                    'note': 'Demo data with upcoming releases - configure FRED API key for real data'
-                },
-                'filters': {
-                    'start_date': start_date.strftime('%Y-%m-%d'),
-                    'end_date': end_date.strftime('%Y-%m-%d'),
-                    'indicators_filter': indicators
-                },
-                'query_timestamp': datetime.now().isoformat()
-            }
+                }
 
         except Exception as e:
             logger.error(f"Error getting economic indicators: {e}")
@@ -2291,8 +2185,128 @@ class UnifiedAnalyticsService:
                 'success': False,
                 'error': str(e),
                 'indicators': [],
-                'total_indicators': 0,
-                'note': 'Configure FRED API key for economic indicators data'
+                'total_indicators': 0
+            }
+
+    def get_realtime_news(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None, min_sentiment: float = None) -> Dict[str, Any]:
+        """Get realtime news events from intg_realtime_news table with optional filters."""
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    # Build WHERE conditions
+                    where_conditions = []
+                    params = []
+
+                    if symbol:
+                        # Check if symbol exists in tickers array
+                        where_conditions.append("? = ANY(tickers)")
+                        params.append(symbol.upper())
+
+                    if start_date:
+                        where_conditions.append("published_date >= ?")
+                        params.append(start_date)
+
+                    if end_date:
+                        where_conditions.append("published_date <= ?")
+                        params.append(end_date)
+
+                    # Note: intg_news doesn't have sentiment_score, skip sentiment filtering
+                    # if min_sentiment is not None:
+                    #     where_conditions.append("sentiment_score >= ?")
+                    #     params.append(min_sentiment)
+
+                    # Build the query
+                    where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+                    
+                    # Replace ? placeholders with %s for psycopg2
+                    query = f"""
+                        SELECT 
+                            id,
+                            article_id,
+                            title,
+                            description,
+                            published_date,
+                            author,
+                            url,
+                            vendor,
+                            tickers,
+                            keywords,
+                            source,
+                            created_at
+                        FROM intg_news{where_clause}
+                        ORDER BY published_date DESC
+                        LIMIT %s
+                    """.replace('?', '%s')
+
+                    params.append(limit)
+                    cursor.execute(query, params)
+                    news_events = cursor.fetchall()
+
+                    # Format results
+                    formatted_events = []
+                    for news in news_events:
+                        # Convert array fields to proper format
+                        tickers_list = news['tickers'] if news['tickers'] else []
+                        keywords_list = news['keywords'] if news['keywords'] else []
+                        
+                        # Since intg_news doesn't have sentiment_score, assign neutral
+                        sentiment_label = "Neutral"
+                        sentiment_score = 0.0
+
+                        formatted_events.append({
+                            'id': news['id'],
+                            'event_id': news['article_id'],
+                            'title': news['title'],
+                            'summary': news['description'],  # Use description as summary
+                            'published_at': news['published_date'].isoformat() if news['published_date'] else None,
+                            'author': news['author'],
+                            'url': news['url'],
+                            'vendor': news['vendor'],
+                            'symbols': tickers_list,
+                            'sentiment_score': sentiment_score,
+                            'sentiment_label': sentiment_label,
+                            'keywords': keywords_list,
+                            'category': news['source'] or 'General',  # Use source as category
+                            'created_at': news['created_at'].isoformat() if news['created_at'] else None
+                        })
+
+                    logger.info(f"Retrieved {len(formatted_events)} realtime news events")
+
+                    return {
+                        'success': True,
+                        'events': formatted_events,
+                        'total_events': len(formatted_events),
+                        'summary': {
+                            'total_articles': len(formatted_events),
+                            'vendors': list(set([event['vendor'] for event in formatted_events])),
+                            'symbol_coverage': len(set([symbol for event in formatted_events for symbol in event['symbols']])),
+                            'sentiment_distribution': {
+                                'positive': len([e for e in formatted_events if e['sentiment_label'] == 'Positive']),
+                                'neutral': len([e for e in formatted_events if e['sentiment_label'] == 'Neutral']),
+                                'negative': len([e for e in formatted_events if e['sentiment_label'] == 'Negative'])
+                            }
+                        },
+                        'filters_applied': {
+                            'symbol': symbol,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'min_sentiment': min_sentiment,
+                            'limit': limit
+                        },
+                        'query_timestamp': datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting realtime news: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'events': [],
+                'total_events': 0
             }
 
     def _get_next_first_friday(self, base_date):
@@ -2462,6 +2476,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadGapEvents()">⚡ Gap Events</button>
                 <button onclick="loadEconomicEvents()">📊 Economic Events</button>
                 <button onclick="loadEconomicIndicators()">📈 Economic Indicators</button>
+                <button onclick="loadRealtimeNews()">📺 Real-Time News</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
 
@@ -4025,6 +4040,180 @@ async function loadUniverseAnalytics() {
                     loadEconomicIndicators('', '', '');
                 }
 
+                async function loadRealtimeNews(symbol = '', startDate = '', endDate = '', minSentiment = '') {
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>📺 Real-Time News</h3><p>Loading real-time news with sentiment analysis...</p>';
+
+                    try {
+                        // Build query parameters
+                        let params = new URLSearchParams();
+                        if (symbol) params.append('symbol', symbol);
+                        if (startDate) params.append('start_date', startDate);
+                        if (endDate) params.append('end_date', endDate);
+                        if (minSentiment) params.append('min_sentiment', minSentiment);
+                        params.append('limit', '50');
+
+                        // Fetch realtime news
+                        const response = await fetch('/api/realtime-news?' + params.toString());
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.events && data.events.length > 0) {
+                            const summary = data.summary;
+                            
+                            html = '<h3>📺 Real-Time News Analysis</h3>' +
+                                
+                                // Filter controls
+                                '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">' +
+                                    '<h4>🔍 Filter Real-Time News</h4>' +
+                                    '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 15px; align-items: end;">' +
+                                        '<div>' +
+                                            '<label for="news-symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>' +
+                                            '<input type="text" id="news-symbol-filter" value="' + symbol + '" placeholder="e.g., AAPL" ' +
+                                                   'style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="news-start-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>' +
+                                            '<input type="date" id="news-start-date-filter" value="' + startDate + '" ' +
+                                                   'style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="news-end-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>' +
+                                            '<input type="date" id="news-end-date-filter" value="' + endDate + '" ' +
+                                                   'style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="news-sentiment-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Min Sentiment:</label>' +
+                                            '<select id="news-sentiment-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                                '<option value="">All Sentiment</option>' +
+                                                '<option value="0.1"' + (minSentiment === '0.1' ? ' selected' : '') + '>Positive Only</option>' +
+                                                '<option value="-0.1"' + (minSentiment === '-0.1' ? ' selected' : '') + '>Neutral+</option>' +
+                                                '<option value="-1"' + (minSentiment === '-1' ? ' selected' : '') + '>All</option>' +
+                                            '</select>' +
+                                        '</div>' +
+                                        '<div style="display: flex; gap: 10px;">' +
+                                            '<button onclick="applyNewsFilters()" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Apply Filters</button>' +
+                                            '<button onclick="clearNewsFilters()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear</button>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                // Summary stats
+                                '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">' +
+                                    '<h4>📊 News Summary</h4>' +
+                                    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">' +
+                                        '<div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 6px;">' +
+                                            '<div style="font-size: 24px; font-weight: bold; color: #007bff;">' + summary.total_articles + '</div>' +
+                                            '<div style="color: #666;">Total Articles</div>' +
+                                        '</div>' +
+                                        '<div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 6px;">' +
+                                            '<div style="font-size: 24px; font-weight: bold; color: #28a745;">' + summary.sentiment_distribution.positive + '</div>' +
+                                            '<div style="color: #666;">Positive</div>' +
+                                        '</div>' +
+                                        '<div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 6px;">' +
+                                            '<div style="font-size: 24px; font-weight: bold; color: #ffc107;">' + summary.sentiment_distribution.neutral + '</div>' +
+                                            '<div style="color: #666;">Neutral</div>' +
+                                        '</div>' +
+                                        '<div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 6px;">' +
+                                            '<div style="font-size: 24px; font-weight: bold; color: #dc3545;">' + summary.sentiment_distribution.negative + '</div>' +
+                                            '<div style="color: #666;">Negative</div>' +
+                                        '</div>' +
+                                        '<div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 6px;">' +
+                                            '<div style="font-size: 24px; font-weight: bold; color: #6c757d;">' + summary.symbol_coverage + '</div>' +
+                                            '<div style="color: #666;">Symbols Covered</div>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                // News articles
+                                '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">' +
+                                    '<h4>📰 Recent News Articles</h4>' +
+                                    '<div style="max-height: 600px; overflow-y: auto;">';
+
+                            // Add news articles
+                            data.events.forEach(article => {
+                                const sentimentColor = article.sentiment_label === 'Positive' ? '#28a745' : 
+                                                      article.sentiment_label === 'Negative' ? '#dc3545' : '#6c757d';
+                                const sentimentIcon = article.sentiment_label === 'Positive' ? '📈' : 
+                                                     article.sentiment_label === 'Negative' ? '📉' : '➖';
+                                
+                                const symbolsText = article.symbols.length > 0 ? article.symbols.join(', ') : 'General Market';
+                                const publishedDate = new Date(article.published_at).toLocaleString();
+
+                                html += '<div style="border-bottom: 1px solid #eee; padding: 15px 0;">' +
+                                           '<div style="display: flex; justify-content: between; align-items: start; gap: 15px;">' +
+                                               '<div style="flex: 1;">' +
+                                                   '<h5 style="margin: 0 0 8px 0; color: #333;">' +
+                                                       '<a href="' + (article.url || '#') + '" target="_blank" style="text-decoration: none; color: #007bff;">' +
+                                                           article.title +
+                                                       '</a>' +
+                                                   '</h5>' +
+                                                   '<p style="margin: 0 0 8px 0; color: #666; font-size: 0.9em; line-height: 1.4;">' +
+                                                       (article.summary || 'No summary available') +
+                                                   '</p>' +
+                                                   '<div style="display: flex; gap: 15px; align-items: center; font-size: 0.85em; color: #999;">' +
+                                                       '<span>📅 ' + publishedDate + '</span>' +
+                                                       '<span>📊 ' + symbolsText + '</span>' +
+                                                       '<span>📰 ' + article.vendor + '</span>' +
+                                                       (article.author ? '<span>✍️ ' + article.author + '</span>' : '') +
+                                                   '</div>' +
+                                               '</div>' +
+                                               '<div style="text-align: center; min-width: 80px;">' +
+                                                   '<div style="font-size: 20px;">' + sentimentIcon + '</div>' +
+                                                   '<div style="font-size: 0.8em; font-weight: bold; color: ' + sentimentColor + ';">' +
+                                                       article.sentiment_label +
+                                                   '</div>' +
+                                                   '<div style="font-size: 0.7em; color: #999;">' +
+                                                       (article.sentiment_score !== null ? article.sentiment_score.toFixed(2) : 'N/A') +
+                                                   '</div>' +
+                                               '</div>' +
+                                           '</div>' +
+                                       '</div>';
+                            });
+
+                            html += '</div></div>';
+
+                        } else {
+                            html = '<h3>📺 Real-Time News</h3>' +
+                                '<div style="background: white; padding: 40px; border-radius: 8px; border: 1px solid #ddd; text-align: center;">' +
+                                    '<p style="font-size: 18px; color: #666; margin: 0;">No real-time news found for the specified criteria.</p>' +
+                                    '<p style="color: #999; margin: 10px 0 0 0;">Try adjusting your filters or date range.</p>' +
+                                '</div>';
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        console.error('Error loading realtime news:', error);
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>📺 Real-Time News</h3>' +
+                            '<div style="background: #f8d7da; padding: 20px; border-radius: 8px; border: 1px solid #f5c6cb; color: #721c24;">' +
+                                '<h4>⚠️ Error Loading Real-Time News</h4>' +
+                                '<p>Unable to load real-time news data. Please check if the news service is running.</p>' +
+                                '<p><strong>Error:</strong> ' + error.message + '</p>' +
+                            '</div>';
+                    }
+                }
+
+                function applyNewsFilters() {
+                    const symbol = document.getElementById('news-symbol-filter').value.trim();
+                    const startDate = document.getElementById('news-start-date-filter').value;
+                    const endDate = document.getElementById('news-end-date-filter').value;
+                    const minSentiment = document.getElementById('news-sentiment-filter').value;
+                    
+                    loadRealtimeNews(symbol, startDate, endDate, minSentiment);
+                }
+
+                function clearNewsFilters() {
+                    document.getElementById('news-symbol-filter').value = '';
+                    document.getElementById('news-start-date-filter').value = '';
+                    document.getElementById('news-end-date-filter').value = '';
+                    document.getElementById('news-sentiment-filter').value = '';
+                    
+                    loadRealtimeNews('', '', '', '');
+                }
+
                 async function loadTrainingDatasets() {
                     document.getElementById('analysis-content').innerHTML =
                         '<h3>🤖 Training Datasets</h3><p>Loading ML dataset visualization...</p>';
@@ -5163,6 +5352,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_economic_events()
             elif self.path.startswith('/api/economic-indicators'):
                 self._serve_economic_indicators()
+            elif self.path.startswith('/api/realtime-news'):
+                self._serve_realtime_news()
             elif self.path == '/api/bar-collection-metrics':
                 self._serve_bar_collection_metrics()
             elif self.path == '/api/tables':
@@ -6184,6 +6375,57 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "error": str(e),
                 "indicators": [],
                 "total_indicators": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
+    def _serve_realtime_news(self):
+        """Serve realtime news from intg_realtime_news table."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Get parameters with error handling
+            limit = int(query_params.get('limit', [100])[0])
+            symbol = query_params.get('symbol', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+            min_sentiment = query_params.get('min_sentiment', [None])[0]
+            
+            # Convert min_sentiment to float if provided
+            if min_sentiment is not None:
+                try:
+                    min_sentiment = float(min_sentiment)
+                except ValueError:
+                    min_sentiment = None
+
+            # Validate and constrain limit
+            limit = min(max(limit, 1), 500)  # Between 1 and 500 articles
+
+            # Get realtime news from the analytics service
+            news_data = self.analytics_service.get_realtime_news(
+                limit=limit, 
+                symbol=symbol, 
+                start_date=start_date, 
+                end_date=end_date,
+                min_sentiment=min_sentiment
+            )
+            self.wfile.write(json.dumps(news_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving realtime news: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "events": [],
+                "total_events": 0
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
 

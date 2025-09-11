@@ -964,7 +964,7 @@ class DevCLI:
                             raise ValueError("Record too short for binary format")
                         
                     except (struct.error, ValueError, UnicodeDecodeError):
-                        # Fallback to JSON decoding (legacy format)
+                        # Fallback to JSON decoding (legacy format)  
                         try:
                             decoded_str = record.decode('utf-8')
                             import json
@@ -1078,6 +1078,11 @@ class DevCLI:
                                         print(f"      📊 Volume-like values: {len(volume_like)} ({min(volume_like):,.0f}-{max(volume_like):,.0f})")
                         else:
                             print(f"   📋 JSON Array/Value: {json_data}")
+                            
+                        except (UnicodeDecodeError, json.JSONDecodeError):
+                            print(f"   📋 Raw Binary Record: {len(record)} bytes")
+                            print(f"       First 50 bytes: {record[:50].hex()}")
+                            continue
                     
                     except Exception as json_error:
                         # Try binary float32 array
