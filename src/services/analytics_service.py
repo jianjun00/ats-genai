@@ -579,7 +579,9 @@ class UnifiedAnalyticsService:
                     # Get dataset info
                     cursor.execute(f"""
                         SELECT dataset_name, symbols, total_sequences, run_id,
-                               dataset_path, symbol_files, file_metadata
+                               features_file_path as dataset_path, 
+                               ARRAY[features_file_path, labels_file_path] as symbol_files,
+                               metadata_file_path as file_metadata
                         FROM {table_name}
                         WHERE id = %s
                     """, (dataset_id,))
