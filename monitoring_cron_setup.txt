@@ -1,0 +1,9 @@
+# ATS 48-Hour Monitoring - Auto-generated
+# Health check every hour
+0 * * * * cd /home/jianjun/ats-genai-model && ./monitoring_health_check.sh >> monitoring_health_log.txt 2>&1
+
+# Metrics collection every 2 hours
+0 */2 * * * cd /home/jianjun/ats-genai-model && python3 collect_monitoring_metrics.py >> monitoring_metrics_log.txt 2>&1
+
+# End monitoring after 48 hours (remove these cron jobs)
+0 12 $(date -d '+2 days' '+%d') * * crontab -l | grep -v "ATS 48-Hour Monitoring" | crontab -

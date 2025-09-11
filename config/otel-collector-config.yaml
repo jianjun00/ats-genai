@@ -1,0 +1,96 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:14250
+      thrift_http:
+        endpoint: 0.0.0.0:14268
+  
+  zipkin:
+    endpoint: 0.0.0.0:9411
+  
+  # Prometheus metrics receiver for ATS metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'ats-code-usage'
+          static_configs:
+            - targets: ['host.docker.internal:8000']  # ATS metrics endpoint
+          scrape_interval: 30s
+          metrics_path: '/metrics'
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  
+  resource:
+    attributes:
+      - key: service.name
+        value: "ats-platform"
+        action: upsert
+      - key: service.version  
+        value: "1.0.0"
+        action: upsert
+
+  # Resource detection for better service identification
+  resourcedetection:
+    detectors: [env, system, docker]
+
+exporters:
+  # ClickHouse exporter for traces
+  clickhousetraces:
+    endpoint: tcp://clickhouse:9000/?database=signoz_traces
+    username: default
+    password: ""
+  
+  # ClickHouse exporter for metrics  
+  clickhousemetricswrite:
+    endpoint: tcp://clickhouse:9000/?database=signoz_metrics
+    username: default
+    password: ""
+  
+  # ClickHouse exporter for logs
+  clickhouselogsexporter:
+    endpoint: tcp://clickhouse:9000/?database=signoz_logs
+    username: default
+    password: ""
+  
+  # Debug logging
+  logging:
+    loglevel: debug
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  
+  pprof:
+    endpoint: 0.0.0.0:1777
+  
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp, jaeger, zipkin]
+      processors: [resourcedetection, resource, batch]
+      exporters: [clickhousetraces, logging]
+    
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [resourcedetection, resource, batch]
+      exporters: [clickhousemetricswrite, logging]
+    
+    logs:
+      receivers: [otlp]
+      processors: [resourcedetection, resource, batch] 
+      exporters: [clickhouselogsexporter, logging]

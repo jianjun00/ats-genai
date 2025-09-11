@@ -12,7 +12,7 @@ from datetime import datetime, date, timedelta
 from typing import Optional
 
 from core.platform.config.environment import Environment, EnvironmentType
-from core.platform.database.connection_manager import get_connection_pool
+from core.platform.database.connection_manager import get_connection_manager
 from domains.analytics.services.economic_events.population_service import EconomicEventsPopulationService
 
 # Configure logging
@@ -32,6 +32,7 @@ async def populate_economic_events(
     polygon_api_key: Optional[str] = None,
     tiingo_api_key: Optional[str] = None,
     alpha_vantage_api_key: Optional[str] = None,
+    eodhd_api_key: Optional[str] = None,
     fred_api_key: Optional[str] = None
 ):
     """
@@ -46,6 +47,7 @@ async def populate_economic_events(
         polygon_api_key: Polygon API key
         tiingo_api_key: Tiingo API key
         alpha_vantage_api_key: Alpha Vantage API key
+        eodhd_api_key: EODHD API key
         fred_api_key: FRED API key
     """
     logger.info(f"🚀 Starting economic events population for {environment} environment")
@@ -60,17 +62,26 @@ async def populate_economic_events(
 
     # Set default vendors
     if not vendors:
-        vendors = ["polygon", "tiingo", "alpha_vantage", "fred"]
+        vendors = ["polygon", "tiingo", "alpha_vantage", "eodhd", "fred"]
 
     logger.info(f"🌐 Vendors: {', '.join(vendors)}")
 
     try:
         # Initialize environment
-        env_type = EnvironmentType(environment.upper())
+        env_mapping = {
+            "test": EnvironmentType.TEST,
+            "dev": EnvironmentType.DEV,
+            "intg": EnvironmentType.INTEGRATION,
+            "prod": EnvironmentType.PRODUCTION
+        }
+        env_type = env_mapping.get(environment.lower())
+        if not env_type:
+            raise ValueError(f"Unknown environment: {environment}")
         env = Environment(env_type)
 
         # Get database connection
-        connection_pool = await get_connection_pool(env)
+        connection_manager = get_connection_manager(env)
+        connection_pool = await connection_manager.get_pool()
         logger.info("✅ Connected to database")
 
         # Initialize population service
@@ -81,6 +92,7 @@ async def populate_economic_events(
             polygon_api_key=polygon_api_key,
             tiingo_api_key=tiingo_api_key,
             alpha_vantage_api_key=alpha_vantage_api_key,
+            eodhd_api_key=eodhd_api_key,
             fred_api_key=fred_api_key
         )
 
@@ -158,7 +170,7 @@ def main():
     parser.add_argument(
         "--vendors",
         nargs="+",
-        choices=["polygon", "tiingo", "alpha_vantage", "fred"],
+        choices=["polygon", "tiingo", "alpha_vantage", "eodhd", "fred"],
         help="Vendors to use (default: all)"
     )
 
@@ -183,6 +195,11 @@ def main():
     parser.add_argument(
         "--alpha-vantage-api-key",
         help="Alpha Vantage API key (or set ALPHA_VANTAGE_API_KEY env var)"
+    )
+
+    parser.add_argument(
+        "--eodhd-api-key",
+        help="EODHD API key (or set EODHD_API_KEY env var)"
     )
 
     parser.add_argument(
@@ -215,6 +232,7 @@ def main():
     polygon_api_key = get_api_key_with_fallback('polygon', args.polygon_api_key, "POLYGON_API_KEY")
     tiingo_api_key = get_api_key_with_fallback('tiingo', args.tiingo_api_key, "TIINGO_API_KEY")
     alpha_vantage_api_key = get_api_key_with_fallback('alpha_vantage', args.alpha_vantage_api_key, "ALPHA_VANTAGE_API_KEY")
+    eodhd_api_key = get_api_key_with_fallback('eodhd', args.eodhd_api_key, "EODHD_API_KEY")
     fred_api_key = args.fred_api_key or os.getenv("FRED_API_KEY")  # FRED not in centralized system yet
 
     # Run population
@@ -227,6 +245,7 @@ def main():
         polygon_api_key=polygon_api_key,
         tiingo_api_key=tiingo_api_key,
         alpha_vantage_api_key=alpha_vantage_api_key,
+        eodhd_api_key=eodhd_api_key,
         fred_api_key=fred_api_key
     ))
 

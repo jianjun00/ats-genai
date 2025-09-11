@@ -264,7 +264,7 @@ class IntgCLI:
                 volume_mounts += f" -v {volume}"
 
         cmd = f"""docker run -d --name {container_name} {gpu_flag} \\
-            --network ats-network \\
+            --network ats-intg-network \\
             {volume_mounts} \\
             -w /workspace \\
             {port_flag} \\
