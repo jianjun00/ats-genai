@@ -95,6 +95,20 @@ class SigNozINTGConfigurator:
                 ]
             },
             {
+                "name": "ats-intg-news-realtime",
+                "type": "news_service",
+                "port": 8081,
+                "critical_metrics": [
+                    "news_articles_fetched_total",
+                    "news_articles_stored_total",
+                    "news_api_calls_total",
+                    "news_api_errors_total",
+                    "news_api_response_duration_ms",
+                    "news_ingestion_cycle_duration_ms",
+                    "news_data_freshness_minutes"
+                ]
+            },
+            {
                 "name": "ats-intg-ml-pipeline",
                 "type": "ml_service", 
                 "critical_metrics": [
@@ -179,6 +193,57 @@ class SigNozINTGConfigurator:
                         "query": "ats_memory_usage_mb{environment='intg'} by (service)"
                     }
                 ]
+            },
+            
+            "ats_intg_news_monitoring": {
+                "title": "ATS-INTG News Ingestion Dashboard",
+                "panels": [
+                    {
+                        "title": "News Articles Ingested per Hour",
+                        "type": "timeseries",
+                        "query": "rate(news_articles_stored_total{environment='intg'}[1h]) * 3600"
+                    },
+                    {
+                        "title": "News API Success Rate by Vendor",
+                        "type": "gauge",
+                        "query": "rate(news_api_calls_total{environment='intg', success='true'}[5m]) / rate(news_api_calls_total{environment='intg'}[5m])",
+                        "thresholds": {"warning": 0.95, "critical": 0.90}
+                    },
+                    {
+                        "title": "News API Response Time P95",
+                        "type": "timeseries",
+                        "query": "histogram_quantile(0.95, news_api_response_duration_ms{environment='intg'})"
+                    },
+                    {
+                        "title": "News Data Freshness by Vendor",
+                        "type": "stat",
+                        "query": "news_data_freshness_minutes{environment='intg'}",
+                        "thresholds": {"warning": 120, "critical": 240}
+                    },
+                    {
+                        "title": "News Ingestion Cycle Duration",
+                        "type": "histogram",
+                        "query": "news_ingestion_cycle_duration_ms{environment='intg'}"
+                    },
+                    {
+                        "title": "News API Error Rate",
+                        "type": "timeseries",
+                        "query": "rate(news_api_errors_total{environment='intg'}[5m])"
+                    },
+                    {
+                        "title": "Articles Fetched vs Stored",
+                        "type": "comparison",
+                        "queries": {
+                            "fetched": "rate(news_articles_fetched_total{environment='intg'}[1h]) * 3600",
+                            "stored": "rate(news_articles_stored_total{environment='intg'}[1h]) * 3600"
+                        }
+                    },
+                    {
+                        "title": "News Service Uptime",
+                        "type": "uptime",
+                        "query": "up{job='ats-intg-news-realtime'}"
+                    }
+                ]
             }
         }
         
@@ -227,6 +292,46 @@ class SigNozINTGConfigurator:
                 "for": "10m",
                 "description": "ML pipeline success rate below 95%",
                 "runbook": "Check training data availability and pipeline logs"
+            },
+            {
+                "name": "ATS-INTG News Service Down",
+                "severity": "critical",
+                "query": "up{job='ats-intg-news-realtime'} == 0",
+                "for": "2m",
+                "description": "News ingestion service is down",
+                "runbook": "Check ats-intg-news-realtime container status and logs"
+            },
+            {
+                "name": "ATS-INTG News Data Stale",
+                "severity": "critical", 
+                "query": "news_data_freshness_minutes{environment='intg'} > 180",
+                "for": "5m",
+                "description": "News data is more than 3 hours stale",
+                "runbook": "Check news API connectivity and service logs for errors"
+            },
+            {
+                "name": "ATS-INTG News API High Error Rate",
+                "severity": "warning",
+                "query": "rate(news_api_errors_total{environment='intg'}[10m]) / rate(news_api_calls_total{environment='intg'}[10m]) > 0.1",
+                "for": "5m", 
+                "description": "News API error rate above 10%",
+                "runbook": "Check API keys, rate limits, and vendor service status"
+            },
+            {
+                "name": "ATS-INTG News Ingestion Slow",
+                "severity": "warning",
+                "query": "histogram_quantile(0.95, news_ingestion_cycle_duration_ms{environment='intg'}) > 30000",
+                "for": "10m",
+                "description": "News ingestion cycles taking longer than 30 seconds",
+                "runbook": "Check database performance and external API response times"
+            },
+            {
+                "name": "ATS-INTG News API Response Time High",
+                "severity": "warning",
+                "query": "histogram_quantile(0.95, news_api_response_duration_ms{environment='intg'}) > 10000",
+                "for": "5m",
+                "description": "News API response times above 10 seconds P95",
+                "runbook": "Check network connectivity and vendor API performance"
             }
         ]
         
@@ -244,15 +349,39 @@ export OTEL_EXPORTER_OTLP_HEADERS="signoz-access-token={self.api_key}"
 export OTEL_SERVICE_NAME="ats-intg-service"  # Replace with actual service name
 export OTEL_RESOURCE_ATTRIBUTES="environment=intg,ats.tier=integration,ats.criticality=high"
 
+# News Service Configuration:
+export OTEL_SERVICE_NAME="ats-intg-news-realtime"
+export OTEL_RESOURCE_ATTRIBUTES="environment=intg,ats.tier=integration,ats.component=news-ingestion,ats.criticality=high"
+
+# Start news service with telemetry:
+docker run -d \\
+    --name ats-intg-news-realtime \\
+    --network ats-intg-network \\
+    -p 8081:8080 \\
+    -e OTEL_EXPORTER_OTLP_ENDPOINT="http://signoz-otel-collector:4318" \\
+    -e OTEL_SERVICE_NAME="ats-intg-news-realtime" \\
+    -e OTEL_RESOURCE_ATTRIBUTES="environment=intg,ats.component=news-ingestion" \\
+    -e DB_HOST=ats-intg-postgres \\
+    -e POLYGON_API_KEY="<API_KEY>" \\
+    -e PYTHONPATH=/workspace/src \\
+    -v /home/jianjun/ats-genai-data:/workspace \\
+    dragonflyer762/ats-genai:latest \\
+    python scripts/realtime_news_ingestion.py --vendors polygon
+
 # For Python services, add instrumentation:
 # from opentelemetry.instrumentation.auto_instrumentation import sitecustomize
 
-# Custom metrics for ATS-INTG monitoring:
-# - Data freshness tracking
-# - Integration test results  
-# - External API performance
-# - Database query performance
-# - Memory and CPU utilization
+# News-specific metrics configured:
+# - news_articles_fetched_total (by vendor)
+# - news_articles_stored_total (by vendor)
+# - news_api_calls_total (by vendor, success)
+# - news_api_errors_total (by vendor)
+# - news_api_response_duration_ms (by vendor)
+# - news_ingestion_cycle_duration_ms
+# - news_data_freshness_minutes (by vendor)
+
+# SigNoz Dashboard: http://localhost:8080/dashboard
+# News Dashboard: Search for "ATS-INTG News Ingestion Dashboard"
 """
         return config
 

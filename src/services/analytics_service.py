@@ -95,6 +95,9 @@ class UnifiedAnalyticsService:
         self.ray_enabled = RAY_AVAILABLE
         self.visualization_enabled = VISUALIZATION_AVAILABLE
 
+        # CRITICAL: Validate environment setup before starting
+        self._validate_environment_setup()
+
         # Initialize visualization components
         if self.visualization_enabled:
             self.multi_panel_chart = MultiPanelTradingChart()
@@ -1437,7 +1440,7 @@ class UnifiedAnalyticsService:
                     # Get recent news events from both sources
                     news_events = []
 
-                    # Query Polygon news
+                    # Query Polygon news (use intg environment table)
                     polygon_query = """
                         SELECT
                             'Polygon' as source,
@@ -1450,7 +1453,7 @@ class UnifiedAnalyticsService:
                             article_url,
                             publisher_name,
                             created_at
-                        FROM dev_news_polygon
+                        FROM intg_news_polygon
                         WHERE 1=1
                     """
 
@@ -1496,45 +1499,46 @@ class UnifiedAnalyticsService:
                         logger.warning(f"Could not fetch Polygon news: {e}")
 
                     # Query Tiingo news
-                    tiingo_query = """
+                    # Query realtime news (additional live news source)
+                    realtime_query = """
                         SELECT
-                            'Tiingo' as source,
-                            vendor_id::text as event_id,
+                            'Realtime' as source,
+                            article_id as event_id,
                             title,
-                            description,
-                            published_date as published_at,
+                            summary as description,
+                            published_utc as published_at,
                             tickers,
-                            tags as keywords,
-                            article_url as url,
-                            source as publisher,
+                            keywords,
+                            article_url,
+                            publisher_name,
                             created_at
-                        FROM dev_news_tiingo
+                        FROM intg_realtime_news
                         WHERE 1=1
                     """
 
-                    # Build dynamic filters for Tiingo news
-                    tiingo_params = []
+                    # Build dynamic filters for realtime news
+                    realtime_params = []
 
                     if symbol:
-                        tiingo_query += " AND %s = ANY(tickers)"
-                        tiingo_params.append(symbol.upper())
+                        realtime_query += " AND %s = ANY(tickers)"
+                        realtime_params.append(symbol.upper())
 
                     if start_date:
-                        tiingo_query += " AND published_date >= %s"
-                        tiingo_params.append(start_date)
+                        realtime_query += " AND published_utc >= %s"
+                        realtime_params.append(start_date)
 
                     if end_date:
-                        tiingo_query += " AND published_date <= %s"
-                        tiingo_params.append(end_date)
+                        realtime_query += " AND published_utc <= %s"
+                        realtime_params.append(end_date)
 
-                    tiingo_query += " ORDER BY published_date DESC LIMIT %s"
-                    tiingo_params.append(limit // 2)
+                    realtime_query += " ORDER BY published_utc DESC LIMIT %s"
+                    realtime_params.append(limit // 2)
 
                     try:
-                        cursor.execute(tiingo_query, tiingo_params)
-                        tiingo_news = cursor.fetchall()
+                        cursor.execute(realtime_query, realtime_params)
+                        realtime_news = cursor.fetchall()
 
-                        for news in tiingo_news:
+                        for news in realtime_news:
                             news_events.append({
                                 'source': news['source'],
                                 'event_id': news['event_id'],
@@ -1543,15 +1547,15 @@ class UnifiedAnalyticsService:
                                 'published_at': news['published_at'].isoformat() if news['published_at'] else None,
                                 'symbols': news['tickers'] or [],
                                 'keywords': news['keywords'] or [],
-                                'url': news['url'],
-                                'publisher': news['publisher'],
+                                'url': news['article_url'],
+                                'publisher': news['publisher_name'],
                                 'created_at': news['created_at'].isoformat() if news['created_at'] else None
                             })
 
-                        logger.info(f"Retrieved {len(tiingo_news)} Tiingo news events")
+                        logger.info(f"Retrieved {len(realtime_news)} Realtime news events")
 
                     except Exception as e:
-                        logger.warning(f"Could not fetch Tiingo news: {e}")
+                        logger.warning(f"Could not fetch realtime news: {e}")
 
                     # Sort all events by published date
                     news_events.sort(key=lambda x: x['published_at'] or '1970-01-01', reverse=True)
@@ -1719,17 +1723,22 @@ class UnifiedAnalyticsService:
             }
 
     def get_gap_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
-        """Get gap events from gap_events table with optional filters."""
+        """Get gap events from environment-specific gap_events table with optional filters."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime, timedelta
+            import os
+
+            # Get environment-specific table name
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            gap_table = f"{environment}_gap_events"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
 
                     # Query gap events
-                    gap_query = """
+                    gap_query = f"""
                         SELECT
                             symbol,
                             gap_date,
@@ -1752,7 +1761,7 @@ class UnifiedAnalyticsService:
                             processed,
                             created_at,
                             updated_at
-                        FROM gap_events
+                        FROM {gap_table}
                         WHERE 1=1
                     """
 
@@ -1861,6 +1870,395 @@ class UnifiedAnalyticsService:
                 'events': [],
                 'total_events': 0
             }
+
+    def get_economic_events(self, limit: int = 100, vendor: str = None, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """Get consolidated economic events from multiple event tables."""
+        logger.info(f"NEW get_economic_events method called with limit={limit}, vendor={vendor}")
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            from datetime import datetime, timedelta
+            import os
+
+            # Get environment-specific table names
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            earnings_table = f"{environment}_earnings_events"
+            news_table = f"{environment}_news"
+            gap_table = f"{environment}_gap_events"
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    all_events = []
+
+                    # Get earnings events
+                    try:
+                        earnings_query = f"""
+                            SELECT 
+                                'earnings' as event_type,
+                                symbol,
+                                report_period as event_date,
+                                COALESCE(earnings_call_datetime, report_period) as event_datetime,
+                                CONCAT('Earnings Report: ', symbol, ' Q', EXTRACT(QUARTER FROM report_period)) as title,
+                                CASE 
+                                    WHEN earnings_beat = true AND revenue_beat = true THEN 'Beat both EPS and Revenue'
+                                    WHEN earnings_beat = true THEN 'Beat EPS expectations'
+                                    WHEN revenue_beat = true THEN 'Beat Revenue expectations'
+                                    ELSE 'Mixed/Miss results'
+                                END as description,
+                                CASE 
+                                    WHEN earnings_beat = true AND revenue_beat = true THEN 'high'
+                                    WHEN earnings_beat = true OR revenue_beat = true THEN 'medium'
+                                    ELSE 'low'
+                                END as importance,
+                                'eodhd' as vendor,
+                                created_at,
+                                updated_at
+                            FROM {earnings_table}
+                            WHERE 1=1
+                        """
+                        
+                        params = []
+                        if symbol:
+                            earnings_query += " AND UPPER(symbol) = UPPER(%s)"
+                            params.append(symbol)
+                        if start_date:
+                            earnings_query += " AND report_period >= %s"
+                            params.append(start_date)
+                        if end_date:
+                            earnings_query += " AND report_period <= %s"
+                            params.append(end_date)
+                        
+                        earnings_query += " ORDER BY report_period DESC LIMIT %s"
+                        params.append(min(limit // 3, 50))  # Divide limit among sources
+                        
+                        cursor.execute(earnings_query, params)
+                        earnings_events = cursor.fetchall()
+                        all_events.extend(earnings_events)
+                        
+                    except Exception as e:
+                        logger.warning(f"Could not fetch earnings events: {e}")
+
+                    # Get gap events
+                    try:
+                        gap_query = f"""
+                            SELECT 
+                                'gap' as event_type,
+                                symbol,
+                                gap_date as event_date,
+                                gap_datetime as event_datetime,
+                                CONCAT(symbol, ' Gap ', UPPER(direction), ': ', gap_percentage::text, '%') as title,
+                                CONCAT('Gap ', direction, ' of ', gap_points, ' points (', gap_percentage, '%) with significance score ', significance_score) as description,
+                                CASE 
+                                    WHEN ABS(gap_percentage) > 10 THEN 'high'
+                                    WHEN ABS(gap_percentage) > 5 THEN 'medium'
+                                    ELSE 'low'
+                                END as importance,
+                                'internal' as vendor,
+                                created_at,
+                                updated_at
+                            FROM {gap_table}
+                            WHERE 1=1
+                        """
+                        
+                        params = []
+                        if symbol:
+                            gap_query += " AND UPPER(symbol) = UPPER(%s)"
+                            params.append(symbol)
+                        if start_date:
+                            gap_query += " AND gap_date >= %s"
+                            params.append(start_date)
+                        if end_date:
+                            gap_query += " AND gap_date <= %s"
+                            params.append(end_date)
+                        
+                        gap_query += " ORDER BY gap_date DESC LIMIT %s"
+                        params.append(min(limit // 3, 50))
+                        
+                        cursor.execute(gap_query, params)
+                        gap_events = cursor.fetchall()
+                        all_events.extend(gap_events)
+                        
+                    except Exception as e:
+                        logger.warning(f"Could not fetch gap events: {e}")
+
+                    # Sort all events by date and limit
+                    all_events.sort(key=lambda x: x['event_datetime'] if x['event_datetime'] else x['event_date'], reverse=True)
+                    all_events = all_events[:limit]
+
+                    # Process events for consistent format
+                    processed_events = []
+                    for event in all_events:
+                        processed_event = {
+                            'event_type': event['event_type'],
+                            'symbol': event['symbol'],
+                            'event_date': event['event_date'].strftime('%Y-%m-%d') if event['event_date'] else None,
+                            'event_datetime': event['event_datetime'].isoformat() if event['event_datetime'] else None,
+                            'title': event['title'],
+                            'description': event['description'],
+                            'importance': event['importance'],
+                            'vendor': event['vendor'],
+                            'created_at': event['created_at'].isoformat() if event['created_at'] else None,
+                            'updated_at': event['updated_at'].isoformat() if event['updated_at'] else None
+                        }
+                        processed_events.append(processed_event)
+
+                    # Get summary statistics
+                    unique_symbols = set(event['symbol'] for event in processed_events)
+                    event_types = set(event['event_type'] for event in processed_events)
+                    
+                    high_importance = sum(1 for event in processed_events if event['importance'] == 'high')
+                    medium_importance = sum(1 for event in processed_events if event['importance'] == 'medium')
+                    low_importance = sum(1 for event in processed_events if event['importance'] == 'low')
+
+                    logger.info(f"Retrieved {len(processed_events)} consolidated economic events")
+
+                    return {
+                        'success': True,
+                        'events': processed_events,
+                        'total_events': len(processed_events),
+                        'unique_symbols': len(unique_symbols),
+                        'event_types': list(event_types),
+                        'summary': {
+                            'high_importance': high_importance,
+                            'medium_importance': medium_importance,
+                            'low_importance': low_importance
+                        },
+                        'filters': {
+                            'vendor_filter': vendor,
+                            'symbol_filter': symbol,
+                            'start_date': start_date,
+                            'end_date': end_date
+                        },
+                        'query_timestamp': datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting economic events: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'events': [],
+                'total_events': 0
+            }
+
+    def get_economic_indicators(self, indicators: List[str] = None) -> Dict[str, Any]:
+        """Get economic indicators with current and upcoming releases."""
+        try:
+            from datetime import datetime, timedelta
+
+            # Current date context
+            today = datetime.now().date()
+            tomorrow = today + timedelta(days=1)
+            
+            # Demo economic indicators data (will be replaced with real FRED API data)
+            all_indicators = [
+                {
+                    'indicator_id': 'PPIFIS',
+                    'name': 'Producer Price Index: Finished Goods',
+                    'frequency': 'Monthly',
+                    'release_date': today.strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'released_today',
+                    'previous_value': '0.2%',
+                    'forecasted_value': '0.1%',
+                    'actual_value': '0.3%',
+                    'importance': 'high',
+                    'impact': 'markets_higher',
+                    'description': 'Measures average change in selling prices received by domestic producers for their output',
+                    'source': 'Bureau of Labor Statistics',
+                    'next_release': (today + timedelta(days=30)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'CPIAUCSL',
+                    'name': 'Consumer Price Index for All Urban Consumers',
+                    'frequency': 'Monthly',
+                    'release_date': tomorrow.strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'scheduled_tomorrow',
+                    'previous_value': '0.4%',
+                    'forecasted_value': '0.2%',
+                    'actual_value': None,
+                    'importance': 'high',
+                    'impact': 'tbd',
+                    'description': 'Measures average change in prices of goods and services consumed by urban households',
+                    'source': 'Bureau of Labor Statistics',
+                    'next_release': (tomorrow + timedelta(days=30)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'GDP',
+                    'name': 'Gross Domestic Product',
+                    'frequency': 'Quarterly',
+                    'release_date': (today + timedelta(days=45)).strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'upcoming',
+                    'previous_value': '2.8%',
+                    'forecasted_value': '2.5%',
+                    'actual_value': None,
+                    'importance': 'high',
+                    'impact': 'tbd',
+                    'description': 'Comprehensive measure of U.S. economic activity',
+                    'source': 'Bureau of Economic Analysis',
+                    'next_release': (today + timedelta(days=135)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'UNRATE',
+                    'name': 'Unemployment Rate',
+                    'frequency': 'Monthly',
+                    'release_date': (today + timedelta(days=3)).strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'upcoming',
+                    'previous_value': '4.1%',
+                    'forecasted_value': '4.2%',
+                    'actual_value': None,
+                    'importance': 'high',
+                    'impact': 'tbd',
+                    'description': 'Percentage of labor force that is unemployed',
+                    'source': 'Bureau of Labor Statistics',
+                    'next_release': (today + timedelta(days=33)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'EFFR',
+                    'name': 'Federal Funds Effective Rate',
+                    'frequency': 'Daily',
+                    'release_date': today.strftime('%Y-%m-%d'),
+                    'release_time': '16:00',
+                    'status': 'released_today',
+                    'previous_value': '5.25%',
+                    'forecasted_value': None,
+                    'actual_value': '5.25%',
+                    'importance': 'medium',
+                    'impact': 'neutral',
+                    'description': 'Interest rate at which depository institutions lend balances to other institutions overnight',
+                    'source': 'Federal Reserve',
+                    'next_release': (today + timedelta(days=1)).strftime('%Y-%m-%d')
+                }
+            ]
+
+            # Filter indicators if specific ones requested
+            if indicators:
+                filtered_indicators = [ind for ind in all_indicators if ind['indicator_id'] in indicators]
+            else:
+                filtered_indicators = all_indicators
+
+            # Categorize indicators by status
+            released_today = [ind for ind in filtered_indicators if ind['status'] == 'released_today']
+            scheduled_tomorrow = [ind for ind in filtered_indicators if ind['status'] == 'scheduled_tomorrow']
+            upcoming = [ind for ind in filtered_indicators if ind['status'] == 'upcoming']
+
+            logger.info(f"Retrieved {len(filtered_indicators)} economic indicators")
+
+            return {
+                'success': True,
+                'indicators': filtered_indicators,
+                'total_indicators': len(filtered_indicators),
+                'categorized': {
+                    'released_today': released_today,
+                    'scheduled_tomorrow': scheduled_tomorrow,
+                    'upcoming': upcoming
+                },
+                'summary': {
+                    'high_importance': sum(1 for ind in filtered_indicators if ind['importance'] == 'high'),
+                    'medium_importance': sum(1 for ind in filtered_indicators if ind['importance'] == 'medium'),
+                    'low_importance': sum(1 for ind in filtered_indicators if ind['importance'] == 'low'),
+                    'released_today_count': len(released_today),
+                    'scheduled_tomorrow_count': len(scheduled_tomorrow),
+                    'upcoming_count': len(upcoming)
+                },
+                'data_source': 'demo_data',  # Will be 'fred_api' when real API is integrated
+                'query_timestamp': datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting economic indicators: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'indicators': [],
+                'total_indicators': 0
+            }
+
+    def _validate_environment_setup(self):
+        """Validate environment configuration and database connectivity before service startup."""
+        import os
+        
+        # Get environment
+        environment = os.getenv('ENVIRONMENT', 'dev')
+        
+        logger.info(f"🔍 Validating environment setup for: {environment}")
+        
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            
+            # Get expected configuration
+            expected_db = f"{environment}_db"
+            expected_min_tables = {
+                'dev': 30,
+                'intg': 50,
+                'prod': 50
+            }.get(environment, 30)
+            
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                    
+                    # 1. Verify we're connected to correct database
+                    cursor.execute("SELECT current_database(), current_user, inet_server_addr(), inet_server_port()")
+                    db_info = cursor.fetchone()
+                    
+                    actual_db = db_info['current_database']
+                    server_addr = db_info['inet_server_addr']
+                    server_port = db_info['inet_server_port']
+                    
+                    if actual_db != expected_db:
+                        raise EnvironmentError(
+                            f"❌ CRITICAL DATABASE ERROR: Connected to '{actual_db}' but expected '{expected_db}'. "
+                            f"Environment: {environment}. Server: {server_addr}:{server_port}. "
+                            f"Check Docker network configuration!"
+                        )
+                    
+                    logger.info(f"✅ Database validation: {actual_db}@{server_addr}:{server_port}")
+                    
+                    # 2. Verify expected tables exist
+                    cursor.execute("""
+                        SELECT tablename FROM pg_tables 
+                        WHERE schemaname = 'public' AND tablename LIKE %s
+                        ORDER BY tablename
+                    """, (f"{environment}_%",))
+                    
+                    tables = [row['tablename'] for row in cursor.fetchall()]
+                    actual_table_count = len(tables)
+                    
+                    if actual_table_count < expected_min_tables:
+                        raise EnvironmentError(
+                            f"❌ CRITICAL TABLE ERROR: Only {actual_table_count} tables found, expected {expected_min_tables}+. "
+                            f"Environment: {environment}. Database: {actual_db}. "
+                            f"Missing data or wrong database!"
+                        )
+                    
+                    logger.info(f"✅ Table validation: {actual_table_count} tables found (expected {expected_min_tables}+)")
+                    
+                    # 3. Verify key event tables exist for this functionality
+                    key_tables = [f"{environment}_earnings_events", f"{environment}_gap_events", f"{environment}_news"]
+                    missing_tables = [table for table in key_tables if table not in tables]
+                    
+                    if missing_tables:
+                        logger.warning(f"⚠️ Missing event tables: {missing_tables} - some functionality may be limited")
+                    else:
+                        logger.info(f"✅ Event tables validation: All key tables present")
+                    
+                    # 4. Test basic query functionality
+                    cursor.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'")
+                    total_tables = cursor.fetchone()['count']
+                    
+                    logger.info(f"✅ Environment validation complete: {environment} environment with {total_tables} total tables")
+                    
+        except Exception as e:
+            logger.error(f"❌ ENVIRONMENT VALIDATION FAILED: {e}")
+            raise EnvironmentError(
+                f"Cannot start analytics service in {environment} environment. "
+                f"Database connectivity or configuration error: {e}"
+            )
 
     # ==============================================
     # MULTI-PANEL VISUALIZATION (NEW)
@@ -4375,6 +4773,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_earnings_events()
             elif self.path.startswith('/api/gap-events'):
                 self._serve_gap_events()
+            elif self.path.startswith('/api/economic-events'):
+                self._serve_economic_events()
+            elif self.path.startswith('/api/economic-indicators'):
+                self._serve_economic_indicators()
             elif self.path == '/api/bar-collection-metrics':
                 self._serve_bar_collection_metrics()
             elif self.path == '/api/tables':
@@ -5307,6 +5709,80 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "error": str(e),
                 "events": [],
                 "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
+    def _serve_economic_events(self):
+        """Serve consolidated economic events from multiple tables."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Get parameters with error handling
+            try:
+                limit = int(query_params.get('limit', [100])[0])
+            except (ValueError, TypeError):
+                limit = 100  # Default fallback
+
+            vendor = query_params.get('vendor', [None])[0]
+            symbol = query_params.get('symbol', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+
+            # Limit the results to reasonable bounds
+            limit = min(max(limit, 1), 500)  # Between 1 and 500 events
+
+            # Get economic events from the analytics service
+            events_data = self.analytics_service.get_economic_events(limit=limit, vendor=vendor, symbol=symbol, start_date=start_date, end_date=end_date)
+            self.wfile.write(json.dumps(events_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving economic events: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "events": [],
+                "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
+    def _serve_economic_indicators(self):
+        """Serve economic indicators with current and upcoming releases."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            indicators = query_params.get('indicators', [None])[0]
+            if indicators:
+                indicators = indicators.split(',')
+
+            # Get economic indicators from the analytics service
+            indicators_data = self.analytics_service.get_economic_indicators(indicators=indicators)
+            self.wfile.write(json.dumps(indicators_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving economic indicators: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "indicators": [],
+                "total_indicators": 0
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
 

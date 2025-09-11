@@ -552,20 +552,38 @@ curl -f http://localhost:8081/metrics
 - **EODHD**: 3-second delays between requests
 - **Collection Cycle**: Every 5 minutes (300 seconds)
 
-### **📊 News Monitoring Dashboard**
+### **📊 News Event Collection Monitoring**
 
-**Key Metrics Available:**
+**🚀 PRIMARY DASHBOARD: SigNoz** 
 ```bash
-# Real-time collection metrics (Prometheus)
-curl -s http://localhost:4080/metrics | grep "ats_news"
+# Main observability platform
+🌐 URL: http://localhost:8080/dashboard
+📊 Search: "ATS-INTG News Ingestion Dashboard"
 
-# Core news metrics:
-ats_news_articles_collected_total{vendor="tiingo"}    # Total articles collected
-ats_news_collection_duration_seconds{vendor="polygon"} # Collection time per vendor
-ats_news_api_calls_total{vendor="eodhd",status="200"}  # API call success/failure
-ats_news_processing_errors_total{vendor="tiingo"}      # Processing error count
-ats_news_duplicate_articles_total{vendor="polygon"}    # Duplicate detection count
+# News service status
+docker ps | grep ats-intg-news-realtime
+docker logs ats-intg-news-realtime --tail 20
 ```
+
+**📈 Key Metrics Available:**
+```bash
+# OpenTelemetry metrics in SigNoz
+news_articles_fetched_total{vendor="polygon"}         # Articles fetched from API
+news_articles_stored_total{vendor="polygon"}          # Articles stored to database  
+news_api_calls_total{vendor="polygon",success="true"} # API call success/failure
+news_api_errors_total{vendor="polygon"}               # API errors encountered
+news_api_response_duration_ms{vendor="polygon"}       # API response time
+news_ingestion_cycle_duration_ms                      # Complete cycle timing
+news_data_freshness_minutes{vendor="polygon"}         # Data freshness tracking
+```
+
+**⚠️ CRITICAL ALERTS:**
+- **Service Down**: News ingestion service stopped (2min threshold)
+- **Data Stale**: No new data for >3 hours (5min threshold)  
+- **High Error Rate**: API errors >10% (5min threshold)
+- **Slow Performance**: Ingestion cycles >30 seconds (10min threshold)
+
+**📖 Complete Documentation**: [NEWS_MONITORING.md](NEWS_MONITORING.md)
 
 **Database Queries for Status:**
 ```bash

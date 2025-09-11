@@ -24,6 +24,7 @@ Usage:
 import asyncio
 import asyncpg
 import aiohttp
+from aiohttp import web
 import json
 import logging
 import os
@@ -34,6 +35,55 @@ from typing import List, Dict, Optional, Set
 import argparse
 import time
 from pathlib import Path
+
+# OpenTelemetry imports for SigNoz integration (optional)
+try:
+    from opentelemetry import trace, metrics
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+    from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
+    from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
+    from opentelemetry.instrumentation.logging import LoggingInstrumentor
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource
+    OTEL_AVAILABLE = True
+except ImportError as e:
+    OTEL_AVAILABLE = False
+    
+    # Dummy classes for compatibility
+    class NoOpTracer:
+        def start_as_current_span(self, name):
+            return NoOpSpan()
+    
+    class NoOpSpan:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def set_attributes(self, attrs): pass
+        def set_attribute(self, key, value): pass
+        def record_exception(self, exc): pass
+        def set_status(self, status_code, description=""): pass
+    
+    class StatusCode:
+        ERROR = "ERROR"
+        OK = "OK"
+    
+    # Create a fake trace module for compatibility
+    class NoOpTrace:
+        StatusCode = StatusCode
+    
+    trace = NoOpTrace()
+    
+    class NoOpMeter:
+        def create_counter(self, name, **kwargs): return NoOpInstrument()
+        def create_histogram(self, name, **kwargs): return NoOpInstrument()
+        def create_up_down_counter(self, name, **kwargs): return NoOpInstrument()
+    
+    class NoOpInstrument:
+        def add(self, amount, attributes=None): pass
+        def record(self, amount, attributes=None): pass
 
 # Import the news backfill components
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -88,12 +138,118 @@ def setup_logging(debug: bool = False, log_file: Optional[str] = None):
 
 logger = logging.getLogger(__name__)
 
-class NewsIngestionMetrics:
-    """Metrics collection for news ingestion."""
+def setup_telemetry():
+    """Initialize OpenTelemetry for SigNoz monitoring."""
+    if not OTEL_AVAILABLE:
+        logger.warning("📊 OpenTelemetry not available - using no-op implementations")
+        return NoOpTracer(), NoOpMeter()
     
-    def __init__(self):
+    try:
+        # Get configuration from environment
+        otel_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://signoz-otel-collector:4318')
+        service_name = os.getenv('OTEL_SERVICE_NAME', 'ats-intg-news-realtime')
+        environment = os.getenv('ENVIRONMENT', 'intg')
+        
+        # Create resource
+        resource = Resource.create({
+            "service.name": service_name,
+            "service.version": "1.0.0",
+            "deployment.environment": environment,
+            "ats.tier": "integration",
+            "ats.component": "news-ingestion",
+            "ats.criticality": "high"
+        })
+        
+        # Setup tracing
+        trace_provider = TracerProvider(resource=resource)
+        trace_exporter = OTLPSpanExporter(
+            endpoint=f"{otel_endpoint}/v1/traces",
+            headers={"Content-Type": "application/json"}
+        )
+        span_processor = BatchSpanProcessor(trace_exporter)
+        trace_provider.add_span_processor(span_processor)
+        trace.set_tracer_provider(trace_provider)
+        
+        # Setup metrics
+        metric_exporter = OTLPMetricExporter(
+            endpoint=f"{otel_endpoint}/v1/metrics",
+            headers={"Content-Type": "application/json"}
+        )
+        metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=30000)
+        metrics_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+        metrics.set_meter_provider(metrics_provider)
+        
+        # Auto-instrument libraries
+        AsyncPGInstrumentor().instrument()
+        AioHttpClientInstrumentor().instrument()
+        LoggingInstrumentor().instrument(set_logging_format=True)
+        
+        logger.info("✅ OpenTelemetry configured for SigNoz")
+        return trace.get_tracer(__name__), metrics.get_meter(__name__)
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to setup OpenTelemetry: {e}")
+        logger.warning("📊 Falling back to no-op implementations")
+        return NoOpTracer(), NoOpMeter()
+
+class NewsIngestionMetrics:
+    """Enhanced metrics collection for news ingestion with OpenTelemetry integration."""
+    
+    def __init__(self, meter=None):
         self.reset_metrics()
         self.start_time = time.time()
+        self.meter = meter
+        
+        # Initialize OpenTelemetry metrics if meter is provided
+        if self.meter:
+            self._setup_otel_metrics()
+    
+    def _setup_otel_metrics(self):
+        """Setup OpenTelemetry metrics instruments."""
+        # Counters
+        self.articles_fetched_counter = self.meter.create_counter(
+            "news_articles_fetched_total",
+            description="Total number of news articles fetched from vendors",
+            unit="1"
+        )
+        
+        self.articles_stored_counter = self.meter.create_counter(
+            "news_articles_stored_total", 
+            description="Total number of news articles stored to database",
+            unit="1"
+        )
+        
+        self.api_calls_counter = self.meter.create_counter(
+            "news_api_calls_total",
+            description="Total number of API calls made to news vendors",
+            unit="1"
+        )
+        
+        self.api_errors_counter = self.meter.create_counter(
+            "news_api_errors_total",
+            description="Total number of API errors encountered",
+            unit="1"
+        )
+        
+        # Histograms  
+        self.api_response_time = self.meter.create_histogram(
+            "news_api_response_duration_ms",
+            description="Response time for news API calls",
+            unit="ms"
+        )
+        
+        self.cycle_duration = self.meter.create_histogram(
+            "news_ingestion_cycle_duration_ms", 
+            description="Duration of complete ingestion cycles",
+            unit="ms"
+        )
+        
+        # Gauges
+        self.data_freshness = self.meter.create_up_down_counter(
+            "news_data_freshness_minutes",
+            description="Minutes since last successful data ingestion",
+            unit="min"
+        )
     
     def reset_metrics(self):
         """Reset all metrics."""
@@ -108,26 +264,59 @@ class NewsIngestionMetrics:
     def record_fetch(self, vendor: str, count: int):
         """Record articles fetched."""
         self.articles_fetched[vendor] = self.articles_fetched.get(vendor, 0) + count
+        if self.meter and hasattr(self, 'articles_fetched_counter'):
+            self.articles_fetched_counter.add(count, {"vendor": vendor, "environment": "intg"})
     
     def record_store(self, vendor: str, count: int):
         """Record articles stored."""
         self.articles_stored[vendor] = self.articles_stored.get(vendor, 0) + count
+        if self.meter and hasattr(self, 'articles_stored_counter'):
+            self.articles_stored_counter.add(count, {"vendor": vendor, "environment": "intg"})
     
     def record_update(self, vendor: str, count: int):
         """Record articles updated."""
         self.articles_updated[vendor] = self.articles_updated.get(vendor, 0) + count
     
-    def record_api_call(self, vendor: str, success: bool = True):
-        """Record API call."""
+    def record_api_call(self, vendor: str, success: bool = True, response_time_ms: float = 0):
+        """Record API call with response time."""
         self.api_calls[vendor] = self.api_calls.get(vendor, 0) + 1
         if not success:
             self.api_errors[vendor] = self.api_errors.get(vendor, 0) + 1
         else:
             self.last_successful_fetch[vendor] = datetime.now()
+        
+        # Record to OpenTelemetry
+        if self.meter:
+            if hasattr(self, 'api_calls_counter'):
+                self.api_calls_counter.add(1, {
+                    "vendor": vendor, 
+                    "success": str(success).lower(),
+                    "environment": "intg"
+                })
+            
+            if not success and hasattr(self, 'api_errors_counter'):
+                self.api_errors_counter.add(1, {"vendor": vendor, "environment": "intg"})
+            
+            if response_time_ms > 0 and hasattr(self, 'api_response_time'):
+                self.api_response_time.record(response_time_ms, {"vendor": vendor, "environment": "intg"})
     
     def record_processing_time(self, vendor: str, seconds: float):
         """Record processing time."""
         self.processing_time[vendor] = seconds
+    
+    def record_cycle_duration(self, duration_ms: float, processed_count: int = 0):
+        """Record ingestion cycle duration and articles processed."""
+        if self.meter and hasattr(self, 'cycle_duration'):
+            self.cycle_duration.record(duration_ms, {
+                "environment": "intg",
+                "articles_processed": str(processed_count > 0).lower()
+            })
+    
+    def update_data_freshness(self, vendor: str, last_article_time: datetime):
+        """Update data freshness metric."""
+        if self.meter and hasattr(self, 'data_freshness'):
+            freshness_minutes = (datetime.now(timezone.utc) - last_article_time).total_seconds() / 60
+            self.data_freshness.add(int(freshness_minutes), {"vendor": vendor, "environment": "intg"})
     
     def get_summary(self) -> Dict:
         """Get metrics summary."""
@@ -152,7 +341,10 @@ class RealTimeNewsIngestion:
         self.poll_interval = poll_interval
         self.running = False
         self.db_pool = None
-        self.metrics = NewsIngestionMetrics()
+        
+        # Initialize telemetry
+        self.tracer, self.meter = setup_telemetry()
+        self.metrics = NewsIngestionMetrics(self.meter)
         self.collectors = {}
         self.last_processed = {}
         
@@ -290,51 +482,70 @@ class RealTimeNewsIngestion:
     
     async def fetch_vendor_news(self, vendor: str) -> List[NewsArticle]:
         """Fetch latest news from a specific vendor."""
-        config = self.vendor_configs[vendor]
-        articles = []
-        
-        # Create collector
-        if vendor == 'tiingo':
-            collector = TiingoNewsCollector(config)
-        elif vendor == 'polygon':
-            collector = PolygonNewsCollector(config)
-        elif vendor == 'eodhd':
-            collector = EODHDNewsCollector(config)
-        else:
-            return articles
-        
-        async with self.db_pool.acquire() as conn:
-            try:
-                await collector.initialize(conn)
-                
-                # Fetch news since last processed
-                start_date = self.last_processed[vendor].date()
-                end_date = datetime.now(timezone.utc).date()
-                
-                logger.debug(f"🔄 Fetching {vendor} news from {start_date} to {end_date}")
-                
-                articles = await collector.fetch_news(start_date, end_date)
-                
-                # Filter articles newer than last processed
-                new_articles = [
-                    article for article in articles 
-                    if article.published_utc > self.last_processed[vendor]
-                ]
-                
-                self.metrics.record_fetch(vendor, len(new_articles))
-                self.metrics.record_api_call(vendor, True)
-                
-                logger.debug(f"📰 {vendor}: {len(articles)} total, {len(new_articles)} new")
-                
-                return new_articles
-                
-            except Exception as e:
-                logger.error(f"❌ Error fetching {vendor} news: {e}")
-                self.metrics.record_api_call(vendor, False)
-                return []
+        with self.tracer.start_as_current_span("fetch_vendor_news") as span:
+            span.set_attributes({
+                "vendor": vendor,
+                "environment": "intg"
+            })
             
-            finally:
-                await collector.cleanup()
+            config = self.vendor_configs[vendor]
+            articles = []
+            api_start = time.time()
+            
+            # Create collector
+            if vendor == 'tiingo':
+                collector = TiingoNewsCollector(config)
+            elif vendor == 'polygon':
+                collector = PolygonNewsCollector(config)
+            elif vendor == 'eodhd':
+                collector = EODHDNewsCollector(config)
+            else:
+                return articles
+            
+            async with self.db_pool.acquire() as conn:
+                try:
+                    await collector.initialize(conn)
+                    
+                    # Fetch news since last processed
+                    start_date = self.last_processed[vendor].date()
+                    end_date = datetime.now(timezone.utc).date()
+                    
+                    logger.debug(f"🔄 Fetching {vendor} news from {start_date} to {end_date}")
+                    
+                    articles = await collector.fetch_news(start_date, end_date)
+                    
+                    # Calculate API response time
+                    response_time_ms = (time.time() - api_start) * 1000
+                    
+                    span.set_attributes({
+                        "api_response_time_ms": response_time_ms,
+                        "articles_total": len(articles)
+                    })
+                
+                    # Filter articles newer than last processed
+                    new_articles = [
+                        article for article in articles 
+                        if article.published_utc > self.last_processed[vendor]
+                    ]
+                    
+                    span.set_attribute("articles_new", len(new_articles))
+                    
+                    self.metrics.record_fetch(vendor, len(new_articles))
+                    self.metrics.record_api_call(vendor, True, response_time_ms)
+                    
+                    logger.debug(f"📰 {vendor}: {len(articles)} total, {len(new_articles)} new")
+                    
+                    return new_articles
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error fetching {vendor} news: {e}")
+                    span.record_exception(e)
+                    span.set_status(trace.StatusCode.ERROR, str(e))
+                    self.metrics.record_api_call(vendor, False)
+                    return []
+                
+                finally:
+                    await collector.cleanup()
     
     async def process_vendor_news(self, vendor: str, articles: List[NewsArticle]) -> int:
         """Process and store news articles from a vendor."""
@@ -391,34 +602,49 @@ class RealTimeNewsIngestion:
     
     async def run_ingestion_cycle(self):
         """Run a single ingestion cycle for all vendors."""
-        logger.debug("🔄 Starting ingestion cycle...")
-        
-        cycle_start = time.time()
-        total_processed = 0
-        
-        for vendor in self.collectors.keys():
-            try:
-                vendor_start = time.time()
-                
-                # Fetch news
-                articles = await self.fetch_vendor_news(vendor)
-                
-                # Process articles
-                if articles:
-                    processed = await self.process_vendor_news(vendor, articles)
-                    total_processed += processed
-                
-                # Record processing time
-                processing_time = time.time() - vendor_start
-                self.metrics.record_processing_time(vendor, processing_time)
-                
-                # Rate limiting between vendors
-                await asyncio.sleep(1.0)
-                
-            except Exception as e:
-                logger.error(f"❌ Error processing {vendor}: {e}")
-        
-        cycle_time = time.time() - cycle_start
+        with self.tracer.start_as_current_span("news_ingestion_cycle") as span:
+            span.set_attributes({
+                "vendors": ",".join(self.collectors.keys()),
+                "environment": "intg"
+            })
+            
+            logger.debug("🔄 Starting ingestion cycle...")
+            
+            cycle_start = time.time()
+            total_processed = 0
+            
+            for vendor in self.collectors.keys():
+                try:
+                    vendor_start = time.time()
+                    
+                    # Fetch news
+                    articles = await self.fetch_vendor_news(vendor)
+                    
+                    # Process articles
+                    if articles:
+                        processed = await self.process_vendor_news(vendor, articles)
+                        total_processed += processed
+                    
+                    # Record processing time
+                    processing_time = time.time() - vendor_start
+                    self.metrics.record_processing_time(vendor, processing_time)
+                    
+                    # Rate limiting between vendors
+                    await asyncio.sleep(1.0)
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error processing {vendor}: {e}")
+                    span.set_attribute(f"error.{vendor}", str(e))
+            
+            cycle_time = time.time() - cycle_start
+            cycle_time_ms = cycle_time * 1000
+            
+            # Record cycle metrics
+            span.set_attributes({
+                "cycle_duration_ms": cycle_time_ms,
+                "articles_processed": total_processed
+            })
+            self.metrics.record_cycle_duration(cycle_time_ms, total_processed)
         
         if total_processed > 0:
             logger.info(f"🎯 Cycle completed: {total_processed} articles processed in {cycle_time:.1f}s")
@@ -477,11 +703,72 @@ class RealTimeNewsIngestion:
         
         logger.info("="*60)
     
+    async def health_handler(self, request):
+        """HTTP health endpoint handler."""
+        try:
+            # Check service health
+            is_healthy = await self.health_check()
+            metrics = self.metrics.get_summary()
+            
+            status = {
+                "status": "healthy" if is_healthy else "unhealthy",
+                "service": "ats-intg-news-realtime",
+                "version": "1.0.0",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "uptime_hours": round(metrics['uptime_hours'], 2),
+                "vendors": list(self.collectors.keys()),
+                "metrics": {
+                    "articles_fetched": metrics['articles_fetched'],
+                    "articles_stored": metrics['articles_stored'], 
+                    "api_calls": metrics['api_calls'],
+                    "api_errors": metrics['api_errors'],
+                    "processing_time": metrics['processing_time']
+                }
+            }
+            
+            return web.json_response(status, status=200 if is_healthy else 503)
+            
+        except Exception as e:
+            return web.json_response({
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }, status=500)
+    
+    async def metrics_handler(self, request):
+        """HTTP metrics endpoint handler."""
+        try:
+            metrics = self.metrics.get_summary()
+            return web.json_response(metrics)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+    
+    async def start_health_server(self):
+        """Start HTTP health check server."""
+        app = web.Application()
+        app.router.add_get('/health', self.health_handler)
+        app.router.add_get('/metrics', self.metrics_handler)
+        
+        runner = web.AppRunner(app)
+        await runner.setup()
+        
+        site = web.TCPSite(runner, '0.0.0.0', 8080)
+        await site.start()
+        
+        logger.info("🌐 Health server started on http://0.0.0.0:8080")
+        logger.info("  📍 Health: http://localhost:8081/health")  
+        logger.info("  📊 Metrics: http://localhost:8081/metrics")
+        
+        return runner
+    
     async def run(self):
         """Main ingestion loop."""
         logger.info("🚀 Starting real-time news ingestion...")
         logger.info(f"📡 Vendors: {', '.join(self.vendors)}")
         logger.info(f"⏱️  Poll interval: {self.poll_interval} seconds")
+        
+        # Start health server
+        health_server = await self.start_health_server()
         
         self.running = True
         next_status_time = time.time() + 1800  # Status every 30 minutes
