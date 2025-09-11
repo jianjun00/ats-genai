@@ -1,4 +1,4 @@
--- Migration 031: Create economic events tables
+-- Migration 071: Create economic events tables
 -- Description: Tables for storing economic events from multiple sources (Polygon, Tiingo, Alpha Vantage, FRED)
 
 -- Economic event types lookup table
