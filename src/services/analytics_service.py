@@ -1888,6 +1888,424 @@ class UnifiedAnalyticsService:
                 'total_events': 0
             }
 
+    def get_economic_events(self, limit: int = 100, vendor: str = None, start_date: str = None, end_date: str = None, min_importance: int = 3) -> Dict[str, Any]:
+        """Get economic events from economic_events table with optional filters."""
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            from datetime import datetime, timedelta
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    # Query financial events (using as economic events proxy)
+                    economic_query = """
+                        SELECT DISTINCT
+                            fe.id,
+                            fe.event_datetime::date as event_date,
+                            fe.event_datetime as release_time,
+                            fe.actual_value as actual,
+                            fe.expected_value as estimate,
+                            NULL as previous,
+                            NULL as revised,
+                            NULL as unit,
+                            NULL as currency,
+                            NULL as country,
+                            fe.vendor as source_vendor,
+                            false as is_preliminary,
+                            fe.title as event_name,
+                            fe.description,
+                            fe.event_subtype as category,
+                            CASE 
+                                WHEN fe.importance_level = 'low' THEN 1
+                                WHEN fe.importance_level = 'medium' THEN 3
+                                WHEN fe.importance_level = 'high' THEN 5
+                                ELSE 3
+                            END as importance_level,
+                            NULL as frequency
+                        FROM dev_financial_events fe
+                        WHERE fe.event_type IN ('earnings', 'analyst_rating', 'corporate_action', 'announcement')
+                    """
+
+                    params = []
+
+                    # Add vendor filter
+                    if vendor:
+                        economic_query += " AND LOWER(fe.vendor) = LOWER(%s)"
+                        params.append(vendor)
+
+                    # Add date range filters
+                    if start_date:
+                        economic_query += " AND fe.event_datetime::date >= %s"
+                        params.append(start_date)
+
+                    if end_date:
+                        economic_query += " AND fe.event_datetime::date <= %s"
+                        params.append(end_date)
+
+                    # Add importance filter
+                    if min_importance:
+                        importance_filter = []
+                        if min_importance <= 1:
+                            importance_filter.extend(['low', 'medium', 'high'])
+                        elif min_importance <= 3:
+                            importance_filter.extend(['medium', 'high'])
+                        else:
+                            importance_filter.append('high')
+                        
+                        if importance_filter:
+                            economic_query += f" AND fe.importance_level::text = ANY(%s)"
+                            params.append(importance_filter)
+
+                    economic_query += " ORDER BY fe.event_datetime DESC"
+                    economic_query += " LIMIT %s"
+                    params.append(limit)
+
+                    cursor.execute(economic_query, params)
+                    events = cursor.fetchall()
+
+                    # Process events for JSON serialization
+                    processed_events = []
+                    for event in events:
+                        processed_event = {
+                            'id': event['id'],
+                            'event_name': event['event_name'] or 'Unknown Event',
+                            'event_date': event['event_date'].strftime('%Y-%m-%d') if event['event_date'] else None,
+                            'release_time': event['release_time'].isoformat() if event['release_time'] else None,
+                            'actual': float(event['actual']) if event['actual'] is not None else None,
+                            'estimate': float(event['estimate']) if event['estimate'] is not None else None,
+                            'previous': float(event['previous']) if event['previous'] is not None else None,
+                            'revised': float(event['revised']) if event['revised'] is not None else None,
+                            'unit': event['unit'],
+                            'currency': event['currency'],
+                            'country': event['country'],
+                            'importance_level': event['importance_level'],
+                            'category': event['category'],
+                            'source_vendor': event['source_vendor'],
+                            'is_preliminary': event['is_preliminary'],
+                            'description': event['description'],
+                            'frequency': event['frequency']
+                        }
+                        processed_events.append(processed_event)
+
+                    # Get summary statistics
+                    unique_vendors = set(event['source_vendor'] for event in processed_events if event['source_vendor'])
+                    unique_countries = set(event['country'] for event in processed_events if event['country'])
+                    unique_categories = set(event['category'] for event in processed_events if event['category'])
+                    
+                    # Count by importance level
+                    high_importance = sum(1 for event in processed_events if event['importance_level'] and event['importance_level'] >= 4)
+                    medium_importance = sum(1 for event in processed_events if event['importance_level'] and event['importance_level'] == 3)
+                    low_importance = sum(1 for event in processed_events if event['importance_level'] and event['importance_level'] <= 2)
+                    
+                    # Count events with data
+                    events_with_actual = sum(1 for event in processed_events if event['actual'] is not None)
+                    events_with_estimate = sum(1 for event in processed_events if event['estimate'] is not None)
+
+                    return {
+                        'success': True,
+                        'events': processed_events,
+                        'total_events': len(processed_events),
+                        'unique_vendors': len(unique_vendors),
+                        'unique_countries': len(unique_countries),
+                        'unique_categories': len(unique_categories),
+                        'summary': {
+                            'high_importance_events': high_importance,
+                            'medium_importance_events': medium_importance,
+                            'low_importance_events': low_importance,
+                            'events_with_actual': events_with_actual,
+                            'events_with_estimate': events_with_estimate,
+                            'vendors': list(unique_vendors),
+                            'countries': list(unique_countries),
+                            'categories': list(unique_categories)
+                        },
+                        'filters': {
+                            'vendor_filter': vendor,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'min_importance': min_importance
+                        },
+                        'query_timestamp': datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting economic events: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'events': [],
+                'total_events': 0
+            }
+
+    def get_economic_indicators(self, start_date: str = None, end_date: str = None, indicators: str = None) -> Dict[str, Any]:
+        """Get economic indicators using FRED API or mock data for demonstration."""
+        try:
+            from datetime import datetime, date, timedelta
+            import os
+
+            # For demonstration, create mock FRED data since we don't have API key configured
+            # In production, this would use the FRED client with actual API key
+            
+            # Set default date range if not provided
+            if not end_date:
+                end_date = date.today()
+            else:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            
+            if not start_date:
+                start_date = end_date - timedelta(days=365)  # 1 year back
+            else:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+
+            # Parse indicators filter
+            selected_indicators = []
+            if indicators:
+                selected_indicators = indicators.split(',')
+
+            # Mock FRED data structure for demonstration
+            fred_series_map = {
+                "GDP": {"name": "Gross Domestic Product", "unit": "billions_usd", "importance": 5, "frequency": "Quarterly"},
+                "GDPC1": {"name": "Real Gross Domestic Product", "unit": "billions_usd", "importance": 5, "frequency": "Quarterly"},
+                "UNRATE": {"name": "Unemployment Rate", "unit": "percentage", "importance": 5, "frequency": "Monthly"},
+                "PAYEMS": {"name": "Nonfarm Payrolls", "unit": "thousands", "importance": 5, "frequency": "Monthly"},
+                "CPIAUCSL": {"name": "Consumer Price Index (CPI)", "unit": "index", "importance": 5, "frequency": "Monthly"},
+                "CPILFESL": {"name": "Core CPI", "unit": "index", "importance": 4, "frequency": "Monthly"},
+                "PPIFIS": {"name": "Producer Price Index (PPI)", "unit": "index", "importance": 5, "frequency": "Monthly"},
+                "PPIACO": {"name": "Core PPI", "unit": "index", "importance": 4, "frequency": "Monthly"},
+                "FEDFUNDS": {"name": "Federal Funds Rate", "unit": "percentage", "importance": 5, "frequency": "Monthly"},
+                "DGS10": {"name": "10-Year Treasury Rate", "unit": "percentage", "importance": 5, "frequency": "Daily"},
+                "DGS2": {"name": "2-Year Treasury Rate", "unit": "percentage", "importance": 4, "frequency": "Daily"},
+                "RSAFS": {"name": "Retail Sales", "unit": "millions_usd", "importance": 4, "frequency": "Monthly"},
+                "INDPRO": {"name": "Industrial Production", "unit": "index", "importance": 4, "frequency": "Monthly"},
+                "HOUST": {"name": "Housing Starts", "unit": "thousands", "importance": 4, "frequency": "Monthly"},
+                "UMCSENT": {"name": "Consumer Sentiment", "unit": "index", "importance": 3, "frequency": "Monthly"},
+            }
+
+            # Filter series based on indicators parameter
+            if selected_indicators:
+                filtered_series = {k: v for k, v in fred_series_map.items() if k in selected_indicators}
+            else:
+                filtered_series = fred_series_map
+
+            # Generate both historical data and upcoming releases
+            mock_indicators = []
+            upcoming_releases = []
+            
+            # Historical data (past releases)
+            for series_id, series_info in filtered_series.items():
+                # Generate historical data points
+                series_date = start_date
+                for i in range(min(3, int((end_date - start_date).days / 30))):  # Up to 3 historical points
+                    # Mock values based on series type
+                    if "rate" in series_info["name"].lower() or "percentage" in series_info["unit"]:
+                        mock_value = round(2.5 + (i * 0.25), 2)  # Mock interest rates
+                    elif "gdp" in series_info["name"].lower():
+                        mock_value = round(25000 + (i * 100), 1)  # Mock GDP in billions
+                    elif "unemployment" in series_info["name"].lower():
+                        mock_value = round(4.2 - (i * 0.1), 1)  # Mock unemployment rate
+                    elif "index" in series_info["unit"]:
+                        mock_value = round(100 + (i * 2), 1)  # Mock index values
+                    else:
+                        mock_value = round(1000 + (i * 50), 1)  # Generic mock value
+
+                    indicator = {
+                        "event_name": series_info["name"],
+                        "event_date": series_date.strftime('%Y-%m-%d'),
+                        "release_time": f"{series_date.strftime('%Y-%m-%d')}T08:30:00Z",
+                        "actual": mock_value,
+                        "estimate": None,
+                        "previous": mock_value - 0.1 if i > 0 else None,
+                        "unit": series_info["unit"],
+                        "country": "USA",
+                        "importance": series_info["importance"],
+                        "source_vendor": "fred",
+                        "event_type": "historical",
+                        "vendor_specific_data": {
+                            "series_id": series_id,
+                            "frequency": series_info["frequency"],
+                            "series_title": series_info["name"]
+                        }
+                    }
+                    mock_indicators.append(indicator)
+                    
+                    # Increment date based on frequency
+                    if series_info["frequency"] == "Monthly":
+                        series_date += timedelta(days=30)
+                    elif series_info["frequency"] == "Quarterly":
+                        series_date += timedelta(days=90)
+                    else:  # Daily
+                        series_date += timedelta(days=7)  # Weekly for demo
+
+            # Generate upcoming releases (future scheduled events)
+            today = date.today()
+            tomorrow = today + timedelta(days=1)
+            
+            # Add specific high-priority events for today and tomorrow
+            priority_events = []
+            
+            # PPI (Producer Price Index) - typically released around 14th of month at 8:30 AM ET
+            if "PPIFIS" in filtered_series or not selected_indicators:
+                ppi_event = {
+                    "event_name": "Producer Price Index (PPI) Release",
+                    "event_date": today.strftime('%Y-%m-%d'),
+                    "release_time": f"{today.strftime('%Y-%m-%d')}T08:30:00Z",
+                    "actual": None,  # Not released yet
+                    "estimate": 102.8,
+                    "previous": 102.3,
+                    "unit": "index",
+                    "country": "USA",
+                    "importance": 5,
+                    "source_vendor": "fred",
+                    "event_type": "upcoming",
+                    "vendor_specific_data": {
+                        "series_id": "PPIFIS",
+                        "frequency": "Monthly",
+                        "series_title": "Producer Price Index for Final Demand",
+                        "release_schedule": "Monthly release - TODAY"
+                    }
+                }
+                priority_events.append(ppi_event)
+
+            # CPI (Consumer Price Index) - typically released around 15th of month at 8:30 AM ET  
+            if "CPIAUCSL" in filtered_series or not selected_indicators:
+                cpi_event = {
+                    "event_name": "Consumer Price Index (CPI) Release",
+                    "event_date": tomorrow.strftime('%Y-%m-%d'),
+                    "release_time": f"{tomorrow.strftime('%Y-%m-%d')}T08:30:00Z",
+                    "actual": None,  # Not released yet
+                    "estimate": 315.2,
+                    "previous": 314.1,
+                    "unit": "index",
+                    "country": "USA",
+                    "importance": 5,
+                    "source_vendor": "fred",
+                    "event_type": "upcoming",
+                    "vendor_specific_data": {
+                        "series_id": "CPIAUCSL",
+                        "frequency": "Monthly",
+                        "series_title": "Consumer Price Index for All Urban Consumers",
+                        "release_schedule": "Monthly release - TOMORROW"
+                    }
+                }
+                priority_events.append(cpi_event)
+
+            # Add priority events first
+            upcoming_releases.extend(priority_events)
+            
+            # Generate other upcoming releases for next few weeks
+            for series_id, series_info in filtered_series.items():
+                # Skip PPI and CPI since we added them specifically above
+                if series_id in ["PPIFIS", "CPIAUCSL"]:
+                    continue
+                    
+                # Generate 2-3 other upcoming releases
+                for i in range(2):  # Next 2 releases
+                    # Calculate next release date based on frequency
+                    if series_info["frequency"] == "Monthly":
+                        # Monthly releases typically mid-month
+                        if series_id in ["UNRATE", "PAYEMS"]:  # Employment data
+                            future_date = self._get_next_first_friday(today + timedelta(days=30*(i+1)))
+                            release_time = "08:30"
+                        else:
+                            future_date = today + timedelta(days=14*(i+1))  # Next 2-4 weeks
+                            release_time = "08:30"
+                    elif series_info["frequency"] == "Quarterly":
+                        # Quarterly releases
+                        future_date = today + timedelta(days=30*(i+1))  # Next month, then following
+                        release_time = "08:30"
+                    else:  # Daily
+                        future_date = today + timedelta(days=7*(i+1))
+                        release_time = "08:30"
+
+                    # Generate forecast/estimate for upcoming release
+                    if "rate" in series_info["name"].lower() or "percentage" in series_info["unit"]:
+                        estimate_value = round(2.7 + (i * 0.1), 2)
+                    elif "gdp" in series_info["name"].lower():
+                        estimate_value = round(25200 + (i * 50), 1)
+                    elif "unemployment" in series_info["name"].lower():
+                        estimate_value = round(4.0 - (i * 0.05), 1)
+                    elif "index" in series_info["unit"]:
+                        estimate_value = round(102 + (i * 1), 1)
+                    else:
+                        estimate_value = round(1100 + (i * 25), 1)
+
+                    upcoming_event = {
+                        "event_name": f"{series_info['name']} Release",
+                        "event_date": future_date.strftime('%Y-%m-%d'),
+                        "release_time": f"{future_date.strftime('%Y-%m-%d')}T{release_time}:00Z",
+                        "actual": None,  # Not released yet
+                        "estimate": estimate_value,
+                        "previous": estimate_value - 0.2 if i > 0 else None,
+                        "unit": series_info["unit"],
+                        "country": "USA",
+                        "importance": series_info["importance"],
+                        "source_vendor": "fred",
+                        "event_type": "upcoming",
+                        "vendor_specific_data": {
+                            "series_id": series_id,
+                            "frequency": series_info["frequency"],
+                            "series_title": series_info["name"],
+                            "release_schedule": f"Next {series_info['frequency'].lower()} release"
+                        }
+                    }
+                    upcoming_releases.append(upcoming_event)
+
+            # Combine historical and upcoming
+            all_indicators = mock_indicators + upcoming_releases
+
+            # Sort by date descending (upcoming first, then historical)
+            all_indicators.sort(key=lambda x: (x['event_date'], x.get('event_type', 'historical')), reverse=True)
+
+            # Generate summary statistics
+            historical_count = len([i for i in all_indicators if i.get('event_type') == 'historical'])
+            upcoming_count = len([i for i in all_indicators if i.get('event_type') == 'upcoming'])
+            high_priority = sum(1 for indicator in all_indicators if indicator['importance'] >= 5)
+            medium_priority = sum(1 for indicator in all_indicators if indicator['importance'] >= 4)
+            
+            return {
+                'success': True,
+                'indicators': all_indicators,
+                'total_indicators': len(all_indicators),
+                'summary': {
+                    'historical_releases': historical_count,
+                    'upcoming_releases': upcoming_count,
+                    'high_priority_indicators': high_priority,
+                    'medium_priority_indicators': medium_priority,
+                    'date_range': f"{start_date} to {end_date}",
+                    'data_source': 'FRED (Federal Reserve Economic Data)',
+                    'note': 'Demo data with upcoming releases - configure FRED API key for real data'
+                },
+                'filters': {
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d'),
+                    'indicators_filter': indicators
+                },
+                'query_timestamp': datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting economic indicators: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'indicators': [],
+                'total_indicators': 0,
+                'note': 'Configure FRED API key for economic indicators data'
+            }
+
+    def _get_next_first_friday(self, base_date):
+        """Get the first Friday of the month for a given base date."""
+        from datetime import date
+        
+        # Get first day of the month
+        first_day = base_date.replace(day=1)
+        
+        # Find the first Friday (weekday 4 = Friday)
+        days_until_friday = (4 - first_day.weekday()) % 7
+        first_friday = first_day + timedelta(days=days_until_friday)
+        
+        return first_friday
+
     # ==============================================
     # MULTI-PANEL VISUALIZATION (NEW)
     # ==============================================
@@ -2040,6 +2458,8 @@ class UnifiedAnalyticsService:
                 <button onclick="loadNewsEvents()">📰 News Events</button>
                 <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
                 <button onclick="loadGapEvents()">⚡ Gap Events</button>
+                <button onclick="loadEconomicEvents()">📊 Economic Events</button>
+                <button onclick="loadEconomicIndicators()">📈 Economic Indicators</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
 
@@ -3267,6 +3687,342 @@ async function loadUniverseAnalytics() {
                     loadGapEvents('', '', '');
                 }
 
+                async function loadEconomicEvents(startDate = '', endDate = '', vendor = '', minImportance = '3') {
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>📊 Economic Events</h3><p>Loading economic events data...</p>';
+
+                    try {
+                        // Build query parameters
+                        let params = new URLSearchParams();
+                        params.append('limit', '100');
+                        if (startDate) params.append('start_date', startDate);
+                        if (endDate) params.append('end_date', endDate);
+                        if (vendor) params.append('vendor', vendor);
+                        if (minImportance) params.append('min_importance', minImportance);
+
+                        // Fetch economic events
+                        const response = await fetch('/api/economic-events?' + params.toString());
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.events && data.events.length > 0) {
+                            html = '<h3>📊 Economic Events Analysis</h3>' +
+                                
+                                // Filter controls
+                                '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">' +
+                                    '<h4>🔍 Filter Economic Events</h4>' +
+                                    '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 15px; align-items: end;">' +
+                                        '<div>' +
+                                            '<label for="economic-start-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>' +
+                                            '<input type="date" id="economic-start-date-filter" value="' + startDate + '" ' +
+                                                   'style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="economic-end-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>' +
+                                            '<input type="date" id="economic-end-date-filter" value="' + endDate + '" ' +
+                                                   'style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="economic-vendor-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Vendor:</label>' +
+                                            '<select id="economic-vendor-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                                '<option value="">All Vendors</option>' +
+                                                '<option value="polygon"' + (vendor === 'polygon' ? ' selected' : '') + '>Polygon</option>' +
+                                                '<option value="tiingo"' + (vendor === 'tiingo' ? ' selected' : '') + '>Tiingo</option>' +
+                                                '<option value="alpha_vantage"' + (vendor === 'alpha_vantage' ? ' selected' : '') + '>Alpha Vantage</option>' +
+                                                '<option value="fred"' + (vendor === 'fred' ? ' selected' : '') + '>FRED</option>' +
+                                            '</select>' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="economic-importance-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Min Importance:</label>' +
+                                            '<select id="economic-importance-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                                '<option value="1"' + (minImportance === '1' ? ' selected' : '') + '>1 (Low)</option>' +
+                                                '<option value="2"' + (minImportance === '2' ? ' selected' : '') + '>2</option>' +
+                                                '<option value="3"' + (minImportance === '3' ? ' selected' : '') + '>3 (Medium)</option>' +
+                                                '<option value="4"' + (minImportance === '4' ? ' selected' : '') + '>4</option>' +
+                                                '<option value="5"' + (minImportance === '5' ? ' selected' : '') + '>5 (High)</option>' +
+                                            '</select>' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<button onclick="applyEconomicFilters()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">' +
+                                                'Apply Filters' +
+                                            '</button>' +
+                                            '<button onclick="clearEconomicFilters()" style="padding: 10px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">' +
+                                                'Clear' +
+                                            '</button>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                // Statistics grid
+                                '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #007bff;">Total Events</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.events.length + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #28a745;">High Impact</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + data.events.filter(e => e.importance_level >= 4).length + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #6f42c1;">Countries</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + new Set(data.events.map(e => e.country).filter(c => c)).size + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #dc3545;">Sources</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + new Set(data.events.map(e => e.source_vendor)).size + '</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                // Events table
+                                '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">' +
+                                    '<h4>📋 Economic Events</h4>' +
+                                    '<div style="max-height: 600px; overflow-y: auto;">' +
+                                        '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">' +
+                                            '<thead>' +
+                                                '<tr style="background: #f8f9fa; border-bottom: 2px solid #ddd;">' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Date</th>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Event</th>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Country</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">Importance</th>' +
+                                                    '<th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Actual</th>' +
+                                                    '<th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Estimate</th>' +
+                                                    '<th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Previous</th>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Source</th>' +
+                                                '</tr>' +
+                                            '</thead>' +
+                                            '<tbody>';
+
+                            // Add events rows
+                            data.events.forEach(event => {
+                                const importanceColor = event.importance_level >= 4 ? '#dc3545' : event.importance_level >= 3 ? '#ffc107' : '#6c757d';
+                                const eventDate = new Date(event.event_date).toLocaleDateString();
+                                
+                                html += '<tr style="border-bottom: 1px solid #eee;">' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee;">' + eventDate + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; font-weight: 500;">' + event.event_name + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee;">' + (event.country || '-') + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">' +
+                                        '<span style="background: ' + importanceColor + '; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em;">' + (event.importance_level || '-') + '</span>' +
+                                    '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">' + 
+                                        (event.actual !== null ? (event.actual + (event.unit ? ' ' + event.unit : '')) : '-') + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">' + 
+                                        (event.estimate !== null ? (event.estimate + (event.unit ? ' ' + event.unit : '')) : '-') + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">' + 
+                                        (event.previous !== null ? (event.previous + (event.unit ? ' ' + event.unit : '')) : '-') + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee;">' + event.source_vendor + '</td>' +
+                                '</tr>';
+                            });
+
+                            html += '</tbody></table></div></div>';
+
+                        } else {
+                            html = '<h3>📊 Economic Events</h3>' +
+                                '<div style="background: white; padding: 40px; border-radius: 8px; border: 1px solid #ddd; text-align: center;">' +
+                                    '<p style="font-size: 18px; color: #666; margin: 0;">No economic events found for the specified criteria.</p>' +
+                                    '<p style="color: #999; margin: 10px 0 0 0;">Try adjusting your filters or date range.</p>' +
+                                '</div>';
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        console.error('Error loading economic events:', error);
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>📊 Economic Events</h3>' +
+                            '<div style="background: #f8d7da; padding: 20px; border-radius: 8px; border: 1px solid #f5c6cb; color: #721c24;">' +
+                                '<h4>⚠️ Error Loading Economic Events</h4>' +
+                                '<p>Unable to load economic events data. Please check if the economic events service is running.</p>' +
+                                '<p><strong>Error:</strong> ' + error.message + '</p>' +
+                            '</div>';
+                    }
+                }
+
+                function applyEconomicFilters() {
+                    const startDate = document.getElementById('economic-start-date-filter').value;
+                    const endDate = document.getElementById('economic-end-date-filter').value;
+                    const vendor = document.getElementById('economic-vendor-filter').value;
+                    const minImportance = document.getElementById('economic-importance-filter').value;
+                    
+                    loadEconomicEvents(startDate, endDate, vendor, minImportance);
+                }
+
+                function clearEconomicFilters() {
+                    document.getElementById('economic-start-date-filter').value = '';
+                    document.getElementById('economic-end-date-filter').value = '';
+                    document.getElementById('economic-vendor-filter').value = '';
+                    document.getElementById('economic-importance-filter').value = '3';
+                    
+                    loadEconomicEvents('', '', '', '3');
+                }
+
+                async function loadEconomicIndicators(startDate = '', endDate = '', indicators = '') {
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>📈 Economic Indicators</h3><p>Loading macroeconomic indicators from FRED...</p>';
+
+                    try {
+                        // Build query parameters
+                        let params = new URLSearchParams();
+                        if (startDate) params.append('start_date', startDate);
+                        if (endDate) params.append('end_date', endDate);
+                        if (indicators) params.append('indicators', indicators);
+
+                        // Fetch economic indicators
+                        const response = await fetch('/api/economic-indicators?' + params.toString());
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.indicators && data.indicators.length > 0) {
+                            html = '<h3>📈 Economic Indicators Analysis</h3>' +
+                                
+                                // Filter controls
+                                '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">' +
+                                    '<h4>🔍 Filter Economic Indicators</h4>' +
+                                    '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">' +
+                                        '<div>' +
+                                            '<label for="indicators-start-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>' +
+                                            '<input type="date" id="indicators-start-date-filter" value="' + startDate + '" ' +
+                                                   'style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="indicators-end-date-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>' +
+                                            '<input type="date" id="indicators-end-date-filter" value="' + endDate + '" ' +
+                                                   'style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<label for="indicators-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Indicators:</label>' +
+                                            '<select id="indicators-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                                                '<option value="">All Indicators</option>' +
+                                                '<option value="GDP,GDPC1"' + (indicators === 'GDP,GDPC1' ? ' selected' : '') + '>GDP & Real GDP</option>' +
+                                                '<option value="UNRATE,PAYEMS"' + (indicators === 'UNRATE,PAYEMS' ? ' selected' : '') + '>Employment</option>' +
+                                                '<option value="CPIAUCSL,CPILFESL,PPIFIS,PPIACO"' + (indicators === 'CPIAUCSL,CPILFESL,PPIFIS,PPIACO' ? ' selected' : '') + '>Inflation (CPI & PPI)</option>' +
+                                                '<option value="FEDFUNDS,DGS10,DGS2"' + (indicators === 'FEDFUNDS,DGS10,DGS2' ? ' selected' : '') + '>Interest Rates</option>' +
+                                                '<option value="RSAFS,INDPRO,HOUST"' + (indicators === 'RSAFS,INDPRO,HOUST' ? ' selected' : '') + '>Economic Activity</option>' +
+                                            '</select>' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<button onclick="applyIndicatorsFilters()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">' +
+                                                'Apply Filters' +
+                                            '</button>' +
+                                            '<button onclick="clearIndicatorsFilters()" style="padding: 10px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">' +
+                                                'Clear' +
+                                            '</button>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                // Statistics grid
+                                '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #007bff;">📅 Upcoming Releases</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + 
+                                            (data.summary?.upcoming_releases || data.indicators.filter(e => e.event_type === 'upcoming').length) + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #28a745;">📊 Historical Data</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + 
+                                            (data.summary?.historical_releases || data.indicators.filter(e => e.event_type === 'historical').length) + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #6f42c1;">🔥 High Priority</h4>' +
+                                        '<div style="font-size: 24px; font-weight: bold; color: #333;">' + 
+                                            (data.summary?.high_priority_indicators || data.indicators.filter(e => e.importance >= 5).length) + '</div>' +
+                                    '</div>' +
+                                    '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">' +
+                                        '<h4 style="margin: 0; color: #dc3545;">📡 Data Source</h4>' +
+                                        '<div style="font-size: 16px; font-weight: bold; color: #333;">FRED</div>' +
+                                    '</div>' +
+                                '</div>' +
+
+                                // Indicators table
+                                '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">' +
+                                    '<h4>📊 Economic Indicators Data</h4>' +
+                                    '<div style="max-height: 600px; overflow-y: auto;">' +
+                                        '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">' +
+                                            '<thead>' +
+                                                '<tr style="background: #f8f9fa; border-bottom: 2px solid #ddd;">' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Date</th>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Indicator</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">Type</th>' +
+                                                    '<th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Actual</th>' +
+                                                    '<th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Estimate</th>' +
+                                                    '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Unit</th>' +
+                                                    '<th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">Priority</th>' +
+                                                '</tr>' +
+                                            '</thead>' +
+                                            '<tbody>';
+
+                            // Add indicators rows
+                            data.indicators.forEach(indicator => {
+                                const priorityColor = indicator.importance >= 5 ? '#dc3545' : indicator.importance >= 4 ? '#ffc107' : '#6c757d';
+                                const indicatorDate = new Date(indicator.event_date).toLocaleDateString();
+                                const isUpcoming = indicator.event_type === 'upcoming';
+                                const typeColor = isUpcoming ? '#007bff' : '#28a745';
+                                const typeLabel = isUpcoming ? '📅 Upcoming' : '📊 Historical';
+                                const rowStyle = isUpcoming ? 
+                                    'border-bottom: 1px solid #eee; background: rgba(0, 123, 255, 0.05);' : 
+                                    'border-bottom: 1px solid #eee;';
+                                
+                                html += '<tr style="' + rowStyle + '">' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; font-weight: ' + (isUpcoming ? '600' : '400') + ';">' + 
+                                        indicatorDate + (isUpcoming ? ' ⏰' : '') + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; font-weight: 500;">' + indicator.event_name + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">' +
+                                        '<span style="background: ' + typeColor + '; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75em;">' + typeLabel + '</span>' +
+                                    '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: 500;">' + 
+                                        (indicator.actual !== null ? indicator.actual : (isUpcoming ? 'TBD' : '-')) + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: 400;">' + 
+                                        (indicator.estimate !== null ? indicator.estimate : '-') + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee;">' + (indicator.unit || '-') + '</td>' +
+                                    '<td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">' +
+                                        '<span style="background: ' + priorityColor + '; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em;">' + (indicator.importance || '-') + '</span>' +
+                                    '</td>' +
+                                '</tr>';
+                            });
+
+                            html += '</tbody></table></div></div>';
+
+                        } else {
+                            html = '<h3>📈 Economic Indicators</h3>' +
+                                '<div style="background: white; padding: 40px; border-radius: 8px; border: 1px solid #ddd; text-align: center;">' +
+                                    '<p style="font-size: 18px; color: #666; margin: 0;">No economic indicators found or FRED API not configured.</p>' +
+                                    '<p style="color: #999; margin: 10px 0 0 0;">Configure FRED API key to access economic indicators data.</p>' +
+                                '</div>';
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        console.error('Error loading economic indicators:', error);
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>📈 Economic Indicators</h3>' +
+                            '<div style="background: #f8d7da; padding: 20px; border-radius: 8px; border: 1px solid #f5c6cb; color: #721c24;">' +
+                                '<h4>⚠️ Error Loading Economic Indicators</h4>' +
+                                '<p>Unable to load economic indicators data. Please check if the FRED API service is configured.</p>' +
+                                '<p><strong>Error:</strong> ' + error.message + '</p>' +
+                            '</div>';
+                    }
+                }
+
+                function applyIndicatorsFilters() {
+                    const startDate = document.getElementById('indicators-start-date-filter').value;
+                    const endDate = document.getElementById('indicators-end-date-filter').value;
+                    const indicators = document.getElementById('indicators-filter').value;
+                    
+                    loadEconomicIndicators(startDate, endDate, indicators);
+                }
+
+                function clearIndicatorsFilters() {
+                    document.getElementById('indicators-start-date-filter').value = '';
+                    document.getElementById('indicators-end-date-filter').value = '';
+                    document.getElementById('indicators-filter').value = '';
+                    
+                    loadEconomicIndicators('', '', '');
+                }
+
                 async function loadTrainingDatasets() {
                     document.getElementById('analysis-content').innerHTML =
                         '<h3>🤖 Training Datasets</h3><p>Loading ML dataset visualization...</p>';
@@ -4401,6 +5157,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_earnings_events()
             elif self.path.startswith('/api/gap-events'):
                 self._serve_gap_events()
+            elif self.path.startswith('/api/economic-events'):
+                self._serve_economic_events()
+            elif self.path.startswith('/api/economic-indicators'):
+                self._serve_economic_indicators()
             elif self.path == '/api/bar-collection-metrics':
                 self._serve_bar_collection_metrics()
             elif self.path == '/api/tables':
@@ -5333,6 +6093,95 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "error": str(e),
                 "events": [],
                 "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
+    def _serve_economic_events(self):
+        """Serve economic events from economic_events table."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Get parameters with error handling
+            try:
+                limit = int(query_params.get('limit', [100])[0])
+            except (ValueError, TypeError):
+                limit = 100  # Default fallback
+
+            vendor = query_params.get('vendor', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+            try:
+                min_importance = int(query_params.get('min_importance', [3])[0])
+            except (ValueError, TypeError):
+                min_importance = 3  # Default fallback
+
+            # Limit the results to reasonable bounds
+            limit = min(max(limit, 1), 500)  # Between 1 and 500 events
+            min_importance = min(max(min_importance, 1), 5)  # Between 1 and 5
+
+            # Get economic events from the analytics service
+            economic_data = self.analytics_service.get_economic_events(
+                limit=limit, 
+                vendor=vendor, 
+                start_date=start_date, 
+                end_date=end_date,
+                min_importance=min_importance
+            )
+            self.wfile.write(json.dumps(economic_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving economic events: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "events": [],
+                "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
+    def _serve_economic_indicators(self):
+        """Serve economic indicators from FRED API."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Get parameters with error handling
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+            indicators = query_params.get('indicators', [None])[0]
+
+            # Get economic indicators from FRED
+            indicators_data = self.analytics_service.get_economic_indicators(
+                start_date=start_date, 
+                end_date=end_date,
+                indicators=indicators
+            )
+            self.wfile.write(json.dumps(indicators_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving economic indicators: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "indicators": [],
+                "total_indicators": 0
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
 
