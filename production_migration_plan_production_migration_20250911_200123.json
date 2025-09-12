@@ -1,0 +1,125 @@
+{
+  "migration_id": "production_migration_20250911_200123",
+  "target_services": [
+    "instruments",
+    "market_data"
+  ],
+  "migration_type": "production",
+  "created_at": "2025-09-11T20:01:23.073287",
+  "estimated_duration_hours": 4.0,
+  "phases": [
+    {
+      "name": "preparation",
+      "description": "Environment validation and backup creation",
+      "estimated_minutes": 15,
+      "tasks": [
+        "Validate database connectivity",
+        "Create code backup",
+        "Verify test environment",
+        "Check API dependencies"
+      ]
+    },
+    {
+      "name": "code_analysis",
+      "description": "Analyze existing codebase and DAO patterns",
+      "estimated_minutes": 20,
+      "tasks": [
+        "Scan for DAO classes in instruments domain",
+        "Scan for DAO classes in market_data domain",
+        "Identify business logic patterns",
+        "Map service boundaries"
+      ]
+    },
+    {
+      "name": "database_schema_migration",
+      "description": "Create service-specific database schemas",
+      "estimated_minutes": 30,
+      "tasks": [
+        "Create service infrastructure tables",
+        "Add caching tables for instruments",
+        "Add caching tables for market_data",
+        "Create service metrics tables"
+      ]
+    },
+    {
+      "name": "code_migration",
+      "description": "Transform DAO patterns to service patterns",
+      "estimated_minutes": 60,
+      "tasks": [
+        "Generate InstrumentService interface",
+        "Generate MarketDataService interface",
+        "Create service implementations",
+        "Create cached service wrappers",
+        "Update imports and dependencies"
+      ]
+    },
+    {
+      "name": "configuration_migration",
+      "description": "Create service configurations",
+      "estimated_minutes": 25,
+      "tasks": [
+        "Generate service configuration files",
+        "Create environment-specific configs",
+        "Generate Docker configurations",
+        "Create monitoring configurations"
+      ]
+    },
+    {
+      "name": "test_migration",
+      "description": "Create comprehensive test suites",
+      "estimated_minutes": 45,
+      "tasks": [
+        "Generate unit tests for InstrumentService",
+        "Generate unit tests for MarketDataService",
+        "Create integration test suites",
+        "Generate API test suites",
+        "Create performance benchmarks"
+      ]
+    },
+    {
+      "name": "integration_validation",
+      "description": "Validate service integrations",
+      "estimated_minutes": 20,
+      "tasks": [
+        "Test service-to-service communication",
+        "Validate API endpoints",
+        "Test database connectivity",
+        "Verify caching integration"
+      ]
+    },
+    {
+      "name": "performance_validation",
+      "description": "Validate performance improvements",
+      "estimated_minutes": 15,
+      "tasks": [
+        "Run performance benchmarks",
+        "Validate cache hit rates",
+        "Measure response time improvements",
+        "Test under load"
+      ]
+    }
+  ],
+  "rollback_plan": {
+    "backup_locations": [
+      "migrations/backup/production_migration_20250911_200123/code",
+      "migrations/backup/production_migration_20250911_200123/database",
+      "migrations/backup/production_migration_20250911_200123/config"
+    ],
+    "rollback_steps": [
+      "Stop migrated services",
+      "Restore code from backup",
+      "Rollback database migrations",
+      "Restore configuration files",
+      "Restart original services",
+      "Verify system functionality"
+    ]
+  },
+  "success_criteria": [
+    "All services start successfully",
+    "API endpoints respond within 100ms",
+    "Cache hit rate > 80%",
+    "All tests pass",
+    "No data loss or corruption",
+    "Performance equal or better than baseline"
+  ]
+}

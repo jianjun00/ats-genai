@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for Integration Environment
+  postgres-intg:
+    image: postgres:13
+    container_name: ats-intg-postgres
+    environment:
+      POSTGRES_DB: intg_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: intg_password
+    ports:
+      - "4432:5432"
+    volumes:
+      - postgres-intg-data:/var/lib/postgresql/data
+      - /mnt/d/ats-backup/intg:/backup
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d intg_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ats-network
+
+  # ATS Analytics Service - Integration
+  analytics-intg:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-analytics
+    environment:
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - ATS_DATA_PATH=/data
+      - ATS_BACKUP_PATH=/backup
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-68aa0c7d2fe831.67386369}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+      - FIRSTRATE_USER_ID=${FIRSTRATE_USER_ID:-ats-genai-user}
+    ports:
+      - "4000:3000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-backup:/backup
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 src/services/analytics_service.py
+    depends_on:
+      postgres-intg:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ats-network
+
+  # Realtime Minute Collector - Integration
+  realtime-minute-collector-intg:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-realtime-minute-collector
+    environment:
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-68aa0c7d2fe831.67386369}
+      - FMP_API_KEY=${FMP_API_KEY:-Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-9GI0NZ3V4VNFX271}
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 scripts/realtime_minute_collector.py --symbols AAPL,TSLA,SPY,QQQ
+    depends_on:
+      postgres-intg:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # News Metrics Service - Integration
+  news-metrics-intg:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-news-metrics
+    environment:
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: >
+      bash -c '
+      echo "Starting ATS-INTG News Collection Service..."
+      python3 scripts/news_collection_with_metrics.py --environment intg --port 8082 --health-check-port 8082
+      '
+    depends_on:
+      postgres-intg:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+networks:
+  ats-network:
+    driver: bridge
+    name: ats-network
+
+volumes:
+  postgres-intg-data:
+    external: true

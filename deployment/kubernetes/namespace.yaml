@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ats-services
+  labels:
+    name: ats-services
+    environment: production
+    project: ats-platform
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ats-services-config
+  namespace: ats-services
+data:
+  # Database Configuration
+  POSTGRES_HOST: "postgres-service.ats-services.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "services_user"
+  POSTGRES_DB: "ats_services"
+  
+  # Redis Configuration
+  REDIS_HOST: "redis-service.ats-services.svc.cluster.local"
+  REDIS_PORT: "6379"
+  
+  # Service Registry Configuration
+  SERVICE_REGISTRY_URL: "http://service-registry.ats-services.svc.cluster.local:8500"
+  
+  # Application Configuration
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "production"
+  
+  # CORS Configuration
+  CORS_ORIGINS: "https://ats-app.example.com,https://ats-admin.example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ats-services-secrets
+  namespace: ats-services
+type: Opaque
+data:
+  # Base64 encoded secrets
+  POSTGRES_PASSWORD: c2VydmljZXNfcGFzc3dvcmQ=  # services_password
+  REDIS_PASSWORD: c2VydmljZXNfcmVkaXNfcGFzc3dvcmQ=  # services_redis_password
+  POLYGON_API_KEY: d2ZyY1pOWDNaSUpKdDU1T3JfQ21CWGRhOEc4ZThUQUJE  # wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ats-services-sa
+  namespace: ats-services
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: ats-services
+  name: ats-services-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ats-services-rolebinding
+  namespace: ats-services
+subjects:
+- kind: ServiceAccount
+  name: ats-services-sa
+  namespace: ats-services
+roleRef:
+  kind: Role
+  name: ats-services-role
+  apiGroup: rbac.authorization.k8s.io
