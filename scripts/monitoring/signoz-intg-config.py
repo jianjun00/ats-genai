@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class SigNozINTGConfigurator:
     """Configure SigNoz for ATS Integration Environment"""
-    
+
     def __init__(self, api_key: str, signoz_url: str = "http://localhost:8080"):
         self.api_key = api_key
         self.signoz_url = signoz_url
@@ -24,7 +24,7 @@ class SigNozINTGConfigurator:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
-        
+
     def create_intg_organization(self) -> Dict:
         """Create dedicated organization for ATS-INTG monitoring"""
         org_config = {
@@ -36,31 +36,31 @@ class SigNozINTGConfigurator:
                 "environment": "integration"
             }
         }
-        
+
         try:
             response = requests.post(
                 f"{self.signoz_url}/api/v1/organizations",
                 json=org_config,
                 headers=self.headers
             )
-            
+
             if response.status_code == 201:
                 logger.info("✅ ATS-INTG organization created successfully")
                 return response.json()
             else:
                 logger.warning(f"Organization creation response: {response.status_code}")
                 return {}
-                
+
         except Exception as e:
             logger.error(f"Failed to create organization: {e}")
             return {}
-    
+
     def setup_intg_services(self) -> List[Dict]:
         """Define ATS-INTG services for monitoring"""
         services = [
             {
                 "name": "ats-intg-analytics",
-                "type": "web_service", 
+                "type": "web_service",
                 "port": 4000,
                 "health_endpoint": "/health",
                 "critical_metrics": [
@@ -72,12 +72,12 @@ class SigNozINTGConfigurator:
                 ]
             },
             {
-                "name": "ats-intg-postgres", 
+                "name": "ats-intg-postgres",
                 "type": "database",
                 "port": 4432,
                 "critical_metrics": [
                     "db_connections_active",
-                    "db_query_duration_ms", 
+                    "db_query_duration_ms",
                     "db_slow_queries_count",
                     "db_connection_errors_total",
                     "db_disk_usage_percent"
@@ -110,7 +110,7 @@ class SigNozINTGConfigurator:
             },
             {
                 "name": "ats-intg-ml-pipeline",
-                "type": "ml_service", 
+                "type": "ml_service",
                 "critical_metrics": [
                     "training_data_generation_duration_ms",
                     "model_validation_accuracy",
@@ -119,10 +119,10 @@ class SigNozINTGConfigurator:
                 ]
             }
         ]
-        
+
         logger.info(f"📋 Configured {len(services)} ATS-INTG services for monitoring")
         return services
-    
+
     def create_intg_dashboards(self) -> Dict:
         """Create ATS-INTG specific dashboards"""
         dashboards = {
@@ -135,7 +135,7 @@ class SigNozINTGConfigurator:
                         "query": "up{job=~'ats-intg-.*'}"
                     },
                     {
-                        "title": "Integration Test Success Rate", 
+                        "title": "Integration Test Success Rate",
                         "type": "gauge",
                         "query": "rate(integration_tests_passed_total[5m]) / rate(integration_tests_total[5m])",
                         "thresholds": {"warning": 0.95, "critical": 0.90}
@@ -147,12 +147,12 @@ class SigNozINTGConfigurator:
                     },
                     {
                         "title": "External API Response Times",
-                        "type": "heatmap", 
+                        "type": "heatmap",
                         "query": "histogram_quantile(0.95, ats_external_api_duration_ms{environment='intg'})"
                     }
                 ]
             },
-            
+
             "ats_intg_data_quality": {
                 "title": "ATS-INTG Data Quality Dashboard",
                 "panels": [
@@ -173,9 +173,9 @@ class SigNozINTGConfigurator:
                     }
                 ]
             },
-            
+
             "ats_intg_performance": {
-                "title": "ATS-INTG Performance Metrics", 
+                "title": "ATS-INTG Performance Metrics",
                 "panels": [
                     {
                         "title": "Service Response Times (P95)",
@@ -184,7 +184,7 @@ class SigNozINTGConfigurator:
                     },
                     {
                         "title": "Database Query Performance",
-                        "type": "timeseries", 
+                        "type": "timeseries",
                         "query": "ats_db_query_duration_ms{environment='intg', db='intg_db'}"
                     },
                     {
@@ -194,7 +194,7 @@ class SigNozINTGConfigurator:
                     }
                 ]
             },
-            
+
             "ats_intg_news_monitoring": {
                 "title": "ATS-INTG News Ingestion Dashboard",
                 "panels": [
@@ -246,10 +246,10 @@ class SigNozINTGConfigurator:
                 ]
             }
         }
-        
+
         logger.info(f"📊 Created {len(dashboards)} ATS-INTG dashboards")
         return dashboards
-    
+
     def setup_intg_alerts(self) -> List[Dict]:
         """Configure ATS-INTG specific alerting rules"""
         alerts = [
@@ -262,7 +262,7 @@ class SigNozINTGConfigurator:
                 "runbook": "Check service logs and restart if necessary"
             },
             {
-                "name": "ATS-INTG Data Feed Stale", 
+                "name": "ATS-INTG Data Feed Stale",
                 "severity": "critical",
                 "query": "ats_data_freshness_minutes{environment='intg'} > 120",
                 "for": "5m",
@@ -271,7 +271,7 @@ class SigNozINTGConfigurator:
             },
             {
                 "name": "ATS-INTG Integration Test Failures",
-                "severity": "warning", 
+                "severity": "warning",
                 "query": "rate(integration_tests_failed_total{environment='intg'}[10m]) > 0.05",
                 "for": "5m",
                 "description": "Integration test failure rate > 5%",
@@ -281,7 +281,7 @@ class SigNozINTGConfigurator:
                 "name": "ATS-INTG Database Connection Pool Exhausted",
                 "severity": "warning",
                 "query": "ats_db_connections_active{environment='intg'} > 90",
-                "for": "3m", 
+                "for": "3m",
                 "description": "Database connection pool near exhaustion",
                 "runbook": "Check for connection leaks and consider scaling"
             },
@@ -303,7 +303,7 @@ class SigNozINTGConfigurator:
             },
             {
                 "name": "ATS-INTG News Data Stale",
-                "severity": "critical", 
+                "severity": "critical",
                 "query": "news_data_freshness_minutes{environment='intg'} > 180",
                 "for": "5m",
                 "description": "News data is more than 3 hours stale",
@@ -313,7 +313,7 @@ class SigNozINTGConfigurator:
                 "name": "ATS-INTG News API High Error Rate",
                 "severity": "warning",
                 "query": "rate(news_api_errors_total{environment='intg'}[10m]) / rate(news_api_calls_total{environment='intg'}[10m]) > 0.1",
-                "for": "5m", 
+                "for": "5m",
                 "description": "News API error rate above 10%",
                 "runbook": "Check API keys, rate limits, and vendor service status"
             },
@@ -334,10 +334,10 @@ class SigNozINTGConfigurator:
                 "runbook": "Check network connectivity and vendor API performance"
             }
         ]
-        
+
         logger.info(f"🚨 Configured {len(alerts)} ATS-INTG alert rules")
         return alerts
-    
+
     def generate_instrumentation_config(self) -> str:
         """Generate OpenTelemetry configuration for ATS-INTG services"""
         config = f"""
@@ -388,40 +388,40 @@ docker run -d \\
 def main():
     """Configure SigNoz for ATS-INTG monitoring"""
     api_key = "9RbijHam3W4B0a8h5fFB+7NgUgmXV+hFnzIPQUqtc6M="
-    
+
     print("🔧 Setting up SigNoz for ATS-INTG monitoring...")
     print("=" * 60)
-    
+
     configurator = SigNozINTGConfigurator(api_key)
-    
+
     # Setup organization
     org = configurator.create_intg_organization()
-    
+
     # Configure services
     services = configurator.setup_intg_services()
-    
+
     # Create dashboards
-    dashboards = configurator.create_intg_dashboards() 
-    
+    dashboards = configurator.create_intg_dashboards()
+
     # Setup alerts
     alerts = configurator.setup_intg_alerts()
-    
+
     # Generate instrumentation config
     instrumentation = configurator.generate_instrumentation_config()
-    
+
     print("\n" + "=" * 60)
     print("✅ ATS-INTG SigNoz configuration completed!")
     print(f"📊 Services configured: {len(services)}")
     print(f"📈 Dashboards created: {len(dashboards)}")
     print(f"🚨 Alert rules configured: {len(alerts)}")
     print("=" * 60)
-    
+
     # Save instrumentation config
     with open("/tmp/ats-intg-instrumentation.sh", "w") as f:
         f.write(instrumentation)
-    
+
     print("📋 Instrumentation config saved to: /tmp/ats-intg-instrumentation.sh")
     print("🔗 Access SigNoz dashboard: http://localhost:8080")
-    
+
 if __name__ == "__main__":
     main()

@@ -90,7 +90,7 @@ class EventSubject:
     industry: str = ""
     country: str = ""
     currency: str = ""
-    
+
     def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if v}
 
@@ -103,7 +103,7 @@ class EventMetadata:
     processing_time_ms: int = 0
     retry_count: int = 0
     checksum: str = ""
-    
+
     def to_dict(self) -> dict:
         result = {}
         for k, v in self.__dict__.items():
@@ -152,14 +152,14 @@ class NewsEventData:
     categories: List[str] = field(default_factory=list)
     importance: float = 0.0
     market_impact: Optional[MarketImpact] = None
-    
+
     def to_dict(self) -> dict:
         result = {k: v for k, v in self.__dict__.items() if v and k not in ['sentiment', 'market_impact']}
         if self.sentiment:
             result['sentiment'] = {
                 'overall': self.sentiment.overall,
                 'confidence': self.sentiment.confidence,
-                'aspects': [{'aspect': a.aspect, 'sentiment': a.sentiment, 'confidence': a.confidence} 
+                'aspects': [{'aspect': a.aspect, 'sentiment': a.sentiment, 'confidence': a.confidence}
                            for a in self.sentiment.aspects]
             }
         if self.market_impact:
@@ -195,7 +195,7 @@ class EarningsEventData:
     year: int = 0
     quarter: int = 0
     estimates: Optional[EarningsEstimates] = None
-    
+
     def to_dict(self) -> dict:
         result = {k: v for k, v in self.__dict__.items() if v and k != 'estimates'}
         if self.estimates:
@@ -229,7 +229,7 @@ class TechnicalSignalEventData:
     timeframe: str = ""
     signal: Optional[Signal] = None
     price_context: Optional[PriceContext] = None
-    
+
     def to_dict(self) -> dict:
         result = {}
         result['signal_type'] = self.signal_type.name
@@ -251,7 +251,7 @@ class GapFillData:
     days_to_fill: int = 0
     fill_percentage: float = 0.0
     fill_type: str = ""  # full, partial, none
-    
+
     def to_dict(self) -> dict:
         return {
             'fill_date': self.fill_date.isoformat() if self.fill_date else None,
@@ -260,7 +260,7 @@ class GapFillData:
             'fill_type': self.fill_type
         }
 
-@dataclass  
+@dataclass
 class GapEventData:
     gap_points: float = 0.0
     gap_percentage: float = 0.0
@@ -274,7 +274,7 @@ class GapEventData:
     significance_score: float = 0.0
     gap_context: str = ""           # earnings, news, market, continuation, reversal
     fill_data: Optional[GapFillData] = None
-    
+
     def to_dict(self) -> dict:
         result = {
             'gap_points': self.gap_points,
@@ -313,33 +313,33 @@ class Event:
     metadata: EventMetadata = field(default_factory=EventMetadata)
     confidence: float = 0.0
     reliability: str = ""
-    
+
     # Event-specific data (oneof in proto)
     news_data: Optional[NewsEventData] = None
     earnings_data: Optional[EarningsEventData] = None
     technical_data: Optional[TechnicalSignalEventData] = None
     gap_data: Optional[GapEventData] = None
-    
+
     def __post_init__(self):
         if not self.timestamp:
             self.timestamp = datetime.utcnow()
         if not self.ingestion_time:
             self.ingestion_time = datetime.utcnow()
-        
+
         # Generate checksum if not provided
         if not self.metadata.checksum:
             content = f"{self.event_id}{self.event_type}{self.timestamp}"
             self.metadata.checksum = hashlib.md5(content.encode()).hexdigest()[:8]
-    
+
     def SerializeToString(self) -> bytes:
         """Serialize event to JSON bytes (protobuf-like interface)"""
         return json.dumps(self.to_dict(), default=str).encode('utf-8')
-    
+
     def ParseFromString(self, data: bytes):
         """Parse event from JSON bytes (protobuf-like interface)"""
         event_dict = json.loads(data.decode('utf-8'))
         self._from_dict(event_dict)
-    
+
     def to_dict(self) -> dict:
         """Convert event to dictionary for JSON serialization"""
         result = {
@@ -356,13 +356,13 @@ class Event:
             'confidence': self.confidence,
             'reliability': self.reliability
         }
-        
+
         # Add optional fields
         for field in ['causation_id', 'correlation_id', 'parent_event_id', 'root_event_id']:
             value = getattr(self, field)
             if value:
                 result[field] = value
-        
+
         # Add event-specific data based on type
         if self.news_data:
             result['news_data'] = self.news_data.to_dict()
@@ -372,15 +372,15 @@ class Event:
             result['technical_data'] = self.technical_data.to_dict()
         elif self.gap_data:
             result['gap_data'] = self.gap_data.to_dict()
-            
+
         return result
-    
+
     def _from_dict(self, data: dict):
         """Load event from dictionary"""
         self.event_id = data.get('event_id', str(uuid.uuid4()))
         self.event_type = EventType[data.get('event_type', 'EVENT_TYPE_UNSPECIFIED')]
         self.event_version = data.get('event_version', '1.0.0')
-        
+
         if data.get('timestamp'):
             ts = data['timestamp']
             if isinstance(ts, str):
@@ -389,7 +389,7 @@ class Event:
                 if '.' not in ts and '+' not in ts:
                     ts += '+00:00'
                 self.timestamp = datetime.fromisoformat(ts)
-            
+
         if data.get('ingestion_time'):
             ts = data['ingestion_time']
             if isinstance(ts, str):
@@ -397,15 +397,15 @@ class Event:
                 if '.' not in ts and '+' not in ts:
                     ts += '+00:00'
                 self.ingestion_time = datetime.fromisoformat(ts)
-            
+
         self.time_zone = data.get('time_zone', 'UTC')
         self.source = data.get('source', '')
         self.source_id = data.get('source_id', '')
-        
+
         # Load subject
         subject_data = data.get('subject', {})
         self.subject = EventSubject(**subject_data)
-        
+
         # Load metadata
         metadata_data = data.get('metadata', {})
         if 'priority' in metadata_data:
@@ -414,13 +414,13 @@ class Event:
         if 'classification' in metadata_data:
             if isinstance(metadata_data['classification'], str):
                 metadata_data['classification'] = Classification[metadata_data['classification']]
-        self.metadata = EventMetadata(**{k: v for k, v in metadata_data.items() 
-                                       if k in ['priority', 'classification', 'tags', 'processed_by', 
+        self.metadata = EventMetadata(**{k: v for k, v in metadata_data.items()
+                                       if k in ['priority', 'classification', 'tags', 'processed_by',
                                                'processing_time_ms', 'retry_count', 'checksum']})
-        
+
         self.confidence = data.get('confidence', 0.0)
         self.reliability = data.get('reliability', '')
-        
+
         # Load event-specific data
         if 'news_data' in data and self.event_type == EventType.EVENT_TYPE_NEWS:
             news_dict = data['news_data']
@@ -431,7 +431,7 @@ class Event:
                 url=news_dict.get('url', ''),
                 importance=news_dict.get('importance', 0.0)
             )
-            
+
             # Load sentiment if present
             if 'sentiment' in news_dict:
                 sent_data = news_dict['sentiment']
@@ -444,17 +444,17 @@ def MessageToDict(event: Event, preserving_proto_field_name: bool = False) -> di
     """Convert protobuf-like message to dict (compatibility function)"""
     return event.to_dict()
 
-def create_news_event(headline: str, symbol: str, sentiment: float = 0.0, 
+def create_news_event(headline: str, symbol: str, sentiment: float = 0.0,
                      publisher: str = "unknown", url: str = "") -> Event:
     """Factory function to create news events"""
     event = Event()
     event.event_type = EventType.EVENT_TYPE_NEWS
     event.source = "polygon"
-    
+
     # Subject
     event.subject.symbol = symbol
     event.subject.exchange = "NASDAQ"  # Could be determined from symbol lookup
-    
+
     # News-specific data
     event.news_data = NewsEventData(
         headline=headline,
@@ -462,18 +462,18 @@ def create_news_event(headline: str, symbol: str, sentiment: float = 0.0,
         url=url,
         importance=abs(sentiment) if sentiment else 0.5
     )
-    
+
     if sentiment != 0.0:
         event.news_data.sentiment = SentimentAnalysis(
             overall=sentiment,
             confidence=0.8
         )
-    
-    # Metadata  
+
+    # Metadata
     event.metadata.priority = Priority.PRIORITY_HIGH if abs(sentiment) > 0.5 else Priority.PRIORITY_MEDIUM
     event.metadata.classification = Classification.CLASSIFICATION_PUBLIC
     event.metadata.tags = ["automated", "sentiment-analyzed"]
-    
+
     return event
 
 def create_earnings_event(symbol: str, eps_actual: float, eps_consensus: float,
@@ -482,10 +482,10 @@ def create_earnings_event(symbol: str, eps_actual: float, eps_consensus: float,
     event = Event()
     event.event_type = EventType.EVENT_TYPE_EARNINGS
     event.source = "polygon"
-    
+
     # Subject
     event.subject.symbol = symbol
-    
+
     # Earnings-specific data
     eps_estimate = EpsEstimate(
         actual=eps_actual,
@@ -493,47 +493,47 @@ def create_earnings_event(symbol: str, eps_actual: float, eps_consensus: float,
         surprise=eps_actual - eps_consensus,
         surprise_percent=((eps_actual - eps_consensus) / eps_consensus * 100) if eps_consensus != 0 else 0
     )
-    
+
     event.earnings_data = EarningsEventData(
         report_type="official",
         year=year,
         quarter=quarter,
         estimates=EarningsEstimates(eps=eps_estimate)
     )
-    
+
     # Set priority based on surprise magnitude
     surprise_pct = abs(eps_estimate.surprise_percent)
-    event.metadata.priority = (Priority.PRIORITY_CRITICAL if surprise_pct > 20 
+    event.metadata.priority = (Priority.PRIORITY_CRITICAL if surprise_pct > 20
                               else Priority.PRIORITY_HIGH if surprise_pct > 10
                               else Priority.PRIORITY_MEDIUM)
-    
+
     event.metadata.tags = ["earnings", "automated"]
-    
+
     return event
 
-def create_technical_signal_event(symbol: str, signal_type: SignalType, 
+def create_technical_signal_event(symbol: str, signal_type: SignalType,
                                  direction: SignalDirection, strength: float,
                                  current_price: float, indicator: str = "RSI") -> Event:
     """Factory function to create technical signal events"""
     event = Event()
     event.event_type = EventType.EVENT_TYPE_TECHNICAL_SIGNAL
     event.source = "ats-internal"
-    
+
     # Subject
     event.subject.symbol = symbol
-    
+
     # Technical signal data
     signal = Signal(
         direction=direction,
         strength=strength,
         confidence=min(strength + 0.2, 1.0)  # Confidence slightly higher than strength
     )
-    
+
     price_context = PriceContext(
         current_price=current_price,
         signal_price=current_price
     )
-    
+
     event.technical_data = TechnicalSignalEventData(
         signal_type=signal_type,
         indicator=indicator,
@@ -541,12 +541,12 @@ def create_technical_signal_event(symbol: str, signal_type: SignalType,
         signal=signal,
         price_context=price_context
     )
-    
+
     # Set priority based on signal strength
     event.metadata.priority = (Priority.PRIORITY_HIGH if strength > 0.7
                               else Priority.PRIORITY_MEDIUM)
     event.metadata.tags = ["technical-analysis", indicator.lower()]
-    
+
     return event
 
 def create_gap_event(symbol: str, gap_points: float, gap_percentage: float,
@@ -558,10 +558,10 @@ def create_gap_event(symbol: str, gap_points: float, gap_percentage: float,
     event = Event()
     event.event_type = EventType.EVENT_TYPE_PRICE_GAP
     event.source = "ats-internal"
-    
+
     # Subject
     event.subject.symbol = symbol
-    
+
     # Classify gap size
     gap_size = abs(gap_percentage)
     if gap_size >= 5.0:
@@ -569,12 +569,12 @@ def create_gap_event(symbol: str, gap_points: float, gap_percentage: float,
     elif gap_size >= 2.5:
         gap_size_class = "large"
     elif gap_size >= 1.0:
-        gap_size_class = "medium" 
+        gap_size_class = "medium"
     elif gap_size >= 0.5:
         gap_size_class = "small"
     else:
         gap_size_class = "micro"
-    
+
     # Gap fill data if provided
     fill_data = None
     if fill_date:
@@ -584,7 +584,7 @@ def create_gap_event(symbol: str, gap_points: float, gap_percentage: float,
             fill_percentage=fill_percentage,
             fill_type=fill_type
         )
-    
+
     # Gap-specific data
     event.gap_data = GapEventData(
         gap_points=gap_points,
@@ -600,7 +600,7 @@ def create_gap_event(symbol: str, gap_points: float, gap_percentage: float,
         gap_context=gap_context,
         fill_data=fill_data
     )
-    
+
     # Set priority based on gap size and significance
     if gap_size_class == "extreme" or significance > 10.0:
         event.metadata.priority = Priority.PRIORITY_CRITICAL
@@ -610,8 +610,8 @@ def create_gap_event(symbol: str, gap_points: float, gap_percentage: float,
         event.metadata.priority = Priority.PRIORITY_MEDIUM
     else:
         event.metadata.priority = Priority.PRIORITY_LOW
-    
+
     event.metadata.classification = Classification.CLASSIFICATION_INTERNAL
     event.metadata.tags = ["gap-detection", direction, gap_size_class, gap_context]
-    
+
     return event

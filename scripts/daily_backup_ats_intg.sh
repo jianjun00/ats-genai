@@ -50,14 +50,14 @@ if PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -
    --verbose --clean --create --format=plain > "$BACKUP_FILE" 2>>"$LOG_FILE"; then
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
     log "✅ Backup completed successfully: $BACKUP_SIZE"
-    
+
     # Verify backup integrity
     if grep -q "PostgreSQL database dump complete" "$BACKUP_FILE"; then
         log "✅ Backup integrity verified"
     else
         log "⚠️  WARNING: Backup integrity check failed"
     fi
-    
+
     # Check for TimescaleDB extensions
     if grep -q "timescaledb" "$BACKUP_FILE"; then
         log "✅ TimescaleDB extensions detected in backup"

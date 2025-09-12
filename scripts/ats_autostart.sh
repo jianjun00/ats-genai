@@ -5,7 +5,7 @@
 #
 # 🔵 ATS-DEV Environment:
 # 1. ats-dev-postgres      (localhost:3432) - PostgreSQL database
-# 2. ats-dev-analytics     (localhost:3000) - Analytics service & EDA dashboard  
+# 2. ats-dev-analytics     (localhost:3000) - Analytics service & EDA dashboard
 # 3. ats-grafana           (localhost:3001) - Grafana monitoring dashboard
 #
 # 🟠 ATS-INTG Environment:
@@ -43,17 +43,17 @@ is_service_running() {
 # Function to start ATS services using existing infrastructure
 start_ats_services() {
     log "🚀 Starting ATS services using existing infrastructure..."
-    
+
     cd "$PROJECT_ROOT" || {
         log "❌ Failed to change to project root: $PROJECT_ROOT"
         return 1
     }
-    
+
     # Ensure Docker networks exist
     log "🔧 Ensuring Docker networks exist..."
     docker network create ats-network 2>/dev/null || log "ℹ️  ats-network already exists"
     docker network create ats-intg-network 2>/dev/null || log "ℹ️  ats-intg-network already exists"
-    
+
     # Check if ATS-DEV PostgreSQL is running
     if is_service_running "ats-dev-postgres"; then
         log "✅ ATS-DEV PostgreSQL already running"
@@ -65,7 +65,7 @@ start_ats_services() {
             log "⚠️  ATS-DEV PostgreSQL failed to start (may already be running)"
         fi
     fi
-    
+
     # Check if ATS-DEV Analytics is running
     if is_service_running "ats-dev-analytics"; then
         log "✅ ATS-DEV Analytics already running"
@@ -95,7 +95,7 @@ start_ats_services() {
             log "⚠️  ATS-DEV Analytics failed to start (may already be running)"
         fi
     fi
-    
+
     # Check if ATS-INTG PostgreSQL is running
     if is_service_running "ats-intg-postgres"; then
         log "✅ ATS-INTG PostgreSQL already running"
@@ -117,7 +117,7 @@ start_ats_services() {
             log "⚠️  ATS-INTG PostgreSQL failed to start (may already be running)"
         fi
     fi
-    
+
     # Check if ATS-INTG Analytics is running
     if is_service_running "ats-intg-analytics"; then
         log "✅ ATS-INTG Analytics already running"
@@ -147,10 +147,10 @@ start_ats_services() {
             log "⚠️  ATS-INTG Analytics failed to start (may already be running)"
         fi
     fi
-    
+
     # Start Monitoring Services
     log "🔧 Starting monitoring services..."
-    
+
     # Check if Prometheus is running
     if is_service_running "ats-prometheus"; then
         log "✅ Prometheus already running"
@@ -174,7 +174,7 @@ start_ats_services() {
             log "⚠️  Prometheus failed to start (may already be running)"
         fi
     fi
-    
+
     # Check if Grafana is running
     if is_service_running "ats-grafana"; then
         log "✅ Grafana already running"
@@ -194,7 +194,7 @@ start_ats_services() {
             log "⚠️  Grafana failed to start (may already be running)"
         fi
     fi
-    
+
     # Check if INTG-specific Grafana is running
     if is_service_running "ats-grafana-intg"; then
         log "✅ ATS-INTG Grafana already running"
@@ -214,7 +214,7 @@ start_ats_services() {
             log "⚠️  ATS-INTG Grafana failed to start (may already be running)"
         fi
     fi
-    
+
     # Check if Prometheus metrics service is running for INTG
     if is_service_running "ats-intg-prometheus-metrics"; then
         log "✅ ATS-INTG Prometheus Metrics already running"
@@ -242,15 +242,15 @@ start_ats_services() {
             log "⚠️  ATS-INTG Prometheus Metrics failed to start (may already be running)"
         fi
     fi
-    
+
     # Wait for services to be healthy
     log "⏳ Waiting for services to be healthy..."
     sleep 10
-    
+
     # Show final status
     log "📊 Final ATS services status:"
     docker ps --filter "name=ats-dev" --filter "name=ats-intg" --filter "name=ats-prometheus" --filter "name=ats-grafana" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | tee -a "$LOG_FILE"
-    
+
     # Show service URLs
     log "🌐 Service URLs:"
     log "  - ATS-DEV PostgreSQL: localhost:3432"
@@ -261,11 +261,11 @@ start_ats_services() {
     log "  - Grafana (DEV): http://localhost:3001 (admin/admin123)"
     log "  - Grafana (INTG): http://localhost:4002 (admin/admin123)"
     log "  - INTG Metrics: http://localhost:4080/health"
-    
+
     # Test database connectivity
     log "🔍 Testing database connectivity..."
     sleep 5
-    
+
     # Test ATS-DEV database
     if python3 scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments" >> "$LOG_FILE" 2>&1; then
         dev_count=$(python3 scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments" 2>/dev/null | grep -oE '[0-9]+' | tail -1 || echo "0")
@@ -273,7 +273,7 @@ start_ats_services() {
     else
         log "⚠️  ATS-DEV database connectivity issues"
     fi
-    
+
     # Test ATS-INTG database
     if PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SELECT COUNT(*) FROM intg_instruments" >> "$LOG_FILE" 2>&1; then
         intg_count=$(PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -t -c "SELECT COUNT(*) FROM intg_instruments" 2>/dev/null | xargs || echo "0")
@@ -281,7 +281,7 @@ start_ats_services() {
     else
         log "⚠️  ATS-INTG database connectivity issues"
     fi
-    
+
     log "🎉 ATS autostart sequence completed"
 }
 
@@ -292,16 +292,16 @@ main() {
         log "⚠️  ATS autostart already running (PID: $(cat "$PID_FILE"))"
         exit 0
     fi
-    
+
     # Store our PID
     echo $$ > "$PID_FILE"
-    
+
     # Wait a bit for WSL to fully initialize
     sleep 5
-    
+
     # Start services
     start_ats_services
-    
+
     # Clean up PID file
     rm -f "$PID_FILE"
 }

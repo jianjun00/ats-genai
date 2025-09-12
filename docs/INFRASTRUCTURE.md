@@ -10,14 +10,14 @@
 
 **ATS-DEV (Development):**
 - **Purpose**: Primary development, unit testing, feature development
-- **Database**: PostgreSQL 13 on `localhost:3432` 
+- **Database**: PostgreSQL 13 on `localhost:3432`
 - **Container**: `ats-dev-postgres` (postgres:13 image)
 - **Connection**: `dev_db` database, `postgres` user, `dev_password`
 - **Table Prefix**: `dev_*` (e.g., `dev_instruments`, `dev_daily_prices`)
 - **Usage**: `python3 scripts/run_dev.py --environment dev query --query "..."`
 
 **ATS-INTG (Integration):**
-- **Purpose**: CI/CD integration testing, pre-production validation  
+- **Purpose**: CI/CD integration testing, pre-production validation
 - **Database**: TimescaleDB (PostgreSQL 13.15) on `localhost:4432`
 - **Container**: `ats-intg-postgres` (timescale/timescaledb:latest-pg13 image)
 - **Connection**: `intg_db` database, `postgres` user, `intg_password`
@@ -37,7 +37,7 @@ python3 scripts/run_dev.py query --query "SELECT COUNT(*) FROM intg_instruments"
 ```bash
 # Force specific environment
 python3 scripts/run_dev.py --environment dev query --query "SELECT current_database()"
-python3 scripts/run_dev.py --environment intg query --query "SELECT current_database()" 
+python3 scripts/run_dev.py --environment intg query --query "SELECT current_database()"
 ```
 
 **Direct Database Connections:**
@@ -45,7 +45,7 @@ python3 scripts/run_dev.py --environment intg query --query "SELECT current_data
 # ATS-DEV (password required)
 PGPASSWORD=dev_password psql -h localhost -p 3432 -U postgres -d dev_db -c "SELECT version()"
 
-# ATS-INTG (password required) 
+# ATS-INTG (password required)
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SELECT version()"
 ```
 
@@ -69,7 +69,7 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 - ❌ **Different networks** prevent container-to-container communication
 
 **ATS Network Architecture:**
-- **`ats-network`**: ATS-DEV services (ats-dev-postgres, ats-dev-analytics)  
+- **`ats-network`**: ATS-DEV services (ats-dev-postgres, ats-dev-analytics)
 - **`ats-intg-network`**: ATS-INTG services (ats-intg-scheduler, ats-intg-analytics)
 - **Cross-network**: ats-intg-postgres connected to both networks for compatibility
 
@@ -88,7 +88,7 @@ DB_HOST=ats-intg-postgres  # Not localhost in container configs
 ### Database Connectivity Checklist
 1. **Container on correct network**: `docker network inspect network-name`
 2. **Database host matches container name**: `DB_HOST=ats-intg-postgres`
-3. **Use internal port (5432)** not external port (4432) in containers  
+3. **Use internal port (5432)** not external port (4432) in containers
 4. **Test connectivity**: `docker exec container psycopg2.connect()` test
 
 ### Troubleshooting Network Issues
@@ -112,11 +112,11 @@ docker exec scheduler-container python3 -c "import psycopg2; psycopg2.connect(ho
 
 **Docker Volume Configuration:**
 - **📁 Data**: `/mnt/d/ats-data` → `/data` (in containers)
-- **📁 Backup**: `/mnt/d/ats-backup` → `/backup` (in containers)  
+- **📁 Backup**: `/mnt/d/ats-backup` → `/backup` (in containers)
 - **📁 Logs**: `/mnt/d/ats-logs` → `/logs` (in containers)
 
 **PostgreSQL Database Storage:**
-- **🗄️ ATS-DEV**: Docker volume `postgres-data-new` 
+- **🗄️ ATS-DEV**: Docker volume `postgres-data-new`
 - **🗄️ ATS-INTG**: Docker volume `postgres-intg-data`
 - **📍 Location**: Managed by Docker in `/var/snap/docker/common/var-lib-docker/volumes/`
 
@@ -188,7 +188,7 @@ log_path = os.getenv('ATS_LOGS_PATH', '/logs')
 # Correct Docker-compatible database connection for scripts
 conn = await asyncpg.connect(
     host='ats-dev-postgres',  # PostgreSQL container name on ats-network
-    port=5432,                # Internal Docker port  
+    port=5432,                # Internal Docker port
     user='postgres',
     password='dev_password',
     database='dev_db'
@@ -205,13 +205,13 @@ conn = await asyncpg.connect(
 
 #### Real-Time Intraday Collection (Database Storage)
 **Polygon & Tiingo:** Every 30 minutes during market hours
-- **Purpose**: Real-time trading signals, live analytics  
+- **Purpose**: Real-time trading signals, live analytics
 - **Storage**: Database tables (`dev_daily_prices_polygon`, `dev_daily_prices_tiingo`)
 - **Schedule**: 9:30 AM - 4:00 PM EST, every 30 minutes
 - **Data**: Current day's minute bars (partial day data)
 - **Use Case**: Live trading systems, real-time alerts
 
-#### End-of-Day Complete Collection (Parquet Files)  
+#### End-of-Day Complete Collection (Parquet Files)
 **Polygon & Tiingo:** After 7:00 PM daily
 - **Purpose**: Complete historical analysis, backtesting
 - **Storage**: Monthly parquet files (`/mnt/d/ats-data/minute-bars/polygon/`, `/mnt/d/ats-data/minute-bars/tiingo/`)
@@ -222,7 +222,7 @@ conn = await asyncpg.connect(
 #### FirstRate Collection (Direct Parquet)
 **FirstRate:** Single daily download at 2:30 AM
 - **Purpose**: Premium minute bar data for analysis
-- **Storage**: Direct to parquet files (`/mnt/d/ats-data/minute-bars/firstrate/`)  
+- **Storage**: Direct to parquet files (`/mnt/d/ats-data/minute-bars/firstrate/`)
 - **Schedule**: 2:30 AM EST daily (data available after midnight)
 - **Data**: Previous trading day's complete minute bars
 - **Use Case**: High-quality backtesting, research, ML training
@@ -269,7 +269,7 @@ curl -s http://localhost:4080/metrics | grep -E "(ats_daily_minute_backfill|minu
 
 # Specific metric examples:
 # ats_daily_minute_backfill_instruments_processed_total{instrument_type="stock"} 15234
-# ats_daily_minute_backfill_total_minute_bars 45678901  
+# ats_daily_minute_backfill_total_minute_bars 45678901
 # ats_daily_minute_backfill_symbols_by_type{instrument_type="critical_etf"} 25
 # ats_daily_minute_backfill_processing_duration_seconds 1247.5
 ```
@@ -325,7 +325,7 @@ intg_vendor_api_health                          # Periodic health summaries
 
 #### Scripts Organization (Clean Structure)
 - **`scripts/deployment/`** - Deployment automation scripts
-- **`scripts/infrastructure/`** - System setup and infrastructure scripts  
+- **`scripts/infrastructure/`** - System setup and infrastructure scripts
 - **`scripts/validation/`** - Testing and validation scripts
 - **`scripts/monitoring/`** - Monitoring utilities and health checks
 
@@ -355,7 +355,7 @@ intg_vendor_api_health                          # Periodic health summaries
 
 **Service Deployment Checklist:**
 - [ ] Database containers started first with correct ports (3432 for DEV, 4432 for INTG)
-- [ ] Containers connected to appropriate networks (ats-network, ats-intg-network) 
+- [ ] Containers connected to appropriate networks (ats-network, ats-intg-network)
 - [ ] DB_HOST configured with container names (ats-dev-postgres, ats-intg-postgres)
 - [ ] Required startup scripts created when containers expect them
 - [ ] Network connectivity verified between dependent containers

@@ -17,24 +17,24 @@ logger = logging.getLogger(__name__)
 
 def setup_tracing():
     """Setup OpenTelemetry tracing using HTTP endpoint"""
-    
+
     resource = Resource.create({
         SERVICE_NAME: "ats-analytics-service",
         SERVICE_VERSION: "1.0.0",
         "environment": "dev",
         "ats.component": "analytics"
     })
-    
+
     trace.set_tracer_provider(TracerProvider(resource=resource))
-    
+
     # Use HTTP endpoint instead of gRPC
     otlp_exporter = OTLPSpanExporter(
         endpoint="http://localhost:4318/v1/traces"  # SigNoz OTLP HTTP endpoint
     )
-    
+
     span_processor = BatchSpanProcessor(otlp_exporter)
     trace.get_tracer_provider().add_span_processor(span_processor)
-    
+
     logger.info("✅ OpenTelemetry HTTP tracing configured")
     return trace.get_tracer(__name__)
 
@@ -48,10 +48,10 @@ def test_simple_trace(tracer):
 
 if __name__ == "__main__":
     print("🧪 Testing SigNoz HTTP integration...")
-    
+
     tracer = setup_tracing()
     test_simple_trace(tracer)
-    
+
     # Force flush
     trace.get_tracer_provider().force_flush(timeout_millis=5000)
     print("✅ Test sent to SigNoz!")

@@ -12,7 +12,7 @@
 ```bash
 # These are the ONLY valid API keys - use these exact values everywhere
 POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"      # ✅ VERIFIED WORKING
-TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING  
+TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING
 EODHD_API_KEY="68aa0c7d2fe831.67386369"                   # ✅ VERIFIED WORKING
 FMP_API_KEY="Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr"            # ✅ Available
 ALPHA_VANTAGE_API_KEY="9GI0NZ3V4VNFX271"                  # ✅ Available
@@ -36,7 +36,7 @@ python3 scripts/validate_api_keys.py
 ```bash
 # All integration services use centralized API key management
 python3 scripts/run_intg.py start --service realtime-minute-collector
-python3 scripts/run_intg.py start --service analytics  
+python3 scripts/run_intg.py start --service analytics
 python3 scripts/run_intg.py start --service news-realtime
 
 # API keys automatically configured with correct values
@@ -44,7 +44,7 @@ python3 scripts/run_intg.py start --service news-realtime
 
 #### Development Environment Services:
 ```bash
-# All dev services use centralized API key management  
+# All dev services use centralized API key management
 python3 scripts/run_dev.py start --service analytics
 python3 scripts/run_dev.py start --service postgres
 
@@ -113,7 +113,7 @@ http://localhost:3000/api/daily_prices          # Daily price data
 http://localhost:3000/api/minute_bars           # Minute bar data
 http://localhost:3000/api/universe_state        # Universe membership data
 
-# API Service  
+# API Service
 http://localhost:8000/health          # API health check
 http://localhost:8000/api/           # Main API endpoints
 http://localhost:8000/api/backtest   # Backtesting APIs
@@ -152,7 +152,7 @@ postgresql://postgres:intg_password@localhost:4432/intg_db
 ```bash
 # Check running services and their ports
 python scripts/run_dev.py status                    # ATS-DEV services
-python scripts/run_intg.py status                   # ATS-INTG services  
+python scripts/run_intg.py status                   # ATS-INTG services
 docker ps | grep -E "(ats-dev|intg)"               # Container status with ports
 
 # Get external access info for any service
@@ -218,7 +218,7 @@ GET http://localhost:3000/api/features/{dataset_id}
 GET http://localhost:3000/api/instruments?limit=100&search=AAPL
 # Response: [{"symbol": "AAPL", "company_name": "Apple Inc.", ...}]
 
-# Get daily prices  
+# Get daily prices
 GET http://localhost:3000/api/daily_prices?symbol=AAPL&start_date=2024-01-01&end_date=2024-12-31
 # Response: [{"date": "2024-01-01", "open": 185.64, "high": 186.95, ...}]
 
@@ -349,7 +349,7 @@ python scripts/validate_env.py --environment intg
 # Test database connectivity
 python scripts/run_dev.py query --query "SELECT current_database(), current_user"
 
-# Test API key functionality  
+# Test API key functionality
 python scripts/validate_api_keys.py
 
 # Test file system access
@@ -418,7 +418,7 @@ scrape_configs:
     static_configs:
       - targets: ['ats-intg-analytics:3000']
     scrape_interval: 15s
-    
+
   - job_name: 'ats-postgres'
     static_configs:
       - targets: ['ats-intg-postgres:5432']
@@ -446,7 +446,7 @@ curl -s http://localhost:4080/metrics | grep -E "ats_|app_"
 # Database metrics
 curl -s http://localhost:4080/metrics | grep -E "pg_|postgres_"
 
-# System metrics  
+# System metrics
 curl -s http://localhost:4080/metrics | grep -E "node_|system_"
 ```
 

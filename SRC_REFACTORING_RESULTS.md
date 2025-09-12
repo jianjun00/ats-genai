@@ -51,7 +51,7 @@ src/
 │   ├── monitoring/                      # Logging & metrics
 │   └── storage/                         # File storage & caching
 │
-├── interfaces/ (6 files - 2%)          # 🌐 EXTERNAL INTERFACES  
+├── interfaces/ (6 files - 2%)          # 🌐 EXTERNAL INTERFACES
 │   └── rest_api/                       # REST API controllers
 │
 └── shared/ (26 files - 10%)            # 🔗 SHARED UTILITIES
@@ -64,14 +64,14 @@ src/
 
 ### **Market Data Domain (Largest Domain)**
 - **Files**: ~80 files from market_data/, dao/daily_prices_*, dao/fundamentals_*
-- **Responsibilities**: 
+- **Responsibilities**:
   - Real-time data collection (Polygon, Tiingo, EODHD)
   - EOD price backfills and validation
   - Market data storage and retrieval
   - Cross-vendor reconciliation
 - **Key Services**: Realtime collectors, backfill orchestrators, validation pipelines
 
-### **Instruments Domain** 
+### **Instruments Domain**
 - **Files**: ~35 files from secmaster/, dao/instrument_*, dao/exchange_*
 - **Responsibilities**:
   - Security master data management
@@ -111,7 +111,7 @@ src/
 
 ### **Database Infrastructure**
 - **Files**: 15+ files including migrations, DAO base classes
-- **Contents**: 
+- **Contents**:
   - All SQL migrations (50+ schema files)
   - Connection management and pooling
   - Base repository implementations

@@ -26,33 +26,33 @@ async def main():
     parser.add_argument('--source-db', type=str, default='dev_db', help='Source database name')
     parser.add_argument('--target-db', type=str, default='intg_db', help='Target database name')
     args = parser.parse_args()
-    
+
     print(f"🚀 Starting {args.vendor.upper()} Database Synchronization")
     start_time = datetime.now()
-    
+
     # Configure database connections
     source_config = {
         'host': 'localhost',
         'port': args.source_port,
-        'user': 'postgres', 
+        'user': 'postgres',
         'password': 'dev_password' if args.source_port == 3432 else 'intg_password',
         'database': args.source_db
     }
-    
+
     target_config = {
         'host': 'localhost',
         'port': args.target_port,
         'user': 'postgres',
-        'password': 'intg_password' if args.target_port == 4432 else 'dev_password', 
+        'password': 'intg_password' if args.target_port == 4432 else 'dev_password',
         'database': args.target_db
     }
-    
+
     # Run sync using service
     results = await sync_vendor_daily_prices(args.vendor, source_config, target_config)
-    
+
     # Summary
     elapsed = (datetime.now() - start_time).total_seconds()
-    
+
     if results['success']:
         print(f"\n🎉 Database Sync Complete!")
         print(f"⏱️  Total time: {results['total_time']:.1f} seconds")

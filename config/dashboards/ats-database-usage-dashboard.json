@@ -1,7 +1,7 @@
 {
   "dashboard": {
     "id": null,
-    "title": "ATS Database Usage Analysis", 
+    "title": "ATS Database Usage Analysis",
     "tags": ["ats", "database", "tables", "cleanup"],
     "timezone": "browser",
     "panels": [

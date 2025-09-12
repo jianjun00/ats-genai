@@ -10,10 +10,10 @@ from datetime import datetime
 
 def create_github_issues():
     """Create GitHub issues for universe membership fixes"""
-    
+
     print("📋 CREATING GITHUB ISSUES FOR UNIVERSE MEMBERSHIP FIXES")
     print("="*70)
-    
+
     issues = [
         {
             "title": "🚨 CRITICAL: Fix universe membership placeholder dates with actual qualification tracking",
@@ -28,7 +28,7 @@ def create_github_issues():
 ## Research Findings
 Based on real market data analysis:
 - **SMCI**: Should be `2023-01-09` (AI boom entry) not `1995-01-01`
-- **MSTR**: Should be `2020-12-17` (Bitcoin strategy) not `1995-01-01` 
+- **MSTR**: Should be `2020-12-17` (Bitcoin strategy) not `1995-01-01`
 - **PTON**: Should show exit `2023-04-27` when volume fell below threshold
 
 ## Solution
@@ -46,7 +46,7 @@ Based on real market data analysis:
 **Labels: bug, data-quality, universe-analytics**""",
             "labels": ["bug", "P0-critical", "data-quality", "universe-analytics"]
         },
-        
+
         {
             "title": "⚡ Implement automated daily universe membership evaluation process",
             "body": """## Problem
@@ -64,15 +64,15 @@ Implement `UniverseMembershipManager.evaluate_daily_membership()`:
 def evaluate_daily_membership(evaluation_date, universe_id):
     # 1. Calculate 50-day rolling volume averages
     current_qualifiers = get_current_qualifiers(evaluation_date)
-    
-    # 2. Get active universe members  
+
+    # 2. Get active universe members
     active_members = get_active_members(universe_id)
-    
+
     # 3. Process exits (active members below threshold)
     for member in active_members:
         if member not in current_qualifiers:
             update_membership_exit(member, evaluation_date)
-    
+
     # 4. Process entries (new qualifiers above threshold)
     for qualifier in current_qualifiers:
         if qualifier not in active_members:
@@ -88,7 +88,7 @@ def evaluate_daily_membership(evaluation_date, universe_id):
 **Labels: enhancement, automation, universe-analytics**""",
             "labels": ["enhancement", "P0-critical", "automation", "universe-analytics"]
         },
-        
+
         {
             "title": "📊 Implement historical data correction based on volume analysis",
             "body": """## Problem
@@ -107,7 +107,7 @@ Recalculate all start_at/end_at dates using actual volume data:
 
 ## Implementation Plan
 1. **Volume Analysis Engine**: Calculate historical 50-day rolling averages
-2. **Event Detection**: Find exact qualification/disqualification dates  
+2. **Event Detection**: Find exact qualification/disqualification dates
 3. **Membership Reconstruction**: Create correct membership records
 4. **Multiple Period Support**: Handle re-entries (BYND volatility cycles)
 5. **Validation**: Compare with research findings
@@ -122,7 +122,7 @@ Recalculate all start_at/end_at dates using actual volume data:
 **Labels: data-migration, historical-analysis, universe-analytics**""",
             "labels": ["data-migration", "P1-high", "historical-analysis", "universe-analytics"]
         },
-        
+
         {
             "title": "🔄 Support multiple membership periods for stocks with entry/exit cycles",
             "body": """## Problem
@@ -131,7 +131,7 @@ Current schema only supports one membership record per stock, missing volatility
 ## Real Examples Requiring Multiple Periods
 **BYND (Beyond Meat) Volatility Cycle:**
 - Period 1: `2019-07-15` → `2022-07-11` (Hype cycle)
-- Period 2: `2022-07-21` → `2022-07-22` (Brief requalification) 
+- Period 2: `2022-07-21` → `2022-07-22` (Brief requalification)
 - Period 3: `2024-11-01` → Active (Hypothetical recovery)
 
 **ARKB (Bitcoin ETF) Launch Volatility:**
@@ -153,7 +153,7 @@ CREATE TABLE intg_universe_membership (
 
 ### Business Logic Updates
 1. **Entry Processing**: Always create NEW record for requalification
-2. **Exit Processing**: Set end_at on active record only  
+2. **Exit Processing**: Set end_at on active record only
 3. **Query Updates**: Handle multiple periods in API responses
 4. **UI Updates**: Display multiple membership periods
 
@@ -166,7 +166,7 @@ CREATE TABLE intg_universe_membership (
 **Labels: enhancement, data-model, universe-analytics**""",
             "labels": ["enhancement", "P1-high", "data-model", "universe-analytics"]
         },
-        
+
         {
             "title": "📅 Add scheduled daily job for universe membership monitoring",
             "body": """## Problem
@@ -181,7 +181,7 @@ No automated scheduling exists for daily universe membership evaluation.
 
 ### Implementation Options
 1. **Cron Job**: Traditional Unix cron scheduling
-2. **K8s CronJob**: Kubernetes-native scheduling  
+2. **K8s CronJob**: Kubernetes-native scheduling
 3. **GitHub Actions**: Schedule workflow for consistency
 4. **AWS Lambda**: Event-driven scheduling
 
@@ -204,7 +204,7 @@ No automated scheduling exists for daily universe membership evaluation.
 
 ### Alert System
 - Significant entry/exit events (>10 changes)
-- Volume threshold boundary oscillations  
+- Volume threshold boundary oscillations
 - Data quality issues or processing failures
 
 ## Success Criteria
@@ -217,7 +217,7 @@ No automated scheduling exists for daily universe membership evaluation.
 **Labels: automation, monitoring, devops, universe-analytics**""",
             "labels": ["automation", "P1-high", "monitoring", "devops", "universe-analytics"]
         },
-        
+
         {
             "title": "🔍 Add monitoring alerts for significant membership changes",
             "body": """## Problem
@@ -245,7 +245,7 @@ No visibility into universe membership changes or data quality issues.
 
 📊 Daily Universe Summary - Universe 2
 • 3 entries: ABC (+$120M), DEF (+$105M), GHI (+$98M→$110M)
-• 1 exit: XYZ ($95M, below threshold 5 days)  
+• 1 exit: XYZ ($95M, below threshold 5 days)
 • Total active: 668 stocks
 ```
 
@@ -277,19 +277,19 @@ class UniverseMonitoringService:
             "labels": ["monitoring", "P2-medium", "alerts", "observability", "universe-analytics"]
         }
     ]
-    
+
     print(f"Creating {len(issues)} GitHub issues...\n")
-    
+
     created_issues = []
-    
+
     for i, issue in enumerate(issues, 1):
         print(f"📋 Creating Issue {i}: {issue['title'][:50]}...")
-        
+
         # Create the issue using gh CLI
         try:
             # Prepare labels as comma-separated string
             labels_str = ",".join(issue['labels'])
-            
+
             # Create issue with gh CLI
             result = subprocess.run([
                 'gh', 'issue', 'create',
@@ -297,7 +297,7 @@ class UniverseMonitoringService:
                 '--body', issue['body'],
                 '--label', labels_str
             ], capture_output=True, text=True)
-            
+
             if result.returncode == 0:
                 issue_url = result.stdout.strip()
                 print(f"   ✅ Created: {issue_url}")
@@ -308,26 +308,26 @@ class UniverseMonitoringService:
                 })
             else:
                 print(f"   ❌ Failed: {result.stderr}")
-                
+
         except Exception as e:
             print(f"   ❌ Error: {e}")
-    
+
     print(f"\n📊 SUMMARY:")
     print(f"   ✅ Created {len(created_issues)} issues successfully")
-    
+
     if created_issues:
         print(f"\n📋 CREATED ISSUES:")
         for issue in created_issues:
             print(f"   • {issue['title'][:60]}...")
             print(f"     {issue['url']}")
-    
+
     return created_issues
 
 if __name__ == "__main__":
     created_issues = create_github_issues()
-    
+
     # Save issue list for reference
     with open('/home/jianjun/ats-genai-admin/universe_membership_issues.json', 'w') as f:
         json.dump(created_issues, f, indent=2)
-    
+
     print(f"\n💾 Issue list saved to: universe_membership_issues.json")

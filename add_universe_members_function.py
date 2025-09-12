@@ -5,35 +5,35 @@ Add the loadUniverseMembers JavaScript function to the analytics service
 
 def add_universe_members_function():
     file_path = '/home/jianjun/ats-genai-admin/src/services/analytics_service.py'
-    
+
     # Read the current file
     with open(file_path, 'r') as f:
         content = f.read()
-    
+
     # Find the location after the loadUniverseAnalytics function to insert the new function
     function_to_add = '''
                 async function loadUniverseMembers() {
                     const universeId = document.getElementById('universe-selector').value;
                     const dateFrom = document.getElementById('universe-date-from').value;
                     const dateTo = document.getElementById('universe-date-to').value;
-                    
+
                     if (!universeId) {
                         alert('Please select a universe first.');
                         return;
                     }
-                    
+
                     if (!dateFrom || !dateTo) {
                         alert('Please select both from and to dates.');
                         return;
                     }
-                    
+
                     const membersContent = document.getElementById('universe-members-content');
                     membersContent.innerHTML = '<h4>📊 Universe Members</h4><p>Loading universe members...</p>';
-                    
+
                     try {
                         const response = await fetch(`/api/universe-members/${universeId}?date_from=${dateFrom}&date_to=${dateTo}`);
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             let html = `
                                 <h4>📊 Universe Members</h4>
@@ -44,12 +44,12 @@ def add_universe_members_function():
                                     <strong>Total Members:</strong> ${data.members.length} symbols
                                 </div>
                             `;
-                            
+
                             if (data.members.length > 0) {
                                 // Group members by status (active vs historical)
                                 const activeMembers = data.members.filter(member => !member.end_at);
                                 const historicalMembers = data.members.filter(member => member.end_at);
-                                
+
                                 html += `
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                                         <div>
@@ -64,7 +64,7 @@ def add_universe_members_function():
                                                     </thead>
                                                     <tbody>
                                 `;
-                                
+
                                 activeMembers.forEach(member => {
                                     const startDate = new Date(member.start_at).toISOString().split('T')[0];
                                     html += `
@@ -74,13 +74,13 @@ def add_universe_members_function():
                                         </tr>
                                     `;
                                 });
-                                
+
                                 html += `
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
-                                        
+
                                         <div>
                                             <h5 style="color: #f57c00;">📋 Historical Members (${historicalMembers.length})</h5>
                                             <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
@@ -94,7 +94,7 @@ def add_universe_members_function():
                                                     </thead>
                                                     <tbody>
                                 `;
-                                
+
                                 historicalMembers.forEach(member => {
                                     const startDate = new Date(member.start_at).toISOString().split('T')[0];
                                     const endDate = member.end_at ? new Date(member.end_at).toISOString().split('T')[0] : 'Active';
@@ -106,7 +106,7 @@ def add_universe_members_function():
                                         </tr>
                                     `;
                                 });
-                                
+
                                 html += `
                                                     </tbody>
                                                 </table>
@@ -122,7 +122,7 @@ def add_universe_members_function():
                                     </div>
                                 `;
                             }
-                            
+
                             membersContent.innerHTML = html;
                         } else {
                             membersContent.innerHTML = `
@@ -137,39 +137,39 @@ def add_universe_members_function():
                         `;
                     }
                 }'''
-    
+
     # Find a good insertion point - after loadUniverseAnalytics function
     lines = content.split('\n')
     new_lines = []
     i = 0
-    
+
     while i < len(lines):
         new_lines.append(lines[i])
-        
+
         # Look for the end of loadUniverseAnalytics function
         if 'async function loadUniverseAnalytics()' in lines[i]:
             # Find the matching closing brace
             indent_level = len(lines[i]) - len(lines[i].lstrip())
             i += 1
-            
+
             while i < len(lines):
                 new_lines.append(lines[i])
                 current_line = lines[i]
                 current_indent = len(current_line) - len(current_line.lstrip())
-                
+
                 # If we find the closing brace at the same indentation level
                 if current_indent == indent_level and current_line.strip() == '}':
                     # Insert the new function after this closing brace
                     new_lines.extend(function_to_add.split('\n'))
                     break
                 i += 1
-        
+
         i += 1
-    
+
     # Write the updated content
     with open(file_path, 'w') as f:
         f.write('\n'.join(new_lines))
-    
+
     print("✅ Successfully added loadUniverseMembers function")
 
 if __name__ == "__main__":

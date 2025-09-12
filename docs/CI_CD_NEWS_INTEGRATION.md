@@ -28,7 +28,7 @@ on:
 jobs:
   test-news-collection:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:13
@@ -40,20 +40,20 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.12'
-        
+
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
         pip install pytest asyncpg aiohttp
-        
+
     - name: Setup test database
       run: |
         PGPASSWORD=test_password psql -h localhost -U postgres -d test_db -c "
@@ -72,14 +72,14 @@ jobs:
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );"
-    
+
     - name: Run news collection unit tests
       env:
         POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY_TEST }}
         PYTHONPATH: src
       run: |
         python scripts/run_news_collection_tests.py --category unit --ci --environment test
-    
+
     - name: Run news collection integration tests
       env:
         POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY_TEST }}
@@ -91,7 +91,7 @@ jobs:
         DB_NAME: test_db
       run: |
         python scripts/run_news_collection_tests.py --category integration --ci --environment test
-    
+
     - name: Run monitoring tests
       env:
         PYTHONPATH: src
@@ -102,7 +102,7 @@ jobs:
         DB_NAME: test_db
       run: |
         python scripts/run_news_collection_tests.py --category monitoring --ci --environment test
-    
+
     - name: Upload test results
       uses: actions/upload-artifact@v3
       if: always()
@@ -142,15 +142,15 @@ deploy-staging:
   needs: test-news-collection
   runs-on: ubuntu-latest
   if: github.ref == 'refs/heads/main'
-  
+
   steps:
   - uses: actions/checkout@v3
-  
+
   - name: Deploy to staging
     run: |
       # Deploy application to staging
       ./scripts/deploy_staging.sh
-  
+
   - name: Run staging news health check
     env:
       STAGING_DB_HOST: ${{ secrets.STAGING_DB_HOST }}
@@ -158,21 +158,21 @@ deploy-staging:
     run: |
       # Wait for deployment
       sleep 30
-      
+
       # Run comprehensive health check
       python tests/monitoring/test_news_data_monitoring.py \
         --environment staging \
         --output json > staging_health_report.json
-      
+
       # Check if health is acceptable
       if [ "$(cat staging_health_report.json | jq -r '.overall_health')" != "HEALTHY" ]; then
         echo "❌ Staging health check failed"
         cat staging_health_report.json | jq '.alerts'
         exit 1
       fi
-      
+
       echo "✅ Staging health check passed"
-  
+
   - name: Upload staging health report
     uses: actions/upload-artifact@v3
     with:
@@ -187,10 +187,10 @@ deploy-production:
   needs: deploy-staging
   runs-on: ubuntu-latest
   environment: production
-  
+
   steps:
   - uses: actions/checkout@v3
-  
+
   - name: Pre-deployment news validation
     env:
       PROD_DB_HOST: ${{ secrets.PROD_DB_HOST }}
@@ -198,12 +198,12 @@ deploy-production:
     run: |
       # Test API connectivity
       python scripts/test_api_connectivity.py --environment prod
-      
+
       # Validate current news data health
       python tests/monitoring/test_news_data_monitoring.py \
         --environment prod \
         --output json > pre_deploy_health.json
-      
+
       # Allow deployment only if current system is healthy
       current_health=$(cat pre_deploy_health.json | jq -r '.overall_health')
       if [ "$current_health" = "UNHEALTHY" ]; then
@@ -214,11 +214,11 @@ deploy-production:
           exit 1
         fi
       fi
-  
+
   - name: Deploy to production
     run: |
       ./scripts/deploy_production.sh
-  
+
   - name: Post-deployment verification
     env:
       PROD_DB_HOST: ${{ secrets.PROD_DB_HOST }}
@@ -227,18 +227,18 @@ deploy-production:
     run: |
       # Wait for deployment to stabilize
       sleep 60
-      
+
       # Run end-to-end test
       python scripts/run_news_collection_tests.py \
         --category end_to_end \
         --environment prod \
         --report-file prod_e2e_report.json
-      
+
       # Verify health after deployment
       python tests/monitoring/test_news_data_monitoring.py \
         --environment prod \
         --output json > post_deploy_health.json
-      
+
       # Send success notification
       if [ "$(cat post_deploy_health.json | jq -r '.overall_health')" = "HEALTHY" ]; then
         curl -X POST -H 'Content-type: application/json' \
@@ -260,7 +260,7 @@ Add to GitHub repository secrets:
 ```
 # API Keys
 POLYGON_API_KEY_TEST=test_api_key_here
-POLYGON_API_KEY_STAGING=staging_api_key_here  
+POLYGON_API_KEY_STAGING=staging_api_key_here
 POLYGON_API_KEY_PROD=production_api_key_here
 
 # Database Connections
@@ -325,16 +325,16 @@ post_deploy_health_check() {
     local environment=$1
     local max_attempts=10
     local attempt=1
-    
+
     echo "🏥 Running post-deployment health checks..."
-    
+
     while [ $attempt -le $max_attempts ]; do
         if python tests/monitoring/test_news_data_monitoring.py \
            --environment "$environment" \
            --output json > health_check_result.json; then
-            
+
             local health=$(cat health_check_result.json | jq -r '.overall_health')
-            
+
             if [ "$health" = "HEALTHY" ]; then
                 echo "✅ Health check passed on attempt $attempt"
                 return 0
@@ -345,12 +345,12 @@ post_deploy_health_check() {
         else
             echo "❌ Health check failed on attempt $attempt"
         fi
-        
+
         echo "Waiting 30 seconds before retry..."
         sleep 30
         attempt=$((attempt + 1))
     done
-    
+
     echo "❌ Health checks failed after $max_attempts attempts"
     return 1
 }
@@ -362,14 +362,14 @@ post_deploy_health_check() {
 # Automatic rollback on health check failure
 deploy_with_rollback() {
     local environment=$1
-    
+
     # Backup current state
     create_deployment_backup "$environment"
-    
+
     # Deploy new version
     if deploy_application "$environment"; then
         echo "✅ Deployment completed"
-        
+
         # Verify health
         if post_deploy_health_check "$environment"; then
             echo "✅ Deployment verified - health checks passed"
@@ -405,10 +405,10 @@ jobs:
     strategy:
       matrix:
         environment: [staging, production]
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Run health monitoring
       env:
         ENV: ${{ matrix.environment }}
@@ -418,7 +418,7 @@ jobs:
           --environment "$ENV" \
           --output json \
           --alert-slack > health_report_$ENV.json
-    
+
     - name: Upload health reports
       uses: actions/upload-artifact@v3
       with:
@@ -437,16 +437,16 @@ import pytest
 def test_backfill_performance():
     """Test that news backfill meets performance requirements"""
     start_time = time.time()
-    
+
     # Run small backfill
     result = run_backfill_test(limit=100)
-    
+
     duration = time.time() - start_time
-    
+
     # Should process at least 500 records/minute
     min_rate = 500 / 60  # records per second
     actual_rate = 100 / duration
-    
+
     assert actual_rate >= min_rate, f"Performance regression: {actual_rate:.1f} < {min_rate:.1f} records/sec"
     assert result.success_rate >= 0.95, f"Success rate too low: {result.success_rate}"
 ```

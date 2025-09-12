@@ -12,8 +12,8 @@
 python3 scripts/run_dev.py setup
 
 # Service management
-python3 scripts/run_dev.py start --service postgres    
-python3 scripts/run_dev.py start --service analytics   
+python3 scripts/run_dev.py start --service postgres
+python3 scripts/run_dev.py start --service analytics
 python3 scripts/run_dev.py status
 
 # Database operations
@@ -159,7 +159,7 @@ ORDER BY created_at DESC LIMIT 10"
 # API authentication errors
 docker inspect ats-intg-realtime-minute-collector | grep -A 20 "Env"
 
-# Database connection issues  
+# Database connection issues
 docker exec ats-intg-realtime-minute-collector ping ats-intg-postgres
 
 # Check error logs

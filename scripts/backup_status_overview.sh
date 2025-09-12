@@ -25,7 +25,7 @@ else
     echo "  Status: No log file found"
 fi
 
-# ATS-INTG Database  
+# ATS-INTG Database
 echo "🔶 ATS-INTG Database:"
 if [[ -f "/mnt/d/ats-logs/backup-intg.log" ]]; then
     LAST_INTG=$(tail -1 /mnt/d/ats-logs/backup-intg.log | grep "completed successfully" || echo "No recent backup")
@@ -51,7 +51,7 @@ echo "----------------------------------------"
 echo "Daily Schedule:"
 echo "  01:00 AM - ATS Data Full Snapshot (Sundays only)"
 echo "  02:00 AM - ATS-DEV Database Backup (Daily)"
-echo "  02:15 AM - ATS-INTG Database Backup (Daily)"  
+echo "  02:15 AM - ATS-INTG Database Backup (Daily)"
 echo "  04:00 AM - ATS Data Incremental Sync (Daily)"
 echo "  05:00 AM - ATS Data Cleanup (Daily)"
 echo ""

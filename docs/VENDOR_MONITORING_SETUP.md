@@ -51,7 +51,7 @@ The dashboard includes exactly what you requested:
 - **Shows**: Real-time collection rates for each vendor/symbol combination
 
 ### **API Calls per Vendor with Status Codes**
-- **Panel**: "API Status Code Distribution"  
+- **Panel**: "API Status Code Distribution"
 - **Query**: `SELECT vendor, status_code, COUNT(*) FROM intg_api_calls`
 - **Shows**: Breakdown of 200, 429, 500, etc. responses by vendor
 

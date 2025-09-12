@@ -161,6 +161,6 @@ cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/eodhd_database
 
 ---
 
-**Status**: ✅ Production Ready  
-**Last Updated**: 2025-09-09  
+**Status**: ✅ Production Ready
+**Last Updated**: 2025-09-09
 **Migration Status**: Ready to replace SystemD timers

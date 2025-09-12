@@ -382,7 +382,7 @@ class PolygonNewsBackfill:
             async with self.pool.acquire() as conn:
                 # Get initial count for validation
                 initial_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
-                
+
                 # Prepare records for insertion
                 news_records = []
                 article_ids_to_check = []
@@ -403,10 +403,10 @@ class PolygonNewsBackfill:
 
                 # Check which articles already exist for accurate counting
                 existing_articles = await conn.fetch(f"""
-                    SELECT vendor_id FROM {self.table_name} 
+                    SELECT vendor_id FROM {self.table_name}
                     WHERE vendor_id = ANY($1)
                 """, article_ids_to_check)
-                
+
                 existing_ids = {row['vendor_id'] for row in existing_articles}
                 expected_new_inserts = len(article_ids_to_check) - len(existing_ids)
 
@@ -434,12 +434,12 @@ class PolygonNewsBackfill:
                 # Validate actual database changes
                 final_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
                 actual_inserted = final_count - initial_count
-                
+
                 # Accurate counting based on actual database changes
                 inserted_count = actual_inserted
                 updated_count = len(existing_ids)
                 skipped_count = len(news_records) - inserted_count - updated_count
-                
+
                 # Log validation info for debugging
                 if actual_inserted != expected_new_inserts:
                     logger.warning(f"Insert count mismatch: expected {expected_new_inserts}, actual {actual_inserted}")

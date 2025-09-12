@@ -51,7 +51,7 @@ echo "🧪 Testing service endpoints..."
 test_endpoint() {
     local url=$1
     local name=$2
-    
+
     if curl -s "$url" > /dev/null 2>&1; then
         echo "✅ $name is accessible"
         return 0

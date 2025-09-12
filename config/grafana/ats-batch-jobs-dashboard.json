@@ -97,7 +97,7 @@
       {
         "id": 3,
         "title": "Backfill - Symbols Processed",
-        "type": "stat", 
+        "type": "stat",
         "targets": [
           {
             "expr": "sum(rate(ats_daily_prices_backfill_symbols_processed_total[5m])) by (vendor)",

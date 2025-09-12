@@ -6,7 +6,7 @@ This module creates universes specifically designed for modeling purposes by fil
 
 The Modeling Universe Creator selects stocks that meet specific financial criteria:
 - **Market capitalization** > $400M (20-day average)
-- **Dollar trading volume** > $100M (20-day average) 
+- **Dollar trading volume** > $100M (20-day average)
 - **Minimum trading days** for data completeness
 - **Data quality filters** (price ranges, symbol format validation)
 
@@ -22,7 +22,7 @@ dev_daily_prices_polygon (price/volume data)
 dev_instrument_xrefs (symbol mapping)
     ↓ vendor_id = 3 (ticker vendor)
 dev_vendors (vendor definitions)
-    ↓ LEFT JOIN on instrument_id + date  
+    ↓ LEFT JOIN on instrument_id + date
 dev_daily_market_cap (market cap data)
 ```
 
@@ -108,7 +108,7 @@ kubectl create configmap modeling-universe-script \
   --from-file=src/universe/modeling_universe_creator.py \
   -n ats-dev
 
-# Deploy job with mounted script  
+# Deploy job with mounted script
 kubectl apply -f k8s/modeling-universe-job.yaml
 ```
 
@@ -163,7 +163,7 @@ spec:
 
 Top stocks by dollar volume:
 - **AAPL**: $13.9B daily volume ✅
-- **MSFT**: $10.9B daily volume ✅  
+- **MSFT**: $10.9B daily volume ✅
 - **ADBE**: $1.3B daily volume ✅
 - **ACN**: $1.2B daily volume ✅
 
@@ -254,7 +254,7 @@ python k8s/check-actual-column-names.yaml  # Via Kubernetes
 **ALWAYS follow this testing workflow for ANY change:**
 
 1. **Add thorough tests for changes** - Before implementing new features or fixes
-2. **When there is an error, first add tests to verify that the error can be detected** 
+2. **When there is an error, first add tests to verify that the error can be detected**
 3. **Then fix the logic and verify that tests pass**
 4. **Never make changes without corresponding tests**
 
@@ -283,7 +283,7 @@ When developing models, adhere to these fundamental principles:
 
 **❌ DON'T:**
 - Use hardcoded thresholds (e.g., `if RSI > 70 then sell`)
-- Implement heuristic trading rules (e.g., `if price > MA(20) and volume > 2x then buy`) 
+- Implement heuristic trading rules (e.g., `if price > MA(20) and volume > 2x then buy`)
 - Apply fixed cutoffs (e.g., `if P/E < 15 then value stock`)
 - Create manual decision trees with arbitrary breakpoints
 

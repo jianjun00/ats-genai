@@ -10,7 +10,7 @@ set -euo pipefail
 BACKUP_DIR="/mnt/d/ats-backup/dev"
 RETENTION_DAYS=7
 DB_NAME="dev_db"
-DB_USER="postgres" 
+DB_USER="postgres"
 DB_HOST="localhost"
 DB_PORT="5432"
 CONTAINER_NAME="ats-dev-postgres"
@@ -41,7 +41,7 @@ log "📊 Creating database backup..."
 if docker exec "$CONTAINER_NAME" pg_dump -U "$DB_USER" "$DB_NAME" > "$BACKUP_FILE" 2>>"$LOG_FILE"; then
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
     log "✅ Backup completed successfully: $BACKUP_SIZE"
-    
+
     # Verify backup integrity
     if grep -q "PostgreSQL database dump complete" "$BACKUP_FILE"; then
         log "✅ Backup integrity verified"

@@ -23,8 +23,8 @@ This document provides comprehensive operational procedures for daily price data
 ### **Table Constraints**
 
 All tables have:
-- **Primary Key**: `(date, instrument_id)` 
-- **Indexes**: 
+- **Primary Key**: `(date, instrument_id)`
+- **Indexes**:
   - `btree (date, instrument_id)` (primary)
   - `btree (created_at)` (for tracking)
 - **Foreign Key**: `instrument_id` references respective instruments table
@@ -35,30 +35,30 @@ All tables have:
 
 ```sql
 -- EODHD Status
-SELECT 'EODHD DEV' as source, COUNT(*) as total_records, 
-       MAX(date) as latest_date, MIN(date) as earliest_date 
+SELECT 'EODHD DEV' as source, COUNT(*) as total_records,
+       MAX(date) as latest_date, MIN(date) as earliest_date
 FROM dev_daily_prices_eodhd;
 
-SELECT 'EODHD INTG' as source, COUNT(*) as total_records, 
-       MAX(date) as latest_date, MIN(date) as earliest_date 
+SELECT 'EODHD INTG' as source, COUNT(*) as total_records,
+       MAX(date) as latest_date, MIN(date) as earliest_date
 FROM intg_daily_prices_eodhd;
 
--- Tiingo Status  
-SELECT 'TIINGO DEV' as source, COUNT(*) as total_records, 
-       MAX(date) as latest_date, MIN(date) as earliest_date 
+-- Tiingo Status
+SELECT 'TIINGO DEV' as source, COUNT(*) as total_records,
+       MAX(date) as latest_date, MIN(date) as earliest_date
 FROM dev_daily_prices_tiingo;
 
-SELECT 'TIINGO INTG' as source, COUNT(*) as total_records, 
-       MAX(date) as latest_date, MIN(date) as earliest_date 
+SELECT 'TIINGO INTG' as source, COUNT(*) as total_records,
+       MAX(date) as latest_date, MIN(date) as earliest_date
 FROM intg_daily_prices_tiingo;
 
 -- Polygon Status
-SELECT 'POLYGON DEV' as source, COUNT(*) as total_records, 
-       MAX(date) as latest_date, MIN(date) as earliest_date 
+SELECT 'POLYGON DEV' as source, COUNT(*) as total_records,
+       MAX(date) as latest_date, MIN(date) as earliest_date
 FROM dev_daily_prices_polygon;
 
-SELECT 'POLYGON INTG' as source, COUNT(*) as total_records, 
-       MAX(date) as latest_date, MIN(date) as earliest_date 
+SELECT 'POLYGON INTG' as source, COUNT(*) as total_records,
+       MAX(date) as latest_date, MIN(date) as earliest_date
 FROM intg_daily_prices_polygon;
 ```
 
@@ -66,16 +66,16 @@ FROM intg_daily_prices_polygon;
 
 ```sql
 -- Recent data for all vendors
-SELECT 'EODHD' as vendor, COUNT(*) as recent_count 
-FROM intg_daily_prices_eodhd 
+SELECT 'EODHD' as vendor, COUNT(*) as recent_count
+FROM intg_daily_prices_eodhd
 WHERE date >= CURRENT_DATE - INTERVAL '30 days'
 UNION ALL
-SELECT 'TIINGO' as vendor, COUNT(*) as recent_count 
-FROM intg_daily_prices_tiingo 
+SELECT 'TIINGO' as vendor, COUNT(*) as recent_count
+FROM intg_daily_prices_tiingo
 WHERE date >= CURRENT_DATE - INTERVAL '30 days'
 UNION ALL
-SELECT 'POLYGON' as vendor, COUNT(*) as recent_count 
-FROM intg_daily_prices_polygon 
+SELECT 'POLYGON' as vendor, COUNT(*) as recent_count
+FROM intg_daily_prices_polygon
 WHERE date >= CURRENT_DATE - INTERVAL '30 days';
 ```
 
@@ -91,8 +91,8 @@ WITH date_series AS (
   )::date as date
 ),
 existing_dates AS (
-  SELECT DISTINCT date 
-  FROM intg_daily_prices_eodhd 
+  SELECT DISTINCT date
+  FROM intg_daily_prices_eodhd
   WHERE date >= CURRENT_DATE - INTERVAL '30 days'
 )
 SELECT ds.date as missing_date
@@ -114,7 +114,7 @@ Location: `scripts/eodhd_database_sync.py`
 cd /home/jianjun/ats-genai-data
 PYTHONPATH=src python3 scripts/eodhd_database_sync.py --vendor eodhd
 
-# Sync Tiingo from DEV to INTG  
+# Sync Tiingo from DEV to INTG
 PYTHONPATH=src python3 scripts/eodhd_database_sync.py --vendor tiingo
 
 # Sync Polygon from DEV to INTG
@@ -259,7 +259,7 @@ User=jianjun
 WorkingDirectory=/home/jianjun/ats-genai-data
 Environment=PYTHONPATH=/home/jianjun/ats-genai-data/src
 ExecStart=/usr/bin/python3 scripts/eodhd_database_sync.py --vendor eodhd
-ExecStartPost=/usr/bin/python3 scripts/eodhd_database_sync.py --vendor tiingo  
+ExecStartPost=/usr/bin/python3 scripts/eodhd_database_sync.py --vendor tiingo
 ExecStartPost=/usr/bin/python3 scripts/eodhd_database_sync.py --vendor polygon
 
 [Install]
@@ -296,27 +296,27 @@ sudo systemctl status ats-daily-sync.timer
    PYTHONPATH=src python3 -c "
    import asyncpg
    import asyncio
-   
+
    async def check_data():
        conn = await asyncpg.connect(
-           host='localhost', port=4432, user='postgres', 
+           host='localhost', port=4432, user='postgres',
            password='intg_password', database='intg_db'
        )
-       
+
        # Check yesterday's data
        result = await conn.fetch('''
            SELECT 'EODHD' as vendor, COUNT(*) as count FROM intg_daily_prices_eodhd WHERE date = CURRENT_DATE - 1
            UNION ALL
-           SELECT 'TIINGO' as vendor, COUNT(*) as count FROM intg_daily_prices_tiingo WHERE date = CURRENT_DATE - 1  
+           SELECT 'TIINGO' as vendor, COUNT(*) as count FROM intg_daily_prices_tiingo WHERE date = CURRENT_DATE - 1
            UNION ALL
            SELECT 'POLYGON' as vendor, COUNT(*) as count FROM intg_daily_prices_polygon WHERE date = CURRENT_DATE - 1
        ''')
-       
+
        for row in result:
            print(f'{row[\"vendor\"]}: {row[\"count\"]:,} records for yesterday')
-       
+
        await conn.close()
-   
+
    asyncio.run(check_data())
    "
    ```
@@ -352,7 +352,7 @@ ENV_TYPE=intg EODHD_API_KEY=your_key PYTHONPATH=src python3 \
   --end_date 2025-09-09 \
   --limit 500
 
-# 3. Database sync for recent data  
+# 3. Database sync for recent data
 PYTHONPATH=src python3 scripts/eodhd_database_sync.py --vendor eodhd
 ```
 
@@ -361,17 +361,17 @@ PYTHONPATH=src python3 scripts/eodhd_database_sync.py --vendor eodhd
 ```bash
 # Check database locks
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
-SELECT pid, usename, application_name, client_addr, state, query_start, query 
-FROM pg_stat_activity 
+SELECT pid, usename, application_name, client_addr, state, query_start, query
+FROM pg_stat_activity
 WHERE state = 'active' AND query NOT ILIKE '%pg_stat_activity%';
 "
 
 # Check table sizes
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
-SELECT schemaname, tablename, 
+SELECT schemaname, tablename,
        pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-FROM pg_tables 
-WHERE tablename LIKE '%daily_prices%' 
+FROM pg_tables
+WHERE tablename LIKE '%daily_prices%'
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 "
 
@@ -420,7 +420,7 @@ journalctl -u ats-daily-sync.timer
 # Real-time sync monitoring
 tail -f /var/log/ats/eodhd_sync.log
 
-# Check sync service status  
+# Check sync service status
 systemctl status ats-daily-sync.service
 systemctl status ats-daily-sync.timer
 
@@ -430,7 +430,7 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 # Check recent sync activity
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
 SELECT 'EODHD' as vendor, MAX(created_at) as last_update FROM intg_daily_prices_eodhd
-UNION ALL  
+UNION ALL
 SELECT 'TIINGO' as vendor, MAX(created_at) as last_update FROM intg_daily_prices_tiingo
 UNION ALL
 SELECT 'POLYGON' as vendor, MAX(created_at) as last_update FROM intg_daily_prices_polygon;
@@ -526,13 +526,13 @@ SET wal_buffers = '64MB';
 SET shared_buffers = '2GB';
 
 -- Create optimal indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_eodhd_symbol_date 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_eodhd_symbol_date
 ON intg_daily_prices_eodhd (symbol, date DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tiingo_symbol_date 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tiingo_symbol_date
 ON intg_daily_prices_tiingo (symbol, date DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_polygon_symbol_date 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_polygon_symbol_date
 ON intg_daily_prices_polygon (symbol, date DESC);
 ```
 
@@ -554,7 +554,7 @@ export BATCH_SIZE=100000
 ## 📞 **Support Contacts**
 
 - **Database Issues**: DBA Team
-- **API Issues**: Data Engineering Team  
+- **API Issues**: Data Engineering Team
 - **Infrastructure**: DevOps Team
 - **Emergency**: On-call rotation
 

@@ -56,7 +56,7 @@ python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should FAIL (proves test works)
 
 # 2. Write minimal code to make test pass
-# 3. Verify test passes  
+# 3. Verify test passes
 python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
@@ -81,7 +81,7 @@ python scripts/run_dev.py status
 **Features must complete entire pipeline:**
 1. Generate real data using Docker containers
 2. Store data in database with correct schema
-3. API serves data to external clients  
+3. API serves data to external clients
 4. Frontend displays data in browser
 5. All integration tests pass
 
@@ -95,7 +95,7 @@ gh pr create --title "feat: description (closes #123)" --body "
 ## Summary
 - Detailed description of changes
 
-## Related Issue  
+## Related Issue
 Closes #123
 
 ## Testing
@@ -145,7 +145,7 @@ PYTHONPATH=src pytest tests/system/ -v --tb=short
 |-------------|--------|---------|-----------------|
 | **test** | `test_*` | Unit tests | Local PostgreSQL |
 | **dev** | `dev_*` | Development | Docker PostgreSQL |
-| **intg** | `intg_*` | Integration | Docker PostgreSQL |  
+| **intg** | `intg_*` | Integration | Docker PostgreSQL |
 | **prod** | `prod_*` | Production | Docker PostgreSQL |
 
 ### Testing Commands
@@ -168,7 +168,7 @@ uv run python src/script.py
 **Triggers**: Push to any branch, PR creation
 
 **Stages**:
-1. **Unit Tests**: Fast isolated tests  
+1. **Unit Tests**: Fast isolated tests
 2. **Integration Tests**: Real dependencies
 3. **Security Scanning**: Trivy, CodeQL, dependency audits
 4. **Build**: Docker images with multi-arch support
@@ -264,7 +264,7 @@ python scripts/run_dev.py query --query "\d+ table_name"
 
 # Common fixes:
 # - Wrong table names
-# - Wrong column names  
+# - Wrong column names
 # - Missing tables or columns
 ```
 
@@ -328,7 +328,7 @@ find /workspace -name "*.html" -type f | grep -E "(interface|dashboard|eda)"
 
 #### Claims Without Verification
 - **❌ WRONG**: "All fixes verified and working"
-- **❌ WRONG**: "Interface is now functional"  
+- **❌ WRONG**: "Interface is now functional"
 - **✅ CORRECT**: "Tested in browser at http://localhost:4000/eda"
 - **✅ CORRECT**: "Verified element counts changed from 5 to 0"
 

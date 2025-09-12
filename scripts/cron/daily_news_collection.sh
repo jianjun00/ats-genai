@@ -61,13 +61,13 @@ trap cleanup EXIT
 # Main collection function
 run_daily_collection() {
     log "🚀 Starting daily news collection for $ENVIRONMENT"
-    
+
     # Calculate date range (collect previous day to cover any gaps)
     local start_date=$(date -d "2 days ago" +%Y-%m-%d)
     local end_date=$(date -d "1 day ago" +%Y-%m-%d)
-    
+
     log "📅 Collecting news from $start_date to $end_date"
-    
+
     # Run the fixed backfill script
     local success=true
     if ! docker run --rm \
@@ -89,14 +89,14 @@ run_daily_collection() {
         --limit-per-request 100 \
         --max-requests 20 \
         >> "$LOG_FILE" 2>&1; then
-        
+
         success=false
         log_error "News collection failed"
     fi
-    
+
     if $success; then
         log_success "News collection completed successfully"
-        
+
         # Run health check
         log "🏥 Running post-collection health check..."
         run_health_check
@@ -123,7 +123,7 @@ run_health_check() {
         --environment "$ENVIRONMENT" \
         --output json \
         >> "$LOG_FILE" 2>&1; then
-        
+
         log_success "Health check passed"
     else
         log_warning "Health check detected issues - see logs"
@@ -136,10 +136,10 @@ run_weekly_backup() {
         log "📦 Running weekly backup..."
         local backup_file="$BACKUP_DIR/weekly_news_backup_$(date +%Y%m%d).sql"
         mkdir -p "$BACKUP_DIR"
-        
+
         if docker exec ats-${ENVIRONMENT}-postgres pg_dump -U postgres ${ENVIRONMENT}_db > "$backup_file" 2>/dev/null; then
             log_success "Weekly backup created: $backup_file"
-            
+
             # Keep only last 4 weekly backups
             find "$BACKUP_DIR" -name "weekly_news_backup_*.sql" -mtime +28 -delete
         else
@@ -151,26 +151,26 @@ run_weekly_backup() {
 # Statistics reporting
 report_collection_stats() {
     log "📊 Collection Statistics:"
-    
+
     # Get recent article counts
     local today_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
-        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon 
+        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
         WHERE DATE(published_utc) = CURRENT_DATE - INTERVAL '1 day'
     " 2>/dev/null | xargs || echo "0")
-    
+
     local week_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
-        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon 
+        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
         WHERE published_utc >= CURRENT_DATE - INTERVAL '7 days'
     " 2>/dev/null | xargs || echo "0")
-    
+
     log "   Yesterday: $today_count articles"
     log "   Last 7 days: $week_count articles"
-    
+
     # Check data freshness
     local latest_article=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
         SELECT MAX(published_utc) FROM ${ENVIRONMENT}_news_polygon
     " 2>/dev/null | xargs || echo "unknown")
-    
+
     log "   Latest article: $latest_article"
 }
 
@@ -179,15 +179,15 @@ main() {
     log "=" * 60
     log "🗞️  Daily News Collection - $(date)"
     log "Environment: $ENVIRONMENT"
-    
+
     check_lock
-    
+
     # Check required environment variables
     if [ -z "$POLYGON_API_KEY" ]; then
         log_error "POLYGON_API_KEY not set"
         exit 1
     fi
-    
+
     # Run collection
     if run_daily_collection; then
         run_weekly_backup
@@ -197,7 +197,7 @@ main() {
         log_error "Daily news collection failed"
         exit 1
     fi
-    
+
     log "=" * 60
 }
 

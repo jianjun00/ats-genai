@@ -16,7 +16,7 @@
 - **Collection Latency**: Delay between when bar occurred vs when we collected it
 - **API Calls per Vendor with Status Codes**: Breakdown of 200, 429, 500, etc.
 - **Success Rates**: API success percentages by vendor
-- **Response Times**: Average response times by vendor  
+- **Response Times**: Average response times by vendor
 - **Recent Errors**: Latest API failures with details
 - **Professional UI**: Industry-standard monitoring interface
 
@@ -29,10 +29,10 @@
 ```bash
 # Check live minute bar data (CURRENT WORKING DATA)
 export PGPASSWORD=intg_password && psql -h localhost -p 4432 -U postgres -d intg_db -c "
-SELECT vendor, symbol, COUNT(*) as records, MAX(timestamp) as latest_data 
+SELECT vendor, symbol, COUNT(*) as records, MAX(timestamp) as latest_data
 FROM (
-  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_polygon 
-  UNION ALL 
+  SELECT vendor, symbol, timestamp FROM intg_one_minute_live_polygon
+  UNION ALL
   SELECT vendor, symbol, timestamp FROM intg_one_minute_live_tiingo
 ) combined GROUP BY vendor, symbol ORDER BY latest_data DESC;"
 
@@ -48,7 +48,7 @@ FROM (
 # Count today's processed parquet files
 find /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ -name "*.parquet" | wc -l
 
-# Restart minute bar collection  
+# Restart minute bar collection
 ./scripts/restart_minute_bar_collection.sh
 
 # Fix Grafana dashboard if panels show no data
@@ -62,15 +62,15 @@ python3 scripts/add_dual_time_panels.py
 
 # Check collection latency for recent data
 export PGPASSWORD=intg_password && psql -h localhost -p 4432 -U postgres -d intg_db -c "
-SELECT symbol, vendor, 
-       timestamp as bar_time, 
+SELECT symbol, vendor,
+       timestamp as bar_time,
        received_at as collection_time,
-       EXTRACT(EPOCH FROM (received_at - timestamp))/60 as delay_minutes 
+       EXTRACT(EPOCH FROM (received_at - timestamp))/60 as delay_minutes
 FROM (
-  SELECT * FROM intg_one_minute_live_polygon 
-  UNION ALL 
+  SELECT * FROM intg_one_minute_live_polygon
+  UNION ALL
   SELECT * FROM intg_one_minute_live_tiingo
-) combined 
+) combined
 ORDER BY received_at DESC LIMIT 10;"
 ```
 
@@ -101,18 +101,18 @@ The system currently shows:
 
 ## 🎯 **Why This Approach**
 
-✅ **Industry Standard**: Grafana is the standard monitoring solution  
-✅ **Zero Custom Code**: No web dashboard maintenance required  
-✅ **Real-time Updates**: Direct PostgreSQL queries with live refresh  
-✅ **Professional Features**: Alerting, sharing, templating built-in  
-✅ **Already Running**: Uses existing ATS-INTG Grafana instance  
+✅ **Industry Standard**: Grafana is the standard monitoring solution
+✅ **Zero Custom Code**: No web dashboard maintenance required
+✅ **Real-time Updates**: Direct PostgreSQL queries with live refresh
+✅ **Professional Features**: Alerting, sharing, templating built-in
+✅ **Already Running**: Uses existing ATS-INTG Grafana instance
 
 ## 📋 **Database Tables**
 
 Direct PostgreSQL access for custom queries:
 ```sql
 -- API call tracking
-SELECT vendor, status_code, COUNT(*) FROM intg_api_calls 
+SELECT vendor, status_code, COUNT(*) FROM intg_api_calls
 WHERE request_timestamp >= NOW() - INTERVAL '24 hours'
 GROUP BY vendor, status_code;
 

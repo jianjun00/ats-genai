@@ -21,10 +21,10 @@
           {"color": "green", "value": 1}
         ]
       },
-      
+
       {
         "title": "🧪 Integration Test Success Rate",
-        "type": "gauge", 
+        "type": "gauge",
         "width": 6,
         "height": 6,
         "targets": [
@@ -35,17 +35,17 @@
         ],
         "thresholds": [
           {"color": "red", "value": 0},
-          {"color": "yellow", "value": 90}, 
+          {"color": "yellow", "value": 90},
           {"color": "green", "value": 95}
         ],
         "min": 0,
         "max": 100
       },
-      
+
       {
         "title": "📊 Data Quality Score by Vendor",
         "type": "gauge",
-        "width": 6, 
+        "width": 6,
         "height": 6,
         "targets": [
           {
@@ -59,12 +59,12 @@
           {"color": "green", "value": 95}
         ]
       },
-      
+
       {
         "title": "⏱️ Data Freshness by Vendor (Minutes)",
         "type": "timeseries",
         "width": 12,
-        "height": 6, 
+        "height": 6,
         "targets": [
           {
             "query": "ats_intg_data_freshness_minutes",
@@ -78,13 +78,13 @@
             "message": "Data freshness exceeds 1 hour"
           },
           {
-            "condition": "> 120", 
+            "condition": "> 120",
             "severity": "critical",
             "message": "Data freshness exceeds 2 hours"
           }
         ]
       },
-      
+
       {
         "title": "🌐 External API Response Times (P95)",
         "type": "timeseries",
@@ -97,10 +97,10 @@
           }
         ]
       },
-      
+
       {
         "title": "🗄️ Database Performance Metrics",
-        "type": "timeseries", 
+        "type": "timeseries",
         "width": 6,
         "height": 6,
         "targets": [
@@ -114,7 +114,7 @@
           }
         ]
       },
-      
+
       {
         "title": "🤖 ML Pipeline Health",
         "type": "stat",
@@ -131,20 +131,20 @@
           }
         ]
       },
-      
+
       {
-        "title": "📈 Integration Test Execution Timeline", 
+        "title": "📈 Integration Test Execution Timeline",
         "type": "timeseries",
         "width": 12,
         "height": 6,
         "targets": [
           {
-            "query": "ats_intg_test_duration_ms / 1000", 
+            "query": "ats_intg_test_duration_ms / 1000",
             "legend": "{{test_suite}} Duration (s)"
           }
         ]
       },
-      
+
       {
         "title": "🚨 Active Alerts Summary",
         "type": "table",
@@ -158,7 +158,7 @@
         ]
       }
     ],
-    
+
     "alert_rules": [
       {
         "name": "ATS-INTG Service Down",
@@ -169,34 +169,34 @@
         "description": "Service has been down for more than 2 minutes",
         "runbook_url": "https://wiki.company.com/ats-intg-service-down"
       },
-      
+
       {
         "name": "ATS-INTG Data Freshness Alert",
         "expression": "ats_intg_data_freshness_minutes > 120",
-        "for": "5m", 
+        "for": "5m",
         "severity": "critical",
         "summary": "ATS-INTG data is stale for {{$labels.vendor}}",
         "description": "Data from {{$labels.vendor}} is {{$value}} minutes old"
       },
-      
+
       {
         "name": "ATS-INTG Integration Test Failures",
         "expression": "rate(ats_intg_tests_passed_total[10m]) / rate(ats_intg_tests_total[10m]) < 0.90",
         "for": "5m",
-        "severity": "warning", 
+        "severity": "warning",
         "summary": "ATS-INTG test success rate below 90%",
         "description": "Integration test success rate is {{$value | humanizePercentage}}"
       },
-      
+
       {
         "name": "ATS-INTG Database Connection Pool Alert",
         "expression": "ats_intg_db_connections_active > 90",
         "for": "3m",
         "severity": "warning",
-        "summary": "ATS-INTG database connection pool near exhaustion", 
+        "summary": "ATS-INTG database connection pool near exhaustion",
         "description": "{{$value}} active connections out of ~100 limit"
       },
-      
+
       {
         "name": "ATS-INTG External API Performance",
         "expression": "histogram_quantile(0.95, ats_intg_external_api_duration_ms) > 5000",
@@ -207,7 +207,7 @@
       }
     ]
   },
-  
+
   "ats_intg_data_pipeline_health": {
     "title": "ATS Integration - Data Pipeline Health",
     "description": "Focused monitoring for data pipeline health in integration environment",
@@ -222,7 +222,7 @@
           }
         ]
       },
-      
+
       {
         "title": "🔄 Data Processing Volume",
         "type": "timeseries",
@@ -233,10 +233,10 @@
           }
         ]
       },
-      
+
       {
         "title": "❌ Data Quality Issues",
-        "type": "table", 
+        "type": "table",
         "targets": [
           {
             "query": "ats_intg_data_quality_issues_total by (vendor, issue_type)",
@@ -244,9 +244,9 @@
           }
         ]
       },
-      
+
       {
-        "title": "⏰ Data Processing Latency Distribution", 
+        "title": "⏰ Data Processing Latency Distribution",
         "type": "heatmap",
         "targets": [
           {
@@ -257,7 +257,7 @@
       }
     ]
   },
-  
+
   "ats_intg_service_integration": {
     "title": "ATS Integration - Service Integration Health",
     "description": "Monitor how services integrate and communicate",
@@ -272,7 +272,7 @@
           }
         ]
       },
-      
+
       {
         "title": "📞 Inter-Service Call Success Rates",
         "type": "timeseries",
@@ -283,17 +283,17 @@
           }
         ]
       },
-      
+
       {
         "title": "⚡ Service Response Times (P50, P95, P99)",
-        "type": "timeseries", 
+        "type": "timeseries",
         "targets": [
           {
             "query": "histogram_quantile(0.50, ats_intg_service_response_duration_ms)",
             "legend": "P50"
           },
           {
-            "query": "histogram_quantile(0.95, ats_intg_service_response_duration_ms)", 
+            "query": "histogram_quantile(0.95, ats_intg_service_response_duration_ms)",
             "legend": "P95"
           },
           {
@@ -302,7 +302,7 @@
           }
         ]
       },
-      
+
       {
         "title": "🔄 Message Queue Health",
         "type": "stat",

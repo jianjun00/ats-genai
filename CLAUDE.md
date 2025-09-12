@@ -26,7 +26,7 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 **When ANY command/service fails, follow this exact sequence:**
 
-#### 1. **🔍 GATHER EVIDENCE** 
+#### 1. **🔍 GATHER EVIDENCE**
 ```bash
 # NEVER restart or switch environments first - investigate!
 # Check service status
@@ -68,7 +68,7 @@ env | grep -E "(POSTGRES|DOCKER)"                          # Environment variabl
 
 #### 4. **💡 HYPOTHESIS-DRIVEN DEBUGGING**
 - **Form specific hypothesis** about the root cause
-- **Test hypothesis** with minimal reproduction case  
+- **Test hypothesis** with minimal reproduction case
 - **Document findings** - what worked, what didn't, why
 - **Implement targeted fix** based on understanding
 - **Verify fix** solves root cause, not just symptoms
@@ -79,7 +79,7 @@ env | grep -E "(POSTGRES|DOCKER)"                          # Environment variabl
 git commit -m "fix: resolve postgres connection issue
 
 Root cause: Connection pool exhaustion due to unclosed connections in analytics service
-Investigation: Checked docker logs, found 'too many connections' error  
+Investigation: Checked docker logs, found 'too many connections' error
 Solution: Added proper connection cleanup in analytics_service.py:245
 Verification: Service now maintains <10 connections vs previous 100+
 
@@ -88,7 +88,7 @@ Refs: #123"
 
 ### **🚫 NO MOCK/SYNTHETIC DATA IN NON-TEST CODE**
 - **❌ NEVER use mock data, fake data, synthetic data, demo data** outside of unit tests
-- **❌ NEVER create fallbacks to demo data** when real data is unavailable  
+- **❌ NEVER create fallbacks to demo data** when real data is unavailable
 - **❌ NEVER return 200 OK with fake data** when database queries fail
 - **✅ Demo data ONLY in unit tests** - isolated, controlled test scenarios
 - **✅ Fail fast and clearly** when real data/database is unavailable
@@ -130,7 +130,7 @@ rg "similar_feature" src/ --type py
 
 # 2. PROVE existing files cannot be extended (MANDATORY documentation)
 echo "❌ BLOCKING: Cannot extend existing_file.py because:"
-echo "   - Specific technical limitation: [detailed reason]"  
+echo "   - Specific technical limitation: [detailed reason]"
 echo "   - Attempted refactor: [what was tried]"
 echo "   - Alternative approaches considered: [list 3+ options]"
 
@@ -144,7 +144,7 @@ echo "REQUIRED: Net reduction in total codebase size and complexity"
 #### **❌ BANNED JUSTIFICATIONS for New Files:**
 - **"It's simpler"** - REFACTOR existing code instead
 - **"It's just a test"** - Use existing test files
-- **"It's a quick demo"** - Extend existing examples  
+- **"It's a quick demo"** - Extend existing examples
 - **"It's cleaner separation"** - CONSOLIDATE, don't separate
 - **"It's better organized"** - REORGANIZE existing files
 - **"It's more modular"** - MERGE modules, reduce complexity
@@ -165,7 +165,7 @@ grep -r "class.*Test" tests/                    # Find test classes to merge
 grep -r "def test_" tests/ | wc -l              # Count total test methods
 echo "TARGET: Merge into fewer, comprehensive test files"
 
-# STEP 2: Measure current complexity  
+# STEP 2: Measure current complexity
 find src/ -name "*.py" | wc -l                  # File count (must decrease)
 find src/ -name "*.py" -exec wc -l {} \; | awk '{sum+=$1} END {print sum}'  # Line count
 
@@ -179,7 +179,7 @@ echo "4. Remove abandoned/unused files"
 # STEP 4: Prove improvement
 echo "MANDATORY METRICS IMPROVEMENT:"
 echo "- Fewer total files"
-echo "- Fewer total lines" 
+echo "- Fewer total lines"
 echo "- Fewer duplicate functions"
 echo "- Higher test coverage per file"
 ```
@@ -205,7 +205,7 @@ find src/ -name "*.py" -exec sh -c 'if [ $(grep -c "def \|class " "$1") -eq 1 ];
 
 **ALWAYS USE DOCKER FOR ALL OPERATIONS:**
 - ✅ **DEV Environment = Docker containers on localhost**
-- ✅ **GPU Support = Docker with --gpus all flag**  
+- ✅ **GPU Support = Docker with --gpus all flag**
 - ✅ **Database = PostgreSQL container or localhost**
 - ✅ **All operations = Use run_dev (handles Docker automatically)**
 - ❌ **NEVER run complex setup manually**
@@ -258,7 +258,7 @@ docker rm <container>
 
 ### **🔌 Port Architecture - Environment Isolation**
 
-| Service | DEV Environment | INTG Environment | Internal Port | 
+| Service | DEV Environment | INTG Environment | Internal Port |
 |---------|----------------|------------------|---------------|
 | **Analytics** | `localhost:3000` | `localhost:4000` | `3000` |
 | **PostgreSQL** | `localhost:5432` | `localhost:4432` | `5432` |
@@ -273,7 +273,7 @@ docker rm <container>
 ### **📦 Container Architecture - Naming & Dependencies**
 
 **Container Naming Pattern:**
-- **DEV**: `ats-dev-{service}` (e.g., `ats-dev-analytics`, `ats-dev-postgres`)  
+- **DEV**: `ats-dev-{service}` (e.g., `ats-dev-analytics`, `ats-dev-postgres`)
 - **INTG**: `ats-intg-{service}` (e.g., `ats-intg-analytics`, `ats-intg-postgres`)
 
 **Service Dependencies (Start Order Critical):**
@@ -282,7 +282,7 @@ docker rm <container>
 python scripts/run_dev.py start --service postgres
 python scripts/run_intg.py start --service postgres
 
-# 2. Analytics service (depends on database)  
+# 2. Analytics service (depends on database)
 python scripts/run_dev.py start --service analytics
 python scripts/run_intg.py start --service analytics
 
@@ -298,7 +298,7 @@ python scripts/run_intg.py start --service api
 # Core application volumes
 -v /home/jianjun/ats-genai-admin:/workspace                    # Source code
 -v /mnt/d/ats-data:/data                                       # Training data, minute bars
--v /mnt/d/ats-backup:/backup                                   # Database backups  
+-v /mnt/d/ats-backup:/backup                                   # Database backups
 -v /mnt/d/ats-logs:/logs                                       # Service logs
 
 # Database volumes (persistent data)
@@ -326,7 +326,7 @@ python scripts/run_intg.py start --service api
 DB_HOST=ats-dev-postgres             # Container name, NOT localhost
 DB_PORT=5432                        # Internal port, NOT external 5432
 DB_USER=postgres
-DB_PASSWORD=dev_password  
+DB_PASSWORD=dev_password
 DB_NAME=dev_db
 ENVIRONMENT=dev
 
@@ -339,7 +339,7 @@ PYTHONPATH=/workspace/src          # Critical for Python imports
 
 **INTG Environment Variables:**
 ```bash
-# Database connection (internal docker network)  
+# Database connection (internal docker network)
 DB_HOST=ats-intg-postgres           # Container name, NOT localhost
 DB_PORT=5432                       # Internal port, NOT external 4432
 DB_USER=postgres
@@ -360,7 +360,7 @@ PYTHONPATH=/workspace/src
 ```bash
 # DEV
 python src/services/analytics_service.py    # Port 3000 internally
-# INTG  
+# INTG
 python src/services/analytics_service.py    # Port 3000 internally, exposed as 4000
 ```
 
@@ -392,7 +392,7 @@ docker inspect <container> | grep NetworkMode
 **Issue 2: "Loading database tables..." (dummy content)**
 ```bash
 # Symptom: Analytics shows loading screens instead of data
-# Root Cause: Database connection misconfigured  
+# Root Cause: Database connection misconfigured
 # Fix: Check DB_HOST uses container name, not localhost
 
 # Debug:
@@ -400,9 +400,9 @@ docker logs ats-intg-analytics --tail 20
 # Look for connection errors to wrong host/port
 ```
 
-**Issue 3: Character encoding issues (�� instead of emojis)**  
+**Issue 3: Character encoding issues (�� instead of emojis)**
 ```bash
-# Symptom: "ðŸš€" instead of "🚀" 
+# Symptom: "ðŸš€" instead of "🚀"
 # Root Cause: Missing charset=utf-8 in HTTP headers
 # Fix: Add charset to Content-Type header in analytics service
 ```
@@ -425,7 +425,7 @@ netstat -tulpn | grep -E "(3000|4000|5432|4432)"
 # 1. Container is running on correct network
 docker inspect <container> | grep -A 5 NetworkMode
 
-# 2. Database connectivity works  
+# 2. Database connectivity works
 curl -f http://localhost:<port>/health
 
 # 3. Service logs show no connection errors
@@ -443,7 +443,7 @@ docker ps | grep <service_name>
 ```bash
 # These are the ONLY valid API keys - use these exact values everywhere
 POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"      # ✅ VERIFIED WORKING
-TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING  
+TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING
 EODHD_API_KEY="68aa0c7d2fe831.67386369"                   # ✅ VERIFIED WORKING
 FMP_API_KEY="Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr"            # ✅ Available
 ALPHA_VANTAGE_API_KEY="9GI0NZ3V4VNFX271"                  # ✅ Available
@@ -467,7 +467,7 @@ python3 scripts/validate_api_keys.py
 ```bash
 # All integration services use centralized API key management
 python3 scripts/run_intg.py start --service realtime-minute-collector
-python3 scripts/run_intg.py start --service analytics  
+python3 scripts/run_intg.py start --service analytics
 python3 scripts/run_intg.py start --service news-realtime
 
 # API keys automatically configured with correct values
@@ -475,7 +475,7 @@ python3 scripts/run_intg.py start --service news-realtime
 
 #### **Development Environment Services:**
 ```bash
-# All dev services use centralized API key management  
+# All dev services use centralized API key management
 python3 scripts/run_dev.py start --service analytics
 python3 scripts/run_dev.py start --service postgres
 
@@ -618,7 +618,7 @@ python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # 2. Write minimal code to make test pass
 # (write your code in src/)
 
-# 3. Verify test passes  
+# 3. Verify test passes
 python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
@@ -667,9 +667,9 @@ def test_data_processing_accuracy():
         'price': [100.0, 105.0, 95.0],
         'volume': [1000, 1500, 800]
     })
-    
+
     result = process_market_data(input_data)
-    
+
     # Verify ACTUAL calculations and transformations
     assert result['sma_3'].iloc[-1] == pytest.approx(100.0, abs=0.01)  # Specific calculation
     assert len(result) == len(input_data), "No data loss during processing"
@@ -679,14 +679,14 @@ def test_data_processing_accuracy():
 def test_api_returns_correct_training_data():
     """Test API returns structurally and semantically correct training data."""
     response = requests.get('/api/training-data/AAPL/2024-01-01/2024-01-31')
-    
+
     # Verify HTTP success AND content structure AND data quality
     assert response.status_code == 200, "HTTP request successful"
-    
+
     data = response.json()
     assert 'timeframe_features' in data, "Expected data structure present"
     assert '5m' in data['timeframe_features'], "Required timeframes included"
-    
+
     # Verify ACTUAL data content and quality
     ohlcv = data['timeframe_features']['5m']
     assert ohlcv['open'] > 0, "Realistic price data"
@@ -697,30 +697,30 @@ def test_api_returns_correct_training_data():
 def test_database_data_integrity():
     """Test database contains correct, complete, and consistent data."""
     conn = get_database_connection()
-    
+
     # Verify data QUALITY, not just existence
     result = conn.execute("""
-        SELECT 
+        SELECT
             COUNT(*) as total_records,
             COUNT(DISTINCT symbol) as unique_symbols,
             MIN(date) as earliest_date,
             MAX(date) as latest_date,
             AVG(CASE WHEN close > 0 THEN 1 ELSE 0 END) as valid_price_pct
-        FROM daily_prices 
+        FROM daily_prices
         WHERE date >= '2024-01-01'
     """).fetchone()
-    
+
     assert result.total_records > 1000, f"Expected >1000 records, got {result.total_records}"
     assert result.unique_symbols >= 100, f"Expected >=100 symbols, got {result.unique_symbols}"
     assert result.valid_price_pct > 0.99, f"Expected >99% valid prices, got {result.valid_price_pct*100:.1f}%"
-    
+
     # Verify data CONSISTENCY across tables
     count_check = conn.execute("""
         SELECT COUNT(*) FROM daily_prices dp
-        LEFT JOIN instruments i ON dp.symbol = i.symbol  
+        LEFT JOIN instruments i ON dp.symbol = i.symbol
         WHERE i.symbol IS NULL
     """).fetchone()[0]
-    
+
     assert count_check == 0, f"Found {count_check} orphaned price records"
 
 def test_ml_training_produces_valid_model():
@@ -728,16 +728,16 @@ def test_ml_training_produces_valid_model():
     # Use REAL market data for training
     training_data = load_real_training_data('AAPL', '2024-01-01', '2024-06-30')
     test_data = load_real_training_data('AAPL', '2024-07-01', '2024-12-31')
-    
+
     model = train_model(training_data)
-    
+
     # Verify model FUNCTIONALITY, not just creation
     predictions = model.predict(test_data['features'])
-    
+
     # Test ACTUAL performance metrics
     mse = mean_squared_error(test_data['labels'], predictions)
     r2 = r2_score(test_data['labels'], predictions)
-    
+
     assert mse < 0.01, f"MSE too high: {mse:.6f}"
     assert r2 > 0.3, f"R² too low: {r2:.3f}"
     assert not np.isnan(predictions).any(), "Model produced NaN predictions"
@@ -752,23 +752,23 @@ def test_ml_training_produces_valid_model():
 ```python
 def test_comprehensive_data_pipeline():
     """Test complete data pipeline with real data validation."""
-    
+
     # 1. INPUT VALIDATION - Verify source data quality
     raw_data = load_minute_bars('AAPL', '2024-01-01')
     assert len(raw_data) > 0, "Source data not empty"
     assert raw_data['volume'].min() >= 0, "No negative volume"
     assert raw_data['high'].ge(raw_data['low']).all(), "High >= Low always"
-    
+
     # 2. PROCESSING VALIDATION - Verify transformations
     processed_data = aggregate_to_timeframes(raw_data)
     assert '5m' in processed_data, "5-minute aggregation exists"
     assert len(processed_data['5m']) == len(raw_data) // 5, "Correct aggregation ratio"
-    
+
     # 3. OUTPUT VALIDATION - Verify final quality
     final_features = extract_features(processed_data)
     assert not final_features.isnull().any().any(), "No missing features"
     assert final_features.dtypes.eq('float64').all(), "Correct data types"
-    
+
     # 4. PERSISTENCE VALIDATION - Verify storage integrity
     save_training_data(final_features, 'test_dataset')
     reloaded = load_training_data('test_dataset')
@@ -780,15 +780,15 @@ def test_comprehensive_data_pipeline():
 def test_performance_benchmarks():
     """Test actual performance meets requirements."""
     import time
-    
+
     start_time = time.time()
     result = process_large_dataset(10000)  # Process 10k records
     processing_time = time.time() - start_time
-    
+
     # Verify ACTUAL performance requirements
     assert processing_time < 60, f"Processing too slow: {processing_time:.1f}s"
     assert len(result) == 10000, "No data loss during processing"
-    
+
     # Memory usage validation
     import psutil
     memory_usage = psutil.Process().memory_info().rss / 1024 / 1024  # MB
@@ -799,21 +799,21 @@ def test_performance_benchmarks():
 ```python
 def test_comprehensive_error_handling():
     """Test system handles all error scenarios gracefully."""
-    
+
     # Test malformed input data
     with pytest.raises(ValidationError, match="Invalid price data"):
         process_market_data(pd.DataFrame({'price': [-100, None, 'invalid']}))
-    
+
     # Test network failures
     with patch('requests.get', side_effect=ConnectionError):
         result = fetch_market_data_with_retry('AAPL')
         assert result is None, "Graceful failure on network error"
-    
-    # Test database failures  
+
+    # Test database failures
     with patch('database.connect', side_effect=DatabaseError):
         success = save_data_with_fallback(test_data)
         assert success is False, "Graceful failure on database error"
-        
+
     # Test resource exhaustion
     with patch('psutil.virtual_memory', return_value=Mock(available=1024)):  # Low memory
         result = process_with_memory_check(large_dataset)
@@ -829,7 +829,7 @@ def test_comprehensive_error_handling():
 python scripts/run_dev.py start --service analytics
 python scripts/run_dev.py start --service postgres
 
-# 2. MANDATORY: Test complete user flows 
+# 2. MANDATORY: Test complete user flows
 PYTHONPATH=src python3 -m pytest tests/browser_tests/test_eda_playwright.py -v --tb=short
 
 # 3. Test specific features (dataset visualization, sequence selection, etc.)
@@ -845,7 +845,7 @@ PYTHONPATH=src python3 -m pytest tests/browser_tests/test_new_ux_feature.py -v
 
 ### UX Testing Requirements:
 - **✅ REQUIRED:** Test complete user workflow from UI interaction to data display
-- **✅ REQUIRED:** Verify API endpoints return expected data structure  
+- **✅ REQUIRED:** Verify API endpoints return expected data structure
 - **✅ REQUIRED:** Test error cases and edge conditions in UI
 - **❌ FORBIDDEN:** Claiming UX changes work without Playwright verification
 
@@ -858,7 +858,7 @@ PYTHONPATH=src python3 -m pytest tests/browser_tests/test_new_ux_feature.py -v
 #### **❌ SUPERFICIAL VALIDATION (FORBIDDEN):**
 ```bash
 # These checks are MEANINGLESS and give false confidence:
-ls /path/file.txt                           # File exists ≠ content is correct  
+ls /path/file.txt                           # File exists ≠ content is correct
 echo "✅ Database table created"             # Table exists ≠ data is valid
 curl -I http://localhost:3000               # 200 OK ≠ functionality works
 grep "column_name" schema.sql               # Column exists ≠ queries work
@@ -874,7 +874,7 @@ python scripts/run_dev.py query --query "SELECT COUNT(*) FROM table_name WHERE v
 head -20 /data/output_file.csv              # Inspect actual data content
 python -c "import pandas as pd; df = pd.read_csv('file.csv'); print(df.dtypes); print(df.head())"
 
-# 2. FUNCTIONAL VALIDATION - Test complete workflows end-to-end  
+# 2. FUNCTIONAL VALIDATION - Test complete workflows end-to-end
 curl -X POST http://localhost:3000/api/endpoint -d '{"real": "data"}' | jq '.'
 python scripts/run_dev.py run --script test_complete_workflow.py
 
@@ -897,7 +897,7 @@ python test_with_invalid_data.py                          # Test bad input handl
 ```bash
 # DATA PROCESSING - Prove actual data was processed correctly
 echo "INPUT: $(wc -l input_file.csv) records"
-echo "OUTPUT: $(wc -l output_file.csv) records"  
+echo "OUTPUT: $(wc -l output_file.csv) records"
 echo "PROCESSING RATE: $((output_count / input_count * 100))% success rate"
 echo "ERRORS: $(grep ERROR log_file.txt | wc -l) failures"
 
@@ -916,7 +916,7 @@ python -c "
 import numpy as np
 data = np.load('training_data.npy')
 print(f'Shape: {data.shape}')
-print(f'Data type: {data.dtype}')  
+print(f'Data type: {data.dtype}')
 print(f'Value range: {data.min()} to {data.max()}')
 print(f'NaN values: {np.isnan(data).sum()}')
 "
@@ -951,7 +951,7 @@ bandit -r src/                              # Security issues
 ```bash
 # 1. FUNCTIONAL VERIFICATION (MANDATORY)
 [ ] End-to-end workflow tested and passes
-[ ] Error cases tested and handled gracefully  
+[ ] Error cases tested and handled gracefully
 [ ] Performance measured and documented
 [ ] Resource usage within acceptable limits
 
@@ -1047,12 +1047,12 @@ python scripts/run_dev.py logs --service analytics
 ```bash
 # Track training data generation runs with gin config
 python scripts/run_dev.py get --run-id 35    # Shows: command_line, gin config, git hash, environment
-# Example output: 
+# Example output:
 # command_line: training_data_callback_runner.py --gin-config config/training_data.gin --symbols AAPL TSLA
 # git_commit_hash: f35265c1242abea4509aab15214e5eb9516d7227
 # environment: dev
 
-# List recent runs by type  
+# List recent runs by type
 python scripts/run_dev.py query --query "SELECT id, run_type, status, LEFT(command_line, 50) as command FROM dev_runs WHERE run_type = 'training_data_generation' ORDER BY id DESC LIMIT 5"
 
 # View all runs with gin config tracking
@@ -1080,7 +1080,7 @@ python scripts/run_dev.py query --query "SELECT dataset_name, data_quality_score
 # 1. Generate training data using gin config (tracks metadata automatically)
 python scripts/run_dev.py run --script src/domains/ml/services/training_data/runners/training_data_callback_runner.py
 
-# 2. Check the run was tracked  
+# 2. Check the run was tracked
 python scripts/run_dev.py query --query "SELECT MAX(id) as latest_run_id FROM dev_runs WHERE run_type = 'training_data_generation'"
 
 # 3. Get run details including gin config used
@@ -1097,7 +1097,7 @@ python scripts/run_dev.py training_dataset get <dataset_id>
 ```bash
 # Training data is organized in multi-timeframe structure using ArrayRecord format:
 # /data/training_data/{dataset_id}/SYMBOL_STARTDATETIME_ENDDATETIME/{timeframe}/SYMBOL_STARTDATETIME_ENDDATETIME.arrayrecord
-# 
+#
 # Example structure:
 # /data/training_data/dataset_20250701_120000/TSLA_20250701_000000_20250701_235959/5m/TSLA_20250701_000000_20250701_235959.arrayrecord
 # /data/training_data/dataset_20250701_120000/TSLA_20250701_000000_20250701_235959/15m/TSLA_20250701_000000_20250701_235959.arrayrecord
@@ -1109,7 +1109,7 @@ python scripts/run_dev.py training_dataset get <dataset_id>
 # Check training data files for a specific dataset
 ls -la /data/training_data/dataset_20250701_120000/*/
 
-# Verify training data structure  
+# Verify training data structure
 python scripts/run_dev.py query --query "SELECT run_type, parameters, command_line FROM dev_runs WHERE id = 35"
 ```
 
@@ -1117,7 +1117,7 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 
 **Infrastructure:**
 - ❌ Running docker commands directly for dev operations
-- ❌ Setting environment variables manually  
+- ❌ Setting environment variables manually
 - ❌ Creating new container patterns when existing ones work
 - ❌ Installing packages manually in containers
 - ❌ Running services without using run_dev
@@ -1206,7 +1206,7 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 1. Minute Bar Files (INPUT - Raw Data)
    ↓
 2. FileBasedMinuteManager (Reads parquet files)
-   ↓  
+   ↓
 3. FileBasedMinuteMarketDataManager (Aggregates timeframes)
    ↓
 4. Training Data Generator (Creates sequences, features, labels)
@@ -1215,14 +1215,14 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 ```
 
 **🔹 INPUT: Minute Bar Files (Raw OHLCV Data)**
-- **Location**: `/mnt/d/ats-data/minute-bars/firstrate/` 
+- **Location**: `/mnt/d/ats-data/minute-bars/firstrate/`
 - **Structure**: `{first_letter}/{SYMBOL}/{YYYY}/{MM}/{SYMBOL}_{YYYY}_{MM}.parquet`
 - **Example**: `/mnt/d/ats-data/minute-bars/firstrate/A/AAPL/2025/07/AAPL_2025_07.parquet`
 - **Content**: Raw minute-level OHLCV data from market
 
 **🔹 PROCESSOR: Training Data Infrastructure**
 - **Data Reader**: `FileBasedMinuteManager` - Reads parquet files from disk
-- **Data Manager**: `FileBasedMinuteMarketDataManager` - Provides aggregated timeframes  
+- **Data Manager**: `FileBasedMinuteMarketDataManager` - Provides aggregated timeframes
 - **Generator**: `src/domains/ml/services/training_data/runners/training_data_callback_runner.py`
 - **Callback**: `DateBasedTrainingDataCallback` - Processes intervals into sequences
 

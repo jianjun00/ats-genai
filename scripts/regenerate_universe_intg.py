@@ -2,7 +2,7 @@
 """
 Universe Population Script: Regenerate High-Volume Large-Cap Universe (ID 2)
 - Uses comprehensive Polygon dataset (A-Z symbols)
-- Applies 50-day average trading volume >$100M criteria  
+- Applies 50-day average trading volume >$100M criteria
 - Sets proper IPO/listing dates for major stocks
 - Includes historical membership examples with entry/exit patterns
 """
@@ -16,28 +16,28 @@ from psycopg2.extras import RealDictCursor
 
 def regenerate_high_volume_universe():
     """Regenerate the high-volume large-cap universe with proper logic"""
-    
+
     print("🔄 Regenerating High-Volume Large-Cap Universe (ID 2)...")
-    
+
     # Set environment for integration
     os.environ['ENVIRONMENT'] = 'intg'
-    
+
     with get_raw_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            
+
             print("📊 Step 1: Analyzing volume data from Polygon dataset...")
-            
+
             # Get comprehensive volume analysis using recent data
             cursor.execute("""
                 WITH comprehensive_volume_analysis AS (
-                    SELECT 
+                    SELECT
                         symbol,
                         AVG(close * volume) as avg_dollar_volume_50d,
                         COUNT(*) as trading_days,
                         AVG(close) as avg_price,
                         MIN(date) as earliest_date,
                         MAX(date) as latest_date
-                    FROM intg_daily_prices_polygon 
+                    FROM intg_daily_prices_polygon
                     WHERE date >= '2024-08-01' AND date <= '2024-09-03'  -- Recent period with good data
                     GROUP BY symbol
                     HAVING COUNT(*) >= 20  -- At least 20 trading days
@@ -47,29 +47,29 @@ def regenerate_high_volume_universe():
                 FROM comprehensive_volume_analysis va
                 INNER JOIN intg_instruments i ON va.symbol = i.symbol
             """)
-            
+
             qualifying_count = cursor.fetchone()['qualifying_symbols']
             print(f"✅ Found {qualifying_count} symbols meeting volume >$100M criteria")
-            
+
             print("📈 Step 2: Populating universe membership with IPO dates...")
-            
+
             # Populate universe with proper IPO dates
             cursor.execute("""
                 WITH comprehensive_volume_analysis AS (
-                    SELECT 
+                    SELECT
                         symbol,
                         AVG(close * volume) as avg_dollar_volume_50d,
                         COUNT(*) as trading_days
-                    FROM intg_daily_prices_polygon 
+                    FROM intg_daily_prices_polygon
                     WHERE date >= '2024-08-01' AND date <= '2024-09-03'
                     GROUP BY symbol
                     HAVING COUNT(*) >= 20 AND AVG(close * volume) >= 100000000
                 )
                 INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
-                SELECT 
+                SELECT
                     2 as universe_id,
                     va.symbol,
-                    CASE 
+                    CASE
                         -- Major tech giants with researched IPO dates
                         WHEN va.symbol = 'AAPL' THEN '1980-12-12 00:00:00'::timestamp  -- Apple IPO
                         WHEN va.symbol = 'AMZN' THEN '1997-05-15 00:00:00'::timestamp  -- Amazon IPO
@@ -92,22 +92,22 @@ def regenerate_high_volume_universe():
                 FROM comprehensive_volume_analysis va
                 INNER JOIN intg_instruments i ON va.symbol = i.symbol
             """)
-            
+
             active_members = cursor.rowcount
             print(f"✅ Added {active_members} active members to universe")
-            
+
             print("📉 Step 3: Adding historical membership examples (entries/exits)...")
-            
+
             # Add historical examples showing real market dynamics
             historical_examples = [
                 # Stocks removed due to declining performance
                 ('PTON', '2019-09-26 00:00:00', '2022-06-15 00:00:00', 'Peloton IPO to post-pandemic decline'),
-                ('BYND', '2019-05-02 00:00:00', '2022-03-30 00:00:00', 'Beyond Meat IPO hype to reality'), 
+                ('BYND', '2019-05-02 00:00:00', '2022-03-30 00:00:00', 'Beyond Meat IPO hype to reality'),
                 ('TDOC', '2020-03-15 00:00:00', '2023-01-15 00:00:00', 'Teladoc COVID peak to normalization'),
                 ('FSLY', '2020-01-01 00:00:00', '2023-09-01 00:00:00', 'Fastly growth period to decline'),
                 ('SPCE', '2019-10-28 00:00:00', '2023-12-01 00:00:00', 'Virgin Galactic space hype to reality'),
             ]
-            
+
             for symbol, start_date, end_date, reason in historical_examples:
                 try:
                     cursor.execute("""
@@ -122,23 +122,23 @@ def regenerate_high_volume_universe():
                     cursor.execute("SELECT MAX(id) FROM intg_instruments")
                     max_id = cursor.fetchone()['max'] or 90000
                     new_id = max_id + 1
-                    
+
                     cursor.execute("INSERT INTO intg_instruments (id, symbol) VALUES (%s, %s)", (new_id, symbol))
                     cursor.execute("""
                         INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
                         VALUES (2, %s, %s::timestamp, %s::timestamp, %s)
                     """, (symbol, start_date, end_date, new_id))
                     print(f"   📉 Created instrument and added: {symbol} ({reason})")
-            
+
             print("📈 Step 4: Adding recent AI boom additions...")
-            
+
             # Add recent additions due to AI boom (showing entry patterns)
             ai_boom_additions = [
                 ('SMCI', '2023-03-15 00:00:00', 'Super Micro Computer AI infrastructure boom'),
                 ('MSTR', '2023-01-01 00:00:00', 'MicroStrategy Bitcoin/AI strategy'),
                 ('MARA', '2023-06-01 00:00:00', 'Marathon Digital crypto/AI convergence'),
             ]
-            
+
             for symbol, start_date, reason in ai_boom_additions:
                 try:
                     cursor.execute("""
@@ -147,7 +147,7 @@ def regenerate_high_volume_universe():
                         FROM intg_instruments i
                         WHERE i.symbol = %s
                         AND NOT EXISTS (
-                            SELECT 1 FROM intg_universe_membership um 
+                            SELECT 1 FROM intg_universe_membership um
                             WHERE um.universe_id = 2 AND um.symbol = %s AND um.end_at IS NULL
                         )
                     """, (symbol, start_date, symbol, symbol))
@@ -155,54 +155,54 @@ def regenerate_high_volume_universe():
                         print(f"   📈 Added AI boom entry: {symbol} ({reason})")
                 except Exception as e:
                     print(f"   ⚠️  Skipped {symbol}: {str(e)[:50]}...")
-            
+
             print("📊 Step 5: Generating final statistics...")
-            
+
             # Get final statistics
             cursor.execute("""
-                SELECT 
+                SELECT
                     COUNT(*) as total_memberships,
                     COUNT(CASE WHEN end_at IS NULL THEN 1 END) as active_members,
                     COUNT(CASE WHEN end_at IS NOT NULL THEN 1 END) as historical_exits,
                     MIN(start_at) as earliest_entry,
                     MAX(CASE WHEN end_at IS NOT NULL THEN end_at END) as latest_exit
-                FROM intg_universe_membership 
+                FROM intg_universe_membership
                 WHERE universe_id = 2
             """)
-            
+
             stats = cursor.fetchone()
-            
+
             print("\n" + "="*60)
             print("🎉 UNIVERSE REGENERATION COMPLETE!")
             print("="*60)
             print(f"📊 Total Membership Records: {stats['total_memberships']}")
-            print(f"✅ Currently Active Members: {stats['active_members']}")  
+            print(f"✅ Currently Active Members: {stats['active_members']}")
             print(f"📉 Historical Exits: {stats['historical_exits']}")
             print(f"📅 Earliest Entry: {stats['earliest_entry']}")
             print(f"📅 Latest Exit: {stats['latest_exit']}")
             print("="*60)
-            
+
             # Show sample of major stocks included
             cursor.execute("""
-                SELECT 
-                    symbol, 
+                SELECT
+                    symbol,
                     start_at,
                     CASE WHEN end_at IS NULL THEN 'ACTIVE' ELSE 'HISTORICAL' END as status
-                FROM intg_universe_membership 
-                WHERE universe_id = 2 
+                FROM intg_universe_membership
+                WHERE universe_id = 2
                 AND symbol IN ('AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA', 'META', 'AMZN', 'SPY', 'QQQ', 'PTON', 'SMCI')
                 ORDER BY status, symbol
             """)
-            
+
             major_stocks = cursor.fetchall()
             print("\n🌟 Major Stocks in Universe:")
             for stock in major_stocks:
                 status_icon = "✅" if stock['status'] == 'ACTIVE' else "📉"
                 print(f"   {status_icon} {stock['symbol']}: {stock['start_at']} ({stock['status']})")
-            
+
             print(f"\n🚀 Universe Analytics ready at http://localhost:4000")
             print("   → Click '🌐 Universe Analytics' → Select 'high_volume_large_cap'")
-            
+
             return True
 
 if __name__ == "__main__":

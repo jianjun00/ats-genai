@@ -1,9 +1,9 @@
 # PRD: Multi-Timeframe OHLC and Signal States Computation System
 
-**Document Version:** 1.1  
-**Date:** 2025-09-02  
-**Author:** ATS Development Team  
-**Status:** Implementation Complete - Indicator Builder Integration  
+**Document Version:** 1.1
+**Date:** 2025-09-02
+**Author:** ATS Development Team
+**Status:** Implementation Complete - Indicator Builder Integration
 
 ## Executive Summary
 
@@ -54,7 +54,7 @@ This document defines the requirements for a comprehensive multi-timeframe OHLC 
 - **Intervals**: '1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'
 - **Aggregation Rules**:
   - **Open**: First open price of the period
-  - **High**: Maximum high price of the period  
+  - **High**: Maximum high price of the period
   - **Low**: Minimum low price of the period
   - **Close**: Last close price of the period
   - **Volume**: Sum of volume for the period
@@ -92,14 +92,14 @@ This document defines the requirements for a comprehensive multi-timeframe OHLC 
 - **Requirement**: Each timeframe SHALL have configurable indicator sets via Gin configuration files
 - **Timeframe Mappings**:
   - '1m': Basic indicators (OneOneDot, OneOneHigh, OneOneLow) for high-frequency data
-  - '5m', '15m', '30m': Multi-timeframe indicators (SMA, EMA, RSI, ETOP, EBOT, PLDOT)  
+  - '5m', '15m', '30m': Multi-timeframe indicators (SMA, EMA, RSI, ETOP, EBOT, PLDOT)
   - '1h', '2h', '4h', '1d', '1w': Standard technical indicators (SMA, EMA, RSI, VWAP, Bollinger Bands, MACD, Stochastic)
 - **Flexibility**: Indicators can be added/removed per timeframe through configuration changes
 - **Runtime Configuration**: Gin configs allow indicator parameters to be modified without code changes
 
 #### FR-INDICATOR-003: OHLCV to InstrumentInterval Adapter
 - **Requirement**: System SHALL provide seamless conversion between pandas DataFrames and InstrumentInterval objects
-- **Adapter Functionality**: 
+- **Adapter Functionality**:
   - Convert OHLCV DataFrame rows to InstrumentInterval objects
   - Handle timestamp conversion and timezone normalization
   - Support multi-timeframe data conversion
@@ -116,7 +116,7 @@ This document defines the requirements for a comprehensive multi-timeframe OHLC 
 - **Edge Cases**: Handle insufficient data gracefully with NaN values
 
 #### FR-SIGNAL-002: Oscillators
-- **RSI (Relative Strength Index)**: 
+- **RSI (Relative Strength Index)**:
   - Default period: 14
   - Range: 0-100
   - Computation: Standard RSI formula with Wilder's smoothing
@@ -133,7 +133,7 @@ This document defines the requirements for a comprehensive multi-timeframe OHLC 
 
 #### FR-SIGNAL-004: Custom ATS Signals
 - **ETOP (Envelope Top)**: SMA(20) * (1 + 5%) - Upper envelope line
-- **EBOT (Envelope Bottom)**: SMA(20) * (1 - 5%) - Lower envelope line  
+- **EBOT (Envelope Bottom)**: SMA(20) * (1 - 5%) - Lower envelope line
 - **PLDOT (Pivot Line Dot)**: (High + Low + Close) / 3 - Daily pivot point
 - **VWAP**: Volume Weighted Average Price - Intraday benchmark
 
@@ -150,7 +150,7 @@ This document defines the requirements for a comprehensive multi-timeframe OHLC 
 async def get_ohlc_for_interval(
     symbols: List[str],
     start: datetime,
-    end: datetime, 
+    end: datetime,
     interval: str = '1m'
 ) -> Dict[str, pd.DataFrame]
 ```
@@ -159,7 +159,7 @@ async def get_ohlc_for_interval(
 - **Performance**: < 1 second for single symbol, single day
 - **Error Handling**: Descriptive exceptions for invalid parameters
 
-#### FR-API-002: Enhanced OHLC with Signals API  
+#### FR-API-002: Enhanced OHLC with Signals API
 ```python
 async def get_ohlc_with_signals(
     symbols: List[str],
@@ -182,7 +182,7 @@ async def get_multi_timeframe_data(
     start: datetime,
     end: datetime,
     intervals: List[str] = None,
-    signals: List[str] = None  
+    signals: List[str] = None
 ) -> Dict[str, Dict[str, pd.DataFrame]]
 ```
 - **Parameters**: Symbols, date range, intervals list, signals list
@@ -286,7 +286,7 @@ async def get_multi_timeframe_data(
 - Standard interval notation support
 - Basic aggregation functionality with comprehensive testing
 
-### Phase 2: Technical Signals Library (Week 3-4)  
+### Phase 2: Technical Signals Library (Week 3-4)
 - Implementation of all standard technical indicators
 - Custom ATS signals (ETOP, EBOT, PLDOT)
 - Signal computation optimization and caching

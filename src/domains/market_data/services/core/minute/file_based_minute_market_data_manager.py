@@ -114,7 +114,7 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         print(f"🎯 DEBUG: Final result summary: {len(result)}/{len(symbols)} symbols with data")
         for symbol, df in result.items():
             print(f"   {symbol}: {len(df)} records")
-        
+
         logger.info(f"Retrieved minute data for {len(result)}/{len(symbols)} symbols")
         return result
 

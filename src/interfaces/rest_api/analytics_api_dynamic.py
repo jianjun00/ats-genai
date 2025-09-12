@@ -185,7 +185,7 @@ class DynamicAnalyticsEngine:
                     f"Failed to retrieve backtest data from database: {e}. "
                     "Ensure database is accessible and contains backtest_runs table."
                 )
-        
+
         if not self.pool:
             raise RuntimeError(
                 "Database connection not available. Cannot retrieve backtest data without database connection."

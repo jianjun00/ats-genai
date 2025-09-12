@@ -25,11 +25,11 @@ def validate_polygon_api(api_key):
     url = f"https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/minute/2025-09-11/2025-09-11"
     params = {
         'adjusted': 'true',
-        'sort': 'asc', 
+        'sort': 'asc',
         'limit': 1,
         'apikey': api_key
     }
-    
+
     try:
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
@@ -49,7 +49,7 @@ def validate_tiingo_api(api_key):
         'startDate': '2025-09-10',
         'token': api_key
     }
-    
+
     try:
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
@@ -67,7 +67,7 @@ def validate_eodhd_api(api_key):
     # Use timestamp format for EODHD
     yesterday = datetime.now() - timedelta(days=1)
     timestamp = int(yesterday.timestamp())
-    
+
     url = f"https://eodhistoricaldata.com/api/intraday/AAPL.US"
     params = {
         'api_token': api_key,
@@ -76,7 +76,7 @@ def validate_eodhd_api(api_key):
         'to': timestamp + 3600,  # 1 hour window
         'fmt': 'json'
     }
-    
+
     try:
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
@@ -96,7 +96,7 @@ def validate_fmp_api(api_key):
     """Validate Financial Modeling Prep API key"""
     url = f"https://financialmodelingprep.com/api/v3/profile/AAPL"
     params = {'apikey': api_key}
-    
+
     try:
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
@@ -117,7 +117,7 @@ def validate_alpha_vantage_api(api_key):
         'symbol': 'AAPL',
         'apikey': api_key
     }
-    
+
     try:
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
@@ -143,32 +143,32 @@ def main():
         'FMP_API_KEY': validate_fmp_api,
         'ALPHA_VANTAGE_API_KEY': validate_alpha_vantage_api
     }
-    
+
     print("🔑 Validating API Keys...")
     print("=" * 60)
-    
+
     all_valid = True
-    
+
     for key_name, validator in validators.items():
         # Use environment variable if set, otherwise use default from .env.test
         api_key = os.getenv(key_name, DEFAULT_API_KEYS.get(key_name, ''))
-        
+
         if not api_key:
             print(f"❌ {key_name}: Not configured")
             all_valid = False
             continue
-            
+
         print(f"🔍 Testing {key_name}...")
         is_valid, message = validator(api_key)
-        
+
         if is_valid:
             print(f"✅ {key_name}: {message}")
         else:
             print(f"❌ {key_name}: {message}")
             all_valid = False
-    
+
     print("=" * 60)
-    
+
     if all_valid:
         print("✅ All API keys are valid!")
         return 0

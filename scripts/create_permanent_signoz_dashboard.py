@@ -36,10 +36,10 @@ class SignOzDashboardCreator:
     def create_dashboard_payload(self):
         """Create comprehensive dashboard payload with proper SignOz v4 schema"""
         dashboard_id = str(uuid.uuid4())
-        
+
         # Create panels for the dashboard
         panels = []
-        
+
         # Panel 1: Missing Symbols by Vendor
         panels.append({
             "id": str(uuid.uuid4()),
@@ -71,26 +71,26 @@ class SignOzDashboardCreator:
             "gridPos": {"x": 0, "y": 0, "w": 8, "h": 6}
         })
 
-        # Panel 2: Missing Records by Vendor  
+        # Panel 2: Missing Records by Vendor
         panels.append({
             "id": str(uuid.uuid4()),
             "title": "📊 Missing Records by Vendor",
             "description": "Total count of missing daily price records",
             "type": "value",
             "targets": [{
-                "query": "ats_daily_prices_missing_records_total", 
+                "query": "ats_daily_prices_missing_records_total",
                 "legend": "",
                 "disabled": False
             }],
             "options": {
                 "reduceOptions": {
                     "values": False,
-                    "calcs": ["lastNotNull"], 
+                    "calcs": ["lastNotNull"],
                     "fields": ""
                 },
                 "orientation": "auto",
                 "textMode": "auto",
-                "colorMode": "value", 
+                "colorMode": "value",
                 "graphMode": "area",
                 "justifyMode": "auto"
             },
@@ -119,7 +119,7 @@ class SignOzDashboardCreator:
                     "calcs": ["lastNotNull"],
                     "fields": ""
                 },
-                "orientation": "auto", 
+                "orientation": "auto",
                 "textMode": "auto",
                 "colorMode": "value",
                 "graphMode": "area",
@@ -137,7 +137,7 @@ class SignOzDashboardCreator:
         # Panel 4: Bad Symbols
         panels.append({
             "id": str(uuid.uuid4()),
-            "title": "⚠️ Bad Symbols by Vendor", 
+            "title": "⚠️ Bad Symbols by Vendor",
             "description": "Count of symbols with bad/invalid daily prices",
             "type": "value",
             "targets": [{
@@ -152,12 +152,12 @@ class SignOzDashboardCreator:
                     "fields": ""
                 },
                 "orientation": "auto",
-                "textMode": "auto", 
+                "textMode": "auto",
                 "colorMode": "value",
                 "graphMode": "area",
                 "justifyMode": "auto"
             },
-            "pluginVersion": "7.0.0", 
+            "pluginVersion": "7.0.0",
             "targets": [{
                 "expr": "ats_daily_prices_bad_symbols_total",
                 "refId": "D"
@@ -175,14 +175,14 @@ class SignOzDashboardCreator:
                 "content": f"""
 ### Daily Prices Quality Monitoring
 
-**Dashboard ID:** {dashboard_id}  
-**Created:** {datetime.now().strftime('%m/%d/%Y, %I:%M:%S %p')}  
-**Status:** ✅ Successfully created via Playwright API  
-**Metrics Source:** Pushgateway (localhost:9091)  
+**Dashboard ID:** {dashboard_id}
+**Created:** {datetime.now().strftime('%m/%d/%Y, %I:%M:%S %p')}
+**Status:** ✅ Successfully created via Playwright API
+**Metrics Source:** Pushgateway (localhost:9091)
 
 **Monitoring Coverage:**
 - 🔴 Missing symbols tracking
-- 📊 Missing records analysis  
+- 📊 Missing records analysis
 - ✅ Coverage percentage calculation
 - ⚠️ Bad data detection
 
@@ -198,7 +198,7 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.p
 
         return {
             "id": dashboard_id,
-            "title": "📊 Daily Prices Quality Monitoring", 
+            "title": "📊 Daily Prices Quality Monitoring",
             "description": "Comprehensive monitoring of daily prices quality across Polygon, Tiingo, and EODHD",
             "tags": ["daily-prices", "quality", "monitoring", "ats"],
             "timezone": "browser",
@@ -220,7 +220,7 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.p
             "links": [],
             "layout": [
                 {"x": 0, "y": 0, "w": 8, "h": 6, "i": panels[0]["id"]},
-                {"x": 8, "y": 0, "w": 8, "h": 6, "i": panels[1]["id"]}, 
+                {"x": 8, "y": 0, "w": 8, "h": 6, "i": panels[1]["id"]},
                 {"x": 16, "y": 0, "w": 8, "h": 6, "i": panels[2]["id"]},
                 {"x": 0, "y": 6, "w": 12, "h": 6, "i": panels[3]["id"]},
                 {"x": 12, "y": 6, "w": 12, "h": 6, "i": panels[4]["id"]}
@@ -230,19 +230,19 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.p
     def create_dashboard(self):
         """Create dashboard using SignOz API"""
         print("🚀 Creating permanent SignOz dashboard...")
-        
+
         # First delete existing dashboard
         existing_id = "01993c69-1998-7731-aa31-d008d3218445"
         self.delete_existing_dashboard(existing_id)
-        
+
         # Create new dashboard
         payload = self.create_dashboard_payload()
         dashboard_id = payload["id"]
-        
+
         print(f"📋 Dashboard ID: {dashboard_id}")
         print(f"📋 Title: {payload['title']}")
         print(f"📋 Panels: {len(payload['panels'])}")
-        
+
         try:
             print("📤 Sending dashboard creation request...")
             response = requests.post(
@@ -251,10 +251,10 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.p
                 json=payload,
                 timeout=30
             )
-            
+
             print(f"📥 Response Status: {response.status_code}")
             print(f"📥 Response Headers: {dict(response.headers)}")
-            
+
             if response.status_code in [200, 201]:
                 print(f"✅ Dashboard created successfully!")
                 print(f"🌐 URL: {self.base_url}/dashboard/{dashboard_id}")
@@ -263,7 +263,7 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.p
                 print(f"❌ Failed to create dashboard")
                 print(f"Response: {response.text}")
                 return None
-                
+
         except Exception as e:
             print(f"❌ Error creating dashboard: {e}")
             return None
@@ -277,7 +277,7 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.p
                 headers=self.headers,
                 timeout=30
             )
-            
+
             if response.status_code == 200:
                 data = response.json()
                 panels_count = len(data.get("panels", []))
@@ -292,19 +292,19 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.p
 
 def main():
     creator = SignOzDashboardCreator()
-    
+
     # Create the dashboard
     dashboard_id = creator.create_dashboard()
-    
+
     if dashboard_id:
         print(f"\n🎉 SUCCESS! Dashboard created:")
         print(f"🆔 ID: {dashboard_id}")
         print(f"🌐 URL: http://localhost:8080/dashboard/{dashboard_id}")
-        
+
         # Wait a moment and verify
         print("\n⏳ Waiting 3 seconds before verification...")
         time.sleep(3)
-        
+
         if creator.verify_dashboard(dashboard_id):
             print(f"✅ Dashboard is ready and accessible!")
         else:

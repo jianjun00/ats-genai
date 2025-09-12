@@ -44,7 +44,7 @@ CREATE TABLE dev_news (
     raw_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
+
     UNIQUE(article_id, vendor)
 );
 ```
@@ -103,7 +103,7 @@ python3 scripts/polygon_news_backfill.py \
 
 - **Endpoint**: `https://api.polygon.io/v2/reference/news`
 - **Rate Limits**: 5 calls per minute (free tier)
-- **Parameters**: 
+- **Parameters**:
   - `published_utc.gte`: Start date filter
   - `published_utc.lt`: End date filter
   - `ticker`: Symbol filter (optional)

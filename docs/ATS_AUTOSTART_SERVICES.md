@@ -10,7 +10,7 @@ The ATS platform automatically starts **8 services** across **2 environments** (
 
 ### **Autostart Trigger**
 - **Script**: `/home/jianjun/ats-genai-admin/scripts/ats_autostart.sh`
-- **SystemD Service**: `ats-autostart.service` 
+- **SystemD Service**: `ats-autostart.service`
 - **Trigger**: WSL startup → SystemD → Docker containers auto-restart
 - **Log File**: `/mnt/d/ats-logs/autostart.log`
 
@@ -31,7 +31,7 @@ Restart Policy: unless-stopped
 
 Environment Variables:
 - POSTGRES_DB=dev_db
-- POSTGRES_USER=postgres  
+- POSTGRES_USER=postgres
 - POSTGRES_PASSWORD=dev_password
 - PGDATA=/var/lib/postgresql/data
 
@@ -246,7 +246,7 @@ postgres-intg-data:/var/lib/postgresql/data     # INTG database
 ```
 /mnt/d/ats-data/
 ├── minute-bars/firstrate/    # Raw OHLCV minute data (input)
-├── training-data/            # ML-ready datasets (output)  
+├── training-data/            # ML-ready datasets (output)
 ├── checkpoints/              # API rate limiting checkpoints
 ├── grafana/                  # DEV Grafana data
 ├── grafana-intg/             # INTG Grafana data
@@ -273,7 +273,7 @@ postgres-intg-data:/var/lib/postgresql/data     # INTG database
   - ats-grafana (172.17.0.4)
   - ats-prometheus (172.17.0.5)
 
-- **`ats-intg-network`**: INTG environment services  
+- **`ats-intg-network`**: INTG environment services
   - ats-intg-postgres (172.18.0.4)
   - ats-intg-analytics (172.18.0.3)
   - ats-grafana-intg (172.18.0.2)
@@ -281,7 +281,7 @@ postgres-intg-data:/var/lib/postgresql/data     # INTG database
 
 ### **Port Mapping Strategy**
 - **DEV Ports**: 3000-3999 range
-- **INTG Ports**: 4000-4999 range  
+- **INTG Ports**: 4000-4999 range
 - **Shared Services**: 9000+ range
 
 ---
@@ -420,14 +420,14 @@ docker ps | grep -E "(ats-dev|ats-intg|ats-prometheus|ats-grafana)"
 
 # 2. Test database connectivity
 python3 scripts/run_dev.py query --query "SELECT 1"
-python3 scripts/run_intg.py query --query "SELECT 1"  
+python3 scripts/run_intg.py query --query "SELECT 1"
 
 # 3. Test web services
 curl -s http://localhost:3000/health | grep healthy
 curl -s http://localhost:4000/health | grep healthy
 curl -s http://localhost:4080/health | grep healthy
 
-# 4. Test dashboards  
+# 4. Test dashboards
 curl -s http://localhost:3001/api/health
 curl -s http://localhost:4002/api/health
 curl -s http://localhost:9090/-/healthy
@@ -440,17 +440,17 @@ docker inspect ats-intg-analytics --format '{{.HostConfig.RestartPolicy.Name}}'
 
 ---
 
-## 🎯 **Success Criteria** 
+## 🎯 **Success Criteria**
 
-**✅ All 8 services automatically start on WSL boot**  
-**✅ All services have restart policies configured**  
-**✅ Database connections work between containers**  
-**✅ Web interfaces accessible from host**  
-**✅ Persistent data survives container restarts**  
+**✅ All 8 services automatically start on WSL boot**
+**✅ All services have restart policies configured**
+**✅ Database connections work between containers**
+**✅ Web interfaces accessible from host**
+**✅ Persistent data survives container restarts**
 **✅ Monitoring stack captures metrics**
 
 ---
 
-*Last Updated: September 9, 2025*  
-*Total Services: 8 containers across DEV + INTG environments*  
+*Last Updated: September 9, 2025*
+*Total Services: 8 containers across DEV + INTG environments*
 *Auto-restart Policy: `unless-stopped` on all services*

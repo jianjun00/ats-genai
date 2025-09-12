@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS intg_financial_events (
 
 # Sync recent financial events from dev to intg
 python3 scripts/run_intg.py query --query "
-INSERT INTO intg_financial_events 
-SELECT * FROM dev_financial_events 
-WHERE created_at >= CURRENT_DATE - INTERVAL '2 days' 
+INSERT INTO intg_financial_events
+SELECT * FROM dev_financial_events
+WHERE created_at >= CURRENT_DATE - INTERVAL '2 days'
 ON CONFLICT (id) DO NOTHING;" 2>/dev/null || echo "No new events to sync"
 
 # Report sync results

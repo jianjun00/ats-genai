@@ -8,8 +8,8 @@ import gin
 @gin.configurable
 class Database:
     """Stub Database class for gin compatibility."""
-    
-    def __init__(self, host=None, port=None, user=None, password=None, database=None, 
+
+    def __init__(self, host=None, port=None, user=None, password=None, database=None,
                  base_database=None, pool_min_size=None, pool_max_size=None, command_timeout=None):
         self.host = host
         self.port = port

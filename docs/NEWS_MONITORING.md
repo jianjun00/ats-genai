@@ -111,7 +111,7 @@ http://localhost:3000  # Development environment
 ```bash
 # Check last article timestamp
 docker exec ats-intg-postgres psql -U postgres -d intg_db -c "
-SELECT 
+SELECT
   MAX(published_utc) as latest_article,
   EXTRACT(epoch FROM (NOW() - MAX(published_utc)))/3600 as hours_ago
 FROM intg_news_polygon;"
@@ -122,7 +122,7 @@ FROM intg_news_polygon;"
 # Yesterday's collection count
 docker exec ats-intg-postgres psql -U postgres -d intg_db -c "
 SELECT COUNT(*) as yesterday_articles
-FROM intg_news_polygon 
+FROM intg_news_polygon
 WHERE DATE(published_utc) = CURRENT_DATE - INTERVAL '1 day';"
 ```
 
@@ -131,7 +131,7 @@ WHERE DATE(published_utc) = CURRENT_DATE - INTERVAL '1 day';"
 # Active news sources (last 7 days)
 docker exec ats-intg-postgres psql -U postgres -d intg_db -c "
 SELECT publisher_name, COUNT(*) as articles, MAX(published_utc) as latest
-FROM intg_news_polygon 
+FROM intg_news_polygon
 WHERE published_utc >= CURRENT_DATE - INTERVAL '7 days'
 GROUP BY publisher_name
 ORDER BY articles DESC;"
@@ -141,12 +141,12 @@ ORDER BY articles DESC;"
 ```bash
 # Check completeness metrics
 docker exec ats-intg-postgres psql -U postgres -d intg_db -c "
-SELECT 
+SELECT
   COUNT(*) as total,
   COUNT(title) * 100.0 / COUNT(*) as title_completeness,
   COUNT(description) * 100.0 / COUNT(*) as desc_completeness,
   COUNT(tickers) * 100.0 / COUNT(*) as tickers_completeness
-FROM intg_news_polygon 
+FROM intg_news_polygon
 WHERE created_at >= CURRENT_DATE - INTERVAL '7 days';"
 ```
 
@@ -154,11 +154,11 @@ WHERE created_at >= CURRENT_DATE - INTERVAL '7 days';"
 ```bash
 # 14-day collection trend
 docker exec ats-intg-postgres psql -U postgres -d intg_db -c "
-SELECT 
+SELECT
   DATE(published_utc) as article_date,
   COUNT(*) as daily_count,
   EXTRACT(dow FROM published_utc) as day_of_week
-FROM intg_news_polygon 
+FROM intg_news_polygon
 WHERE published_utc >= CURRENT_DATE - INTERVAL '14 days'
 GROUP BY DATE(published_utc), EXTRACT(dow FROM published_utc)
 ORDER BY article_date DESC;"
@@ -310,7 +310,7 @@ ENVIRONMENT=intg ./scripts/cron/news_health_monitor_simple.sh
    ```bash
    # Check if news service is running
    docker ps | grep ats-intg-news-realtime
-   
+
    # Check service logs
    docker logs ats-intg-news-realtime --tail 20
    ```
@@ -319,7 +319,7 @@ ENVIRONMENT=intg ./scripts/cron/news_health_monitor_simple.sh
    ```sql
    -- Check recent news articles
    SELECT vendor, COUNT(*), MAX(published_utc)
-   FROM intg_news_polygon 
+   FROM intg_news_polygon
    WHERE created_at > NOW() - INTERVAL '24 hours'
    GROUP BY vendor;
    ```
@@ -384,13 +384,13 @@ docker exec ats-intg-news-realtime python3 -c "import asyncpg; print('DB test')"
 ### **Custom Queries**
 
 #### **Articles per Vendor (Last 24h)**
-```promql  
+```promql
 sum by (vendor) (
   increase(news_articles_stored_total{environment='intg'}[24h])
 )
 ```
 
-#### **API Error Breakdown**  
+#### **API Error Breakdown**
 ```promql
 sum by (vendor) (
   rate(news_api_errors_total{environment='intg'}[1h])
@@ -399,7 +399,7 @@ sum by (vendor) (
 
 #### **Ingestion Performance Trend**
 ```promql
-histogram_quantile(0.50, 
+histogram_quantile(0.50,
   rate(news_ingestion_cycle_duration_ms_bucket{environment='intg'}[1h])
 )
 ```
@@ -412,7 +412,7 @@ docker logs ats-intg-news-realtime 2>&1 | grep ERROR
 # Monitor real-time ingestion
 docker logs -f ats-intg-news-realtime | grep "articles processed"
 
-# Check API response patterns  
+# Check API response patterns
 docker logs ats-intg-news-realtime 2>&1 | grep "API error\|response time"
 ```
 
@@ -431,7 +431,7 @@ docker logs ats-intg-news-realtime 2>&1 | grep "API error\|response time"
 ### **Performance Optimization**
 
 1. **API Rate Limits**
-   - Polygon: 5 requests/minute  
+   - Polygon: 5 requests/minute
    - Tiingo: 60 requests/minute
    - EODHD: 20 requests/minute
 
@@ -456,7 +456,7 @@ docker logs ats-intg-news-realtime 2>&1 | grep "API error\|response time"
 ## 🚀 **Quick Start**
 
 1. **Access SigNoz Dashboard**: http://localhost:8080/dashboard
-2. **Search for**: "ATS-INTG News Ingestion Dashboard"  
+2. **Search for**: "ATS-INTG News Ingestion Dashboard"
 3. **Monitor Key Metrics**: Articles ingested, API success rate, data freshness
 4. **Check Alerts**: Ensure no critical alerts are firing
 5. **Review Logs**: `docker logs ats-intg-news-realtime --tail 20`
@@ -471,7 +471,7 @@ docker ps | grep ats-intg-news-realtime
 # 2. Test health endpoint
 curl http://localhost:8081/health
 
-# 3. Test metrics endpoint  
+# 3. Test metrics endpoint
 curl http://localhost:8081/metrics
 
 # 4. Check OpenTelemetry connection

@@ -1,8 +1,8 @@
 # PRD/DRD: ATS Unified Analytics Service
 
-**Document Version**: 1.1  
-**Date**: September 9, 2025  
-**Owner**: Data Infrastructure Team  
+**Document Version**: 1.1
+**Date**: September 9, 2025
+**Owner**: Data Infrastructure Team
 **Status**: ✅ **IMPLEMENTED** - Enhanced EDA with Global Sorting and Filtering + Universe Membership Bug Fix
 
 ---
@@ -35,7 +35,7 @@ The Enhanced EDA interface provides sophisticated data exploration capabilities 
 - **Backend**: Server-side WHERE clauses for precise database filtering
 - **Performance**: Filters applied before data retrieval, not after loading
 
-#### **Date Range Filtering** 
+#### **Date Range Filtering**
 - **Capability**: From/To date selection with calendar inputs
 - **Tables Supported**: daily_prices, gap_events, news_events, earnings_events
 - **Backend**: SQL date comparisons (date >= start_date AND date <= end_date)
@@ -44,7 +44,7 @@ The Enhanced EDA interface provides sophisticated data exploration capabilities 
 #### **Global Sorting**
 - **Revolutionary Approach**: Server-side ORDER BY across entire dataset
 - **User Feedback Addressed**: "sorting is local, not global sorting" - now fixed
-- **Visual Indicators**: ▲ (ascending) / ▼ (descending) / ⇅ (unsorted) 
+- **Visual Indicators**: ▲ (ascending) / ▼ (descending) / ⇅ (unsorted)
 - **Security**: Column validation prevents SQL injection attacks
 - **Performance**: Database-level sorting leverages indexes for optimal speed
 
@@ -112,7 +112,7 @@ http://localhost:4000  # Integration
 1. **Table Selection**: Choose from available tables (dev_daily_prices_polygon, intg_daily_prices, etc.)
 2. **Smart Filter Display**: Filter controls automatically appear for relevant tables
    - **Daily Prices Tables**: Show symbol, date range filters
-   - **Event Tables**: Show symbol, date range filters  
+   - **Event Tables**: Show symbol, date range filters
    - **Other Tables**: Hide filters (not applicable)
 
 #### **Step 4: Apply Filtering (Optional)**
@@ -124,7 +124,7 @@ http://localhost:4000  # Integration
 #### **Step 5: Global Sorting**
 1. **Column Headers**: All table headers are clickable with sort indicators (⇅)
 2. **First Click**: Sort ascending (▲), data refreshes from database
-3. **Second Click**: Sort descending (▼), data refreshes from database  
+3. **Second Click**: Sort descending (▼), data refreshes from database
 4. **Global Results**: Entire dataset sorted, not just displayed rows
 
 #### **Step 6: Combined Operations**
@@ -147,7 +147,7 @@ GET /api/table-sample/{table_name}?symbol={symbol}&date_from={date}&date_to={dat
 - `table_name` (required): Database table name (e.g., "dev_daily_prices_polygon")
 - `symbol` (optional): Symbol filter with partial matching
 - `date_from` (optional): Start date filter (YYYY-MM-DD format)
-- `date_to` (optional): End date filter (YYYY-MM-DD format)  
+- `date_to` (optional): End date filter (YYYY-MM-DD format)
 - `sort_by` (optional): Column name for sorting
 - `sort_dir` (optional): "asc" or "desc" (default: "asc")
 - `limit` (optional): Row limit (default: 50)
@@ -178,7 +178,7 @@ curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?symbol=A&d
   ],
   "filters_applied": {
     "symbol": "A",
-    "date_from": "2020-01-01", 
+    "date_from": "2020-01-01",
     "date_to": "2020-12-31",
     "limit": 100
   },
@@ -263,7 +263,7 @@ Universe Analytics provides sophisticated stock universe management with dynamic
 
 **Root Cause Analysis**:
 - **Bulk Assignment**: All memberships created simultaneously with generic timestamps
-- **No Historical Tracking**: Missing automated process to track actual qualification events  
+- **No Historical Tracking**: Missing automated process to track actual qualification events
 - **IPO Date Confusion**: Using IPO dates instead of volume threshold achievement dates
 - **Manual Management**: Historical exits appeared hand-curated rather than criteria-driven
 
@@ -298,8 +298,8 @@ start_at = evaluation_date  # ❌ BUG: Uses job run date, not qualification date
    ```python
    # BEFORE (BUGGY)
    start_at = evaluation_date  # Wrong: Uses job run date
-   
-   # AFTER (FIXED)  
+
+   # AFTER (FIXED)
    start_at = volume_data['first_qualification_date']  # Correct: Uses historical date
    ```
 
@@ -308,13 +308,13 @@ start_at = evaluation_date  # ❌ BUG: Uses job run date, not qualification date
    - Enhanced logging showing actual time differences
    - Proper date/datetime handling
 
-**Validation Results**: 
+**Validation Results**:
 - ✅ Universe regeneration in INTG environment successful
 - ✅ **876 stocks** evaluated with correct historical start_at dates
 - ✅ Enhanced logging shows actual qualification timing:
   ```
   ALLY (volume: $114,997,312) - start_at: 2025-08-13 (27 days ago)
-  BEKE (volume: $102,164,006) - start_at: 2025-08-26 (14 days ago)  
+  BEKE (volume: $102,164,006) - start_at: 2025-08-26 (14 days ago)
   IONS (volume: $115,198,948) - start_at: 2025-09-02 (7 days ago)
   ```
 - ✅ Universe Analytics dashboard now displays **correct historical start dates**
@@ -326,7 +326,7 @@ start_at = evaluation_date  # ❌ BUG: Uses job run date, not qualification date
 ```
 🔍 BEFORE (Pre-Fix Analysis):
 • Placeholder dates: 95%+ of 670+ records
-• Unique start dates: Only 17 across all memberships  
+• Unique start dates: Only 17 across all memberships
 • Historical accuracy: 0% (all fake dates)
 • Business logic integrity: Critical flaws identified
 
@@ -341,7 +341,7 @@ start_at = evaluation_date  # ❌ BUG: Uses job run date, not qualification date
 
 #### **1. Universe Selection Interface**
 - **Dynamic Dropdown**: Real-time universe loading from database
-- **Universe Metadata**: Name, description, member count display  
+- **Universe Metadata**: Name, description, member count display
 - **Date Range Filtering**: Calendar inputs for historical membership analysis
 - **Environment Awareness**: Automatic dev_/intg_ table prefix handling
 - **Real-Time Validation**: Live member count verification across environments
@@ -383,7 +383,7 @@ start_at = evaluation_date  # ❌ BUG: Uses job run date, not qualification date
 start_at: '2019-07-15'  -- Plant-based food hype drove volume >$100M
 end_at: '2022-03-30'    -- Hype faded, volume dropped <$100M
 
--- Period 2: Brief requalification during recovery attempt 
+-- Period 2: Brief requalification during recovery attempt
 start_at: '2022-07-21'  -- Short-lived volume spike
 end_at: '2022-07-22'    -- Quickly fell below threshold
 
@@ -441,7 +441,7 @@ GET /api/universe-members/{universe_id}?date_from=2024-01-01&date_to=2024-12-31
   "success": true,
   "universe_info": {
     "id": 2,
-    "name": "high_volume_large_cap", 
+    "name": "high_volume_large_cap",
     "description": "Comprehensive high-volume large-cap stocks..."
   },
   "members": [
@@ -452,7 +452,7 @@ GET /api/universe-members/{universe_id}?date_from=2024-01-01&date_to=2024-12-31
       "instrument_id": 31
     },
     {
-      "symbol": "PTON", 
+      "symbol": "PTON",
       "start_at": "2019-09-26T00:00:00",
       "end_at": "2022-06-15T00:00:00",
       "instrument_id": 18733
@@ -476,11 +476,11 @@ GET /api/universe-members/{universe_id}?date_from=2024-01-01&date_to=2024-12-31
 ```sql
 -- Universe qualification criteria
 WITH volume_analysis AS (
-    SELECT 
+    SELECT
         symbol,
         AVG(close * volume) as avg_dollar_volume_50d,
         COUNT(*) as trading_days
-    FROM {environment}_daily_prices_polygon 
+    FROM {environment}_daily_prices_polygon
     WHERE date >= CURRENT_DATE - INTERVAL '50 days'
     GROUP BY symbol
     HAVING COUNT(*) >= 30  -- Minimum trading days
@@ -489,7 +489,7 @@ SELECT symbol
 FROM volume_analysis
 WHERE avg_dollar_volume_50d >= 100000000  -- $100M daily volume
 AND symbol IN (
-    SELECT symbol FROM {environment}_instruments 
+    SELECT symbol FROM {environment}_instruments
     WHERE market_cap > 1000000000  -- $1B market cap
 )
 ```
@@ -497,16 +497,16 @@ AND symbol IN (
 #### **Membership Change Detection**
 ```sql
 -- Identify stocks for removal (volume declined below threshold)
-UPDATE {environment}_universe_membership 
+UPDATE {environment}_universe_membership
 SET end_at = CURRENT_TIMESTAMP
-WHERE universe_id = 2 
+WHERE universe_id = 2
 AND end_at IS NULL
 AND symbol IN (
     SELECT symbol FROM current_low_volume_stocks
 );
 
 -- Add new qualifying stocks
-INSERT INTO {environment}_universe_membership 
+INSERT INTO {environment}_universe_membership
 (universe_id, symbol, start_at, instrument_id)
 SELECT 2, symbol, CURRENT_TIMESTAMP, instrument_id
 FROM newly_qualifying_stocks;
@@ -553,14 +553,14 @@ CREATE TABLE {env}_universe_membership (
 
 ```sql
 -- CORRECT: start_at = date when stock FIRST exceeds volume threshold
--- CORRECT: end_at = date when stock falls below threshold  
+-- CORRECT: end_at = date when stock falls below threshold
 -- CORRECT: Re-entry creates NEW membership record with new start_at
 ```
 
 | **Event** | **Action** | **Database Operation** |
 |-----------|------------|------------------------|
 | Stock first qualifies | **Entry** | `INSERT` new membership (start_at = qualification_date, end_at = NULL) |
-| Active stock disqualifies | **Exit** | `UPDATE` membership (end_at = disqualification_date) | 
+| Active stock disqualifies | **Exit** | `UPDATE` membership (end_at = disqualification_date) |
 | Previously exited stock requalifies | **Re-entry** | `INSERT` new membership (new start_at = requalification_date) |
 | Stock maintains qualification | **Continue** | No database changes |
 
@@ -574,8 +574,8 @@ start_at: '2001-03-15'  -- When volume first exceeded $100M (NOT IPO date)
 end_at: NULL            -- Still qualified
 ```
 
-##### **Pattern 2: Entry → Exit (Performance Decline)**  
-```sql  
+##### **Pattern 2: Entry → Exit (Performance Decline)**
+```sql
 -- PTON: Qualified during pandemic, lost qualification post-pandemic
 symbol: 'PTON'
 start_at: '2020-04-15'  -- When home fitness demand surged volume >$100M
@@ -585,13 +585,13 @@ end_at: '2022-06-15'    -- When volume fell below $100M threshold
 ##### **Pattern 3: Entry → Exit → Re-entry (Volatility Cycle)**
 ```sql
 -- BYND: Qualified during hype, lost qualification, may requalify
-symbol: 'BYND'  
+symbol: 'BYND'
 -- First membership period
 start_at: '2019-07-15'  -- Post-IPO hype drove volume >$100M
 end_at: '2022-03-30'    -- Hype faded, volume <$100M
 
 -- Potential second membership (if requalifies)
-start_at: '2024-11-01'  -- Hypothetical requalification 
+start_at: '2024-11-01'  -- Hypothetical requalification
 end_at: NULL            -- Currently active (example)
 ```
 
@@ -607,13 +607,13 @@ end_at: NULL            -- Still qualified
 
 **✅ Issues Previously Identified and Fixed:**
 - **~~Placeholder dates~~**: ✅ **FIXED** - All new entries use actual qualification dates
-- **~~IPO date confusion~~**: ✅ **FIXED** - Now uses volume qualification dates exclusively  
+- **~~IPO date confusion~~**: ✅ **FIXED** - Now uses volume qualification dates exclusively
 - **~~Bulk assignment~~**: ✅ **FIXED** - Each entry uses its specific qualification timestamp
 - **~~No historical tracking~~**: ✅ **FIXED** - Daily evaluation process monitors qualification changes
 - **~~Manual exits~~**: ✅ **FIXED** - Automated criteria-driven entry/exit logic implemented
 
 **✅ What Now Exists (Implemented):**
-- ✅ **Daily evaluation process** checking each stock against volume criteria  
+- ✅ **Daily evaluation process** checking each stock against volume criteria
 - ✅ **Automated entry/exit** based on 50-day average volume thresholds
 - ✅ **Accurate historical timeline** showing real market dynamics
 - ✅ **Multiple membership periods** for stocks with volatility cycles
@@ -624,16 +624,16 @@ end_at: NULL            -- Still qualified
 # Pseudo-code for correct universe membership tracking
 def evaluate_universe_membership(evaluation_date):
     """Daily process to update universe memberships based on actual criteria"""
-    
+
     # Calculate current volume metrics
     current_qualifiers = get_stocks_exceeding_volume_threshold(evaluation_date)
     active_members = get_active_universe_members()
-    
-    # Process exits (active members who no longer qualify)  
+
+    # Process exits (active members who no longer qualify)
     for stock in active_members:
         if stock not in current_qualifiers:
             update_membership_exit(stock.symbol, evaluation_date)
-            
+
     # Process entries (new qualifiers not currently active)
     for stock in current_qualifiers:
         if not is_currently_active_member(stock):
@@ -645,7 +645,7 @@ def evaluate_universe_membership(evaluation_date):
 **Required test scenarios with real examples:**
 
 1. **Initial Entry Test**: SMCI gaining qualification during AI boom (2023-03-15)
-2. **Volume Decline Exit**: PTON losing qualification post-pandemic (2022-06-15)  
+2. **Volume Decline Exit**: PTON losing qualification post-pandemic (2022-06-15)
 3. **Re-entry After Exit**: BYND hypothetical requalification after decline
 4. **Threshold Boundary**: Stock oscillating around $100M volume (multiple entries/exits)
 5. **Continuous Qualification**: AAPL maintaining qualification for 20+ years
@@ -653,7 +653,7 @@ def evaluate_universe_membership(evaluation_date):
 7. **Merger/Delisting Exit**: Stock losing qualification due to corporate actions
 
 ### **📊 Current Universe Statistics (ats-intg)**
-- **Total Universe Members**: 665 stocks (A-Z coverage)  
+- **Total Universe Members**: 665 stocks (A-Z coverage)
 - **Active Members**: 665 currently qualified stocks
 - **Historical Exits**: 5 stocks removed due to performance decline
 - **⚠️ Data Quality Issue**: Most start_at dates are placeholders, not actual qualification dates
@@ -670,7 +670,7 @@ def evaluate_universe_membership(evaluation_date):
 -- BEFORE: 95% have placeholder dates
 start_at: '1995-01-01'  -- Meaningless placeholder
 
--- AFTER: Actual qualification dates  
+-- AFTER: Actual qualification dates
 start_at: '2023-01-09'  -- SMCI AI boom qualification
 start_at: '2020-12-17'  -- MSTR Bitcoin strategy qualification
 ```
@@ -686,13 +686,13 @@ start_at: '2020-12-17'  -- MSTR Bitcoin strategy qualification
 def evaluate_daily_membership(evaluation_date):
     current_qualifiers = get_stocks_exceeding_threshold(evaluation_date)
     active_members = get_active_universe_members()
-    
+
     # Process exits (volume declined)
     for member in active_members:
         if member not in current_qualifiers:
             set_membership_exit(member, evaluation_date)
-    
-    # Process entries (volume exceeded)  
+
+    # Process entries (volume exceeded)
     for qualifier in current_qualifiers:
         if qualifier not in active_members:
             create_new_membership(qualifier, evaluation_date)
@@ -715,7 +715,7 @@ def evaluate_daily_membership(evaluation_date):
 ##### **4. Multiple Membership Periods Support**
 ```sql
 -- Example: BYND volatility cycles
--- Period 1: Hype cycle  
+-- Period 1: Hype cycle
 INSERT INTO universe_membership VALUES (2, 'BYND', '2019-07-15', '2022-07-11', ...);
 
 -- Period 2: Brief requalification
@@ -746,12 +746,12 @@ spec:
 
 **Implementation Status**: 🔄 Design Complete, Implementation Pending
 
-##### **6. Monitoring & Alerts**  
+##### **6. Monitoring & Alerts**
 ```python
 # Alert examples
 alerts = [
     "🚨 NVDA volume surge: $45.2B (was $28.1B) - Universe entry",
-    "📊 Daily Summary: 3 entries, 1 exit - Universe 2 now 668 stocks", 
+    "📊 Daily Summary: 3 entries, 1 exit - Universe 2 now 668 stocks",
     "⚠️ PTON oscillating around threshold - volatility alert"
 ]
 ```
@@ -762,7 +762,7 @@ alerts = [
 
 ##### **Test Framework Status**:
 - ✅ **Entry/Exit Pattern Tests**: Real market data validation
-- ✅ **Multiple Period Tests**: Volatility cycle simulation  
+- ✅ **Multiple Period Tests**: Volatility cycle simulation
 - ✅ **Volume Threshold Tests**: Boundary condition validation
 - ✅ **Historical Analysis Tests**: Qualification event timing
 - 🔄 **End-to-End Integration Tests**: In progress
@@ -789,7 +789,7 @@ Target State (After Fix):
 - [ ] Historical correction script ready
 - [ ] Initial validation testing
 
-##### **Phase 2: Data Correction (Week 2)**  
+##### **Phase 2: Data Correction (Week 2)**
 - [ ] Backup current universe data
 - [ ] Run historical volume analysis
 - [ ] Generate correct membership records
@@ -814,13 +814,13 @@ Target State (After Fix):
 
 **Data Quality Improvements**:
 - ✅ Research: 6 key stocks analyzed across 4 market periods
-- 🎯 Target: 0% placeholder dates (from 95%+)  
+- 🎯 Target: 0% placeholder dates (from 95%+)
 - 🎯 Target: 400+ unique qualification dates (from 17)
 - 🎯 Target: Multiple membership periods for volatile stocks
 
 **Operational Excellence**:
 - 🎯 Daily evaluation: 100% automated processing
-- 🎯 Alert coverage: Major entry/exit events monitored  
+- 🎯 Alert coverage: Major entry/exit events monitored
 - 🎯 Data accuracy: 95%+ dates match real qualification events
 - 🎯 Performance: <5 min daily evaluation runtime
 
@@ -843,8 +843,8 @@ Target State (After Fix):
 ## 💻 Code Pointers and Implementation Details
 
 ### **Core Service File**
-**Location**: `src/services/analytics_service.py`  
-**Lines of Code**: 4,800+ (including enhanced EDA features)  
+**Location**: `src/services/analytics_service.py`
+**Lines of Code**: 4,800+ (including enhanced EDA features)
 **Key Classes**: `UnifiedAnalyticsService`, `UnifiedAnalyticsRequestHandler`
 
 ### **Enhanced EDA Implementation Sections**
@@ -867,8 +867,8 @@ Target State (After Fix):
 #### **2. Smart Filter Display Logic (Lines 2135-2145)**
 ```python
 # Show filters for tables that have symbol and date columns
-const hasFiltering = tableName.includes('daily_prices') || 
-                   tableName.includes('instruments') || 
+const hasFiltering = tableName.includes('daily_prices') ||
+                   tableName.includes('instruments') ||
                    tableName.includes('gap_events') ||
                    tableName.includes('fundamentals') ||
                    tableName.includes('news') ||
@@ -886,20 +886,20 @@ def _serve_table_sample(self):
     symbol_filter = query_params.get('symbol', [None])[0]
     sort_column = query_params.get('sort_by', [None])[0]
     sort_direction = query_params.get('sort_dir', ['asc'])[0].lower()
-    
+
     # Build WHERE conditions
     where_conditions = []
     if symbol_filter and 'daily_prices' in table_name:
         where_conditions.append('symbol ILIKE %s')
         params.append(f"%{symbol_filter}%")
-    
+
     # Build ORDER BY clause with security validation
     if sort_column:
         cursor.execute("""
-            SELECT column_name FROM information_schema.columns 
+            SELECT column_name FROM information_schema.columns
             WHERE table_name = %s AND column_name = %s
         """, (table_name, sort_column))
-        
+
         if cursor.fetchone():
             order_clause = f" ORDER BY \"{sort_column}\" {sort_direction.upper()}"
 ```
@@ -910,7 +910,7 @@ def _serve_table_sample(self):
 function sortTable(column) {
     const tableName = document.getElementById('table-selector').value;
     if (!tableName) return;
-    
+
     // Update sort direction
     if (currentSortColumn === column) {
         sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -918,7 +918,7 @@ function sortTable(column) {
         currentSortColumn = column;
         sortDirection = 'asc';
     }
-    
+
     // Get current filters and reload with sorting
     const filters = {
         symbol: document.getElementById('symbol-filter').value.trim(),
@@ -927,21 +927,21 @@ function sortTable(column) {
         sortBy: column,
         sortDir: sortDirection
     };
-    
+
     // Server-side sorting request
     loadSampleData(tableName, filters);
 }
 ```
 
 ### **Environment Configuration**
-**Development**: 
+**Development**:
 - Database: `localhost:3432/dev_db`
 - Table Prefix: `dev_`
 - Container: `ats-dev-analytics`
 
 **Integration**:
 - Database: Integration database connection
-- Table Prefix: `intg_`  
+- Table Prefix: `intg_`
 - Container: `ats-intg-analytics`
 
 ---
@@ -955,7 +955,7 @@ function sortTable(column) {
 # Start analytics service
 python scripts/run_dev.py start --service analytics
 
-# Stop analytics service  
+# Stop analytics service
 python scripts/run_dev.py stop --service analytics
 
 # Check service status
@@ -968,7 +968,7 @@ python scripts/run_dev.py logs --service analytics
 python scripts/run_dev.py stop --service analytics && python scripts/run_dev.py start --service analytics
 ```
 
-#### **Integration Environment**  
+#### **Integration Environment**
 ```bash
 # Start integration analytics service
 python scripts/run_intg.py start --service analytics
@@ -985,7 +985,7 @@ python scripts/run_dev.py start --service analytics && python scripts/run_intg.p
 # Development health check
 curl -s "http://localhost:3000/health" | jq '.'
 
-# Integration health check  
+# Integration health check
 curl -s "http://localhost:4000/health" | jq '.'
 
 # Quick status verification
@@ -1016,7 +1016,7 @@ curl -f http://localhost:4000/health && echo "✅ Intg OK" || echo "❌ Intg Fai
 # Run comprehensive EDA filtering and sorting tests
 PYTHONPATH=src python3 test_eda_filtering_sorting_playwright.py
 
-# Test global sorting specifically  
+# Test global sorting specifically
 PYTHONPATH=src python3 test_global_sorting_playwright.py
 
 # Test complete dashboard functionality
@@ -1112,7 +1112,7 @@ curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?limit=1"
 # Container resource usage
 docker stats ats-dev-analytics ats-intg-analytics
 
-# Database connection monitoring  
+# Database connection monitoring
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM pg_stat_activity WHERE application_name LIKE '%analytics%'"
 
 # API response time monitoring
@@ -1125,7 +1125,7 @@ time curl -s "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?li
 
 ### **Planned Features**
 - **Advanced Filtering**: Multi-column filters, numeric range filters
-- **Export Functionality**: CSV/Excel export of filtered/sorted datasets  
+- **Export Functionality**: CSV/Excel export of filtered/sorted datasets
 - **Caching Layer**: Redis caching for frequently accessed queries
 - **Real-time Updates**: WebSocket connections for live data updates
 - **Advanced Visualizations**: Chart overlays, correlation analysis
@@ -1195,7 +1195,7 @@ python scripts/run_dev.py query --query "SELECT COUNT(*) FROM pg_stat_activity"
 ## 📚 Related Documentation
 
 - **[EDA Tool PRD](docs/projects/ats-eda-tool/PRD_ATS_EDA_Tool.md)**: Comprehensive EDA tool requirements and implementation
-- **[OPERATIONS.md](docs/OPERATIONS.md)**: Daily operations and service management procedures  
+- **[OPERATIONS.md](docs/OPERATIONS.md)**: Daily operations and service management procedures
 - **[INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md)**: System architecture and component details
 - **[START_HERE.md](docs/START_HERE.md)**: Quick setup guide for new developers
 - **[DEVELOPMENT.md](docs/DEVELOPMENT.md)**: Development workflow and best practices

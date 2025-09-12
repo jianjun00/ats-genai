@@ -266,7 +266,7 @@ class EconomicEventsPopulationService:
         try:
             # Fetch economic calendar events
             calendar_events = await self.eodhd_client.fetch_economic_events(start_date, end_date)
-            
+
             # Fetch macro indicators (recent data)
             macro_events = await self.eodhd_client.fetch_macro_indicators()
 
@@ -278,13 +278,13 @@ class EconomicEventsPopulationService:
             for raw_event in calendar_events:
                 try:
                     parsed_event = self.eodhd_client.parse_eodhd_event(raw_event)
-                    
+
                     # Skip if importance too low
                     if parsed_event.get("importance", 0) < min_importance:
                         continue
-                        
+
                     all_raw_events.append(raw_event)
-                    
+
                     # Store event
                     await self._store_economic_event(parsed_event, "eodhd")
                     events_stored += 1
@@ -296,15 +296,15 @@ class EconomicEventsPopulationService:
             for raw_indicator in macro_events:
                 try:
                     parsed_event = self.eodhd_client.parse_macro_indicator(raw_indicator)
-                    
+
                     # Skip if importance too low
                     if parsed_event.get("importance", 0) < min_importance:
                         continue
-                    
+
                     # Only include recent macro data (within date range)
                     if parsed_event.get("event_date") and start_date <= parsed_event["event_date"] <= end_date:
                         all_raw_events.append(raw_indicator)
-                        
+
                         # Store event
                         await self._store_economic_event(parsed_event, "eodhd")
                         events_stored += 1

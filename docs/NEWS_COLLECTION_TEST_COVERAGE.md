@@ -30,7 +30,7 @@ class TestPolygonAPIDateFormatting:
 
 **Purpose**: Prevent date format bugs that cause API errors
 **Coverage**:
-- Validates correct date format (`YYYY-MM-DD`) 
+- Validates correct date format (`YYYY-MM-DD`)
 - Tests actual API calls with correct vs incorrect formats
 - Ensures API errors are caught early
 
@@ -201,7 +201,7 @@ python tests/monitoring/test_news_data_monitoring.py --environment prod --output
 
 ### Alert Channels
 - **Slack**: Real-time notifications
-- **Email**: Daily/weekly summaries  
+- **Email**: Daily/weekly summaries
 - **Dashboard**: Visual monitoring
 - **Logs**: Structured logging for analysis
 
@@ -270,7 +270,7 @@ python tests/monitoring/test_news_data_monitoring.py --environment prod --output
 This comprehensive test coverage strategy addresses all identified failure modes from the Polygon news investigation:
 
 1. **Date Format Bugs** → Unit tests with actual API validation
-2. **Silent Failures** → Database transaction integrity tests  
+2. **Silent Failures** → Database transaction integrity tests
 3. **Monitoring Gaps** → Production health monitoring
 4. **Manual Detection** → Automated alerting and CI/CD integration
 

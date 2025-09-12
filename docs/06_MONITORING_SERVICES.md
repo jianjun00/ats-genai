@@ -21,7 +21,7 @@ http://localhost:4080/metrics        # Raw metrics endpoint
 http://localhost:4080/api/v1/query   # Prometheus query API
 http://localhost:4091/-/ready        # Prometheus server ready check
 
-# Grafana dashboards  
+# Grafana dashboards
 http://localhost:4002/               # Main dashboard interface
 http://localhost:4002/api/health     # Grafana health check
 
@@ -183,7 +183,7 @@ crontab -e
 0 2 * * *     /home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh
 15 2 * * *    /home/jianjun/ats-genai-data/scripts/daily_backup_ats_intg.sh
 
-# 2:30 AM - FirstRate minute bar downloads  
+# 2:30 AM - FirstRate minute bar downloads
 30 2 * * *    /home/jianjun/ats-genai-data/scripts/firstrate_daily_download.py
 0 8 * * *     /home/jianjun/ats-genai-data/scripts/firstrate_daily_download.py --retry
 
@@ -283,7 +283,7 @@ groups:
       severity: critical
     annotations:
       summary: "ATS Analytics service is down"
-      
+
   - alert: ATS_DatabaseConnections
     expr: pg_stat_database_numbackends > 80
     for: 10m
@@ -291,7 +291,7 @@ groups:
       severity: warning
     annotations:
       summary: "High database connection count: {{ $value }}"
-      
+
   - alert: ATS_DataQuality
     expr: ats_data_quality_score < 0.9
     for: 15m
@@ -324,7 +324,7 @@ fi
 
 # Check service endpoints
 if curl -f http://localhost:3000/health > /dev/null 2>&1; then
-    echo "[$DATE] ✅ ATS-DEV analytics: HEALTHY" >> $LOGFILE  
+    echo "[$DATE] ✅ ATS-DEV analytics: HEALTHY" >> $LOGFILE
 else
     echo "[$DATE] ❌ ATS-DEV analytics: FAILED" >> $LOGFILE
     HEALTHY=false
@@ -371,7 +371,7 @@ df -h /home   # System storage
 # Monitor database performance
 python scripts/run_dev.py query --query "
 SELECT schemaname, tablename, n_tup_ins, n_tup_upd, n_tup_del
-FROM pg_stat_user_tables 
+FROM pg_stat_user_tables
 ORDER BY n_tup_ins DESC LIMIT 10
 "
 ```
@@ -400,23 +400,23 @@ python -m memory_profiler your_script.py
 # Slow query monitoring
 python scripts/run_dev.py query --query "
 SELECT query, calls, total_time, mean_time, stddev_time
-FROM pg_stat_statements 
+FROM pg_stat_statements
 ORDER BY total_time DESC LIMIT 10
 "
 
 # Connection monitoring
 python scripts/run_dev.py query --query "
-SELECT count(*) as active_connections, 
+SELECT count(*) as active_connections,
        max(now() - query_start) as longest_query
-FROM pg_stat_activity 
+FROM pg_stat_activity
 WHERE state = 'active'
 "
 
 # Database size monitoring
 python scripts/run_dev.py query --query "
-SELECT schemaname, tablename, 
+SELECT schemaname, tablename,
        pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-FROM pg_tables 
+FROM pg_tables
 WHERE schemaname = 'public'
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
 "
@@ -513,7 +513,7 @@ find /mnt/d/ats-backup -name "*.sql" -mtime +90 -delete
 
 # What it does:
 # - Compress and archive old log files
-# - Clean up temporary data files  
+# - Clean up temporary data files
 # - Update system metrics
 # - Generate weekly health report
 # - Optimize database indexes

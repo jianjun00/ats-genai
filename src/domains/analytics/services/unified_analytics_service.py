@@ -387,12 +387,12 @@ class UnifiedAnalyticsService:
                 async function loadUniverseAnalytics() {
                     document.getElementById('analysis-content').innerHTML =
                         '<h3>🌐 Universe Analytics</h3><p>Loading universe selection menu...</p>';
-                    
+
                     try {
                         // Load available universes
                         const universesResponse = await fetch('/api/universes');
                         const universesData = await universesResponse.json();
-                        
+
                         if (universesData.success) {
                             let html = `
                                 <h3>🌐 Universe Analytics</h3>
@@ -404,11 +404,11 @@ class UnifiedAnalyticsService:
                                             <select id="universe-selector" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                                 <option value="">-- Select a universe --</option>
                             `;
-                            
+
                             universesData.universes.forEach(universe => {
                                 html += `<option value="${universe.id}">${universe.name} - ${universe.description}</option>`;
                             });
-                            
+
                             html += `
                                             </select>
                                         </div>
@@ -430,20 +430,20 @@ class UnifiedAnalyticsService:
                                         <strong>Available Universes:</strong> ${universesData.universes.length} total
                                     </p>
                                 </div>
-                                
+
                                 <div id="universe-members-content" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4>📊 Universe Members</h4>
                                     <p style="color: #666;">Select a universe and date range above to view members.</p>
                                 </div>
                             `;
-                            
+
                             document.getElementById('analysis-content').innerHTML = html;
-                            
+
                             // Set default date range (last 30 days)
                             const today = new Date();
                             const thirtyDaysAgo = new Date(today);
                             thirtyDaysAgo.setDate(today.getDate() - 30);
-                            
+
                             document.getElementById('universe-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
                             document.getElementById('universe-date-to').value = today.toISOString().split('T')[0];
                         }
@@ -457,24 +457,24 @@ class UnifiedAnalyticsService:
                     const universeId = document.getElementById('universe-selector').value;
                     const dateFrom = document.getElementById('universe-date-from').value;
                     const dateTo = document.getElementById('universe-date-to').value;
-                    
+
                     if (!universeId) {
                         alert('Please select a universe first.');
                         return;
                     }
-                    
+
                     if (!dateFrom || !dateTo) {
                         alert('Please select both from and to dates.');
                         return;
                     }
-                    
+
                     const membersContent = document.getElementById('universe-members-content');
                     membersContent.innerHTML = '<h4>📊 Universe Members</h4><p>Loading universe members...</p>';
-                    
+
                     try {
                         const response = await fetch(`/api/universe-members/${universeId}?date_from=${dateFrom}&date_to=${dateTo}`);
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             let html = `
                                 <h4>📊 Universe Members</h4>
@@ -485,12 +485,12 @@ class UnifiedAnalyticsService:
                                     <strong>Total Members:</strong> ${data.members.length} symbols
                                 </div>
                             `;
-                            
+
                             if (data.members.length > 0) {
                                 // Group members by status (active vs historical)
                                 const activeMembers = data.members.filter(member => !member.end_at);
                                 const historicalMembers = data.members.filter(member => member.end_at);
-                                
+
                                 html += `
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                                         <div>
@@ -505,7 +505,7 @@ class UnifiedAnalyticsService:
                                                     </thead>
                                                     <tbody>
                                 `;
-                                
+
                                 activeMembers.forEach(member => {
                                     const startDate = new Date(member.start_at).toISOString().split('T')[0];
                                     html += `
@@ -515,13 +515,13 @@ class UnifiedAnalyticsService:
                                         </tr>
                                     `;
                                 });
-                                
+
                                 html += `
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
-                                        
+
                                         <div>
                                             <h5 style="color: #f57c00;">📋 Historical Members (${historicalMembers.length})</h5>
                                             <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
@@ -535,7 +535,7 @@ class UnifiedAnalyticsService:
                                                     </thead>
                                                     <tbody>
                                 `;
-                                
+
                                 historicalMembers.forEach(member => {
                                     const startDate = new Date(member.start_at).toISOString().split('T')[0];
                                     const endDate = member.end_at ? new Date(member.end_at).toISOString().split('T')[0] : 'Active';
@@ -547,7 +547,7 @@ class UnifiedAnalyticsService:
                                         </tr>
                                     `;
                                 });
-                                
+
                                 html += `
                                                     </tbody>
                                                 </table>
@@ -563,7 +563,7 @@ class UnifiedAnalyticsService:
                                     </div>
                                 `;
                             }
-                            
+
                             membersContent.innerHTML = html;
                         } else {
                             membersContent.innerHTML = `
@@ -960,14 +960,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         # Common financial tables for development
         tables = [
             'dev_daily_prices', 'dev_training_datasets', 'dev_instruments',
             'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd',
             'dev_news_events', 'dev_earnings_events'
         ]
-        
+
         response = {"tables": tables, "count": len(tables)}
         self.wfile.write(json.dumps(response).encode('utf-8'))
 
@@ -976,7 +976,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         # Mock news events data for now
         response = {
             "success": True,
@@ -993,7 +993,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         # Mock earnings events data for now
         response = {
             "success": True,
@@ -1010,7 +1010,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         # Mock bar collection metrics
         response = {
             "success": True,
@@ -1031,7 +1031,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         # Mock visualization data
         response = {
             "success": True,
@@ -1045,19 +1045,19 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     cursor.execute("""
-                        SELECT id, name, description, created_at, updated_at 
-                        FROM dev_universe 
+                        SELECT id, name, description, created_at, updated_at
+                        FROM dev_universe
                         ORDER BY name
                     """)
-                    
+
                     universes = []
                     for row in cursor.fetchall():
                         universes.append({
@@ -1067,13 +1067,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             "created_at": row['created_at'].isoformat() if row['created_at'] else None,
                             "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None
                         })
-                    
+
                     response = {
                         "success": True,
                         "universes": universes,
                         "count": len(universes)
                     }
-                    
+
         except Exception as e:
             response = {
                 "success": False,
@@ -1081,7 +1081,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "universes": [],
                 "count": 0
             }
-        
+
         self.wfile.write(json.dumps(response).encode('utf-8'))
 
     def _serve_universe_members(self):
@@ -1089,21 +1089,21 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             from urllib.parse import urlparse, parse_qs
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            
+
             # Parse universe ID from URL path
             universe_id = self.path.split('/')[-1].split('?')[0]
-            
+
             # Parse query parameters
             parsed_url = urlparse(self.path)
             query_params = parse_qs(parsed_url.query)
             date_from = query_params.get('date_from', [None])[0]
             date_to = query_params.get('date_to', [None])[0]
-            
+
             if not universe_id or not date_from or not date_to:
                 response = {
                     "success": False,
@@ -1111,16 +1111,16 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 }
                 self.wfile.write(json.dumps(response).encode('utf-8'))
                 return
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     # Get universe information
                     cursor.execute("""
-                        SELECT id, name, description 
-                        FROM dev_universe 
+                        SELECT id, name, description
+                        FROM dev_universe
                         WHERE id = %s
                     """, (universe_id,))
-                    
+
                     universe_info = cursor.fetchone()
                     if not universe_info:
                         response = {
@@ -1129,7 +1129,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         }
                         self.wfile.write(json.dumps(response).encode('utf-8'))
                         return
-                    
+
                     # Get universe members within date range
                     cursor.execute("""
                         SELECT um.universe_id, um.symbol, um.start_at, um.end_at, um.instrument_id
@@ -1142,7 +1142,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         )
                         ORDER BY um.symbol, um.start_at
                     """, (universe_id, date_to, date_from, date_from, date_to, date_from, date_to))
-                    
+
                     members = []
                     for row in cursor.fetchall():
                         members.append({
@@ -1152,7 +1152,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             "end_at": row['end_at'].isoformat() if row['end_at'] else None,
                             "instrument_id": row['instrument_id']
                         })
-                    
+
                     response = {
                         "success": True,
                         "universe_info": {
@@ -1167,13 +1167,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         },
                         "count": len(members)
                     }
-                    
+
         except Exception as e:
             response = {
                 "success": False,
                 "error": f"Failed to load universe members: {str(e)}"
             }
-        
+
         self.wfile.write(json.dumps(response).encode('utf-8'))
 
 

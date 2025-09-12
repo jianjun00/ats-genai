@@ -40,7 +40,7 @@ check_recent_files() {
     local path="$1"
     local description="$2"
     local hours_old="${3:-24}"
-    
+
     if find "$path" -type f -mtime -"$(echo "$hours_old/24" | bc -l)" | head -1 | grep -q .; then
         local count=$(find "$path" -type f -mtime -"$(echo "$hours_old/24" | bc -l)" | wc -l)
         echo "$LOG_PREFIX ✅ $description: $count recent files found"
@@ -58,7 +58,7 @@ echo "$LOG_PREFIX Checking ATS-DEV environment..."
 check_endpoint "ATS-DEV Analytics" "http://localhost:3000/health" || ((HEALTH_ERRORS++))
 check_database "dev" "3432" "dev_password" || ((HEALTH_ERRORS++))
 
-# Check ATS-INTG Environment  
+# Check ATS-INTG Environment
 echo "$LOG_PREFIX Checking ATS-INTG environment..."
 check_endpoint "ATS-INTG Analytics" "http://localhost:4000/health" || ((HEALTH_ERRORS++))
 check_endpoint "ATS-INTG Metrics" "http://localhost:4080/health" || ((HEALTH_ERRORS++))

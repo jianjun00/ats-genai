@@ -15,7 +15,7 @@ CRON_ENTRIES="
 # News Collection - Daily at 8 AM
 0 8 * * * ENVIRONMENT=$ENVIRONMENT POLYGON_API_KEY=\"wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD\" /home/jianjun/ats-genai-data/scripts/cron/daily_news_collection.sh >> /mnt/d/ats-logs/$ENVIRONMENT/cron.log 2>&1
 
-# Health Monitoring - Every 4 hours 
+# Health Monitoring - Every 4 hours
 0 */4 * * * ENVIRONMENT=$ENVIRONMENT /home/jianjun/ats-genai-data/scripts/cron/news_health_monitor.sh >> /mnt/d/ats-logs/$ENVIRONMENT/health.log 2>&1
 
 # Weekly cleanup - Sundays at 2 AM

@@ -67,7 +67,7 @@ class EODHDEconomicEventsClient:
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        
+
                         # EODHD returns the events directly as a list
                         events = data if isinstance(data, list) else []
 
@@ -110,7 +110,7 @@ class EODHDEconomicEventsClient:
             for indicator in indicators:
                 try:
                     url = f"{self.config.base_url}/macro-indicator"
-                    
+
                     params = {
                         "api_token": self.api_key,
                         "country": country,
@@ -121,18 +121,18 @@ class EODHDEconomicEventsClient:
                     async with session.get(url, params=params) as response:
                         if response.status == 200:
                             data = await response.json()
-                            
+
                             if isinstance(data, list) and data:
                                 # Add indicator name to each data point
                                 for item in data:
                                     item['indicator_name'] = indicator
                                     item['country'] = country
                                 all_data.extend(data)
-                            
+
                             logger.info(f"Fetched {len(data) if isinstance(data, list) else 1} data points for {indicator}")
                         else:
                             logger.warning(f"EODHD macro indicator {indicator} error: {response.status}")
-                        
+
                         # Rate limiting between requests
                         await asyncio.sleep(self.config.rate_limit_delay_seconds)
 
@@ -182,8 +182,8 @@ class EODHDEconomicEventsClient:
             estimate = None
             previous = None
 
-            for field, value in [("actual", event_data.get("actual")), 
-                               ("forecast", event_data.get("forecast")), 
+            for field, value in [("actual", event_data.get("actual")),
+                               ("forecast", event_data.get("forecast")),
                                ("previous", event_data.get("previous"))]:
                 if value is not None and value != "" and value != "N/A":
                     try:
@@ -314,7 +314,7 @@ class EODHDEconomicEventsClient:
         """Map EODHD importance text to numeric level."""
         if not importance_text:
             return 2
-        
+
         importance_lower = importance_text.lower()
         if "high" in importance_lower:
             return 5
@@ -330,10 +330,10 @@ class EODHDEconomicEventsClient:
         # Check if unit is explicitly provided
         if event_data.get("unit"):
             return event_data["unit"]
-        
+
         # Infer from event name or values
         event_name = event_data.get("event", "").lower()
-        
+
         if any(word in event_name for word in ["rate", "percentage", "%"]):
             return "percentage"
         elif any(word in event_name for word in ["index", "pmi", "confidence"]):
@@ -342,7 +342,7 @@ class EODHDEconomicEventsClient:
             return "thousands"
         elif any(word in event_name for word in ["sales", "spending", "gdp"]):
             return "billions"
-        
+
         return None
 
     def _get_indicator_unit(self, indicator_name: str) -> Optional[str]:
@@ -360,7 +360,7 @@ class EODHDEconomicEventsClient:
         """Get importance level for macro indicator."""
         high_importance = ["gdp_growth_rate", "unemployment_rate", "inflation_rate", "interest_rate"]
         medium_importance = ["consumer_price_index", "producer_price_index"]
-        
+
         if indicator_name in high_importance:
             return 5
         elif indicator_name in medium_importance:
@@ -371,7 +371,7 @@ class EODHDEconomicEventsClient:
     async def get_available_countries(self) -> List[str]:
         """
         Get list of available countries for economic events.
-        
+
         Returns:
             List of country codes
         """
@@ -384,7 +384,7 @@ class EODHDEconomicEventsClient:
     async def get_available_indicators(self) -> List[str]:
         """
         Get list of available macro indicators.
-        
+
         Returns:
             List of indicator names
         """

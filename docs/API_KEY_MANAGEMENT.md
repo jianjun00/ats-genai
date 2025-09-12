@@ -19,7 +19,7 @@
 **These exact keys are verified working (last validated: 2025-09-11):**
 ```bash
 POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"      # ✅ VERIFIED WORKING
-TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING  
+TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING
 EODHD_API_KEY="68aa0c7d2fe831.67386369"                   # ✅ VERIFIED WORKING
 ```
 

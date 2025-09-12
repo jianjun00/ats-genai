@@ -43,7 +43,7 @@ class ArrayRecordConfig:
 class ArrayRecordStorageManager:
     """
     ArrayRecord-only storage manager for sequence training data.
-    
+
     Stores training data exclusively in ArrayRecord format per PRD/DRD requirements.
     No JSON, pickle, or TensorFlow serialization anti-patterns.
     """
@@ -73,12 +73,12 @@ class ArrayRecordStorageManager:
         """Create ArrayRecord writer with optimal configuration."""
         if not ARRAYRECORD_AVAILABLE:
             raise ImportError("ArrayRecord not available")
-            
+
         return array_record.ArrayRecordWriter(
-            file_path, 
+            file_path,
             f"group_size:{self.config.group_size}"
         )
-    
+
     def write_binary_record(self, writer: Any, record_bytes: bytes):
         """Write binary record to ArrayRecord writer."""
         writer.write(record_bytes)
@@ -115,7 +115,7 @@ class ArrayRecordStorageManager:
         # Get file stats
         file_path_obj = Path(file_path)
         file_size = file_path_obj.stat().st_size
-        
+
         # Extract symbol and timeframe from path if possible
         parts = file_path_obj.stem.split('_')
         symbol = parts[0] if parts else "unknown"
@@ -155,18 +155,18 @@ class ArrayRecordStorageManager:
     def get_file_metadata(self, file_path: str) -> Optional[ArrayRecordMetadata]:
         """Get metadata for an ArrayRecord file."""
         path_obj = Path(file_path)
-        
+
         if not path_obj.exists():
             return None
-            
+
         # Extract symbol and timeframe from filename
         parts = path_obj.stem.split('_')
         symbol = parts[0] if parts else "unknown"
         timeframe = parts[-1] if len(parts) > 1 else "unknown"
-        
+
         # Get file stats
         stat = path_obj.stat()
-        
+
         # Count records (requires reading file)
         try:
             reader = array_record.ArrayRecordReader(str(path_obj))
@@ -174,7 +174,7 @@ class ArrayRecordStorageManager:
             reader.close()
         except Exception:
             record_count = 0
-            
+
         return ArrayRecordMetadata(
             file_path=str(path_obj),
             symbol=symbol,
@@ -187,26 +187,26 @@ class ArrayRecordStorageManager:
     def list_arrayrecord_files(self) -> List[ArrayRecordMetadata]:
         """List all ArrayRecord files in base directory."""
         metadata_list = []
-        
+
         for file_path in self.base_path.rglob("*.arrayrecord"):
             metadata = self.get_file_metadata(str(file_path))
             if metadata:
                 metadata_list.append(metadata)
-                
+
         return sorted(metadata_list, key=lambda x: x.creation_timestamp)
 
     def get_storage_stats(self) -> Dict[str, Any]:
         """Get storage statistics for ArrayRecord files."""
         arrayrecord_files = list(self.base_path.rglob("*.arrayrecord"))
-        
+
         total_size = sum(f.stat().st_size for f in arrayrecord_files)
         total_records = 0
-        
+
         for file_path in arrayrecord_files:
             metadata = self.get_file_metadata(str(file_path))
             if metadata:
                 total_records += metadata.record_count
-        
+
         return {
             'total_files': len(arrayrecord_files),
             'total_size_bytes': total_size,

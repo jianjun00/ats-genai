@@ -17,7 +17,7 @@ source "$ENV_FILE"
 # Check required variables
 required_vars=(
     "ENVIRONMENT"
-    "DB_HOST" 
+    "DB_HOST"
     "DB_PASSWORD"
     "POLYGON_API_KEY"
     "TIINGO_API_KEY"
@@ -41,7 +41,7 @@ if [[ -n "${POLYGON_API_KEY:-}" && ${#POLYGON_API_KEY} -lt 20 ]]; then
 fi
 
 if [[ -n "${TIINGO_API_KEY:-}" && ${#TIINGO_API_KEY} -lt 30 ]]; then
-    echo "⚠️  TIINGO_API_KEY appears to be too short" 
+    echo "⚠️  TIINGO_API_KEY appears to be too short"
 fi
 
 if [[ $errors -eq 0 ]]; then

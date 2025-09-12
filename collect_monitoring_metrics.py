@@ -18,15 +18,15 @@ def collect_usage_metrics():
     try:
         from observability.code_usage_tracker import get_code_tracker
         from observability.database_usage_tracker import get_database_tracker
-        
+
         # Get code usage stats
         code_tracker = get_code_tracker()
         code_stats = code_tracker.get_usage_stats()
-        
-        # Get database usage stats  
+
+        # Get database usage stats
         db_tracker = get_database_tracker()
         db_stats = db_tracker.get_database_stats()
-        
+
         # Compile metrics
         metrics = {
             'timestamp': datetime.now().isoformat(),
@@ -47,9 +47,9 @@ def collect_usage_metrics():
                 'no_errors_detected': True
             }
         }
-        
+
         return metrics
-        
+
     except Exception as e:
         return {
             'timestamp': datetime.now().isoformat(),
@@ -63,23 +63,23 @@ def collect_usage_metrics():
 def main():
     """Main metrics collection"""
     print(f"📊 Collecting metrics at {datetime.now()}")
-    
+
     metrics = collect_usage_metrics()
-    
+
     # Save to timestamped file
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     metrics_file = f'monitoring_metrics_{timestamp}.json'
-    
+
     with open(metrics_file, 'w') as f:
         json.dump(metrics, f, indent=2)
-    
+
     # Also append to continuous log
     log_file = 'monitoring_metrics_log.jsonl'
     with open(log_file, 'a') as f:
         f.write(json.dumps(metrics) + '\n')
-    
+
     print(f"✅ Metrics saved to {metrics_file}")
-    
+
     # Print summary
     if 'error' not in metrics:
         print(f"📈 Function calls: {metrics['code_metrics']['total_function_calls']}")

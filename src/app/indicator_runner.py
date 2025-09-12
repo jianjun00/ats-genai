@@ -12,12 +12,12 @@ def indicator_config():
     pass
 
 
-@gin.configurable  
+@gin.configurable
 class IndicatorRunner:
     """Stub IndicatorRunner class for gin compatibility."""
-    
+
     def __init__(self):
         pass
-    
+
     def run(self):
         pass

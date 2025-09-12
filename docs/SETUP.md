@@ -74,7 +74,7 @@ python scripts/run_dev.py test
 ### End-to-End Validation
 **Features complete when entire pipeline works:**
 1. Generate real data using Docker services
-2. Store in database with correct schema  
+2. Store in database with correct schema
 3. API serves data to external clients
 4. Frontend displays data in browser
 5. All integration tests pass
@@ -128,7 +128,7 @@ python scripts/run_dev.py run --script scripts/run_eodhd_bulk.py
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instrument_tiingo"
 ```
 
-### Frontend Engineer  
+### Frontend Engineer
 ```bash
 python scripts/run_dev.py start --service analytics
 curl -s "http://localhost:3000/health"
@@ -165,7 +165,7 @@ python scripts/run_dev.py status
 # If fails: check Docker is running
 ```
 
-### "Database connection failed"  
+### "Database connection failed"
 ```bash
 python scripts/run_dev.py query --query "SELECT 1"
 # If fails: check PostgreSQL service

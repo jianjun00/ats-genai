@@ -87,33 +87,33 @@ services:
       - ENVIRONMENT=${ENVIRONMENT}
       - SERVICE_PORT=8082
       - PYTHONPATH=/workspace/src
-      
+
       # Database Configuration
       - DB_HOST=ats-${ENVIRONMENT}-postgres
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=${ENVIRONMENT}_password
       - DB_NAME=${ENVIRONMENT}_db
-      
+
       # API Keys
       - POLYGON_API_KEY=${POLYGON_API_KEY}
-      
+
       # OpenTelemetry Configuration for SigNoz
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
       - OTEL_SERVICE_NAME=ats-${ENVIRONMENT}-news-collection
       - OTEL_RESOURCE_ATTRIBUTES=environment=${ENVIRONMENT},ats.component=news-ingestion
-      
-      # Python OpenTelemetry Configuration  
+
+      # Python OpenTelemetry Configuration
       - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
       - OTEL_PYTHON_LOG_CORRELATION=true
-    
+
     volumes:
       - /home/jianjun/ats-genai-data:/workspace
       - /mnt/d/ats-data:/data
       - /mnt/d/ats-logs:/logs
-    
+
     working_dir: /workspace
-    
+
     command: >
       bash -c "
         echo '📦 Installing OpenTelemetry packages...' &&
@@ -121,16 +121,16 @@ services:
         echo '🚀 Starting news collection service with metrics...' &&
         python3 scripts/news_collection_with_metrics.py
       "
-    
+
     restart: unless-stopped
-    
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    
+
 
 networks:
   ats-${ENVIRONMENT}-network:
@@ -161,7 +161,7 @@ if docker ps --filter "name=ats-${ENVIRONMENT}-news-metrics" --filter "status=ru
     echo "   Service Name: ats-${ENVIRONMENT}-news-collection"
     echo ""
     print_status "Testing endpoints:"
-    
+
     # Test health endpoint
     echo -n "   Health endpoint: "
     if curl -s -f http://localhost:8082/health >/dev/null; then
@@ -169,21 +169,21 @@ if docker ps --filter "name=ats-${ENVIRONMENT}-news-metrics" --filter "status=ru
     else
         print_warning "Not ready yet (may take 1-2 minutes)"
     fi
-    
-    # Test metrics endpoint  
+
+    # Test metrics endpoint
     echo -n "   Metrics endpoint: "
     if curl -s -f http://localhost:8082/metrics >/dev/null; then
         print_success "OK"
     else
         print_warning "Not ready yet (may take 1-2 minutes)"
     fi
-    
+
     echo ""
     print_status "View logs with: docker logs ats-${ENVIRONMENT}-news-metrics -f"
     echo ""
     print_success "🎉 News collection service with OpenTelemetry metrics is now running!"
     print_status "📊 Check SigNoz dashboard in 2-3 minutes for service to appear"
-    
+
 else
     print_error "Failed to start service"
     echo ""

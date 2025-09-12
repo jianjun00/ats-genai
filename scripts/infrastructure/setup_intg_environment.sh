@@ -19,7 +19,7 @@ echo "📁 Creating host directories..."
 
 directories=(
     "$ATS_BASE_DIR"
-    "$POSTGRESQL_DATA_DIR" 
+    "$POSTGRESQL_DATA_DIR"
     "$BACKUP_DIR"
     "$LOGS_DIR"
 )
@@ -65,7 +65,7 @@ BACKUP_COUNT=$(ls "$BACKUP_DIR"/*.sql 2>/dev/null | wc -l || echo "0")
 echo "  🗄️  Database backups found: $BACKUP_COUNT"
 
 # Check for existing logs
-LOG_COUNT=$(ls "$LOGS_DIR"/*.log 2>/dev/null | wc -l || echo "0") 
+LOG_COUNT=$(ls "$LOGS_DIR"/*.log 2>/dev/null | wc -l || echo "0")
 echo "  📝 Log files found: $LOG_COUNT"
 
 echo ""

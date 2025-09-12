@@ -1,9 +1,9 @@
 # DRD: ATS Exploratory Data Analysis (EDA) Tool
 
-**Document Version**: 1.0  
-**Date**: August 28, 2025  
-**Owner**: Data Infrastructure Team  
-**Status**: Technical Design  
+**Document Version**: 1.0
+**Date**: August 28, 2025
+**Owner**: Data Infrastructure Team
+**Status**: Technical Design
 
 ---
 
@@ -20,18 +20,18 @@ graph TB
         EDA_Engine[Analysis Engine]
         EDA_Cache[Redis Cache]
     end
-    
+
     subgraph "ATS Core Platform"
         Auth[Authentication Service]
         DB_MGR[Database Connection Manager]
         Config[Configuration Manager]
     end
-    
+
     subgraph "Data Sources"
         PostgreSQL[(PostgreSQL)]
         Files[(Training Files)]
     end
-    
+
     EDA_UI --> EDA_API
     EDA_API --> EDA_Engine
     EDA_API --> EDA_Cache
@@ -53,7 +53,7 @@ graph TB
 - **Visualization**: Plotly, Matplotlib (server-side generation)
 - **Caching**: Redis (for query results and computed statistics)
 
-### Frontend  
+### Frontend
 - **Framework**: React 18+ with TypeScript
 - **Visualization**: D3.js, Plotly.js, Chart.js, react-plotly.js
 - **State Management**: Redux Toolkit
@@ -94,37 +94,37 @@ graph LR
         Filter[Filter Component]
         Compare[Dataset Comparator]
     end
-    
+
     subgraph "API Layer"
         DataAPI[Data API]
         AnalysisAPI[Analysis API]
         MetadataAPI[Metadata API]
         QueryAPI[Query API]
     end
-    
+
     subgraph "Service Layer"
         DatasetService[Dataset Service]
         AnalysisService[Analysis Service]
         CacheService[Cache Service]
         QueryService[Query Service]
     end
-    
+
     subgraph "Data Layer"
         Metadata[(EDA Metadata)]
         Cache[(Redis Cache)]
         DataSources[(ATS Data Sources)]
     end
-    
+
     Dashboard --> DataAPI
     Visualizer --> AnalysisAPI
     Filter --> QueryAPI
     Compare --> AnalysisAPI
-    
+
     DataAPI --> DatasetService
     AnalysisAPI --> AnalysisService
     MetadataAPI --> DatasetService
     QueryAPI --> QueryService
-    
+
     DatasetService --> Metadata
     AnalysisService --> Cache
     CacheService --> Cache
@@ -133,7 +133,7 @@ graph LR
 
 ### Service Responsibilities
 
-1. **Dataset Service**: 
+1. **Dataset Service**:
    - Dataset discovery and cataloging
    - Schema inference and metadata management
    - Dataset versioning and lineage tracking
@@ -180,38 +180,38 @@ graph TB
         TFDVDashboard[TFDV Statistics Dashboard]
         HistogramViewer[Interactive Histograms]
     end
-    
+
     subgraph "API Endpoints"
         TrainingDatasetAPI[Training Dataset API]
         TFDVStatsAPI[TFDV Statistics API]
         HistogramAPI[Histogram Data API]
         ExistingAPIs[Existing Table APIs]
     end
-    
+
     subgraph "Service Layer"
         TrainingDatasetService[Training Dataset Service]
         TFDVIntegrationService[TFDV Integration Service]
         HistogramService[Histogram Generation]
     end
-    
+
     subgraph "Data Storage"
         TrainingDatasetTables[(Training Dataset Tables)]
         TFDVStatistics[(TFDV Statistics JSONB)]
         HistogramFiles[(Generated Histogram Files)]
         TrainingFiles[(Training Data Files .npy)]
     end
-    
+
     TopTabs --> TableTab
     TopTabs --> TrainingTab
     TrainingTab --> DatasetGrid
     DatasetGrid --> TrainingDatasetAPI
     TFDVDashboard --> TFDVStatsAPI
     HistogramViewer --> HistogramAPI
-    
+
     TrainingDatasetAPI --> TrainingDatasetService
     TFDVStatsAPI --> TFDVIntegrationService
     HistogramAPI --> HistogramService
-    
+
     TrainingDatasetService --> TrainingDatasetTables
     TFDVIntegrationService --> TFDVStatistics
     TFDVIntegrationService --> TrainingFiles
@@ -330,18 +330,18 @@ CREATE TABLE dev_training_datasets (
     label_completeness DECIMAL(5,4) DEFAULT 0.0000,
     technical_indicators TEXT,
     generation_parameters JSONB DEFAULT '{}',
-    
+
     -- File tracking metadata
     symbol_files JSONB DEFAULT '{}',                 -- Maps symbols to their file paths
     metadata_file VARCHAR(500),                      -- Central metadata file
-    
-    -- TFDV Integration Fields  
+
+    -- TFDV Integration Fields
     tfdv_statistics JSONB DEFAULT '{}',
     tfdv_histogram_path TEXT DEFAULT '',
     tfdv_anomalies JSONB DEFAULT '{}',
     feature_distributions JSONB DEFAULT '{}',
     label_distributions JSONB DEFAULT '{}',
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -358,7 +358,7 @@ CREATE TABLE dev_training_dataset_files (
     file_size_bytes BIGINT DEFAULT 0,
     data_quality_score DECIMAL(5,4) DEFAULT 0.0000,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
+
     UNIQUE(dataset_id, symbol)
 );
 
@@ -451,7 +451,7 @@ GET    /api/v1/training-datasets/{dataset_id}/data
     #   - start_idx: Starting row index (default: 0)
     #   - count: Number of rows to return (default: 21 for 10+1+10)
     # Response: OHLC data with technical indicators for selected time window
-    
+
 # Response format for interactive visualization:
 {
   "data": [
@@ -464,7 +464,7 @@ GET    /api/v1/training-datasets/{dataset_id}/data
       "close": 151.45,
       "volume": 1234567,
       "etop": 153.20,    # Envelope top
-      "ebot": 148.70,    # Envelope bottom  
+      "ebot": 148.70,    # Envelope bottom
       "pldot": 0.65,     # PLDot indicator
       "z1b": -0.23,      # Z1B indicator
       "z2b": 0.84,       # Z2B indicator
@@ -620,7 +620,7 @@ interface EDAState {
     loading: boolean;
     error: string | null;
   };
-  
+
   // Analysis state
   analysis: {
     filters: FilterConfig;
@@ -628,21 +628,21 @@ interface EDAState {
     results: AnalysisResult[];
     loading: boolean;
   };
-  
+
   // Comparison state
   comparison: {
     datasets: string[];
     mode: 'side-by-side' | 'overlay';
     results: ComparisonResult | null;
   };
-  
+
   // UI state
   ui: {
     activeTab: string;
     panelSizes: number[];
     theme: 'light' | 'dark';
   };
-  
+
   // Session state
   session: {
     id: string | null;
@@ -699,7 +699,7 @@ const ohlcRule: VisualizationRule = {
     type: 'ohlc',
     columns: {
       open: 'open_price',
-      high: 'high_price', 
+      high: 'high_price',
       low: 'low_price',
       close: 'close_price',
       volume: 'volume',
@@ -723,22 +723,22 @@ class EDACacheManager:
     def __init__(self):
         self.redis = Redis()
         self.memory_cache = {}
-        
+
     async def get_analysis_result(self, cache_key: str):
         # L1: Memory cache (fastest)
         if cache_key in self.memory_cache:
             return self.memory_cache[cache_key]
-            
+
         # L2: Redis cache (fast, shared)
         result = await self.redis.get(cache_key)
         if result:
             # Populate memory cache
             self.memory_cache[cache_key] = result
             return result
-            
+
         # L3: Database cache metadata (fallback)
         return await self.get_from_database_cache(cache_key)
-        
+
     async def set_analysis_result(self, cache_key: str, result: dict, ttl: int = 3600):
         # Store in all cache levels
         self.memory_cache[cache_key] = result
@@ -753,21 +753,21 @@ class EDACacheManager:
 class QueryOptimizer:
     def optimize_dataset_query(self, dataset: Dataset, filters: dict, limit: int = 1000):
         query = QueryBuilder(dataset.source_config['table_name'])
-        
+
         # Add indexes hints for common patterns
         if 'symbol' in filters:
             query.add_index_hint('idx_symbol')
         if 'date_range' in filters:
             query.add_index_hint('idx_trade_date')
-            
+
         # Optimize for analysis patterns
         if self.is_aggregation_query(filters):
             query.add_optimization('enable_hashagg', 'on')
-            
+
         # Progressive loading for large results
         if limit > 10000:
             query.enable_streaming()
-            
+
         return query.build()
 
     def generate_sampling_query(self, dataset: Dataset, sample_size: int = 10000):
@@ -790,19 +790,19 @@ class ProgressiveDataLoader {
     // Phase 1: Load basic metadata and sample
     const sample = await this.api.getDatasetSample(datasetId, 1000);
     this.updateUI(sample, 'sample');
-    
+
     // Phase 2: Load statistical summary
     const summary = await this.api.getDatasetSummary(datasetId);
     this.updateUI(summary, 'summary');
-    
+
     // Phase 3: Generate visualizations based on sample
     const quickViz = this.generateQuickVisualizations(sample);
     this.updateUI(quickViz, 'visualization');
-    
+
     // Phase 4: Load full analysis in background
     this.loadFullAnalysis(datasetId, config);
   }
-  
+
   private async loadFullAnalysis(datasetId: string, config: AnalysisConfig) {
     const fullAnalysis = await this.api.runFullAnalysis(datasetId, config);
     this.updateUI(fullAnalysis, 'full');
@@ -824,18 +824,18 @@ from core.config.settings import get_settings
 class EDAAuthMiddleware:
     def __init__(self):
         self.settings = get_settings()
-        
+
     async def verify_dataset_access(self, user: User, dataset_id: str):
         dataset = await self.get_dataset(dataset_id)
-        
+
         # Check role-based access
         if dataset.sensitivity_level == 'restricted':
             return user.has_role('data_scientist') or user.has_role('admin')
-            
+
         # Check data domain access
         if dataset.tags and 'pii' in dataset.tags:
             return user.has_permission('access_pii_data')
-            
+
         return user.has_role('analyst') or user.has_role('researcher')
 
 # Middleware decorator for API endpoints
@@ -852,26 +852,26 @@ async def get_dataset_analysis(dataset_id: str, user: User = Depends(get_current
 class DataAccessFilter:
     def apply_user_filters(self, query: str, user: User, dataset: Dataset):
         filters = []
-        
+
         # Geographic restrictions
         if user.region == 'EU' and dataset.has_geographical_data:
             filters.append("region = 'EU'")
-            
+
         # Time-based restrictions
         if not user.has_permission('historical_data') and dataset.has_time_column:
             cutoff_date = datetime.now() - timedelta(days=365)
             filters.append(f"trade_date >= '{cutoff_date}'")
-            
+
         # Symbol access restrictions
         if user.role == 'limited_analyst':
             allowed_symbols = user.get_allowed_symbols()
             symbol_list = "', '".join(allowed_symbols)
             filters.append(f"symbol IN ('{symbol_list}')")
-            
+
         if filters:
             where_clause = " AND ".join(filters)
             return self.add_where_clause(query, where_clause)
-            
+
         return query
 ```
 
@@ -1131,7 +1131,7 @@ api_requests = Counter('eda_api_requests_total', 'Total API requests', ['endpoin
 api_duration = Histogram('eda_api_duration_seconds', 'API request duration')
 analysis_errors = Counter('eda_analysis_errors_total', 'Analysis errors', ['type'])
 
-# Business metrics  
+# Business metrics
 active_users = Gauge('eda_active_users', 'Number of active users')
 datasets_analyzed = Counter('eda_datasets_analyzed_total', 'Total datasets analyzed')
 cache_hit_rate = Gauge('eda_cache_hit_rate', 'Cache hit rate percentage')

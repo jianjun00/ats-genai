@@ -26,7 +26,7 @@
     },
     {
       "id": 2,
-      "title": "📊 Instruments by Environment", 
+      "title": "📊 Instruments by Environment",
       "type": "value",
       "targets": [
         {
@@ -99,14 +99,14 @@
     {
       "id": 6,
       "title": "🗄️ Database Connections",
-      "type": "graph", 
+      "type": "graph",
       "targets": [
         {
           "expr": "postgresql_connections_active",
           "legendFormat": "Active Connections"
         },
         {
-          "expr": "postgresql_connections_idle", 
+          "expr": "postgresql_connections_idle",
           "legendFormat": "Idle Connections"
         }
       ],
@@ -127,7 +127,7 @@
           "legendFormat": "PostgreSQL CPU %"
         },
         {
-          "expr": "postgresql_memory_mb", 
+          "expr": "postgresql_memory_mb",
           "legendFormat": "PostgreSQL Memory MB"
         }
       ],

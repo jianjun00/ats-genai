@@ -493,7 +493,7 @@
             "expr": "postgresql_long_running_queries > 0",
             "legendFormat": "Long Running Queries: {{instance}}",
             "refId": "DD",
-            "format": "table", 
+            "format": "table",
             "instant": true
           },
           {
@@ -664,7 +664,7 @@
         },
         {
           "name": "vendor",
-          "type": "query", 
+          "type": "query",
           "query": "label_values(ats_minute_bars_collected_total, vendor)",
           "refresh": 1,
           "includeAll": true,
@@ -694,7 +694,7 @@
         {
           "name": "Service Restarts",
           "enable": true,
-          "iconColor": "blue", 
+          "iconColor": "blue",
           "query": "increase(ats_service_restart_total[1m]) > 0"
         }
       ]

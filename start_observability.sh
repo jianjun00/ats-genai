@@ -70,7 +70,7 @@ if success:
     print('✅ ATS instrumentation ready')
     print('📊 Metrics endpoint: http://localhost:8000/metrics')
     print('🏥 Health check: http://localhost:8000/health')
-    
+
     # Keep metrics server running
     import time
     print('📡 Metrics server running... (Press Ctrl+C to stop)')

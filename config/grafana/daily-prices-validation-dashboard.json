@@ -44,7 +44,7 @@
       },
       {
         "id": 2,
-        "title": "Missing Prices Percentage by Vendor", 
+        "title": "Missing Prices Percentage by Vendor",
         "type": "stat",
         "targets": [
           {
@@ -73,7 +73,7 @@
             "values": false,
             "calcs": ["lastNotNull"]
           },
-          "orientation": "auto", 
+          "orientation": "auto",
           "textMode": "auto",
           "colorMode": "value"
         },
@@ -111,7 +111,7 @@
             "calcs": ["lastNotNull"]
           },
           "orientation": "auto",
-          "textMode": "auto", 
+          "textMode": "auto",
           "colorMode": "value"
         },
         "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
@@ -119,7 +119,7 @@
       {
         "id": 4,
         "title": "Abnormal Prices Percentage by Vendor",
-        "type": "stat", 
+        "type": "stat",
         "targets": [
           {
             "expr": "ats_daily_prices_abnormal_percentage{environment=\"intg\"}",
@@ -595,7 +595,7 @@
           },
           {
             "expr": "ats_minute_bars_trading_t1_symbols{environment=\"intg\"}",
-            "legendFormat": "{{vendor}} T-1 (Previous Trading Day)", 
+            "legendFormat": "{{vendor}} T-1 (Previous Trading Day)",
             "refId": "B"
           }
         ],

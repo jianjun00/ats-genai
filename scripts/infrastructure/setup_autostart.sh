@@ -46,11 +46,11 @@ echo ""
 echo "🧪 Testing autostart script..."
 if [ -x "$SCRIPT_DIR/ats_autostart.sh" ]; then
     echo "✅ Autostart script is executable"
-    
+
     # Run a quick test (dry run)
     echo "Running test execution..."
     "$SCRIPT_DIR/ats_autostart.sh" &
-    
+
     echo "✅ Test started in background"
     echo "   Check logs: tail -f /mnt/d/ats-logs/autostart.log"
 else

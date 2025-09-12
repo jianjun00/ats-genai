@@ -168,7 +168,7 @@ sudo systemctl status ats-wsl-monitor
 
 # Start/stop/restart service
 sudo systemctl start ats-wsl-monitor
-sudo systemctl stop ats-wsl-monitor  
+sudo systemctl stop ats-wsl-monitor
 sudo systemctl restart ats-wsl-monitor
 
 # Enable/disable auto-start
@@ -205,7 +205,7 @@ ATS Backfill: ✅ Active
 
 ### **Memory Critical Alert**
 ```
-🔴 CRITICAL: Critical Memory Usage  
+🔴 CRITICAL: Critical Memory Usage
 Memory usage at 94.1% with only 512MB available
 
 System: ats-dev-machine
@@ -246,7 +246,7 @@ Metrics are logged to `/mnt/d/ats-logs/monitoring/system_metrics_history.jsonl`:
 ```json
 {
   "timestamp": "2025-08-28T02:30:00",
-  "hostname": "ats-dev-machine", 
+  "hostname": "ats-dev-machine",
   "cpu_percent": 45.2,
   "memory_percent": 72.3,
   "disk_percent": 67.8,
@@ -261,9 +261,9 @@ Metrics are logged to `/mnt/d/ats-logs/monitoring/system_metrics_history.jsonl`:
 
 ### **CPU Alerts**
 - **Warning**: CPU usage ≥ 75% for sustained period
-- **Critical**: CPU usage ≥ 90% 
+- **Critical**: CPU usage ≥ 90%
 
-### **Memory Alerts**  
+### **Memory Alerts**
 - **Warning**: Memory usage ≥ 80% OR available memory < 1GB
 - **Critical**: Memory usage ≥ 92% OR available memory < 500MB
 
@@ -319,7 +319,7 @@ nano monitor_config.json
 # Increase rate limiting
 # Set "rate_limit_minutes": 30 for less frequent alerts
 
-# Restart service to apply changes  
+# Restart service to apply changes
 sudo systemctl restart ats-wsl-monitor
 ```
 
@@ -372,7 +372,7 @@ tail -f /mnt/d/ats-logs/monitoring/system_metrics_history.jsonl | \\
 ## 📞 Support
 
 - **Logs**: Check `/mnt/d/ats-logs/monitoring/` for detailed logs
-- **Configuration**: Modify `monitor_config.json` for custom settings  
+- **Configuration**: Modify `monitor_config.json` for custom settings
 - **Testing**: Use `test_monitoring.py` to validate setup
 - **Service Management**: Standard systemd commands for service control
 

@@ -10,7 +10,7 @@ Automated daily validation system for ATS platform that monitors data quality ac
 - **Missing Prices**: Expected vs actual price records for trading days
 - **Abnormal Prices**: Detection of data quality issues
   - Negative prices (close, high, low ≤ 0)
-  - Zero volume records  
+  - Zero volume records
   - Price spikes (high/low ratio > 3.0)
 - **Vendor Coverage**: Individual analysis per vendor (EODHD, Tiingo, Polygon)
 - **Rolling Window**: 90-day analysis window with configurable periods
@@ -28,7 +28,7 @@ Automated daily validation system for ATS platform that monitors data quality ac
 Daily Prices Tables (INTG DB)
     ↓
 ValidationEngine (Python Script)
-    ↓  
+    ↓
 Prometheus Metrics (Push Gateway)
     ↓
 Grafana Dashboard (ATS-INTG)
@@ -36,7 +36,7 @@ Grafana Dashboard (ATS-INTG)
 
 ### **Database Tables Analyzed**
 - `intg_daily_prices_eodhd` - EODHD daily price data
-- `intg_daily_prices_tiingo` - Tiingo daily price data  
+- `intg_daily_prices_tiingo` - Tiingo daily price data
 - `intg_daily_prices_polygon` - Polygon daily price data
 - `intg_daily_prices` - Unified daily prices (if applicable)
 
@@ -53,7 +53,7 @@ Grafana Dashboard (ATS-INTG)
 # Standard 90-day validation
 PYTHONPATH=src python3 scripts/daily_prices_validation.py
 
-# Debug mode with detailed output  
+# Debug mode with detailed output
 PYTHONPATH=src python3 scripts/daily_prices_validation.py --debug
 
 # Custom analysis period
@@ -80,7 +80,7 @@ ats_daily_prices_missing_count{vendor="tiingo",environment="intg"}
 ats_daily_prices_missing_percentage{vendor="tiingo",environment="intg"}
 ats_daily_prices_expected_total{vendor="tiingo",environment="intg"}
 
-# Abnormal prices metrics  
+# Abnormal prices metrics
 ats_daily_prices_abnormal_count{vendor="polygon",environment="intg"}
 ats_daily_prices_abnormal_percentage{vendor="polygon",environment="intg"}
 ats_daily_prices_negative_count{vendor="eodhd",environment="intg"}
@@ -106,7 +106,7 @@ http://localhost:4002/d/daily-prices-validation
 
 ### **Dashboard Panels**
 1. **Missing Prices Count** - Current missing price counts by vendor
-2. **Missing Prices Percentage** - Missing price percentages with thresholds  
+2. **Missing Prices Percentage** - Missing price percentages with thresholds
 3. **Abnormal Prices Count** - Current abnormal price counts by vendor
 4. **Abnormal Prices Percentage** - Abnormal price percentages with thresholds
 5. **Missing Prices Trend** - 30-day trend line chart
@@ -160,7 +160,7 @@ active_symbols AS (
 ### **Abnormal Prices Detection**
 ```sql
 -- Detect various types of abnormal prices
-SELECT 
+SELECT
     COUNT(*) FILTER (WHERE close <= 0 OR high <= 0 OR low <= 0) as negative_prices,
     COUNT(*) FILTER (WHERE volume = 0) as zero_volume_prices,
     COUNT(*) FILTER (WHERE high / low > 3.0) as price_spike_prices
@@ -235,7 +235,7 @@ curl -s http://admin:admin@localhost:4002/api/search | jq '.[] | select(.title |
 📊 Validating tiingo prices for past 7 days...
 ✅ tiingo: 51 missing, 14 abnormal out of 306 expected prices
 
-📊 Validating polygon prices for past 7 days...  
+📊 Validating polygon prices for past 7 days...
 ✅ polygon: 30339 missing, 138 abnormal out of 44964 expected prices
 
 ✅ Successfully exported 12 metrics to Prometheus
@@ -259,7 +259,7 @@ curl -s http://admin:admin@localhost:4002/api/search | jq '.[] | select(.title |
 
 ### **Daily Schedule Coordination**
 - **1:00 AM**: Database sync (DEV → INTG) populates vendor tables
-- **6:30 AM**: Health check validates system status  
+- **6:30 AM**: Health check validates system status
 - **6:45 AM**: **Daily prices validation runs** ← This job
 - **Morning**: Fresh metrics available in Grafana dashboard
 
@@ -270,7 +270,7 @@ curl -s http://admin:admin@localhost:4002/api/search | jq '.[] | select(.title |
 
 ---
 
-**Status**: ✅ Production Ready  
-**Last Updated**: 2025-09-09  
-**Cron Schedule**: Daily at 6:45 AM EDT  
+**Status**: ✅ Production Ready
+**Last Updated**: 2025-09-09
+**Cron Schedule**: Daily at 6:45 AM EDT
 **Monitoring**: ATS-INTG Grafana Dashboard

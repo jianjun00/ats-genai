@@ -104,7 +104,7 @@ event_producer: Optional[EventProducer] = None
 async def startup_event():
     """Initialize connections on startup"""
     global event_storage, correlation_engine, event_producer
-    
+
     try:
         event_storage = EventStorage()
         correlation_engine = CorrelationEngine(event_storage)
@@ -118,12 +118,12 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup connections on shutdown"""
     global event_storage, event_producer
-    
+
     if event_storage:
         event_storage.close()
     if event_producer:
         event_producer.close()
-    
+
     logger.info("🔒 Event API connections closed")
 
 # Health check endpoint
@@ -133,10 +133,10 @@ async def health_check():
     try:
         # Test database connection
         stats = event_storage.get_event_stats()
-        
+
         if 'error' in stats:
             raise HTTPException(status_code=503, detail="Database connection failed")
-        
+
         return {
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
@@ -162,7 +162,7 @@ async def query_events(
     try:
         # Calculate time range
         after_timestamp = datetime.utcnow() - timedelta(hours=hours_back) if hours_back else None
-        
+
         events = event_storage.query_events(
             symbol=symbol,
             event_type=event_type,
@@ -172,13 +172,13 @@ async def query_events(
             limit=limit,
             offset=offset
         )
-        
+
         # Convert to response format
         response_events = []
         for event in events:
             # Get correlation count
             correlations = correlation_engine.get_correlations(event['event_id'])
-            
+
             response_events.append(EventResponse(
                 event_id=event['event_id'],
                 event_type=event['event_type'],
@@ -190,9 +190,9 @@ async def query_events(
                 event_data=event['event_data'],
                 correlations_count=len(correlations)
             ))
-        
+
         return response_events
-        
+
     except Exception as e:
         logger.error(f"❌ Error querying events: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -204,15 +204,15 @@ async def get_event(event_id: str):
         event = event_storage.get_event(event_id)
         if not event:
             raise HTTPException(status_code=404, detail="Event not found")
-        
+
         # Get correlations for this event
         correlations = correlation_engine.get_correlations(event_id)
-        
+
         return {
             "event": event,
             "correlations": correlations
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -227,13 +227,13 @@ async def search_events(
     """Full-text search events"""
     try:
         events = event_storage.search_events(query, limit)
-        
+
         return {
             "query": query,
             "results": events,
             "count": len(events)
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error searching events: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -247,7 +247,7 @@ async def get_event_correlations(
     """Get correlations for a specific event"""
     try:
         correlations = correlation_engine.get_correlations(event_id, min_score)
-        
+
         response_correlations = []
         for corr in correlations:
             response_correlations.append(CorrelationResponse(
@@ -258,9 +258,9 @@ async def get_event_correlations(
                 time_lag_seconds=int(corr.get('time_lag_seconds', 0)),
                 description=corr.get('rule_description', corr['correlation_type'])
             ))
-        
+
         return response_correlations
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting correlations for event {event_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -274,7 +274,7 @@ async def get_correlation_stats(
     try:
         stats = correlation_engine.get_correlation_stats(symbol, hours)
         return stats
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting correlation stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -292,13 +292,13 @@ async def create_news_event(event: NewsEventCreate, background_tasks: Background
             url=event.url,
             source=event.source
         )
-        
+
         return {
             "status": "created",
             "event_id": event_id,
             "message": f"News event created and queued for processing"
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error creating news event: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -315,13 +315,13 @@ async def create_earnings_event(event: EarningsEventCreate, background_tasks: Ba
             quarter=event.quarter,
             source=event.source
         )
-        
+
         return {
             "status": "created",
             "event_id": event_id,
             "message": f"Earnings event created and queued for processing"
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error creating earnings event: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -332,10 +332,10 @@ async def get_event_stats():
     """Get event statistics"""
     try:
         stats = event_storage.get_event_stats()
-        
+
         if 'error' in stats:
             raise HTTPException(status_code=500, detail=stats['error'])
-        
+
         return EventStats(
             total_events=stats['total_events'],
             events_by_type=stats['events_by_type'],
@@ -344,7 +344,7 @@ async def get_event_stats():
             total_correlations=stats['total_correlations'],
             timestamp=stats['timestamp']
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -360,7 +360,7 @@ async def get_queue_stats():
             "queue_stats": stats,
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting queue stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -376,7 +376,7 @@ async def clear_queue(queue_name: str):
             "queue": queue_name,
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error clearing queue {queue_name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -391,7 +391,7 @@ async def clear_all_queues():
             "message": "All event queues cleared",
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error clearing all queues: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -401,30 +401,30 @@ async def clear_all_queues():
 async def websocket_events(websocket):
     """WebSocket endpoint for real-time event streaming"""
     await websocket.accept()
-    
+
     try:
         # This is a placeholder for real-time event streaming
         # In a full implementation, this would subscribe to Redis pub/sub
         # and stream events to connected clients
-        
+
         await websocket.send_text(json.dumps({
             "type": "connection",
             "message": "Connected to ATS Event Stream",
             "timestamp": datetime.utcnow().isoformat()
         }))
-        
+
         # Keep connection alive
         while True:
             # Wait for client messages or implement real-time streaming
             data = await websocket.receive_text()
-            
+
             # Echo back for now
             await websocket.send_text(json.dumps({
                 "type": "echo",
                 "data": data,
                 "timestamp": datetime.utcnow().isoformat()
             }))
-            
+
     except Exception as e:
         logger.error(f"❌ WebSocket error: {e}")
         await websocket.close()
@@ -446,10 +446,10 @@ async def global_exception_handler(request, exc):
 # Main application runner
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Configure logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    
+
     # Run the API server
     uvicorn.run(
         "events.api:app",

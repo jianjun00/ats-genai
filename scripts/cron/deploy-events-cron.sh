@@ -35,7 +35,7 @@ crontab -l | grep -E "earnings|news|financial|economic|gap|events" | wc -l | xar
 
 echo ""
 echo "📋 Installed Jobs Summary:"
-echo "- 📊 Earnings Events: Daily at 7:00 AM + Weekly backfill"  
+echo "- 📊 Earnings Events: Daily at 7:00 AM + Weekly backfill"
 echo "- 📰 News Events: Daily at 7:15 AM + Evening at 10:00 PM"
 echo "- 💼 Financial Events: Daily sync at 7:30 AM"
 echo "- 📈 Economic Indicators: Daily at 7:45 AM"
@@ -51,7 +51,7 @@ echo "Checking earnings events..."
 EARNINGS_COUNT=$(cd /home/jianjun/ats-genai-model && python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_earnings_events;" | tail -1 | xargs)
 echo "- Earnings events in database: $EARNINGS_COUNT"
 
-# Test news events count  
+# Test news events count
 echo "Checking news events..."
 NEWS_COUNT=$(cd /home/jianjun/ats-genai-model && python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_news;" | tail -1 | xargs)
 echo "- News events in database: $NEWS_COUNT"

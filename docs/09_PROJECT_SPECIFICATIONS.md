@@ -95,7 +95,7 @@ PYTHONPATH=src python3 -m pytest tests/browser_tests/test_eda_playwright.py -v
 # Real-time news ingestion
 python scripts/run_intg.py start --service news-realtime
 
-# Historical news backfill  
+# Historical news backfill
 python scripts/polygon_news_backfill.py --start-date 2024-01-01 --limit-per-request 100 --max-requests 20
 ```
 
@@ -342,7 +342,7 @@ indicators = framework.calculate_all(
 # Unit tests
 PYTHONPATH=src pytest tests/unit/test_new_feature.py -v
 
-# Integration tests  
+# Integration tests
 PYTHONPATH=src pytest tests/integration/test_feature_integration.py -v
 
 # End-to-end tests
@@ -418,7 +418,7 @@ python scripts/monitor_ab_test.py --test-id new_indicators_test --period 7d
 
 **Grafana Dashboard URLs**:
 - Multi-Timeframe Signals: http://localhost:4002/d/multi-timeframe-signals
-- EDA Tool Performance: http://localhost:4002/d/eda-performance  
+- EDA Tool Performance: http://localhost:4002/d/eda-performance
 - News Processing Pipeline: http://localhost:4002/d/news-pipeline
 - Economic Events Integration: http://localhost:4002/d/economic-events
 
@@ -430,12 +430,12 @@ alerts:
     metric: "signal_generation_time_seconds"
     threshold: 0.1
     severity: "warning"
-    
+
   - name: "EDA_Tool_Error_Rate"
     metric: "eda_api_error_rate"
     threshold: 0.05
     severity: "critical"
-    
+
   - name: "News_Processing_Lag"
     metric: "news_processing_lag_minutes"
     threshold: 10

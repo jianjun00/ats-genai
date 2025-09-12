@@ -1,9 +1,9 @@
 # TSLA Training Data Zero Output Debug Summary
 
-**Date**: September 10, 2025  
-**Issue**: Training data generation producing zero output for TSLA from 2025-07-01 onwards  
-**Severity**: High - Complete pipeline failure  
-**Resolution Time**: ~2 hours  
+**Date**: September 10, 2025
+**Issue**: Training data generation producing zero output for TSLA from 2025-07-01 onwards
+**Severity**: High - Complete pipeline failure
+**Resolution Time**: ~2 hours
 
 ---
 
@@ -28,7 +28,7 @@ The fundamental problem was a mismatch between file paths in Docker containers v
 #### Path Architecture Breakdown:
 ```
 Host Filesystem:        /mnt/d/ats-data/minute-bars/firstrate/T/TSLA/2025/07/TSLA_2025_07.parquet
-Docker Volume Mount:    -v /mnt/d/ats-data:/data  
+Docker Volume Mount:    -v /mnt/d/ats-data:/data
 Container Filesystem:   /data/minute-bars/firstrate/T/TSLA/2025/07/TSLA_2025_07.parquet
 ```
 
@@ -47,7 +47,7 @@ FileBasedMinuteMarketDataManager(env, base_path="/data/minute-bars")
    ```python
    # ❌ WRONG: Passing Path object where string expected
    self.minute_manager = FileBasedMinuteManager(self.base_path)
-   
+
    # ✅ CORRECT: Convert Path to string
    self.minute_manager = FileBasedMinuteManager(str(self.base_path))
    ```
@@ -56,7 +56,7 @@ FileBasedMinuteMarketDataManager(env, base_path="/data/minute-bars")
    ```python
    # ❌ WRONG: "1h" format not supported by TimeDuration
    --base-duration 1h
-   
+
    # ✅ CORRECT: Use "60m" format
    --base-duration 60m
    ```
@@ -270,6 +270,6 @@ def test_end_to_end_training_data_generation():
 
 ---
 
-**Author**: Claude Code Assistant  
-**Reviewed**: TSLA training data generation pipeline  
+**Author**: Claude Code Assistant
+**Reviewed**: TSLA training data generation pipeline
 **Next Review**: When similar path/container issues arise

@@ -8,7 +8,7 @@
 
 **ATS is a Docker + GPU-enabled fintech platform** for algorithmic trading:
 - **🏗️ Enterprise Architecture**: Market-neutral portfolio optimization, multi-vendor data, Smart Money Zones
-- **🐳 Docker-First**: Everything runs in Docker containers with GPU support  
+- **🐳 Docker-First**: Everything runs in Docker containers with GPU support
 - **🧪 Test-Driven**: Write failing tests first, then implement
 - **🔄 End-to-End**: Real data → Database → API → Frontend → Tests pass
 
@@ -23,7 +23,7 @@ cd ats-genai
 uv sync
 ```
 
-### 2. Setup Dev Environment (2 min)  
+### 2. Setup Dev Environment (2 min)
 ```bash
 # Setup complete development environment
 python scripts/run_dev.py setup
@@ -59,7 +59,7 @@ postgresql://postgres:dev_password@localhost:3432/dev_db
 
 ### ATS-INTG Environment (Integration Testing)
 ```bash
-# Analytics Service  
+# Analytics Service
 http://localhost:4000/health          # Health check endpoint
 http://localhost:4000/eda            # EDA Dashboard interface
 http://localhost:4000/api/           # Analytics API endpoints
@@ -82,7 +82,7 @@ docker ps | grep -E "(ats-dev|intg)"               # Container status with ports
 
 # Test endpoints are working
 curl -f http://localhost:3000/health               # ATS-DEV analytics
-curl -f http://localhost:4000/health               # ATS-INTG analytics  
+curl -f http://localhost:4000/health               # ATS-INTG analytics
 curl -f http://localhost:4080/health               # ATS-INTG metrics
 ```
 
@@ -94,7 +94,7 @@ curl -f http://localhost:4080/health               # ATS-INTG metrics
 ```bash
 # Development environment setup
 python scripts/run_dev.py setup                    # Setup environment
-python scripts/run_dev.py query --query "SQL"     # Database queries  
+python scripts/run_dev.py query --query "SQL"     # Database queries
 python scripts/run_dev.py test                     # Run tests
 python scripts/run_dev.py start --service postgres # Start services
 python scripts/run_dev.py status                   # Check services
@@ -122,13 +122,13 @@ python scripts/run_dev.py start --service api
 curl -s "http://localhost:8000/health" | jq
 ```
 
-### 📊 Data Engineer  
+### 📊 Data Engineer
 ```bash
 # Populate comprehensive instrument universe (60K+ Tiingo + 50K+ EODHD stocks)
 python scripts/run_dev.py run --script scripts/run_tiingo_bulk.py    # All Tiingo stocks including delisted
 python scripts/run_dev.py run --script scripts/run_eodhd_bulk.py     # All EODHD US exchange stocks
 
-# Verify instrument population  
+# Verify instrument population
 python scripts/run_dev.py query --query "SELECT COUNT(*) as tiingo_instruments FROM dev_instrument_tiingo"
 python scripts/run_dev.py query --query "SELECT COUNT(*) as eodhd_instruments FROM dev_instrument_eodhd"
 ```
@@ -154,7 +154,7 @@ python scripts/run_dev.py status
 # 3. External service access
 curl -s "http://localhost:3000/health" | jq
 
-# 4. Integration tests  
+# 4. Integration tests
 PYTHONPATH=src pytest tests/integration/ -v --tb=short
 ```
 
@@ -219,7 +219,7 @@ curl -v "http://localhost:3000/health"
 ## 🚨 Critical Development Rules
 
 ### Development Standards (MANDATORY)
-- **🎫 GitHub Issue required** before any work  
+- **🎫 GitHub Issue required** before any work
 - **🌿 Feature branches only** - NEVER commit to main
 - **🔍 Schema validation first** - prevent database errors
 - **🧪 TDD required** - tests before code

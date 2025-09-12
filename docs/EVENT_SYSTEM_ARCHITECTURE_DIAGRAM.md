@@ -111,7 +111,7 @@ Event Source → Ingestion → Validation → Enrichment → Classification → 
 
 Latency Targets:
 API Call → Kafka: <10ms
-Kafka → Flink: <5ms  
+Kafka → Flink: <5ms
 Flink → Storage: <20ms
 Storage → API: <10ms
 API → Client: <15ms
@@ -193,7 +193,7 @@ HOT TIER (0-3 months)                  WARM TIER (3 months - 2 years)
 
 Access Patterns:
 • Real-time Queries (Hot): <10ms - Direct PostgreSQL access
-• Analytics Queries (Warm): <100ms - ClickHouse materialized views  
+• Analytics Queries (Warm): <100ms - ClickHouse materialized views
 • Historical Analysis (Cold): <30s - S3 + Athena for ad-hoc queries
 • Cross-Tier Queries: Federated queries across all storage tiers
 ```
@@ -300,7 +300,7 @@ INFRASTRUCTURE LAYER            │                       │
 Key Performance Indicators (KPIs):
 • Event Processing Latency: <10ms (99th percentile)
 • System Throughput: >1M events/second
-• API Response Time: <50ms (95th percentile)  
+• API Response Time: <50ms (95th percentile)
 • System Availability: >99.95%
 • Error Rate: <0.1%
 • Correlation Accuracy: >85%

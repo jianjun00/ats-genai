@@ -1,7 +1,7 @@
 {
   "id": 8,
   "title": "Real-Time Minute Bar Collection (Live Data)",
-  "type": "timeseries", 
+  "type": "timeseries",
   "targets": [
     {
       "datasource": "ATS-INTG-PostgreSQL",
@@ -34,7 +34,7 @@
         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}}]
       },
       {
-        "matcher": {"id": "byName", "options": "tiingo - AAPL"}, 
+        "matcher": {"id": "byName", "options": "tiingo - AAPL"},
         "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "light-blue"}}]
       },
       {

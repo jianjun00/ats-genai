@@ -10,9 +10,9 @@ echo ""
 test_slack_webhook() {
     local webhook_url="$1"
     local test_message="🧪 Test alert from ATS News Collection Monitoring - Setup Complete!"
-    
+
     echo "Testing Slack webhook..."
-    
+
     local payload=$(cat <<EOF
 {
     "text": "$test_message",
@@ -41,7 +41,7 @@ test_slack_webhook() {
 }
 EOF
     )
-    
+
     if curl -s -X POST -H 'Content-type: application/json' \
              --data "$payload" \
              "$webhook_url" | grep -q "ok"; then
@@ -65,14 +65,14 @@ get_webhook_url() {
     echo "5. Select the channel for news alerts"
     echo "6. Copy the webhook URL"
     echo ""
-    
+
     read -p "Enter your Slack webhook URL: " webhook_url
-    
+
     if [[ ! "$webhook_url" =~ ^https://hooks\.slack\.com/services/ ]]; then
         echo "❌ Invalid webhook URL format. Should start with https://hooks.slack.com/services/"
         return 1
     fi
-    
+
     echo "$webhook_url"
 }
 
@@ -80,12 +80,12 @@ get_webhook_url() {
 setup_environment_variables() {
     local webhook_url="$1"
     local environment="${2:-intg}"
-    
+
     echo "Setting up environment variables..."
-    
+
     # Create environment file
     local env_file="/home/jianjun/ats-genai-data/.env.alerts"
-    
+
     cat > "$env_file" <<EOF
 # Slack Webhook Configuration for News Collection Alerts
 export SLACK_WEBHOOK_URL="$webhook_url"
@@ -101,7 +101,7 @@ export ALERT_CHANNEL_PREFIX="[ATS-NEWS]"
 export ALERT_MENTION_ON_CRITICAL="@channel"
 export ALERT_QUIET_HOURS="22:00-06:00"  # No alerts during these hours (24h format)
 EOF
-    
+
     echo "✅ Environment variables saved to $env_file"
     echo ""
     echo "To use these settings, run:"
@@ -114,7 +114,7 @@ EOF
 # Update health monitor to use Slack alerts
 update_health_monitor() {
     echo "Updating health monitor script with Slack integration..."
-    
+
     # Replace the simple health monitor with Slack-enabled version
     cat > "/home/jianjun/ats-genai-data/scripts/cron/news_health_monitor.sh" <<'EOF'
 #!/bin/bash
@@ -152,23 +152,23 @@ send_slack_alert() {
     local severity="$1"
     local message="$2"
     local details="${3:-}"
-    
+
     if [ -z "$SLACK_WEBHOOK" ]; then
         log_warning "Slack webhook not configured - skipping alert"
         return 0
     fi
-    
+
     # Check quiet hours
     local current_hour=$(date +%H)
     if [[ "$current_hour" -ge 22 || "$current_hour" -lt 6 ]]; then
         log "Quiet hours - skipping Slack alert"
         return 0
     fi
-    
+
     local emoji="🔴"
     local color="danger"
     local mention=""
-    
+
     case "$severity" in
         "critical")
             emoji="🔴"
@@ -184,7 +184,7 @@ send_slack_alert() {
             color="good"
             ;;
     esac
-    
+
     local payload=$(cat <<EOF
 {
     "text": "${mention} ${emoji} News Collection Alert - ${ENVIRONMENT^^}",
@@ -218,12 +218,12 @@ send_slack_alert() {
 }
 EOF
     )
-    
+
     if [ -n "$details" ]; then
         # Add details field
         payload=$(echo "$payload" | sed 's/}$/,{\"title\":\"Details\",\"value\":\"'"$details"'\",\"short\":false}]}/')
     fi
-    
+
     if curl -s -X POST -H 'Content-type: application/json' \
              --data "$payload" \
              "$SLACK_WEBHOOK" >/dev/null 2>&1; then
@@ -236,9 +236,9 @@ EOF
 # Run health monitoring with Slack integration
 run_health_check() {
     log "🏥 Starting news data health check for $ENVIRONMENT"
-    
+
     local temp_results="/tmp/news_health_${ENVIRONMENT}_$$.json"
-    
+
     # Run monitoring script
     docker run --rm \
         --network ats-${ENVIRONMENT}-network \
@@ -255,41 +255,41 @@ run_health_check() {
         --environment "$ENVIRONMENT" \
         --output json \
         > "$temp_results" 2>/dev/null
-    
+
     # Parse results
     if [ -s "$temp_results" ] && grep -q '"overall_health"' "$temp_results" 2>/dev/null; then
         local overall_health=$(python3 -c "
 import json, sys
 try:
-    with open('$temp_results') as f: 
+    with open('$temp_results') as f:
         content = f.read().strip()
         json_start = content.find('{')
         if json_start >= 0:
             content = content[json_start:]
         data = json.loads(content)
         print(data.get('overall_health', 'UNKNOWN'))
-except: 
+except:
     print('PARSE_ERROR')
 ")
-        
+
         local alert_count=$(python3 -c "
 import json, sys
 try:
-    with open('$temp_results') as f: 
+    with open('$temp_results') as f:
         content = f.read().strip()
         json_start = content.find('{')
         if json_start >= 0:
             content = content[json_start:]
         data = json.loads(content)
         print(len(data.get('alerts', [])))
-except: 
+except:
     print('0')
 ")
-        
+
         local critical_alerts=$(python3 -c "
 import json, sys
 try:
-    with open('$temp_results') as f: 
+    with open('$temp_results') as f:
         content = f.read().strip()
         json_start = content.find('{')
         if json_start >= 0:
@@ -297,18 +297,18 @@ try:
         data = json.loads(content)
         critical = [a for a in data.get('alerts', []) if a.get('severity') == 'critical']
         print(len(critical))
-except: 
+except:
     print('0')
 ")
-        
+
         log "Health check completed: $overall_health ($alert_count alerts, $critical_alerts critical)"
-        
+
         # Send alerts based on severity
         if [ "$critical_alerts" -gt 0 ]; then
             local first_critical=$(python3 -c "
 import json, sys
 try:
-    with open('$temp_results') as f: 
+    with open('$temp_results') as f:
         content = f.read().strip()
         json_start = content.find('{')
         if json_start >= 0:
@@ -319,18 +319,18 @@ try:
             print(f\"{critical[0]['check']}: {critical[0]['message']}\")
         else:
             print('Unknown critical issue')
-except: 
+except:
     print('Critical health check issue')
 ")
-            
+
             log_error "Critical alerts detected"
             send_slack_alert "critical" "$first_critical" "$critical_alerts critical alerts found"
-            
+
         elif [ "$alert_count" -gt 0 ]; then
             local first_warning=$(python3 -c "
 import json, sys
 try:
-    with open('$temp_results') as f: 
+    with open('$temp_results') as f:
         content = f.read().strip()
         json_start = content.find('{')
         if json_start >= 0:
@@ -341,20 +341,20 @@ try:
             print(f\"{warnings[0]['check']}: {warnings[0]['message']}\")
         else:
             print('Minor issues detected')
-except: 
+except:
     print('Warning level issues')
 ")
-            
+
             log_warning "Warning alerts detected"
             # Only send warning alerts every 6 hours to avoid spam
             local last_warning_file="/tmp/last_news_warning_${ENVIRONMENT}"
             local current_time=$(date +%s)
             local last_warning_time=0
-            
+
             if [ -f "$last_warning_file" ]; then
                 last_warning_time=$(cat "$last_warning_file" 2>/dev/null || echo "0")
             fi
-            
+
             if [ $((current_time - last_warning_time)) -gt 21600 ]; then  # 6 hours
                 send_slack_alert "warning" "$first_warning" "$alert_count warning alerts"
                 echo "$current_time" > "$last_warning_file"
@@ -364,7 +364,7 @@ except:
         else
             log_success "All health checks passed"
         fi
-        
+
         rm -f "$temp_results"
         return 0
     else
@@ -378,19 +378,19 @@ except:
 # Quick database stats
 report_quick_stats() {
     log "📊 Quick Statistics:"
-    
+
     local yesterday_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
-        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon 
+        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
         WHERE DATE(published_utc) = CURRENT_DATE - INTERVAL '1 day'
     " 2>/dev/null | xargs || echo "0")
-    
+
     local total_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
         SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
     " 2>/dev/null | xargs || echo "0")
-    
+
     log "   Yesterday: $yesterday_count articles"
     log "   Total: $total_count articles"
-    
+
     # Alert if very low volume on weekdays
     if [ "$yesterday_count" -lt 10 ] && [ "$(date +%w)" != "0" ] && [ "$(date +%w)" != "6" ]; then
         log_warning "Low article volume detected: $yesterday_count articles"
@@ -401,14 +401,14 @@ report_quick_stats() {
 # Main execution
 main() {
     log "🔍 News Health Monitor - $(date)"
-    
+
     # Quick connectivity test
     if ! docker exec ats-${ENVIRONMENT}-postgres pg_isready -U postgres >/dev/null 2>&1; then
         log_error "Database not accessible"
         send_slack_alert "critical" "Database connection failed"
         exit 1
     fi
-    
+
     # Run health check
     if run_health_check; then
         report_quick_stats
@@ -421,7 +421,7 @@ main() {
 
 main "$@"
 EOF
-    
+
     chmod +x "/home/jianjun/ats-genai-data/scripts/cron/news_health_monitor.sh"
     echo "✅ Health monitor updated with Slack integration"
 }
@@ -431,27 +431,27 @@ main() {
     echo "🚀 ATS News Collection - Slack Alerts Setup"
     echo "============================================"
     echo ""
-    
+
     # Get webhook URL
     webhook_url=$(get_webhook_url)
     if [ $? -ne 0 ]; then
         echo "❌ Setup cancelled"
         exit 1
     fi
-    
+
     # Test webhook
     if ! test_slack_webhook "$webhook_url"; then
         echo "❌ Webhook test failed. Please check the URL and try again."
         exit 1
     fi
-    
+
     # Setup environment
     environment="${1:-intg}"
     setup_environment_variables "$webhook_url" "$environment"
-    
+
     # Update health monitor
     update_health_monitor
-    
+
     echo ""
     echo "✅ Slack alerts setup completed!"
     echo ""

@@ -45,7 +45,7 @@ cp /home/jianjun/ats-genai-model/config/dashboards/ats-comprehensive-monitoring-
 # Service health
 up{job=~"ats-.*"}
 
-# Database metrics  
+# Database metrics
 postgresql_connections_active
 postgresql_connections_idle
 postgresql_queries_per_second
@@ -84,7 +84,7 @@ collection_duration_seconds_bucket
 #### **Training & ML Metrics:**
 ```bash
 # Training datasets
-ats_training_datasets_created_total  
+ats_training_datasets_created_total
 ats_training_dataset_size_mb
 ats_training_dataset_quality_score
 
@@ -125,7 +125,7 @@ python scripts/prometheus_metrics_server.py --port 4080
 
 ### **Modify Time Ranges**
 - **Default**: 1 hour with 30-second refresh
-- **Recommended**: 
+- **Recommended**:
   - Operations monitoring: 15 minutes - 4 hours
   - Capacity planning: 24 hours - 7 days
   - Trend analysis: 7 days - 30 days
@@ -159,7 +159,7 @@ python scripts/prometheus_metrics_server.py --port 4080
 # Service Down Alert
 up{job=~"ats-.*"} == 0
 
-# High Error Rate Alert  
+# High Error Rate Alert
 rate(api_errors_total[5m]) > 0.1
 
 # Low Data Coverage Alert
@@ -247,7 +247,7 @@ curl -s "http://localhost:8080/api/v1/label/vendor/values" | jq .
 
 ### **Related Documentation**
 - [ATS Operations Guide](/docs/OPERATIONS.md)
-- [Infrastructure Overview](/docs/INFRASTRUCTURE.md) 
+- [Infrastructure Overview](/docs/INFRASTRUCTURE.md)
 - [Dashboard Panel Documentation](/docs/ATS_COMPREHENSIVE_MONITORING_DASHBOARD.md)
 
 ### **SignOZ Resources**
@@ -273,7 +273,7 @@ docker logs signoz-frontend --tail 20
 
 **🎯 Next Steps after Import:**
 1. Verify all panels display data correctly
-2. Set up relevant alerts for your operational needs  
+2. Set up relevant alerts for your operational needs
 3. Customize time ranges and refresh intervals
 4. Add team-specific panels as needed
 5. Configure alert notification channels (Slack, email, etc.)

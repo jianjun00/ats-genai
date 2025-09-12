@@ -6,7 +6,7 @@
 src/
 ├── api/          # Consolidated REST endpoints
 │   ├── analytics/
-│   ├── datasets/ 
+│   ├── datasets/
 │   ├── markets/
 │   ├── models/
 │   ├── trading/
@@ -19,7 +19,7 @@ src/
 │   ├── types/
 │   └── validation/
 ├── data/         # Consolidated data access layer
-│   ├── access/   # All DAOs consolidated  
+│   ├── access/   # All DAOs consolidated
 │   ├── migrate/  # Migration utilities
 │   ├── models/   # Database models
 │   ├── query/    # Query builders
@@ -36,7 +36,7 @@ src/
 │   ├── calc/     # Calculations & math
 │   ├── format/   # Data formatting
 │   ├── parse/    # Data parsing
-│   ├── time/     # Time utilities  
+│   ├── time/     # Time utilities
 │   ├── validate/ # Validation helpers
 │   └── viz/      # Visualization helpers
 ├── ml/           # Machine learning domain
@@ -58,7 +58,7 @@ src/
    - Split into: analytics_core.py, dashboard_builder.py, data_fetcher.py, viz_generator.py
    - Extract 1,456-line function into template engine
 
-2. **indicator.py (2,043 lines)**  
+2. **indicator.py (2,043 lines)**
    - Split into: base_indicator.py, technical_indicators.py, volume_indicators.py, price_indicators.py
 
 3. **hybrid_minute_data_manager.py (1,702 lines)**
@@ -89,7 +89,7 @@ src/
 - Move domain-specific logic
 - Remove duplication between domains/ and root modules
 
-### Phase 5: API & Web (api/, web/)  
+### Phase 5: API & Web (api/, web/)
 - Consolidate REST endpoints
 - Move frontend assets to web/
 

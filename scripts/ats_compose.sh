@@ -4,7 +4,7 @@ ATS Docker Compose Management Script
 
 This script manages the complete ATS stack including:
 - Dev and Intg PostgreSQL databases
-- Analytics services for both environments  
+- Analytics services for both environments
 - Monitoring (Grafana, Prometheus, AlertManager)
 - Daily price collectors
 """
@@ -135,7 +135,7 @@ show_dev_status() {
     echo "  - PostgreSQL: localhost:5432"
 }
 
-# Show intg status  
+# Show intg status
 show_intg_status() {
     echo ""
     echo "📊 ATS Integration Environment Status:"

@@ -34,7 +34,7 @@
                   "value": null
                 },
                 {
-                  "color": "red", 
+                  "color": "red",
                   "value": 1000
                 }
               ]
@@ -288,7 +288,7 @@
         "type": "stat",
         "targets": [
           {
-            "format": "table", 
+            "format": "table",
             "rawSql": "SELECT vendor, EXTRACT(EPOCH FROM (NOW() - MAX(published_utc)))/60 as minutes_since_last FROM intg_realtime_news GROUP BY vendor ORDER BY minutes_since_last",
             "refId": "A"
           }

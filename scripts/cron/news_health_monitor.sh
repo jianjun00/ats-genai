@@ -39,12 +39,12 @@ log_warning() {
 send_slack_alert() {
     local severity="$1"
     local message="$2"
-    
+
     if [ -n "$ALERT_WEBHOOK" ]; then
         local emoji="🔴"
         [ "$severity" = "warning" ] && emoji="🟡"
         [ "$severity" = "info" ] && emoji="🔵"
-        
+
         local payload=$(cat <<EOF
 {
     "text": "${emoji} News Collection Alert - ${ENVIRONMENT^^}",
@@ -58,7 +58,7 @@ send_slack_alert() {
                     "short": true
                 },
                 {
-                    "title": "Severity", 
+                    "title": "Severity",
                     "value": "${severity}",
                     "short": true
                 },
@@ -78,7 +78,7 @@ send_slack_alert() {
 }
 EOF
         )
-        
+
         curl -X POST -H 'Content-type: application/json' \
              --data "$payload" \
              "$ALERT_WEBHOOK" \
@@ -89,10 +89,10 @@ EOF
 # Run health monitoring
 run_health_check() {
     log "🏥 Starting news data health check for $ENVIRONMENT"
-    
+
     # Create temporary file for results
     local temp_results="/tmp/news_health_${ENVIRONMENT}_$$.json"
-    
+
     # Run monitoring script
     if docker run --rm \
         --network ats-${ENVIRONMENT}-network \
@@ -109,16 +109,16 @@ run_health_check() {
         --environment "$ENVIRONMENT" \
         --output json \
         > "$temp_results" 2>"$temp_results.err"
-    
+
     # Check if we got JSON output (the script may exit 1 for UNHEALTHY but still produce valid results)
     if [ -s "$temp_results" ] && grep -q '"overall_health"' "$temp_results" 2>/dev/null; then
-        
+
         # Parse results
         local overall_health=$(cat "$temp_results" | python3 -c "import json, sys; data=json.load(sys.stdin); print(data.get('overall_health', 'UNKNOWN'))")
         local alert_count=$(cat "$temp_results" | python3 -c "import json, sys; data=json.load(sys.stdin); print(len(data.get('alerts', [])))")
-        
+
         log "Health check completed: $overall_health ($alert_count alerts)"
-        
+
         # Process alerts
         if [ "$alert_count" -gt 0 ]; then
             local critical_alerts=$(cat "$temp_results" | python3 -c "
@@ -127,10 +127,10 @@ data = json.load(sys.stdin)
 critical = [a for a in data.get('alerts', []) if a.get('severity') == 'critical']
 print(len(critical))
 ")
-            
+
             if [ "$critical_alerts" -gt 0 ]; then
                 log_error "Found $critical_alerts critical alerts"
-                
+
                 # Get first critical alert message
                 local first_alert=$(cat "$temp_results" | python3 -c "
 import json, sys
@@ -141,11 +141,11 @@ if critical:
 else:
     print('Unknown critical issue')
 ")
-                
+
                 send_slack_alert "critical" "$first_alert"
             else
                 log_warning "Found $alert_count non-critical alerts"
-                
+
                 # Get first warning
                 local first_warning=$(cat "$temp_results" | python3 -c "
 import json, sys
@@ -156,16 +156,16 @@ if warnings:
 else:
     print('Multiple minor issues detected')
 ")
-                
+
                 send_slack_alert "warning" "$first_warning"
             fi
         else
             log_success "All health checks passed"
         fi
-        
+
         # Cleanup
         rm -f "$temp_results"
-        
+
         return 0
     else
         log_error "Health check script failed to run"
@@ -181,26 +181,26 @@ else:
 # Quick stats summary
 report_quick_stats() {
     log "📊 Quick Statistics:"
-    
+
     # Get basic counts
     local today_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
-        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon 
+        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
         WHERE DATE(published_utc) = CURRENT_DATE
     " 2>/dev/null | xargs || echo "0")
-    
+
     local yesterday_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
-        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon 
+        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
         WHERE DATE(published_utc) = CURRENT_DATE - INTERVAL '1 day'
     " 2>/dev/null | xargs || echo "0")
-    
+
     local total_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
         SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
     " 2>/dev/null | xargs || echo "0")
-    
+
     log "   Today: $today_count articles"
-    log "   Yesterday: $yesterday_count articles"  
+    log "   Yesterday: $yesterday_count articles"
     log "   Total: $total_count articles"
-    
+
     # Alert if very low daily volume
     if [ "$yesterday_count" -lt 10 ] && [ "$(date +%w)" != "0" ] && [ "$(date +%w)" != "6" ]; then
         log_warning "Low article volume detected for yesterday: $yesterday_count articles"
@@ -212,14 +212,14 @@ report_quick_stats() {
 main() {
     log "🔍 News Health Monitor - $(date)"
     log "Environment: $ENVIRONMENT"
-    
+
     # Quick connectivity test
     if ! docker exec ats-${ENVIRONMENT}-postgres pg_isready -U postgres >/dev/null 2>&1; then
         log_error "Database not accessible"
         send_slack_alert "critical" "Database connection failed"
         exit 1
     fi
-    
+
     # Run health check
     if run_health_check; then
         report_quick_stats

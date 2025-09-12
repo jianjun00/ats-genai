@@ -8,7 +8,7 @@
 
 **Get running in 15 minutes:**
 1. **[01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)** ⭐ **Essential 15-minute setup and core concepts**
-2. **[02_DEVELOPMENT_GUIDE.md](02_DEVELOPMENT_GUIDE.md)** ⭐ **Complete development workflow and TDD** 
+2. **[02_DEVELOPMENT_GUIDE.md](02_DEVELOPMENT_GUIDE.md)** ⭐ **Complete development workflow and TDD**
 3. **[03_INFRASTRUCTURE_OPERATIONS.md](03_INFRASTRUCTURE_OPERATIONS.md)** ⭐ **Infrastructure and daily operations**
 
 ---
@@ -20,7 +20,7 @@
 2. **[02_DEVELOPMENT_GUIDE.md](02_DEVELOPMENT_GUIDE.md)** - TDD workflow, testing, quality standards
 3. **[03_INFRASTRUCTURE_OPERATIONS.md](03_INFRASTRUCTURE_OPERATIONS.md)** - Docker, databases, deployment, monitoring
 
-### **🔧 Platform Integration**  
+### **🔧 Platform Integration**
 4. **[04_API_CONFIGURATION.md](04_API_CONFIGURATION.md)** - API endpoints, authentication, environment config
 5. **[05_DATA_ML_PLATFORM.md](05_DATA_ML_PLATFORM.md)** - Data pipelines, ML training, feature engineering
 6. **[06_MONITORING_SERVICES.md](06_MONITORING_SERVICES.md)** - Service management, alerts, automation
@@ -59,12 +59,12 @@
 python scripts/run_dev.py status && python scripts/run_intg.py status
 python scripts/run_dev.py query --query "SELECT 1"
 
-# Emergency contacts  
+# Emergency contacts
 Slack: #incident-response
 Platform Team: @team-lead
 ```
 
-### **📊 Key Commands**  
+### **📊 Key Commands**
 ```bash
 # Development
 python scripts/run_dev.py setup                    # Complete dev environment setup
@@ -86,7 +86,7 @@ http://localhost:3000/eda            # EDA Dashboard interface
 http://localhost:8000/health          # API health check
 postgresql://postgres:dev_password@localhost:3432/dev_db
 
-# ATS-INTG Environment (Integration Testing)  
+# ATS-INTG Environment (Integration Testing)
 http://localhost:4000/health          # Analytics health check
 http://localhost:4000/eda            # EDA Dashboard interface
 http://localhost:4080/metrics        # Prometheus metrics
@@ -106,7 +106,7 @@ docker ps | grep -E "(ats-dev|intg)"  # Container status with ports
 
 ### **🎯 Core Capabilities**
 - **AI-Powered Portfolio Recommendations** - Hourly ML-driven investment signals
-- **📊 Multi-Vendor Data Infrastructure** - Polygon, Tiingo, EODHD, FMP integration  
+- **📊 Multi-Vendor Data Infrastructure** - Polygon, Tiingo, EODHD, FMP integration
 - **🔑 Centralized API Key Management** - Automatic authentication across all vendors
 - **🤖 Smart Money Zone Detection** - Institutional flow analysis and pattern recognition
 - **🐳 Enterprise Docker Architecture** - Scalable, reliable, production-ready
@@ -131,7 +131,7 @@ Retail traders, RIAs, family offices, institutional investors
 ### **Mandatory Development Standards**
 - **🐳 Docker-First** - All development in Docker containers (`python scripts/run_dev.py`)
 - **🧪 Test-Driven Development** - Write failing tests first, then implement
-- **🚫 No Demo Data** - Real data only in dev/staging/prod environments  
+- **🚫 No Demo Data** - Real data only in dev/staging/prod environments
 - **✅ End-to-End Validation** - Complete pipeline must work before claiming done
 - **🔍 Schema Validation First** - Prevent database errors with validation
 - **🎫 GitHub Issue Required** - Before any work
@@ -175,7 +175,7 @@ Extract trading signals from news articles using large language models and senti
 All essential ATS platform functionality is covered across the 9 guides:
 
 - ✅ **Setup & Onboarding** - Covered in Guide 1
-- ✅ **Development Workflow** - Covered in Guide 2  
+- ✅ **Development Workflow** - Covered in Guide 2
 - ✅ **Infrastructure & Operations** - Covered in Guide 3
 - ✅ **API Integration** - Covered in Guide 4
 - ✅ **Data & ML Platform** - Covered in Guide 5
@@ -196,7 +196,7 @@ All essential ATS platform functionality is covered across the 9 guides:
 
 **You're ready to contribute when you can:**
 - [ ] Complete the 15-minute setup in Guide 1
-- [ ] Deploy a service and access it externally  
+- [ ] Deploy a service and access it externally
 - [ ] Write failing test → implement code → see test pass
 - [ ] Navigate to the right documentation for your role
 - [ ] Resolve common issues using the troubleshooting guide

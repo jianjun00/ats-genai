@@ -6,17 +6,17 @@ This SignOZ dashboard provides complete visibility into the ATS fintech platform
 
 ## 📊 Dashboard Panels Documentation
 
-### **Panel 1: 🚀 Service Health Overview** 
+### **Panel 1: 🚀 Service Health Overview**
 - **Type**: Stat
 - **Purpose**: Shows real-time up/down status of all ATS services
 - **Metrics**: `up{job=~"ats-.*"}`
-- **Key Insights**: 
+- **Key Insights**:
   - Immediate visibility into service availability
   - Red = DOWN, Green = UP status indicators
   - Critical for operations team to identify outages
 
 ### **Panel 2: 📊 Instruments by Environment**
-- **Type**: Stat  
+- **Type**: Stat
 - **Purpose**: Count of financial instruments loaded per environment
 - **Metrics**: `ats_instruments_total`
 - **Key Insights**:
@@ -45,7 +45,7 @@ This SignOZ dashboard provides complete visibility into the ATS fintech platform
 ### **Panel 5: 🔄 Real-Time Data Collection Rate**
 - **Type**: Time Series
 - **Purpose**: Real-time visualization of data ingestion rates
-- **Metrics**: 
+- **Metrics**:
   - `rate(ats_minute_bars_collected_total[5m])` - Minute bars per second
   - `rate(ats_daily_prices_sync_prices_processed_total[5m])` - Prices per second
 - **Key Insights**:
@@ -189,7 +189,7 @@ This SignOZ dashboard provides complete visibility into the ATS fintech platform
 - **Incident Response**: Panel 8, 12 for error identification and resolution
 
 ### **Data Engineering Team**
-- **Pipeline Monitoring**: Panel 3, 4, 5 for data flow analysis  
+- **Pipeline Monitoring**: Panel 3, 4, 5 for data flow analysis
 - **Quality Assurance**: Panel 9 for data completeness validation
 - **Performance Optimization**: Panel 6, 11 for processing efficiency
 
@@ -213,7 +213,7 @@ This SignOZ dashboard provides complete visibility into the ATS fintech platform
 
 **🚨 Critical Monitoring Areas:**
 - Service availability (Panel 1, 12)
-- Data collection rates (Panel 3, 4, 5) 
+- Data collection rates (Panel 3, 4, 5)
 - Database health (Panel 6, 7)
 - API reliability (Panel 8)
 - Data quality (Panel 9)

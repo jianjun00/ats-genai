@@ -151,7 +151,7 @@ PYTHONPATH=src pytest tests/unit/ -v
 # 2. Integration Tests - Database, API, services
 PYTHONPATH=src pytest tests/integration/ -v
 
-# 3. End-to-End Tests - Complete workflows  
+# 3. End-to-End Tests - Complete workflows
 PYTHONPATH=src pytest tests/e2e/ -v
 
 # 4. Browser Tests - UI functionality (Playwright)
@@ -203,7 +203,7 @@ python scripts/run_dev.py run --script scripts/data_generation/create_sample_dat
 python scripts/run_dev.py query --query "SELECT COUNT(*), MIN(created_at), MAX(created_at) FROM dev_daily_prices"
 ```
 
-### 2. Database Storage  
+### 2. Database Storage
 ```bash
 # Store data with correct schema
 python scripts/run_dev.py query --query "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='dev_daily_prices'"
@@ -263,7 +263,7 @@ Closes #123
 
 ## Testing Performed
 - [ ] Unit tests passing
-- [ ] Integration tests passing  
+- [ ] Integration tests passing
 - [ ] Manual testing completed
 - [ ] Performance benchmarks acceptable
 
@@ -397,7 +397,7 @@ Refs: #issue_number"
 - Zero security vulnerabilities
 - Type coverage >= 90%
 
-### Performance Metrics  
+### Performance Metrics
 - API response time < 100ms (p95)
 - Database query time < 50ms (p95)
 - Memory usage < 512MB per service

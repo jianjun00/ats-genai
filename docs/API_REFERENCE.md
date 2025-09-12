@@ -12,7 +12,7 @@
 ```bash
 # These are the ONLY valid API keys - use these exact values everywhere
 POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"      # ✅ VERIFIED WORKING
-TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING  
+TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # ✅ VERIFIED WORKING
 EODHD_API_KEY="68aa0c7d2fe831.67386369"                   # ✅ VERIFIED WORKING
 FMP_API_KEY="Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr"            # ✅ Available
 ALPHA_VANTAGE_API_KEY="9GI0NZ3V4VNFX271"                  # ✅ Available
@@ -36,7 +36,7 @@ python3 scripts/validate_api_keys.py
 ```bash
 # All integration services use centralized API key management
 python3 scripts/run_intg.py start --service realtime-minute-collector
-python3 scripts/run_intg.py start --service analytics  
+python3 scripts/run_intg.py start --service analytics
 python3 scripts/run_intg.py start --service news-realtime
 
 # API keys automatically configured with correct values
@@ -44,7 +44,7 @@ python3 scripts/run_intg.py start --service news-realtime
 
 #### Development Environment Services:
 ```bash
-# All dev services use centralized API key management  
+# All dev services use centralized API key management
 python3 scripts/run_dev.py start --service analytics
 python3 scripts/run_dev.py start --service postgres
 
@@ -184,7 +184,7 @@ http://localhost:3000/health          # Health check endpoint
 http://localhost:3000/eda            # EDA Dashboard interface
 http://localhost:3000/api/           # Analytics API endpoints
 
-# API Service  
+# API Service
 http://localhost:8000/health          # API health check
 http://localhost:8000/api/           # Main API endpoints
 

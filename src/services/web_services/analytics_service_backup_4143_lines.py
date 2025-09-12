@@ -1630,7 +1630,7 @@ class UnifiedAnalyticsService:
                     if start_date:
                         earnings_query += " AND report_period >= %s"
                         params.append(start_date)
-                    
+
                     if end_date:
                         earnings_query += " AND report_period <= %s"
                         params.append(end_date)
@@ -1666,13 +1666,13 @@ class UnifiedAnalyticsService:
 
                     # Get summary statistics
                     unique_symbols = set(event['symbol'] for event in processed_events)
-                    
+
                     # Count beats and misses
                     eps_beats = sum(1 for event in processed_events if event['earnings_beat'] is True)
                     eps_misses = sum(1 for event in processed_events if event['earnings_beat'] is False)
                     revenue_beats = sum(1 for event in processed_events if event['revenue_beat'] is True)
                     revenue_misses = sum(1 for event in processed_events if event['revenue_beat'] is False)
-                    
+
                     # Count guidance changes
                     guidance_raised_count = sum(1 for event in processed_events if event['guidance_raised'] is True)
                     guidance_lowered_count = sum(1 for event in processed_events if event['guidance_lowered'] is True)
@@ -1758,7 +1758,7 @@ class UnifiedAnalyticsService:
                     if start_date:
                         gap_query += " AND gap_date >= %s"
                         params.append(start_date)
-                    
+
                     if end_date:
                         gap_query += " AND gap_date <= %s"
                         params.append(end_date)
@@ -1799,21 +1799,21 @@ class UnifiedAnalyticsService:
 
                     # Get summary statistics
                     unique_symbols = set(event['symbol'] for event in processed_events)
-                    
+
                     # Count gap types and directions
                     gap_ups = sum(1 for event in processed_events if event['direction'] == 'gap_up')
                     gap_downs = sum(1 for event in processed_events if event['direction'] == 'gap_down')
-                    
+
                     # Count gap sizes
                     micro_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'micro')
-                    small_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'small') 
+                    small_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'small')
                     medium_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'medium')
                     large_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'large')
-                    
+
                     # Count filled vs unfilled gaps
                     filled_gaps = sum(1 for event in processed_events if event['is_filled'] is True)
                     unfilled_gaps = sum(1 for event in processed_events if event['is_filled'] is False)
-                    
+
                     # Calculate average significance score
                     sig_scores = [event['significance_score'] for event in processed_events if event['significance_score'] is not None]
                     avg_significance = sum(sig_scores) / len(sig_scores) if sig_scores else 0
@@ -2558,7 +2558,7 @@ class UnifiedAnalyticsService:
 
                         if (data.success && data.events) {
                             html = '<h3>📊 Earnings Events Analysis</h3>' +
-                                
+
                                 '<!-- Filter Controls -->' +
                                 '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">' +
                                     '<h4 style="margin: 0 0 15px 0;">🔍 Filters</h4>' +
@@ -2583,7 +2583,7 @@ class UnifiedAnalyticsService:
                                         '</div>' +
                                     '</div>' +
                                 '</div>' +
-                                
+
                                 '<!-- Summary Cards -->' +
                                 '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">' +
                                     '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">' +
@@ -2635,21 +2635,21 @@ class UnifiedAnalyticsService:
                             data.events.forEach((event, index) => {
                                 const backgroundColor = index % 2 === 0 ? 'white' : '#f8f9fa';
                                 const reportDate = event.report_period ? event.report_period : 'N/A';
-                                
+
                                 // Format EPS data
                                 const epsActual = event.eps_actual !== null ? '$' + event.eps_actual : 'N/A';
                                 const epsEstimated = event.eps_estimated !== null ? '$' + event.eps_estimated : 'N/A';
                                 const epsSurprise = event.eps_surprise_pct !== null ? event.eps_surprise_pct.toFixed(1) + '%' : 'N/A';
-                                
+
                                 // Format Revenue data
                                 const revenueActual = event.revenue_actual_millions !== null ? '$' + event.revenue_actual_millions + 'M' : 'N/A';
                                 const revenueEstimated = event.revenue_estimated_millions !== null ? '$' + event.revenue_estimated_millions + 'M' : 'N/A';
                                 const revenueSurprise = event.revenue_surprise_pct !== null ? event.revenue_surprise_pct.toFixed(1) + '%' : 'N/A';
-                                
+
                                 // Beat/miss indicators
                                 const epsBeat = event.earnings_beat === true ? '✅' : event.earnings_beat === false ? '❌' : '❓';
                                 const revenueBeat = event.revenue_beat === true ? '✅' : event.revenue_beat === false ? '❌' : '❓';
-                                
+
                                 // Guidance indicators
                                 let guidanceIndicator = '➖';
                                 if (event.guidance_raised === true) guidanceIndicator = '📈';
@@ -2694,13 +2694,13 @@ class UnifiedAnalyticsService:
                                         '<div>' +
                                             '<strong>EPS Performance:</strong><br>' +
                                             'Beats: ' + data.summary.eps_beats + ' | Misses: ' + data.summary.eps_misses + '<br>' +
-                                            'EPS Success Rate: ' + (data.summary.eps_beats + data.summary.eps_misses > 0 ? 
+                                            'EPS Success Rate: ' + (data.summary.eps_beats + data.summary.eps_misses > 0 ?
                                                 Math.round(data.summary.eps_beats / (data.summary.eps_beats + data.summary.eps_misses) * 100) : 0) + '%' +
                                         '</div>' +
                                         '<div>' +
                                             '<strong>Revenue Performance:</strong><br>' +
                                             'Beats: ' + data.summary.revenue_beats + ' | Misses: ' + data.summary.revenue_misses + '<br>' +
-                                            'Revenue Success Rate: ' + (data.summary.revenue_beats + data.summary.revenue_misses > 0 ? 
+                                            'Revenue Success Rate: ' + (data.summary.revenue_beats + data.summary.revenue_misses > 0 ?
                                                 Math.round(data.summary.revenue_beats / (data.summary.revenue_beats + data.summary.revenue_misses) * 100) : 0) + '%' +
                                         '</div>' +
                                     '</div>' +
@@ -2726,7 +2726,7 @@ class UnifiedAnalyticsService:
                     const symbolFilter = document.getElementById('symbol-filter').value.trim();
                     const startDate = document.getElementById('start-date-filter').value;
                     const endDate = document.getElementById('end-date-filter').value;
-                    
+
                     loadEarningsEvents(symbolFilter, startDate, endDate);
                 }
 
@@ -2734,7 +2734,7 @@ class UnifiedAnalyticsService:
                     document.getElementById('symbol-filter').value = '';
                     document.getElementById('start-date-filter').value = '';
                     document.getElementById('end-date-filter').value = '';
-                    
+
                     loadEarningsEvents('', '', '');
                 }
 
@@ -2758,7 +2758,7 @@ class UnifiedAnalyticsService:
 
                         if (data.success && data.events) {
                             html = '<h3>⚡ Gap Events Analysis</h3>' +
-                                
+
                                 '<!-- Filter Controls -->' +
                                 '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">' +
                                     '<h4 style="margin: 0 0 15px 0;">🔍 Filters</h4>' +
@@ -2783,7 +2783,7 @@ class UnifiedAnalyticsService:
                                         '</div>' +
                                     '</div>' +
                                 '</div>' +
-                                
+
                                 '<!-- Summary Cards -->' +
                                 '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">' +
                                     '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">' +
@@ -2846,20 +2846,20 @@ class UnifiedAnalyticsService:
                                     'medium': 'background: #e8f5e8; color: #388e3c',
                                     'large': 'background: #ffebee; color: #d32f2f'
                                 }[event.gap_size_class] || 'background: #f5f5f5; color: #666';
-                                
-                                const filledStatus = event.is_filled ? 
-                                    '✅ ' + (event.days_to_fill || 'N/A') + 'd' : 
+
+                                const filledStatus = event.is_filled ?
+                                    '✅ ' + (event.days_to_fill || 'N/A') + 'd' :
                                     '⏳ Open';
 
                                 html += '<tr style="border-bottom: 1px solid #f0f0f0;">' +
                                     '<td style="padding: 10px; font-weight: bold;">' + event.symbol + '</td>' +
                                     '<td style="padding: 10px;">' + event.gap_date + '</td>' +
-                                    '<td style="padding: 10px; text-align: right; font-weight: bold; ' + directionClass + '">' + 
+                                    '<td style="padding: 10px; text-align: right; font-weight: bold; ' + directionClass + '">' +
                                         (event.gap_percentage !== null ? event.gap_percentage.toFixed(2) + '%' : 'N/A') + '</td>' +
                                     '<td style="padding: 10px; text-align: center; ' + directionClass + '">' + directionIcon + '</td>' +
-                                    '<td style="padding: 10px; text-align: center;"><span style="padding: 4px 8px; border-radius: 12px; font-size: 11px; ' + sizeClass + '">' + 
+                                    '<td style="padding: 10px; text-align: center;"><span style="padding: 4px 8px; border-radius: 12px; font-size: 11px; ' + sizeClass + '">' +
                                         (event.gap_size_class || 'unknown').toUpperCase() + '</span></td>' +
-                                    '<td style="padding: 10px; text-align: right;">' + 
+                                    '<td style="padding: 10px; text-align: right;">' +
                                         (event.significance_score !== null ? event.significance_score.toFixed(2) : 'N/A') + '</td>' +
                                     '<td style="padding: 10px; text-align: center;">' + filledStatus + '</td>' +
                                 '</tr>';
@@ -2897,7 +2897,7 @@ class UnifiedAnalyticsService:
                     const symbolFilter = document.getElementById('gap-symbol-filter').value.trim();
                     const startDate = document.getElementById('gap-start-date-filter').value;
                     const endDate = document.getElementById('gap-end-date-filter').value;
-                    
+
                     loadGapEvents(symbolFilter, startDate, endDate);
                 }
 
@@ -2905,7 +2905,7 @@ class UnifiedAnalyticsService:
                     document.getElementById('gap-symbol-filter').value = '';
                     document.getElementById('gap-start-date-filter').value = '';
                     document.getElementById('gap-end-date-filter').value = '';
-                    
+
                     loadGapEvents('', '', '');
                 }
 

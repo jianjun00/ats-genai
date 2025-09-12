@@ -22,7 +22,7 @@ ERROR_PODS=$(kubectl get pods -n ats-dev | grep Error | awk '{print $1}')
 
 if [ -z "$ERROR_PODS" ]; then
     echo -e "${GREEN}No pods with errors found.${NC}"
-    
+
     # Check for running pods instead
     RUNNING_PODS=$(kubectl get pods -n ats-dev | grep Running | awk '{print $1}')
     if [ -z "$RUNNING_PODS" ]; then
@@ -35,13 +35,13 @@ if [ -z "$ERROR_PODS" ]; then
 else
     echo -e "${RED}Found pods with errors:${NC}"
     kubectl get pods -n ats-dev | grep Error
-    
+
     # Loop through each error pod and get its logs
     echo -e "\n${YELLOW}Fetching logs from error pods:${NC}"
     for POD in $ERROR_PODS; do
         echo -e "\n${BLUE}=== Logs for pod: $POD ===${NC}"
         kubectl logs -n ats-dev $POD || echo -e "${RED}Failed to get logs for $POD${NC}"
-        
+
         # Get pod description for more details
         echo -e "\n${BLUE}=== Description for pod: $POD ===${NC}"
         kubectl describe pod -n ats-dev $POD | grep -A 10 "Events:" || echo -e "${RED}Failed to get description for $POD${NC}"
@@ -54,7 +54,7 @@ PENDING_PODS=$(kubectl get pods -n ats-dev | grep Pending | awk '{print $1}')
 if [ -n "$PENDING_PODS" ]; then
     echo -e "${YELLOW}Found pending pods:${NC}"
     kubectl get pods -n ats-dev | grep Pending
-    
+
     # Get events for pending pods
     for POD in $PENDING_PODS; do
         echo -e "\n${BLUE}=== Events for pending pod: $POD ===${NC}"
@@ -66,11 +66,11 @@ CREATING_PODS=$(kubectl get pods -n ats-dev | grep ContainerCreating | awk '{pri
 if [ -n "$CREATING_PODS" ]; then
     echo -e "${YELLOW}Found pods in ContainerCreating state:${NC}"
     kubectl get pods -n ats-dev | grep ContainerCreating
-    
+
     # Wait a bit and check if they're still creating
     echo -e "${YELLOW}Waiting 10 seconds to see if they complete...${NC}"
     sleep 10
-    
+
     for POD in $CREATING_PODS; do
         STATUS=$(kubectl get pod -n ats-dev $POD -o jsonpath='{.status.phase}' 2>/dev/null || echo "NotFound")
         if [ "$STATUS" == "Running" ]; then

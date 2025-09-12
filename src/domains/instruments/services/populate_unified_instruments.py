@@ -48,15 +48,15 @@ async def batch_logic_for_test(batch, polygon_dao, instruments_dao, xrefs_dao, v
             'list_date': inst.get('list_date'),
             'delist_date': inst.get('delist_date')
         })
-    
+
     # Step 1: Categorize instruments into existing vs new, and check for missing xrefs
     symbol_to_id = {}
     new_instruments = []
     missing_xref_instruments = []
-    
+
     for inst in valid_instruments:
         symbol = inst['symbol']
-        
+
         # First check if xref already exists (fastest check)
         instrument_id = await xrefs_dao.resolve_instrument_id(symbol, vendor_id=ticker_vendor_id)
         if instrument_id:
@@ -65,7 +65,7 @@ async def batch_logic_for_test(batch, polygon_dao, instruments_dao, xrefs_dao, v
             if debug:
                 print(f"[SKIP] Instrument {symbol} already has xref, skipping.")
             continue
-        
+
         # No xref found, check if instrument exists in instruments table
         existing_instrument = await instruments_dao.get_instrument_by_symbol(symbol)
         if existing_instrument:
@@ -79,7 +79,7 @@ async def batch_logic_for_test(batch, polygon_dao, instruments_dao, xrefs_dao, v
             new_instruments.append(inst)
             if debug:
                 print(f"[NEW] Instrument {symbol} is completely new, will create instrument and xref.")
-    
+
     # Step 2: Batch insert new instruments
     if new_instruments:
         await instruments_dao.create_instruments_batch(new_instruments, pool_min_size=1, pool_max_size=1)
@@ -89,11 +89,11 @@ async def batch_logic_for_test(batch, polygon_dao, instruments_dao, xrefs_dao, v
             if not row:
                 raise RuntimeError(f"Instrument {inst['symbol']} not found after insert.")
             symbol_to_id[inst['symbol']] = row['id']
-    
+
     # Step 3: Prepare xref inserts for both new instruments AND existing instruments with missing xrefs
     xref_inserts = []
     instruments_needing_xrefs = new_instruments + missing_xref_instruments
-    
+
     for inst in instruments_needing_xrefs:
         symbol = inst['symbol']
         instrument_id = symbol_to_id[symbol]
@@ -107,14 +107,14 @@ async def batch_logic_for_test(batch, polygon_dao, instruments_dao, xrefs_dao, v
             'start_at': start_at,
             'end_at': end_at
         })
-    
+
     # Step 4: Batch insert xrefs for both new instruments and existing instruments with missing xrefs
     if xref_inserts:
         await xrefs_dao.create_xrefs_batch(xref_inserts, pool_min_size=1, pool_max_size=1)
-    
+
     if debug:
         print(f"[INFO] Batch processed: {len(new_instruments)} new instruments, {len(missing_xref_instruments)} missing xrefs, {len(xref_inserts)} total xrefs created")
-    
+
     return len(valid_instruments)
 
 async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, vendors_dao, tickers=None, debug=False):
@@ -188,15 +188,15 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                     'list_date': inst.get('list_date'),
                     'delist_date': inst.get('delist_date')
                 })
-            
+
             # Step 1: Categorize instruments into existing vs new, and check for missing xrefs
             symbol_to_id = {}
             new_instruments = []
             missing_xref_instruments = []
-            
+
             for inst in valid_instruments:
                 symbol = inst['symbol']
-                
+
                 # First check if xref already exists (fastest check)
                 instrument_id = await xrefs_dao.resolve_instrument_id(symbol, vendor_id=ticker_vendor_id)
                 if instrument_id:
@@ -205,7 +205,7 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                     if debug:
                         print(f"[SKIP] Instrument {symbol} already has xref, skipping.")
                     continue
-                
+
                 # No xref found, check if instrument exists in instruments table
                 existing_instrument = await instruments_dao.get_instrument_by_symbol(symbol)
                 if existing_instrument:
@@ -219,7 +219,7 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                     new_instruments.append(inst)
                     if debug:
                         print(f"[NEW] Instrument {symbol} is completely new, will create instrument and xref.")
-            
+
             # Step 2: Batch insert new instruments
             if new_instruments:
                 await instruments_dao.create_instruments_batch(new_instruments, pool_min_size=1, pool_max_size=1)
@@ -229,11 +229,11 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                     if not row:
                         raise RuntimeError(f"Instrument {inst['symbol']} not found after insert.")
                     symbol_to_id[inst['symbol']] = row['id']
-            
+
             # Step 3: Prepare xref inserts for both new instruments AND existing instruments with missing xrefs
             xref_inserts = []
             instruments_needing_xrefs = new_instruments + missing_xref_instruments
-            
+
             for inst in instruments_needing_xrefs:
                 symbol = inst['symbol']
                 instrument_id = symbol_to_id[symbol]
@@ -247,14 +247,14 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                     'start_at': start_at,
                     'end_at': end_at
                 })
-            
+
             # Step 4: Batch insert xrefs for both new instruments and existing instruments with missing xrefs
             if xref_inserts:
                 await xrefs_dao.create_xrefs_batch(xref_inserts, pool_min_size=1, pool_max_size=1)
-            
+
             if debug:
                 print(f"[INFO] Batch processed: {len(new_instruments)} new instruments, {len(missing_xref_instruments)} missing xrefs, {len(xref_inserts)} total xrefs created")
-            
+
             return len(valid_instruments)
         return asyncio.run(batch_logic())
 

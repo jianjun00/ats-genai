@@ -161,25 +161,25 @@ docker exec ats-dev-postgres pg_controldata /var/lib/postgresql/data
 ```bash
 # Check active connections
 python scripts/run_dev.py query --query "
-SELECT count(*) as active_connections, 
+SELECT count(*) as active_connections,
        max(now() - query_start) as longest_query,
        state
-FROM pg_stat_activity 
+FROM pg_stat_activity
 GROUP BY state
 "
 
 # Identify slow queries
 python scripts/run_dev.py query --query "
 SELECT query, calls, total_time, mean_time
-FROM pg_stat_statements 
+FROM pg_stat_statements
 ORDER BY total_time DESC LIMIT 10
 "
 
 # Check database size and bloat
 python scripts/run_dev.py query --query "
-SELECT schemaname, tablename, 
+SELECT schemaname, tablename,
        pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-FROM pg_tables 
+FROM pg_tables
 WHERE schemaname = 'public'
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
 LIMIT 10
@@ -375,9 +375,9 @@ python scripts/validate_arrayrecord.py --path /mnt/d/ats-data/training-data --ch
 # Check data completeness
 python scripts/run_dev.py query --query "
 SELECT symbol, COUNT(*) as records, MIN(date) as start_date, MAX(date) as end_date
-FROM dev_daily_prices 
-WHERE date >= '2024-01-01' 
-GROUP BY symbol 
+FROM dev_daily_prices
+WHERE date >= '2024-01-01'
+GROUP BY symbol
 HAVING COUNT(*) < 200  -- Expected ~250 trading days
 ORDER BY records
 "
@@ -385,7 +385,7 @@ ORDER BY records
 # Check for anomalous values
 python scripts/run_dev.py query --query "
 SELECT symbol, date, open, high, low, close, volume
-FROM dev_daily_prices 
+FROM dev_daily_prices
 WHERE close <= 0 OR volume < 0 OR close > 10000 OR high < low
 ORDER BY date DESC LIMIT 20
 "
@@ -541,14 +541,14 @@ python scripts/run_dev.py query --query "SELECT pg_reload_conf()"
 # Identify slow queries
 python scripts/run_dev.py query --query "
 SELECT query, calls, total_time, mean_time, stddev_time
-FROM pg_stat_statements 
+FROM pg_stat_statements
 WHERE mean_time > 1000  -- Queries averaging >1s
 ORDER BY total_time DESC LIMIT 10
 "
 
 # Create missing indexes
 python scripts/run_dev.py query --query "
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_daily_prices_symbol_date 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_daily_prices_symbol_date
 ON dev_daily_prices(symbol, date)
 "
 

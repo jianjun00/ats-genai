@@ -12,7 +12,7 @@
 1. Real-time Data Sources
    ↓ Polygon, Tiingo, EODHD, FMP APIs
 2. Multi-vendor News Collection
-   ↓ Unified ingestion pipeline  
+   ↓ Unified ingestion pipeline
 3. Event Classification & Processing
    ↓ Earnings, dividends, splits, economic events
 4. LLM-based Sentiment Analysis
@@ -126,7 +126,7 @@ CREATE TABLE intg_corporate_events (
 # Check recent news collection
 python scripts/run_intg.py query --query "
 SELECT source, COUNT(*) as articles, MAX(published_at) as latest_article
-FROM intg_news_realtime 
+FROM intg_news_realtime
 WHERE created_at >= CURRENT_DATE - INTERVAL '24 hours'
 GROUP BY source
 ORDER BY articles DESC
@@ -134,11 +134,11 @@ ORDER BY articles DESC
 
 # Verify data quality
 python scripts/run_intg.py query --query "
-SELECT 
+SELECT
     COUNT(*) as total_articles,
     COUNT(CASE WHEN sentiment_score IS NOT NULL THEN 1 END) as with_sentiment,
     AVG(relevance_score) as avg_relevance
-FROM intg_news_realtime 
+FROM intg_news_realtime
 WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
 "
 ```
@@ -163,7 +163,7 @@ python scripts/run_dev.py run --script scripts/historic_news_signal_extractor.py
 
 **LLM Analysis Features:**
 - **Sentiment Classification**: Positive, negative, neutral with confidence scores
-- **Key Topic Extraction**: Automated identification of market-relevant topics  
+- **Key Topic Extraction**: Automated identification of market-relevant topics
 - **Market Impact Assessment**: High/medium/low impact scoring
 - **Entity Recognition**: Company mentions, product releases, executive changes
 - **Event Classification**: Earnings, mergers, regulatory changes, product launches
@@ -197,7 +197,7 @@ python scripts/run_intg.py start --service signal-broadcaster
 # Monitor signal generation
 python scripts/run_intg.py query --query "
 SELECT signal_type, COUNT(*) as signal_count, AVG(confidence) as avg_confidence
-FROM intg_trading_signals 
+FROM intg_trading_signals
 WHERE created_at >= CURRENT_DATE - INTERVAL '24 hours'
 GROUP BY signal_type
 ORDER BY signal_count DESC
@@ -218,11 +218,11 @@ python scripts/run_dev.py run --script scripts/populate_economic_events.py --ind
 # Monitor economic events impact
 python scripts/run_intg.py query --query "
 SELECT event_type, event_date, actual_value, forecast_value,
-       CASE 
+       CASE
          WHEN ABS(actual_value - forecast_value) > ABS(forecast_value * 0.1) THEN 'SURPRISE'
          ELSE 'EXPECTED'
        END as surprise_factor
-FROM intg_economic_events 
+FROM intg_economic_events
 WHERE event_date >= CURRENT_DATE - INTERVAL '30 days'
 AND impact_level = 'HIGH'
 ORDER BY event_date DESC
@@ -244,11 +244,11 @@ python scripts/run_dev.py run --script scripts/economic_signals_generator.py --l
 ```bash
 # Update universe membership based on events
 python scripts/run_dev.py query --query "
-UPDATE dev_universe_membership 
+UPDATE dev_universe_membership
 SET in_universe = false, exit_reason = 'earnings_miss'
 WHERE symbol IN (
-    SELECT symbol FROM intg_corporate_events 
-    WHERE event_type = 'earnings' 
+    SELECT symbol FROM intg_corporate_events
+    WHERE event_type = 'earnings'
     AND details->>'eps_surprise' < '-0.1'
     AND event_date >= CURRENT_DATE - INTERVAL '5 days'
 )
@@ -257,7 +257,7 @@ WHERE symbol IN (
 # Monitor universe changes due to events
 python scripts/run_dev.py query --query "
 SELECT exit_reason, COUNT(*) as exits, entry_reason, COUNT(*) as entries
-FROM dev_universe_membership 
+FROM dev_universe_membership
 WHERE (exit_date >= CURRENT_DATE - INTERVAL '30 days' OR entry_date >= CURRENT_DATE - INTERVAL '30 days')
 GROUP BY exit_reason, entry_reason
 "
@@ -299,10 +299,10 @@ open http://localhost:4002/d/news-collection-dashboard
 ```bash
 # Monitor news processing throughput
 python scripts/run_intg.py query --query "
-SELECT DATE(created_at) as date, 
+SELECT DATE(created_at) as date,
        COUNT(*) as articles_processed,
        AVG(EXTRACT(EPOCH FROM (analysis_timestamp - created_at))) as avg_processing_time
-FROM intg_news_llm_analysis 
+FROM intg_news_llm_analysis
 WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
 GROUP BY DATE(created_at)
 ORDER BY date DESC
@@ -310,11 +310,11 @@ ORDER BY date DESC
 
 # Check processing bottlenecks
 python scripts/run_dev.py query --query "
-SELECT source, 
+SELECT source,
        COUNT(*) as total_articles,
        COUNT(CASE WHEN sentiment_score IS NOT NULL THEN 1 END) as processed_articles,
        ROUND(100.0 * COUNT(CASE WHEN sentiment_score IS NOT NULL THEN 1 END) / COUNT(*), 2) as processing_rate
-FROM intg_news_realtime 
+FROM intg_news_realtime
 WHERE created_at >= CURRENT_DATE - INTERVAL '24 hours'
 GROUP BY source
 ORDER BY total_articles DESC
@@ -336,7 +336,7 @@ SELECT DATE(published_at) as date,
        AVG(sentiment_score) as avg_sentiment,
        COUNT(*) as article_count,
        STDDEV(sentiment_score) as sentiment_volatility
-FROM intg_news_realtime 
+FROM intg_news_realtime
 WHERE symbol IN ('AAPL', 'TSLA', 'MSFT')
 AND published_at >= CURRENT_DATE - INTERVAL '30 days'
 GROUP BY DATE(published_at), symbol
@@ -356,7 +356,7 @@ SELECT DATE(published_at) as date,
        COUNT(*) as total_articles,
        COUNT(CASE WHEN sentiment_score > 0.6 THEN 1 END) as positive_news,
        COUNT(CASE WHEN sentiment_score < -0.6 THEN 1 END) as negative_news
-FROM intg_news_realtime 
+FROM intg_news_realtime
 WHERE published_at >= CURRENT_DATE - INTERVAL '30 days'
 AND relevance_score > 0.5
 GROUP BY DATE(published_at)
@@ -413,17 +413,17 @@ WITH news_events AS (
   AND published_at >= '2024-01-01'
 ),
 price_reactions AS (
-  SELECT symbol, date, 
+  SELECT symbol, date,
          (close - open) / open as intraday_return,
          LAG(close) OVER (PARTITION BY symbol ORDER BY date) as prev_close
   FROM intg_daily_prices
   WHERE date >= '2024-01-01'
 )
-SELECT ne.symbol, 
+SELECT ne.symbol,
        AVG(ne.sentiment_score) as avg_sentiment,
        AVG(pr.intraday_return) as avg_reaction
 FROM news_events ne
-JOIN price_reactions pr ON ne.symbol = pr.symbol 
+JOIN price_reactions pr ON ne.symbol = pr.symbol
 AND DATE(ne.published_at) = pr.date
 GROUP BY ne.symbol
 HAVING COUNT(*) > 5
@@ -474,7 +474,7 @@ alerts:
     symbols: ["JNJ", "PFE", "MRNA", "BNTX"]
     sentiment_threshold: 0.6
     actions: ["slack_notification", "trading_signal"]
-    
+
   - name: "Earnings_Surprise"
     event_types: ["earnings"]
     surprise_threshold: 0.1

@@ -12,7 +12,7 @@
 ✅ VERIFIED: /mnt/d/ats-data/training_data/89/
 ├── AAPL_20250701_000000_20250906_000000/ (2+ months of data!)
 │   ├── 5m/    [52 bars × 6 features = 312 data points]
-│   ├── 15m/   [52 bars × 6 features = 312 data points]  
+│   ├── 15m/   [52 bars × 6 features = 312 data points]
 │   ├── 1h/    [24 bars × 6 features = 144 data points]
 │   ├── 1d/    [20 bars × 6 features = 120 data points]
 │   └── 1w/    [12 bars × 6 features = 72 data points]
@@ -47,14 +47,14 @@ Data Format: ArrayRecord with column metadata ✓
 ✅ Successfully loaded AAPL ArrayRecord files:
    📦 Batch Structure:
    - 5m timeframe:  torch.Size([4, 52, 6]) - Real AAPL 5-minute bars
-   - 15m timeframe: torch.Size([4, 52, 6]) - Real AAPL 15-minute bars  
+   - 15m timeframe: torch.Size([4, 52, 6]) - Real AAPL 15-minute bars
    - 1h timeframe:  torch.Size([4, 24, 6]) - Real AAPL hourly bars
    - 1d timeframe:  torch.Size([4, 20, 6]) - Real AAPL daily bars
    - 1w timeframe:  torch.Size([4, 12, 6]) - Real AAPL weekly bars
 
 📊 Real Data Sample Values (from actual AAPL):
    5m bars:   O=$189.45, H=$189.67, C=$189.52, V=245,678
-   15m bars:  O=$189.41, H=$189.78, C=$189.59, V=1,234,567  
+   15m bars:  O=$189.41, H=$189.78, C=$189.59, V=1,234,567
    1h bars:   O=$189.23, H=$190.12, C=$189.81, V=4,567,890
    1d bars:   O=$188.90, H=$190.45, C=$189.67, V=52,345,678
    1w bars:   O=$187.50, H=$191.20, C=$189.80, V=267,891,234
@@ -78,19 +78,19 @@ Data Format: ArrayRecord with column metadata ✓
    Epoch 1:  Loss = 8.4521 (learning basic AAPL price patterns)
             - Price task: High attention on 1h timeframe (0.87)
             - Volatility: Focus on 5m data (0.82)
-            
+
    Epoch 3:  Loss = 5.2847 (discovering AAPL timeframe correlations)
             - Model learns morning gap behavior
             - Lunch hour volume patterns detected
-            
+
    Epoch 5:  Loss = 3.1456 (learning AAPL-specific patterns)
             - Power hour momentum patterns learned
             - Weekly trend influence incorporated
-            
+
    Epoch 7:  Loss = 2.3891 (optimizing multi-task predictions)
             - Task interactions stabilizing
             - Attention patterns becoming consistent
-            
+
    Epoch 10: Loss = 1.7234 (final optimization)
             - Converged on optimal AAPL prediction strategy
             - All 5 tasks showing coordinated predictions
@@ -106,14 +106,14 @@ Data Format: ArrayRecord with column metadata ✓
 
 🔮 Model Predictions Generated:
    • Price Movement: [4, 10, 1] - Next 10 hours AAPL price direction
-   • Volatility:     [4, 10, 1] - AAPL volatility forecasting  
+   • Volatility:     [4, 10, 1] - AAPL volatility forecasting
    • Volume:         [4, 10, 1] - AAPL volume pattern prediction
    • Regime Change:  [4, 10, 4] - Market regime probabilities
    • Risk Assessment:[4, 10, 1] - AAPL downside risk estimates
 
 📈 Sample Real Predictions (Hour-by-Hour):
    Hour 1: Price +0.34% (↗️), Vol 0.012, Volume +15%, Risk Low
-   Hour 2: Price -0.12% (↘️), Vol 0.008, Volume -5%, Risk Low  
+   Hour 2: Price -0.12% (↘️), Vol 0.008, Volume -5%, Risk Low
    Hour 3: Price +0.67% (↗️), Vol 0.019, Volume +28%, Risk Med
    Hour 4: Price +0.23% (↗️), Vol 0.011, Volume +8%, Risk Low
    Hour 5: Price -0.45% (↘️), Vol 0.016, Volume +12%, Risk Med
@@ -131,7 +131,7 @@ Data Format: ArrayRecord with column metadata ✓
 🎯 PRICE MOVEMENT PREDICTIONS:
    • Directional Accuracy: 64.2% 🟢 EXCELLENT (vs 50% random)
    • Mean Absolute Error: 0.0086 (price change units)
-   • Sharpe Ratio: 1.73 🟢 EXCELLENT (>1.5 target)  
+   • Sharpe Ratio: 1.73 🟢 EXCELLENT (>1.5 target)
    • Maximum Drawdown: -11.4% 🟢 ACCEPTABLE (<15%)
    • Win Rate: 64.2% (342 wins, 191 losses)
    • Best Prediction: +2.34% (Hour 847, Aug 15)
@@ -150,7 +150,7 @@ Data Format: ArrayRecord with column metadata ✓
 
 🎭 MARKET REGIME DETECTION (Summer 2025):
    • Bull Market Detection: 82.4% 🟢 EXCELLENT (July rally)
-   • Sideways Market: 67.3% 🟡 GOOD (August consolidation)  
+   • Sideways Market: 67.3% 🟡 GOOD (August consolidation)
    • Bear Periods: 75.1% 🟢 GOOD (September correction)
    • Regime Transitions: 54.2% 🟠 CHALLENGING (as expected)
 
@@ -239,7 +239,7 @@ Data Format: ArrayRecord with column metadata ✓
 
 🎯 REGIME-SPECIFIC BEHAVIOR:
    • Bull Markets (July): Model increases position sizes by 40%
-   • Sideways (August): Model reduces holding periods to 2-3 hours  
+   • Sideways (August): Model reduces holding periods to 2-3 hours
    • Bear Correction (September): Model emphasizes risk management
 ```
 
@@ -275,7 +275,7 @@ class AutonomousAAPLTrader:
     def __init__(self):
         self.model = AutonomousFinanceTransformer.load_from_run_89_training()
         self.data_processor = MultiTimeframeProcessor()
-        
+
         # Learned parameters from Run 89 training
         self.confidence_threshold = 0.65  # Based on 64.2% accuracy
         self.position_sizing = {
@@ -283,40 +283,40 @@ class AutonomousAAPLTrader:
             'medium_conviction': 0.05,
             'low_conviction': 0.02
         }
-    
+
     def predict_next_10_hours(self, current_aapl_state):
         """Real-time AAPL prediction using Run 89 trained model"""
-        
+
         # Process current market state (same format as training data)
         timeframe_sequences = self.data_processor.process_real_time(current_aapl_state)
-        
+
         # Generate predictions with attention analysis
         with torch.no_grad():
             outputs = self.model(timeframe_sequences, return_attention_weights=True)
-        
+
         predictions = outputs['predictions']
         attention_weights = outputs['attention_weights']
-        
+
         # Apply learned confidence thresholds from Run 89 performance
         confidence_scores = self._calculate_confidence(attention_weights)
-        
+
         return {
             'price_direction': predictions['price_movement'],
             'volatility_forecast': predictions['volatility'],
-            'volume_prediction': predictions['volume_profile'], 
+            'volume_prediction': predictions['volume_profile'],
             'market_regime': predictions['regime_change'],
             'risk_level': predictions['risk_assessment'],
             'confidence': confidence_scores,
             'position_size': self._recommend_position_size(confidence_scores),
             'attention_focus': self._interpret_attention(attention_weights)
         }
-    
+
     def _recommend_position_size(self, confidence):
         """Position sizing based on Run 89 performance metrics"""
         if confidence > 0.8:
             return self.position_sizing['high_conviction']  # 8% risk
         elif confidence > 0.6:
-            return self.position_sizing['medium_conviction']  # 5% risk  
+            return self.position_sizing['medium_conviction']  # 5% risk
         else:
             return self.position_sizing['low_conviction']  # 2% risk
 ```
@@ -334,7 +334,7 @@ class AutonomousAAPLTrader:
 
 ### 🎯 **BUSINESS IMPACT**
 - **Alpha Generation**: +18.7% excess returns over 67-day period
-- **Risk Management**: Maximum 11.4% drawdown with excellent risk-adjusted returns  
+- **Risk Management**: Maximum 11.4% drawdown with excellent risk-adjusted returns
 - **Scalability**: Same architecture ready for TSLA and other symbols
 - **Interpretability**: Every prediction explained through attention analysis
 

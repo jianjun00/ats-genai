@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ATS Data Backup Management and Monitoring Script  
+# ATS Data Backup Management and Monitoring Script
 # Provides backup status, cleanup, restore, and monitoring functions
 #
 set -euo pipefail
@@ -48,7 +48,7 @@ EOF
 show_status() {
     log "📊 ATS Data Backup Status Report"
     echo "=================================================="
-    
+
     # Latest snapshots
     if [[ -d "$SNAPSHOT_DIR" && -L "$SNAPSHOT_DIR/latest" ]]; then
         LATEST_SNAPSHOT=$(readlink -f "$SNAPSHOT_DIR/latest")
@@ -59,7 +59,7 @@ show_status() {
     else
         echo "❌ No snapshots found"
     fi
-    
+
     # Latest incremental
     if [[ -d "$INCREMENTAL_DIR" && -L "$INCREMENTAL_DIR/latest" ]]; then
         LATEST_INCREMENTAL=$(readlink -f "$INCREMENTAL_DIR/latest")
@@ -70,22 +70,22 @@ show_status() {
     else
         echo "❌ No incremental backups found"
     fi
-    
+
     # Backup counts
     SNAPSHOT_COUNT=0
     INCREMENTAL_COUNT=0
-    
+
     if [[ -d "$SNAPSHOT_DIR" ]]; then
         SNAPSHOT_COUNT=$(find "$SNAPSHOT_DIR" -maxdepth 1 -type d -name "full_snapshot_*" | wc -l)
     fi
-    
+
     if [[ -d "$INCREMENTAL_DIR" ]]; then
         INCREMENTAL_COUNT=$(find "$INCREMENTAL_DIR" -maxdepth 1 -type d -name "incremental_*" | wc -l)
     fi
-    
+
     echo "📊 Total Snapshots: $SNAPSHOT_COUNT"
     echo "📊 Total Incrementals: $INCREMENTAL_COUNT"
-    
+
     # Storage usage
     if [[ -d "$BACKUP_ROOT" ]]; then
         TOTAL_BACKUP_SIZE=$(du -sh "$BACKUP_ROOT" 2>/dev/null | cut -f1 || echo "Unknown")
@@ -93,14 +93,14 @@ show_status() {
         echo "💾 Total Backup Storage: $TOTAL_BACKUP_SIZE"
         echo "💾 Available Space: $AVAILABLE_SPACE"
     fi
-    
+
     echo "=================================================="
 }
 
 list_backups() {
     log "📋 Listing all available backups"
     echo "=================================================="
-    
+
     echo "🔷 Full Snapshots:"
     if [[ -d "$SNAPSHOT_DIR" ]]; then
         find "$SNAPSHOT_DIR" -maxdepth 1 -type d -name "full_snapshot_*" -exec basename {} \; | sort -r | while read backup; do
@@ -114,7 +114,7 @@ list_backups() {
     else
         echo "  No snapshots found"
     fi
-    
+
     echo ""
     echo "🔶 Incremental Backups:"
     if [[ -d "$INCREMENTAL_DIR" ]]; then
@@ -126,7 +126,7 @@ list_backups() {
                 echo "  📦 $backup ($backup_date, $backup_size)"
             fi
         done
-        
+
         total_incrementals=$(find "$INCREMENTAL_DIR" -maxdepth 1 -type d -name "incremental_*" | wc -l)
         if [[ $total_incrementals -gt 10 ]]; then
             echo "  ... and $((total_incrementals - 10)) more incrementals"
@@ -134,13 +134,13 @@ list_backups() {
     else
         echo "  No incremental backups found"
     fi
-    
+
     echo "=================================================="
 }
 
 cleanup_backups() {
     log "🧹 Starting backup cleanup with retention policy"
-    
+
     # Cleanup old snapshots (keep last 3)
     if [[ -d "$SNAPSHOT_DIR" ]]; then
         snapshots_to_delete=$(find "$SNAPSHOT_DIR" -maxdepth 1 -type d -name "full_snapshot_*" | sort -r | tail -n +4)
@@ -157,7 +157,7 @@ cleanup_backups() {
             log "✅ No old snapshots to cleanup"
         fi
     fi
-    
+
     # Cleanup old incrementals (keep last 14 days)
     if [[ -d "$INCREMENTAL_DIR" ]]; then
         log "🧹 Cleaning incrementals older than 14 days..."
@@ -175,14 +175,14 @@ cleanup_backups() {
             log "✅ No old incrementals to cleanup"
         fi
     fi
-    
+
     log "✅ Backup cleanup completed"
 }
 
 verify_backup() {
     local backup_name="$1"
     local backup_path=""
-    
+
     # Find backup path
     if [[ -d "$SNAPSHOT_DIR/$backup_name" ]]; then
         backup_path="$SNAPSHOT_DIR/$backup_name"
@@ -192,20 +192,20 @@ verify_backup() {
         log "❌ ERROR: Backup not found: $backup_name"
         return 1
     fi
-    
+
     log "🔍 Verifying backup: $backup_name"
-    
+
     # Check metadata file
     if [[ -f "$backup_path/.backup_metadata.json" ]]; then
         log "✅ Metadata file exists"
     else
         log "⚠️  WARNING: No metadata file found"
     fi
-    
+
     # Check critical directories
     local critical_dirs=("minute-bars" "training_data" "checkpoints" "config")
     local missing_dirs=0
-    
+
     for dir in "${critical_dirs[@]}"; do
         if [[ -d "$SOURCE_DIR/$dir" ]]; then
             if [[ -d "$backup_path/$dir" ]]; then
@@ -216,12 +216,12 @@ verify_backup() {
             fi
         fi
     done
-    
+
     # Sample file verification
     log "🔍 Performing sample file verification..."
     sample_files=$(find "$backup_path" -type f -name "*.parquet" | head -5)
     verified_files=0
-    
+
     while IFS= read -r file; do
         if [[ -n "$file" && -f "$file" ]]; then
             if [[ -s "$file" ]]; then  # Check if file is not empty
@@ -229,7 +229,7 @@ verify_backup() {
             fi
         fi
     done <<< "$sample_files"
-    
+
     if [[ $missing_dirs -eq 0 && $verified_files -gt 0 ]]; then
         log "✅ Backup verification passed: $backup_name"
     else
@@ -241,11 +241,11 @@ verify_backup() {
 show_monitor() {
     log "📊 ATS Data Backup Monitoring Report"
     echo "=================================================="
-    
+
     # Disk usage
     df -h "$BACKUP_ROOT" | awk 'NR==1 {print "Filesystem      Size  Used Avail Use% Mounted on"} NR==2 {print $0}'
     echo ""
-    
+
     # Backup growth trend (if multiple backups exist)
     echo "📈 Backup Storage Trend:"
     if [[ -d "$SNAPSHOT_DIR" ]]; then
@@ -258,21 +258,21 @@ show_monitor() {
             fi
         done
     fi
-    
+
     echo ""
-    
+
     # Recent backup activity
     echo "⏰ Recent Backup Activity:"
     if [[ -f "/mnt/d/ats-logs/data-backup-snapshot.log" ]]; then
         echo "  Last Snapshot:"
         tail -1 "/mnt/d/ats-logs/data-backup-snapshot.log" | grep "completed successfully" || echo "  No recent successful snapshots"
     fi
-    
+
     if [[ -f "/mnt/d/ats-logs/data-backup-incremental.log" ]]; then
         echo "  Last Incremental:"
         tail -1 "/mnt/d/ats-logs/data-backup-incremental.log" | grep "completed successfully" || echo "  No recent successful incrementals"
     fi
-    
+
     echo "=================================================="
 }
 

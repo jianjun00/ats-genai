@@ -13,7 +13,7 @@ After analyzing the codebase, I've identified **94 files** with opportunities to
 
 1. **Polygon Vendor Services (12 files)**
    - `src/infrastructure/vendor/polygon/services/populate_instrument_polygon.py`
-   - `src/infrastructure/vendor/polygon/services/dividend_polygon.py` 
+   - `src/infrastructure/vendor/polygon/services/dividend_polygon.py`
    - `src/infrastructure/vendor/polygon/services/range_dividend_polygon.py`
    - `src/infrastructure/vendor/polygon/services/populate_market_cap_polygon.py`
    - `src/infrastructure/vendor/polygon/services/adv_mktcap_polygon.py`
@@ -49,7 +49,7 @@ TIINGO_API_KEY = os.environ.get("TIINGO_API_KEY") or env.get_api_key('tiingo')
 # ✅ New pattern using shared utilities
 from shared.utils.vendor_api_keys import get_polygon_api_key, get_eodhd_api_key, get_tiingo_api_key
 POLYGON_API_KEY = get_polygon_api_key()
-EODHD_API_KEY = get_eodhd_api_key() 
+EODHD_API_KEY = get_eodhd_api_key()
 TIINGO_API_KEY = get_tiingo_api_key()
 ```
 
@@ -70,13 +70,13 @@ TIINGO_API_KEY = get_tiingo_api_key()
 
 **Current Pattern (needs replacement):**
 ```python
-# ❌ Complex pattern found in 220 files  
+# ❌ Complex pattern found in 220 files
 try:
     from shared.data_handling.utils.database import Database
     pool = await Database.create_connection_pool(env=env, max_retries=3, timeout=10.0)
 except ImportError:
     pool = await asyncpg.create_pool(
-        host="localhost", port=3432, user="postgres", 
+        host="localhost", port=3432, user="postgres",
         password="dev_password", database="dev_db"
     )
 ```
@@ -107,7 +107,7 @@ table_name = get_table_name('news', environment='dev')  # Returns 'dev_news'
 **Current Pattern (needs replacement):**
 ```python
 # ❌ Custom stats in multiple files
-@dataclass 
+@dataclass
 class PopulationStats:
     total_records_fetched: int = 0
     total_records_inserted: int = 0
@@ -140,10 +140,10 @@ await rate_limiter.wait_if_needed()
 **Migration Steps:**
 ```bash
 # 1. Replace imports
-- from vendor.polygon.utils import POLYGON_API_KEY  
+- from vendor.polygon.utils import POLYGON_API_KEY
 + from shared.utils.vendor_api_keys import get_polygon_api_key
 
-# 2. Replace assignments  
+# 2. Replace assignments
 - POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY") or env.get_api_key('polygon')
 + POLYGON_API_KEY = get_polygon_api_key()
 ```
@@ -154,7 +154,7 @@ await rate_limiter.wait_if_needed()
 
 2. **Database Connection Standardization (15 key files)**
    - Focus on backfill scripts first
-   - `scripts/populate_30year_eodhd_minute_bars.py` 
+   - `scripts/populate_30year_eodhd_minute_bars.py`
    - `src/domains/market_data/services/vendor_adapters/news/*.py`
 
 ### **Phase 3: Lower-Impact, Higher-Value (Week 3)**
@@ -186,10 +186,10 @@ def migrate_api_key_imports(file_path):
     # Implementation to scan and replace patterns
     pass
 
-# Target files for immediate migration  
+# Target files for immediate migration
 PRIORITY_FILES = [
     "src/infrastructure/vendor/polygon/services/populate_instrument_polygon.py",
-    "src/infrastructure/vendor/tiingo/services/populate_instrument_tiingo.py", 
+    "src/infrastructure/vendor/tiingo/services/populate_instrument_tiingo.py",
     "src/infrastructure/vendor/eodhd/services/populate_instrument_eodhd.py",
 ]
 ```
@@ -219,7 +219,7 @@ class TurboPolygonNewsFetcher:
 ```bash
 # Test current functionality before migration
 python -m pytest tests/vendor/polygon/ -v
-python -m pytest tests/vendor/tiingo/ -v  
+python -m pytest tests/vendor/tiingo/ -v
 python -m pytest tests/vendor/eodhd/ -v
 ```
 
@@ -239,7 +239,7 @@ python scripts/test_migrated_vendor_services.py
 - **Error Handling**: Standardized across all vendor integrations
 - **Testing**: 100+ test cases vs scattered/missing tests
 
-### **Qualitative Improvements**  
+### **Qualitative Improvements**
 - **Consistency**: All vendor integrations follow same patterns
 - **Reliability**: Robust fallback mechanisms built-in
 - **Monitoring**: Rich statistics and progress tracking
@@ -256,7 +256,7 @@ Choose any file from the priority list, e.g., `populate_instrument_polygon.py`
 from vendor.polygon.utils import POLYGON_API_KEY
 # ... complex fallback logic
 
-# NEW (add these lines) 
+# NEW (add these lines)
 from shared.utils.vendor_api_keys import get_polygon_api_key
 POLYGON_API_KEY = get_polygon_api_key()
 ```

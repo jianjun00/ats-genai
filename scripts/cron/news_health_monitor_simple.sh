@@ -30,10 +30,10 @@ log_error() {
 # Run health monitoring
 run_health_check() {
     log "🏥 Starting news data health check for $ENVIRONMENT"
-    
+
     local temp_results="/tmp/news_health_${ENVIRONMENT}_$$.json"
     local temp_errors="/tmp/news_health_${ENVIRONMENT}_$$.err"
-    
+
     # Run monitoring script and capture both stdout and stderr
     docker run --rm \
         --network ats-${ENVIRONMENT}-network \
@@ -50,16 +50,16 @@ run_health_check() {
         --environment "$ENVIRONMENT" \
         --output json \
         > "$temp_results" 2> "$temp_errors"
-    
+
     local exit_code=$?
-    
+
     # Check if we got valid JSON output regardless of exit code
     if [ -s "$temp_results" ] && grep -q '"overall_health"' "$temp_results" 2>/dev/null; then
         # Parse results successfully
         local overall_health=$(python3 -c "
 import json, sys
 try:
-    with open('$temp_results') as f: 
+    with open('$temp_results') as f:
         content = f.read().strip()
         # Skip GIN DEBUG lines
         json_start = content.find('{')
@@ -67,26 +67,26 @@ try:
             content = content[json_start:]
         data = json.loads(content)
         print(data.get('overall_health', 'UNKNOWN'))
-except: 
+except:
     print('PARSE_ERROR')
 ")
-        
+
         local alert_count=$(python3 -c "
 import json, sys
 try:
-    with open('$temp_results') as f: 
+    with open('$temp_results') as f:
         content = f.read().strip()
         json_start = content.find('{')
         if json_start >= 0:
             content = content[json_start:]
         data = json.loads(content)
         print(len(data.get('alerts', [])))
-except: 
+except:
     print('0')
 ")
-        
+
         log "Health check completed: $overall_health ($alert_count alerts)"
-        
+
         # Report based on health status
         if [ "$overall_health" = "HEALTHY" ]; then
             log_success "All health checks passed"
@@ -95,7 +95,7 @@ except:
         else
             log_warning "Health status: $overall_health"
         fi
-        
+
         # Cleanup
         rm -f "$temp_results" "$temp_errors"
         return 0
@@ -112,16 +112,16 @@ except:
 # Quick database stats
 report_quick_stats() {
     log "📊 Quick Statistics:"
-    
+
     local yesterday_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
-        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon 
+        SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
         WHERE DATE(published_utc) = CURRENT_DATE - INTERVAL '1 day'
     " 2>/dev/null | xargs || echo "0")
-    
+
     local total_count=$(docker exec ats-${ENVIRONMENT}-postgres psql -U postgres -d ${ENVIRONMENT}_db -t -c "
         SELECT COUNT(*) FROM ${ENVIRONMENT}_news_polygon
     " 2>/dev/null | xargs || echo "0")
-    
+
     log "   Yesterday: $yesterday_count articles"
     log "   Total: $total_count articles"
 }
@@ -130,13 +130,13 @@ report_quick_stats() {
 main() {
     log "🔍 News Health Monitor - $(date)"
     log "Environment: $ENVIRONMENT"
-    
+
     # Quick connectivity test
     if ! docker exec ats-${ENVIRONMENT}-postgres pg_isready -U postgres >/dev/null 2>&1; then
         log_error "Database not accessible"
         exit 1
     fi
-    
+
     # Run health check
     if run_health_check; then
         report_quick_stats

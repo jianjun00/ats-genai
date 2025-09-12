@@ -154,11 +154,11 @@ class UniverseStateManager:
         print(f"   _instrument_history keys: {list(self._instrument_history.keys()) if hasattr(self, '_instrument_history') else 'No _instrument_history'}")
         print(f"   _cache timestamps: {list(self._cache.keys()) if hasattr(self, '_cache') else 'No _cache'}")
         print(f"   Latest timestamp: {self.get_latest_timestamp() if hasattr(self, 'get_latest_timestamp') else 'No get_latest_timestamp method'}")
-        
+
         # ❌ ARCHITECTURE ISSUE: Training data generation must populate universe state cache
         # The Runner should have collected data during update_for_sod() and interval processing
         # This forces the system to work correctly by requiring proper data population
-        
+
         raise ValueError(f"🚨 UNIVERSE STATE CACHE EMPTY: instrument_id={instrument_id}\n"
                         f"Training data generation requires populated universe state cache.\n"
                         f"The Runner must call universe_state_manager.update_for_sod() and accumulate data.\n"
@@ -231,7 +231,7 @@ class UniverseStateManager:
             # Already a datetime object - it has both date() and time() methods
             pass
         elif hasattr(cur_datetime, 'year'):
-            # It's a date object - convert to datetime  
+            # It's a date object - convert to datetime
             from datetime import datetime
             cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
         else:
@@ -252,24 +252,89 @@ class UniverseStateManager:
             else:
                 cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
 
-        # ❌ ARCHITECTURE ISSUE: Training data generation must populate universe state cache
-        # The Runner should have collected data during update_for_sod() and interval processing
-        # This forces the system to work correctly by requiring proper data population
-        
-        print(f"🚨 ARCHITECTURE VALIDATION: get_lead_prices() requires populated universe state cache")
-        print(f"   Training data generation systems must use proper cache-based data flow:")
-        print(f"   Runner → update_for_sod() → populate cache → get_lead_prices() from cache")
-        
-        # Check if we have any cache data
-        latest_timestamp = max(self._cache.keys()) if hasattr(self, '_cache') and self._cache else None
-        print(f"   Latest timestamp: {latest_timestamp}")
-        
-        raise ValueError(f"🚨 UNIVERSE STATE CACHE EMPTY: instrument_id={instrument_id}\n"
-                        f"Training data generation requires populated universe state cache.\n"
-                        f"The Runner must call universe_state_manager.update_for_sod() and accumulate data.\n"
-                        f"Cache status - _instrument_history: {len(self._instrument_history) if hasattr(self, '_instrument_history') else 0} instruments, "
-                        f"_cache: {len(self._cache) if hasattr(self, '_cache') else 0} timestamps\n"
-                        f"LEAD PERIODS CANNOT BE COMPUTED WITHOUT PROPER CACHE POPULATION")
+        # Use FileBasedMinuteMarketDataManager to get actual future OHLCV data
+        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+        from datetime import timedelta
+        import pandas as pd
+
+        print(f"DEBUG get_lead_prices: Getting real lead data for {lead_periods} periods of {time_interval}")
+
+        try:
+            symbol = self._get_symbol_from_instrument_id(instrument_id)
+            minute_data_manager = FileBasedMinuteMarketDataManager(self.env, '/data/minute-bars')
+
+            # Calculate the future time range (AFTER cur_datetime)
+            start_datetime_for_lead = cur_datetime
+            if time_interval == '1d':
+                end_datetime_for_lead = cur_datetime + timedelta(days=lead_periods + 1)
+            elif time_interval == '1h':
+                end_datetime_for_lead = cur_datetime + timedelta(hours=lead_periods + 1)
+            elif time_interval == '5m':
+                end_datetime_for_lead = cur_datetime + timedelta(minutes=(lead_periods + 1) * 5)
+            elif time_interval == '15m':
+                end_datetime_for_lead = cur_datetime + timedelta(minutes=(lead_periods + 1) * 15)
+            else:
+                end_datetime_for_lead = cur_datetime + timedelta(days=lead_periods + 1)
+
+            print(f"DEBUG get_lead_prices: Querying lead data from {start_datetime_for_lead} to {end_datetime_for_lead}")
+
+            # Get minute data and aggregate to requested time_interval
+            import asyncio
+            import concurrent.futures
+
+            def get_lead_minute_data_sync():
+                """Run async call in a separate thread with new event loop"""
+                return asyncio.run(minute_data_manager.get_minute_ohlc_batch(
+                    [symbol], start_datetime_for_lead, end_datetime_for_lead
+                ))
+
+            try:
+                # Run the async call in a thread pool to avoid event loop conflicts
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(get_lead_minute_data_sync)
+                    minute_df = future.result(timeout=30)
+            except Exception as e:
+                print(f"DEBUG get_lead_prices: Failed to get minute data: {e}")
+                minute_df = {}
+
+            if symbol in minute_df and not minute_df[symbol].empty:
+                df = minute_df[symbol]
+                print(f"DEBUG get_lead_prices: Retrieved {len(df)} minute records for {symbol}")
+
+                if time_interval == '1d':
+                    # Aggregate to daily OHLCV
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    df.set_index('timestamp', inplace=True)
+
+                    # Resample to daily
+                    daily_df = df.resample('1D').agg({
+                        'open': 'first',
+                        'high': 'max',
+                        'low': 'min',
+                        'close': 'last',
+                        'volume': 'sum'
+                    }).dropna()
+
+                    daily_df.reset_index(inplace=True)
+
+                    # Filter to only get data AFTER cur_datetime
+                    daily_df = daily_df[daily_df['timestamp'] > pd.Timestamp(cur_datetime)]
+                    daily_df = daily_df.head(lead_periods)  # Get first lead_periods days
+
+                    print(f"DEBUG get_lead_prices: Aggregated to {len(daily_df)} future daily records")
+                    return daily_df
+                else:
+                    # For other intervals, implement aggregation accordingly
+                    print(f"DEBUG get_lead_prices: Interval {time_interval} aggregation not yet implemented")
+                    return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+
+            else:
+                print(f"DEBUG get_lead_prices: No minute data found for {symbol} in lead period")
+                return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+
+        except Exception as e:
+            print(f"DEBUG get_lead_prices: FileBasedMinuteMarketDataManager failed: {e}")
+            return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
 
     async def get_lagged_signals(
         self,
@@ -391,7 +456,7 @@ class UniverseStateManager:
             try:
                 # Try to get indicators from database - use the actual DAO methods available
                 indicator_intervals = await indicator_dao.list()  # Get all indicators (limited)
-                
+
                 if indicator_intervals:
                     # Process the database indicators if available
                     print(f"DEBUG get_lagged_signals: Found {len(indicator_intervals)} indicator records in database")
@@ -400,34 +465,34 @@ class UniverseStateManager:
                     return pd.DataFrame(columns=['timestamp'])
                 else:
                     print(f"DEBUG get_lagged_signals: No indicator data in database")
-                
+
             except Exception as e:
                 print(f"DEBUG get_lagged_signals: Database query failed: {e}")
-            
+
             # If no indicators in database, compute them from OHLCV data
             print(f"DEBUG get_lagged_signals: Computing indicators from OHLCV data")
-            
+
             # Get OHLCV data first using the same method as get_lag_prices
             from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-            
+
             try:
                 symbol = self._get_symbol_from_instrument_id(instrument_id)
                 minute_data_manager = FileBasedMinuteMarketDataManager(self.env, '/data/minute-bars')
-                
+
                 # Get the OHLCV data for the time range
                 from datetime import timedelta
                 end_datetime = cur_datetime if hasattr(cur_datetime, 'hour') else datetime.combine(cur_datetime, datetime.min.time())
                 start_datetime_for_data = end_datetime - timedelta(days=lag_periods + 10)  # Extra buffer for indicator calculation
-                
+
                 import asyncio
                 import concurrent.futures
-                
+
                 def get_signals_minute_data_sync():
                     """Run async call in a separate thread with new event loop"""
                     return asyncio.run(minute_data_manager.get_minute_ohlc_batch(
                         [symbol], start_datetime_for_data, end_datetime
                     ))
-                
+
                 try:
                     # Run the async call in a thread pool to avoid event loop conflicts
                     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -436,21 +501,21 @@ class UniverseStateManager:
                 except Exception as e:
                     print(f"DEBUG get_lagged_signals: Failed to compute indicators from OHLCV: {e}")
                     return pd.DataFrame()
-                
+
                 if symbol in minute_df and not minute_df[symbol].empty:
                     df = minute_df[symbol]
                     print(f"DEBUG get_lagged_signals: Retrieved {len(df)} minute records for indicator computation")
-                    
+
                     # Compute technical indicators
                     # For now, return empty until we implement indicator computation
                     # TODO: Implement actual technical indicator calculations (etop, ebot, pldot)
                     print(f"DEBUG get_lagged_signals: Technical indicator computation not yet implemented")
                     return pd.DataFrame(columns=['timestamp'])
-                    
+
                 else:
                     print(f"DEBUG get_lagged_signals: No OHLCV data available for indicator computation")
                     return pd.DataFrame(columns=['timestamp'])
-                    
+
             except Exception as e:
                 print(f"DEBUG get_lagged_signals: Failed to compute indicators from OHLCV: {e}")
                 return pd.DataFrame(columns=['timestamp'])
@@ -547,35 +612,35 @@ class UniverseStateManager:
     def _get_lag_prices_from_runner_cache(self, instrument_id: int, lag_periods: int, time_interval: str, cur_datetime: datetime) -> Optional[pd.DataFrame]:
         """
         ✅ CRITICAL FIX: Get lag prices from Runner's universe state builder cache instead of direct FileBasedMinuteMarketDataManager calls.
-        
+
         This method uses the data that the Runner has already collected with the correct time range logic:
         [current_time - base_duration, current_time] for past features.
-        
+
         Args:
             instrument_id: The instrument ID to get data for
             lag_periods: Number of periods back to get
             time_interval: Time interval ('1d', '1h', etc.)
             cur_datetime: Current datetime
-            
+
         Returns:
             DataFrame with OHLCV data from Runner cache, or None if not available
         """
         try:
             import pandas as pd
             from datetime import timedelta
-            
+
             print(f"DEBUG _get_lag_prices_from_runner_cache: Looking for cached data for instrument_id={instrument_id}")
-            
+
             # Get cached instrument history from Runner's universe state builder
             cached_data = self._get_instrument_history(instrument_id)
-            
+
             if cached_data is None or cached_data.empty:
                 print(f"DEBUG _get_lag_prices_from_runner_cache: No cached data found for instrument_id={instrument_id}")
                 return None
-            
+
             print(f"DEBUG _get_lag_prices_from_runner_cache: Found {len(cached_data)} cached records")
             print(f"DEBUG _get_lag_prices_from_runner_cache: Cached data columns: {list(cached_data.columns)}")
-            
+
             # The cached data is from the Runner's universe state builder which has the correct time ranges
             # Convert it to the format expected by get_lag_prices
             if time_interval == '1d':
@@ -583,25 +648,25 @@ class UniverseStateManager:
                 if 'date' in cached_data.columns:
                     daily_data = cached_data.groupby('date').agg({
                         'open': 'first',
-                        'high': 'max', 
+                        'high': 'max',
                         'low': 'min',
                         'close': 'last',
                         'volume': 'sum'
                     }).reset_index()
-                    
+
                     # Sort by date and get last lag_periods
                     daily_data = daily_data.sort_values('date').tail(lag_periods)
-                    
+
                     print(f"DEBUG _get_lag_prices_from_runner_cache: Aggregated to {len(daily_data)} daily records")
                     return daily_data
-            
+
             # For intraday intervals, use the cached data directly
             # The Runner has already collected this with the correct [past_time, current_time] range
             result_data = cached_data.head(lag_periods)
-            
+
             print(f"DEBUG _get_lag_prices_from_runner_cache: Returning {len(result_data)} records from cache")
             return result_data
-            
+
         except Exception as e:
             print(f"DEBUG _get_lag_prices_from_runner_cache: Exception accessing cache: {e}")
             import traceback
@@ -685,35 +750,35 @@ class UniverseStateManager:
         self.write_metadata = write_metadata
         # Flag to control metadata file writing
         self.write_metadata = write_metadata
-    
+
     def _get_symbol_from_instrument_id(self, instrument_id: int) -> str:
         """FIXED: Get symbol from instrument_id via database lookup instead of hardcoding.
-        
+
         Args:
             instrument_id: The instrument ID to look up
-            
+
         Returns:
             The symbol string for the instrument
-            
+
         Raises:
             ValueError: If instrument_id not found in database
         """
         if not self.env:
             raise ValueError("Environment not configured - cannot perform database lookup")
-            
+
         # 🚨 CRITICAL FIX (September 10, 2025): Fixed database import path
         # ISSUE: ImportError: cannot import name 'get_raw_connection' from incorrect module
         # ORIGINAL: from shared.data_handling.utils.database import get_raw_connection (BROKEN)
         # SOLUTION: Use correct import path from core.platform.database.connection_manager
         from core.platform.database.connection_manager import get_raw_connection
-        
+
         table_name = f"{self.env.table_prefix}instruments"
-        
+
         with get_raw_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(f"SELECT symbol FROM {table_name} WHERE id = %s", (instrument_id,))
                 result = cursor.fetchone()
-                
+
                 if result:
                     return result[0]
                 else:

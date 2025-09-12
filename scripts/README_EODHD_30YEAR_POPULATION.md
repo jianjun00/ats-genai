@@ -173,7 +173,7 @@ The checkpoint system enables resumable processing for long-running jobs:
 ```json
 {
   "start_date": "1994-01-01",
-  "end_date": "2024-01-01", 
+  "end_date": "2024-01-01",
   "total_symbols": 3000,
   "processed_symbols": 1250,
   "current_symbol": "MSFT",
@@ -339,7 +339,7 @@ python scripts/populate_30year_eodhd_minute_bars.py \
 ### System Resources
 
 - **CPU**: Minimal usage, I/O bound
-- **Memory**: ~500MB typical, 1GB peak  
+- **Memory**: ~500MB typical, 1GB peak
 - **Disk**: Write-intensive, ensure D: drive has good I/O
 - **Network**: Continuous API calls, stable connection recommended
 
@@ -404,7 +404,7 @@ print(f"Retrieved {len(data)} minute bars for AAPL in 2020")
 ## 🎯 Next Steps After Population
 
 1. **Data Validation**: Run integrity checks on populated data
-2. **Performance Testing**: Test query performance on historical data  
+2. **Performance Testing**: Test query performance on historical data
 3. **Integration Testing**: Verify compatibility with ATS analytics
 4. **Incremental Updates**: Set up daily/hourly incremental updates
 5. **Monitoring Dashboard**: Create monitoring for data freshness

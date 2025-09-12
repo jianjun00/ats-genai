@@ -19,7 +19,7 @@ src/
 ### → domains/
 **Consolidate business logic by domain**
 - `market_data/` → `domains/market_data/`
-- `ml/` → `domains/ml/` 
+- `ml/` → `domains/ml/`
 - `signals/` → `domains/trading/signals/`
 - `universe/` → `domains/trading/universe/`
 - `portfolio/` → `domains/trading/portfolio/`
@@ -30,7 +30,7 @@ src/
 - `sentiment/` → `domains/analytics/sentiment/`
 - `schema/` → `domains/ml/schema/`
 
-### → services/ 
+### → services/
 **Application and business services**
 - `services/` (keep existing)
 - `api/` → `services/api/`
@@ -48,7 +48,7 @@ src/
 - `llm/` → `infrastructure/llm/`
 
 ### → interfaces/
-**User-facing interfaces** 
+**User-facing interfaces**
 - `interfaces/` (keep existing)
 - `frontend/` → `interfaces/web_ui/`
 - `main.py` → `interfaces/cli/main.py`
@@ -58,7 +58,7 @@ src/
 **Cross-cutting concerns**
 - `shared/` (keep existing, consolidate duplicates)
 - `utils/` → `shared/utils/` (merge with existing)
-- `validation/` → `shared/validation/` 
+- `validation/` → `shared/validation/`
 - `config/` → `shared/config/` (if any remaining)
 - `auth/` → `shared/auth/` (if any remaining)
 - `calendars/` → `shared/calendars/` (if any remaining)

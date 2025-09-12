@@ -31,7 +31,7 @@ class Runner:
         self.env = environment
         self.universe_id = universe_id
         self.enable_run_isolation = enable_run_isolation
-        
+
         # Trading hours configuration
         self.trading_start_hour = trading_start_hour
         self.trading_start_minute = trading_start_minute
@@ -39,7 +39,7 @@ class Runner:
         self.trading_end_minute = trading_end_minute
         self.timezone = timezone
         self.enable_trading_hours_filter = enable_trading_hours_filter
-        
+
         from datetime import datetime, date
         print(f"[DEBUG] Runner.__init__ received start_date: {start_date!r} (type: {type(start_date)})")
         print(f"[DEBUG] Runner.__init__ received end_date: {end_date!r} (type: {type(end_date)})")
@@ -57,7 +57,7 @@ class Runner:
             raise TypeError(f"end_date must be str or date/datetime, got {type(end_date)}")
         print(f"[DEBUG] Runner.__init__ final self.start_date: {self.start_date!r} (type: {type(self.start_date)})")
         print(f"[DEBUG] Runner.__init__ final self.end_date: {self.end_date!r} (type: {type(self.end_date)})")
-        
+
         # Initialize or create run context
         if run_context is None and enable_run_isolation:
             # Create new run context with metadata about this run
@@ -73,7 +73,7 @@ class Runner:
             logging.getLogger(__name__).info(f"Created run context: {self.run_context.run_id}")
         else:
             self.run_context = run_context
-        
+
         # Set up run-aware logging if we have a run context
         if self.run_context and enable_run_isolation:
             setup_run_aware_logging(run_context=self.run_context)
@@ -81,20 +81,20 @@ class Runner:
             self.logger.info(f"Initialized Runner with run-aware logging: {self.run_context.run_id}")
         else:
             self.logger = logging.getLogger(__name__)
-        
+
         self.duration = TimeDuration(base_duration)  # expects TimeDuration
         self.callbacks: List[RunnerCallback] = self._init_callbacks(callbacks)
         self.security_master = security_master if security_master is not None else SecurityMaster(self.env)
-        
+
         # Disable metadata generation during tests
         is_test_env = self.env and self.env.env_type == EnvironmentType.TEST
-        
+
         # Initialize universe state manager with run context support
         if universe_state_manager is not None:
             self.universe_state_manager = universe_state_manager
         else:
             self.universe_state_manager = UniverseStateManager(
-                self.env, 
+                self.env,
                 write_metadata=not is_test_env,
                 run_context=self.run_context if enable_run_isolation else None
             )
@@ -102,7 +102,7 @@ class Runner:
                 self.logger.info(f"Using run-aware universe state manager with run_id: {self.run_context.run_id}")
             else:
                 self.logger.info("Using legacy universe state manager")
-        
+
         self.universe_manager = universe_manager if universe_manager is not None else UniverseManager(self.env, self.universe_id)
         self.market_data_manager = market_data_manager if market_data_manager is not None else DailyPriceMarketDataManager(self.env)
 
@@ -171,7 +171,7 @@ class Runner:
             # Apply trading hours filter if enabled
             current_interval_time = sod_time
             next_day = sod_time + timedelta(days=1)
-            
+
             while current_interval_time < next_day:
                 # Check if within trading hours before yielding interval
                 if self._is_within_trading_hours(current_interval_time):
@@ -180,7 +180,7 @@ class Runner:
                     yield (current_interval_time, "interval")
                 else:
                     logging.debug(f"[Runner.iter_events] Skipping interval outside trading hours: {current_interval_time}")
-                
+
                 current_interval_time = self._advance_time(current_interval_time)
             # EOD event
             eod_time = sod_time.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -316,49 +316,49 @@ class Runner:
             # Add more as needed
             else:
                 raise NotImplementedError(f"Unsupported duration type: {self.duration.duration_type}")
-    
+
     def _is_within_trading_hours(self, dt: datetime) -> bool:
         """
         Check if a datetime is within configured trading hours.
         Handles timezone conversion to ensure accurate market hours checking.
-        
+
         Args:
             dt: Datetime to check (assumed to be UTC)
-            
+
         Returns:
             bool: True if within trading hours, False otherwise
         """
         if not self.enable_trading_hours_filter:
             return True
-            
-        # Convert UTC time to market timezone  
+
+        # Convert UTC time to market timezone
         try:
             market_tz = pytz.timezone(self.timezone)
             utc_dt = dt.replace(tzinfo=pytz.UTC) if dt.tzinfo is None else dt
             local_dt = utc_dt.astimezone(market_tz)
-            
+
             # Create trading start and end times for the same date
             trading_start = local_dt.replace(
-                hour=self.trading_start_hour, 
+                hour=self.trading_start_hour,
                 minute=self.trading_start_minute,
                 second=0,
                 microsecond=0
             )
             trading_end = local_dt.replace(
                 hour=self.trading_end_hour,
-                minute=self.trading_end_minute, 
+                minute=self.trading_end_minute,
                 second=0,
                 microsecond=0
             )
-            
+
             # Check if time is within trading hours
             is_within = trading_start <= local_dt <= trading_end
-            
+
             logging.debug(f"Trading hours check: {dt} UTC -> {local_dt} {self.timezone} | "
                          f"Market: {trading_start.time()}-{trading_end.time()} | Within: {is_within}")
-            
+
             return is_within
-            
+
         except Exception as e:
             logging.warning(f"Error checking trading hours for {dt}: {e}. Defaulting to True.")
             return True

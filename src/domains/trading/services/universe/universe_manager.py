@@ -8,7 +8,7 @@ from shared.utils.environment import Environment
 
 class UniverseManager:
     """Minimal UniverseManager stub for training data generation."""
-    
+
     def __init__(self, env: Environment, universe_id: int = None):
         self.env = env
         self.universe_id = universe_id
@@ -24,11 +24,10 @@ class UniverseManager:
     async def get_symbols(self, universe_id: int = None):
         """Get symbols for the universe - minimal implementation for training data."""
         return ['TSLA']  # Hardcode TSLA for training data generation
-    
     def initialize(self):
         """Initialize the universe manager."""
         pass
-    
+
     def cleanup(self):
         """Clean up resources."""
         pass

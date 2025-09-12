@@ -12,7 +12,7 @@ Our comprehensive data quality analysis on 2,000 sample data points found:
 🚨 DATA ISSUES DETECTED AND RESOLVED:
 - NaN values: 100 instances across all OHLCV columns
 - Zero/negative prices: 39 rows (impossible in real markets)
-- Zero volume: 61 rows (invalid trading data)  
+- Zero volume: 61 rows (invalid trading data)
 - OHLC inconsistencies: 53 rows (high < low, impossible)
 - Extreme movements: 20 instances (>50% price jumps, likely errors)
 - Volume outliers: 16 instances (statistical anomalies)
@@ -21,7 +21,7 @@ Our comprehensive data quality analysis on 2,000 sample data points found:
 - Filled 100 NaN values using forward/backward fill
 - Removed 39 rows with invalid prices
 - Replaced 61 zero volumes with median volume
-- Fixed 53 OHLC inconsistencies 
+- Fixed 53 OHLC inconsistencies
 - Capped extreme returns at ±50%
 - Removed 50 sequences with NaN/Inf in ML preprocessing
 
@@ -52,7 +52,7 @@ Strategy: REMOVE IMMEDIATELY (No Fix Possible)
 
 Examples:
 - Close price = 0.0 → Remove row (impossible)
-- Open price = -5.0 → Remove row (impossible) 
+- Open price = -5.0 → Remove row (impossible)
 - High price = 0.0 → Remove row (invalid)
 
 Impact: Removed 39/2000 rows (1.95%)
@@ -78,7 +78,7 @@ Impact: Replaced 61 zero volumes with median
 Strategy: Fix by Ensuring Mathematical Consistency
 
 Examples:
-- High=100, Low=105 → Fix: High=105, Low=100  
+- High=100, Low=105 → Fix: High=105, Low=100
 - High=100, Open=110 → Fix: High=110, Low=100
 - Always ensure: Low ≤ Open,Close ≤ High
 
@@ -107,7 +107,7 @@ Impact: Capped extreme movements, removed 0 super-extreme cases
 ```python
 Additional Validation Steps:
 1. Remove sequences containing any NaN: 25 sequences removed
-2. Remove sequences containing any Inf: 25 sequences removed  
+2. Remove sequences containing any Inf: 25 sequences removed
 3. Remove constant sequences (no variation): 0 found
 4. Clip extreme normalized values to ±100: Applied to outliers
 5. Validate all target values for NaN: 10 target NaNs removed
@@ -134,19 +134,19 @@ def basic_validation(data_point):
 ```
 
 #### **Level 2: Statistical Validation** (Flag for review)
-```python  
+```python
 def statistical_validation(data_point, history):
     """Statistical bounds checking"""
     recent_close = history['close'].tail(10).mean()
     price_change = abs(data_point['close'] - recent_close) / recent_close
-    
+
     flags = []
     if price_change > 0.2:  # >20% change
         flags.append("extreme_price_move")
-    
+
     if data_point['volume'] == 0:
         flags.append("zero_volume")
-        
+
     return flags  # Empty list = clean, items = issues
 ```
 
@@ -154,18 +154,18 @@ def statistical_validation(data_point, history):
 ```python
 def clean_ml_sequences(sequences, targets):
     """Final cleaning before model training"""
-    
+
     # Remove sequences with any invalid values
     valid_mask = ~(
         np.isnan(sequences).any(axis=(1,2)) |
         np.isinf(sequences).any(axis=(1,2)) |
         (np.std(sequences, axis=1) < 1e-8).any(axis=1)  # Constant sequences
     )
-    
+
     # Apply mask to both sequences and targets
     clean_sequences = sequences[valid_mask]
     clean_targets = {k: v[valid_mask] for k, v in targets.items()}
-    
+
     return clean_sequences, clean_targets
 ```
 
@@ -176,15 +176,15 @@ def clean_ml_sequences(sequences, targets):
 1. Data Completeness Rate: Target >99.5%
    - NaN rate by column
    - Missing data gaps
-   
-2. Data Validity Rate: Target >99.8% 
+
+2. Data Validity Rate: Target >99.8%
    - Zero/negative price rate
    - OHLC consistency rate
-   
+
 3. Data Stability: Target <5% extreme moves per day
    - Extreme movement frequency
    - Price jump detection
-   
+
 4. Sequence Retention Rate: Target >95%
    - ML sequence survival rate
    - Training data availability
@@ -200,7 +200,7 @@ def clean_ml_sequences(sequences, targets):
 ```python
 QUALITY_THRESHOLDS = {
     'data_retention': 0.95,      # Must keep >95% of data
-    'nan_rate': 0.01,           # <1% NaN values acceptable  
+    'nan_rate': 0.01,           # <1% NaN values acceptable
     'invalid_price_rate': 0.001, # <0.1% invalid prices
     'sequence_retention': 0.90,  # Must keep >90% of sequences
     'overall_quality': 0.8      # Minimum quality score
@@ -213,7 +213,7 @@ def should_stop_training(quality_report):
         quality_report['overall_quality'] < QUALITY_THRESHOLDS['overall_quality'],
         quality_report['sequence_retention'] < QUALITY_THRESHOLDS['sequence_retention']
     ]
-    
+
     return any(critical_failures)
 ```
 
@@ -221,7 +221,7 @@ def should_stop_training(quality_report):
 
 ### **What We Learned:**
 1. **Data issues are common**: 250+ issues found in 2,000 data points (12.5% issue rate)
-2. **Most issues are fixable**: 98% data retention achieved with smart cleaning  
+2. **Most issues are fixable**: 98% data retention achieved with smart cleaning
 3. **ML sequences need extra validation**: Additional 50 sequences removed (2.6%)
 4. **Automated cleaning works**: Quality score improved from ~0.4 to 0.693
 5. **Monitoring is essential**: Need real-time quality tracking
@@ -237,12 +237,12 @@ def should_stop_training(quality_report):
 
 ### **Phase 1: Basic Data Quality (Week 1)**
 - [ ] Implement NaN detection and filling
-- [ ] Add zero/negative price rejection  
+- [ ] Add zero/negative price rejection
 - [ ] Fix OHLC consistency issues
 - [ ] Add volume validation
 - [ ] Create quality score calculation
 
-### **Phase 2: Statistical Validation (Week 2)**  
+### **Phase 2: Statistical Validation (Week 2)**
 - [ ] Add extreme movement detection
 - [ ] Implement outlier flagging
 - [ ] Add temporal consistency checks
@@ -258,7 +258,7 @@ def should_stop_training(quality_report):
 
 ### **Phase 4: Production Monitoring (Week 4)**
 - [ ] Real-time quality monitoring
-- [ ] Historical quality trend analysis  
+- [ ] Historical quality trend analysis
 - [ ] Automated training halt triggers
 - [ ] Quality degradation alerts
 - [ ] Data source comparison tools
@@ -267,15 +267,15 @@ def should_stop_training(quality_report):
 
 **Your question about invalid data is critical for production ML systems. Our analysis shows:**
 
-✅ **Invalid data is common** (12.5% of financial data has issues)  
-✅ **Most issues are automatically fixable** (98% data retention achieved)  
-✅ **Multi-level validation is essential** (raw data + ML sequences)  
-✅ **Continuous monitoring prevents problems** (quality degradation detection)  
+✅ **Invalid data is common** (12.5% of financial data has issues)
+✅ **Most issues are automatically fixable** (98% data retention achieved)
+✅ **Multi-level validation is essential** (raw data + ML sequences)
+✅ **Continuous monitoring prevents problems** (quality degradation detection)
 ✅ **Production-ready framework exists** (ready for deployment)
 
 **The unified loss function now has a robust data quality foundation that ensures:**
 - 🔧 **Automatic data cleaning** with minimal data loss
-- 🚨 **Early problem detection** before model training  
+- 🚨 **Early problem detection** before model training
 - 📊 **Continuous quality monitoring** for production stability
 - 🎯 **Clear quality thresholds** for automated decision making
 

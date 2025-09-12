@@ -11,7 +11,7 @@
 ```
 1. Minute Bar Files (Raw OHLCV Input)
    ↓ FileBasedMinuteManager (Reads parquet files)
-2. Multi-Timeframe Data Manager 
+2. Multi-Timeframe Data Manager
    ↓ Aggregates to 5m, 15m, 1h, 1d timeframes
 3. Feature Engineering
    ↓ Technical indicators, universe state, market events
@@ -47,7 +47,7 @@
 **Vendor API Keys (Centralized):**
 ```bash
 POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD"      # Primary minute bars, news
-TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # Daily prices, fundamentals  
+TIINGO_API_KEY="5f40b4f36e171405746304ec0e5a6f3aa9ca77e5"    # Daily prices, fundamentals
 EODHD_API_KEY="68aa0c7d2fe831.67386369"                   # Historical data, splits/dividends
 FMP_API_KEY="Qf5MGG5HrOnEaWTumhVJzx3Onb3kw7Rr"            # Fundamentals, earnings
 ALPHA_VANTAGE_API_KEY="9GI0NZ3V4VNFX271"                  # Economic indicators
@@ -58,7 +58,7 @@ ALPHA_VANTAGE_API_KEY="9GI0NZ3V4VNFX271"                  # Economic indicators
 # Real-time minute bar collection
 python scripts/run_intg.py start --service realtime-minute-collector
 
-# News data collection  
+# News data collection
 python scripts/run_intg.py start --service news-realtime
 
 # Daily price backfill
@@ -81,9 +81,9 @@ python scripts/run_dev.py run --script scripts/populate_30year_fundamental_data.
 **Training Data Registry:**
 ```sql
 -- Example training dataset record
-SELECT id, dataset_name, symbols, data_quality_score, total_sequences, 
+SELECT id, dataset_name, symbols, data_quality_score, total_sequences,
        creation_timestamp, file_size_mb
-FROM dev_training_dataset 
+FROM dev_training_dataset
 ORDER BY creation_timestamp DESC LIMIT 5;
 ```
 
@@ -94,16 +94,16 @@ ORDER BY creation_timestamp DESC LIMIT 5;
 # Validate data completeness
 python scripts/run_dev.py query --query "
 SELECT symbol, COUNT(*) as records, MIN(date) as start_date, MAX(date) as end_date
-FROM dev_daily_prices 
-WHERE date >= '2024-01-01' 
-GROUP BY symbol 
+FROM dev_daily_prices
+WHERE date >= '2024-01-01'
+GROUP BY symbol
 HAVING COUNT(*) < 250  -- Missing data check
 "
 
 # Check for data anomalies
 python scripts/run_dev.py query --query "
 SELECT symbol, date, close, volume
-FROM dev_daily_prices 
+FROM dev_daily_prices
 WHERE close <= 0 OR volume < 0 OR close > 10000  -- Unrealistic values
 ORDER BY date DESC LIMIT 10
 "
@@ -222,8 +222,8 @@ python scripts/run_dev.py query --query "SELECT id, run_type, status, progress F
 
 # Model metadata in database
 python scripts/run_dev.py query --query "
-SELECT model_name, version, dataset_id, training_metrics, created_at 
-FROM dev_model_registry 
+SELECT model_name, version, dataset_id, training_metrics, created_at
+FROM dev_model_registry
 ORDER BY created_at DESC LIMIT 5
 "
 ```
@@ -263,7 +263,7 @@ python scripts/run_dev.py run --script scripts/inference/run_model_inference.py 
 # Universe membership over time
 python scripts/run_dev.py query --query "
 SELECT symbol, date, in_universe, market_cap_rank, sector, industry
-FROM dev_universe_state_interval 
+FROM dev_universe_state_interval
 WHERE date = '2024-01-01' AND in_universe = true
 ORDER BY market_cap_rank LIMIT 10
 "
@@ -274,8 +274,8 @@ ORDER BY market_cap_rank LIMIT 10
 # Economic indicators integration
 python scripts/run_dev.py query --query "
 SELECT event_date, event_type, actual_value, forecast_value, impact_level
-FROM dev_economic_events 
-WHERE event_date >= '2024-01-01' 
+FROM dev_economic_events
+WHERE event_date >= '2024-01-01'
 AND impact_level = 'HIGH'
 ORDER BY event_date DESC LIMIT 10
 "
@@ -321,7 +321,7 @@ python scripts/run_dev.py run --script scripts/ray_training_data_generation.py -
 # Monitor processing performance
 python scripts/run_dev.py query --query "
 SELECT run_id, symbols, processing_time_seconds, memory_usage_mb
-FROM dev_runs 
+FROM dev_runs
 WHERE run_type = 'training_data_generation'
 ORDER BY processing_time_seconds DESC LIMIT 10
 "
@@ -440,7 +440,7 @@ curl -s http://localhost:4080/metrics | grep "model_"
 # Prediction accuracy monitoring
 python scripts/run_dev.py query --query "
 SELECT model_version, avg(accuracy_score) as avg_accuracy, count(*) as predictions
-FROM dev_model_predictions 
+FROM dev_model_predictions
 WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
 GROUP BY model_version
 ORDER BY avg_accuracy DESC

@@ -11,7 +11,7 @@
 wsl --shutdown
 
 # 2. Find your WSL VHDX file location
-$wslPath = Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Packages" -Recurse -Name "ext4.vhdx" | ForEach-Object { 
+$wslPath = Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Packages" -Recurse -Name "ext4.vhdx" | ForEach-Object {
     Join-Path (Get-ChildItem -Path "$env:USERPROFILE\AppData\Local\Packages" -Directory | Where-Object { $_.Name -like "*Ubuntu*" }).FullName "LocalState\ext4.vhdx"
 }
 Write-Host "Found WSL at: $wslPath"

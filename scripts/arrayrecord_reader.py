@@ -10,29 +10,29 @@ from datetime import datetime
 
 def read_arrayrecord_file(file_path, limit=10):
     """Read and display ArrayRecord file contents."""
-    
+
     try:
         reader = array_record.ArrayRecordReader(str(file_path))
         total_records = reader.num_records()
-        
+
         print(f"ArrayRecord File: {file_path}")
         print(f"Total Records: {total_records:,}")
         print("=" * 60)
-        
+
         if total_records == 0:
             print("❌ Empty ArrayRecord file")
             return
-        
+
         # Show up to 'limit' records
         display_count = min(limit, total_records)
-        
+
         for i in range(display_count):
             reader.seek(i)
             record = reader.read()
-            
+
             print(f"\n📋 Record {i+1}:")
             print(f"   Size: {len(record)} bytes")
-            
+
             try:
                 # Parse our binary format
                 indicator_count = struct.unpack('>H', record[:2])[0]
@@ -40,14 +40,14 @@ def read_arrayrecord_file(file_path, limit=10):
                 symbol_len = struct.unpack('>I', record[10:14])[0]
                 symbol = record[14:14+symbol_len].decode('utf-8')
                 ohlcv_data = struct.unpack('>fffff', record[14+symbol_len:14+symbol_len+20])
-                
+
                 dt = datetime.fromtimestamp(timestamp)
                 print(f"   📅 Time: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
                 print(f"   📊 Symbol: {symbol}")
                 print(f"   💰 OHLCV: O=${ohlcv_data[0]:.2f}, H=${ohlcv_data[1]:.2f}, L=${ohlcv_data[2]:.2f}, C=${ohlcv_data[3]:.2f}")
                 print(f"   📈 Volume: {ohlcv_data[4]:,.0f}")
                 print(f"   🔧 Indicators: {indicator_count}")
-                
+
                 # Parse first few indicators
                 indicator_offset = 14 + symbol_len + 20
                 indicators_shown = 0
@@ -64,32 +64,32 @@ def read_arrayrecord_file(file_path, limit=10):
                             break
                     else:
                         break
-                
+
                 if indicator_count > indicators_shown:
                     print(f"        ... and {indicator_count - indicators_shown} more")
-                
+
             except Exception as e:
                 print(f"   ❌ Error parsing binary record: {e}")
                 print(f"   🔍 Raw bytes (first 50): {record[:50].hex()}")
-        
+
         if total_records > display_count:
             print(f"\n... and {total_records - display_count} more records")
-            
+
         print(f"\n🎯 Summary:")
         print(f"   Total records: {total_records:,}")
         print(f"   File size: {len(record) * total_records / 1024:.1f} KB (estimated)")
         print(f"   Average record size: {len(record)} bytes")
-        
+
     except Exception as e:
         print(f"❌ Error reading ArrayRecord file: {e}")
         return 1
-    
+
     return 0
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python3 arrayrecord_reader.py <file.arrayrecord>")
         sys.exit(1)
-    
+
     file_path = sys.argv[1]
     sys.exit(read_arrayrecord_file(file_path))

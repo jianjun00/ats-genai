@@ -47,7 +47,7 @@ PYTHONPATH=src python3 tests/run_training_data_tests.py all
 - ✅ Data processing handles missing 'open' field
 - ✅ Chart interaction (refresh, random sample)
 
-### Table Data Tests  
+### Table Data Tests
 - ✅ Table API returns proper training data
 - ✅ Cell content displays technical indicators
 - ✅ HTML generation with correct formatting
@@ -66,7 +66,7 @@ PYTHONPATH=src python3 tests/run_training_data_tests.py all
 ### Hermetic Testing Benefits
 - **No Dependencies**: Tests run without ATS infrastructure
 - **Fast Execution**: Complete test suite runs in ~5 seconds
-- **Reliable**: No network dependencies or service availability issues  
+- **Reliable**: No network dependencies or service availability issues
 - **Mock Data**: Realistic test scenarios with controlled data
 - **Isolated**: Tests don't affect production data or services
 

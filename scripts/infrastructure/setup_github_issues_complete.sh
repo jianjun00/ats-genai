@@ -41,7 +41,7 @@ fi
 echo ""
 echo "📋 This will create 9 GitHub Issues with current project status:"
 echo "   • Issue #1: EODHD Integration (🔄 IN PROGRESS - 2.8% complete)"
-echo "   • Issue #2: ETF Expansion (🚨 CRITICAL GAP - 17 vs 250+ required)"  
+echo "   • Issue #2: ETF Expansion (🚨 CRITICAL GAP - 17 vs 250+ required)"
 echo "   • Issue #3: Schema Enhancement (🚨 CRITICAL - blocks Phase 2)"
 echo "   • Issue #4: Cross-Vendor Reconciliation (⏸️ BLOCKED)"
 echo "   • Issue #5: Gap Filling (Phase 2)"

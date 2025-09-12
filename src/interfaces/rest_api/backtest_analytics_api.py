@@ -323,13 +323,13 @@ async def list_backtests(
             strategy_type=strategy_type,
             start_date=start_date
         )
-        
+
         if not backtests:
             raise HTTPException(
-                status_code=404, 
+                status_code=404,
                 detail="No backtest runs found. Ensure backtest data has been populated in the database."
             )
-        
+
         return backtests
 
     except Exception as e:
@@ -451,13 +451,13 @@ async def get_forecasts(
             start_date=start_date,
             end_date=end_date
         )
-        
+
         if not forecasts:
             raise HTTPException(
                 status_code=404,
                 detail=f"No forecast data found for backtest run {backtest_run_id}. Ensure forecast data has been generated and stored."
             )
-        
+
         return forecasts
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get forecasts: {str(e)}")

@@ -32,9 +32,9 @@ check_service_running() {
 instrument_service() {
     local service_name=$1
     local service_type=$2
-    
+
     echo "🔧 Instrumenting $service_name..."
-    
+
     # Install OpenTelemetry packages in the container
     docker exec "$service_name" bash -c "
         pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp \
@@ -43,7 +43,7 @@ instrument_service() {
                    opentelemetry-instrumentation-psycopg2 \
                    opentelemetry-instrumentation-asyncpg 2>/dev/null || echo 'Packages already installed'
     " 2>/dev/null || echo "⚠️  Could not install packages in $service_name (may already be installed)"
-    
+
     # Create instrumentation script
     cat > "/tmp/${service_name}-instrumentation.py" << EOF
 #!/usr/bin/env python3
@@ -98,17 +98,17 @@ metrics.set_meter_provider(MeterProvider(
 
 print(f"✅ OpenTelemetry configured for $service_name")
 EOF
-    
+
     # Copy instrumentation to service container
     docker cp "/tmp/${service_name}-instrumentation.py" "$service_name:/workspace/otel_instrumentation.py"
-    
+
     echo "✅ $service_name instrumented successfully"
 }
 
 # Create service restart script with instrumentation
 create_instrumented_restart_script() {
     local service_name=$1
-    
+
     cat > "/tmp/restart-${service_name}.sh" << EOF
 #!/bin/bash
 # Restart $service_name with OpenTelemetry instrumentation
@@ -127,7 +127,7 @@ docker restart "$service_name"
 
 echo "✅ $service_name restarted with instrumentation"
 EOF
-    
+
     chmod +x "/tmp/restart-${service_name}.sh"
     echo "📄 Restart script created: /tmp/restart-${service_name}.sh"
 }
@@ -135,17 +135,17 @@ EOF
 # Main instrumentation process
 main() {
     echo "🔍 Detecting ATS-INTG services..."
-    
+
     # List of ATS-INTG services to instrument
     declare -A services=(
         ["ats-intg-analytics"]="web_service"
-        ["ats-intg-postgres"]="database" 
+        ["ats-intg-postgres"]="database"
         ["ats-intg-prometheus-metrics"]="metrics_collector"
     )
-    
+
     for service_name in "${!services[@]}"; do
         service_type="${services[$service_name]}"
-        
+
         if check_service_running "$service_name"; then
             instrument_service "$service_name" "$service_type"
             create_instrumented_restart_script "$service_name"
@@ -154,7 +154,7 @@ main() {
         fi
         echo ""
     done
-    
+
     # Create comprehensive monitoring startup script
     cat > "/tmp/start-ats-intg-monitoring.sh" << 'EOF'
 #!/bin/bash
@@ -177,9 +177,9 @@ echo "✅ ATS-INTG monitoring started!"
 echo "🔗 Dashboard: http://localhost:8080"
 echo "📊 Look for services: ats-intg-analytics, ats-intg-monitor"
 EOF
-    
+
     chmod +x "/tmp/start-ats-intg-monitoring.sh"
-    
+
     echo "=================================="
     echo "🎉 ATS-INTG Instrumentation Complete!"
     echo ""
@@ -199,7 +199,7 @@ EOF
     echo ""
     echo "🚨 Alert Thresholds Set:"
     echo "   - Data freshness: > 120 minutes"
-    echo "   - Test success rate: < 90%" 
+    echo "   - Test success rate: < 90%"
     echo "   - DB connections: > 90"
     echo "   - API response time: > 5000ms"
     echo "=================================="

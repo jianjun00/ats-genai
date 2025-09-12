@@ -8,7 +8,7 @@ This document outlines a novel transformer architecture for financial time serie
 
 ### 1. DriveTransformer (2025) - Unified Multi-Task Attention
 - **Task Self-Attention**: Different prediction tasks (price, volatility, volume) interact directly
-- **Sensor Cross-Attention**: Multi-timeframe data acts as different "sensors" 
+- **Sensor Cross-Attention**: Multi-timeframe data acts as different "sensors"
 - **Temporal Cross-Attention**: FIFO queues maintain historical market states
 - **Streaming Processing**: Real-time inference with temporal fusion
 
@@ -44,7 +44,7 @@ This document outlines a novel transformer architecture for financial time serie
 ```
 Timeframe Encoders:
 ├── 5m_encoder:  [52 bars] → [d_model] (High-frequency signals)
-├── 15m_encoder: [52 bars] → [d_model] (Intraday patterns)  
+├── 15m_encoder: [52 bars] → [d_model] (Intraday patterns)
 ├── 1h_encoder:  [24 bars] → [d_model] (Short-term trends)
 ├── 1d_encoder:  [20 bars] → [d_model] (Medium-term patterns)
 └── 1w_encoder:  [12 bars] → [d_model] (Long-term trends)
@@ -82,7 +82,7 @@ for task_query in [price, volatility, volume, regime, risk]:
     for timeframe in [5m, 15m, 1h, 1d, 1w]:
         attention_weights = self_attention(task_query, timeframe_features)
         attended_features.append(attention_weights * timeframe_features)
-    
+
     fused_representation = combine(attended_features)
 ```
 
@@ -91,10 +91,10 @@ for task_query in [price, volatility, volume, regime, risk]:
 # Maintains FIFO queue of historical market states
 class TemporalMemoryBank:
     historical_states = FIFO_Queue(max_length=100)  # 100 historical states
-    
+
     def update(self, current_market_state):
         self.historical_states.push(current_market_state)
-        
+
     def temporal_attention(self, task_query):
         return attention(task_query, self.historical_states.all_states)
 ```
@@ -104,12 +104,12 @@ class TemporalMemoryBank:
 # Different prediction tasks interact with each other
 def task_self_attention(price_query, vol_query, volume_query, regime_query, risk_query):
     all_tasks = [price_query, vol_query, volume_query, regime_query, risk_query]
-    
+
     for i, task_i in enumerate(all_tasks):
         for j, task_j in enumerate(all_tasks):
             if i != j:
                 task_i += cross_attention(task_i, task_j)
-    
+
     return all_tasks
 ```
 
@@ -121,11 +121,11 @@ class TimeframeVariableSelector:
         self.feature_selectors = {
             '5m': GatedResidualNetwork(input_size=6),    # OHLCV + VWAP
             '15m': GatedResidualNetwork(input_size=6),
-            '1h': GatedResidualNetwork(input_size=6), 
+            '1h': GatedResidualNetwork(input_size=6),
             '1d': GatedResidualNetwork(input_size=6),
             '1w': GatedResidualNetwork(input_size=6)
         }
-    
+
     def select_features(self, timeframe_data):
         selected_features = {}
         for tf, data in timeframe_data.items():
@@ -142,14 +142,14 @@ class MultiHorizonPredictor:
         self.prediction_heads = nn.ModuleList([
             nn.Linear(d_model, 1) for _ in range(10)  # 10 hourly predictions
         ])
-    
+
     def forward(self, fused_representation):
         predictions = []
         for i, head in enumerate(self.prediction_heads):
             # Each head predicts one hour ahead
             hour_prediction = head(fused_representation)
             predictions.append(hour_prediction)
-        
+
         return torch.stack(predictions, dim=1)  # [batch, 10, 1]
 ```
 
@@ -165,7 +165,7 @@ Input: Multi-timeframe sequences (5m, 15m, 1h, 1d, 1w)
 │
 ├── 2. Task Query Initialization
 │   ├── price_movement_query
-│   ├── volatility_query  
+│   ├── volatility_query
 │   ├── volume_profile_query
 │   ├── regime_change_query
 │   └── risk_assessment_query
@@ -180,7 +180,7 @@ Input: Multi-timeframe sequences (5m, 15m, 1h, 1d, 1w)
 │
 └── 5. Multi-Horizon Prediction
     ├── Price Movement: [batch, 10, 1] (next 10 hours)
-    ├── Volatility: [batch, 10, 1] 
+    ├── Volatility: [batch, 10, 1]
     ├── Volume: [batch, 10, 1]
     ├── Regime: [batch, 10, num_regimes]
     └── Risk: [batch, 10, 1]
@@ -214,22 +214,22 @@ Input: Multi-timeframe sequences (5m, 15m, 1h, 1d, 1w)
 ```python
 def multi_task_loss(predictions, targets, task_weights):
     losses = {}
-    
+
     # Price movement loss (regression)
     losses['price'] = mse_loss(predictions['price'], targets['price'])
-    
-    # Volatility loss (regression)  
+
+    # Volatility loss (regression)
     losses['volatility'] = mse_loss(predictions['volatility'], targets['volatility'])
-    
+
     # Volume loss (regression)
     losses['volume'] = mse_loss(predictions['volume'], targets['volume'])
-    
+
     # Regime classification loss
     losses['regime'] = cross_entropy_loss(predictions['regime'], targets['regime'])
-    
+
     # Risk assessment loss
     losses['risk'] = mse_loss(predictions['risk'], targets['risk'])
-    
+
     # Weighted combination
     total_loss = sum(task_weights[task] * loss for task, loss in losses.items())
     return total_loss, losses
@@ -249,7 +249,7 @@ def multi_task_loss(predictions, targets, task_weights):
 
 ### Phase 1: Core Architecture
 1. Multi-timeframe encoders
-2. Basic attention mechanisms  
+2. Basic attention mechanisms
 3. Simple prediction heads
 
 ### Phase 2: Advanced Features

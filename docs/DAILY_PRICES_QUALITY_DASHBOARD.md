@@ -142,7 +142,7 @@ python3 scripts/daily_prices_quality_metrics.py --days 30 --environment intg --p
   annotations:
     summary: "Daily prices coverage below 80% for {{ $labels.vendor }}"
 
-# Bad Prices Alert  
+# Bad Prices Alert
 - alert: BadPricesDetected
   expr: increase(ats_daily_prices_bad_records_total[1h]) > 10
   for: 2m
@@ -194,9 +194,9 @@ python3 scripts/daily_prices_quality_metrics.py --days 30 --environment intg --p
 
 1. **Query Bad Records**:
    ```sql
-   SELECT symbol, date, open, high, low, close, volume 
-   FROM intg_daily_prices_polygon 
-   WHERE high < low OR open <= 0 
+   SELECT symbol, date, open, high, low, close, volume
+   FROM intg_daily_prices_polygon
+   WHERE high < low OR open <= 0
    ORDER BY date DESC LIMIT 10;
    ```
 
@@ -223,7 +223,7 @@ python3 scripts/daily_prices_quality_metrics.py --days 30 --environment intg --p
 
 ---
 
-**Dashboard Version**: 1.0  
-**Last Updated**: 2025-09-11  
-**Refresh Rate**: 30 seconds  
+**Dashboard Version**: 1.0
+**Last Updated**: 2025-09-11
+**Refresh Rate**: 30 seconds
 **Data Source**: Prometheus metrics from daily prices quality script

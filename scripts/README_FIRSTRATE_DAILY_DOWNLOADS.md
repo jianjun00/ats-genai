@@ -8,16 +8,16 @@ Automated daily download system for FirstRate 1-minute bar data covering stocks,
 
 ### Components
 1. **FirstRateDownloader** - Core download engine with retry logic and verification
-2. **Daily Job Script** - Command-line interface for manual and automated runs  
+2. **Daily Job Script** - Command-line interface for manual and automated runs
 3. **Cron/Systemd Integration** - Automated scheduling at 2:30 AM EST/EDT
 4. **Monitoring & Cleanup** - Log management and old file cleanup
 
 ### Data Flow
 ```
-FirstRate API (2:00 AM update) 
+FirstRate API (2:00 AM update)
     ↓
 Daily Download Job (2:30 AM)
-    ↓  
+    ↓
 /mnt/d/ats-data/firstrate-data/daily/{asset_type}/
     ↓
 Processing & Integration with ATS Platform
@@ -263,7 +263,7 @@ journalctl _COMM=cron -f
 
 ---
 
-**Status:** ✅ Production Ready  
-**Last Updated:** 2024-08-29  
-**Data Coverage:** Daily updates for US stocks, ETFs, and FX  
+**Status:** ✅ Production Ready
+**Last Updated:** 2024-08-29
+**Data Coverage:** Daily updates for US stocks, ETFs, and FX
 **Automation:** Fully automated with monitoring and cleanup

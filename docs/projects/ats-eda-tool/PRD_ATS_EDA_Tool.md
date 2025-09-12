@@ -1,9 +1,9 @@
 # PRD: ATS Exploratory Data Analysis (EDA) Tool
 
-**Document Version**: 2.2  
-**Date**: September 7, 2025  
-**Owner**: Data Infrastructure Team  
-**Status**: ✅ **IMPLEMENTED** - Timestamp-Based Multi-Timeframe Navigation with 1-Hour Table Display  
+**Document Version**: 2.2
+**Date**: September 7, 2025
+**Owner**: Data Infrastructure Team
+**Status**: ✅ **IMPLEMENTED** - Timestamp-Based Multi-Timeframe Navigation with 1-Hour Table Display
 
 ---
 
@@ -13,7 +13,7 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 
 ### Key Value Propositions ✅ **DELIVERED**
 - **✅ Automated Statistics Computation**: Automatic metadata generation and statistics computation on first dataset access
-- **✅ Unified Dataset Management**: Single interface for database tables, files, and training datasets with comprehensive metadata tracking  
+- **✅ Unified Dataset Management**: Single interface for database tables, files, and training datasets with comprehensive metadata tracking
 - **✅ 20-100x Performance Improvement**: TFDV-inspired pre-computed statistics for instant histogram visualization
 - **✅ Training Dataset Integration**: Dedicated tab for ML training datasets with specialized metadata handling
 - **✅ Database-Driven Path Resolution**: Intelligent ArrayRecord file discovery using run_id linkage for precise training data location
@@ -23,7 +23,7 @@ The ATS EDA Tool is a comprehensive data exploration and visualization platform 
 - **✅ 🆕 Interactive Row Targeting**: Precise row index selection within training sequences for targeted analysis
 - **✅ 🆕 Production-Ready Robustness**: Comprehensive error handling, NaN sanitization, and automated test coverage
 - **✅ Data Quality Assurance**: Identify missing data, outliers, and inconsistencies across 30+ years of financial data
-- **✅ Pattern Discovery**: Uncover market trends, correlations, and anomalies in multi-vendor datasets  
+- **✅ Pattern Discovery**: Uncover market trends, correlations, and anomalies in multi-vendor datasets
 - **✅ Dataset Validation**: Compare data quality and coverage across vendors (Polygon, Tiingo, EODHD)
 - **✅ Research Acceleration**: Rapid hypothesis testing and feature engineering for ML models
 - **✅ Operational Insights**: Monitor data collection health and identify collection gaps
@@ -50,7 +50,7 @@ The ATS EDA Tool now implements a **unified metadata system** that automatically
 
 **Architecture Details:**
 - **Sequence-Based Organization**: Training data organized by sequences rather than timeframes for better ML workflow integration
-- **Directory Structure**: `/mnt/d/ats-data/training_data/{run_id}/{SYMBOL_DATERANGE}/timeframes/` 
+- **Directory Structure**: `/mnt/d/ats-data/training_data/{run_id}/{SYMBOL_DATERANGE}/timeframes/`
   - Example: `/mnt/d/ats-data/training_data/89/AAPL_20250701_000000_20250906_000000/5m/AAPL_20250701_000000_20250906_000000.arrayrecord`
 - **🆕 Sequence Selection Interface**: Dropdown menu shows sequences like "AAPL_20250701_000000_20250906_000000" as selectable items (each represents one ArrayRecord file)
 - **🆕 Multi-Timeframe Visualization**: When sequence selected, automatically loads all timeframes (5m, 15m, 1h, 1d, 1w) for comprehensive OHLC visualization
@@ -64,7 +64,7 @@ The ATS EDA Tool now implements a **unified metadata system** that automatically
 
 #### **📊 Unified Metadata Tables**
 1. **`dev_datasets`**: Master catalog of all dataset types with unified metadata
-2. **`dev_dataset_columns`**: Detailed column-level statistics and semantic information  
+2. **`dev_dataset_columns`**: Detailed column-level statistics and semantic information
 3. **`dev_dataset_column_stats`**: Pre-computed histogram statistics for 20-100x performance
 
 #### **⚡ Automatic Statistics Computation**
@@ -269,7 +269,7 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
   - **Categorical Refinement**: Proper handling of `type` and `exchange` as categorical (not string)
   - **String Search Exclusion**: String columns available only in filters, not visualizations
 - **FR-2.4**: Financial-specific visualizations (OHLC candlestick charts)
-- **FR-2.5**: Missing data pattern visualizations  
+- **FR-2.5**: Missing data pattern visualizations
 - **FR-2.6**: Outlier detection scatter plots
 
 ### 3. **Data Filtering and Query - Enhanced Type-Aware System**
@@ -303,7 +303,7 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 - **FR-6.1**: **Top-Level Tab Navigation**: Primary interface split between two analysis modes:
   - **"Table" Tab**: Traditional database table EDA for production data
   - **"Training Dataset" Tab**: ML training dataset analysis with TFDV integration
-- **FR-6.2**: **Table EDA Interface**: 
+- **FR-6.2**: **Table EDA Interface**:
   - Left navigation panel with table selection and filtering controls
   - Right content area with column distributions and paged data table
   - Dataset size information in dropdown selection (e.g., "EODHD Daily Prices (4.4M rows, 7 cols)")
@@ -311,7 +311,7 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 - **FR-6.3**: **Training Dataset EDA Interface**:
   - Dataset selection dropdown with comprehensive dataset names showing symbols, date ranges, and generation datetime
   - Sequence selection dropdown populated dynamically based on selected dataset, showing symbol-timeframe combinations with file sizes
-  - Row index input for specific sequence position selection within the chosen sequence file  
+  - Row index input for specific sequence position selection within the chosen sequence file
   - Interactive visualization button to render OHLC charts and data tables for the selected sequence
   - Grid view of available training datasets with key metrics (sequences, features, quality scores)
   - Detailed analysis view with TFDV statistics, feature/label distributions, and anomaly detection
@@ -466,8 +466,8 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 ## 🎯 Key Use Cases
 
 ### Use Case 1: Vendor Data Quality Assessment
-**Actor**: Data Scientist  
-**Goal**: Compare data quality across Polygon, Tiingo, and EODHD  
+**Actor**: Data Scientist
+**Goal**: Compare data quality across Polygon, Tiingo, and EODHD
 **Steps**:
 1. Select three vendor daily price datasets
 2. Generate coverage comparison matrix
@@ -476,8 +476,8 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 5. Generate data quality scorecard
 
 ### Use Case 2: ML Feature Validation
-**Actor**: Quantitative Researcher  
-**Goal**: Validate features for model training  
+**Actor**: Quantitative Researcher
+**Goal**: Validate features for model training
 **Steps**:
 1. Load training dataset
 2. Generate distribution visualizations for all features
@@ -486,8 +486,8 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 5. Export cleaned dataset for training
 
 ### Use Case 3: Market Data Coverage Analysis
-**Actor**: Portfolio Manager  
-**Goal**: Ensure complete data for investment universe  
+**Actor**: Portfolio Manager
+**Goal**: Ensure complete data for investment universe
 **Steps**:
 1. Define investment universe (S&P 500)
 2. Check coverage across all vendors
@@ -496,8 +496,8 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 5. Generate coverage report
 
 ### Use Case 4: OHLC Pattern Analysis
-**Actor**: Quantitative Researcher  
-**Goal**: Analyze price patterns for specific symbols  
+**Actor**: Quantitative Researcher
+**Goal**: Analyze price patterns for specific symbols
 **Steps**:
 1. Filter dataset for specific symbols and date range
 2. Generate OHLC candlestick charts
@@ -531,7 +531,7 @@ The ATS platform has successfully migrated from numpy-based training data to Goo
 #### **🎯 ArrayRecord Integration Requirements**
 - **Format Migration**: Complete transition from `.npy` files to `.arrayrecord` files for training data storage
 - **API Compatibility**: Proper integration with Google's `array_record` Python package
-- **JSON Serialization**: Enhanced datetime handling for complex training data structures  
+- **JSON Serialization**: Enhanced datetime handling for complex training data structures
 - **Database Schema**: Corrected table naming conventions and API endpoint patterns
 - **File Discovery**: Robust sequence file discovery for EDA visualization
 - **Multi-Vendor Data**: FirstRate data structure integration for TSLA symbol
@@ -544,7 +544,7 @@ The ATS platform has successfully migrated from numpy-based training data to Goo
 - **Solution**: Direct import from C extension: `from array_record.python.array_record_module import ArrayRecordWriter, ArrayRecordReader`
 - **Impact**: Without fix, all ArrayRecord file creation fails with AttributeError
 
-**2. JSON Serialization Datetime Failure** 
+**2. JSON Serialization Datetime Failure**
 - **Issue**: `json.dumps()` cannot serialize datetime objects in training data
 - **Root Cause**: Python's default JSON encoder lacks datetime support
 - **Solution**: Custom `_json_serializer` method with proper datetime.isoformat() conversion
@@ -552,7 +552,7 @@ The ATS platform has successfully migrated from numpy-based training data to Goo
 
 **3. TSLA Data Path Discovery Issue**
 - **Issue**: FileBasedMinuteManager couldn't locate TSLA minute data
-- **Root Cause**: Expected standard path format, but FirstRate uses `/firstrate/T/TSLA/` structure  
+- **Root Cause**: Expected standard path format, but FirstRate uses `/firstrate/T/TSLA/` structure
 - **Solution**: Enhanced path resolution to check FirstRate directory structure first
 - **Impact**: Without fix, TSLA training data generation produces empty datasets
 
@@ -653,9 +653,9 @@ curl -s "http://localhost:3000/api/v1/training-datasets/39/sequences" | python3 
 **🆕 9. Multi-Timeframe API Data Flow (September 6, 2025)**
 - **Lesson**: Multi-timeframe visualization requires coordinated data processing across 5 timeframes
 - **Architecture**: Single API call returns all timeframes (5m, 15m, 1h, 1d, 1w) with consistent structure
-- **Critical Path**: 
+- **Critical Path**:
   ```
-  Frontend Request → Multi-timeframe endpoint → ArrayRecord reader → 
+  Frontend Request → Multi-timeframe endpoint → ArrayRecord reader →
   Timestamp calculation → 21-bar selection → All timeframes returned
   ```
 - **Error Propagation**: Failure in any timeframe affects entire visualization
@@ -702,7 +702,7 @@ async def _save_interval_examples(self, examples, current_time):
         timeframe_dir = Path(self.output_dir) / timeframe
         arrayrecord_filename = f"{symbol}_{start_date_str}_{end_date_str}.arrayrecord"
         arrayrecord_path = timeframe_dir / arrayrecord_filename
-        
+
         # Extract timeframe-specific data and save
         timeframe_filtered_examples = self._extract_timeframe_data(tf_symbol_examples, timeframe)
         await self._save_symbol_arrayrecord(timeframe_filtered_examples, arrayrecord_path, symbol, timeframe)
@@ -716,7 +716,7 @@ async def _save_symbol_arrayrecord(self, examples, arrayrecord_path, symbol, tim
 
 **Key Implementation Details:**
 - **Timeframe Iteration**: Hard-coded list of expected timeframes ensures consistent directory structure
-- **Symbol-Timeframe Grouping**: Each combination gets its own ArrayRecord file for visualization API compatibility  
+- **Symbol-Timeframe Grouping**: Each combination gets its own ArrayRecord file for visualization API compatibility
 - **Binary Storage**: Uses Google's C extension ArrayRecordWriter for efficient binary storage
 - **Metadata Companion**: JSON metadata files saved alongside each ArrayRecord for schema information
 
@@ -764,16 +764,16 @@ def get_training_dataset_visualization_data(self, dataset_id: int, ...):
         FROM dev_training_datasets
         WHERE id = %s
     """, (dataset_id,))
-    
+
     run_id = dataset_info.get('run_id')  # e.g., 76
-    
+
     # 2. Multi-path search strategy
     training_base_paths = [
         Path("/data/training_data"),                    # Container: /data/training_data
-        Path("/data/training_data"),               # Container: /data/training_data  
+        Path("/data/training_data"),               # Container: /data/training_data
         Path("/mnt/d/ats-data/training_data")      # Host: /mnt/d/ats-data/training_data
     ]
-    
+
     # 3. Run-specific directory resolution
     for base_path in training_base_paths:
         if base_path.exists():
@@ -816,7 +816,7 @@ SELECT id, dataset_name, run_id, symbols FROM dev_training_datasets WHERE id = 5
 
 **Database-Driven Approach Benefits:**
 - **Precise File Location**: No filesystem scanning - direct path construction using `run_id`
-- **Multi-Environment Support**: Works across Docker containers and host environments  
+- **Multi-Environment Support**: Works across Docker containers and host environments
 - **Run Isolation**: Each training run gets isolated directory preventing file collisions
 - **Fallback Strategy**: Multiple search paths ensure compatibility across deployment scenarios
 
@@ -861,7 +861,7 @@ IndicatorBuilder → UniverseStateManager → MultiTimeframeFeatureExtractor →
 
 **4️⃣ MultiTimeframeFeatureExtractor Indicator Processing:**
 - **Code Location**: `src/ml/training_data/timeseries_sequence_training_generator.py:143-172`
-- **Key Method**: `extract_technical_indicators(data, timeframe)` 
+- **Key Method**: `extract_technical_indicators(data, timeframe)`
 - **Primary Indicators**: `['pldot', 'etop', 'ebot', 'envelope_top', 'envelope_bot']`
 - **Additional Indicators**: `['sma_20', 'ema_12', 'rsi_14', 'macd_line', 'z1b', 'z2b', 'z5t', 'z6t']`
 - **Output Format**: `{'{timeframe}_{indicator}': float_value}` (e.g., `{'1h_pldot': 0.75, '1h_envelope_top': 102.0}`)
@@ -887,7 +887,7 @@ extractor = MultiTimeframeFeatureExtractor(config)
 
 # DataFrame with indicators (as provided by UniverseStateManager)
 test_data = pd.DataFrame({
-    'pldot': [0.75], 'etop': [102.0], 'ebot': [98.0], 
+    'pldot': [0.75], 'etop': [102.0], 'ebot': [98.0],
     'envelope_top': [102.0], 'z1b': [0.2], 'z2b': [0.3]
 })
 
@@ -942,7 +942,7 @@ updateCharts(multiTimeframeData.ohlc_data); // 5m, 15m, 1d, 1w synchronized to t
 **NEW: Timestamp-Based 21-Bar Selection Logic**
 
 **1-Hour Navigation Logic:**
-- **Target Row**: User-selected row index within 1-hour sequence data  
+- **Target Row**: User-selected row index within 1-hour sequence data
 - **Context Window**: `[row_index - 10, row_index + 10]` = 21 1-hour bars for table display
 - **Timestamp Extraction**: Selected 1-hour bar provides target timestamp for multi-timeframe lookup
 
@@ -950,7 +950,7 @@ updateCharts(multiTimeframeData.ohlc_data); // 5m, 15m, 1d, 1w synchronized to t
 - **Target Timestamp**: Unix timestamp from selected 1-hour bar (e.g., 1751360400)
 - **Timeframe-Specific Windows**: Each timeframe finds 21 bars centered around target timestamp:
   - **5m**: 21 bars × 5 minutes = 105-minute window around timestamp
-  - **15m**: 21 bars × 15 minutes = 315-minute window around timestamp  
+  - **15m**: 21 bars × 15 minutes = 315-minute window around timestamp
   - **1d**: 21 bars × 1 day = 21-day window around timestamp
   - **1w**: 21 bars × 1 week = 21-week window around timestamp
 
@@ -971,15 +971,15 @@ def get_multi_timeframe_by_timestamp(all_timeframes_data, target_timestamp):
     for timeframe, data in all_timeframes_data.items():
         if timeframe == '1h':
             continue  # Skip 1h - already handled by navigation
-        
+
         # Find bar closest to target timestamp
         closest_idx = find_closest_timestamp_index(data, target_timestamp)
-        
+
         # Apply 21-bar selection around that timestamp
         start_idx = max(0, closest_idx - 10)
         end_idx = min(len(data), closest_idx + 11)
         result[timeframe] = data[start_idx:end_idx]
-    
+
     return result
 ```
 
@@ -1043,7 +1043,7 @@ def get_multi_timeframe_by_timestamp(all_timeframes_data, target_timestamp):
 ```bash
 # Complete test results
 ✅ Sequence Selection: Working
-✅ API Integration: Working  
+✅ API Integration: Working
 ✅ Dataset Info: Working
 ✅ Charts Working: 5/5 (5m, 15m, 1h, 1d, 1w)
 ✅ Table Data: Working
@@ -1067,7 +1067,7 @@ def get_multi_timeframe_by_timestamp(all_timeframes_data, target_timestamp):
 **Backend Components (Python):**
 - **`get_training_dataset_sequence_multi_timeframe()`**: Core data retrieval method
 - **21-bar selection logic**: Mathematical window calculation
-- **ArrayRecord reading**: Binary data parsing with NaN handling  
+- **ArrayRecord reading**: Binary data parsing with NaN handling
 - **JSON serialization**: Custom serializer for datetime and NaN values
 - **Path resolution**: Database-driven file discovery system
 
@@ -1081,7 +1081,7 @@ def get_multi_timeframe_by_timestamp(all_timeframes_data, target_timestamp):
 **✅ Production Ready Features:**
 - **Sequence Selection Interface**: Fully functional dropdown with dynamic population
 - **21-Bar Context Windows**: Mathematical selection with edge case handling
-- **Multi-Timeframe Charts**: All 5 timeframes rendering simultaneously  
+- **Multi-Timeframe Charts**: All 5 timeframes rendering simultaneously
 - **Interactive Row Selection**: Real-time chart updates based on row index
 - **Error Recovery**: Robust handling of edge cases and data anomalies
 - **End-to-End Testing**: Comprehensive automated test coverage
@@ -1115,7 +1115,7 @@ The ATS platform now supports specialized training data generation for watch uni
 
 #### **🔧 Technical Indicators Specification** *(Updated September 5, 2025)*
 - **envelope_bot** / **ebot**: Lower envelope boundary for support/resistance analysis
-- **envelope_top** / **etop**: Upper envelope boundary for support/resistance analysis  
+- **envelope_top** / **etop**: Upper envelope boundary for support/resistance analysis
 - **pldot**: Price level dot momentum indicator
 - **z1b**: Zone 1 bottom boundary indicator
 - **z2b**: Zone 2 bottom boundary indicator
@@ -1205,7 +1205,7 @@ def test_arrayrecord_writer_instantiation():
     """Test that ArrayRecordWriter can be instantiated."""
     from array_record.python.array_record_module import ArrayRecordWriter
     import tempfile
-    
+
     with tempfile.NamedTemporaryFile(suffix='.arrayrecord') as f:
         try:
             writer = ArrayRecordWriter(f.name, 'group_size:1')
@@ -1219,15 +1219,15 @@ def test_arrayrecord_writer_instantiation():
 def test_array_record_package_structure():
     """Verify ArrayRecord package has expected structure."""
     import array_record
-    
+
     # Test that main module exists but doesn't expose classes
     assert not hasattr(array_record, 'ArrayRecordWriter')
     assert not hasattr(array_record, 'ArrayRecordReader')
-    
+
     # Test that python submodule exists
     from array_record import python
     assert python is not None
-    
+
     # Test that C extension module is available
     from array_record.python import array_record_module
     assert hasattr(array_record_module, 'ArrayRecordWriter')
@@ -1236,41 +1236,41 @@ def test_array_record_package_structure():
 #### **2. JSON Serialization Tests**
 
 **Test: Datetime Serialization**
-```python  
+```python
 # tests/unit/test_json_datetime_serialization.py
 def test_custom_json_serializer():
     """Test custom JSON serializer handles datetime objects."""
     from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
     from datetime import datetime
     import json
-    
+
     manager = SequenceStorageManager("/tmp", StorageConfig())
-    
+
     test_data = {
         'timestamp': datetime(2025, 8, 1, 10, 30, 0),
         'symbol': 'TSLA',
         'price': 123.45
     }
-    
+
     # Should not raise TypeError
     serialized = json.dumps(test_data, default=manager._json_serializer)
     assert '2025-08-01T10:30:00' in serialized
-    
+
 def test_datetime_objects_in_training_data():
     """Test that training data with datetime objects can be serialized."""
     from ml.storage.sequence_storage_manager import SequenceStorageManager
     from datetime import datetime
-    
+
     class MockExample:
         def __init__(self):
             self.symbol = "TSLA"
             self.prediction_timestamp = datetime.now()
             self.instrument_id = 12345
             # ... other fields
-    
+
     manager = SequenceStorageManager("/tmp")
     examples = [MockExample()]
-    
+
     # Should complete without JSON serialization errors
     result = asyncio.run(manager.save_sequence_batch(examples, "test_batch"))
     assert result is not None
@@ -1287,26 +1287,26 @@ def test_complete_training_data_generation():
     # Setup test environment
     test_output_dir = Path("/tmp/test_training_data")
     test_output_dir.mkdir(exist_ok=True)
-    
+
     # Run training data generation
     cmd = [
         "python", "src/ml/training_data/runners/training_data_callback_runner.py",
         "--symbols", "TSLA",
         "--start-date", "2025-08-01",
-        "--end-date", "2025-08-02", 
+        "--end-date", "2025-08-02",
         "--environment", "test",
         "--use-advanced-storage",
         "--storage-format", "arrayrecord",
         "--output-dir", str(test_output_dir),
         "--debug"
     ]
-    
+
     result = subprocess.run(cmd, capture_output=True, text=True, env={"PYTHONPATH": "src"})
-    
+
     # Verify ArrayRecord files created
     arrayrecord_files = list(test_output_dir.glob("**/*.arrayrecord"))
     assert len(arrayrecord_files) > 0, f"No ArrayRecord files found in {test_output_dir}"
-    
+
     # Verify files are readable
     for file_path in arrayrecord_files:
         assert file_path.stat().st_size > 0, f"ArrayRecord file {file_path} is empty"
@@ -1318,13 +1318,13 @@ def test_tsla_firstrate_data_discovery():
     """Test that TSLA data can be found in FirstRate directory structure."""
     from storage.file_based_minute_manager import FileBasedMinuteManager
     from datetime import datetime
-    
+
     manager = FileBasedMinuteManager("/data/minute-bars")
-    
+
     # Test FirstRate path structure
     start_date = datetime(2025, 8, 1)
     end_date = datetime(2025, 8, 2)
-    
+
     try:
         data = manager.get_minute_data("TSLA", start_date, end_date)
         assert data is not None, "TSLA data not found via FirstRate path"
@@ -1337,25 +1337,25 @@ def test_tsla_firstrate_data_discovery():
 
 **Test: Table Name Consistency**
 ```python
-# tests/integration/test_database_schema_consistency.py 
+# tests/integration/test_database_schema_consistency.py
 @pytest.mark.integration
 def test_training_datasets_table_exists():
     """Verify training datasets table uses correct plural naming."""
     from core.database.connection_manager import get_raw_connection
-    
+
     with get_raw_connection("dev") as conn:
         with conn.cursor() as cursor:
             # Test that plural table name exists
             cursor.execute("""
-                SELECT table_name FROM information_schema.tables 
+                SELECT table_name FROM information_schema.tables
                 WHERE table_name = 'dev_training_datasets'
             """)
             result = cursor.fetchone()
             assert result is not None, "dev_training_datasets table not found"
-            
+
             # Test that old singular name doesn't exist
             cursor.execute("""
-                SELECT table_name FROM information_schema.tables 
+                SELECT table_name FROM information_schema.tables
                 WHERE table_name = 'dev_training_dataset'
             """)
             result = cursor.fetchone()
@@ -1364,12 +1364,12 @@ def test_training_datasets_table_exists():
 def test_analytics_service_table_names():
     """Test that analytics service uses correct table names."""
     from services.analytics_service import AnalyticsService
-    
+
     service = AnalyticsService()
-    
+
     # Mock test to verify table name generation
     table_name = f"dev_training_datasets"  # Should be plural
-    
+
     # This should not raise database errors
     try:
         datasets = service.get_training_datasets()
@@ -1387,11 +1387,11 @@ def test_analytics_service_table_names():
 def test_sequences_endpoint_url_format():
     """Test that sequences endpoint accepts correct URL format."""
     import requests
-    
+
     # Test correct path-based format
     response = requests.get("http://localhost:3000/api/v1/training-datasets/39/sequences")
     assert response.status_code != 404, "Path-based URL format not recognized"
-    
+
     # Verify response structure
     data = response.json()
     assert "sequences" in data
@@ -1401,10 +1401,10 @@ def test_sequences_endpoint_url_format():
 def test_sequences_endpoint_returns_arrayrecord_files():
     """Test that sequences endpoint discovers ArrayRecord files."""
     import requests
-    
+
     response = requests.get("http://localhost:3000/api/v1/training-datasets/39/sequences")
     data = response.json()
-    
+
     if data["sequences"]:
         # Check that ArrayRecord files are returned
         for sequence in data["sequences"]:
@@ -1427,18 +1427,18 @@ def test_arrayrecord_available_in_container():
         "dragonflyer762/ats-genai:latest",
         "python", "-c", "from array_record.python.array_record_module import ArrayRecordWriter; print('OK')"
     ]
-    
+
     # This might fail initially, requiring pip install
     result = subprocess.run(cmd, capture_output=True, text=True)
-    
+
     if result.returncode != 0:
         # Test pip install works in container
         install_cmd = [
             "docker", "run", "--rm",
-            "dragonflyer762/ats-genai:latest", 
+            "dragonflyer762/ats-genai:latest",
             "bash", "-c", "pip install array-record && python -c 'from array_record.python.array_record_module import ArrayRecordWriter; print(\"OK\")'"
         ]
-        
+
         install_result = subprocess.run(install_cmd, capture_output=True, text=True)
         assert install_result.returncode == 0, "ArrayRecord installation failed in container"
         assert "OK" in install_result.stdout
@@ -1452,24 +1452,24 @@ def test_arrayrecord_available_in_container():
 @pytest.mark.integration
 def test_complete_eda_arrayrecord_workflow():
     """Test complete workflow from training data generation to EDA visualization."""
-    
+
     # 1. Generate ArrayRecord training data
     # (Use the production command from the PRD)
-    
+
     # 2. Verify training dataset appears in API
     response = requests.get("http://localhost:3000/api/v1/training-datasets")
     datasets = response.json()["datasets"]
-    
+
     latest_dataset = max(datasets, key=lambda x: x["created_at"])
     dataset_id = latest_dataset["id"]
-    
+
     # 3. Verify sequences endpoint returns ArrayRecord files
     sequences_response = requests.get(f"http://localhost:3000/api/v1/training-datasets/{dataset_id}/sequences")
     sequences_data = sequences_response.json()
-    
+
     assert sequences_data["total_count"] > 0, "No sequences found"
     assert any(seq["filename"].endswith(".arrayrecord") for seq in sequences_data["sequences"]), "No ArrayRecord files found"
-    
+
     # 4. Verify EDA page loads without errors
     eda_response = requests.get("http://localhost:3000/eda")
     assert eda_response.status_code == 200
@@ -1485,24 +1485,24 @@ def test_graceful_handling_missing_arrayrecord():
     # Mock missing import
     with patch('array_record.python.array_record_module.ArrayRecordWriter', side_effect=ImportError):
         from ml.storage.sequence_storage_manager import SequenceStorageManager
-        
+
         # Should provide clear error message, not generic failure
         with pytest.raises(ImportError, match="ArrayRecord"):
             manager = SequenceStorageManager("/tmp")
 ```
 
 **Test: Corrupt ArrayRecord Files**
-```python  
+```python
 def test_corrupt_arrayrecord_file_handling():
     """Test handling of corrupted ArrayRecord files."""
     from pathlib import Path
     import tempfile
-    
+
     # Create corrupted file
     with tempfile.NamedTemporaryFile(suffix='.arrayrecord', delete=False) as f:
         f.write(b"corrupted data")
         corrupted_file = Path(f.name)
-    
+
     # Test that system handles corruption gracefully
     # Should log error and continue, not crash entire system
 ```
@@ -1556,7 +1556,7 @@ python run_arrayrecord_tests.py
 # Run only fast unit tests
 python run_arrayrecord_tests.py --fast
 
-# Run integration tests only  
+# Run integration tests only
 python run_arrayrecord_tests.py --integration
 
 # Run specific test file
@@ -1630,7 +1630,7 @@ except ImportError:
 
 ### **🎯 Impact of Fixes**
 
-**Before Fix**: 
+**Before Fix**:
 - ❌ Runtime crash: `NameError: name 'TimeSeriesSequenceTrainingGenerator' is not defined`
 - ❌ No technical indicators in training data
 - ❌ Impossible to test ArrayRecord file creation
@@ -1645,7 +1645,7 @@ except ImportError:
 ```bash
 # Successful test result
 ✅ Created 10 files in 5 timeframe directories
-✅ One file per timeframe-symbol combination verified  
+✅ One file per timeframe-symbol combination verified
 ✅ Files discoverable by visualization API glob patterns
 ✅ Technical indicators extracted: ['1h_pldot', '1h_etop', '1h_ebot', '1h_envelope_top', '1h_z1b', '1h_z2b']
 ```
@@ -1743,7 +1743,7 @@ The ATS EDA Tool exposes a comprehensive REST API for accessing training dataset
 ```json
 {
   "status": "healthy",
-  "service": "ats-unified-analytics", 
+  "service": "ats-unified-analytics",
   "timestamp": "2025-09-06T12:34:56.789Z",
   "features": {
     "type_system": true,
@@ -1787,7 +1787,7 @@ The ATS EDA Tool exposes a comprehensive REST API for accessing training dataset
 #### **3. Dataset Sequences**
 - **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences`
 - **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences`
-- **Input**: 
+- **Input**:
   - `dataset_id` (path parameter): Training dataset ID
 - **Output**:
 ```json
@@ -1816,7 +1816,7 @@ The ATS EDA Tool exposes a comprehensive REST API for accessing training dataset
 #### **4. Sequence Visualization Data**
 - **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/visualization-data`
 - **Location**: `http://localhost:3000/api/v1/training-datasets/65/visualization-data?sequence_id=AAPL_20250701_000000_20250906_000000`
-- **Input**: 
+- **Input**:
   - `dataset_id` (path parameter): Training dataset ID
   - `sequence_id` (query parameter): Sequence identifier
   - `start_idx` (query parameter, optional): Starting row index (default: 0)
@@ -1858,7 +1858,7 @@ The multi-timeframe navigation has been redesigned to use timestamp-based coordi
 - **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/1h?row_index={position}`
 - **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/1h?row_index=25`
 - **Purpose**: Navigate through 1-hour bars, table view always shows 1-hour timeframe (10 bars before + 1 current + 10 bars after)
-- **Input**: 
+- **Input**:
   - `dataset_id` (path parameter): Training dataset ID
   - `sequence_id` (path parameter): Sequence identifier (symbol and date range)
   - `row_index` (query parameter): Position in 1-hour sequence for navigation (default: 25)
@@ -1868,11 +1868,11 @@ The multi-timeframe navigation has been redesigned to use timestamp-based coordi
 - **Endpoint**: `GET /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/multi-timeframe?timestamp={unix_timestamp}`
 - **Location**: `http://localhost:3000/api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?timestamp=1751360400`
 - **Purpose**: Retrieve synchronized 21-bar windows for all timeframes (5m, 15m, 1d, 1w) based on 1-hour timestamp
-- **Input**: 
+- **Input**:
   - `dataset_id` (path parameter): Training dataset ID
   - `sequence_id` (path parameter): Sequence identifier
   - `timestamp` (query parameter): Unix timestamp from selected 1-hour bar
-- **Navigation Logic**: 
+- **Navigation Logic**:
   - **1-hour navigation**: User navigates through 1-hour bars using row_index (Next/Previous buttons)
   - **Timestamp extraction**: Selected 1-hour bar provides timestamp for other timeframes
   - **Multi-timeframe lookup**: Use timestamp to find 10 bars before + 1 current + 10 bars after for each timeframe
@@ -1914,10 +1914,10 @@ The multi-timeframe navigation has been redesigned to use timestamp-based coordi
 - **Input**: None
 - **Output**: HTML page with interactive EDA interface
 
-#### **7. Ray Distributed Analytics** 
+#### **7. Ray Distributed Analytics**
 - **Endpoint**: `GET /api/ray-analytics/{dataset_id}`
 - **Location**: `http://localhost:3000/api/ray-analytics/65`
-- **Input**: 
+- **Input**:
   - `dataset_id` (path parameter): Dataset ID for distributed processing
 - **Output**: Ray-powered analytics results
 
@@ -1930,7 +1930,7 @@ The multi-timeframe navigation has been redesigned to use timestamp-based coordi
 #### **9. Intelligent Filters**
 - **Endpoint**: `GET /api/intelligent-filters/{table}`
 - **Location**: `http://localhost:3000/api/intelligent-filters/dev_daily_prices`
-- **Input**: 
+- **Input**:
   - `table` (path parameter): Database table name
 - **Output**: Type-aware filter suggestions
 
@@ -1970,47 +1970,47 @@ The multi-timeframe navigation has been redesigned to use timestamp-based coordi
 ```
 1. User Interface Navigation
    ↓ (User clicks Next/Previous, Dataset 65, Sequence AAPL_20250701_000000_20250906_000000, Row 50)
-   
+
 2. Frontend JavaScript - 1-Hour Navigation
    ↓ GET /api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/1h?row_index=50
-   
+
 3. Analytics Service Router - 1H Handler
    ↓ _serve_training_dataset_1h_navigation()
-   
+
 4. 1-Hour Data Retrieval
    ↓ get_training_dataset_1h_navigation(dataset_id=65, sequence_id="AAPL_20250701_000000_20250906_000000", row_index=50)
    ↓ Returns: 1-hour bar with timestamp=1751360400, table_data (21 1-hour bars)
-   
+
 5. Frontend JavaScript - Multi-Timeframe Request
    ↓ GET /api/v1/training-datasets/65/sequences/AAPL_20250701_000000_20250906_000000/multi-timeframe?timestamp=1751360400
-   
+
 6. Analytics Service Router - Multi-Timeframe Handler
    ↓ _serve_training_dataset_multi_timeframe_by_timestamp()
-   
+
 7. Multi-Timeframe Coordination
    ↓ get_training_dataset_multi_timeframe_by_timestamp(dataset_id=65, sequence_id="AAPL_20250701_000000_20250906_000000", timestamp=1751360400)
-   
+
 8. Database Lookup
    ↓ SELECT run_id FROM dev_training_datasets WHERE id = 65
    ↓ Returns: run_id = 89
-   
+
 9. File System Search (Multi-Timeframe)
    ↓ /data/training_data/89/AAPL_20250701_000000_20250906_000000/
    ↓ Read files: 5m/, 15m/, 1d/, 1w/ directories (exclude 1h - already retrieved)
-   
+
 10. ArrayRecord Reading (Multi-Timeframe)
     ↓ _read_arrayrecord_ohlc_by_timestamp(file_path, target_timestamp) for each timeframe
     ↓ • Parse column names (record 0)
-    ↓ • Parse training data array (record 1) 
+    ↓ • Parse training data array (record 1)
     ↓ • Map data to OHLCV columns using timeframe_prefix
     ↓ • Calculate Unix timestamps: int(datetime.timestamp())
-    
+
 11. Timestamp-Based 21-Bar Selection
     ↓ For each timeframe (5m, 15m, 1d, 1w):
     ↓ • Find bar closest to target_timestamp=1751360400
     ↓ • Select 10 bars before + 1 current + 10 bars after that timestamp
     ↓ • Different timeframes show different time ranges but same center point
-   
+
 12. Multi-Timeframe Response Assembly
     ↓ {
     ↓   "success": true,
@@ -2018,13 +2018,13 @@ The multi-timeframe navigation has been redesigned to use timestamp-based coordi
     ↓   "timestamp": 1751360400, // Selected 1-hour timestamp
     ↓   "ohlc_data": {
     ↓     "5m": [{"timestamp": 1751360100, "open": 232.97, ...}], // 21 bars around timestamp
-    ↓     "15m": [{"timestamp": 1751359800, "open": 232.95, ...}], // 21 bars around timestamp  
+    ↓     "15m": [{"timestamp": 1751359800, "open": 232.95, ...}], // 21 bars around timestamp
     ↓     "1d": [{"timestamp": 1751270400, "open": 230.50, ...}], // 21 bars around timestamp
     ↓     "1w": [{"timestamp": 1750665600, "open": 228.75, ...}]  // 21 bars around timestamp
     ↓   },
     ↓   "table_data": [...] // Always 1h timeframe data (from step 4)
     ↓ }
-   
+
 13. Frontend Chart & Table Rendering
     ↓ • Table Display: Update sequence-table with 1h data (21 bars)
     ↓ • For each timeframe in ["5m", "15m", "1d", "1w"]:
@@ -2050,7 +2050,7 @@ All endpoints return consistent error responses:
 ```json
 {
   "error": "Error description",
-  "message": "Detailed error message", 
+  "message": "Detailed error message",
   "timestamp": "2025-09-06T12:34:56.789Z"
 }
 ```

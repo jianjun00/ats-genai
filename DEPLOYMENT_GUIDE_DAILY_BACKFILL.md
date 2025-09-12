@@ -153,7 +153,7 @@ The collectors are configured for existing table schemas:
 - Columns: date, symbol, open, high, low, close, volume, market_cap, instrument_id, created_at, updated_at
 - No `adjclose` column, has `market_cap` instead
 
-### EODHD Table (`intg_daily_prices_eodhd`)  
+### EODHD Table (`intg_daily_prices_eodhd`)
 - Columns: id, date, symbol, open, high, low, close, adjusted_close, volume, instrument_id, created_at
 - Has `id` column, no `updated_at` column
 
@@ -165,7 +165,7 @@ The collectors are configured for existing table schemas:
 - [x] Multi-vendor collector tested successfully
 
 ### Ongoing (Daily)
-- [ ] Daily jobs execute successfully  
+- [ ] Daily jobs execute successfully
 - [ ] All three vendors collect data without gaps
 - [ ] Error rates remain below 5%
 - [ ] Grafana dashboard shows consistent data flow
@@ -193,7 +193,7 @@ kubectl patch cronjob <job-name> -n ats-intg -p '{"spec":{"suspend":false}}'
 
 ```
 scripts/multi_vendor_daily_collector.py          # Main collector
-scripts/manage_daily_backfill_jobs.py           # Management interface  
+scripts/manage_daily_backfill_jobs.py           # Management interface
 scripts/tiingo_data_collector_intg.py           # Tiingo-specific (existing fix)
 k8s/intg/daily-vendor-backfill-cronjobs.yaml    # Kubernetes CronJobs
 DEPLOYMENT_GUIDE_DAILY_BACKFILL.md              # This documentation

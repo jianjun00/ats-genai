@@ -12,7 +12,7 @@ if curl -s -f http://localhost:8082/health >/dev/null; then
     SERVICE_NAME=$(echo "$HEALTH_DATA" | grep -o '"service":"[^"]*' | cut -d'"' -f4)
     ARTICLES=$(echo "$HEALTH_DATA" | grep -o '"total_articles":[0-9]*' | cut -d':' -f2)
     LAST_COLLECTION=$(echo "$HEALTH_DATA" | grep -o '"last_collection":"[^"]*' | cut -d'"' -f4)
-    
+
     echo "   ✅ Service: $SERVICE_NAME"
     echo "   ✅ Total Articles: $ARTICLES"
     echo "   ✅ Last Collection: $LAST_COLLECTION"
@@ -70,7 +70,7 @@ echo ""
 
 echo "🎯 Available Metrics in SigNoz:"
 echo "   - news_articles_fetched_total (Counter)"
-echo "   - news_articles_stored_total (Counter)" 
+echo "   - news_articles_stored_total (Counter)"
 echo "   - news_api_calls_total (Counter)"
 echo "   - news_api_response_duration_ms (Histogram)"
 echo "   - news_ingestion_cycle_duration_ms (Histogram)"

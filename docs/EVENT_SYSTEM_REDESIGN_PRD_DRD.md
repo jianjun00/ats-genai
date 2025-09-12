@@ -1,9 +1,9 @@
 # ATS Event System Redesign: PRD & DRD (Python-Based)
 
-**Version**: 2.0  
-**Date**: January 2025  
-**Authors**: ATS Engineering Team  
-**Status**: Updated for Python/Hourly Event Processing  
+**Version**: 2.0
+**Date**: January 2025
+**Authors**: ATS Engineering Team
+**Status**: Updated for Python/Hourly Event Processing
 
 ---
 
@@ -53,10 +53,10 @@ The current ATS event system lacks standardized event representation and efficie
   - Consistent event IDs across all systems and vendors
 
 #### FR2: Python-Native Event Processing
-- **Priority**: P0 (Critical)  
+- **Priority**: P0 (Critical)
 - **Description**: Python-based event processing pipeline with Redis queue and Celery workers
 - **Acceptance Criteria**:
-  - Process 1K-10K events/hour sustained throughput  
+  - Process 1K-10K events/hour sustained throughput
   - <30 second end-to-end processing latency (99th percentile)
   - At-least-once delivery semantics with idempotency
   - Simple recovery mechanisms using existing Docker infrastructure
@@ -91,12 +91,12 @@ The current ATS event system lacks standardized event representation and efficie
 ### 3.2 Non-Functional Requirements
 
 #### NFR1: Performance
-- **Ingestion Latency**: <5 seconds (99th percentile) 
+- **Ingestion Latency**: <5 seconds (99th percentile)
 - **Processing Latency**: <30 seconds end-to-end for critical events
 - **Throughput**: 1K-10K events/hour sustained
 - **Query Response**: <100ms for cached event lookups, <500ms for complex queries
 
-#### NFR2: Scalability  
+#### NFR2: Scalability
 - **Horizontal Scaling**: Scale to 5-10 Celery workers as needed
 - **Storage**: Support terabyte-scale event storage with PostgreSQL partitioning
 - **Concurrent Users**: Support 50-100 simultaneous API consumers
@@ -125,7 +125,7 @@ The current ATS event system lacks standardized event representation and efficie
   - "As a quant researcher, I want to replay historical events to backtest trading strategies"
   - "As a quant researcher, I want to detect event patterns that predict market movements"
 
-#### Algorithmic Trader  
+#### Algorithmic Trader
 - **Goal**: React to market events with minimal latency for execution
 - **User Stories**:
   - "As an algo trader, I want to receive real-time event notifications to trigger trading decisions"
@@ -150,7 +150,7 @@ The current ATS event system lacks standardized event representation and efficie
 
 #### UC1: Real-Time News Impact Analysis
 1. **Trigger**: News event published by vendor (Polygon, Bloomberg)
-2. **Process**: 
+2. **Process**:
    - Event ingested via streaming API
    - NLP processing for sentiment and entity extraction
    - Asset impact analysis and correlation
@@ -198,7 +198,7 @@ The current ATS event system lacks standardized event representation and efficie
 - **Signal Quality**: 40% reduction in false positive signals
 - **Risk-Adjusted Returns**: 15% improvement in Sharpe ratio
 
-#### Operational Efficiency  
+#### Operational Efficiency
 - **Processing Costs**: 60% reduction through efficient streaming architecture
 - **Compliance Costs**: 90% reduction in manual regulatory reporting
 - **System Maintenance**: 50% reduction in event processing incidents
@@ -260,7 +260,7 @@ The current ATS event system lacks standardized event representation and efficie
 #### Protocol Buffers Integration
 - **protobuf**: Event serialization for DB and training datasets
   - **Database**: Store proto as JSONB in PostgreSQL using `MessageToDict()`
-  - **Training Data**: Serialize proto arrays to .riegeli files  
+  - **Training Data**: Serialize proto arrays to .riegeli files
   - **Python**: Generated classes provide type safety and validation
 
 #### Event Storage
@@ -290,7 +290,7 @@ The current ATS event system lacks standardized event representation and efficie
 #### 6.3.1 Core Event Protocol Buffer Schema
 
 **Key Requirements**:
-- **Database Persistence**: Events stored as JSONB in PostgreSQL 
+- **Database Persistence**: Events stored as JSONB in PostgreSQL
 - **Training Dataset Integration**: Events serialized as proto arrays in .riegeli files
 - **Python Native**: Generated Python classes for type safety
 - **Versioning**: Forward/backward compatibility with schema evolution
@@ -307,29 +307,29 @@ import "google/protobuf/struct.proto";
 message Event {
   // Identity & Versioning
   string event_id = 1;           // UUID v4
-  EventType event_type = 2;      // Enum of supported event types  
+  EventType event_type = 2;      // Enum of supported event types
   string event_version = 3;      // Semantic versioning (e.g., "1.2.0")
-  
+
   // Temporal Properties
   google.protobuf.Timestamp timestamp = 4;        // Event occurrence time
-  string time_zone = 5;                           // IANA timezone identifier  
+  string time_zone = 5;                           // IANA timezone identifier
   google.protobuf.Timestamp valid_from = 6;       // Optional validity start
   google.protobuf.Timestamp valid_to = 7;         // Optional validity end
-  
+
   // Source & Attribution
   string source = 8;                              // Vendor/system (e.g., "polygon", "tiingo")
   string source_id = 9;                           // Original ID from source system
   google.protobuf.Timestamp ingestion_time = 10;  // When event entered ATS system
-  
+
   // Event Relationships
   string causation_id = 11;      // ID of event that caused this event
   string correlation_id = 12;    // Business process or workflow ID
   string parent_event_id = 13;   // Hierarchical parent relationship
   string root_event_id = 14;     // Root event in event chain
-  
+
   // Subject (What the event is about)
   EventSubject subject = 15;
-  
+
   // Event-specific data (polymorphic based on event_type)
   oneof event_data {
     NewsEventData news_data = 16;
@@ -338,10 +338,10 @@ message Event {
     CorporateActionEventData corporate_action_data = 19;
     EconomicEventData economic_data = 20;
   }
-  
+
   // System metadata
   EventMetadata metadata = 21;
-  
+
   // Quality indicators
   double confidence = 22;        // Confidence score (0.0-1.0)
   string reliability = 23;       // Source reliability rating
@@ -358,7 +358,7 @@ enum EventType {
   EVENT_TYPE_REGULATORY_FILING = 6;
   // Internal Events (Generated by ATS)
   EVENT_TYPE_PRICE_GAP = 7;
-  EVENT_TYPE_SUPPORT_RESISTANCE_BREAK = 8; 
+  EVENT_TYPE_SUPPORT_RESISTANCE_BREAK = 8;
   EVENT_TYPE_VOLUME_ANOMALY = 9;
   EVENT_TYPE_TECHNICAL_SIGNAL = 10;
   EVENT_TYPE_RISK_ALERT = 11;
@@ -368,7 +368,7 @@ message EventSubject {
   string instrument_id = 1;      // Internal instrument identifier
   string symbol = 2;             // Ticker symbol (e.g., "AAPL")
   string isin = 3;               // International identifier
-  string cusip = 4;              // US identifier  
+  string cusip = 4;              // US identifier
   string exchange = 5;           // Exchange code (e.g., "NASDAQ")
   string asset_class = 6;        // "equity", "bond", "derivative", etc.
   string sector = 7;             // GICS sector classification
@@ -416,15 +416,15 @@ message NewsEventData {
   string author = 5;
   string publisher = 6;
   string language = 7;
-  
+
   // Sentiment analysis
   SentimentAnalysis sentiment = 8;
-  
+
   // Named entities
   repeated Entity entities = 9;
   repeated string categories = 10;
   double importance = 11;        // 0.0 to 1.0 importance score
-  
+
   // Market impact assessment
   MarketImpact market_impact = 12;
 }
@@ -549,7 +549,7 @@ message TechnicalSignalEventData {
   SignalType signal_type = 1;
   string indicator = 2;        // RSI, MACD, Moving Average, etc.
   string timeframe = 3;        // 1m, 5m, 15m, 1h, 1d, etc.
-  
+
   Signal signal = 4;
   PriceContext price_context = 5;
   TechnicalLevels technical_levels = 6;
@@ -580,20 +580,20 @@ enum SignalDirection {
 enum EventType {
   // External Events
   NEWS = "news",
-  EARNINGS = "earnings", 
+  EARNINGS = "earnings",
   CORPORATE_ACTION = "corporate_action",
   ECONOMIC_INDICATOR = "economic_indicator",
   ANALYST_RECOMMENDATION = "analyst_recommendation",
   REGULATORY_FILING = "regulatory_filing",
-  
+
   // Internal Events (Generated)
   PRICE_GAP = "price_gap",
   SUPPORT_RESISTANCE_BREAK = "support_resistance_break",
-  SUPPORT_RESISTANCE_HOLD = "support_resistance_hold", 
+  SUPPORT_RESISTANCE_HOLD = "support_resistance_hold",
   VOLUME_ANOMALY = "volume_anomaly",
   TECHNICAL_SIGNAL = "technical_signal",
   RISK_ALERT = "risk_alert",
-  
+
   // System Events
   SYSTEM_ALERT = "system_alert",
   DATA_QUALITY_ISSUE = "data_quality_issue",
@@ -687,7 +687,7 @@ interface EarningsEventData {
     };
     revenue?: {
       actual?: number;
-      consensus?: number; 
+      consensus?: number;
       surprise?: number;
       surprisePercent?: number;
     };
@@ -757,26 +757,26 @@ from events.proto.events_pb2 import Event, EventType, Priority, Classification
 class EventProducer:
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
-        
+
     def publish_event(self, event: Event) -> str:
         """Publish event to Redis queue with Protocol Buffer serialization"""
-        
+
         # 1. Set system metadata
         event.event_id = str(uuid.uuid4()) if not event.event_id else event.event_id
         event.ingestion_time.CopyFrom(Timestamp(seconds=int(datetime.utcnow().timestamp())))
-        
+
         # 2. Validate event (basic validation)
         self._validate_event(event)
-        
+
         # 3. Serialize to bytes and publish to Redis
         serialized_event = event.SerializeToString()
         queue_name = f"events:{event.event_type.name.lower()}"
-        
+
         # 4. Push to Redis queue (atomic operation)
         self.redis.lpush(queue_name, serialized_event)
-        
+
         return event.event_id
-        
+
     def _validate_event(self, event: Event):
         """Basic event validation"""
         if not event.event_id:
@@ -790,27 +790,27 @@ class EventProducer:
 def create_news_event(headline: str, symbol: str, sentiment: float = 0.0):
     """Factory function to create news events"""
     from events.proto.events_pb2 import NewsEventData, SentimentAnalysis
-    
+
     event = Event()
     event.event_type = EventType.EVENT_TYPE_NEWS
     event.event_version = "1.0.0"
     event.timestamp.CopyFrom(Timestamp(seconds=int(datetime.utcnow().timestamp())))
     event.source = "polygon"
-    
+
     # Subject
     event.subject.symbol = symbol
     event.subject.exchange = "NASDAQ"  # Could be determined from symbol lookup
-    
+
     # News-specific data
     event.news_data.headline = headline
     event.news_data.sentiment.overall = sentiment
     event.news_data.sentiment.confidence = 0.8
-    
-    # Metadata  
+
+    # Metadata
     event.metadata.priority = Priority.PRIORITY_HIGH if abs(sentiment) > 0.5 else Priority.PRIORITY_MEDIUM
     event.metadata.classification = Classification.CLASSIFICATION_PUBLIC
     event.metadata.tags.extend(["automated", "sentiment-analyzed"])
-    
+
     return event
 ```
 
@@ -819,26 +819,26 @@ def create_news_event(headline: str, symbol: str, sentiment: float = 0.0):
 class EventValidator:
     def __init__(self, schema_registry: SchemaRegistry):
         self.schema_registry = schema_registry
-        
+
     async def validate(self, event: BaseEvent) -> ValidationResult:
         errors = []
-        
+
         # Schema validation
         schema = await self.schema_registry.get_schema(
-            event.eventType, 
+            event.eventType,
             event.eventVersion
         )
         schema_errors = self._validate_against_schema(event, schema)
         errors.extend(schema_errors)
-        
+
         # Business rules validation
         business_errors = await self._validate_business_rules(event)
         errors.extend(business_errors)
-        
+
         # Data quality checks
         quality_errors = self._validate_data_quality(event)
         errors.extend(quality_errors)
-        
+
         return ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
@@ -877,35 +877,35 @@ def process_event_from_queue(self, queue_name: str):
     redis_client = redis.Redis(host='localhost', port=6379, db=0)
     event_storage = EventStorage()
     correlation_engine = CorrelationEngine()
-    
+
     try:
         # 1. Pop event from queue (blocking with timeout)
         result = redis_client.brpop([queue_name], timeout=30)
         if not result:
             return f"No events in queue {queue_name}"
-            
+
         queue, serialized_event = result
-        
+
         # 2. Deserialize Protocol Buffer
         event = Event()
         event.ParseFromString(serialized_event)
-        
+
         # 3. Store event in PostgreSQL (as JSONB)
         event_dict = MessageToDict(event, preserving_proto_field_name=True)
         event_storage.store_event(event_dict)
-        
+
         # 4. Run correlation analysis
         correlations = correlation_engine.find_correlations(event)
         if correlations:
             for correlation in correlations:
                 correlation_storage.store_correlation(correlation)
-                
+
         # 5. Generate training dataset record if needed
         if should_include_in_training(event):
             training_dataset_writer.append_event(event)
-            
+
         return f"Successfully processed event {event.event_id}"
-        
+
     except Exception as exc:
         # Retry with exponential backoff
         countdown = 2 ** self.request.retries
@@ -937,29 +937,29 @@ from events.proto.events_pb2 import Event, EventType
 class CorrelationEngine:
     def __init__(self, db_session):
         self.db = db_session
-        
+
     def find_correlations(self, event: Event) -> List[dict]:
         """Find correlations with recent events for the same symbol"""
         correlations = []
-        
+
         # Look for events in the last hour for the same symbol
         if not event.subject.symbol:
             return correlations
-            
+
         time_window = timedelta(hours=1)
         cutoff_time = datetime.utcnow() - time_window
-        
+
         # Query recent events for same symbol
         recent_events = self.db.query_events(
             symbol=event.subject.symbol,
             after_timestamp=cutoff_time,
             limit=50
         )
-        
+
         for recent_event in recent_events:
             if recent_event['event_id'] == event.event_id:
                 continue
-                
+
             # Simple correlation rules
             correlation_score = self._calculate_correlation_score(event, recent_event)
             if correlation_score > 0.5:
@@ -970,26 +970,26 @@ class CorrelationEngine:
                     'correlation_score': correlation_score,
                     'time_lag_seconds': int((datetime.utcnow() - recent_event['timestamp']).total_seconds())
                 })
-                
+
         return correlations
-        
+
     def _calculate_correlation_score(self, event1: Event, event2: dict) -> float:
         """Calculate simple correlation score between events"""
         score = 0.0
-        
+
         # Same symbol = +0.3
         if event1.subject.symbol == event2.get('subject', {}).get('symbol'):
             score += 0.3
-            
+
         # News followed by technical signal = +0.4
-        if (event1.event_type == EventType.EVENT_TYPE_NEWS and 
+        if (event1.event_type == EventType.EVENT_TYPE_NEWS and
             event2.get('event_type') == 'technical_signal'):
             score += 0.4
-            
+
         # Similar sentiment direction = +0.3
         if self._similar_sentiment(event1, event2):
             score += 0.3
-            
+
         return min(score, 1.0)  # Cap at 1.0
 ```
 
@@ -1005,7 +1005,7 @@ from google.protobuf.json_format import MessageToDict
 class EventStorage:
     def store_event(self, event_dict: dict):
         """Store Protocol Buffer event as JSONB in PostgreSQL"""
-        
+
         # Create event record
         event_record = {
             'event_id': event_dict['event_id'],
@@ -1016,38 +1016,38 @@ class EventStorage:
             'event_data': event_dict,  # Full proto as JSONB
             'search_vector': self._create_search_vector(event_dict)
         }
-        
+
         # Insert into PostgreSQL
         self.db.execute("""
             INSERT INTO events (event_id, event_type, symbol, timestamp, source, event_data, search_vector)
             VALUES (:event_id, :event_type, :symbol, :timestamp, :source, :event_data, to_tsvector(:search_vector))
             ON CONFLICT (event_id) DO NOTHING
         """, event_record)
-        
+
     def query_events(self, symbol=None, event_type=None, limit=100):
         """Query events from PostgreSQL"""
         query = "SELECT * FROM events WHERE 1=1"
         params = {}
-        
+
         if symbol:
             query += " AND symbol = :symbol"
             params['symbol'] = symbol
-            
+
         if event_type:
-            query += " AND event_type = :event_type" 
+            query += " AND event_type = :event_type"
             params['event_type'] = event_type
-            
+
         query += " ORDER BY timestamp DESC LIMIT :limit"
         params['limit'] = limit
-        
+
         return self.db.execute(query, params).fetchall()
 ```
 ```java
 public class EventCorrelationProcessor extends RichCoProcessFunction<BaseEvent, BaseEvent, CorrelatedEvent> {
-    
+
     private transient ValueState<Map<String, BaseEvent>> eventBuffer;
     private transient ValueState<Map<String, Timer>> activeTimers;
-    
+
     @Override
     public void processElement1(BaseEvent event, Context ctx, Collector<CorrelatedEvent> out) throws Exception {
         // Pattern: News event followed by significant price movement within 5 minutes
@@ -1057,18 +1057,18 @@ public class EventCorrelationProcessor extends RichCoProcessFunction<BaseEvent, 
             if (buffer == null) buffer = new HashMap<>();
             buffer.put(event.getEventId(), event);
             eventBuffer.update(buffer);
-            
+
             // Set cleanup timer for 5 minutes
             long timerTime = ctx.timerService().currentProcessingTime() + TimeUnit.MINUTES.toMillis(5);
             ctx.timerService().registerProcessingTimeTimer(timerTime);
-            
+
             Map<String, Timer> timers = activeTimers.value();
             if (timers == null) timers = new HashMap<>();
             timers.put(event.getEventId(), new Timer(timerTime, event.getEventId()));
             activeTimers.update(timers);
         }
     }
-    
+
     @Override
     public void processElement2(BaseEvent event, Context ctx, Collector<CorrelatedEvent> out) throws Exception {
         // Look for price gap events that might correlate with buffered news
@@ -1078,8 +1078,8 @@ public class EventCorrelationProcessor extends RichCoProcessFunction<BaseEvent, 
                 for (BaseEvent newsEvent : buffer.values()) {
                     if (isCorrelated(newsEvent, event)) {
                         CorrelatedEvent correlation = new CorrelatedEvent(
-                            newsEvent, 
-                            event, 
+                            newsEvent,
+                            event,
                             CorrelationType.NEWS_PRICE_IMPACT,
                             calculateCorrelationStrength(newsEvent, event)
                         );
@@ -1089,7 +1089,7 @@ public class EventCorrelationProcessor extends RichCoProcessFunction<BaseEvent, 
             }
         }
     }
-    
+
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<CorrelatedEvent> out) throws Exception {
         // Clean up expired events
@@ -1099,7 +1099,7 @@ public class EventCorrelationProcessor extends RichCoProcessFunction<BaseEvent, 
                 .filter(timer -> timer.getTimestamp() == timestamp)
                 .findFirst()
                 .orElse(null);
-                
+
             if (expiredTimer != null) {
                 Map<String, BaseEvent> buffer = eventBuffer.value();
                 if (buffer != null) {
@@ -1131,10 +1131,10 @@ SELECT
     countIf(metadata.priority = 'high') as high_events
 FROM events_stream
 WHERE subject.symbol IS NOT NULL
-GROUP BY 
-    symbol, 
-    eventType, 
-    toDate(timestamp), 
+GROUP BY
+    symbol,
+    eventType,
+    toDate(timestamp),
     toHour(timestamp);
 
 -- Real-time correlation tracking
@@ -1149,18 +1149,18 @@ SELECT
     e1.subject.symbol as symbol,
     dateDiff('second', e1.timestamp, e2.timestamp) as time_lag_seconds,
     'temporal' as correlation_type,
-    CASE 
+    CASE
         WHEN abs(time_lag_seconds) <= 60 THEN 0.9
         WHEN abs(time_lag_seconds) <= 300 THEN 0.7
         WHEN abs(time_lag_seconds) <= 900 THEN 0.5
         ELSE 0.3
     END as correlation_strength
 FROM events_stream e1
-JOIN events_stream e2 ON 
+JOIN events_stream e2 ON
     e1.subject.symbol = e2.subject.symbol
     AND e1.eventId != e2.eventId
     AND abs(dateDiff('second', e1.timestamp, e2.timestamp)) <= 900
-WHERE e1.eventType IN ('news', 'earnings') 
+WHERE e1.eventType IN ('news', 'earnings')
     AND e2.eventType IN ('price_gap', 'volume_anomaly');
 ```
 
@@ -1172,44 +1172,44 @@ WHERE e1.eventType IN ('news', 'earnings')
 class EventStorageManager:
     def __init__(self):
         self.hot_storage = PostgreSQLEventStore()      # Last 3 months
-        self.warm_storage = ClickHouseEventStore()     # Last 2 years  
+        self.warm_storage = ClickHouseEventStore()     # Last 2 years
         self.cold_storage = S3EventStore()             # 2+ years
         self.cache = RedisEventCache()                 # Most accessed events
-        
+
     async def store_event(self, event: BaseEvent) -> StorageResult:
         # Always store in hot storage first
         hot_result = await self.hot_storage.store(event)
-        
+
         # Async replication to warm storage
         asyncio.create_task(self.warm_storage.store(event))
-        
+
         # Cache high-priority events
         if event.metadata.priority in ['critical', 'high']:
             await self.cache.set(event.eventId, event, ttl=3600)
-            
+
         return hot_result
-        
+
     async def get_event(self, event_id: str) -> Optional[BaseEvent]:
         # Try cache first
         event = await self.cache.get(event_id)
         if event:
             return event
-            
+
         # Try hot storage
         event = await self.hot_storage.get(event_id)
         if event:
             await self.cache.set(event_id, event, ttl=1800)
             return event
-            
+
         # Try warm storage
         event = await self.warm_storage.get(event_id)
         if event:
             await self.cache.set(event_id, event, ttl=900)
             return event
-            
+
         # Finally try cold storage
         return await self.cold_storage.get(event_id)
-        
+
     async def query_events(self, query: EventQuery) -> EventQueryResult:
         # Route query to appropriate storage based on time range
         if query.time_range.is_recent(days=90):
@@ -1229,33 +1229,33 @@ CREATE TABLE events (
     event_version VARCHAR(10) NOT NULL DEFAULT '1.0.0',
     timestamp TIMESTAMPTZ NOT NULL,
     ingestion_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
+
     -- Source information
     source VARCHAR(100) NOT NULL,
     source_id VARCHAR(255),
-    
+
     -- Event relationships
     causation_id UUID REFERENCES events(event_id),
     correlation_id UUID,
     parent_event_id UUID REFERENCES events(event_id),
     root_event_id UUID,
-    
+
     -- Subject (what the event is about)
     subject JSONB NOT NULL,
-    
+
     -- Event data and metadata
     data JSONB NOT NULL,
     metadata JSONB NOT NULL,
-    
+
     -- Quality indicators
     confidence DECIMAL(3,2) CHECK (confidence >= 0 AND confidence <= 1),
     reliability VARCHAR(20),
     data_quality JSONB,
-    
+
     -- Indexing and search
     search_vector TSVECTOR,
     tags TEXT[],
-    
+
     CONSTRAINT valid_timestamp CHECK (timestamp <= NOW() + INTERVAL '1 hour'),
     CONSTRAINT valid_ingestion_time CHECK (ingestion_time >= timestamp)
 ) PARTITION BY RANGE (timestamp);
@@ -1271,11 +1271,11 @@ BEGIN
     partition_name := 'events_' || to_char(partition_date, 'YYYY_MM');
     start_date := date_trunc('month', partition_date)::DATE;
     end_date := (date_trunc('month', partition_date) + INTERVAL '1 month')::DATE;
-    
+
     EXECUTE format('CREATE TABLE IF NOT EXISTS %I PARTITION OF events
                    FOR VALUES FROM (%L) TO (%L)',
                    partition_name, start_date, end_date);
-                   
+
     -- Add indexes to new partition
     EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (event_type, timestamp)',
                    partition_name || '_type_time_idx', partition_name);
@@ -1292,10 +1292,10 @@ SELECT create_event_partition(CURRENT_DATE + INTERVAL '1 month');
 SELECT create_event_partition(CURRENT_DATE + INTERVAL '2 months');
 
 -- Indexes for optimal query performance
-CREATE INDEX CONCURRENTLY IF NOT EXISTS events_timestamp_idx 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS events_timestamp_idx
 ON events (timestamp) WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days';
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS events_symbol_type_time_idx 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS events_symbol_type_time_idx
 ON events ((subject->>'symbol'), event_type, timestamp)
 WHERE subject->>'symbol' IS NOT NULL;
 
@@ -1340,12 +1340,12 @@ type Event {
   timeZone: String!
   validFrom: DateTime
   validTo: DateTime
-  
+
   # Source & Attribution
   source: EventSource!
   sourceId: String
   ingestionTime: DateTime!
-  
+
   # Relationships
   causationId: ID
   correlationId: ID
@@ -1354,12 +1354,12 @@ type Event {
   parentEvent: Event
   childEvents: [Event!]!
   correlatedEvents(limit: Int = 10): [CorrelatedEvent!]!
-  
+
   # Subject & Content
   subject: EventSubject!
   data: JSON!
   metadata: EventMetadata!
-  
+
   # Quality Indicators
   confidence: Float
   reliability: String
@@ -1433,7 +1433,7 @@ enum CausalDirection {
 type Query {
   # Single event retrieval
   event(id: ID!): Event
-  
+
   # Event queries with filtering and pagination
   events(
     filter: EventFilter
@@ -1441,7 +1441,7 @@ type Query {
     first: Int
     after: String
   ): EventConnection!
-  
+
   # Event correlations
   correlatedEvents(
     eventId: ID!
@@ -1449,14 +1449,14 @@ type Query {
     minStrength: Float = 0.5
     maxTimeLag: Int = 3600
   ): [CorrelatedEvent!]!
-  
+
   # Event aggregations
   eventCounts(
     filter: EventFilter!
     groupBy: [EventGroupBy!]!
     timeRange: TimeRange!
   ): [EventCount!]!
-  
+
   # Event patterns and analytics
   eventPatterns(
     symbols: [String!]!
@@ -1472,13 +1472,13 @@ type Subscription {
     filter: EventFilter
     priority: [Priority!] = [CRITICAL, HIGH]
   ): Event!
-  
+
   # Event correlation notifications
   correlatedEvents(
     symbols: [String!]!
     minStrength: Float = 0.7
   ): CorrelatedEvent!
-  
+
   # System health and performance
   systemMetrics: SystemMetrics!
 }
@@ -1597,7 +1597,7 @@ WebSocket: /api/v1/ws/events
 // Event notification
 {
   "type": "event",
-  "channel": "events", 
+  "channel": "events",
   "data": {
     "eventId": "uuid",
     "eventType": "news",
@@ -1631,38 +1631,38 @@ class EventCacheManager:
         )
         self.cache_ttl = {
             'critical': 3600,    # 1 hour
-            'high': 1800,        # 30 minutes  
+            'high': 1800,        # 30 minutes
             'medium': 900,       # 15 minutes
             'low': 300           # 5 minutes
         }
-        
+
     async def cache_event(self, event: BaseEvent) -> None:
         """Cache event with TTL based on priority"""
         cache_key = f"event:{event.eventId}"
         ttl = self.cache_ttl.get(event.metadata.priority, 300)
-        
+
         serialized_event = self._serialize_event(event)
         await self.redis_client.setex(cache_key, ttl, serialized_event)
-        
+
         # Cache by symbol for quick lookups
         if event.subject.symbol:
             symbol_key = f"events:symbol:{event.subject.symbol}:latest"
             await self.redis_client.lpush(symbol_key, event.eventId)
             await self.redis_client.ltrim(symbol_key, 0, 99)  # Keep last 100
             await self.redis_client.expire(symbol_key, ttl)
-            
+
     async def get_cached_events(self, symbol: str, limit: int = 10) -> List[BaseEvent]:
         """Get latest cached events for symbol"""
         symbol_key = f"events:symbol:{symbol}:latest"
         event_ids = await self.redis_client.lrange(symbol_key, 0, limit - 1)
-        
+
         events = []
         for event_id in event_ids:
             cache_key = f"event:{event_id}"
             cached_event = await self.redis_client.get(cache_key)
             if cached_event:
                 events.append(self._deserialize_event(cached_event))
-                
+
         return events
 ```
 
@@ -1671,7 +1671,7 @@ class EventCacheManager:
 **Index Strategy:**
 ```sql
 -- Composite indexes for common query patterns
-CREATE INDEX CONCURRENTLY events_symbol_type_time_idx 
+CREATE INDEX CONCURRENTLY events_symbol_type_time_idx
 ON events ((subject->>'symbol'), event_type, timestamp DESC)
 WHERE subject->>'symbol' IS NOT NULL;
 
@@ -1692,7 +1692,7 @@ WHERE timestamp >= CURRENT_DATE - INTERVAL '30 days';
 CREATE INDEX CONCURRENTLY events_subject_gin_idx
 ON events USING GIN (subject);
 
-CREATE INDEX CONCURRENTLY events_data_gin_idx  
+CREATE INDEX CONCURRENTLY events_data_gin_idx
 ON events USING GIN (data);
 
 CREATE INDEX CONCURRENTLY events_tags_gin_idx
@@ -1704,7 +1704,7 @@ ON events USING GIN (tags);
 -- Optimized query for recent events by symbol
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT event_id, event_type, timestamp, data->'headline' as headline
-FROM events 
+FROM events
 WHERE subject->>'symbol' = 'AAPL'
   AND event_type IN ('news', 'earnings')
   AND timestamp >= CURRENT_DATE - INTERVAL '7 days'
@@ -1760,7 +1760,7 @@ class EventMetricsCollector:
             'error_rate': 0,
             'queue_depth': 0
         }
-        
+
     async def record_event_ingestion(self, event: BaseEvent, status: str, processing_time: float):
         # Prometheus metrics
         event_ingestion_total.labels(
@@ -1768,12 +1768,12 @@ class EventMetricsCollector:
             source=event.source,
             status=status
         ).inc()
-        
+
         event_processing_duration.labels(
             event_type=event.eventType,
             processor='ingestion'
         ).observe(processing_time)
-        
+
         # Structured logging
         await logger.ainfo(
             "Event ingested",
@@ -1785,15 +1785,15 @@ class EventMetricsCollector:
             priority=event.metadata.priority,
             status=status
         )
-        
+
     async def record_correlation_detection(self, correlation: CorrelatedEvent):
         strength_bucket = self._get_strength_bucket(correlation.correlationStrength)
-        
+
         correlation_detection_total.labels(
             correlation_type=correlation.correlationType,
             strength_bucket=strength_bucket
         ).inc()
-        
+
         await logger.ainfo(
             "Correlation detected",
             primary_event_id=correlation.primaryEvent.eventId,
@@ -1802,7 +1802,7 @@ class EventMetricsCollector:
             strength=correlation.correlationStrength,
             time_lag_seconds=correlation.timeLagSeconds
         )
-        
+
     def _get_strength_bucket(self, strength: float) -> str:
         if strength >= 0.9:
             return "very_high"
@@ -1822,7 +1822,7 @@ class EventSystemHealthCheck:
         self.kafka = kafka_client
         self.postgres = postgres_client
         self.redis = redis_client
-        
+
     async def check_system_health(self) -> HealthStatus:
         checks = {
             'kafka': await self._check_kafka(),
@@ -1831,39 +1831,39 @@ class EventSystemHealthCheck:
             'event_processing': await self._check_event_processing(),
             'correlation_engine': await self._check_correlation_engine()
         }
-        
+
         overall_status = 'healthy' if all(
             check['status'] == 'healthy' for check in checks.values()
         ) else 'unhealthy'
-        
+
         return HealthStatus(
             status=overall_status,
             checks=checks,
             timestamp=datetime.utcnow().isoformat()
         )
-        
+
     async def _check_kafka(self) -> Dict[str, Any]:
         try:
             # Check if we can list topics
             topics = await self.kafka.list_topics(timeout=5.0)
-            
+
             # Check if event topics exist
             required_topics = ['events-news', 'events-earnings', 'events-technical']
             missing_topics = set(required_topics) - set(topics)
-            
+
             if missing_topics:
                 return {
                     'status': 'unhealthy',
                     'message': f'Missing topics: {missing_topics}',
                     'details': {'topics': list(topics)}
                 }
-                
+
             return {
                 'status': 'healthy',
                 'message': 'Kafka cluster is responsive',
                 'details': {'topic_count': len(topics)}
             }
-            
+
         except Exception as e:
             return {
                 'status': 'unhealthy',
@@ -1880,47 +1880,47 @@ class EventSystemHealthCheck:
 class EventAccessControl:
     def __init__(self, auth_service: AuthService):
         self.auth = auth_service
-        
+
     async def authorize_event_access(
-        self, 
-        user: User, 
-        event: BaseEvent, 
+        self,
+        user: User,
+        event: BaseEvent,
         operation: str
     ) -> bool:
         """Authorize user access to event based on classification and role"""
-        
+
         # Check basic permissions
         if not await self.auth.has_permission(user, f"events:{operation}"):
             return False
-            
+
         # Check classification-based access
         event_classification = event.metadata.classification
         user_clearance = await self.auth.get_user_clearance(user)
-        
+
         clearance_levels = {
             'public': 0,
-            'internal': 1, 
+            'internal': 1,
             'confidential': 2,
             'restricted': 3
         }
-        
+
         required_level = clearance_levels.get(event_classification, 0)
         user_level = clearance_levels.get(user_clearance, 0)
-        
+
         if user_level < required_level:
             await self._log_access_denied(user, event, "insufficient_clearance")
             return False
-            
+
         # Check symbol-based access controls
         if event.subject.symbol:
             if not await self.auth.has_symbol_access(user, event.subject.symbol):
                 await self._log_access_denied(user, event, "symbol_access_denied")
                 return False
-                
+
         # Log successful access
         await self._log_access_granted(user, event, operation)
         return True
-        
+
     async def _log_access_denied(self, user: User, event: BaseEvent, reason: str):
         await logger.awarn(
             "Event access denied",
@@ -1931,7 +1931,7 @@ class EventAccessControl:
             symbol=event.subject.symbol,
             reason=reason
         )
-        
+
     async def _log_access_granted(self, user: User, event: BaseEvent, operation: str):
         await logger.ainfo(
             "Event access granted",
@@ -1949,10 +1949,10 @@ class EventAccessControl:
 class EventEncryptionService:
     def __init__(self, encryption_key: bytes):
         self.cipher = Fernet(encryption_key)
-        
+
     async def encrypt_sensitive_data(self, event: BaseEvent) -> BaseEvent:
         """Encrypt sensitive fields in event data"""
-        
+
         # Fields that should be encrypted
         sensitive_fields = [
             'fullText',         # Full news article text
@@ -1960,9 +1960,9 @@ class EventEncryptionService:
             'internalNotes',    # Internal analysis
             'confidentialData'  # Marked confidential
         ]
-        
+
         encrypted_event = copy.deepcopy(event)
-        
+
         for field in sensitive_fields:
             if field in encrypted_event.data:
                 original_value = encrypted_event.data[field]
@@ -1971,18 +1971,18 @@ class EventEncryptionService:
                     encrypted_event.data[field] = encrypted_value
                     encrypted_event.metadata.encryptedFields = encrypted_event.metadata.get('encryptedFields', [])
                     encrypted_event.metadata.encryptedFields.append(field)
-                    
+
         return encrypted_event
-        
+
     async def decrypt_event_data(self, event: BaseEvent) -> BaseEvent:
         """Decrypt sensitive fields in event data"""
-        
+
         encrypted_fields = event.metadata.get('encryptedFields', [])
         if not encrypted_fields:
             return event
-            
+
         decrypted_event = copy.deepcopy(event)
-        
+
         for field in encrypted_fields:
             if field in decrypted_event.data:
                 encrypted_value = decrypted_event.data[field]
@@ -1991,7 +1991,7 @@ class EventEncryptionService:
                     decrypted_event.data[field] = decrypted_value
                 except Exception as e:
                     logger.error(f"Failed to decrypt field {field}: {e}")
-                    
+
         return decrypted_event
 ```
 
@@ -2009,14 +2009,14 @@ class EventEncryptionService:
 - [ ] Integration with existing `run_dev.py` workflow
 
 **Success Criteria:**
-- 1K events/hour throughput 
+- 1K events/hour throughput
 - <30 second end-to-end processing
 - All existing news/earnings data can be converted to proto format
 
-#### Phase 2: Event Processing & Correlation (Weeks 5-8)  
+#### Phase 2: Event Processing & Correlation (Weeks 5-8)
 **Deliverables:**
 - [ ] Celery worker deployment and scaling
-- [ ] Simple correlation detection algorithms 
+- [ ] Simple correlation detection algorithms
 - [ ] FastAPI + GraphQL endpoint for event queries
 - [ ] Basic event search and filtering capabilities
 - [ ] Integration with training dataset generation (.riegeli proto arrays)
@@ -2067,7 +2067,7 @@ class EventEncryptionService:
 
 #### ROI Comparison
 - **Original Plan**: $2.6M implementation, 4-month payback
-- **Python Plan**: $355K implementation, 1-2 month payback  
+- **Python Plan**: $355K implementation, 1-2 month payback
 - **Risk Reduction**: Much lower complexity, faster delivery, easier maintenance
 
 ### 7.3 Risk Mitigation Plan
@@ -2080,7 +2080,7 @@ class EventEncryptionService:
 | Schema evolution conflicts | Medium | Medium | Schema registry, versioning strategy, migration tools |
 | Kafka cluster failures | Low | High | Multi-AZ deployment, automated failover, monitoring |
 
-#### Business Risks  
+#### Business Risks
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | Delayed delivery | Medium | High | Agile methodology, regular sprint reviews, contingency planning |
@@ -2154,7 +2154,7 @@ This revised PRD and DRD outlines a practical, Python-native transformation of t
 
 **Key Benefits of Python-Based Approach:**
 - **Performance**: <30 second event processing with 1K-10K events/hour throughput (appropriate for hourly data)
-- **Integration**: Seamless Protocol Buffer serialization for database + training dataset storage  
+- **Integration**: Seamless Protocol Buffer serialization for database + training dataset storage
 - **Simplicity**: Python-native stack (Redis, Celery, FastAPI) integrated with existing infrastructure
 - **Cost-Effective**: 86% cost reduction ($355K vs $2.6M) with 1-2 month payback
 - **Low Risk**: Builds on existing Docker patterns and team Python expertise
@@ -2175,7 +2175,7 @@ This revised PRD and DRD outlines a practical, Python-native transformation of t
 **Next Steps:**
 1. **Stakeholder Approval**: Review Python-based architecture approach
 2. **Protocol Buffer Design**: Finalize event schemas and generate Python code
-3. **Infrastructure Setup**: Configure Redis and Celery within existing Docker environment  
+3. **Infrastructure Setup**: Configure Redis and Celery within existing Docker environment
 4. **Phase 1 Kickoff**: Begin with basic event ingestion and storage
 
 This Python-native event system redesign provides the foundation for improved event correlation and training data integration while maintaining the simplicity and reliability that matches ATS's current operational model and hourly data processing requirements.

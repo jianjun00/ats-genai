@@ -72,7 +72,7 @@
       {
         "id": 2,
         "title": "📉 Missing Records by Vendor",
-        "type": "stat", 
+        "type": "stat",
         "targets": [
           {
             "expr": "ats_daily_prices_missing_records_total",
@@ -98,7 +98,7 @@
                   "value": null
                 },
                 {
-                  "color": "yellow", 
+                  "color": "yellow",
                   "value": 100
                 },
                 {
@@ -167,7 +167,7 @@
                   "value": 70
                 },
                 {
-                  "color": "green", 
+                  "color": "green",
                   "value": 90
                 }
               ]
@@ -440,7 +440,7 @@
             "expr": "ats_daily_prices_missing_symbols_total",
             "legendFormat": "",
             "interval": "",
-            "refId": "H", 
+            "refId": "H",
             "format": "table",
             "instant": true
           },
@@ -449,7 +449,7 @@
             "legendFormat": "",
             "interval": "",
             "refId": "I",
-            "format": "table", 
+            "format": "table",
             "instant": true
           }
         ],
@@ -524,7 +524,7 @@
               "indexByName": {},
               "renameByName": {
                 "Value #G": "Coverage %",
-                "Value #H": "Missing Symbols", 
+                "Value #H": "Missing Symbols",
                 "Value #I": "Bad Symbols"
               }
             }

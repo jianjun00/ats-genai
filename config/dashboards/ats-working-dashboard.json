@@ -115,7 +115,7 @@
           },
           {
             "query": "postgresql_connections_idle",
-            "legend": "Idle DB Connections", 
+            "legend": "Idle DB Connections",
             "disabled": false
           }
         ]

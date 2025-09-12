@@ -351,7 +351,7 @@ class PrometheusMetricsServer:
                     "# HELP ats_daily_prices_backfill_success_rate Success rate of daily prices backfill operations (0.0 to 1.0)",
                     "# TYPE ats_daily_prices_backfill_success_rate gauge"
                 ]
-                
+
                 # Add minute bars metrics
                 minute_bars_help = [
                     "",

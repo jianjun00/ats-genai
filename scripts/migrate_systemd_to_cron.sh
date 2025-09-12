@@ -21,10 +21,10 @@ check_user() {
 # Function to disable systemd timers
 disable_systemd_timers() {
     echo "$LOG_PREFIX Disabling SystemD timers..."
-    
+
     local timers=("firstrate-daily.timer" "ats-daily-sync.timer")
     local disabled_count=0
-    
+
     for timer in "${timers[@]}"; do
         if systemctl --user is-enabled "$timer" 2>/dev/null | grep -q "enabled"; then
             echo "$LOG_PREFIX Disabling $timer"
@@ -40,16 +40,16 @@ disable_systemd_timers() {
             echo "$LOG_PREFIX ✅ $timer is not enabled (skipping)"
         fi
     done
-    
+
     echo "$LOG_PREFIX Disabled $disabled_count SystemD timers"
 }
 
 # Function to backup existing crontab
 backup_crontab() {
     echo "$LOG_PREFIX Backing up existing crontab..."
-    
+
     local backup_file="/mnt/d/ats-backup/crontab-backup-$(date +%Y%m%d-%H%M%S).txt"
-    
+
     if crontab -l > /dev/null 2>&1; then
         crontab -l > "$backup_file"
         echo "$LOG_PREFIX ✅ Existing crontab backed up to: $backup_file"
@@ -61,18 +61,18 @@ backup_crontab() {
 # Function to install ATS cron configuration
 install_ats_cron() {
     echo "$LOG_PREFIX Installing ATS cron configuration..."
-    
+
     local cron_file="$ATS_ROOT/scripts/cron/ats-complete-crontab"
-    
+
     if [ ! -f "$cron_file" ]; then
         echo "$LOG_PREFIX ❌ Cron configuration file not found: $cron_file" >&2
         exit 1
     fi
-    
+
     # Install the cron configuration
     crontab "$cron_file"
     echo "$LOG_PREFIX ✅ ATS cron configuration installed"
-    
+
     # Verify installation
     local job_count=$(crontab -l | grep -v '^#' | grep -v '^$' | wc -l)
     echo "$LOG_PREFIX ✅ Installed $job_count cron jobs"
@@ -81,7 +81,7 @@ install_ats_cron() {
 # Function to verify cron service is running
 verify_cron_service() {
     echo "$LOG_PREFIX Verifying cron service..."
-    
+
     if systemctl is-active cron >/dev/null 2>&1 || systemctl is-active crond >/dev/null 2>&1; then
         echo "$LOG_PREFIX ✅ Cron service is running"
     else
@@ -94,9 +94,9 @@ verify_cron_service() {
 # Function to create required directories
 ensure_directories() {
     echo "$LOG_PREFIX Ensuring required directories exist..."
-    
+
     local dirs=("/mnt/d/ats-logs" "/mnt/d/ats-data/firstrate-data/daily" "/mnt/d/ats-backup")
-    
+
     for dir in "${dirs[@]}"; do
         if [ ! -d "$dir" ]; then
             mkdir -p "$dir"
@@ -110,9 +110,9 @@ ensure_directories() {
 # Function to test health check script
 test_health_check() {
     echo "$LOG_PREFIX Testing health check script..."
-    
+
     local health_script="$ATS_ROOT/scripts/cron/daily_health_check.sh"
-    
+
     if [ -x "$health_script" ]; then
         echo "$LOG_PREFIX Running health check test..."
         if "$health_script" > /tmp/health-check-test.log 2>&1; then
@@ -162,35 +162,35 @@ handle_error() {
 main() {
     echo "$LOG_PREFIX ATS SystemD to Cron Migration"
     echo "$LOG_PREFIX Working directory: $ATS_ROOT"
-    
+
     # Pre-flight checks
     check_user || handle_error "User check"
-    
+
     # Migration steps
     echo ""
     echo "$LOG_PREFIX Step 1: Disable SystemD timers"
     disable_systemd_timers || handle_error "SystemD timer disable"
-    
+
     echo ""
     echo "$LOG_PREFIX Step 2: Backup existing crontab"
     backup_crontab || handle_error "Crontab backup"
-    
+
     echo ""
     echo "$LOG_PREFIX Step 3: Ensure required directories"
     ensure_directories || handle_error "Directory creation"
-    
+
     echo ""
     echo "$LOG_PREFIX Step 4: Install ATS cron configuration"
     install_ats_cron || handle_error "Cron installation"
-    
+
     echo ""
     echo "$LOG_PREFIX Step 5: Verify cron service"
     verify_cron_service || handle_error "Cron service verification"
-    
+
     echo ""
     echo "$LOG_PREFIX Step 6: Test health check script"
     test_health_check || handle_error "Health check test"
-    
+
     # Show summary
     show_summary
 }

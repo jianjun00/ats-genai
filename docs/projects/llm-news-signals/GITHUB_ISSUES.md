@@ -1,19 +1,19 @@
 # GitHub Issues for LLM-Powered News Signal Extraction
 
-**Project**: LLM-NEWS-SIG  
-**Epic**: Ultra-Advanced News Signal Processing  
+**Project**: LLM-NEWS-SIG
+**Epic**: Ultra-Advanced News Signal Processing
 **Created**: January 6, 2025
 
 ---
 
 ## 🎯 **Epic Overview**
 
-**Epic Title**: LLM-Powered Critical News Signal Extraction System  
+**Epic Title**: LLM-Powered Critical News Signal Extraction System
 **Epic Description**: Implement state-of-the-art LLM-powered news processing system for real-time trading signal generation with 80%+ accuracy and <30 second latency.
 
 **Epic Acceptance Criteria**:
 - [ ] Signal accuracy >80% precision, >85% recall
-- [ ] Processing latency <30 seconds end-to-end  
+- [ ] Processing latency <30 seconds end-to-end
 - [ ] System uptime >99.9% during market hours
 - [ ] Portfolio alpha improvement +2-4% annually
 - [ ] Integration with existing ATS portfolio system
@@ -37,7 +37,7 @@ Extend the existing news database schema to support advanced LLM-based analysis,
 
 **Acceptance Criteria**:
 - [ ] Create `dev_news_llm_analysis` table with comprehensive LLM analysis fields
-- [ ] Create `dev_multi_agent_analysis` table for specialist agent results  
+- [ ] Create `dev_multi_agent_analysis` table for specialist agent results
 - [ ] Create `dev_critical_news_signals` table for real-time signal storage
 - [ ] Create `dev_signal_performance_tracking` table for performance monitoring
 - [ ] Add all necessary indexes for optimal query performance
@@ -153,10 +153,10 @@ class RealTimeNewsIngestion:
         async for news_batch in self.multi_vendor_stream():
             # Deduplication
             unique_articles = await self.deduplicate_articles(news_batch)
-            
+
             # Content filtering
             filtered_articles = await self.filter_content(unique_articles)
-            
+
             # Queue for LLM processing
             await self.enqueue_for_processing(filtered_articles)
 ```
@@ -174,7 +174,7 @@ class RealTimeNewsIngestion:
 - Message queue infrastructure (Redis/RabbitMQ)
 - Existing news database tables
 
-**Assignee**: Data Engineering Team Lead  
+**Assignee**: Data Engineering Team Lead
 **Due Date**: End of Week 4
 ```
 
@@ -207,14 +207,14 @@ class FinancialNERExtractor:
     def extract_entities(self, text: str) -> Dict[str, List[Entity]]:
         # Use fine-tuned prompt for financial entity extraction
         prompt = self.build_ner_prompt(text)
-        
+
         # Multi-model consensus for higher accuracy
         results = await asyncio.gather(
             self.gpt4_extractor.extract(prompt),
             self.llama_extractor.extract(prompt),
             self.gemini_extractor.extract(prompt)
         )
-        
+
         # Consensus mechanism
         return self.consensus_entities(results)
 ```
@@ -246,7 +246,7 @@ class FinancialNERExtractor:
 
 **Labels**: `p1-high`, `ml`, `nlp`, `phase-2`
 
-**Epic**: LLM-NEWS-SIG  
+**Epic**: LLM-NEWS-SIG
 
 **Story Points**: 15
 
@@ -269,13 +269,13 @@ class FinancialEventExtractor:
     def extract_events_and_relationships(self, text: str, entities: Dict) -> EventAnalysis:
         # Extract individual events
         events = await self.extract_events(text, entities)
-        
+
         # Analyze causal relationships
         causal_chains = await self.analyze_causal_relationships(events, text)
-        
+
         # Predict market impact
         impact_predictions = await self.predict_market_impact(events, causal_chains)
-        
+
         return EventAnalysis(
             events=events,
             causal_relationships=causal_chains,
@@ -286,7 +286,7 @@ class FinancialEventExtractor:
 
 **Definition of Done**:
 - [ ] Event extraction accuracy >85% on test dataset
-- [ ] Causal relationship detection >80% accuracy  
+- [ ] Causal relationship detection >80% accuracy
 - [ ] Integration with NER system working seamlessly
 - [ ] Performance targets met (<10 seconds per article)
 - [ ] Database storage of structured events complete
@@ -336,19 +336,19 @@ class EnsembleSentimentAnalyzer:
         }
         self.uncertainty_quantifier = UncertaintyQuantifier()
         self.confidence_calibrator = ConfidenceCalibrator()
-    
+
     def analyze_sentiment(self, text: str, context: Dict) -> EnhancedSentimentResult:
         # Get predictions from all models
         predictions = await self.get_model_predictions(text, context)
-        
+
         # Ensemble with uncertainty
         ensemble_result = self.weighted_ensemble(predictions)
-        
+
         # Calibrate confidence
         calibrated_confidence = self.confidence_calibrator.calibrate(
             ensemble_result.confidence, text, context
         )
-        
+
         return EnhancedSentimentResult(
             sentiment_score=ensemble_result.score,
             confidence=calibrated_confidence,
@@ -405,26 +405,26 @@ class FinancialRAGProcessor:
         self.market_data_api = ATSMarketDataAPI()
         self.company_knowledge_base = CompanyKnowledgeBase()
         self.embedding_model = FinancialEmbeddingModel()
-    
+
     async def get_contextual_analysis(self, article: NewsArticle, entities: Dict) -> ContextualAnalysis:
         # Create embedding for article
         article_embedding = await self.embedding_model.embed(article.content)
-        
+
         # Retrieve similar historical events
         similar_events = await self.vector_store.similarity_search(
             article_embedding, k=5, filter={'relevance_threshold': 0.8}
         )
-        
+
         # Get current market context
         market_context = await self.market_data_api.get_current_context(
             symbols=entities.get('companies', [])
         )
-        
+
         # Generate contextual insights
         insights = await self.generate_contextual_insights(
             article, similar_events, market_context
         )
-        
+
         return ContextualAnalysis(
             historical_precedents=similar_events,
             market_context=market_context,
@@ -488,20 +488,20 @@ class MultiAgentAnalysisFramework:
         }
         self.consensus_manager = ConsensusManager()
         self.performance_tracker = AgentPerformanceTracker()
-    
+
     async def analyze_news(self, news_analysis: NewsAnalysis) -> MultiAgentResult:
         # Get analysis from each agent
         agent_results = {}
         for name, agent in self.agents.items():
             result = await agent.analyze(news_analysis)
             agent_results[name] = result
-        
+
         # Generate consensus
         consensus = await self.consensus_manager.generate_consensus(agent_results)
-        
+
         # Track performance
         await self.performance_tracker.record_prediction(consensus, news_analysis)
-        
+
         return MultiAgentResult(
             agent_analyses=agent_results,
             consensus_result=consensus,
@@ -512,7 +512,7 @@ class MultiAgentAnalysisFramework:
 
 **Agent Specifications**:
 - **Sentiment Agent**: Focuses on emotional tone and market psychology
-- **Technical Agent**: Analyzes impact on price patterns and technical indicators  
+- **Technical Agent**: Analyzes impact on price patterns and technical indicators
 - **Fundamental Agent**: Evaluates business fundamentals and valuation impact
 - **Risk Agent**: Assesses various risk factors and potential downsides
 - **Macro Agent**: Considers macroeconomic implications and market dynamics
@@ -571,21 +571,21 @@ class RealTimeSignalGenerator:
         self.risk_assessor = SignalRiskAssessor()
         self.broadcaster = SignalBroadcaster()
         self.performance_tracker = SignalPerformanceTracker()
-    
+
     async def generate_signal(self, multi_agent_result: MultiAgentResult) -> CriticalSignal:
         # Calculate base signal strength
         base_strength = self.signal_processor.calculate_strength(multi_agent_result)
-        
+
         # Risk adjustment
         risk_adjusted_strength = await self.risk_assessor.adjust_for_risk(
             base_strength, multi_agent_result
         )
-        
+
         # Generate trading recommendations
         trading_rec = self.generate_trading_recommendation(
             risk_adjusted_strength, multi_agent_result
         )
-        
+
         # Create signal object
         signal = CriticalSignal(
             symbol=multi_agent_result.symbol,
@@ -595,13 +595,13 @@ class RealTimeSignalGenerator:
             recommendation=trading_rec,
             timestamp=datetime.now()
         )
-        
+
         # Broadcast signal
         await self.broadcaster.broadcast_signal(signal)
-        
+
         # Track for performance evaluation
         await self.performance_tracker.track_signal(signal)
-        
+
         return signal
 ```
 
@@ -653,11 +653,11 @@ class NewsSignalPortfolioIntegrator:
         self.risk_manager = ATS.RiskManager()
         self.execution_engine = ATS.ExecutionEngine()
         self.signal_processor = NewsSignalProcessor()
-    
+
     async def process_portfolio_signals(self, signals: List[CriticalSignal]) -> List[TradingAction]:
         # Get current portfolio state
         portfolio_state = await self.portfolio_manager.get_current_state()
-        
+
         # Risk-adjust signals based on portfolio
         risk_adjusted_signals = []
         for signal in signals:
@@ -666,23 +666,23 @@ class NewsSignalPortfolioIntegrator:
             )
             if adjusted.meets_risk_criteria():
                 risk_adjusted_signals.append(adjusted)
-        
+
         # Generate trading actions
         trading_actions = []
         for signal in risk_adjusted_signals:
             action = await self.generate_trading_action(signal, portfolio_state)
             if action:
                 trading_actions.append(action)
-        
+
         return trading_actions
-    
+
     async def generate_trading_action(self, signal: CriticalSignal, portfolio: PortfolioState) -> TradingAction:
         # Calculate position size based on signal strength and portfolio risk
         position_size = self.calculate_position_size(signal, portfolio)
-        
+
         # Determine action type based on signal and current positions
         action_type = self.determine_action_type(signal, portfolio.get_position(signal.symbol))
-        
+
         return TradingAction(
             symbol=signal.symbol,
             action=action_type,
@@ -749,7 +749,7 @@ class MonitoringDashboard:
         self.metrics_collector = MetricsCollector()
         self.dashboard_api = DashboardAPI()
         self.alert_manager = AlertManager()
-    
+
     async def collect_system_metrics(self):
         return SystemMetrics(
             processing_latency=await self.get_processing_latency(),
@@ -757,7 +757,7 @@ class MonitoringDashboard:
             error_rates=await self.get_error_rates(),
             uptime=await self.get_system_uptime()
         )
-    
+
     async def collect_signal_metrics(self):
         return SignalMetrics(
             accuracy_1h=await self.get_signal_accuracy('1h'),
@@ -816,15 +816,15 @@ class TestLLMNewsProcessor:
     def test_financial_ner_extraction(self):
         # Test NER accuracy on financial entities
         pass
-    
+
     def test_sentiment_ensemble_analysis(self):
         # Test sentiment analysis accuracy
         pass
-    
+
     def test_multi_agent_consensus(self):
         # Test agent consensus mechanism
         pass
-    
+
     def test_signal_generation_logic(self):
         # Test signal strength calculation
         pass
@@ -967,17 +967,17 @@ class ModelOptimizer:
     async def optimize_ensemble_weights(self, performance_data: Dict):
         # Analyze individual model performance
         model_accuracies = self.analyze_model_performance(performance_data)
-        
+
         # Optimize ensemble weights using performance data
         optimal_weights = self.optimize_weights(model_accuracies)
-        
+
         # Update ensemble configuration
         await self.update_ensemble_config(optimal_weights)
-    
+
     async def optimize_agent_consensus(self, agent_performance: Dict):
         # Find optimal agent weights for consensus
         optimal_agent_weights = self.optimize_agent_weights(agent_performance)
-        
+
         # Update consensus mechanism
         await self.update_consensus_weights(optimal_agent_weights)
 ```
@@ -1085,7 +1085,7 @@ Validate that all project success criteria have been met, document lessons learn
 
 **Technical Metrics**:
 - [x] Signal Precision: Target >80% → Actual: ____%
-- [x] Signal Recall: Target >85% → Actual: ____%  
+- [x] Signal Recall: Target >85% → Actual: ____%
 - [x] Processing Latency: Target <30 seconds → Actual: ____s
 - [x] System Uptime: Target >99.9% → Actual: ____%
 - [x] Throughput: Target >1000 articles/hour → Actual: ____/hour
@@ -1151,7 +1151,7 @@ Validate that all project success criteria have been met, document lessons learn
 
 ---
 
-**Created**: January 6, 2025  
-**Last Updated**: January 6, 2025  
-**Project Manager**: To Be Assigned  
+**Created**: January 6, 2025
+**Last Updated**: January 6, 2025
+**Project Manager**: To Be Assigned
 **Technical Lead**: To Be Assigned

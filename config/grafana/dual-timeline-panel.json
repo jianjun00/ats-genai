@@ -4,7 +4,7 @@
   "type": "timeseries",
   "targets": [
     {
-      "datasource": "ATS-INTG-PostgreSQL", 
+      "datasource": "ATS-INTG-PostgreSQL",
       "rawSql": "SELECT \n  $__time(timestamp) as time,\n  CONCAT('BAR TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_polygon \nWHERE $__timeFilter(timestamp)\nUNION ALL\nSELECT \n  $__time(received_at) as time,\n  CONCAT('COLLECTION TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_polygon\nWHERE $__timeFilter(received_at)\nUNION ALL\nSELECT \n  $__time(timestamp) as time,\n  CONCAT('BAR TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_tiingo \nWHERE $__timeFilter(timestamp)\nUNION ALL\nSELECT \n  $__time(received_at) as time,\n  CONCAT('COLLECTION TIME - ', vendor, ' - ', symbol) as series,\n  volume as value\nFROM intg_one_minute_live_tiingo\nWHERE $__timeFilter(received_at)\nORDER BY 1,2",
       "format": "time_series"
     }
@@ -52,7 +52,7 @@
       "sort": "none"
     },
     "legend": {
-      "displayMode": "table", 
+      "displayMode": "table",
       "placement": "bottom",
       "values": ["min", "max", "mean"]
     }

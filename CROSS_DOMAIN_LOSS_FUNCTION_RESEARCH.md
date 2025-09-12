@@ -44,7 +44,7 @@ L_total = λ₁L_perception + λ₂L_prediction + λ₃L_planning
 1. **Safety Metrics**:
    - Collision Rate: < 0.5% (industry standard 2024)
    - L2 Distance Error: < 0.22m (improved from 0.55m in 2023)
-   
+
 2. **Real-Time Performance**:
    - Inference Time: < 100ms for end-to-end pipeline
    - Memory Usage: Optimized for edge deployment
@@ -112,7 +112,7 @@ Both domains require sophisticated multi-task learning:
 
 **Autonomous Driving Tasks:**
 - Object Detection → Financial Market Regime Detection
-- Motion Prediction → Price Movement Prediction  
+- Motion Prediction → Price Movement Prediction
 - Path Planning → Portfolio Allocation Strategy
 - Risk Assessment → Collision Avoidance ↔ Drawdown Control
 
@@ -145,32 +145,32 @@ class UnifiedAV_FinanceLoss(nn.Module):
     def __init__(self):
         # Multi-task uncertainty weighting
         self.task_uncertainties = nn.Parameter(torch.ones(5))  # 5 tasks
-        
+
         # Domain-specific parameters
         self.safety_weight = nn.Parameter(torch.tensor(2.0))
         self.temporal_weight = nn.Parameter(torch.tensor(0.5))
-        
+
     def forward(self, predictions, targets, safety_signals):
         losses = {}
-        
+
         # Task-specific losses with uncertainty weighting
         for i, task in enumerate(['detection', 'prediction', 'planning', 'risk', 'regime']):
             task_loss = self.compute_task_loss(predictions[task], targets[task])
             uncertainty = self.task_uncertainties[i]
             losses[task] = (1/(2*uncertainty**2)) * task_loss + torch.log(uncertainty)
-        
+
         # Safety-critical penalties
         safety_loss = self.safety_weight * (
             focal_loss(predictions['collision_risk'], targets['collision_risk']) +
             cvar_loss(predictions['portfolio_returns'], targets['portfolio_returns'])
         )
-        
+
         # Temporal consistency
         temporal_loss = self.temporal_weight * temporal_consistency_penalty(predictions)
-        
+
         # Combined loss
         total_loss = sum(losses.values()) + safety_loss + temporal_loss
-        
+
         return total_loss, losses
 ```
 
@@ -203,74 +203,74 @@ Based on the research synthesis, here's the recommended loss function for the au
 class FinancialAVLoss(nn.Module):
     def __init__(self, num_tasks=5):
         super().__init__()
-        
+
         # Learnable task uncertainties (from AV research)
         self.log_vars = nn.Parameter(torch.zeros(num_tasks))
-        
-        # Risk parameters (from finance research)  
+
+        # Risk parameters (from finance research)
         self.alpha_cvar = 0.05  # CVaR significance level
         self.lambda_drawdown = 2.0  # Drawdown penalty weight
         self.gamma_focal = 2.0  # Focal loss focusing parameter
-        
+
     def forward(self, predictions, targets, market_context):
         batch_size = predictions['price_movement'].shape[0]
         total_loss = 0
         task_losses = {}
-        
+
         # Task 1: Price Movement Prediction (Primary)
         price_mse = F.mse_loss(predictions['price_movement'], targets['price_movement'])
         # Enhanced with focal-like weighting for difficult predictions
         price_weights = torch.abs(predictions['price_movement'] - targets['price_movement'])
         price_focal = (price_weights ** self.gamma_focal) * price_mse
         task_losses['price'] = price_focal
-        
+
         # Task 2: Volatility Prediction
         vol_loss = F.mse_loss(predictions['volatility'], targets['volatility'])
         task_losses['volatility'] = vol_loss
-        
-        # Task 3: Volume Prediction  
+
+        # Task 3: Volume Prediction
         volume_loss = F.mse_loss(predictions['volume'], targets['volume'])
         task_losses['volume'] = volume_loss
-        
+
         # Task 4: Market Regime Classification (from AV object detection)
         regime_loss = F.cross_entropy(predictions['regime'], targets['regime'])
         task_losses['regime'] = regime_loss
-        
+
         # Task 5: Risk Assessment (Critical like collision detection)
         risk_loss = F.mse_loss(predictions['risk'], targets['risk'])
         task_losses['risk'] = risk_loss
-        
+
         # Uncertainty-weighted multi-task loss (from AV research)
         for i, (task, loss) in enumerate(task_losses.items()):
             precision = torch.exp(-self.log_vars[i])
             total_loss += precision * loss + self.log_vars[i]
-        
+
         # Financial risk penalties (from finance research)
         # CVaR penalty for tail risk
         returns = predictions['price_movement']
         cvar_loss = self.compute_cvar_loss(returns, self.alpha_cvar)
-        
+
         # Maximum drawdown penalty
         drawdown_loss = self.compute_drawdown_loss(returns)
-        
+
         # Safety penalty (inspired by collision avoidance)
         safety_penalty = self.lambda_drawdown * (cvar_loss + drawdown_loss)
-        
+
         total_loss += safety_penalty
-        
+
         return {
             'total_loss': total_loss,
             'task_losses': task_losses,
             'safety_penalty': safety_penalty,
             'uncertainties': torch.exp(self.log_vars)
         }
-    
+
     def compute_cvar_loss(self, returns, alpha):
         # CVaR calculation for risk control
         var_threshold = torch.quantile(returns, alpha, dim=0)
         cvar = -torch.mean(returns[returns <= var_threshold])
         return cvar
-    
+
     def compute_drawdown_loss(self, returns):
         # Maximum drawdown penalty
         cumulative_returns = torch.cumsum(returns, dim=1)
@@ -284,7 +284,7 @@ class FinancialAVLoss(nn.Module):
 
 1. **Primary Performance Metrics:**
    - Directional Accuracy (>60% target)
-   - Sharpe Ratio (>1.5 target) 
+   - Sharpe Ratio (>1.5 target)
    - Information Ratio (>0.5 target)
 
 2. **Risk Control Metrics:**

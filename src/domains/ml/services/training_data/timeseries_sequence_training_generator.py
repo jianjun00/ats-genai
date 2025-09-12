@@ -316,14 +316,14 @@ class MultiTimeframeFeatureExtractor:
             print(f"📊 DEBUG extract_all_features: Sample data:")
             if 'open' in data.columns and 'close' in data.columns:
                 print(f"   Latest record: O={data['open'].iloc[-1]:.2f}, H={data['high'].iloc[-1]:.2f}, L={data['low'].iloc[-1]:.2f}, C={data['close'].iloc[-1]:.2f}")
-        
+
         all_features = {}
 
         print(f"🔄 DEBUG extract_all_features: Processing {len(self.config.feature_types)} feature types: {self.config.feature_types}")
-        
+
         for feature_type in self.config.feature_types:
             print(f"🔄 DEBUG: Processing feature_type '{feature_type}'")
-            
+
             if feature_type == 'ohlcv':
                 ohlcv_features = self.extract_ohlcv_features(data, timeframe)
                 print(f"   ✅ OHLCV features: {len(ohlcv_features)} items: {list(ohlcv_features.keys())}")
@@ -364,7 +364,7 @@ class MultiTimeframeFeatureExtractor:
         for key, value in all_features.items():
             if key in ['open', 'high', 'low', 'close', 'volume']:
                 print(f"   {key}: {value} (type: {type(value)})")
-        
+
         return all_features
 
 
@@ -391,13 +391,13 @@ class SequenceWindowBuilder:
         """
         try:
             print(f"🔍 DEBUG get_timeframe_data: Getting {timeframe} data for instrument_id={instrument_id} at {center_datetime}, is_future={is_future}")
-            
+
             # 🚨 CRITICAL FIX (September 10, 2025): Initialize data_df to prevent NameError
             # ISSUE: data_df was undefined in certain code paths, causing OHLCV data loss
             # IMPACT: Real AAPL market data (O=$205.27, H=$209.95) was lost during feature extraction
             # SOLUTION: Always initialize data_df before conditional assignments
             data_df = pd.DataFrame()
-            
+
             if is_future:
                 # Get current future data point (1 interval ahead)
                 print(f"📈 DEBUG: Getting lead prices for future data")
@@ -407,7 +407,7 @@ class SequenceWindowBuilder:
                 print(f"📊 DEBUG: Getting lag prices for current data")
                 ohlcv_df = self.universe_manager.get_lag_prices(instrument_id, center_datetime, 1)
                 print(f"📊 DEBUG: Retrieved OHLCV data: {len(ohlcv_df) if not ohlcv_df.empty else 0} records")
-                
+
                 if not ohlcv_df.empty:
                     print(f"📊 DEBUG OHLCV data sample:")
                     print(f"   Columns: {list(ohlcv_df.columns)}")
@@ -462,7 +462,7 @@ class SequenceWindowBuilder:
             single_point_features = self.feature_extractor.extract_all_features(
                 data_df, timeframe
             )
-            
+
             print(f"✅ DEBUG: Extracted {len(single_point_features)} features: {list(single_point_features.keys())}")
             return single_point_features
 
@@ -525,7 +525,7 @@ class TimeSeriesSequenceTrainingGenerator:
             self.env = env
 
         self.config = config or TrainingDataConfig()
-        
+
         # DEBUG: Check what config we received
         print(f"DEBUG TimeSeriesSequenceTrainingGenerator: received config = {config}")
         print(f"DEBUG TimeSeriesSequenceTrainingGenerator: hasattr timeframes = {hasattr(self.config, 'timeframes')}")
@@ -564,14 +564,14 @@ class TimeSeriesSequenceTrainingGenerator:
         # Use InstrumentXrefDAO for proper symbol to instrument_id lookup
         try:
             from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-            
+
             if not self.universe_manager.env:
                 raise ValueError("Environment not configured - cannot perform database lookup")
-            
+
             # Use InstrumentXrefDAO to resolve instrument_id by symbol
             xref_dao = InstrumentXrefsDAO(self.universe_manager.env)
             instrument_id = await xref_dao.resolve_instrument_id_by_symbol(symbol.upper())
-            
+
             if instrument_id:
                 self._symbol_to_id_cache[symbol] = instrument_id
                 print(f"🔍 DEBUG: Found instrument_id={instrument_id} for symbol={symbol}")
@@ -579,7 +579,7 @@ class TimeSeriesSequenceTrainingGenerator:
             else:
                 print(f"⚠️ WARNING: Symbol {symbol} not found in instruments table")
                 return None
-                        
+
         except Exception as e:
             print(f"❌ ERROR: Failed to lookup instrument_id for {symbol}: {e}")
             return None

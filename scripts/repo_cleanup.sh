@@ -48,32 +48,32 @@ check_repository() {
 # Clean Python artifacts
 clean_python_artifacts() {
     log_info "Cleaning Python artifacts..."
-    
+
     cd "$REPO_ROOT"
-    
+
     # Count before cleanup
     local pyc_count=$(find . -name "*.pyc" -type f | wc -l || echo 0)
     local pycache_count=$(find . -name "__pycache__" -type d | wc -l || echo 0)
     local pyo_count=$(find . -name "*.pyo" -type f | wc -l || echo 0)
-    
+
     log_info "Found: $pyc_count .pyc files, $pycache_count __pycache__ dirs, $pyo_count .pyo files"
-    
+
     # Remove Python artifacts
     find . -name "*.pyc" -type f -delete 2>/dev/null || true
     find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
     find . -name "*.pyo" -type f -delete 2>/dev/null || true
     find . -name ".pytest_cache" -type d -exec rm -rf {} + 2>/dev/null || true
     find . -name ".mypy_cache" -type d -exec rm -rf {} + 2>/dev/null || true
-    
+
     log_success "Python artifacts cleaned"
 }
 
 # Clean virtual environments
 clean_virtual_environments() {
     log_info "Cleaning virtual environments..."
-    
+
     cd "$REPO_ROOT"
-    
+
     # Count and remove virtual environments
     local venv_dirs=0
     for pattern in "*-venv" ".venv" "venv" ".atsenv"; do
@@ -82,7 +82,7 @@ clean_virtual_environments() {
             ((venv_dirs++))
         fi
     done
-    
+
     if [[ $venv_dirs -gt 0 ]]; then
         log_success "Removed $venv_dirs virtual environment directories"
     else
@@ -93,19 +93,19 @@ clean_virtual_environments() {
 # Clean Node.js dependencies
 clean_node_dependencies() {
     log_info "Cleaning Node.js dependencies..."
-    
+
     cd "$REPO_ROOT"
-    
+
     # Count and remove node_modules
     local node_dirs=$(find . -name "node_modules" -type d | wc -l || echo 0)
-    
+
     if [[ $node_dirs -gt 0 ]]; then
         find . -name "node_modules" -type d -exec rm -rf {} + 2>/dev/null || true
         log_success "Removed $node_dirs node_modules directories"
     else
         log_info "No node_modules directories found"
     fi
-    
+
     # Clean npm/yarn logs
     find . -name "npm-debug.log*" -type f -delete 2>/dev/null || true
     find . -name "yarn-debug.log*" -type f -delete 2>/dev/null || true
@@ -115,9 +115,9 @@ clean_node_dependencies() {
 # Clean temporary files
 clean_temporary_files() {
     log_info "Cleaning temporary files..."
-    
+
     cd "$REPO_ROOT"
-    
+
     # Remove various temporary files
     find . -name "*.tmp" -type f -delete 2>/dev/null || true
     find . -name "*.temp" -type f -delete 2>/dev/null || true
@@ -126,37 +126,37 @@ clean_temporary_files() {
     find . -name "*.swo" -type f -delete 2>/dev/null || true
     find . -name ".DS_Store" -type f -delete 2>/dev/null || true
     find . -name "._*" -type f -delete 2>/dev/null || true
-    
+
     # Clean up log files older than 7 days
     find . -name "*.log" -type f -mtime +7 -delete 2>/dev/null || true
-    
+
     log_success "Temporary files cleaned"
 }
 
 # Validate repository state
 validate_repository_state() {
     log_info "Validating repository state..."
-    
+
     cd "$REPO_ROOT"
-    
+
     # Check for remaining artifacts
     local remaining_issues=0
-    
+
     if find . -name "*.pyc" -type f | grep -q .; then
         log_warning "Still found .pyc files"
         ((remaining_issues++))
     fi
-    
+
     if find . -name "__pycache__" -type d | grep -q .; then
         log_warning "Still found __pycache__ directories"
         ((remaining_issues++))
     fi
-    
+
     if find . -name "*-venv" -type d | grep -q .; then
         log_warning "Still found virtual environment directories"
         ((remaining_issues++))
     fi
-    
+
     if [[ $remaining_issues -eq 0 ]]; then
         log_success "Repository state validation passed"
         return 0
@@ -169,9 +169,9 @@ validate_repository_state() {
 # Run schema validation
 run_schema_validation() {
     log_info "Running schema validation..."
-    
+
     cd "$REPO_ROOT"
-    
+
     if [[ -f "scripts/validate_schema.py" ]]; then
         if python scripts/validate_schema.py --check-all 2>&1 | tee -a "$LOG_FILE"; then
             log_success "Schema validation passed"
@@ -186,9 +186,9 @@ run_schema_validation() {
 # Check Kubernetes conflicts
 check_kubernetes_conflicts() {
     log_info "Checking Kubernetes conflicts..."
-    
+
     cd "$REPO_ROOT"
-    
+
     if [[ -f "scripts/detect_k8s_conflicts.py" ]] && [[ -d "k8s" ]]; then
         if python scripts/detect_k8s_conflicts.py k8s/ 2>&1 | tee -a "$LOG_FILE"; then
             log_success "No Kubernetes conflicts found"
@@ -203,11 +203,11 @@ check_kubernetes_conflicts() {
 # Generate cleanup report
 generate_cleanup_report() {
     log_info "Generating cleanup report..."
-    
+
     cd "$REPO_ROOT"
-    
+
     local report_file="cleanup_report_$(date +%Y%m%d_%H%M%S).md"
-    
+
     cat > "$report_file" << EOF
 # Repository Cleanup Report
 Generated: $(date)
@@ -220,7 +220,7 @@ Generated: $(date)
 ## Files Cleaned
 - Python artifacts (.pyc, __pycache__, .pyo files)
 - Virtual environments (*-venv, .venv, venv directories)
-- Node.js dependencies (node_modules directories)  
+- Node.js dependencies (node_modules directories)
 - Temporary files (*.tmp, *.temp, *~, *.swp, .DS_Store)
 - Old log files (>7 days)
 
@@ -231,7 +231,7 @@ Python files: $(find . -name "*.py" | wc -l)
 Documentation files: $(find docs/ -name "*.md" 2>/dev/null | wc -l || echo 0)
 Kubernetes files: $(find k8s/ -name "*.yaml" 2>/dev/null | wc -l || echo 0)
 
-# Size information  
+# Size information
 Repository size: $(du -sh . 2>/dev/null | cut -f1 || echo "Unknown")
 \`\`\`
 
@@ -251,23 +251,23 @@ EOF
 # Main cleanup function
 main_cleanup() {
     log_info "Starting repository cleanup..."
-    
+
     check_repository
     clean_python_artifacts
     clean_virtual_environments
     clean_node_dependencies
     clean_temporary_files
-    
+
     if validate_repository_state; then
         log_success "Repository cleanup completed successfully"
     else
         log_warning "Repository cleanup completed with warnings"
     fi
-    
+
     run_schema_validation
     check_kubernetes_conflicts
     generate_cleanup_report
-    
+
     log_success "Full cleanup process completed"
     log_info "Log file: $LOG_FILE"
 }
@@ -283,7 +283,7 @@ Commands:
   clean        - Run full cleanup process (default)
   python       - Clean only Python artifacts
   venv         - Clean only virtual environments
-  node         - Clean only Node.js dependencies  
+  node         - Clean only Node.js dependencies
   temp         - Clean only temporary files
   validate     - Validate repository state
   schema       - Run schema validation
@@ -293,7 +293,7 @@ Commands:
 
 Examples:
   $0                    # Run full cleanup
-  $0 clean             # Run full cleanup  
+  $0 clean             # Run full cleanup
   $0 python            # Clean only Python artifacts
   $0 validate          # Validate repository state
 

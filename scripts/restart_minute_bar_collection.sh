@@ -13,11 +13,11 @@ ETF_ZIP="/mnt/d/ats-data/firstrate-data/daily/etf/etf_${TODAY}_1min_adj_split.zi
 
 if [[ -f "$STOCK_ZIP" ]]; then
     echo "✅ Found stock data: $STOCK_ZIP"
-    
+
     # Process key symbols from stock data
     echo "📊 Processing key stock symbols..."
     cd /home/jianjun/ats-genai-model
-    
+
     PYTHONPATH=src uv run python -c "
 import zipfile
 import pandas as pd
@@ -33,15 +33,15 @@ if os.path.exists(zip_path):
     with zipfile.ZipFile(zip_path) as zf:
         files = zf.namelist()
         processed = 0
-        
+
         for filename in files:
             symbol = filename.split('_')[0].upper() if '_' in filename else filename.split('.')[0].upper()
-            
+
             if symbol in key_symbols:
                 # Create organized output directory
                 output_dir = Path('/mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)') / symbol[0]
                 output_dir.mkdir(parents=True, exist_ok=True)
-                
+
                 try:
                     with zf.open(filename) as f:
                         df = pd.read_csv(f)
@@ -52,7 +52,7 @@ if os.path.exists(zip_path):
                             processed += 1
                 except Exception as e:
                     print(f'❌ Error processing {symbol}: {e}')
-        
+
         print(f'📊 Processed {processed} symbols from stock data')
 "
 else
