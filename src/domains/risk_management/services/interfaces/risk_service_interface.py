@@ -186,7 +186,7 @@ class RiskReport:
 class RiskServiceInterface(ABC):
     """
     Risk Management Service Interface
-    
+
     Provides comprehensive risk management capabilities including:
     - Real-time risk monitoring and alerting
     - VaR calculations and stress testing
@@ -194,9 +194,9 @@ class RiskServiceInterface(ABC):
     - Portfolio and position risk assessment
     - Regulatory compliance monitoring
     """
-    
+
     # Position Risk Management
-    
+
     @abstractmethod
     async def assess_position_risk(
         self,
@@ -205,16 +205,16 @@ class RiskServiceInterface(ABC):
     ) -> PositionRisk:
         """
         Assess risk for individual position.
-        
+
         Args:
             position_id: Unique position identifier
             include_scenarios: Include scenario analysis
-            
+
         Returns:
             Complete position risk assessment
         """
         pass
-    
+
     @abstractmethod
     async def assess_portfolio_risk(
         self,
@@ -224,19 +224,19 @@ class RiskServiceInterface(ABC):
     ) -> PortfolioRisk:
         """
         Assess comprehensive portfolio risk.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             include_var: Include VaR calculations
             include_scenarios: Include scenario analysis
-            
+
         Returns:
             Complete portfolio risk assessment
         """
         pass
-    
+
     # Risk Limit Management
-    
+
     @abstractmethod
     async def create_risk_limit(
         self,
@@ -249,7 +249,7 @@ class RiskServiceInterface(ABC):
     ) -> RiskLimit:
         """
         Create new risk limit.
-        
+
         Args:
             entity_type: Type of entity (position, portfolio, account)
             entity_id: Entity identifier
@@ -257,12 +257,12 @@ class RiskServiceInterface(ABC):
             limit_value: Maximum allowed value
             warning_threshold: Warning threshold percentage
             critical_threshold: Critical threshold percentage
-            
+
         Returns:
             Created risk limit
         """
         pass
-    
+
     @abstractmethod
     async def check_risk_limits(
         self,
@@ -271,16 +271,16 @@ class RiskServiceInterface(ABC):
     ) -> List[RiskLimit]:
         """
         Check all risk limits for entity.
-        
+
         Args:
             entity_type: Type of entity
             entity_id: Entity identifier
-            
+
         Returns:
             List of risk limits with current status
         """
         pass
-    
+
     @abstractmethod
     async def update_risk_limit(
         self,
@@ -291,20 +291,20 @@ class RiskServiceInterface(ABC):
     ) -> RiskLimit:
         """
         Update existing risk limit.
-        
+
         Args:
             limit_id: Limit identifier
             limit_value: New limit value
             warning_threshold: New warning threshold
             critical_threshold: New critical threshold
-            
+
         Returns:
             Updated risk limit
         """
         pass
-    
+
     # Real-time Monitoring & Alerts
-    
+
     @abstractmethod
     async def start_real_time_monitoring(
         self,
@@ -313,29 +313,29 @@ class RiskServiceInterface(ABC):
     ) -> str:
         """
         Start real-time risk monitoring for portfolios.
-        
+
         Args:
             portfolio_ids: List of portfolio IDs to monitor
             monitoring_frequency_seconds: How often to check
-            
+
         Returns:
             Monitoring session ID
         """
         pass
-    
+
     @abstractmethod
     async def stop_real_time_monitoring(self, session_id: str) -> bool:
         """
         Stop real-time risk monitoring session.
-        
+
         Args:
             session_id: Monitoring session identifier
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def get_active_alerts(
         self,
@@ -345,17 +345,17 @@ class RiskServiceInterface(ABC):
     ) -> List[RiskAlert]:
         """
         Get active risk alerts.
-        
+
         Args:
             entity_type: Filter by entity type
             entity_id: Filter by entity ID
             priority: Filter by priority level
-            
+
         Returns:
             List of active alerts
         """
         pass
-    
+
     @abstractmethod
     async def acknowledge_alert(
         self,
@@ -365,19 +365,19 @@ class RiskServiceInterface(ABC):
     ) -> bool:
         """
         Acknowledge risk alert.
-        
+
         Args:
             alert_id: Alert identifier
             acknowledged_by: User acknowledging
             notes: Optional acknowledgment notes
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     # VaR and Stress Testing
-    
+
     @abstractmethod
     async def calculate_var(
         self,
@@ -388,18 +388,18 @@ class RiskServiceInterface(ABC):
     ) -> VaRCalculation:
         """
         Calculate Value at Risk for portfolio.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             confidence_level: Confidence level (0.95, 0.99)
             time_horizon_days: Time horizon in days
             methodology: Calculation method
-            
+
         Returns:
             VaR calculation results
         """
         pass
-    
+
     @abstractmethod
     async def run_stress_test(
         self,
@@ -408,16 +408,16 @@ class RiskServiceInterface(ABC):
     ) -> Dict[str, Decimal]:
         """
         Run stress test scenario on portfolio.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             scenario: Stress test scenario
-            
+
         Returns:
             Stress test results by position
         """
         pass
-    
+
     @abstractmethod
     async def create_scenario(
         self,
@@ -429,21 +429,21 @@ class RiskServiceInterface(ABC):
     ) -> RiskScenario:
         """
         Create stress test scenario.
-        
+
         Args:
             scenario_name: Scenario name
             description: Scenario description
             market_shocks: Market shock percentages by asset
             time_horizon: Scenario time horizon
             probability: Estimated probability
-            
+
         Returns:
             Created scenario
         """
         pass
-    
+
     # Reporting and Analytics
-    
+
     @abstractmethod
     async def generate_risk_report(
         self,
@@ -451,15 +451,15 @@ class RiskServiceInterface(ABC):
     ) -> RiskReport:
         """
         Generate comprehensive risk report.
-        
+
         Args:
             request: Report generation request
-            
+
         Returns:
             Generated risk report
         """
         pass
-    
+
     @abstractmethod
     async def get_risk_metrics_history(
         self,
@@ -470,18 +470,18 @@ class RiskServiceInterface(ABC):
     ) -> Dict[str, List[RiskMetric]]:
         """
         Get historical risk metrics.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             metric_names: List of metric names to retrieve
             start_date: Start date for history
             end_date: End date for history
-            
+
         Returns:
             Historical risk metrics by metric name
         """
         pass
-    
+
     @abstractmethod
     async def get_compliance_status(
         self,
@@ -490,18 +490,18 @@ class RiskServiceInterface(ABC):
     ) -> Dict[str, Dict[str, Any]]:
         """
         Get regulatory compliance status.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             regulation_types: Specific regulations to check
-            
+
         Returns:
             Compliance status by regulation type
         """
         pass
-    
+
     # Risk Configuration
-    
+
     @abstractmethod
     async def configure_risk_model(
         self,
@@ -510,16 +510,16 @@ class RiskServiceInterface(ABC):
     ) -> str:
         """
         Configure risk calculation model.
-        
+
         Args:
             model_type: Type of risk model
             parameters: Model parameters
-            
+
         Returns:
             Model configuration ID
         """
         pass
-    
+
     @abstractmethod
     async def get_risk_model_performance(
         self,
@@ -528,11 +528,11 @@ class RiskServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Get risk model performance metrics.
-        
+
         Args:
             model_id: Model identifier
             evaluation_period: Period to evaluate
-            
+
         Returns:
             Model performance metrics
         """

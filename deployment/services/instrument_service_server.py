@@ -47,20 +47,20 @@ registry = None
 async def lifespan(app: FastAPI):
     """Manage service lifecycle with proper startup and shutdown."""
     global service_container, health_integration, registry
-    
+
     try:
         # Initialize service registry connection
         registry = get_global_registry()
-        
+
         # Initialize service container
         service_container = InstrumentServiceContainer(
             environment=os.getenv('ENVIRONMENT', 'production')
         )
         await service_container.initialize()
-        
+
         # Get service implementation
         service_impl = service_container.get_instrument_service()
-        
+
         # Initialize health integration
         health_integration = InstrumentServiceHealthIntegration(
             service_impl=service_impl,
@@ -69,17 +69,17 @@ async def lifespan(app: FastAPI):
             host=os.getenv('SERVICE_HOST', '0.0.0.0'),
             port=int(os.getenv('SERVICE_PORT', '8001'))
         )
-        
+
         # Register service with service registry
         await health_integration.register_service()
-        
+
         # Start health monitoring
         await health_integration.start_health_monitoring()
-        
+
         logger.info("Instrument service started successfully")
-        
+
         yield
-        
+
     except Exception as e:
         logger.error(f"Failed to start instrument service: {e}")
         raise
@@ -181,14 +181,14 @@ if __name__ == "__main__":
     # Configuration
     host = os.getenv("SERVICE_HOST", "0.0.0.0")
     port = int(os.getenv("SERVICE_PORT", "8001"))
-    
+
     # Wait for dependencies
     import time
     logger.info("Waiting for dependencies...")
     time.sleep(10)  # Give dependencies time to start
-    
+
     logger.info(f"Starting Instrument Service on {host}:{port}")
-    
+
     # Run the server
     uvicorn.run(
         app,

@@ -31,73 +31,73 @@ logger = logging.getLogger(__name__)
 class InstrumentServiceContainer:
     """
     Service container for instrument domain.
-    
+
     Handles:
     1. Service lifecycle management
     2. Dependency injection
     3. Service configuration
     4. Environment-based configuration
     """
-    
+
     def __init__(self, environment: Environment):
         self.environment = environment
         self._services: Dict[str, Any] = {}
         self._daos: Dict[str, Any] = {}
         self._initialized = False
-    
+
     async def initialize(self):
         """Initialize all services and dependencies"""
         if self._initialized:
             return
-            
+
         logger.info(f"Initializing InstrumentServiceContainer for environment: {self.environment.env_type}")
-        
+
         try:
             # Initialize DAOs first
             await self._initialize_daos()
-            
+
             # Then initialize services that depend on DAOs
             await self._initialize_services()
-            
+
             self._initialized = True
             logger.info("InstrumentServiceContainer initialized successfully")
-            
+
         except Exception as e:
             logger.error(f"Error initializing InstrumentServiceContainer: {e}")
             raise
-    
+
     async def _initialize_daos(self):
         """Initialize all DAO dependencies"""
-        
+
         # Core DAOs
         self._daos['instruments_dao'] = InstrumentsDAO(self.environment)
         self._daos['xrefs_dao'] = InstrumentXrefsDAO(self.environment)
         self._daos['vendors_dao'] = VendorsDAO(self.environment)
-        
+
         # Vendor-specific DAOs
         vendor_daos = {}
-        
+
         # Polygon DAO
         try:
             vendor_daos['polygon'] = InstrumentPolygonDAO(self.environment)
             logger.debug("Polygon DAO initialized")
         except Exception as e:
             logger.warning(f"Could not initialize Polygon DAO: {e}")
-        
+
         # Add other vendor DAOs as they become available
         # try:
         #     vendor_daos['tiingo'] = InstrumentsTiingoDAO(self.environment)
         #     logger.debug("Tiingo DAO initialized")
         # except Exception as e:
         #     logger.warning(f"Could not initialize Tiingo DAO: {e}")
-        
+
         self._daos['vendor_daos'] = vendor_daos
-        
+
         logger.info(f"Initialized {len(self._daos)} DAO components")
-    
+
     async def _initialize_services(self):
         """Initialize all service implementations"""
-        
+
         # Instrument Service Implementation
         self._services['instrument_service'] = InstrumentServiceImpl(
             instruments_dao=self._daos['instruments_dao'],
@@ -105,29 +105,29 @@ class InstrumentServiceContainer:
             vendors_dao=self._daos['vendors_dao'],
             vendor_daos=self._daos['vendor_daos']
         )
-        
+
         logger.info(f"Initialized {len(self._services)} service components")
-    
+
     def get_instrument_service(self) -> InstrumentServiceInterface:
         """Get the instrument service instance"""
         if not self._initialized:
             raise RuntimeError("Service container not initialized. Call initialize() first.")
-        
+
         return self._services['instrument_service']
-    
+
     async def shutdown(self):
         """Cleanup resources on shutdown"""
         logger.info("Shutting down InstrumentServiceContainer")
-        
+
         # Services don't typically need cleanup, but DAOs might need connection cleanup
         # This is where you'd add any cleanup logic
-        
+
         self._services.clear()
         self._daos.clear()
         self._initialized = False
-        
+
         logger.info("InstrumentServiceContainer shutdown complete")
-    
+
     def get_health_status(self) -> Dict[str, Any]:
         """Get health status of service container"""
         return {
@@ -146,28 +146,28 @@ _container: InstrumentServiceContainer = None
 async def get_service_container(environment: Environment = None) -> InstrumentServiceContainer:
     """
     Get or create the global service container instance.
-    
+
     This function provides singleton access to the service container.
     In production, you might want to use a proper DI framework instead.
     """
     global _container
-    
+
     if _container is None:
         if environment is None:
             # Default to development environment if none provided
             # In production, this should be properly configured
             environment = Environment(None, EnvironmentType.DEV)
-        
+
         _container = InstrumentServiceContainer(environment)
         await _container.initialize()
-    
+
     return _container
 
 
 async def shutdown_service_container():
     """Shutdown the global service container"""
     global _container
-    
+
     if _container:
         await _container.shutdown()
         _container = None
@@ -184,7 +184,7 @@ async def get_instrument_service(environment: Environment = None) -> InstrumentS
 async def provide_instrument_service() -> InstrumentServiceInterface:
     """
     FastAPI dependency provider for instrument service.
-    
+
     This function can be used as a Depends() in FastAPI endpoints.
     """
     try:
@@ -192,7 +192,7 @@ async def provide_instrument_service() -> InstrumentServiceInterface:
         # For now, use default environment
         container = await get_service_container()
         return container.get_instrument_service()
-    
+
     except Exception as e:
         logger.error(f"Error providing instrument service: {e}")
         raise RuntimeError(f"Service unavailable: {e}")

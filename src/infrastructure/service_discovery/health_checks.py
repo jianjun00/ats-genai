@@ -50,7 +50,7 @@ class HealthCheckResult:
     timestamp: datetime
     duration_ms: float
     error: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
@@ -62,17 +62,17 @@ class HealthCheckResult:
 
 class HealthCheck(ABC):
     """Abstract base class for health checks."""
-    
+
     def __init__(self, name: str, check_type: HealthCheckType, timeout_seconds: float = 5.0):
         self.name = name
         self.check_type = check_type
         self.timeout_seconds = timeout_seconds
-    
+
     @abstractmethod
     async def perform_check(self) -> HealthCheckResult:
         """Perform the health check and return the result."""
         pass
-    
+
     async def check_with_timeout(self) -> HealthCheckResult:
         """Perform health check with timeout protection."""
         start_time = time.time()
@@ -111,27 +111,27 @@ class HealthCheck(ABC):
 
 class DatabaseHealthCheck(HealthCheck):
     """Health check for database connectivity."""
-    
+
     def __init__(self, name: str, connection_factory: Callable, query: str = "SELECT 1"):
         super().__init__(name, HealthCheckType.DEPENDENCY)
         self.connection_factory = connection_factory
         self.query = query
-    
+
     async def perform_check(self) -> HealthCheckResult:
         """Check database connectivity and responsiveness."""
         try:
             # Get database connection
             conn = await self.connection_factory()
-            
+
             # Execute test query
             start_query_time = time.time()
             result = await conn.fetch(self.query)
             query_duration_ms = (time.time() - start_query_time) * 1000
-            
+
             # Close connection if needed
             if hasattr(conn, 'close'):
                 await conn.close()
-            
+
             return HealthCheckResult(
                 check_name=self.name,
                 check_type=self.check_type,
@@ -145,7 +145,7 @@ class DatabaseHealthCheck(HealthCheck):
                 timestamp=datetime.utcnow(),
                 duration_ms=0  # Will be set by parent
             )
-            
+
         except Exception as e:
             return HealthCheckResult(
                 check_name=self.name,
@@ -164,13 +164,13 @@ class DatabaseHealthCheck(HealthCheck):
 
 class HttpServiceHealthCheck(HealthCheck):
     """Health check for HTTP service dependencies."""
-    
+
     def __init__(self, name: str, url: str, expected_status: int = 200, headers: Dict[str, str] = None):
         super().__init__(name, HealthCheckType.DEPENDENCY)
         self.url = url
         self.expected_status = expected_status
         self.headers = headers or {}
-    
+
     async def perform_check(self) -> HealthCheckResult:
         """Check HTTP service availability."""
         try:
@@ -181,7 +181,7 @@ class HttpServiceHealthCheck(HealthCheck):
                     timeout=aiohttp.ClientTimeout(total=self.timeout_seconds)
                 ) as response:
                     status_healthy = response.status == self.expected_status
-                    
+
                     return HealthCheckResult(
                         check_name=self.name,
                         check_type=self.check_type,
@@ -196,7 +196,7 @@ class HttpServiceHealthCheck(HealthCheck):
                         timestamp=datetime.utcnow(),
                         duration_ms=0
                     )
-                    
+
         except Exception as e:
             return HealthCheckResult(
                 check_name=self.name,
@@ -215,13 +215,13 @@ class HttpServiceHealthCheck(HealthCheck):
 
 class SystemResourceHealthCheck(HealthCheck):
     """Health check for system resource usage."""
-    
+
     def __init__(self, name: str, cpu_threshold: float = 90.0, memory_threshold: float = 90.0, disk_threshold: float = 90.0):
         super().__init__(name, HealthCheckType.LIVENESS)
         self.cpu_threshold = cpu_threshold
         self.memory_threshold = memory_threshold
         self.disk_threshold = disk_threshold
-    
+
     async def perform_check(self) -> HealthCheckResult:
         """Check system resource usage."""
         try:
@@ -229,21 +229,21 @@ class SystemResourceHealthCheck(HealthCheck):
             cpu_percent = psutil.cpu_percent(interval=0.1)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
-            
+
             # Check thresholds
             issues = []
             if cpu_percent > self.cpu_threshold:
                 issues.append(f"CPU usage {cpu_percent:.1f}% exceeds threshold {self.cpu_threshold}%")
-            
+
             if memory.percent > self.memory_threshold:
                 issues.append(f"Memory usage {memory.percent:.1f}% exceeds threshold {self.memory_threshold}%")
-            
+
             if disk.percent > self.disk_threshold:
                 issues.append(f"Disk usage {disk.percent:.1f}% exceeds threshold {self.disk_threshold}%")
-            
+
             status = HealthStatus.UNHEALTHY if issues else HealthStatus.HEALTHY
             message = "System resources within normal limits" if not issues else f"Resource issues: {'; '.join(issues)}"
-            
+
             return HealthCheckResult(
                 check_name=self.name,
                 check_type=self.check_type,
@@ -264,7 +264,7 @@ class SystemResourceHealthCheck(HealthCheck):
                 timestamp=datetime.utcnow(),
                 duration_ms=0
             )
-            
+
         except Exception as e:
             return HealthCheckResult(
                 check_name=self.name,
@@ -280,11 +280,11 @@ class SystemResourceHealthCheck(HealthCheck):
 
 class CustomHealthCheck(HealthCheck):
     """Custom health check for application-specific logic."""
-    
+
     def __init__(self, name: str, check_function: Callable[[], Union[bool, Dict[str, Any]]], check_type: HealthCheckType = HealthCheckType.CUSTOM):
         super().__init__(name, check_type)
         self.check_function = check_function
-    
+
     async def perform_check(self) -> HealthCheckResult:
         """Perform custom health check."""
         try:
@@ -293,7 +293,7 @@ class CustomHealthCheck(HealthCheck):
                 result = await self.check_function()
             else:
                 result = self.check_function()
-            
+
             # Handle different return types
             if isinstance(result, bool):
                 status = HealthStatus.HEALTHY if result else HealthStatus.UNHEALTHY
@@ -303,7 +303,7 @@ class CustomHealthCheck(HealthCheck):
                 status = result.get('status', HealthStatus.HEALTHY)
                 message = result.get('message', 'Custom check completed')
                 details = {k: v for k, v in result.items() if k not in ['status', 'message']}
-                
+
                 # Convert string status to enum if needed
                 if isinstance(status, str):
                     status = HealthStatus(status.lower())
@@ -311,7 +311,7 @@ class CustomHealthCheck(HealthCheck):
                 status = HealthStatus.HEALTHY
                 message = f"Custom check returned: {result}"
                 details = {'result': str(result)}
-            
+
             return HealthCheckResult(
                 check_name=self.name,
                 check_type=self.check_type,
@@ -321,7 +321,7 @@ class CustomHealthCheck(HealthCheck):
                 timestamp=datetime.utcnow(),
                 duration_ms=0
             )
-            
+
         except Exception as e:
             return HealthCheckResult(
                 check_name=self.name,
@@ -346,7 +346,7 @@ class OverallHealth:
     timestamp: datetime
     checks: List[HealthCheckResult]
     summary: Dict[str, Any]
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -360,44 +360,44 @@ class OverallHealth:
 
 class HealthCheckManager:
     """Manager for coordinating multiple health checks."""
-    
+
     def __init__(self):
         self._health_checks: Dict[str, HealthCheck] = {}
         self._check_groups: Dict[str, List[str]] = {}
         self._dependencies: Dict[str, List[str]] = {}
-    
+
     def add_health_check(self, health_check: HealthCheck) -> None:
         """Add a health check to the manager."""
         self._health_checks[health_check.name] = health_check
         logger.info(f"Added health check: {health_check.name} ({health_check.check_type.value})")
-    
+
     def remove_health_check(self, name: str) -> None:
         """Remove a health check from the manager."""
         if name in self._health_checks:
             del self._health_checks[name]
             logger.info(f"Removed health check: {name}")
-    
+
     def add_check_group(self, group_name: str, check_names: List[str]) -> None:
         """Group health checks together."""
         self._check_groups[group_name] = check_names
-    
+
     def set_dependencies(self, check_name: str, dependencies: List[str]) -> None:
         """Set dependencies for a health check."""
         self._dependencies[check_name] = dependencies
-    
+
     async def perform_all_checks(self) -> OverallHealth:
         """Perform all registered health checks."""
         results = []
-        
+
         # Execute all health checks concurrently
         tasks = [
             health_check.check_with_timeout()
             for health_check in self._health_checks.values()
         ]
-        
+
         if tasks:
             check_results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             # Process results
             for result in check_results:
                 if isinstance(result, Exception):
@@ -415,9 +415,9 @@ class HealthCheckManager:
                     results.append(error_result)
                 else:
                     results.append(result)
-        
+
         return self._compute_overall_health(results)
-    
+
     async def perform_check_group(self, group_name: str) -> OverallHealth:
         """Perform health checks for a specific group."""
         if group_name not in self._check_groups:
@@ -428,28 +428,28 @@ class HealthCheckManager:
                 checks=[],
                 summary={'error': 'Group not found'}
             )
-        
+
         check_names = self._check_groups[group_name]
         tasks = []
-        
+
         for check_name in check_names:
             if check_name in self._health_checks:
                 tasks.append(self._health_checks[check_name].check_with_timeout())
-        
+
         results = []
         if tasks:
             check_results = await asyncio.gather(*tasks, return_exceptions=True)
             results = [r for r in check_results if isinstance(r, HealthCheckResult)]
-        
+
         return self._compute_overall_health(results)
-    
+
     async def perform_single_check(self, check_name: str) -> Optional[HealthCheckResult]:
         """Perform a single health check."""
         if check_name not in self._health_checks:
             return None
-        
+
         return await self._health_checks[check_name].check_with_timeout()
-    
+
     def _compute_overall_health(self, results: List[HealthCheckResult]) -> OverallHealth:
         """Compute overall health status from individual check results."""
         if not results:
@@ -460,12 +460,12 @@ class HealthCheckManager:
                 checks=[],
                 summary={'total_checks': 0}
             )
-        
+
         # Count status types
         status_counts = {status: 0 for status in HealthStatus}
         for result in results:
             status_counts[result.status] += 1
-        
+
         # Determine overall status
         if status_counts[HealthStatus.UNHEALTHY] > 0:
             overall_status = HealthStatus.UNHEALTHY
@@ -479,7 +479,7 @@ class HealthCheckManager:
         else:
             overall_status = HealthStatus.HEALTHY
             message = f"All {len(results)} health checks passed"
-        
+
         # Create summary
         summary = {
             'total_checks': len(results),
@@ -490,7 +490,7 @@ class HealthCheckManager:
             'avg_duration_ms': round(sum(r.duration_ms for r in results) / len(results), 2) if results else 0,
             'check_types': {}
         }
-        
+
         # Summary by check type
         for check_type in HealthCheckType:
             type_results = [r for r in results if r.check_type == check_type]
@@ -500,7 +500,7 @@ class HealthCheckManager:
                     'healthy': sum(1 for r in type_results if r.status == HealthStatus.HEALTHY),
                     'unhealthy': sum(1 for r in type_results if r.status == HealthStatus.UNHEALTHY)
                 }
-        
+
         return OverallHealth(
             status=overall_status,
             message=message,
@@ -508,7 +508,7 @@ class HealthCheckManager:
             checks=results,
             summary=summary
         )
-    
+
     def get_registered_checks(self) -> Dict[str, str]:
         """Get list of registered health checks."""
         return {name: check.check_type.value for name, check in self._health_checks.items()}

@@ -99,7 +99,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
         self.logger.info(f"Binary record schema: {schema_config} mode")
         self.logger.info(f"Available indicators will be auto-detected: {self.binary_schema.auto_detect}")
-        
+
         self.logger.info(f"IntervalBasedTrainingDataCallback initialized for symbols: {symbols}")
         if self.start_date and self.end_date:
             self.logger.info(f"Training data date range: {self.start_date} to {self.end_date}")
@@ -107,21 +107,21 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
     def _ensure_writers_closed(self):
         """
         🚨 CRITICAL FIX: Ensure all ArrayRecord writers are properly closed.
-        
+
         This fixes the issue where ArrayRecord files exist but show 0 records
         when the process crashes before handleEnd() is called. ArrayRecord
         requires proper closing to finalize the file format.
         """
         if self._cleanup_attempted:
             return
-        
+
         self._cleanup_attempted = True
-        
+
         if not hasattr(self, 'array_record_writers') or not self.array_record_writers:
             return
-        
+
         print(f"\n🚨 CRITICAL CLEANUP: Closing {len(self.array_record_writers)} ArrayRecord writers")
-        
+
         for file_key, writer in self.array_record_writers.items():
             try:
                 if writer and hasattr(writer, 'close'):
@@ -129,7 +129,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     print(f"   ✅ Emergency closed writer: {file_key}")
             except Exception as e:
                 print(f"   ⚠️ Error closing writer {file_key}: {e}")
-        
+
         print("🔒 ArrayRecord writers cleanup completed")
 
     def __enter__(self):
@@ -212,7 +212,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 print(f"DEBUG: Save completed for {len(examples_generated)} examples")
             else:
                 print(f"DEBUG: No examples to save at {current_time}")
-                
+
         except Exception as e:
             print(f"🚨 CRITICAL ERROR in handleInterval: {e}")
             import traceback

@@ -271,7 +271,7 @@ class AttributionAnalysis:
 class PortfolioServiceInterface(ABC):
     """
     Portfolio Management Service Interface
-    
+
     Provides comprehensive portfolio management capabilities including:
     - Portfolio creation and management
     - Position tracking and valuation
@@ -280,9 +280,9 @@ class PortfolioServiceInterface(ABC):
     - Rebalancing and optimization
     - Transaction recording and reconciliation
     """
-    
+
     # Portfolio Management
-    
+
     @abstractmethod
     async def create_portfolio(
         self,
@@ -297,7 +297,7 @@ class PortfolioServiceInterface(ABC):
     ) -> Portfolio:
         """
         Create new portfolio.
-        
+
         Args:
             portfolio_name: Portfolio name
             account_id: Associated account identifier
@@ -307,25 +307,25 @@ class PortfolioServiceInterface(ABC):
             benchmark_symbol: Benchmark for performance comparison
             risk_limit: Risk limit for portfolio
             metadata: Additional portfolio metadata
-            
+
         Returns:
             Created portfolio
         """
         pass
-    
+
     @abstractmethod
     async def get_portfolio(self, portfolio_id: str) -> Optional[Portfolio]:
         """
         Get portfolio by ID.
-        
+
         Args:
             portfolio_id: Portfolio identifier
-            
+
         Returns:
             Portfolio if found
         """
         pass
-    
+
     @abstractmethod
     async def update_portfolio(
         self,
@@ -334,16 +334,16 @@ class PortfolioServiceInterface(ABC):
     ) -> Portfolio:
         """
         Update portfolio properties.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             updates: Properties to update
-            
+
         Returns:
             Updated portfolio
         """
         pass
-    
+
     @abstractmethod
     async def list_portfolios(
         self,
@@ -353,17 +353,17 @@ class PortfolioServiceInterface(ABC):
     ) -> List[Portfolio]:
         """
         List portfolios with optional filters.
-        
+
         Args:
             account_id: Filter by account
             portfolio_type: Filter by portfolio type
             status: Filter by status
-            
+
         Returns:
             List of portfolios
         """
         pass
-    
+
     @abstractmethod
     async def close_portfolio(
         self,
@@ -372,18 +372,18 @@ class PortfolioServiceInterface(ABC):
     ) -> bool:
         """
         Close portfolio and optionally liquidate positions.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             liquidate_positions: Whether to liquidate all positions
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     # Position Management
-    
+
     @abstractmethod
     async def add_position(
         self,
@@ -396,7 +396,7 @@ class PortfolioServiceInterface(ABC):
     ) -> PortfolioPosition:
         """
         Add position to portfolio.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Security symbol
@@ -404,12 +404,12 @@ class PortfolioServiceInterface(ABC):
             price: Acquisition price
             transaction_date: Transaction date
             transaction_cost: Transaction costs
-            
+
         Returns:
             Created position
         """
         pass
-    
+
     @abstractmethod
     async def update_position(
         self,
@@ -422,7 +422,7 @@ class PortfolioServiceInterface(ABC):
     ) -> PortfolioPosition:
         """
         Update position in portfolio.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Security symbol
@@ -430,12 +430,12 @@ class PortfolioServiceInterface(ABC):
             price: Transaction price
             transaction_date: Transaction date
             transaction_cost: Transaction costs
-            
+
         Returns:
             Updated position
         """
         pass
-    
+
     @abstractmethod
     async def get_positions(
         self,
@@ -444,16 +444,16 @@ class PortfolioServiceInterface(ABC):
     ) -> List[PortfolioPosition]:
         """
         Get all positions for portfolio.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             active_only: Only return positions with non-zero quantity
-            
+
         Returns:
             List of portfolio positions
         """
         pass
-    
+
     @abstractmethod
     async def get_position(
         self,
@@ -462,16 +462,16 @@ class PortfolioServiceInterface(ABC):
     ) -> Optional[PortfolioPosition]:
         """
         Get specific position.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Security symbol
-            
+
         Returns:
             Position if found
         """
         pass
-    
+
     @abstractmethod
     async def liquidate_position(
         self,
@@ -481,19 +481,19 @@ class PortfolioServiceInterface(ABC):
     ) -> PortfolioTransaction:
         """
         Liquidate position completely.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Security symbol
             execution_price: Override market price for execution
-            
+
         Returns:
             Liquidation transaction
         """
         pass
-    
+
     # Transaction Management
-    
+
     @abstractmethod
     async def record_transaction(
         self,
@@ -511,7 +511,7 @@ class PortfolioServiceInterface(ABC):
     ) -> PortfolioTransaction:
         """
         Record portfolio transaction.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Security symbol
@@ -524,12 +524,12 @@ class PortfolioServiceInterface(ABC):
             settlement_date: Settlement date
             order_id: Associated order ID
             notes: Transaction notes
-            
+
         Returns:
             Recorded transaction
         """
         pass
-    
+
     @abstractmethod
     async def get_transactions(
         self,
@@ -541,19 +541,19 @@ class PortfolioServiceInterface(ABC):
     ) -> List[PortfolioTransaction]:
         """
         Get portfolio transactions.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             start_date: Filter from date
             end_date: Filter to date
             symbol: Filter by symbol
             transaction_type: Filter by transaction type
-            
+
         Returns:
             List of transactions
         """
         pass
-    
+
     @abstractmethod
     async def calculate_realized_pnl(
         self,
@@ -564,20 +564,20 @@ class PortfolioServiceInterface(ABC):
     ) -> Decimal:
         """
         Calculate realized P&L.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Calculate for specific symbol
             start_date: Calculate from date
             end_date: Calculate to date
-            
+
         Returns:
             Realized P&L amount
         """
         pass
-    
+
     # Valuation & Performance
-    
+
     @abstractmethod
     async def update_portfolio_valuation(
         self,
@@ -586,16 +586,16 @@ class PortfolioServiceInterface(ABC):
     ) -> Portfolio:
         """
         Update portfolio valuation with current market prices.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             market_prices: Override market prices
-            
+
         Returns:
             Updated portfolio with current valuation
         """
         pass
-    
+
     @abstractmethod
     async def calculate_performance_metrics(
         self,
@@ -606,18 +606,18 @@ class PortfolioServiceInterface(ABC):
     ) -> PortfolioPerformance:
         """
         Calculate comprehensive performance metrics.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             start_date: Performance calculation start date
             end_date: Performance calculation end date
             benchmark_symbol: Benchmark for relative metrics
-            
+
         Returns:
             Portfolio performance metrics
         """
         pass
-    
+
     @abstractmethod
     async def get_performance_history(
         self,
@@ -629,19 +629,19 @@ class PortfolioServiceInterface(ABC):
     ) -> List[Dict[str, Any]]:
         """
         Get historical performance data.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             metric_type: Type of performance metric
             start_date: History start date
             end_date: History end date
             frequency: Data frequency (daily, weekly, monthly)
-            
+
         Returns:
             Historical performance data
         """
         pass
-    
+
     @abstractmethod
     async def calculate_attribution_analysis(
         self,
@@ -652,20 +652,20 @@ class PortfolioServiceInterface(ABC):
     ) -> AttributionAnalysis:
         """
         Calculate performance attribution analysis.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             start_date: Analysis start date
             end_date: Analysis end date
             benchmark_symbol: Benchmark for attribution
-            
+
         Returns:
             Attribution analysis results
         """
         pass
-    
+
     # Risk Management
-    
+
     @abstractmethod
     async def calculate_portfolio_risk_metrics(
         self,
@@ -675,17 +675,17 @@ class PortfolioServiceInterface(ABC):
     ) -> RiskMetrics:
         """
         Calculate portfolio risk metrics.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             confidence_levels: VaR confidence levels
             time_horizons: VaR time horizons in days
-            
+
         Returns:
             Portfolio risk metrics
         """
         pass
-    
+
     @abstractmethod
     async def monitor_risk_limits(
         self,
@@ -694,16 +694,16 @@ class PortfolioServiceInterface(ABC):
     ) -> List[PortfolioAlert]:
         """
         Monitor portfolio against risk limits.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             risk_limits: Risk limits to monitor
-            
+
         Returns:
             List of risk alerts if any limits breached
         """
         pass
-    
+
     @abstractmethod
     async def stress_test_portfolio(
         self,
@@ -712,18 +712,18 @@ class PortfolioServiceInterface(ABC):
     ) -> Dict[str, Dict[str, Decimal]]:
         """
         Run stress tests on portfolio.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             stress_scenarios: Stress test scenarios
-            
+
         Returns:
             Stress test results by scenario
         """
         pass
-    
+
     # Rebalancing & Optimization
-    
+
     @abstractmethod
     async def set_allocation_targets(
         self,
@@ -732,16 +732,16 @@ class PortfolioServiceInterface(ABC):
     ) -> bool:
         """
         Set portfolio allocation targets.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             targets: List of allocation targets
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def check_rebalancing_needed(
         self,
@@ -750,16 +750,16 @@ class PortfolioServiceInterface(ABC):
     ) -> Dict[str, float]:
         """
         Check if portfolio needs rebalancing.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             threshold: Rebalancing threshold percentage
-            
+
         Returns:
             Deviations from target allocations
         """
         pass
-    
+
     @abstractmethod
     async def generate_rebalance_orders(
         self,
@@ -769,17 +769,17 @@ class PortfolioServiceInterface(ABC):
     ) -> List[RebalanceOrder]:
         """
         Generate rebalancing orders.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             method: Rebalancing method
             constraints: Rebalancing constraints
-            
+
         Returns:
             List of rebalancing orders
         """
         pass
-    
+
     @abstractmethod
     async def execute_rebalancing(
         self,
@@ -788,16 +788,16 @@ class PortfolioServiceInterface(ABC):
     ) -> RebalanceResult:
         """
         Execute portfolio rebalancing.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             rebalance_orders: Orders to execute
-            
+
         Returns:
             Rebalancing execution result
         """
         pass
-    
+
     @abstractmethod
     async def optimize_portfolio(
         self,
@@ -808,20 +808,20 @@ class PortfolioServiceInterface(ABC):
     ) -> PortfolioOptimization:
         """
         Optimize portfolio allocation.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             objective: Optimization objective
             constraints: Optimization constraints
             universe: Investment universe symbols
-            
+
         Returns:
             Portfolio optimization result
         """
         pass
-    
+
     # Monitoring & Alerts
-    
+
     @abstractmethod
     async def start_real_time_monitoring(
         self,
@@ -831,30 +831,30 @@ class PortfolioServiceInterface(ABC):
     ) -> str:
         """
         Start real-time portfolio monitoring.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             monitoring_rules: Rules for monitoring
             callback: Function to call when alerts triggered
-            
+
         Returns:
             Monitoring session ID
         """
         pass
-    
+
     @abstractmethod
     async def stop_real_time_monitoring(self, session_id: str) -> bool:
         """
         Stop real-time portfolio monitoring.
-        
+
         Args:
             session_id: Monitoring session identifier
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def get_portfolio_alerts(
         self,
@@ -864,17 +864,17 @@ class PortfolioServiceInterface(ABC):
     ) -> List[PortfolioAlert]:
         """
         Get portfolio alerts.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             active_only: Only return active alerts
             severity: Filter by severity level
-            
+
         Returns:
             List of portfolio alerts
         """
         pass
-    
+
     @abstractmethod
     async def acknowledge_alert(
         self,
@@ -884,19 +884,19 @@ class PortfolioServiceInterface(ABC):
     ) -> bool:
         """
         Acknowledge portfolio alert.
-        
+
         Args:
             alert_id: Alert identifier
             acknowledged_by: User acknowledging alert
             notes: Acknowledgment notes
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     # Reporting
-    
+
     @abstractmethod
     async def generate_portfolio_report(
         self,
@@ -911,7 +911,7 @@ class PortfolioServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Generate comprehensive portfolio report.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             report_type: Type of report to generate
@@ -921,12 +921,12 @@ class PortfolioServiceInterface(ABC):
             include_transactions: Include transaction history
             include_performance: Include performance metrics
             include_risk_metrics: Include risk analysis
-            
+
         Returns:
             Portfolio report data
         """
         pass
-    
+
     @abstractmethod
     async def export_portfolio_data(
         self,
@@ -938,14 +938,14 @@ class PortfolioServiceInterface(ABC):
     ) -> bytes:
         """
         Export portfolio data.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             data_types: Types of data to export
             format: Export format (json, csv, excel)
             start_date: Export from date
             end_date: Export to date
-            
+
         Returns:
             Exported data as bytes
         """
