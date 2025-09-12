@@ -1,6 +1,6 @@
 from core.platform.config.environment import Environment
 from core.dao.events_dao import EventsDAO
-from core.dao.instruments_dao import InstrumentsDAO
+from domains.instruments.services.config.service_container import get_instrument_service
 from .schemas import EventIn
 from typing import Optional
 
@@ -8,13 +8,13 @@ async def get_events(symbol: Optional[str]=None, event_type: Optional[str]=None,
     env = Environment()
     events_dao = EventsDAO(env)
 
-    # If symbol is provided, look up the instrument_id
+    # If symbol is provided, look up the instrument_id using InstrumentService
     instrument_id = None
     if symbol:
-        instruments_dao = InstrumentsDAO(env)
-        instrument = await instruments_dao.get_instrument_by_symbol(symbol)
-        if instrument:
-            instrument_id = instrument['id']
+        instrument_service = await get_instrument_service(env)
+        instrument_dto = await instrument_service.get_instrument_by_symbol(symbol)
+        if instrument_dto and instrument_dto.id:
+            instrument_id = instrument_dto.id
 
     return await events_dao.get_events(instrument_id=instrument_id, event_type=event_type, start=start, end=end)
 

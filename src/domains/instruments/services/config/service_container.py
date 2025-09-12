@@ -21,8 +21,9 @@ from core.dao.instruments.instruments_dao import InstrumentsDAO
 from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.dao.infrastructure.vendors_dao import VendorsDAO
 from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from infrastructure.vendor.tiingo.dao.instruments_tiingo_dao import InstrumentsTiingoDAO  # If exists
-from infrastructure.vendor.eodhd.dao.instruments_eodhd_dao import InstrumentsEodhdDAO  # If exists
+# Vendor DAOs are imported dynamically as needed to avoid import errors
+# from infrastructure.vendor.tiingo.dao.instruments_tiingo_dao import InstrumentsTiingoDAO  # If exists
+# from infrastructure.vendor.eodhd.dao.instruments_eodhd_dao import InstrumentsEodhdDAO  # If exists
 
 logger = logging.getLogger(__name__)
 

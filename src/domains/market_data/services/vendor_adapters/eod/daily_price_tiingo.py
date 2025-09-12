@@ -12,7 +12,7 @@ import pandas as pd
 import argparse
 from shared.utils.environment import Environment, EnvironmentType
 from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+from domains.instruments.services.config.service_container import get_instrument_service
 
 def parse_env_type(env_str):
     env_map = {
@@ -317,13 +317,13 @@ async def main():
 
     # Use DAO for all daily_prices_tiingo operations
     dao = DailyPricesTiingoDAO(env)
-    xrefs_dao = InstrumentXrefsDAO(env)
+    instrument_service = await get_instrument_service(env)
 
     # Handle tickers argument (comma-separated)
     if args.tickers:
         tickers = [t.strip().upper() for t in args.tickers.split(',') if t.strip()]
     else:
-        tickers = await xrefs_dao.get_all_symbols()
+        tickers = await instrument_service.get_all_symbols()
 
     # For each ticker, resolve instrument_id and run ingestion
     # Create DB pool and fetch status ids before ingestion loop
@@ -333,10 +333,11 @@ async def main():
 
     # Sequential processing (avoid Ray runtime env issues)
     for ticker in tickers:
-        instrument_id = await xrefs_dao.resolve_instrument_id(ticker)
-        if instrument_id is None:
+        instrument_dto = await instrument_service.get_instrument_by_symbol(ticker)
+        if instrument_dto is None or instrument_dto.id is None:
             print(f"[ERROR] Could not resolve instrument_id for ticker {ticker}. Skipping.")
             continue
+        instrument_id = instrument_dto.id
         print(f"[INFO] Running ingestion for {ticker} (instrument_id={instrument_id}) from {args.start_date} to {args.end_date}")
         await ingest_ticker(env, dao, instrument_id, ticker, args.start_date, args.end_date, ok_status_id, no_data_status_id)
         print(f"[INFO] Completed ingestion for {ticker}")

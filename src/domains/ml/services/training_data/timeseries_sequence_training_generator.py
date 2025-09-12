@@ -561,21 +561,21 @@ class TimeSeriesSequenceTrainingGenerator:
         if symbol in self._symbol_to_id_cache:
             return self._symbol_to_id_cache[symbol]
 
-        # Use InstrumentXrefDAO for proper symbol to instrument_id lookup
+        # Use InstrumentService for proper symbol to instrument_id lookup
         try:
-            from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+            from domains.instruments.services.config.service_container import get_instrument_service
 
             if not self.universe_manager.env:
                 raise ValueError("Environment not configured - cannot perform database lookup")
 
-            # Use InstrumentXrefDAO to resolve instrument_id by symbol
-            xref_dao = InstrumentXrefsDAO(self.universe_manager.env)
-            instrument_id = await xref_dao.resolve_instrument_id_by_symbol(symbol.upper())
+            # Use InstrumentService to resolve instrument by symbol
+            instrument_service = await get_instrument_service(self.universe_manager.env)
+            instrument_dto = await instrument_service.get_instrument_by_symbol(symbol.upper())
 
-            if instrument_id:
-                self._symbol_to_id_cache[symbol] = instrument_id
-                print(f"🔍 DEBUG: Found instrument_id={instrument_id} for symbol={symbol}")
-                return instrument_id
+            if instrument_dto and instrument_dto.id:
+                self._symbol_to_id_cache[symbol] = instrument_dto.id
+                print(f"🔍 DEBUG: Found instrument_id={instrument_dto.id} for symbol={symbol}")
+                return instrument_dto.id
             else:
                 print(f"⚠️ WARNING: Symbol {symbol} not found in instruments table")
                 return None

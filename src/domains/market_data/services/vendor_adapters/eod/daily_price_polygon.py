@@ -132,8 +132,8 @@ async def run_ingestion(tickers, start_date, end_date, environment=None, instrum
     if instrument_dao is None:
         instrument_dao = InstrumentPolygonDAO(env)
     if xrefs_dao is None:
-        from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-        xrefs_dao = InstrumentXrefsDAO(env)
+        from domains.instruments.services.config.service_container import get_instrument_service
+        xrefs_dao = await get_instrument_service(env)
     ray.init(ignore_reinit_error=True)
     env_dict = env.__dict__
     ray_tasks = []

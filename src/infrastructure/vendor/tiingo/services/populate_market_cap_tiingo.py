@@ -18,7 +18,7 @@ from shared.utils.vendor_api_keys import get_tiingo_api_key
 from shared.utils.database_connections import get_database_pool, get_table_name
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
-from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+from domains.instruments.services.config.service_container import get_instrument_service
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("populate_market_cap_tiingo")
@@ -133,7 +133,7 @@ async def populate_market_cap_from_tiingo(
         symbols: Optional list of specific symbols to process
     """
     market_cap_dao = DailyMarketCapDAO(env)
-    InstrumentXrefsDAO(env)
+    # InstrumentService will be used for symbol lookups where needed
     fetcher = TiingoMarketCapFetcher(api_key)
 
     # Get instruments to process
