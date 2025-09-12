@@ -148,22 +148,57 @@ class UniverseStateManager:
         else:
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
 
-        # ✅ CRITICAL DEBUG: Understand why universe state cache is empty
+        # ✅ CRITICAL DEBUG: Check universe state cache status
         print(f"🔍 DEBUG get_lag_prices: Checking universe state cache status:")
         print(f"   instrument_id={instrument_id}, lag_periods={lag_periods}, time_interval={time_interval}")
         print(f"   _instrument_history keys: {list(self._instrument_history.keys()) if hasattr(self, '_instrument_history') else 'No _instrument_history'}")
         print(f"   _cache timestamps: {list(self._cache.keys()) if hasattr(self, '_cache') else 'No _cache'}")
         print(f"   Latest timestamp: {self.get_latest_timestamp() if hasattr(self, 'get_latest_timestamp') else 'No get_latest_timestamp method'}")
-
-        # ❌ ARCHITECTURE ISSUE: Training data generation must populate universe state cache
-        # The Runner should have collected data during update_for_sod() and interval processing
-        # This forces the system to work correctly by requiring proper data population
-
-        raise ValueError(f"🚨 UNIVERSE STATE CACHE EMPTY: instrument_id={instrument_id}\n"
+        
+        # 🚨 CRITICAL FIX: Use populated cache data for training data generation
+        if hasattr(self, '_instrument_history') and instrument_id in self._instrument_history:
+            print(f"✅ DEBUG: Found instrument {instrument_id} in _instrument_history with {len(self._instrument_history[instrument_id])} records")
+            
+            # Get the instrument's historical data
+            instrument_data = self._instrument_history[instrument_id]
+            
+            if len(instrument_data) >= lag_periods:
+                print(f"✅ DEBUG: Sufficient historical data for {lag_periods} lag periods")
+                
+                # Sort by date and take the most recent lag_periods records before cur_datetime
+                import pandas as pd
+                from datetime import datetime
+                
+                # Convert to DataFrame for easier manipulation
+                df = pd.DataFrame(instrument_data)
+                
+                # Ensure proper datetime conversion
+                if 'date' in df.columns:
+                    df['date'] = pd.to_datetime(df['date'])
+                    # Filter data before cur_datetime
+                    df = df[df['date'] < cur_datetime]
+                    # Sort by date and take last lag_periods
+                    df = df.sort_values('date').tail(lag_periods)
+                
+                # Return OHLCV data in expected format
+                result_df = df[['open', 'high', 'low', 'close', 'volume']].copy()
+                if 'date' in df.columns:
+                    result_df['date'] = df['date']
+                
+                print(f"✅ DEBUG: Returning {len(result_df)} records from instrument cache")
+                return result_df
+            else:
+                print(f"⚠️ DEBUG: Insufficient historical data: {len(instrument_data)} < {lag_periods}")
+        else:
+            print(f"❌ DEBUG: No historical data found for instrument_id={instrument_id}")
+        
+        # ❌ FALLBACK: If cache is still empty after SOD population, raise error
+        raise ValueError(f"🚨 UNIVERSE STATE CACHE INSUFFICIENT: instrument_id={instrument_id}\n"
                         f"Training data generation requires populated universe state cache.\n"
-                        f"The Runner must call universe_state_manager.update_for_sod() and accumulate data.\n"
                         f"Cache status - _instrument_history: {len(self._instrument_history) if hasattr(self, '_instrument_history') else 0} instruments, "
-                        f"_cache: {len(self._cache) if hasattr(self, '_cache') else 0} timestamps")
+                        f"_cache: {len(self._cache) if hasattr(self, '_cache') else 0} timestamps\n"
+                        f"Available instruments: {list(self._instrument_history.keys()) if hasattr(self, '_instrument_history') else []}\n"
+                        f"Requested: {lag_periods} periods, Available: {len(self._instrument_history.get(instrument_id, [])) if hasattr(self, '_instrument_history') else 0} periods")
 
     def get_lead_prices(self, instrument_id: int, cur_datetime, lead_periods: int, time_interval: str = '1d') -> pd.DataFrame:
         """
@@ -729,6 +764,7 @@ class UniverseStateManager:
             write_metadata: Whether to write metadata files (can be disabled for tests)
         """
         self.env = env
+        self.run_context = run_context
         self.base_path = Path(base_path) if base_path else Path("data/universe_state")
         self.base_path.mkdir(parents=True, exist_ok=True)
         # Create subdirectories for organization
@@ -748,9 +784,7 @@ class UniverseStateManager:
         self._interval_dao = UniverseStateIntervalDAO(self.env) if self.env else None
         # Flag to control metadata file writing
         self.write_metadata = write_metadata
-        # Flag to control metadata file writing
-        self.write_metadata = write_metadata
-
+    
     def _get_symbol_from_instrument_id(self, instrument_id: int) -> str:
         """FIXED: Get symbol from instrument_id via database lookup instead of hardcoding.
 
@@ -829,11 +863,16 @@ class UniverseStateManager:
                     raise TypeError(f"Invalid type for date: {type(val)}")
                 start_dt = parse_dt(metadata['start_date_time'])
                 end_dt = parse_dt(metadata['end_date_time'])
+                
+                # Get run_id from run_context, fallback to default if not available
+                run_id = getattr(self.run_context, 'run_id', 'default_run') if self.run_context else 'no_run_context'
+                
                 interval_id = await self._interval_dao.create(
                     universe_id=metadata['universe_id'],
                     duration=metadata['duration'],
                     start_date_time=start_dt,
-                    end_date_time=end_dt
+                    end_date_time=end_dt,
+                    run_id=run_id
                 )
                 # Persist nested only if provided
                 universe_state = metadata.get('universe_state') if metadata else None
@@ -853,7 +892,11 @@ class UniverseStateManager:
                             traded_volume=inst_interval.traded_volume,
                             traded_dollar=inst_interval.traded_dollar,
                             status=inst_interval.status,
-                            market_cap=inst_interval.market_cap
+                            market_cap=inst_interval.market_cap,
+                            start_date_time=inst_interval.start_date_time,
+                            end_date_time=inst_interval.end_date_time,
+                            interval_duration="60m",
+                            run_id=run_id
                         )
                         instrument_interval_id_map[inst_id] = instrument_interval_id
                     for ind_type, inst_dict in universe_state.instrument_indicator_intervals.items():
@@ -866,14 +909,16 @@ class UniverseStateManager:
                                     instrument_interval_id=instrument_interval_id,
                                     indicator_name=ind_name,
                                     indicator_value=ind_val.get('value'),
-                                    indicator_status=ind_val.get('status')
+                                    indicator_status=ind_val.get('status'),
+                                    run_id=run_id
                                 )
                     for factor_interval in getattr(universe_state, 'factor_intervals', []):
                         if hasattr(factor_interval, 'factor_name') and hasattr(factor_interval, 'factor_value'):
                             await factor_interval_dao.create(
                                 universe_state_interval_id=interval_id,
                                 factor_name=factor_interval.factor_name,
-                                factor_value=factor_interval.factor_value
+                                factor_value=factor_interval.factor_value,
+                                run_id=run_id
                             )
                 # Regardless of DB persistence, also write local parquet and metadata for fast local reads
                 self.logger.debug(f"[save_universe_state][DB->FILE] Also writing parquet for ts={timestamp}")
@@ -1097,10 +1142,91 @@ class UniverseStateManager:
 
     def update_for_sod(self, runner, current_time):
         """
-        Start-of-day hook for UniverseStateManager. Implement flushing, finalization, or logging if needed.
+        Start-of-day hook for UniverseStateManager. 
+        
+        CRITICAL: Load historical universe state data to populate cache for training data generation.
+        The training data generator depends on get_lag_prices() and get_lagged_signals() which require
+        populated _instrument_history and _cache with historical OHLCV and indicator data.
         """
-        self.logger.debug(f"UniverseStateManager.update_for_sod called at {current_time}")
-        # Add EOD logic if needed
+        self.logger.info(f"UniverseStateManager.update_for_sod called at {current_time}")
+        
+        # 🚨 CRITICAL FIX: Populate cache with historical data for training data generation
+        try:
+            # Load all available universe state files to populate cache
+            if not hasattr(self, 'states_dir'):
+                self.logger.error("states_dir not initialized - cannot populate cache")
+                return
+                
+            self.logger.info(f"Scanning for universe state files in: {self.states_dir}")
+            
+            # Find all existing universe state files 
+            state_files = list(self.states_dir.glob("universe_state_*.parquet"))
+            self.logger.info(f"Found {len(state_files)} universe state files to load")
+            
+            loaded_states = 0
+            for state_file in state_files:
+                try:
+                    # Extract timestamp from filename (universe_state_20250701_140000.parquet)
+                    filename = state_file.name
+                    timestamp_part = filename.replace('universe_state_', '').replace('.parquet', '')
+                    
+                    # Load universe state data
+                    df = pd.read_parquet(state_file)
+                    
+                    # Cache the data for quick access
+                    self._cache[timestamp_part] = df.copy()
+                    
+                    # Populate instrument history for get_lag_prices()
+                    for _, row in df.iterrows():
+                        instrument_id = row.get('instrument_id')
+                        if instrument_id and instrument_id not in self._instrument_history:
+                            self._instrument_history[instrument_id] = []
+                        
+                        if instrument_id:
+                            # Parse timestamp for date
+                            try:
+                                date_part = timestamp_part[:8]  # First 8 chars (YYYYMMDD)
+                                parsed_date = pd.to_datetime(date_part, format='%Y%m%d').date()
+                            except:
+                                parsed_date = current_time.date()
+                            
+                            # Store OHLCV data in instrument history
+                            ohlcv_record = {
+                                'timestamp': timestamp_part,
+                                'date': parsed_date,
+                                'open': row.get('open', 0),
+                                'high': row.get('high', 0),
+                                'low': row.get('low', 0),
+                                'close': row.get('close', 0),
+                                'volume': row.get('volume', 0)
+                            }
+                            self._instrument_history[instrument_id].append(ohlcv_record)
+                    
+                    loaded_states += 1
+                    if loaded_states % 10 == 0:  # Log progress every 10 files
+                        self.logger.info(f"Loaded {loaded_states} universe state files...")
+                        
+                except Exception as e:
+                    self.logger.warning(f"Failed to load universe state {state_file}: {e}")
+                    continue
+            
+            self.logger.info(f"Successfully populated universe state cache with {loaded_states} historical states")
+            self.logger.info(f"Cache contains {len(self._instrument_history)} instruments and {len(self._cache)} timestamps")
+            
+            # Sort instrument history by date for proper lag calculations
+            for instrument_id in self._instrument_history:
+                self._instrument_history[instrument_id].sort(key=lambda x: x['date'])
+            
+            # Verify cache population for debugging
+            if self._instrument_history:
+                sample_instrument_id = list(self._instrument_history.keys())[0]
+                sample_records = len(self._instrument_history[sample_instrument_id])
+                self.logger.info(f"Sample instrument {sample_instrument_id} has {sample_records} historical records")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to populate universe state cache during SOD: {e}")
+            import traceback
+            self.logger.error(f"Full traceback: {traceback.format_exc()}")
 
     def update_for_eod(self, runner, current_time):
         """

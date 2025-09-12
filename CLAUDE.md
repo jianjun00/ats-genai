@@ -1143,6 +1143,38 @@ python scripts/run_dev.py query --query "SELECT run_type, parameters, command_li
 - ❌ **CRITICAL: Premature claims of "done" based on existence checks**
 - ❌ **CRITICAL: Writing tests that don't verify actual functionality**
 
+**❌ CRITICAL: THE "COMPLETION WITHOUT VALIDATION" ANTI-PATTERN**
+
+*This anti-pattern was demonstrated in training data generation debugging:*
+
+- ❌ **Claiming training data generation works when it's actually failing**
+- ❌ **Creating new tables/features when core functionality is broken**  
+- ❌ **Checking table existence instead of running end-to-end data generation**
+- ❌ **Not verifying actual data files are created with expected content**
+- ❌ **Ignoring `file_size_mb = 0` indicating no data was written**
+- ❌ **Missing that "failed" status in database means the process didn't work**
+- ❌ **Focusing on symptoms (missing monthly table) instead of root cause (missing schema)**
+- ❌ **Building on broken foundations rather than fixing core infrastructure first**
+
+**✅ CORRECT APPROACH: FAIL-FAST VALIDATION**
+```bash
+# 1. ALWAYS run the actual process end-to-end before claiming success
+python scripts/run_training_data_generation.py --symbols TSLA --date 2025-07-01
+
+# 2. Verify actual outputs exist and have expected content
+ls -la /data/training_data/
+file /data/training_data/*.arrayrecord  # Check file types and sizes
+python -c "import arrayrecord; print(len(list(arrayrecord.ArrayRecordReader('file.arrayrecord'))))"
+
+# 3. Check database records show success, not failure
+SELECT status, file_size_mb FROM training_datasets WHERE status = 'completed' ORDER BY created_at DESC LIMIT 1;
+
+# 4. If ANY step fails, investigate and fix root cause - never work around
+# Error: "relation intg_universe_state_interval does not exist"
+# ✅ CORRECT: Fix missing database schema
+# ❌ WRONG: Create workaround or fallback logic
+```
+
 **Debugging & Problem Solving:**
 - ❌ **Using workarounds without understanding root cause**
 - ❌ **Restarting services without checking logs first**
