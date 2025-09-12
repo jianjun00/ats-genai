@@ -100,10 +100,10 @@ services:
     networks:
       - ats-network
 
-  # News Metrics Service - Integration
-  news-metrics-intg:
+  # News Collection Service - Integration
+  news-collection-intg:
     image: dragonflyer762/ats-genai:latest
-    container_name: ats-intg-news-metrics
+    container_name: ats-intg-news-collection
     environment:
       - ENVIRONMENT=intg
       - DB_HOST=postgres-intg
@@ -117,24 +117,21 @@ services:
       # Market Data API Keys
       - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
       - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-68aa0c7d2fe831.67386369}
     volumes:
       - .:/workspace
       - /mnt/d/ats-data:/data
       - /mnt/d/ats-logs:/logs
     working_dir: /workspace
-    command: >
-      bash -c '
-      echo "Starting ATS-INTG News Collection Service..."
-      python3 scripts/news_collection_with_metrics.py --environment intg --port 8082 --health-check-port 8082
-      '
+    command: python3 scripts/realtime_news_ingestion.py --vendors tiingo,polygon,eodhd --interval 300 --debug
     depends_on:
       postgres-intg:
         condition: service_healthy
     restart: unless-stopped
     ports:
-      - "8082:8082"
+      - "8083:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
