@@ -2459,16 +2459,17 @@ class UnifiedAnalyticsService:
                 <h1>🚀 ATS Unified Analytics Dashboard <span class="unified-badge">CONSOLIDATED</span></h1>
                 <p>Consolidated analytics service with type-aware analysis, universe analytics, and distributed computing</p>
                 <div class="feature-list">
+                    <div class="feature-item">🎯 Data Quality</div>
                     <div class="feature-item">📊 Type-Aware EDA</div>
                     <div class="feature-item">🌐 Universe Analytics</div>
                     <div class="feature-item">⚡ Ray Computing</div>
                     <div class="feature-item">🤖 Training Datasets</div>
-                    <div class="feature-item">📈 Real-time Quality</div>
                 </div>
             </div>
 
             <div class="main-content">
                 <h2>Select Analysis Type</h2>
+                <button onclick="loadDataQuality()">🎯 Data Quality Dashboard</button>
                 <button onclick="loadEDA()">📊 Exploratory Data Analysis</button>
                 <button onclick="loadBarCollectionMetrics()">📈 Bar Collection Metrics</button>
                 <button onclick="loadUniverseAnalytics()">🌐 Universe Analytics</button>
@@ -2488,6 +2489,11 @@ class UnifiedAnalyticsService:
             </div>
 
             <script>
+                function loadDataQuality() {
+                    // Navigate to the data quality dashboard
+                    window.location.href = '/data-quality/dashboard';
+                }
+
                 async function loadEDA() {
                     document.getElementById('analysis-content').innerHTML = `
                         <h3>📊 Exploratory Data Analysis</h3>
@@ -5118,6 +5124,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_table_sample()
             elif self.path.startswith('/api/table-distributions/'):
                 self._serve_table_distributions()
+            elif self.path == '/data-quality/dashboard' or self.path == '/data-quality':
+                self._serve_data_quality_dashboard()
+            elif self.path == '/data-quality/api/issues':
+                self._serve_data_quality_issues()
             else:
                 self._serve_404()
 
@@ -6114,6 +6124,411 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "total_indicators": 0
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
+    def _serve_data_quality_dashboard(self):
+        """Serve data quality dashboard HTML."""
+        dashboard_html = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ATS Data Quality Dashboard</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #2c3e50, #3498db); color: white; padding: 30px; margin: -20px -20px 30px -20px; border-radius: 0 0 12px 12px; }
+        .header h1 { margin: 0; font-size: 2.2em; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+        .stat-number { font-size: 2.5em; font-weight: bold; color: #e74c3c; margin-bottom: 8px; }
+        .stat-label { color: #6c757d; font-size: 0.9em; font-weight: 500; }
+        .issues { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .issue { border-left: 5px solid #e74c3c; margin: 15px 0; padding: 20px; background: #f8f9fa; border-radius: 0 8px 8px 0; transition: all 0.2s; }
+        .issue:hover { background: #e3f2fd; }
+        .issue.high { border-left-color: #ff9800; }
+        .issue.critical { border-left-color: #f44336; }
+        .issue.medium { border-left-color: #ffc107; }
+        .issue.low { border-left-color: #4caf50; }
+        .issue-title { font-weight: 600; color: #2c3e50; margin-bottom: 10px; font-size: 1.1em; }
+        .issue-meta { color: #6c757d; font-size: 0.9em; line-height: 1.4; }
+        .refresh-btn { background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s; }
+        .refresh-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3); }
+        .loading { text-align: center; padding: 50px; color: #6c757d; font-size: 1.1em; }
+        .score { text-align: center; padding: 25px; margin: 25px 0; border-radius: 12px; font-size: 1.2em; }
+        .score.critical { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+        .score.poor { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; }
+        .score.good { background: linear-gradient(135deg, #f1c40f, #f39c12); color: black; }
+        .score.excellent { background: linear-gradient(135deg, #27ae60, #229954); color: white; }
+        .no-issues { background: linear-gradient(135deg, #27ae60, #229954); color: white; text-align: center; padding: 40px; border-radius: 12px; font-size: 1.3em; }
+        .meta-item { display: inline-block; margin-right: 15px; }
+        @media (max-width: 768px) {
+            .stats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; }
+            .header { padding: 20px; }
+            .header h1 { font-size: 1.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 ATS Data Quality Dashboard</h1>
+        <p>Real-time monitoring of data quality issues in the ATS system</p>
+        <div style="margin-top: 15px;">
+            <span>Last updated: <span id="last-updated">-</span></span>
+            <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+        </div>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-number" id="total-issues">-</div>
+            <div class="stat-label">Total Issues</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="critical-issues">-</div>
+            <div class="stat-label">Critical</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="high-issues">-</div>
+            <div class="stat-label">High Priority</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="symbols-affected">-</div>
+            <div class="stat-label">Symbols Affected</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="quality-score">-</div>
+            <div class="stat-label">Quality Score</div>
+        </div>
+    </div>
+    
+    <div id="quality-status" class="score critical">
+        <h3>Overall Status: <span id="status-text">Loading...</span></h3>
+        <p id="status-description">Analyzing data quality...</p>
+    </div>
+    
+    <div class="issues">
+        <h2>🔍 Detected Issues</h2>
+        <div id="issues-list" class="loading">Loading data quality issues from database...</div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                document.getElementById('issues-list').innerHTML = '<div class="loading">Refreshing data...</div>';
+                
+                const response = await fetch('/data-quality/api/issues');
+                const data = await response.json();
+                displayData(data);
+            } catch (error) {
+                document.getElementById('issues-list').innerHTML = 
+                    `<div style="color: #e74c3c; text-align: center; padding: 30px;">❌ Error loading data: ${error.message}</div>`;
+            }
+        }
+        
+        function displayData(data) {
+            const issues = data.issues || [];
+            const totalIssues = issues.length;
+            const criticalIssues = issues.filter(i => i.severity === 'critical').length;
+            const highIssues = issues.filter(i => i.severity === 'high').length;
+            const mediumIssues = issues.filter(i => i.severity === 'medium').length;
+            const lowIssues = issues.filter(i => i.severity === 'low').length;
+            const uniqueSymbols = [...new Set(issues.map(i => i.symbol).filter(s => s !== 'SYSTEM'))].length;
+            
+            // Update stats
+            document.getElementById('total-issues').textContent = totalIssues;
+            document.getElementById('critical-issues').textContent = criticalIssues;
+            document.getElementById('high-issues').textContent = highIssues;
+            document.getElementById('symbols-affected').textContent = uniqueSymbols;
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+            
+            // Calculate quality score
+            const maxScore = 100;
+            const penalty = (criticalIssues * 20) + (highIssues * 10) + (mediumIssues * 5) + (lowIssues * 1);
+            const qualityScore = Math.max(0, maxScore - penalty);
+            
+            document.getElementById('quality-score').textContent = qualityScore;
+            
+            // Update quality status
+            const statusDiv = document.getElementById('quality-status');
+            const statusText = document.getElementById('status-text');
+            const statusDesc = document.getElementById('status-description');
+            
+            if (qualityScore >= 90) {
+                statusDiv.className = 'score excellent';
+                statusText.textContent = 'EXCELLENT';
+                statusDesc.textContent = '✅ System operating at high quality standards';
+            } else if (qualityScore >= 75) {
+                statusDiv.className = 'score good';
+                statusText.textContent = 'GOOD';
+                statusDesc.textContent = '⚠️ Minor issues detected, monitoring recommended';
+            } else if (qualityScore >= 50) {
+                statusDiv.className = 'score poor';
+                statusText.textContent = 'POOR';
+                statusDesc.textContent = '🚨 Significant issues detected, attention required';
+            } else {
+                statusDiv.className = 'score critical';
+                statusText.textContent = 'CRITICAL';
+                statusDesc.textContent = '💥 Major data quality problems, immediate action needed';
+            }
+            
+            // Display issues
+            const issuesContainer = document.getElementById('issues-list');
+            if (totalIssues === 0) {
+                issuesContainer.innerHTML = '<div class="no-issues">✅ Excellent! No data quality issues detected.<br>System is operating normally.</div>';
+                return;
+            }
+            
+            // Group issues by severity
+            const issuesBySeverity = {
+                critical: issues.filter(i => i.severity === 'critical'),
+                high: issues.filter(i => i.severity === 'high'),
+                medium: issues.filter(i => i.severity === 'medium'),
+                low: issues.filter(i => i.severity === 'low')
+            };
+            
+            let issuesHtml = '';
+            
+            ['critical', 'high', 'medium', 'low'].forEach(severity => {
+                const severityIssues = issuesBySeverity[severity];
+                if (severityIssues.length > 0) {
+                    const severityEmoji = {critical: '🚨', high: '⚠️', medium: '📋', low: '💡'}[severity];
+                    issuesHtml += `<h3 style="margin-top: 30px; color: #2c3e50;">${severityEmoji} ${severity.toUpperCase()} ISSUES (${severityIssues.length})</h3>`;
+                    
+                    severityIssues.forEach(issue => {
+                        issuesHtml += `
+                            <div class="issue ${issue.severity}">
+                                <div class="issue-title">${issue.symbol}: ${issue.description}</div>
+                                <div class="issue-meta">
+                                    <span class="meta-item">📅 ${issue.affected_date}</span>
+                                    <span class="meta-item">🏷️ ${issue.issue_type.replace('_', ' ')}</span>
+                                    <span class="meta-item">📊 ${issue.field}</span>
+                                    <span class="meta-item">📡 ${issue.vendor_source}</span>
+                                    ${issue.expected_value && issue.actual_value ? 
+                                      `<br><span class="meta-item">💡 Expected: ${issue.expected_value}</span><span class="meta-item">📊 Actual: ${issue.actual_value}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            });
+            
+            issuesContainer.innerHTML = issuesHtml;
+        }
+        
+        // Load data on page load
+        loadData();
+        
+        // Auto-refresh every 60 seconds
+        setInterval(loadData, 60000);
+    </script>
+</body>
+</html>
+        '''
+        
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(dashboard_html.encode())
+    
+    def _serve_data_quality_issues(self):
+        """Serve data quality issues API endpoint."""
+        try:
+            # Get database connection - container aware
+            db_config = {
+                'host': 'ats-intg-postgres',  # Container name on ats-network
+                'port': 5432,  # Internal port
+                'user': 'postgres',
+                'password': 'intg_password',
+                'database': 'intg_db'
+            }
+            
+            issues = []
+            
+            # Use asyncio to run async database operations
+            import asyncpg
+            import asyncio
+            
+            async def detect_issues():
+                nonlocal issues
+                try:
+                    conn = await asyncpg.connect(**db_config)
+                    
+                    # Check for missing recent data
+                    missing_data_query = """
+                    WITH recent_dates AS (
+                        SELECT generate_series(
+                            CURRENT_DATE - INTERVAL '7 days',
+                            CURRENT_DATE - INTERVAL '1 day',
+                            '1 day'::interval
+                        )::date as expected_date
+                    ),
+                    actual_dates AS (
+                        SELECT DISTINCT date as actual_date
+                        FROM intg_daily_prices 
+                        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    )
+                    SELECT rd.expected_date
+                    FROM recent_dates rd
+                    LEFT JOIN actual_dates ad ON rd.expected_date = ad.actual_date
+                    WHERE ad.actual_date IS NULL
+                    AND EXTRACT(dow FROM rd.expected_date) NOT IN (0, 6)
+                    ORDER BY rd.expected_date;
+                    """
+                    
+                    missing_dates = await conn.fetch(missing_data_query)
+                    for row in missing_dates:
+                        issues.append({
+                            "id": f"missing_data_{row['expected_date']}",
+                            "symbol": "ALL",
+                            "issue_type": "missing_data",
+                            "severity": "high",
+                            "description": f"No daily prices found for trading day {row['expected_date']}",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['expected_date'].isoformat(),
+                            "field": "all_fields",
+                            "expected_value": "Daily prices",
+                            "actual_value": "No data",
+                            "vendor_source": "multiple",
+                            "status": "open"
+                        })
+                    
+                    # Check for extreme volumes
+                    extreme_volume_query = """
+                    SELECT symbol, date as price_date, volume, close
+                    FROM intg_daily_prices 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    AND volume > 50000000
+                    ORDER BY volume DESC
+                    LIMIT 10;
+                    """
+                    
+                    extreme_volumes = await conn.fetch(extreme_volume_query)
+                    for row in extreme_volumes:
+                        issues.append({
+                            "id": f"high_volume_{row['symbol']}_{row['price_date']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "extreme_volume",
+                            "severity": "medium",
+                            "description": f"Unusually high volume: {row['volume']:,} shares",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['price_date'].isoformat(),
+                            "field": "volume",
+                            "expected_value": "< 10M shares",
+                            "actual_value": f"{row['volume']:,} shares",
+                            "vendor_source": "polygon",
+                            "status": "open"
+                        })
+                    
+                    # Check for duplicate records
+                    duplicate_query = """
+                    SELECT symbol, date as price_date, COUNT(*) as count
+                    FROM intg_daily_prices 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY symbol, date
+                    HAVING COUNT(*) > 1
+                    ORDER BY COUNT(*) DESC
+                    LIMIT 5;
+                    """
+                    
+                    duplicates = await conn.fetch(duplicate_query)
+                    for row in duplicates:
+                        issues.append({
+                            "id": f"duplicate_{row['symbol']}_{row['price_date']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "duplicate_records",
+                            "severity": "critical",
+                            "description": f"Duplicate records: {row['count']} entries for same date",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['price_date'].isoformat(),
+                            "field": "all_fields",
+                            "expected_value": "1 record per day",
+                            "actual_value": f"{row['count']} records",
+                            "vendor_source": "multiple",
+                            "status": "open"
+                        })
+                    
+                    # Check for stale data
+                    freshness_query = """
+                    SELECT symbol, MAX(date) as latest_date
+                    FROM intg_daily_prices
+                    GROUP BY symbol
+                    HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
+                    ORDER BY MAX(date) DESC
+                    LIMIT 10;
+                    """
+                    
+                    stale_data = await conn.fetch(freshness_query)
+                    for row in stale_data:
+                        from datetime import date as dt_date
+                        days_stale = (dt_date.today() - row['latest_date']).days
+                        issues.append({
+                            "id": f"stale_data_{row['symbol']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "stale_data",
+                            "severity": "medium" if days_stale < 7 else "high",
+                            "description": f"Data is {days_stale} days old (last: {row['latest_date']})",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['latest_date'].isoformat(),
+                            "field": "date",
+                            "expected_value": "< 3 days old",
+                            "actual_value": f"{days_stale} days old",
+                            "vendor_source": "polygon",
+                            "status": "open"
+                        })
+                    
+                    await conn.close()
+                    
+                except Exception as e:
+                    logger.error(f"Data quality detection error: {e}")
+                    issues.append({
+                        "id": "detection_error",
+                        "symbol": "SYSTEM",
+                        "issue_type": "detection_error",
+                        "severity": "critical",
+                        "description": f"Data quality detection failed: {str(e)}",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": datetime.now().date().isoformat(),
+                        "field": "system",
+                        "expected_value": "Successful detection",
+                        "actual_value": f"Error: {str(e)}",
+                        "vendor_source": "system",
+                        "status": "open"
+                    })
+            
+            # Run the async detection
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(detect_issues())
+            loop.close()
+            
+            response_data = {
+                "issues": issues,
+                "total_count": len(issues),
+                "last_updated": datetime.now().isoformat(),
+                "detection_period_days": 7
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data, indent=2).encode())
+            
+        except Exception as e:
+            logger.error(f"Error serving data quality issues: {e}")
+            error_response = {
+                "error": str(e),
+                "issues": [],
+                "total_count": 0,
+                "last_updated": datetime.now().isoformat()
+            }
+            
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(error_response).encode())
 
     def _serve_404(self):
         """Serve 404 response."""

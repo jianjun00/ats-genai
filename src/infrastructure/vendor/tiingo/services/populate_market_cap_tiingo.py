@@ -17,7 +17,7 @@ from shared.utils.environment import Environment, EnvironmentType
 from shared.utils.vendor_api_keys import get_tiingo_api_key
 from shared.utils.database_connections import get_database_pool, get_table_name
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
+from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 from domains.instruments.services.config.service_container import get_instrument_service
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
