@@ -158,7 +158,7 @@ class DailyPricesValidator:
                 SELECT
                     COUNT(*) FILTER (WHERE close <= 0 OR high <= 0 OR low <= 0) as negative_prices,
                     COUNT(*) FILTER (WHERE volume = 0) as zero_volume_prices,
-                    COUNT(*) FILTER (WHERE high / low > 3.0) as price_spike_prices,
+                    COUNT(*) FILTER (WHERE low > 0 AND high / low > 3.0) as price_spike_prices,
                     COUNT(*) as total_records
                 FROM intg_daily_prices_{vendor}
                 WHERE date BETWEEN $1 AND $2

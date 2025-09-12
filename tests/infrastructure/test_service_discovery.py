@@ -7,6 +7,7 @@ and service client functionality.
 
 import asyncio
 import pytest
+import pytest_asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -44,7 +45,7 @@ from src.infrastructure.service_discovery import (
 class TestServiceRegistry:
     """Test service registry functionality."""
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def registry(self):
         """Create and start in-memory registry."""
         registry = InMemoryServiceRegistry()
@@ -65,14 +66,18 @@ class TestServiceRegistry:
                 protocol="http"
             ),
             metadata={"environment": "test"},
-            health_check=HealthCheck()
+            health_check=CustomHealthCheck("test-health", lambda: True)
         )
     
+    @pytest.mark.asyncio
     async def test_service_registration(self, registry, sample_service_instance):
         """Test service registration."""
         # Register service
         success = await registry.register_service(sample_service_instance)
         assert success is True
+        
+        # Update status to healthy (newly registered services start as STARTING)
+        await registry.update_health_status("test-service", "test-service-1", ServiceStatus.HEALTHY)
         
         # Verify service is registered
         instances = await registry.get_service_instances("test-service")
@@ -80,6 +85,7 @@ class TestServiceRegistry:
         assert instances[0].service_name == "test-service"
         assert instances[0].instance_id == "test-service-1"
     
+    @pytest.mark.asyncio
     async def test_service_deregistration(self, registry, sample_service_instance):
         """Test service deregistration."""
         # Register service
@@ -93,10 +99,14 @@ class TestServiceRegistry:
         instances = await registry.get_service_instances("test-service")
         assert len(instances) == 0
     
+    @pytest.mark.asyncio
     async def test_heartbeat_update(self, registry, sample_service_instance):
         """Test heartbeat updates."""
         # Register service
         await registry.register_service(sample_service_instance)
+        
+        # Update status to healthy (newly registered services start as STARTING)
+        await registry.update_health_status("test-service", "test-service-1", ServiceStatus.HEALTHY)
         
         # Update heartbeat
         success = await registry.heartbeat("test-service", "test-service-1")
@@ -107,6 +117,7 @@ class TestServiceRegistry:
         assert len(instances) == 1
         assert instances[0].last_heartbeat is not None
     
+    @pytest.mark.asyncio
     async def test_health_status_update(self, registry, sample_service_instance):
         """Test health status updates."""
         # Register service
@@ -121,6 +132,7 @@ class TestServiceRegistry:
         instance = all_services["test-service"][0]
         assert instance.status == ServiceStatus.UNHEALTHY
     
+    @pytest.mark.asyncio
     async def test_service_registration_context(self, registry):
         """Test service registration context manager."""
         instance = ServiceInstance(
@@ -129,12 +141,15 @@ class TestServiceRegistry:
             version="1.0.0",
             endpoint=ServiceEndpoint(host="localhost", port=8001),
             metadata={},
-            health_check=HealthCheck()
+            health_check=CustomHealthCheck("test-health", lambda: True)
         )
         
         # Use context manager
         async with service_registration_context(registry, instance) as registered_instance:
             assert registered_instance.service_name == "context-test"
+            
+            # Update status to healthy (newly registered services start as STARTING)
+            await registry.update_health_status("context-test", "context-test-1", ServiceStatus.HEALTHY)
             
             # Verify service is registered
             instances = await registry.get_service_instances("context-test")
@@ -148,7 +163,7 @@ class TestServiceRegistry:
 class TestServiceDiscoveryClient:
     """Test service discovery client."""
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def registry_with_services(self):
         """Create registry with sample services."""
         registry = InMemoryServiceRegistry()
@@ -162,7 +177,7 @@ class TestServiceDiscoveryClient:
                 version="1.0.0",
                 endpoint=ServiceEndpoint(host="localhost", port=8000 + i),
                 metadata={},
-                health_check=HealthCheck()
+                health_check=CustomHealthCheck("test-health", lambda: True)
             )
             await registry.register_service(instance)
             await registry.update_health_status("api-service", f"api-service-{i}", ServiceStatus.HEALTHY)
@@ -170,6 +185,7 @@ class TestServiceDiscoveryClient:
         yield registry
         await registry.stop()
     
+    @pytest.mark.asyncio
     async def test_service_discovery(self, registry_with_services):
         """Test basic service discovery."""
         client = ServiceDiscoveryClient(registry_with_services)
@@ -181,6 +197,7 @@ class TestServiceDiscoveryClient:
             assert instance.service_name == "api-service"
             assert instance.status == ServiceStatus.HEALTHY
     
+    @pytest.mark.asyncio
     async def test_service_endpoint_selection(self, registry_with_services):
         """Test service endpoint selection."""
         client = ServiceDiscoveryClient(registry_with_services)
@@ -190,6 +207,7 @@ class TestServiceDiscoveryClient:
         assert endpoint.host == "localhost"
         assert endpoint.port in [8000, 8001, 8002]
     
+    @pytest.mark.asyncio
     async def test_cache_functionality(self, registry_with_services):
         """Test service discovery caching."""
         client = ServiceDiscoveryClient(registry_with_services)
@@ -216,6 +234,7 @@ class TestHealthChecks:
         """Create health check manager."""
         return HealthCheckManager()
     
+    @pytest.mark.asyncio
     async def test_system_resource_health_check(self):
         """Test system resource health check."""
         check = SystemResourceHealthCheck("system_test")
@@ -228,6 +247,7 @@ class TestHealthChecks:
         assert 'cpu_percent' in result.details
         assert 'memory_percent' in result.details
     
+    @pytest.mark.asyncio
     async def test_custom_health_check_async(self):
         """Test custom async health check."""
         async def custom_check():
@@ -242,6 +262,7 @@ class TestHealthChecks:
         assert result.message == "Custom check passed"
         assert result.details['value'] == 42
     
+    @pytest.mark.asyncio
     async def test_custom_health_check_sync(self):
         """Test custom sync health check."""
         def custom_check():
@@ -254,6 +275,7 @@ class TestHealthChecks:
         assert result.status == HealthStatus.HEALTHY
         assert result.message == "Custom check passed"
     
+    @pytest.mark.asyncio
     async def test_health_check_timeout(self):
         """Test health check timeout handling."""
         async def slow_check():
@@ -270,6 +292,7 @@ class TestHealthChecks:
         assert "timed out" in result.message.lower()
         assert result.error == "TimeoutError"
     
+    @pytest.mark.asyncio
     async def test_health_check_exception_handling(self):
         """Test health check exception handling."""
         def failing_check():
@@ -283,6 +306,7 @@ class TestHealthChecks:
         assert "Test error" in result.message
         assert result.error == "Test error"
     
+    @pytest.mark.asyncio
     async def test_health_manager_multiple_checks(self, health_manager):
         """Test health manager with multiple checks."""
         # Add multiple checks
@@ -317,6 +341,7 @@ class TestCircuitBreaker:
         assert cb.state.value == "closed"
         assert cb.failure_count == 0
     
+    @pytest.mark.asyncio
     async def test_circuit_breaker_success(self):
         """Test circuit breaker with successful calls."""
         cb = CircuitBreaker("test_circuit")
@@ -330,6 +355,7 @@ class TestCircuitBreaker:
         assert cb.failure_count == 0
         assert cb.state.value == "closed"
     
+    @pytest.mark.asyncio
     async def test_circuit_breaker_failure_threshold(self):
         """Test circuit breaker opening after failures."""
         config = CircuitBreakerConfig(failure_threshold=2)
@@ -354,7 +380,7 @@ class TestCircuitBreaker:
 class TestServiceClient:
     """Test service client functionality."""
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def registry_with_mock_service(self):
         """Create registry with mock HTTP service."""
         registry = InMemoryServiceRegistry()
@@ -371,7 +397,7 @@ class TestServiceClient:
                 protocol="https"
             ),
             metadata={},
-            health_check=HealthCheck()
+            health_check=CustomHealthCheck("test-health", lambda: True)
         )
         await registry.register_service(instance)
         await registry.update_health_status("httpbin", "httpbin-1", ServiceStatus.HEALTHY)
@@ -379,6 +405,7 @@ class TestServiceClient:
         yield registry
         await registry.stop()
     
+    @pytest.mark.asyncio
     async def test_service_client_get_request(self, registry_with_mock_service):
         """Test service client GET request."""
         async with service_client("httpbin", registry=registry_with_mock_service) as client:
@@ -392,6 +419,7 @@ class TestServiceClient:
                 # Network issues in test environment are acceptable
                 pytest.skip(f"Network error in test environment: {e}")
     
+    @pytest.mark.asyncio
     async def test_service_client_post_request(self, registry_with_mock_service):
         """Test service client POST request."""
         async with service_client("httpbin", registry=registry_with_mock_service) as client:
@@ -457,7 +485,7 @@ async def test_full_integration_scenario():
             version="1.0.0",
             endpoint=ServiceEndpoint(host="localhost", port=8080),
             metadata={"environment": "test"},
-            health_check=HealthCheck()
+            health_check=CustomHealthCheck("test-health", lambda: True)
         )
         
         # Test service registration
