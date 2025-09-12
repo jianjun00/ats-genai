@@ -75,6 +75,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         # This prevents OOM by streaming data instead of accumulating in memory
         self.array_record_writers = {}  # Dict[file_path_str, writer]
         self.dataset_initialized = False
+        self._cleanup_attempted = False  # Track cleanup to prevent double-close
 
         # 🚨 NEW: Dynamic Binary Record Schema System
         # Replaces hardcoded OHLCV format with configurable technical indicators
@@ -98,10 +99,47 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
         self.logger.info(f"Binary record schema: {schema_config} mode")
         self.logger.info(f"Available indicators will be auto-detected: {self.binary_schema.auto_detect}")
-
+        
         self.logger.info(f"IntervalBasedTrainingDataCallback initialized for symbols: {symbols}")
         if self.start_date and self.end_date:
             self.logger.info(f"Training data date range: {self.start_date} to {self.end_date}")
+
+    def _ensure_writers_closed(self):
+        """
+        🚨 CRITICAL FIX: Ensure all ArrayRecord writers are properly closed.
+        
+        This fixes the issue where ArrayRecord files exist but show 0 records
+        when the process crashes before handleEnd() is called. ArrayRecord
+        requires proper closing to finalize the file format.
+        """
+        if self._cleanup_attempted:
+            return
+        
+        self._cleanup_attempted = True
+        
+        if not hasattr(self, 'array_record_writers') or not self.array_record_writers:
+            return
+        
+        print(f"\n🚨 CRITICAL CLEANUP: Closing {len(self.array_record_writers)} ArrayRecord writers")
+        
+        for file_key, writer in self.array_record_writers.items():
+            try:
+                if writer and hasattr(writer, 'close'):
+                    writer.close()
+                    print(f"   ✅ Emergency closed writer: {file_key}")
+            except Exception as e:
+                print(f"   ⚠️ Error closing writer {file_key}: {e}")
+        
+        print("🔒 ArrayRecord writers cleanup completed")
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures cleanup even on exceptions."""
+        self._ensure_writers_closed()
+        return False  # Don't suppress exceptions
 
     def _parse_date(self, date_input: Union[str, date]) -> date:
         """Parse date string or date object to date object."""
@@ -136,43 +174,52 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.interval_counter += 1
         examples_generated = []
 
-        # Generate examples for all symbols
-        for symbol in self.symbols:
-            try:
-                print(f"🔄 DEBUG: Attempting to generate training example for {symbol} at {current_time}")
-                example = await self.training_generator.generate_training_example(
-                    symbol=symbol,
-                    prediction_timestamp=current_time
-                )
+        try:
+            # Generate examples for all symbols
+            for symbol in self.symbols:
+                try:
+                    print(f"🔄 DEBUG: Attempting to generate training example for {symbol} at {current_time}")
+                    example = await self.training_generator.generate_training_example(
+                        symbol=symbol,
+                        prediction_timestamp=current_time
+                    )
 
-                print(f"📊 DEBUG: Generated example for {symbol}: {example is not None}")
-                if example:
-                    print(f"🔑 DEBUG: Example keys: {list(example.keys()) if isinstance(example, dict) else 'Not a dict'}")
-                    if isinstance(example, dict) and 'timeframe_features' in example:
-                        print(f"⏰ DEBUG: Timeframe features: {list(example['timeframe_features'].keys()) if isinstance(example['timeframe_features'], dict) else 'Not dict'}")
-                    examples_generated.append(example)
-                    print(f"✅ DEBUG: Added example to collection. Total examples: {len(examples_generated)}")
-                else:
-                    print(f"❌ DEBUG: No example generated for {symbol} - example is None/empty")
+                    print(f"📊 DEBUG: Generated example for {symbol}: {example is not None}")
+                    if example:
+                        print(f"🔑 DEBUG: Example keys: {list(example.keys()) if isinstance(example, dict) else 'Not a dict'}")
+                        if isinstance(example, dict) and 'timeframe_features' in example:
+                            print(f"⏰ DEBUG: Timeframe features: {list(example['timeframe_features'].keys()) if isinstance(example['timeframe_features'], dict) else 'Not dict'}")
+                        examples_generated.append(example)
+                        print(f"✅ DEBUG: Added example to collection. Total examples: {len(examples_generated)}")
+                    else:
+                        print(f"❌ DEBUG: No example generated for {symbol} - example is None/empty")
 
-            except Exception as e:
-                print(f"💥 DEBUG: Exception generating example for {symbol}: {e}")
-                import traceback
-                print(f"📋 DEBUG: Full traceback: {traceback.format_exc()}")
-                self.logger.error(f"Failed to generate example for {symbol}: {e}")
+                except Exception as e:
+                    print(f"💥 DEBUG: Exception generating example for {symbol}: {e}")
+                    import traceback
+                    print(f"📋 DEBUG: Full traceback: {traceback.format_exc()}")
+                    self.logger.error(f"Failed to generate example for {symbol}: {e}")
 
-        # Save immediately if we have examples
-        print(f"🎯 DEBUG: CHECKPOINT - About to check examples_generated list")
-        print(f"🎯 DEBUG: examples_generated type: {type(examples_generated)}")
-        print(f"🎯 DEBUG: examples_generated length: {len(examples_generated)}")
-        print(f"🎯 DEBUG: examples_generated contents: {examples_generated}")
-        print(f"DEBUG: Generated {len(examples_generated)} examples for interval at {current_time}")
-        if examples_generated:
-            print(f"DEBUG: Saving {len(examples_generated)} examples...")
-            await self._save_simple_arrayrecord(examples_generated, current_time)
-            print(f"DEBUG: Save completed for {len(examples_generated)} examples")
-        else:
-            print(f"DEBUG: No examples to save at {current_time}")
+            # Save immediately if we have examples
+            print(f"🎯 DEBUG: CHECKPOINT - About to check examples_generated list")
+            print(f"🎯 DEBUG: examples_generated type: {type(examples_generated)}")
+            print(f"🎯 DEBUG: examples_generated length: {len(examples_generated)}")
+            print(f"🎯 DEBUG: examples_generated contents: {examples_generated}")
+            print(f"DEBUG: Generated {len(examples_generated)} examples for interval at {current_time}")
+            if examples_generated:
+                print(f"DEBUG: Saving {len(examples_generated)} examples...")
+                await self._save_simple_arrayrecord(examples_generated, current_time)
+                print(f"DEBUG: Save completed for {len(examples_generated)} examples")
+            else:
+                print(f"DEBUG: No examples to save at {current_time}")
+                
+        except Exception as e:
+            print(f"🚨 CRITICAL ERROR in handleInterval: {e}")
+            import traceback
+            traceback.print_exc()
+            # Ensure cleanup even on critical errors
+            self._ensure_writers_closed()
+            raise  # Re-raise to maintain error propagation
 
     async def _save_simple_arrayrecord(self, examples: List[Dict], current_time: datetime):
         """
@@ -762,19 +809,10 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
     async def handleEnd(self, runner: Any, current_time: datetime):
         """Close all ArrayRecord writers and generate final summary."""
 
-        # 🚨 CRITICAL: Close all writers to finalize files
-        print(f"\n🔒 CLOSING ARRAYRECORD WRITERS")
+        # 🚨 CRITICAL: Close all writers to finalize files using centralized cleanup
+        self._ensure_writers_closed()
 
         try:
-            for file_key, writer in self.array_record_writers.items():
-                try:
-                    writer.close()
-                    print(f"   ✅ Closed writer for {file_key}")
-                except Exception as e:
-                    print(f"   ❌ Error closing writer for {file_key}: {e}")
-
-            print(f"✅ Closed {len(self.array_record_writers)} ArrayRecord writers")
-
             # Save monthly training data records to database
             print(f"\n💾 SAVING MONTHLY TRAINING DATA RECORDS TO DATABASE")
             await self._save_monthly_training_data_records(runner)

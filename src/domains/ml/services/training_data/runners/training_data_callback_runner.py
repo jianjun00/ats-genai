@@ -812,10 +812,12 @@ async def main():
     generation_start_time = time.time()
     logger.info(f"⏱️ Generation started at: {datetime.now().isoformat()}")
 
-    # Execute training data generation
+    # Execute training data generation with proper ArrayRecord cleanup
     try:
         logger.info("🔄 Running training data generation...")
-        await runner.run()
+        # 🚨 CRITICAL FIX: Use context manager to ensure ArrayRecord writers are always closed
+        with training_callback:
+            await runner.run()
         logger.info("✅ Training data generation runner completed successfully")
 
     except Exception as e:
@@ -823,6 +825,7 @@ async def main():
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
+        # Note: Context manager already ensured cleanup in finally block
         raise
 
     # Calculate and log generation duration
