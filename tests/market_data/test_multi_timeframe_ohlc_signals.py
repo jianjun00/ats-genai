@@ -21,7 +21,7 @@ import logging
 
 # Import test subjects
 from core.config.environment import Environment, EnvironmentType
-from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 # Setup logging for tests

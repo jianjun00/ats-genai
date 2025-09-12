@@ -280,7 +280,7 @@ class TestInstrumentXrefsDAOIntegrationScenarios:
     def test_dao_integration_with_file_based_market_data_manager(self, mock_env):
         """Test DAO integration points with FileBasedMinuteMarketDataManager."""
         # Import the manager to ensure integration points exist
-        from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 
         # Create manager with environment (should create xrefs_dao)
         manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -295,7 +295,7 @@ class TestInstrumentXrefsDAOIntegrationScenarios:
 
     def test_dao_not_initialized_without_environment(self):
         """Test that DAO is not initialized without environment."""
-        from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 
         # Create manager without environment
         manager = FileBasedMinuteMarketDataManager(None, "/tmp/test")

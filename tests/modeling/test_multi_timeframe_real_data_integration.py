@@ -19,7 +19,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 try:
-    from domains.market_data.services.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+    from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
     from domains.ml.services.multi_timeframe_data_collector import MultiTimeframeDataCollector
     from domains.ml.services.multi_timeframe_signal_pipeline import (
         MultiTimeframeSignalPipeline,

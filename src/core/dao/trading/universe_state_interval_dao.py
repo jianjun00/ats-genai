@@ -2,15 +2,18 @@ from .instrument_interval_dao import InstrumentIntervalDAO
 from .instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
-from typing import Optional, Dict
-from domains.trading.services.state.universe_state import UniverseStateInterval
+from typing import Optional, Dict, TYPE_CHECKING
 from core.platform.config.environment import Environment
 from datetime import datetime
+
+# Use TYPE_CHECKING to avoid circular import
+if TYPE_CHECKING:
+    from domains.trading.services.state.universe_state import UniverseStateInterval
 
 class UniverseStateIntervalDAO:
     # ... existing methods ...
 
-    async def async_load_row_to_interval(self, row: dict) -> UniverseStateInterval:
+    async def async_load_row_to_interval(self, row: dict) -> "UniverseStateInterval":
         """
         Given a DB row for universe_state_interval, load all nested instrument_intervals,
         instrument_indicator_intervals, and factor_intervals from the DB and construct a
@@ -79,6 +82,9 @@ class UniverseStateIntervalDAO:
                 end_date_time=end_date_time,
                 instrument_intervals={}  # Extend if schema supports nested instrument intervals
             ))
+        # Import at runtime to avoid circular dependency
+        from domains.trading.services.state.universe_state import UniverseStateInterval
+        
         return UniverseStateInterval(
             universe_id=row.get('universe_id'),
             duration=duration,

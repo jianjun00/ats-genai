@@ -20,7 +20,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, 'src')
 
-from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 from state.universe_state_manager import UniverseStateManager
 from ml.training_data.timeseries_sequence_training_generator import (
     TrainingDataConfig,

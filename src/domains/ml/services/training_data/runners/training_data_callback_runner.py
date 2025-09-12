@@ -508,12 +508,42 @@ async def main():
         date_range_days = (end_date - start_date).days + 1
         logger.info(f"✅ Date range validated: {start_date} to {end_date} ({date_range_days} days)")
         
-        # Validate symbols
-        if not args.symbols:
-            logger.error("❌ No symbols provided for training data generation")
-            raise ValueError("At least one symbol must be provided")
-        
-        logger.info(f"✅ Symbols validated: {args.symbols} ({len(args.symbols)} symbols)")
+        # Validate symbols or universe_id
+        if args.universe_id:
+            # Fetch symbols from universe membership
+            logger.info(f"🌍 Fetching instruments from universe_id={args.universe_id}")
+            try:
+                from core.platform.database.connection_manager import get_raw_connection
+                with get_raw_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("""
+                            SELECT DISTINCT i.symbol 
+                            FROM intg_universe_membership um
+                            JOIN intg_instrument_xrefs i ON um.instrument_id = i.instrument_id
+                            WHERE um.universe_id = %s AND i.vendor_id = 1
+                            ORDER BY i.symbol
+                        """, (args.universe_id,))
+                        
+                        symbols = [row['symbol'] for row in cursor.fetchall()]
+                    
+                if not symbols:
+                    logger.error(f"❌ No instruments found in universe_id={args.universe_id}")
+                    raise ValueError(f"Universe {args.universe_id} contains no instruments")
+                
+                # Set symbols from universe
+                args.symbols = symbols
+                logger.info(f"✅ Symbols loaded from universe {args.universe_id}: {len(symbols)} symbols")
+                logger.info(f"   First 10 symbols: {symbols[:10]}")
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to fetch instruments from universe {args.universe_id}: {e}")
+                raise ValueError(f"Could not load instruments from universe {args.universe_id}: {e}")
+                
+        elif not args.symbols:
+            logger.error("❌ No symbols or universe_id provided for training data generation")
+            raise ValueError("At least one symbol or universe_id must be provided")
+        else:
+            logger.info(f"✅ Symbols validated: {args.symbols} ({len(args.symbols)} symbols)")
         
     except ValueError as e:
         logger.error(f"❌ Date parsing failed: {e}")
@@ -711,12 +741,36 @@ async def main():
     # Create Runner with callback using expanded collection window
     try:
         logger.debug("Creating Runner with training callback using expanded collection window")
+        
+        # CRITICAL FIX: Use FileBasedMinuteMarketDataManager for training data generation
+        # The default DailyPriceMarketDataManager doesn't have minute bar data needed for training
+        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+        
+        # Initialize with correct path for minute bar data
+        minute_data_manager = FileBasedMinuteMarketDataManager(environment, '/data/minute-bars')
+        logger.info(f"✅ Created FileBasedMinuteMarketDataManager for training data generation")
+        logger.info(f"   Base path: /data/minute-bars")
+        
+        # ARCHITECTURE FIX: Add UniverseStateBuilder to populate universe state cache
+        # UniverseStateBuilder calls get_minute_ohlc_batch to access cached data from FileBasedMinuteMarketDataManager
+        # This populates the universe state cache that training data generator needs
+        from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+        universe_state_builder = UniverseStateIntervalBuilder(
+            env=environment,
+            base_duration=args.base_duration,  # Use same base_duration as the runner
+            target_durations=args.base_duration  # Use same duration for simplicity
+        )
+        logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
+        logger.info(f"   Base duration: {args.base_duration}")
+        logger.info(f"   Target durations: {args.base_duration}")
+        
         runner = Runner(
             start_date=collection_start_date.strftime("%Y-%m-%d"),
             end_date=collection_end_date.strftime("%Y-%m-%d"),
             environment=environment,
             universe_id=args.universe_id or 1,
-            callbacks=[training_callback],  # ONLY the callback
+            callbacks=[universe_state_builder, training_callback],  # ARCHITECTURE FIX: Add universe state builder BEFORE training callback
+            market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
             base_duration=args.base_duration
         )
         

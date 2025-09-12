@@ -319,6 +319,64 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
         except Exception:
             return False
 
+    async def update_for_sod(self, runner, event_time: datetime):
+        """
+        Start-of-day hook for FileBasedMinuteMarketDataManager.
+        Load minute bar data for the current date into internal cache.
+        Universe state builder will call get_minute_ohlc_batch to access cached data.
+        """
+        cur_date = event_time.date()
+        logger.info(f"FileBasedMinuteMarketDataManager.update_for_sod: cur_date={cur_date}")
+        
+        try:
+            # Get symbols from the universe manager
+            symbols = []
+            if hasattr(runner, 'universe_manager') and hasattr(runner.universe_manager, 'get_symbols'):
+                symbols = await runner.universe_manager.get_symbols(runner.universe_id)
+            
+            if not symbols:
+                # Fallback: get symbols from runner configuration or use TSLA as default
+                symbols = ['TSLA']  # For now, hardcode TSLA for training data generation
+                logger.info(f"Using fallback symbols: {symbols}")
+            
+            logger.info(f"update_for_sod: processing {len(symbols)} symbols: {symbols}")
+            
+            # Load minute data for current date into internal cache only
+            loaded_count = 0
+            for symbol in symbols:
+                try:
+                    # Query minute data for the full day
+                    start_datetime = datetime.combine(cur_date, datetime.min.time())
+                    end_datetime = datetime.combine(cur_date, datetime.max.time())
+                    
+                    df = await self.minute_manager.query_minute_data(
+                        symbol=symbol,
+                        start_date=start_datetime,
+                        end_date=end_datetime
+                    )
+                    
+                    if not df.empty:
+                        # Store in internal cache using consistent cache key format 
+                        # Match the format used in _get_symbol_minute_data: {symbol}_{start_date}_{end_date}
+                        cache_key = f"{symbol}_{cur_date}_{cur_date}"
+                        self._cache[cache_key] = df
+                        loaded_count += 1
+                        logger.debug(f"Loaded {len(df)} minute records for {symbol} on {cur_date} into internal cache")
+                        print(f"DEBUG: Cached {len(df)} records for {symbol} on {cur_date} with key '{cache_key}' - universe builder will access via get_minute_ohlc_batch")
+                    else:
+                        logger.warning(f"No minute data found for {symbol} on {cur_date}")
+                        
+                except Exception as e:
+                    logger.error(f"Error loading minute data for {symbol} on {cur_date}: {e}")
+                    continue
+            
+            logger.info(f"update_for_sod: loaded minute data for {loaded_count}/{len(symbols)} symbols on {cur_date} into internal cache")
+            print(f"DEBUG update_for_sod: cached data for date={cur_date}, symbols={symbols}: {loaded_count} symbols loaded internally")
+            
+        except Exception as e:
+            logger.error(f"FileBasedMinuteMarketDataManager.update_for_sod failed: {e}")
+            print(f"DEBUG update_for_sod: failed to cache data for date={cur_date}: {e}")
+
     async def close(self):
         """Clean up resources."""
         if hasattr(self.minute_manager, 'close'):

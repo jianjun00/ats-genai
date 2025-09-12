@@ -237,14 +237,12 @@ class UniverseStateManager:
         else:
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
 
-        # NOTE: Instead of requiring market_data_manager, we'll provide mock lead data
-        # for training data generation to proceed in the dev environment
-        print(f"DEBUG get_lead_prices: Providing mock lead data for training data generation")
-
-        # Type validation for cur_datetime
-        if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
-            raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
-
+        # 🔍 DEBUG: Check universe state cache status
+        print(f"🔍 DEBUG get_lead_prices: Checking universe state cache status:")
+        print(f"   instrument_id={instrument_id}, lead_periods={lead_periods}, time_interval={time_interval}")
+        print(f"   _instrument_history keys: {list(self._instrument_history.keys()) if hasattr(self, '_instrument_history') else []}")
+        print(f"   _cache timestamps: {list(self._cache.keys()) if hasattr(self, '_cache') else []}")
+        
         # Ensure cur_datetime is a datetime object for precise time operations
         if not hasattr(cur_datetime, 'hour'):
             # If it's a date object, convert to datetime at start of day
@@ -254,89 +252,24 @@ class UniverseStateManager:
             else:
                 cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
 
-        # Use FileBasedMinuteMarketDataManager to get actual future OHLCV data
-        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-        from datetime import timedelta
-        import pandas as pd
+        # ❌ ARCHITECTURE ISSUE: Training data generation must populate universe state cache
+        # The Runner should have collected data during update_for_sod() and interval processing
+        # This forces the system to work correctly by requiring proper data population
         
-        print(f"DEBUG get_lead_prices: Getting real lead data for {lead_periods} periods of {time_interval}")
+        print(f"🚨 ARCHITECTURE VALIDATION: get_lead_prices() requires populated universe state cache")
+        print(f"   Training data generation systems must use proper cache-based data flow:")
+        print(f"   Runner → update_for_sod() → populate cache → get_lead_prices() from cache")
         
-        try:
-            symbol = self._get_symbol_from_instrument_id(instrument_id)
-            minute_data_manager = FileBasedMinuteMarketDataManager(self.env, '/data/minute-bars')
-            
-            # Calculate the future time range (AFTER cur_datetime)
-            start_datetime_for_lead = cur_datetime
-            if time_interval == '1d':
-                end_datetime_for_lead = cur_datetime + timedelta(days=lead_periods + 1)
-            elif time_interval == '1h':
-                end_datetime_for_lead = cur_datetime + timedelta(hours=lead_periods + 1)
-            elif time_interval == '5m':
-                end_datetime_for_lead = cur_datetime + timedelta(minutes=(lead_periods + 1) * 5)
-            elif time_interval == '15m':
-                end_datetime_for_lead = cur_datetime + timedelta(minutes=(lead_periods + 1) * 15)
-            else:
-                end_datetime_for_lead = cur_datetime + timedelta(days=lead_periods + 1)
-            
-            print(f"DEBUG get_lead_prices: Querying lead data from {start_datetime_for_lead} to {end_datetime_for_lead}")
-            
-            # Get minute data and aggregate to requested time_interval
-            import asyncio
-            import concurrent.futures
-            
-            def get_lead_minute_data_sync():
-                """Run async call in a separate thread with new event loop"""
-                return asyncio.run(minute_data_manager.get_minute_ohlc_batch(
-                    [symbol], start_datetime_for_lead, end_datetime_for_lead
-                ))
-            
-            try:
-                # Run the async call in a thread pool to avoid event loop conflicts
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(get_lead_minute_data_sync)
-                    minute_df = future.result(timeout=30)
-            except Exception as e:
-                print(f"DEBUG get_lead_prices: Failed to get minute data: {e}")
-                minute_df = {}
-            
-            if symbol in minute_df and not minute_df[symbol].empty:
-                df = minute_df[symbol]
-                print(f"DEBUG get_lead_prices: Retrieved {len(df)} minute records for {symbol}")
-                
-                if time_interval == '1d':
-                    # Aggregate to daily OHLCV
-                    df['timestamp'] = pd.to_datetime(df['timestamp'])
-                    df.set_index('timestamp', inplace=True)
-                    
-                    # Resample to daily
-                    daily_df = df.resample('1D').agg({
-                        'open': 'first',
-                        'high': 'max', 
-                        'low': 'min',
-                        'close': 'last',
-                        'volume': 'sum'
-                    }).dropna()
-                    
-                    daily_df.reset_index(inplace=True)
-                    
-                    # Filter to only get data AFTER cur_datetime
-                    daily_df = daily_df[daily_df['timestamp'] > pd.Timestamp(cur_datetime)]
-                    daily_df = daily_df.head(lead_periods)  # Get first lead_periods days
-                    
-                    print(f"DEBUG get_lead_prices: Aggregated to {len(daily_df)} future daily records")
-                    return daily_df
-                else:
-                    # For other intervals, implement aggregation accordingly
-                    print(f"DEBUG get_lead_prices: Interval {time_interval} aggregation not yet implemented")
-                    return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                    
-            else:
-                print(f"DEBUG get_lead_prices: No minute data found for {symbol} in lead period")
-                return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                
-        except Exception as e:
-            print(f"DEBUG get_lead_prices: FileBasedMinuteMarketDataManager failed: {e}")
-            return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        # Check if we have any cache data
+        latest_timestamp = max(self._cache.keys()) if hasattr(self, '_cache') and self._cache else None
+        print(f"   Latest timestamp: {latest_timestamp}")
+        
+        raise ValueError(f"🚨 UNIVERSE STATE CACHE EMPTY: instrument_id={instrument_id}\n"
+                        f"Training data generation requires populated universe state cache.\n"
+                        f"The Runner must call universe_state_manager.update_for_sod() and accumulate data.\n"
+                        f"Cache status - _instrument_history: {len(self._instrument_history) if hasattr(self, '_instrument_history') else 0} instruments, "
+                        f"_cache: {len(self._cache) if hasattr(self, '_cache') else 0} timestamps\n"
+                        f"LEAD PERIODS CANNOT BE COMPUTED WITHOUT PROPER CACHE POPULATION")
 
     async def get_lagged_signals(
         self,

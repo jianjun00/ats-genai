@@ -8,7 +8,7 @@ history with temporal data for migration analysis.
 from typing import Dict, Any, List, Optional, Union
 from datetime import date
 
-from infrastructure.database.repositories.base.base_dao import BaseDAO
+from core.dao.base.base_dao import BaseDAO
 from core.security.validation.data_validators import ValidationResult
 
 
