@@ -22,10 +22,15 @@ The Training Dataset Management System provides centralized metadata management 
 **Solution**: Context manager pattern with centralized cleanup in `_ensure_writers_closed()`.
 **Verification**: Now generating 1,176+ records vs previous 0 records.
 
-### **MULTI-TIMEFRAME GENERATION - VERIFIED**
-**Status**: All 4 timeframes (5m, 15m, 1h, 1d) generating consistently.
-**Data Quality**: Real TSLA market data with prices $303-315, volumes 60K-265K.
-**Technical Indicators**: 16 indicators per record with proper binary structure.
+### **CRITICAL: TIMEFRAME GRANULARITY ISSUE IDENTIFIED**
+**Problem**: All timeframes (5m, 15m, 1h, 1d) currently generate one row per hour instead of correct granularity.
+**Required Fix**: Each timeframe must generate records at its native frequency:
+- **5m**: 12 records/hour (every 5 minutes during market hours)
+- **15m**: 4 records/hour (every 15 minutes during market hours) 
+- **1h**: 1 record/hour (current behavior correct)
+- **1d**: 1 record/day (not per hour)
+- **1w**: 1 record/week (NEW REQUIREMENT - weekly timeframe missing)
+**Status**: ❌ REQUIRES IMMEDIATE FIX
 
 ---
 
@@ -69,7 +74,7 @@ Training Datasets: /data/training_data/dataset_YYYYMMDD_HHMMSS/
 BASE_DURATION = "60m"              # Base interval for data processing
 STORAGE_FORMAT = "arrayrecord"     # Binary format for ML training
 TECHNICAL_INDICATORS = 16          # Indicators per record
-TIMEFRAMES = ["5m", "15m", "1h", "1d"]  # All supported aggregations
+TIMEFRAMES = ["5m", "15m", "1h", "1d", "1w"]  # All supported aggregations (1w missing)
 
 # File Paths
 INPUT_PATH = "/mnt/d/ats-data/minute-bars/firstrate/"
@@ -171,10 +176,10 @@ def _ensure_writers_closed(self):
 - **Verification**: 1,176+ records generated for TSLA July-August 2025
 
 ### **R2: Multi-Timeframe Support**
-- **Status**: ✅ VERIFIED
-- **Timeframes**: 5m, 15m, 1h, 1d (all operational)
-- **Consistency**: Record counts align across timeframes
-- **File Structure**: Separate ArrayRecord files per timeframe
+- **Status**: ❌ BROKEN - Incorrect granularity  
+- **Required Timeframes**: 5m, 15m, 1h, 1d, 1w with native frequency
+- **Current Issue**: All timeframes generating 1 record/hour instead of native frequency
+- **Expected Behavior**: 5m→12/hour, 15m→4/hour, 1h→1/hour, 1d→1/day, 1w→1/week
 
 ### **R3: Real Data Only**
 - **Status**: ✅ ENFORCED

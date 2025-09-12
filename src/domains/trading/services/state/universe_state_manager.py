@@ -359,9 +359,41 @@ class UniverseStateManager:
                     print(f"DEBUG get_lead_prices: Aggregated to {len(daily_df)} future daily records")
                     return daily_df
                 else:
-                    # For other intervals, implement aggregation accordingly
-                    print(f"DEBUG get_lead_prices: Interval {time_interval} aggregation not yet implemented")
-                    return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                    # Implement aggregation for all other intervals
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    df.set_index('timestamp', inplace=True)
+                    
+                    # Map time intervals to pandas resampling rules
+                    resample_rules = {
+                        '5m': '5T',   # 5 minutes
+                        '15m': '15T', # 15 minutes
+                        '30m': '30T', # 30 minutes
+                        '1h': '1H',   # 1 hour
+                        '2h': '2H',   # 2 hours
+                        '4h': '4H',   # 4 hours
+                        '1w': '1W',   # 1 week
+                    }
+                    
+                    resample_rule = resample_rules.get(time_interval)
+                    if resample_rule:
+                        # Aggregate to requested timeframe using OHLCV aggregation
+                        agg_df = df.resample(resample_rule).agg({
+                            'open': 'first',
+                            'high': 'max',
+                            'low': 'min',
+                            'close': 'last',
+                            'volume': 'sum'
+                        }).dropna()
+                        agg_df.reset_index(inplace=True)
+                        
+                        # Filter to only get data AFTER cur_datetime
+                        agg_df = agg_df[agg_df['timestamp'] > pd.Timestamp(cur_datetime)]
+                        agg_df = agg_df.head(lead_periods)  # Get first lead_periods intervals
+                        print(f"DEBUG get_lead_prices: Aggregated to {len(agg_df)} future {time_interval} records")
+                        return agg_df
+                    else:
+                        print(f"DEBUG get_lead_prices: Unsupported time_interval: {time_interval}")
+                        return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
 
             else:
                 print(f"DEBUG get_lead_prices: No minute data found for {symbol} in lead period")
@@ -541,11 +573,103 @@ class UniverseStateManager:
                     df = minute_df[symbol]
                     print(f"DEBUG get_lagged_signals: Retrieved {len(df)} minute records for indicator computation")
 
-                    # Compute technical indicators
-                    # For now, return empty until we implement indicator computation
-                    # TODO: Implement actual technical indicator calculations (etop, ebot, pldot)
-                    print(f"DEBUG get_lagged_signals: Technical indicator computation not yet implemented")
-                    return pd.DataFrame(columns=['timestamp'])
+                    # Compute technical indicators from OHLCV data
+                    print(f"DEBUG get_lagged_signals: Computing technical indicators")
+                    
+                    import pandas as pd
+                    import numpy as np
+                    
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    df = df.sort_values('timestamp')
+                    
+                    # Map time intervals to pandas resampling rules for aggregation
+                    resample_rules = {
+                        '1m': '1T',   # 1 minute
+                        '5m': '5T',   # 5 minutes
+                        '15m': '15T', # 15 minutes
+                        '30m': '30T', # 30 minutes
+                        '1h': '1H',   # 1 hour
+                        '2h': '2H',   # 2 hours
+                        '4h': '4H',   # 4 hours
+                        '1d': '1D',   # 1 day
+                        '1w': '1W',   # 1 week
+                    }
+                    
+                    # Aggregate to requested timeframe first
+                    if time_interval != '1m' and time_interval in resample_rules:
+                        df.set_index('timestamp', inplace=True)
+                        df = df.resample(resample_rules[time_interval]).agg({
+                            'open': 'first',
+                            'high': 'max',
+                            'low': 'min',
+                            'close': 'last',
+                            'volume': 'sum'
+                        }).dropna()
+                        df.reset_index(inplace=True)
+                    
+                    # Calculate basic technical indicators
+                    signals_dict = {'timestamp': df['timestamp'].tolist()}
+                    
+                    # Calculate signals if requested
+                    if signal_names:
+                        for signal_name in signal_names:
+                            try:
+                                if signal_name == 'etop':
+                                    # Envelope top (price above upper band)
+                                    sma_20 = df['close'].rolling(window=20).mean()
+                                    std_20 = df['close'].rolling(window=20).std()
+                                    upper_band = sma_20 + (2 * std_20)
+                                    signals_dict['etop'] = (df['close'] > upper_band).astype(int).tolist()
+                                    
+                                elif signal_name == 'ebot':
+                                    # Envelope bottom (price below lower band)
+                                    sma_20 = df['close'].rolling(window=20).mean()
+                                    std_20 = df['close'].rolling(window=20).std()
+                                    lower_band = sma_20 - (2 * std_20)
+                                    signals_dict['ebot'] = (df['close'] < lower_band).astype(int).tolist()
+                                    
+                                elif signal_name == 'pldot':
+                                    # Price location dot (relative position within range)
+                                    high_20 = df['high'].rolling(window=20).max()
+                                    low_20 = df['low'].rolling(window=20).min()
+                                    pldot = (df['close'] - low_20) / (high_20 - low_20)
+                                    signals_dict['pldot'] = pldot.fillna(0.5).tolist()
+                                    
+                                elif signal_name.startswith('sma_'):
+                                    # Simple Moving Average
+                                    period = int(signal_name.split('_')[1])
+                                    sma = df['close'].rolling(window=period).mean()
+                                    signals_dict[signal_name] = sma.tolist()
+                                    
+                                elif signal_name.startswith('ema_'):
+                                    # Exponential Moving Average
+                                    period = int(signal_name.split('_')[1])
+                                    ema = df['close'].ewm(span=period).mean()
+                                    signals_dict[signal_name] = ema.tolist()
+                                    
+                                elif signal_name.startswith('rsi_'):
+                                    # RSI Calculation
+                                    period = int(signal_name.split('_')[1])
+                                    delta = df['close'].diff()
+                                    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+                                    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+                                    rs = gain / loss
+                                    rsi = 100 - (100 / (1 + rs))
+                                    signals_dict[signal_name] = rsi.fillna(50).tolist()
+                                    
+                            except Exception as e:
+                                print(f"DEBUG get_lagged_signals: Error computing {signal_name}: {e}")
+                                signals_dict[signal_name] = [0.0] * len(df)
+                    
+                    # Convert to DataFrame
+                    indicators_df = pd.DataFrame(signals_dict)
+                    
+                    # Filter to only get historical data (before cur_datetime)
+                    indicators_df = indicators_df[indicators_df['timestamp'] < pd.Timestamp(cur_datetime)]
+                    indicators_df = indicators_df.tail(lag_periods)  # Get last lag_periods records
+                    
+                    print(f"DEBUG get_lagged_signals: Generated {len(indicators_df)} {time_interval} indicator records")
+                    return indicators_df
 
                 else:
                     print(f"DEBUG get_lagged_signals: No OHLCV data available for indicator computation")

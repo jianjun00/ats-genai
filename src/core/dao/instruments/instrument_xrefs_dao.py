@@ -25,11 +25,11 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(
-                    f"SELECT vendor_symbol FROM {self.table_name} WHERE instrument_id = $1 LIMIT 1",
+                    f"SELECT symbol FROM {self.table_name} WHERE instrument_id = $1 LIMIT 1",
                     instrument_id
                 )
                 print(f"[DEBUG][get_symbol_by_instrument_id] Fetched row: {row}")
-                return row['vendor_symbol'] if row else None
+                return row['symbol'] if row else None
         finally:
             await pool.close()
 
@@ -49,11 +49,11 @@ class InstrumentXrefsDAO:
             async with pool.acquire() as conn:
                 print(f"[DEBUG][get_symbol_by_instrument_id_vendor_name] Querying for instrument_id={instrument_id}, vendor_id={vendor_id} in {self.table_name}")
                 row = await conn.fetchrow(
-                    f"SELECT vendor_symbol FROM {self.table_name} WHERE instrument_id = $1 AND vendor_id = $2",
+                    f"SELECT symbol FROM {self.table_name} WHERE instrument_id = $1 AND vendor_id = $2",
                     instrument_id, vendor_id
                 )
                 print(f"[DEBUG][get_symbol_by_instrument_id_vendor_name] Fetched row: {row}")
-                return row['vendor_symbol'] if row else None
+                return row['symbol'] if row else None
         finally:
             await pool.close()
 
@@ -67,8 +67,8 @@ class InstrumentXrefsDAO:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                rows = await conn.fetch(f"SELECT DISTINCT vendor_symbol FROM {self.table_name} WHERE vendor_id = $1", ticker_vendor_id)
-                symbols = [row['vendor_symbol'] for row in rows]
+                rows = await conn.fetch(f"SELECT DISTINCT symbol FROM {self.table_name} WHERE vendor_id = $1", ticker_vendor_id)
+                symbols = [row['symbol'] for row in rows]
                 return symbols
         finally:
             await pool.close()
@@ -88,7 +88,7 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 table_name = self.table_name
-                q = f"SELECT instrument_id FROM {table_name} WHERE vendor_symbol = $1 AND vendor_id = $2"
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor_id = $2"
                 params = [symbol, vendor_id]
                 if at_date is not None:
                     # at_date must be a datetime.date object for asyncpg
@@ -113,7 +113,7 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 table_name = self.table_name
-                q = f"SELECT instrument_id FROM {table_name} WHERE vendor_symbol = $1 AND vendor_id = $2"
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor_id = $2"
                 params = [symbol, vendor_id]
                 if at_date is not None:
                     q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"
@@ -199,7 +199,7 @@ class InstrumentXrefsDAO:
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
-                row = await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE vendor_id = $1 AND vendor_symbol = $2", vendor_id, symbol)
+                row = await conn.fetchrow(f"SELECT * FROM {self.table_name} WHERE vendor_id = $1 AND symbol = $2", vendor_id, symbol)
                 if row:
                     d = dict(row)
                     if hasattr(d.get('start_at'), 'date'):
@@ -265,14 +265,14 @@ class InstrumentXrefsDAO:
 
                 # Use PostgreSQL ANY operator for efficient batch query
                 rows = await conn.fetch(
-                    f"SELECT instrument_id, vendor_symbol FROM {self.table_name} WHERE instrument_id = ANY($1) AND vendor_id = $2",
+                    f"SELECT instrument_id, symbol FROM {self.table_name} WHERE instrument_id = ANY($1) AND vendor_id = $2",
                     instrument_ids, vendor_id
                 )
 
                 # Build result mapping
                 result = {iid: None for iid in instrument_ids}  # Default to None
                 for row in rows:
-                    result[row['instrument_id']] = row['vendor_symbol']
+                    result[row['instrument_id']] = row['symbol']
 
                 print(f"[DEBUG][get_symbols_by_instrument_ids_batch] Found symbols for {sum(1 for v in result.values() if v is not None)} out of {len(instrument_ids)} instrument_ids")
                 return result

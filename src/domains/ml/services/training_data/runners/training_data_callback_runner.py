@@ -721,9 +721,11 @@ async def main():
                     json.dumps(run_parameters)
                 )
 
-            # Pass run_id to callback for monthly record creation
-            training_callback.run_id = run_id
-            logger.info(f"✅ Created run record for monthly training data: {run_id}")
+            # 🚨 REMOVED PROBLEMATIC LINE: training_callback.run_id = run_id  
+            # ISSUE: This was setting a database integer run_id, but the callback should use Runner's run_context.run_id
+            # FIX: Callback now gets run_id from runner.run_context.run_id in handleInterval method
+            logger.info(f"✅ Created run record for monthly training data tracking: {run_id}")
+            logger.info("✅ Callback will use Runner's run_context.run_id for database insertions")
 
         except Exception as e:
             logger.warning(f"⚠️ Failed to create run record: {e}")
@@ -762,14 +764,64 @@ async def main():
         logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
         logger.info(f"   Base duration: {args.base_duration}")
         logger.info(f"   Target durations: {args.base_duration}")
-
+        
+        # 🚨 CRITICAL FIX: Create UniverseManager with proper symbols and initialize it
+        from domains.trading.services.universe.universe_manager import UniverseManager
+        universe_manager = UniverseManager(
+            env=environment,
+            universe_id=args.universe_id or 1,
+            symbols=args.symbols  # Pass the actual symbols instead of hardcoded ['TSLA']
+        )
+        
+        # Initialize the universe manager to resolve symbols to instrument_ids
+        logger.info(f"🔄 Initializing UniverseManager with symbols: {args.symbols}")
+        await universe_manager.initialize()
+        logger.info(f"✅ UniverseManager initialized with instrument_ids: {universe_manager.instrument_ids}")
+        
+        # 🚨 CRITICAL FIX: Generate universe state by running UniverseStateBuilder via Runner
+        # This ensures universe state cache gets populated with the correct instrument_ids
+        logger.info(f"🔄 Pre-generating universe state for symbols: {args.symbols}")
+        
+        try:
+            from datetime import datetime, timedelta
+            
+            # Generate universe state for a reasonable date range around the training period
+            builder_start_date = datetime.strptime(args.start_date, "%Y-%m-%d") - timedelta(days=30)  # 30 days before training start
+            builder_end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+            
+            logger.info(f"   UniverseStateBuilder date range: {builder_start_date.date()} to {builder_end_date.date()}")
+            logger.info(f"   This will generate universe state files for instrument_ids: {universe_manager.instrument_ids}")
+            
+            # 🚨 FIXED: Use Runner with UniverseStateBuilder callback to generate universe state
+            # The UniverseStateBuilder works as a callback within the Runner framework
+            state_runner = Runner(
+                start_date=builder_start_date.strftime("%Y-%m-%d"),
+                end_date=builder_end_date.strftime("%Y-%m-%d"),
+                environment=environment,
+                universe_id=args.universe_id or 1,
+                callbacks=[universe_state_builder],  # Use as callback to generate universe state files
+                market_data_manager=minute_data_manager,
+                universe_manager=universe_manager,  # Use the same universe manager with correct symbols
+                base_duration="60m"  # Use 60-minute intervals for universe state generation
+            )
+            
+            logger.info(f"🔄 Running universe state generation...")
+            await state_runner.run()
+            logger.info(f"✅ Universe state generation completed - universe state files now contain data for {args.symbols}")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Universe state generation failed: {e}")
+            logger.warning(f"   Training data generation will proceed but may lack historical context")
+            logger.warning(f"   The training data callback will use direct market data access instead")
+        
         runner = Runner(
             start_date=collection_start_date.strftime("%Y-%m-%d"),
             end_date=collection_end_date.strftime("%Y-%m-%d"),
             environment=environment,
             universe_id=args.universe_id or 1,
-            callbacks=[universe_state_builder, training_callback],  # ARCHITECTURE FIX: Add universe state builder BEFORE training callback
+            callbacks=[training_callback],  # 🚨 CRITICAL FIX: Only use training callback to prevent duplicate database insertions
             market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
+            universe_manager=universe_manager,  # 🚨 CRITICAL FIX: Use custom universe manager with proper symbols
             base_duration=args.base_duration
         )
 

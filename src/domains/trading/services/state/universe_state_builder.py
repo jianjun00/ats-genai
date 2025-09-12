@@ -79,22 +79,25 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         print(f"[DEBUG][handleInterval] Converting instrument_ids to symbols for FileBasedMinuteMarketDataManager")
         print(f"[DEBUG][handleInterval] FIXED TIME RANGE: [{base_start_time}, {base_end_time}] (past data for features)")
 
-        # ✅ CRITICAL FIX: Convert instrument_ids to symbols for FileBasedMinuteMarketDataManager
+        # ✅ FIXED: Convert instrument_ids to symbols using proper database lookup
         # FileBasedMinuteMarketDataManager expects symbols, not instrument_ids
-        #
-        # For now, use simple mapping since we know TSLA -> 9034
-        # TODO: Implement proper instrument_id to symbol lookup
-        inst_id_to_symbol = {9034: 'TSLA'}  # Hardcoded mapping for current test
-
+        
+        # Use InstrumentXrefsDAO for proper instrument_id to symbol lookup
+        from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
+        xrefs_dao = InstrumentXrefsDAO(runner.get_environment())
+        
+        # Batch lookup for efficiency
+        inst_id_to_symbol = await xrefs_dao.get_symbols_by_instrument_ids_batch(instrument_ids, "ticker")
+        
         symbols = []
         for inst_id in instrument_ids:
             symbol = inst_id_to_symbol.get(inst_id)
             if symbol:
                 symbols.append(symbol)
             else:
-                print(f"⚠️ [DEBUG] No symbol mapping found for instrument_id {inst_id}")
+                print(f"⚠️ [DEBUG] No symbol mapping found for instrument_id {inst_id} in database")
 
-        print(f"[DEBUG][handleInterval] Converted instrument_ids {instrument_ids} to symbols {symbols}")
+        print(f"[DEBUG][handleInterval] Converted instrument_ids {instrument_ids} to symbols {symbols} via database lookup")
         print(f"[DEBUG][handleInterval] Calling get_minute_ohlc_batch with symbols: {symbols}, start: {base_start_time}, end: {base_end_time}")
 
         # ✅ CRITICAL FIX: Use [base_start_time, base_end_time] = [current_time - base_duration, current_time]
@@ -102,7 +105,8 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         ohlc_batch = await runner.market_data_manager.get_minute_ohlc_batch(symbols, base_start_time, base_end_time)
 
         # Convert back to instrument_id-based dictionary for the rest of the code
-        symbol_to_inst_id = {'TSLA': 9034}  # Use same hardcoded mapping
+        # Create reverse mapping from the database lookup results
+        symbol_to_inst_id = {symbol: inst_id for inst_id, symbol in inst_id_to_symbol.items() if symbol is not None}
 
         # Restructure ohlc_batch to use instrument_ids as keys
         ohlc_batch_by_inst_id = {}
@@ -110,6 +114,8 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             inst_id = symbol_to_inst_id.get(symbol)
             if inst_id:
                 ohlc_batch_by_inst_id[inst_id] = ohlc_data
+            else:
+                print(f"⚠️ [DEBUG] No instrument_id mapping found for symbol {symbol}")
 
         ohlc_batch = ohlc_batch_by_inst_id
         print(f"[DEBUG][handleInterval] ohlc_batch keys: {list(ohlc_batch.keys()) if hasattr(ohlc_batch, 'keys') else type(ohlc_batch)}")
