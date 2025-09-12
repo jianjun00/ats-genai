@@ -167,6 +167,37 @@ python scripts/run_dev.py training_dataset get <dataset_id>
 python scripts/run_dev.py run --script src/domains/ml/services/training_data/runners/training_data_callback_runner.py
 ```
 
+## 🚨 **Critical Anti-Patterns to Avoid**
+
+**Infrastructure & Development:**
+- ❌ Running docker commands directly (use run_dev instead)
+- ❌ Creating new services/files when existing can be enhanced
+- ❌ Using mock/synthetic data outside unit tests
+- ❌ Claiming functionality works without tests
+- ❌ Writing tests after code (TDD requires tests first)
+- ❌ Skipping Playwright testing for UX changes
+- ❌ Not tracking training data generation in dev_runs table
+
+**Debugging & Problem Solving:**
+- ❌ Using workarounds without understanding root cause
+- ❌ Restarting services without checking logs first
+- ❌ Switching environments when current environment fails
+- ❌ Ignoring error messages and trying random fixes
+- ❌ Fixing symptoms instead of root causes
+
+## 🎯 **Success Criteria**
+
+**You're following best practices when you:**
+- Use run_dev for all development operations
+- Write failing tests before code changes
+- Run integration tests and see them pass
+- Enhance existing services instead of creating new ones
+- Use real data only - no mock/synthetic data outside tests
+- Track all training data generation in dev_runs table
+- Test ALL UX changes with Playwright before claiming success
+- Investigate logs before restarting services
+- Understand root causes before implementing fixes
+- Document investigation findings in commits/issues
 ## 🚨 **CRITICAL: Training Data Generation Flow**
 
 **❌ DO NOT use `dev_daily_prices` - This table is NOT used for training data**

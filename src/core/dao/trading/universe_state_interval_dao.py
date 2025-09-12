@@ -123,7 +123,7 @@ class UniverseStateIntervalDAO:
         self.env = env
         self.db_url = env.get_database_url()
 
-    async def create(self, universe_id: int, duration: str, start_date_time, end_date_time) -> int:
+    async def create(self, universe_id: int, duration: str, start_date_time, end_date_time, run_id: str) -> int:
         """Insert a new UniverseStateInterval record. Returns the new id (or interval_id)."""
         conn = await asyncpg.connect(self.db_url)
         try:
@@ -131,22 +131,22 @@ class UniverseStateIntervalDAO:
                 row = await conn.fetchrow(
                     f"""
                     INSERT INTO {self.env.get_table_name('universe_state_interval')} (
-                        universe_id, duration, start_date_time, end_date_time
-                    ) VALUES ($1, $2, $3, $4)
+                        universe_id, duration, start_date_time, end_date_time, run_id
+                    ) VALUES ($1, $2, $3, $4, $5)
                     RETURNING id
                     """,
-                    universe_id, duration, start_date_time, end_date_time
+                    universe_id, duration, start_date_time, end_date_time, run_id
                 )
                 return row['id']
             except asyncpg.UndefinedColumnError:
                 row = await conn.fetchrow(
                     f"""
                     INSERT INTO {self.env.get_table_name('universe_state_interval')} (
-                        universe_id, duration, start_date_time, end_date_time
-                    ) VALUES ($1, $2, $3, $4)
+                        universe_id, duration, start_date_time, end_date_time, run_id
+                    ) VALUES ($1, $2, $3, $4, $5)
                     RETURNING interval_id
                     """,
-                    universe_id, duration, start_date_time, end_date_time
+                    universe_id, duration, start_date_time, end_date_time, run_id
                 )
                 return row['interval_id']
         finally:

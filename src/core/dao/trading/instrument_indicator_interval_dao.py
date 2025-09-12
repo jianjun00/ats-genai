@@ -7,19 +7,30 @@ class InstrumentIndicatorIntervalDAO:
         self.env = env
         self.db_url = env.get_database_url()
 
-    async def create(self, instrument_interval_id: int, indicator_name: str, indicator_value: float, indicator_status: str = None) -> int:
+    async def create(self, instrument_interval_id: int, indicator_name: str, indicator_value: float, indicator_status: str = None, run_id: str = None) -> int:
         """Insert a new InstrumentIndicatorInterval. Returns new id."""
         conn = await asyncpg.connect(self.db_url)
         try:
-            row = await conn.fetchrow(
-                f"""
-                INSERT INTO {self.env.get_table_name('instrument_indicator_interval')} (
+            if run_id is not None:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('instrument_indicator_interval')} (
+                        instrument_interval_id, indicator_name, indicator_value, indicator_status, run_id
+                    ) VALUES ($1, $2, $3, $4, $5)
+                    RETURNING id
+                    """,
+                    instrument_interval_id, indicator_name, indicator_value, indicator_status, run_id
+                )
+            else:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('instrument_indicator_interval')} (
+                        instrument_interval_id, indicator_name, indicator_value, indicator_status
+                    ) VALUES ($1, $2, $3, $4)
+                    RETURNING id
+                    """,
                     instrument_interval_id, indicator_name, indicator_value, indicator_status
-                ) VALUES ($1, $2, $3, $4)
-                RETURNING id
-                """,
-                instrument_interval_id, indicator_name, indicator_value, indicator_status
-            )
+                )
             return row['id']
         finally:
             await conn.close()

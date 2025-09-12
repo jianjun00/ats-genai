@@ -43,8 +43,8 @@ from domains.trading.services.state.indicator_interval import IndicatorInterval
 from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 
 try:
-    from domains.ml.services.signals.indicator_builder import IndicatorBuilder
-    from domains.ml.services.signals.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
+    from domains.trading.services.indicators.indicator_config import IndicatorConfig
 except ImportError:
     # Fallback - these may not be available in all environments
     IndicatorBuilder = None
@@ -121,12 +121,32 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             ohlc = ohlc_batch.get(inst_id)
             print(f"[DEBUG][handleInterval] ohlc for inst_id {inst_id}: {ohlc}")
             if ohlc is not None and not ohlc.empty:
+                # ✅ CRITICAL FIX: Convert pandas Series to scalar values for InstrumentInterval
+                def safe_scalar_conversion(value, default=None):
+                    """Convert pandas Series or other types to scalar float."""
+                    if value is None:
+                        return None
+                    elif isinstance(value, (pd.Series, pd.core.series.Series)) or hasattr(value, 'iloc'):
+                        if len(value) > 0:
+                            # For OHLC data, use first value (assumes aggregated data)
+                            return float(value.iloc[0] if hasattr(value, 'iloc') else value[0])
+                        else:
+                            return default
+                    elif hasattr(value, '__len__') and len(value) > 0:  # Handle numpy arrays
+                        return float(value[0])
+                    else:
+                        # Try to convert to float directly
+                        try:
+                            return float(value)
+                        except (ValueError, TypeError):
+                            return default
+                
                 # Use None for missing OHLC fields; mark interval as 'missing' if all are None
-                open_ = ohlc.get('open') if ohlc.get('open') is not None else None
-                high_ = ohlc.get('high') if ohlc.get('high') is not None else None
-                low_ = ohlc.get('low') if ohlc.get('low') is not None else None
-                close_ = ohlc.get('close') if ohlc.get('close') is not None else None
-                volume_ = ohlc.get('volume') if ohlc.get('volume') is not None else None
+                open_ = safe_scalar_conversion(ohlc.get('open')) if ohlc.get('open') is not None else None
+                high_ = safe_scalar_conversion(ohlc.get('high')) if ohlc.get('high') is not None else None
+                low_ = safe_scalar_conversion(ohlc.get('low')) if ohlc.get('low') is not None else None
+                close_ = safe_scalar_conversion(ohlc.get('close')) if ohlc.get('close') is not None else None
+                volume_ = safe_scalar_conversion(ohlc.get('volume')) if ohlc.get('volume') is not None else None
                 all_none = all(x is None for x in [open_, high_, low_, close_, volume_])
                 status = 'missing' if all_none else 'ok'
                 traded_dollar = (close_ * volume_) if (close_ is not None and volume_ is not None) else None

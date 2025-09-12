@@ -7,19 +7,30 @@ class FactorIntervalDAO:
         self.env = env
         self.db_url = env.get_database_url()
 
-    async def create(self, universe_state_interval_id: int, factor_name: str, factor_value: float) -> int:
+    async def create(self, universe_state_interval_id: int, factor_name: str, factor_value: float, run_id: str = None) -> int:
         """Insert a new FactorInterval. Returns new id."""
         conn = await asyncpg.connect(self.db_url)
         try:
-            row = await conn.fetchrow(
-                f"""
-                INSERT INTO {self.env.get_table_name('factor_interval')} (
+            if run_id is not None:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('factor_interval')} (
+                        universe_state_interval_id, factor_name, factor_value, run_id
+                    ) VALUES ($1, $2, $3, $4)
+                    RETURNING id
+                    """,
+                    universe_state_interval_id, factor_name, factor_value, run_id
+                )
+            else:
+                row = await conn.fetchrow(
+                    f"""
+                    INSERT INTO {self.env.get_table_name('factor_interval')} (
+                        universe_state_interval_id, factor_name, factor_value
+                    ) VALUES ($1, $2, $3)
+                    RETURNING id
+                    """,
                     universe_state_interval_id, factor_name, factor_value
-                ) VALUES ($1, $2, $3)
-                RETURNING id
-                """,
-                universe_state_interval_id, factor_name, factor_value
-            )
+                )
             return row['id']
         finally:
             await conn.close()

@@ -144,25 +144,55 @@ COMMENT ON COLUMN intg_monthly_training_data.total_records IS 'Number of trainin
 COMMENT ON COLUMN intg_monthly_training_data.data_quality_score IS 'Data quality score for this month (0.0-1.0)';
 
 -- Create view for easy querying with instrument details
-CREATE OR REPLACE VIEW dev_monthly_training_data_with_instruments AS
-SELECT 
-    mtd.*,
-    i.name as instrument_name,
-    i.exchange,
-    i.sector,
-    i.market_cap
-FROM dev_monthly_training_data mtd
-LEFT JOIN dev_instruments i ON mtd.instrument_id = i.id;
-
-CREATE OR REPLACE VIEW intg_monthly_training_data_with_instruments AS
-SELECT 
-    mtd.*,
-    i.name as instrument_name,
-    i.exchange,
-    i.sector,
-    i.market_cap
-FROM intg_monthly_training_data mtd
-LEFT JOIN intg_instruments i ON mtd.instrument_id = i.id;
+-- Handle cases where market_cap column may not exist in instruments table
+DO $$ 
+BEGIN
+    -- Create dev view with conditional market_cap column
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'dev_instruments' AND column_name = 'market_cap') THEN
+        EXECUTE 'CREATE OR REPLACE VIEW dev_monthly_training_data_with_instruments AS
+        SELECT 
+            mtd.*,
+            i.name as instrument_name,
+            i.exchange,
+            i.sector,
+            i.market_cap
+        FROM dev_monthly_training_data mtd
+        LEFT JOIN dev_instruments i ON mtd.instrument_id = i.id';
+    ELSE
+        EXECUTE 'CREATE OR REPLACE VIEW dev_monthly_training_data_with_instruments AS
+        SELECT 
+            mtd.*,
+            i.name as instrument_name,
+            i.exchange,
+            i.sector
+        FROM dev_monthly_training_data mtd
+        LEFT JOIN dev_instruments i ON mtd.instrument_id = i.id';
+    END IF;
+    
+    -- Create intg view with conditional market_cap column
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'intg_instruments' AND column_name = 'market_cap') THEN
+        EXECUTE 'CREATE OR REPLACE VIEW intg_monthly_training_data_with_instruments AS
+        SELECT 
+            mtd.*,
+            i.name as instrument_name,
+            i.exchange,
+            i.sector,
+            i.market_cap
+        FROM intg_monthly_training_data mtd
+        LEFT JOIN intg_instruments i ON mtd.instrument_id = i.id';
+    ELSE
+        EXECUTE 'CREATE OR REPLACE VIEW intg_monthly_training_data_with_instruments AS
+        SELECT 
+            mtd.*,
+            i.name as instrument_name,
+            i.exchange,
+            i.sector
+        FROM intg_monthly_training_data mtd
+        LEFT JOIN intg_instruments i ON mtd.instrument_id = i.id';
+    END IF;
+END $$;
 
 -- Sample query examples for documentation
 /*

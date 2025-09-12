@@ -1,0 +1,1 @@
+# Service architecture templates for domain expansion

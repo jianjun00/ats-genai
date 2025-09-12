@@ -25,6 +25,13 @@ receivers:
             - targets: ['host.docker.internal:8000']  # ATS metrics endpoint
           scrape_interval: 30s
           metrics_path: '/metrics'
+        
+        - job_name: 'ats-pushgateway'
+          static_configs:
+            - targets: ['host.docker.internal:9091']  # Pushgateway metrics
+          scrape_interval: 15s
+          metrics_path: '/metrics'
+          honor_labels: true  # Preserve original job labels from pushgateway
 
 processors:
   batch:
