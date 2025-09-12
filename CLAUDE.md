@@ -40,14 +40,28 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - **✅ ALWAYS enhance existing services** - add features to current code
 - **✅ ALWAYS consolidate functionality** - reduce complexity, don't add it
 
-## 🐳 **Docker-First Development**
+## 🐳 **Docker-Compose Architecture (2025-09-12 Migration)**
 
-**ALWAYS USE DOCKER FOR ALL OPERATIONS:**
-- ✅ **DEV Environment = Docker containers on localhost**
-- ✅ **All operations = Use run_dev (handles Docker automatically)**
-- ❌ **NEVER run docker commands manually for dev work**
+**CRITICAL: Complete Docker-Compose Migration Completed**
+- **✅ MIGRATED**: From individual containers to orchestrated services
+- **✅ FIXED**: API authentication (valid keys: POLYGON, TIINGO, EODHD)
+- **✅ WORKING**: Analytics service with proper command paths
+- **✅ OPERATIONAL**: Environment-specific compose files
 
-### Primary Interface: run_dev
+### **🚨 USE DOCKER-COMPOSE FOR SERVICE MANAGEMENT**
+
+```bash
+# Environment-Specific Service Management
+docker-compose -f docker-compose.dev.yml up -d      # Dev environment
+docker-compose -f docker-compose.intg.yml up -d     # Integration environment  
+docker-compose -f docker-compose.monitoring.yml up -d # Monitoring stack
+
+# Service Status & Health
+docker-compose -f docker-compose.intg.yml ps
+curl -f http://localhost:4000/health                # Analytics health check
+```
+
+### **Legacy run_dev Interface (Still Available)**
 
 ```bash
 python scripts/run_dev.py setup                    # Setup dev environment
@@ -55,7 +69,6 @@ python scripts/run_dev.py start --service postgres # Start database
 python scripts/run_dev.py start --service analytics # Start analytics service
 python scripts/run_dev.py status                   # Check running services
 python scripts/run_dev.py test                     # Run tests
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instruments"
 ```
 
 ## 🐳 **CRITICAL DEPLOYMENT ARCHITECTURE**
@@ -110,6 +123,36 @@ PYTHONPATH=/workspace/src
 └── temp/                   # Temporary processing
 ```
 
+### **🚨 Critical Service Fixes (2025-09-12)**
+
+**✅ RESOLVED: Analytics Service Command Path**
+- **Issue**: `src/analytics/unified_analytics_service.py` (non-existent file)  
+- **Fixed**: `src/services/analytics_service.py` (correct path)
+- **Result**: Analytics service fully operational at http://localhost:4000
+
+**✅ RESOLVED: API Key Authentication**
+- **Issue**: Placeholder keys (`your_polygon_api_key_here`) causing 401 errors
+- **Fixed**: Valid API keys properly set in environment variables
+- **Result**: POLYGON_API_KEY, TIINGO_API_KEY, EODHD_API_KEY authenticated
+
+**✅ RESOLVED: Container Networking**
+- **Issue**: Services on different networks causing DNS failures
+- **Fixed**: All services use `ats-network` with proper container naming
+- **Result**: Postgres containers accessible as `ats-intg-postgres`, `ats-dev-postgres`
+
+### **🚨 Service Management Commands**
+
+```bash
+# START/STOP Environment Services
+docker-compose -f docker-compose.intg.yml up -d     # Start integration
+docker-compose -f docker-compose.intg.yml down      # Stop integration
+
+# DEBUG Service Issues
+docker logs ats-intg-analytics --tail 20            # Check analytics logs
+docker exec ats-intg-postgres pg_isready -U postgres # Test DB connectivity  
+docker inspect ats-intg-analytics | grep NetworkMode # Verify network
+```
+
 ### **🚨 Common Issues & Debug**
 
 **Connection Issues:**
@@ -147,12 +190,15 @@ PYTHONPATH=src python3 -m pytest tests/browser_tests/ -v --tb=short
 ## 📋 **Essential Commands**
 
 ```bash
-# Development Setup
-python scripts/run_dev.py setup
-python scripts/run_dev.py status
-python scripts/run_dev.py test
+# Docker-Compose Service Management (PREFERRED - 2025-09-12)
+docker-compose -f docker-compose.intg.yml up -d     # Start integration services
+docker-compose -f docker-compose.dev.yml up -d      # Start dev services
+docker-compose -f docker-compose.monitoring.yml up -d # Start monitoring
+docker-compose -f docker-compose.intg.yml ps        # Check service status
+docker-compose -f docker-compose.intg.yml down      # Stop services
 
-# Service Management  
+# Legacy run_dev Commands (Still Available)
+python scripts/run_dev.py setup
 python scripts/run_dev.py start --service postgres
 python scripts/run_dev.py start --service analytics
 python scripts/run_dev.py logs --service analytics
@@ -198,6 +244,7 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - Investigate logs before restarting services
 - Understand root causes before implementing fixes
 - Document investigation findings in commits/issues
+
 ## 🚨 **CRITICAL: Training Data Generation Flow**
 
 **❌ DO NOT use `dev_daily_prices` - This table is NOT used for training data**
@@ -225,38 +272,6 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - **Content**: QR4-compliant scalar data (timestamp, symbol, open, high, low, close, volume, vwap)
 - **Database**: Registered in `dev_training_dataset` table
 - **Tracking**: All runs logged in `dev_runs` table with command_line, git_commit_hash
-
-## 🚨 **Critical Anti-Patterns to Avoid**
-
-**Infrastructure & Development:**
-- ❌ Running docker commands directly (use run_dev instead)
-- ❌ Creating new services/files when existing can be enhanced
-- ❌ Using mock/synthetic data outside unit tests
-- ❌ Claiming functionality works without tests
-- ❌ Writing tests after code (TDD requires tests first)
-- ❌ Skipping Playwright testing for UX changes
-- ❌ Not tracking training data generation in dev_runs table
-
-**Debugging & Problem Solving:**
-- ❌ Using workarounds without understanding root cause
-- ❌ Restarting services without checking logs first
-- ❌ Switching environments when current environment fails
-- ❌ Ignoring error messages and trying random fixes
-- ❌ Fixing symptoms instead of root causes
-
-## 🎯 **Success Criteria**
-
-**You're following best practices when you:**
-- Use run_dev for all development operations
-- Write failing tests before code changes
-- Run integration tests and see them pass
-- Enhance existing services instead of creating new ones
-- Use real data only - no mock/synthetic data outside tests
-- Track all training data generation in dev_runs table
-- Test ALL UX changes with Playwright before claiming success
-- Investigate logs before restarting services
-- Understand root causes before implementing fixes
-- Document investigation findings in commits/issues
 
 ## 📚 **Additional Documentation**
 
