@@ -316,46 +316,21 @@ async def list_backtests(
 ):
     """List available backtest runs with filtering"""
     try:
-        # This would query the database for backtest runs
-        # For now, return mock data
-        mock_backtests = [
-            BacktestSummary(
-                backtest_run_id="adaptive_2023_100",
-                strategy_name="Adaptive S/R Strategy",
-                strategy_type="adaptive",
-                universe_size=100,
-                start_date=date(2023, 1, 1),
-                end_date=date(2024, 6, 30),
-                status="completed",
-                total_return=0.15,
-                sharpe_ratio=1.2,
-                max_drawdown=0.08,
-                created_at=datetime(2024, 7, 1, 10, 0, 0),
-                updated_at=datetime(2024, 7, 1, 18, 30, 0)
-            ),
-            BacktestSummary(
-                backtest_run_id="static_2023_100",
-                strategy_name="Static S/R Strategy",
-                strategy_type="static",
-                universe_size=100,
-                start_date=date(2023, 1, 1),
-                end_date=date(2024, 6, 30),
-                status="completed",
-                total_return=0.12,
-                sharpe_ratio=1.0,
-                max_drawdown=0.12,
-                created_at=datetime(2024, 7, 1, 10, 0, 0),
-                updated_at=datetime(2024, 7, 1, 16, 45, 0)
+        # Query the database for real backtest runs
+        backtests = await engine.get_backtest_runs(
+            limit=limit,
+            offset=offset,
+            strategy_type=strategy_type,
+            start_date=start_date
+        )
+        
+        if not backtests:
+            raise HTTPException(
+                status_code=404, 
+                detail="No backtest runs found. Ensure backtest data has been populated in the database."
             )
-        ]
-
-        # Apply filters
-        filtered_backtests = mock_backtests
-        if strategy_type:
-            filtered_backtests = [bt for bt in filtered_backtests if bt.strategy_type == strategy_type]
-
-        # Apply pagination
-        return filtered_backtests[offset:offset + limit]
+        
+        return backtests
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list backtests: {str(e)}")
@@ -399,7 +374,10 @@ async def get_portfolio_performance(
         )
 
         if performance_data.empty:
-            return []
+            raise HTTPException(
+                status_code=404,
+                detail=f"No performance data found for backtest run {backtest_run_id}. Ensure backtest has been executed and data is available."
+            )
 
         # Convert to response format
         result = []
@@ -466,21 +444,21 @@ async def get_forecasts(
 ) -> List[ForecastDataPoint]:
     """Get support/resistance forecasts with confidence levels"""
     try:
-        # This would fetch forecast data from the database
-        # For now, return mock data
-        mock_forecasts = [
-            ForecastDataPoint(
-                date=date(2024, 1, 15),
-                symbol=symbol or "AAPL",
-                support_levels=[180.0, 175.0],
-                resistance_levels=[190.0, 195.0],
-                support_confidence=[0.75, 0.60],
-                resistance_confidence=[0.70, 0.55],
-                actual_low=178.5,
-                actual_high=188.2
+        # Fetch real forecast data from the database
+        forecasts = await engine.get_forecasts(
+            backtest_run_id=backtest_run_id,
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        if not forecasts:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No forecast data found for backtest run {backtest_run_id}. Ensure forecast data has been generated and stored."
             )
-        ]
-        return mock_forecasts
+        
+        return forecasts
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get forecasts: {str(e)}")
 

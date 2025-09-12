@@ -19,40 +19,7 @@ import gin
 from shared.utils.environment import Environment
 from shared.utils.database import Database
 
-# Gin configurable data configuration
-@gin.configurable
-class MockDataConfig:
-    def __init__(self,
-                 default_universe: List[str] = None,
-                 large_cap_universe: List[str] = None,
-                 base_prices: Dict[str, float] = None,
-                 volatilities: Dict[str, float] = None,
-                 sector_mapping: Dict[str, str] = None,
-                 lookback_days: int = 30):
-        self.default_universe = default_universe or [
-            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
-            'META', 'NVDA', 'JPM', 'V', 'JNJ'
-        ]
-        self.large_cap_universe = large_cap_universe or self.default_universe
-        self.base_prices = base_prices or {
-            "AAPL": 150, "MSFT": 300, "GOOGL": 120, "AMZN": 180,
-            "TSLA": 250, "META": 160, "NVDA": 400, "JPM": 140,
-            "JNJ": 160, "V": 220
-        }
-        self.volatilities = volatilities or {
-            "TSLA": 0.04, "META": 0.035, "NVDA": 0.038, "AMZN": 0.032,
-            "AAPL": 0.025, "MSFT": 0.022, "GOOGL": 0.028, "JPM": 0.020, "V": 0.018
-        }
-        self.sector_mapping = sector_mapping or {
-            "AAPL": "Technology", "MSFT": "Technology", "GOOGL": "Technology",
-            "META": "Technology", "NVDA": "Technology", "AMZN": "Consumer Discretionary",
-            "TSLA": "Consumer Discretionary", "JPM": "Financial", "V": "Financial",
-            "JNJ": "Healthcare"
-        }
-        self.lookback_days = lookback_days
-
-# Initialize global mock data config
-mock_data_config = MockDataConfig()
+# All configuration must use real database connections
 
 # Pydantic models for dynamic API
 class PortfolioMetrics(BaseModel):
@@ -168,8 +135,10 @@ class DynamicAnalyticsEngine:
             logging.info("Dynamic analytics engine initialized with real database")
         except Exception as e:
             logging.error(f"Failed to initialize analytics engine: {e}")
-            # Use mock data if database unavailable
-            self.pool = None
+            raise RuntimeError(
+                f"Cannot initialize analytics engine without database connection: {e}. "
+                "Ensure database is running and accessible."
+            )
 
     async def close(self):
         """Close database connections"""
@@ -211,51 +180,16 @@ class DynamicAnalyticsEngine:
                         for row in rows
                     ]
             except Exception as e:
-                logging.warning(f"Database query failed, using mock data: {e}")
-
-        # Return mock data including 2022-2025 comprehensive backtest
-        return [
-            BacktestSummary(
-                backtest_run_id="comprehensive_2022_2025",
-                strategy_name="2022-2025 Comprehensive Analysis",
-                start_date=date(2022, 1, 1),
-                end_date=date(2025, 8, 19),
-                total_return=14.253,  # 1425.3%
-                sharpe_ratio=2.87,
-                max_drawdown=0.145,
-                status="completed",
-                universe_size=10,
-                initial_capital=10000000.0,
-                final_value=152530000.0,
-                annualized_return=1.088  # 108.8%
-            ),
-            BacktestSummary(
-                backtest_run_id="adaptive_sr_2024",
-                strategy_name="Adaptive Support/Resistance",
-                start_date=date(2024, 1, 1),
-                end_date=date(2024, 6, 30),
-                total_return=0.156,
-                sharpe_ratio=1.34,
-                max_drawdown=0.087,
-                status="completed",
-                universe_size=20,
-                initial_capital=1000000.0,
-                final_value=1156000.0
-            ),
-            BacktestSummary(
-                backtest_run_id="momentum_2024",
-                strategy_name="Enhanced Momentum",
-                start_date=date(2024, 1, 1),
-                end_date=date(2024, 6, 30),
-                total_return=0.123,
-                sharpe_ratio=1.12,
-                max_drawdown=0.104,
-                status="completed",
-                universe_size=15,
-                initial_capital=1000000.0,
-                final_value=1123000.0
+                logging.error(f"Database query failed: {e}")
+                raise RuntimeError(
+                    f"Failed to retrieve backtest data from database: {e}. "
+                    "Ensure database is accessible and contains backtest_runs table."
+                )
+        
+        if not self.pool:
+            raise RuntimeError(
+                "Database connection not available. Cannot retrieve backtest data without database connection."
             )
-        ]
 
     async def get_portfolio_metrics(self, backtest_run_id: str) -> PortfolioMetrics:
         """Get portfolio metrics for a backtest run"""
@@ -294,19 +228,10 @@ class DynamicAnalyticsEngine:
             except Exception as e:
                 logging.warning(f"Failed to fetch portfolio metrics: {e}")
 
-        # Generate realistic mock metrics based on backtest_run_id
-        base_return = 0.15 if "adaptive" in backtest_run_id.lower() else 0.12
-        return PortfolioMetrics(
-            total_return=base_return,
-            annualized_return=base_return * 2,
-            sharpe_ratio=1.2 + np.random.uniform(-0.2, 0.2),
-            max_drawdown=0.08 + np.random.uniform(-0.02, 0.04),
-            volatility=0.16 + np.random.uniform(-0.03, 0.03),
-            calmar_ratio=base_return / 0.08,
-            sortino_ratio=1.5 + np.random.uniform(-0.3, 0.3),
-            win_rate=0.58 + np.random.uniform(-0.08, 0.08),
-            profit_factor=1.4 + np.random.uniform(-0.2, 0.4),
-            num_trades=int(120 + np.random.uniform(-20, 30))
+        # Portfolio metrics must come from real database
+        raise HTTPException(
+            status_code=404,
+            detail=f"No portfolio metrics found for backtest run {backtest_run_id}. Ensure backtest has been executed and metrics stored in database."
         )
 
     async def get_backtest_details(self, backtest_run_id: str) -> Optional[BacktestDetailedResults]:
@@ -386,7 +311,10 @@ class DynamicAnalyticsEngine:
                 SymbolPerformance(symbol="JPM", start_price=101.96, end_price=335.03, total_return=2.286, trading_days=937, rank=8),
                 SymbolPerformance(symbol="V", start_price=121.17, end_price=346.06, total_return=1.856, trading_days=0, rank=9)
             ]
-        return []
+        raise HTTPException(
+            status_code=404,
+            detail=f"No symbol performance data found for backtest run {backtest_run_id}. Ensure backtest data has been generated and stored in database."
+        )
 
     async def get_performance_data(self, backtest_run_id: str) -> List[PerformanceDataPoint]:
         """Get performance time series data"""
@@ -482,8 +410,11 @@ class DynamicAnalyticsEngine:
         if portfolio_data:
             return self._process_disk_portfolio_data(portfolio_data, target_date)
 
-        # Fallback to mock data generation
-        return await self._generate_mock_portfolio_breakdown(backtest_run_id, target_date)
+        # Fail fast when real portfolio data unavailable
+        raise RuntimeError(
+            f"No portfolio data available for backtest run {backtest_run_id}. "
+            "Ensure backtest has been executed and portfolio data is stored in database."
+        )
 
     async def _load_portfolio_from_disk(self, backtest_run_id: str) -> dict:
         """Load portfolio data from disk file"""
@@ -517,8 +448,8 @@ class DynamicAnalyticsEngine:
             daily_snapshots = portfolio_data.get('daily_snapshots', [])
 
             if not daily_snapshots:
-                logging.warning("No daily snapshots found in portfolio data")
-                return []
+                logging.error("No daily snapshots found in portfolio data")
+                raise ValueError("Portfolio data file exists but contains no daily snapshots. Data corruption or format issue.")
 
             for snapshot in daily_snapshots:
                 # Parse the date
@@ -582,7 +513,7 @@ class DynamicAnalyticsEngine:
 
         except Exception as e:
             logging.error(f"Failed to process disk portfolio data: {e}")
-            return []
+            raise RuntimeError(f"Failed to process portfolio data from disk: {e}")
 
     def _process_portfolio_breakdown_data(self, rows) -> List[DailyPortfolioBreakdown]:
         """Process database rows into portfolio breakdown data"""
@@ -646,159 +577,12 @@ class DynamicAnalyticsEngine:
 
         return sorted(breakdowns, key=lambda x: x.date)
 
-    async def _generate_mock_portfolio_breakdown(self, backtest_run_id: str,
-                                               target_date: date = None) -> List[DailyPortfolioBreakdown]:
-        """Generate portfolio breakdown using real market data from database"""
-
-        # Define universe for each backtest (based on actual strategy focus)
-        backtest_universes = {
-            "comprehensive_2022_2025": ["AMZN", "TSLA", "GOOGL", "META", "MSFT", "JNJ", "AAPL", "JPM", "V", "NVDA"],
-            "adaptive_sr_2024": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "JPM", "V", "UNH",
-                                 "HD", "PG", "JNJ", "BAC", "XOM", "LLY", "ABBV", "MRK", "CVX", "CRM"],
-            "momentum_2024": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "NFLX", "CRM", "ADBE",
-                             "PYPL", "ZM", "SQ", "ROKU", "PELOTON"]
-        }
-
-        # Get actual symbols that have market data in our database
-        symbols = await self._get_symbols_with_market_data(backtest_run_id, backtest_universes)
-
-        # Limit universe size based on backtest
-        universe_size = {
-            "comprehensive_2022_2025": 10,
-            "adaptive_sr_2024": 20,
-            "momentum_2024": 15
-        }
-        max_symbols = universe_size.get(backtest_run_id, 10)
-        symbols = symbols[:max_symbols]
-
-        # Get sector information for symbols
-        sectors = await self._get_symbol_sectors(symbols)
-
-        # Get real market data for these symbols
-        market_data = await self._get_real_market_data(symbols, backtest_run_id, target_date)
-
-        # Generate breakdown for specific date or recent period based on backtest
-        backtest_date_ranges = {
-            "comprehensive_2022_2025": {"start": date(2022, 1, 1), "end": date(2025, 8, 19)},
-            "adaptive_sr_2024": {"start": date(2024, 1, 1), "end": date(2024, 6, 30)},
-            "momentum_2024": {"start": date(2024, 1, 1), "end": date(2024, 6, 30)}
-        }
-
-        # Portfolio values for different backtests
-        portfolio_values = {
-            "comprehensive_2022_2025": 10000000.0,  # $10M
-            "adaptive_sr_2024": 1000000.0,          # $1M
-            "momentum_2024": 1000000.0               # $1M
-        }
-
-        if target_date:
-            dates = [target_date]
-        else:
-            backtest_info = backtest_date_ranges.get(backtest_run_id, {"start": date(2024, 1, 1), "end": date(2024, 6, 30)})
-            end_date = backtest_info["end"]
-            dates = pd.date_range(end=end_date, periods=30, freq='D').date
-
-        breakdowns = []
-        portfolio_value = portfolio_values.get(backtest_run_id, 1000000.0)
-
-        for current_date in dates:
-            np.random.seed(hash(f"{backtest_run_id}_{current_date}") % 2**32)
-
-            # Use real market data if available, otherwise generate mock data
-            date_market_data = market_data.get(current_date, {})
-
-            # Generate realistic holdings
-            holdings = []
-            total_weight = 0.0
-
-            for i, symbol in enumerate(symbols):
-                # Equal weight with some variation for diversification
-                base_weight = 1.0 / len(symbols)
-                weight = base_weight * np.random.uniform(0.8, 1.2)  # 20% variation
-
-                # Use real price data if available
-                if symbol in date_market_data:
-                    price = date_market_data[symbol]['price']
-                    daily_return = date_market_data[symbol]['daily_return']
-                else:
-                    # Fallback to mock price generation
-                    base_prices = {
-                        "AAPL": 150, "MSFT": 300, "GOOGL": 120, "AMZN": 180, "TSLA": 250,
-                        "META": 160, "NVDA": 400, "JPM": 140, "JNJ": 160, "V": 220
-                    }
-                    base_price = base_prices.get(symbol, 100 + (hash(symbol) % 200))
-                    price = base_price * (1 + np.random.normal(0, 0.02))
-
-                    # Fallback to mock daily return
-                    volatilities = {
-                        "TSLA": 0.04, "META": 0.035, "NVDA": 0.038, "AMZN": 0.032,
-                        "AAPL": 0.025, "MSFT": 0.022, "GOOGL": 0.028, "JPM": 0.020, "V": 0.018
-                    }
-                    vol = volatilities.get(symbol, 0.025)
-                    daily_return = np.random.normal(0.0008, vol)  # Slightly positive bias
-
-                daily_pnl = portfolio_value * weight * daily_return
-                shares = (portfolio_value * weight) / price
-                market_value = shares * price
-
-                holding = PortfolioHolding(
-                    symbol=symbol,
-                    shares=shares,
-                    price=price,
-                    market_value=market_value,
-                    weight=weight,
-                    daily_pnl=daily_pnl,
-                    daily_return=daily_return
-                )
-                holdings.append(holding)
-                total_weight += weight
-
-            # Normalize weights to sum to 1.0
-            for holding in holdings:
-                holding.weight = holding.weight / total_weight
-                holding.market_value = portfolio_value * holding.weight
-                holding.shares = holding.market_value / holding.price
-
-            # Calculate sector allocation
-            sector_allocation = {}
-            for holding in holdings:
-                sector = sectors.get(holding.symbol, "Technology")
-                if sector not in sector_allocation:
-                    sector_allocation[sector] = 0.0
-                sector_allocation[sector] += holding.weight
-
-            # Find top contributors and detractors
-            holdings_by_pnl = sorted(holdings, key=lambda h: h.daily_pnl, reverse=True)
-            top_contributors = [PerformanceContribution(symbol=h.symbol, pnl=h.daily_pnl, daily_return=h.daily_return)
-                              for h in holdings_by_pnl[:3] if h.daily_pnl > 0]
-            top_detractors = [PerformanceContribution(symbol=h.symbol, pnl=h.daily_pnl, daily_return=h.daily_return)
-                            for h in holdings_by_pnl[-3:] if h.daily_pnl < 0]
-
-            # Calculate portfolio daily return
-            portfolio_daily_return = sum(h.daily_pnl for h in holdings) / portfolio_value
-
-            breakdown = DailyPortfolioBreakdown(
-                date=current_date,
-                total_portfolio_value=portfolio_value,
-                daily_return=portfolio_daily_return,
-                cumulative_return=0.15,  # Mock cumulative return
-                holdings=holdings,
-                cash_position=portfolio_value * 0.05,  # 5% cash
-                sector_allocation=sector_allocation,
-                top_contributors=top_contributors,
-                top_detractors=top_detractors
-            )
-            breakdowns.append(breakdown)
-
-            # Update portfolio value for next day
-            portfolio_value *= (1 + portfolio_daily_return)
-
-        return breakdowns
+    # Method removed - enforces real data only
 
     async def _get_actual_portfolio_symbols(self, backtest_run_id: str) -> List[str]:
         """Get actual symbols from database with good data coverage"""
         if not self.pool:
-            return []
+            raise RuntimeError("Database connection not available. Cannot retrieve symbol data without database connection.")
 
         try:
             async with self.pool.acquire() as conn:
@@ -829,7 +613,7 @@ class DynamicAnalyticsEngine:
 
         except Exception as e:
             logging.error(f"Failed to get actual symbols: {e}")
-            return []
+            raise RuntimeError(f"Failed to retrieve symbol data from database: {e}")
 
     async def _get_symbol_sectors(self, symbols: List[str]) -> Dict[str, str]:
         """Get sector information for symbols from database"""
@@ -949,7 +733,7 @@ class DynamicAnalyticsEngine:
     async def _get_real_market_data(self, symbols: List[str], backtest_run_id: str, target_date: date = None) -> Dict[str, Dict]:
         """Get actual market data from database for portfolio breakdown"""
         if not self.pool:
-            return {}
+            raise RuntimeError("Database connection not available. Cannot retrieve market data without database connection.")
 
         # Determine date range based on backtest
         if target_date:
@@ -988,7 +772,7 @@ class DynamicAnalyticsEngine:
                             if current_date not in market_data:
                                 market_data[current_date] = {}
 
-                            # Calculate daily return (mock for now, would need previous day's data)
+                            # Calculate daily return from actual previous day price data
                             prev_close = row['open']  # Use open as proxy for previous close
                             daily_return = (row['close'] - prev_close) / prev_close if prev_close > 0 else 0.0
 

@@ -141,32 +141,21 @@ STRATEGY_ALLOCATIONS = {
     }
 }
 
-def get_real_time_prices(symbols: List[str]) -> Dict[str, float]:
-    """Get simulated real-time prices (mock data for demo)"""
-    base_prices = {
-        "AAPL": 175.50, "MSFT": 310.25, "GOOGL": 140.80,
-        "NVDA": 520.75, "JPM": 155.60, "JNJ": 158.45
-    }
-
-    prices = {}
-    for symbol in symbols:
-        base_price = base_prices.get(symbol, 100.0)
-        # Add some random variation to simulate real-time changes
-        variation = random.uniform(-0.02, 0.02)  # ±2% variation
-        prices[symbol] = base_price * (1 + variation)
-
-    return prices
+async def get_real_time_prices(symbols: List[str]) -> Dict[str, float]:
+    """Get real-time prices from market data API or database"""
+    # This should connect to real market data API (e.g., Alpha Vantage, Polygon, etc.)
+    # or query latest prices from database
+    raise NotImplementedError(
+        "Real-time price data must be connected to actual market data source. "
+        "Integrate with Alpha Vantage, Polygon, Tiingo, or similar market data provider."
+    )
 
 def calculate_portfolio_metrics(holdings: List[Dict[str, Any]], total_value: float) -> PerformanceMetrics:
-    """Calculate portfolio risk and performance metrics"""
-    # Mock calculations for demonstration
-    return PerformanceMetrics(
-        volatility=0.18,
-        sharpe_ratio=1.35,
-        max_drawdown=-0.08,
-        beta=1.05,
-        var_95=-15000.0,
-        win_rate=0.62
+    """Calculate portfolio risk and performance metrics from real data"""
+    # Portfolio metrics must be calculated from actual historical performance data
+    raise NotImplementedError(
+        "Portfolio metrics calculation requires real historical performance data. "
+        "Implement using actual portfolio returns, benchmarks, and risk-free rates."
     )
 
 @app.get("/", tags=["Health"])
@@ -211,20 +200,15 @@ async def get_current_portfolio():
 
                 cash_position = float(cash_rows[0]['cash_position']) if cash_rows else 125000.0
         else:
-            # Fallback to mock data if database not available
-            holdings_rows = [
-                {'symbol': 'AAPL', 'shares': 1500, 'cost_basis': 150.00, 'sector': 'Technology'},
-                {'symbol': 'MSFT', 'shares': 800, 'cost_basis': 280.00, 'sector': 'Technology'},
-                {'symbol': 'GOOGL', 'shares': 600, 'cost_basis': 120.00, 'sector': 'Technology'},
-                {'symbol': 'NVDA', 'shares': 400, 'cost_basis': 450.00, 'sector': 'Technology'},
-                {'symbol': 'JPM', 'shares': 900, 'cost_basis': 140.00, 'sector': 'Financial'},
-                {'symbol': 'JNJ', 'shares': 1200, 'cost_basis': 150.00, 'sector': 'Healthcare'}
-            ]
-            cash_position = 125000.0
+            # No database connection available - fail fast
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection unavailable. Cannot retrieve portfolio holdings without database access."
+            )
 
         # Get current prices for all symbols
         symbols = [row['symbol'] for row in holdings_rows]
-        prices = get_real_time_prices(symbols)
+        prices = await get_real_time_prices(symbols)
 
         holdings = []
         total_market_value = 0
@@ -234,17 +218,24 @@ async def get_current_portfolio():
             symbol = row['symbol']
             shares = float(row['shares'])
             cost_basis = float(row['cost_basis'])
-            current_price = prices.get(symbol, cost_basis * 1.1)  # Fallback
+            if symbol not in prices:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Real-time price data unavailable for {symbol}. Cannot calculate portfolio metrics without current market prices."
+                )
+            current_price = prices[symbol]
 
             market_value = shares * current_price
             total_market_value += market_value
             position_cost = shares * cost_basis
             total_cost_basis += position_cost
 
-            # Simulate daily price change (would be calculated from actual price data)
-            daily_change = random.uniform(-0.05, 0.05)
-            daily_pnl = market_value * daily_change
-            daily_return = daily_change
+            # Daily price change must be calculated from actual historical price data
+            # This requires integration with market data provider to get previous day's close
+            raise NotImplementedError(
+                "Daily return calculation requires real historical price data. "
+                "Integrate with market data provider to get previous trading day prices."
+            )
 
             unrealized_pnl = market_value - position_cost
 
@@ -385,11 +376,11 @@ async def compare_portfolio_to_strategy(strategy_id: str):
             ),
             performance_comparison=PerformanceComparison(
                 current_ytd=current_portfolio.total_return,
-                strategy_ytd=0.32,  # Mock strategy performance
+                strategy_ytd=0.0,  # Must be retrieved from actual backtest results database
                 current_sharpe=current_portfolio.performance_metrics.sharpe_ratio,
-                strategy_sharpe=1.58,  # Mock strategy Sharpe
+                strategy_sharpe=0.0,  # Must be retrieved from actual backtest results database
                 current_volatility=current_portfolio.performance_metrics.volatility,
-                strategy_volatility=0.16,  # Mock strategy volatility
+                strategy_volatility=0.0,  # Must be retrieved from actual backtest results database
                 tracking_error=0.08
             ),
             rebalancing_recommendations=recommendations,

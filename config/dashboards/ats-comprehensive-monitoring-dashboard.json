@@ -1,0 +1,717 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ATS Comprehensive Services Monitor",
+    "tags": ["ats", "infrastructure", "monitoring", "fintech"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🚀 Service Health Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=~\"ats-.*\"}",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  },
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  }
+                },
+                "type": "value"
+              }
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 0},
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": 2,
+        "title": "📊 Instruments by Environment",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_instruments_total",
+            "legendFormat": "{{environment}}",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 6},
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "center"
+        }
+      },
+      {
+        "id": 3,
+        "title": "⚡ Minute Bars Collected (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "increase(ats_minute_bars_collected_total[24h])",
+            "legendFormat": "{{vendor}}-{{environment}}",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 6},
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "center"
+        }
+      },
+      {
+        "id": 4,
+        "title": "📈 Daily Prices Processed (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "increase(ats_daily_prices_sync_prices_processed_total[24h])",
+            "legendFormat": "{{vendor}}-{{environment}}",
+            "refId": "D"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 6},
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "center"
+        }
+      },
+      {
+        "id": 5,
+        "title": "🔄 Real-Time Data Collection Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(ats_minute_bars_collected_total[5m])",
+            "legendFormat": "{{vendor}}-{{environment}} Bars/sec",
+            "refId": "E"
+          },
+          {
+            "expr": "rate(ats_daily_prices_sync_prices_processed_total[5m])",
+            "legendFormat": "{{vendor}}-{{environment}} Prices/sec",
+            "refId": "F"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "🗄️ Database Health - Connections & Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "postgresql_connections_active",
+            "legendFormat": "Active Connections",
+            "refId": "G"
+          },
+          {
+            "expr": "postgresql_connections_idle",
+            "legendFormat": "Idle Connections",
+            "refId": "H"
+          },
+          {
+            "expr": "postgresql_queries_per_second",
+            "legendFormat": "Queries/sec",
+            "refId": "I"
+          },
+          {
+            "expr": "postgresql_cache_hit_ratio * 100",
+            "legendFormat": "Cache Hit Ratio %",
+            "refId": "J"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Cache Hit Ratio %"},
+              "properties": [
+                {"id": "unit", "value": "percent"},
+                {"id": "custom.axisPlacement", "value": "right"}
+              ]
+            }
+          ]
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "💾 System Resources (CPU, Memory, Disk)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "postgresql_cpu_percent",
+            "legendFormat": "PostgreSQL CPU %",
+            "refId": "K"
+          },
+          {
+            "expr": "postgresql_memory_mb",
+            "legendFormat": "PostgreSQL Memory MB",
+            "refId": "L"
+          },
+          {
+            "expr": "postgresql_disk_usage_percent",
+            "legendFormat": "Disk Usage %",
+            "refId": "M"
+          },
+          {
+            "expr": "ats_memory_total_bytes / 1024 / 1024 / 1024",
+            "legendFormat": "Total System Memory GB",
+            "refId": "N"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byRegexp", "options": ".*%"},
+              "properties": [
+                {"id": "unit", "value": "percent"},
+                {"id": "max", "value": 100}
+              ]
+            },
+            {
+              "matcher": {"id": "byRegexp", "options": ".*MB"},
+              "properties": [
+                {"id": "unit", "value": "decbytes"}
+              ]
+            },
+            {
+              "matcher": {"id": "byRegexp", "options": ".*GB"},
+              "properties": [
+                {"id": "unit", "value": "decbytes"},
+                {"id": "custom.axisPlacement", "value": "right"}
+              ]
+            }
+          ]
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "📡 API Success Rates & Error Monitoring",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(ats_daily_prices_backfill_api_calls_total{status=\"200\"}[5m])",
+            "legendFormat": "{{vendor}} API Success/sec",
+            "refId": "O"
+          },
+          {
+            "expr": "rate(ats_daily_prices_backfill_api_calls_total{status!=\"200\"}[5m])",
+            "legendFormat": "{{vendor}} API Errors/sec",
+            "refId": "P"
+          },
+          {
+            "expr": "rate(api_errors_total[5m])",
+            "legendFormat": "General API Errors/sec",
+            "refId": "Q"
+          },
+          {
+            "expr": "rate(ats_news_api_calls_total{status=\"200\"}[5m])",
+            "legendFormat": "{{vendor}} News API Success/sec",
+            "refId": "R"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2
+            },
+            "unit": "reqps"
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byRegexp", "options": ".*Error.*"},
+              "properties": [
+                {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
+              ]
+            }
+          ]
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 28},
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "🔍 Data Quality & Coverage Metrics",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "ats_price_coverage_percentage",
+            "legendFormat": "Price Coverage %",
+            "refId": "S"
+          },
+          {
+            "expr": "ats_daily_prices_sync_success_rate * 100",
+            "legendFormat": "Sync Success Rate %",
+            "refId": "T"
+          },
+          {
+            "expr": "ats_daily_prices_backfill_success_rate * 100",
+            "legendFormat": "Backfill Success Rate %",
+            "refId": "U"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "green", "value": 90}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36},
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 10,
+        "title": "📊 Data Volume by Vendor & Type",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (vendor) (ats_minute_bars_collected_total)",
+            "legendFormat": "{{vendor}} Minute Bars",
+            "refId": "V"
+          },
+          {
+            "expr": "sum by (vendor) (ats_daily_prices_sync_prices_processed_total)",
+            "legendFormat": "{{vendor}} Daily Prices",
+            "refId": "W"
+          },
+          {
+            "expr": "sum by (vendor) (ats_news_articles_collected_total)",
+            "legendFormat": "{{vendor}} News Articles",
+            "refId": "X"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36},
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "donut",
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          },
+          "legend": {
+            "displayMode": "visible",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "⏱️ Processing Duration & Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(ats_daily_prices_sync_duration_seconds_bucket[5m]))",
+            "legendFormat": "Sync P95 Duration",
+            "refId": "Y"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(ats_daily_prices_backfill_duration_seconds_bucket[5m]))",
+            "legendFormat": "Backfill P95 Duration",
+            "refId": "Z"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(collection_duration_seconds_bucket[5m]))",
+            "legendFormat": "Collection P95 Duration",
+            "refId": "AA"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(ats_daily_prices_sync_duration_seconds_bucket[5m]))",
+            "legendFormat": "Sync P50 Duration",
+            "refId": "BB"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2
+            },
+            "unit": "s"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 44},
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "🚨 Alerts & Issues Summary",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "postgresql_blocked_queries > 0",
+            "legendFormat": "Blocked Queries: {{instance}}",
+            "refId": "CC",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "postgresql_long_running_queries > 0",
+            "legendFormat": "Long Running Queries: {{instance}}",
+            "refId": "DD",
+            "format": "table", 
+            "instant": true
+          },
+          {
+            "expr": "up{job=~\"ats-.*\"} == 0",
+            "legendFormat": "Service Down: {{job}}",
+            "refId": "EE",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "ats_price_coverage_percentage < 90",
+            "legendFormat": "Low Coverage: {{instance}}",
+            "refId": "FF",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "displayMode": "color-background",
+              "filterable": true
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "transparent", "value": null},
+                {"color": "red", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 52},
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "desc": true,
+              "displayName": "Time"
+            }
+          ]
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "__name__": true,
+                "job": false,
+                "instance": false
+              },
+              "renameByName": {
+                "job": "Service",
+                "instance": "Instance",
+                "Value": "Alert Value"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "📈 Training Dataset Creation Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(ats_training_datasets_created_total[24h])",
+            "legendFormat": "Datasets Created (24h)",
+            "refId": "GG"
+          },
+          {
+            "expr": "ats_training_dataset_size_mb",
+            "legendFormat": "Dataset Size MB - {{dataset_name}}",
+            "refId": "HH"
+          },
+          {
+            "expr": "ats_training_dataset_quality_score",
+            "legendFormat": "Quality Score - {{dataset_name}}",
+            "refId": "II"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byRegexp", "options": ".*Quality Score.*"},
+              "properties": [
+                {"id": "custom.axisPlacement", "value": "right"},
+                {"id": "unit", "value": "percentunit"},
+                {"id": "max", "value": 1},
+                {"id": "min", "value": 0}
+              ]
+            },
+            {
+              "matcher": {"id": "byRegexp", "options": ".*Size MB.*"},
+              "properties": [
+                {"id": "unit", "value": "decbytes"}
+              ]
+            }
+          ]
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 60},
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "🌐 Active Symbols & Coverage by Exchange",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "active_symbols",
+            "legendFormat": "Active Symbols",
+            "refId": "JJ"
+          },
+          {
+            "expr": "sum by (instrument_type) (ats_daily_minute_backfill_symbols_by_type)",
+            "legendFormat": "{{instrument_type}} Symbols",
+            "refId": "KK"
+          },
+          {
+            "expr": "sum by (letter) (ats_daily_minute_backfill_symbols_by_letter)",
+            "legendFormat": "Letter {{letter}} Symbols",
+            "refId": "LL"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 68},
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showUnfilled": true
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(ats_instruments_total, environment)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true,
+          "allValue": ".*"
+        },
+        {
+          "name": "vendor",
+          "type": "query", 
+          "query": "label_values(ats_minute_bars_collected_total, vendor)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true,
+          "allValue": ".*"
+        },
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values(up, job)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true,
+          "allValue": ".*",
+          "regex": "/ats-.*/"
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployment Events",
+          "enable": true,
+          "iconColor": "green",
+          "query": "ats_deployment_timestamp"
+        },
+        {
+          "name": "Service Restarts",
+          "enable": true,
+          "iconColor": "blue", 
+          "query": "increase(ats_service_restart_total[1m]) > 0"
+        }
+      ]
+    },
+    "schemaVersion": 27,
+    "version": 1,
+    "links": [
+      {
+        "title": "ATS Operations Guide",
+        "url": "/docs/OPERATIONS.md",
+        "type": "link"
+      },
+      {
+        "title": "SignOZ Services",
+        "url": "http://localhost:8080/services",
+        "type": "link"
+      }
+    ]
+  }
+}

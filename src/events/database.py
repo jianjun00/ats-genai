@@ -294,7 +294,7 @@ class EventStorage:
                 
         except Exception as e:
             logger.error(f"❌ Failed to query events: {e}")
-            return []
+            raise RuntimeError(f"Database query failed: {e}. Ensure event database is accessible and properly configured.")
     
     def search_events(self, search_text: str, limit: int = 100) -> List[Dict[str, Any]]:
         """Full-text search events"""
@@ -313,7 +313,7 @@ class EventStorage:
                 
         except Exception as e:
             logger.error(f"❌ Failed to search events: {e}")
-            return []
+            raise RuntimeError(f"Event search failed: {e}. Ensure event database search functionality is properly configured.")
     
     def store_correlation(self, correlation: Dict[str, Any]) -> bool:
         """Store event correlation"""
@@ -362,7 +362,7 @@ class EventStorage:
                 
         except Exception as e:
             logger.error(f"❌ Failed to get correlations: {e}")
-            return []
+            raise RuntimeError(f"Event correlation query failed: {e}. Ensure correlation tables are accessible and properly configured.")
     
     def update_event_metadata(self, event_id: str, metadata: Dict[str, Any]) -> bool:
         """Update event processing metadata"""
