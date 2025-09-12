@@ -67,18 +67,18 @@ if rsync -avH \
     --exclude='Thumbs.db' \
     --log-file="$LOG_FILE.rsync" \
     "$SOURCE_DIR/" "$SNAPSHOT_PATH/" 2>>"$LOG_FILE"; then
-    
+
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
     HOURS=$((DURATION / 3600))
     MINUTES=$(((DURATION % 3600) / 60))
     SECONDS=$((DURATION % 60))
-    
+
     SNAPSHOT_SIZE=$(du -sh "$SNAPSHOT_PATH" | cut -f1)
     log "✅ Full snapshot completed successfully"
     log "📊 Snapshot size: $SNAPSHOT_SIZE"
     log "⏱️  Duration: ${HOURS}h ${MINUTES}m ${SECONDS}s"
-    
+
     # Create metadata file
     cat > "$SNAPSHOT_PATH/.backup_metadata.json" << EOF
 {
@@ -93,16 +93,16 @@ if rsync -avH \
     "rsync_log": "$LOG_FILE.rsync"
 }
 EOF
-    
+
     # Create/update latest snapshot symlink
     ln -sfn "$SNAPSHOT_NAME" "$SNAPSHOT_DIR/latest"
     log "🔗 Updated latest snapshot symlink"
-    
+
     # Verify snapshot integrity (sample check)
     log "🔍 Performing integrity verification..."
     SAMPLE_FILES=$(find "$SOURCE_DIR" -type f -name "*.parquet" | head -10)
     INTEGRITY_PASSED=true
-    
+
     while IFS= read -r file; do
         if [[ -n "$file" ]]; then
             rel_path=${file#$SOURCE_DIR/}
@@ -112,13 +112,13 @@ EOF
             fi
         fi
     done <<< "$SAMPLE_FILES"
-    
+
     if [[ "$INTEGRITY_PASSED" == "true" ]]; then
         log "✅ Snapshot integrity verification passed"
     else
         log "⚠️  WARNING: Some integrity checks failed - see log for details"
     fi
-    
+
 else
     log "❌ ERROR: Full snapshot failed"
     # Clean up failed snapshot

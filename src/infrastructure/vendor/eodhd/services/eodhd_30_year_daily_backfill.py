@@ -70,7 +70,7 @@ class EODHD30YearBackfiller:
             'errors': 0,
             'skipped_instruments': 0
         }
-        
+
         # Initialize Prometheus metrics if available
         if PROMETHEUS_AVAILABLE:
             self.backfill_symbols_processed = Counter(
@@ -79,7 +79,7 @@ class EODHD30YearBackfiller:
                 ['vendor', 'environment']
             )
             self.backfill_prices_collected = Counter(
-                'ats_daily_prices_backfill_prices_collected_total', 
+                'ats_daily_prices_backfill_prices_collected_total',
                 'Total number of price records collected during backfill',
                 ['vendor', 'environment']
             )
@@ -95,7 +95,7 @@ class EODHD30YearBackfiller:
             )
             self.backfill_success_rate = Gauge(
                 'ats_daily_prices_backfill_success_rate',
-                'Success rate of daily prices backfill operations (0.0 to 1.0)', 
+                'Success rate of daily prices backfill operations (0.0 to 1.0)',
                 ['vendor', 'environment']
             )
         else:
@@ -214,7 +214,7 @@ class EODHD30YearBackfiller:
         try:
             response = requests.get(url, params=params)
             self.legacy_stats['api_calls'] += 1
-            
+
             # Track API calls in Prometheus if available
             if PROMETHEUS_AVAILABLE:
                 env = os.getenv('ENV_TYPE', 'intg').lower()
@@ -349,7 +349,7 @@ class EODHD30YearBackfiller:
 
             logger.info(f"✅ Completed {symbol}: {inserted_count} records inserted")
             self.legacy_stats['processed_instruments'] += 1
-            
+
             # Update Prometheus metrics if available
             if PROMETHEUS_AVAILABLE:
                 env = os.getenv('ENV_TYPE', 'intg').lower()
@@ -357,9 +357,9 @@ class EODHD30YearBackfiller:
                     vendor='eodhd',
                     environment=env
                 ).inc()
-                
+
                 self.backfill_prices_collected.labels(
-                    vendor='eodhd', 
+                    vendor='eodhd',
                     environment=env
                 ).inc(inserted_count)
 
@@ -487,13 +487,13 @@ async def main():
 
         # Run backfill with timing
         backfill_start_time = time.time()
-        
+
         await backfiller.run_backfill(
             start_date, end_date,
             limit=args.limit,
             skip_existing=args.skip_existing
         )
-        
+
         # Record backfill duration
         if PROMETHEUS_AVAILABLE and backfiller.backfill_duration_seconds:
             env = os.getenv('ENV_TYPE', 'intg').lower()
@@ -508,7 +508,7 @@ async def main():
 
         # Log comprehensive statistics from shared framework
         backfiller.stats.log_progress(logger)
-        
+
         # Update final Prometheus metrics if available
         if PROMETHEUS_AVAILABLE and backfiller.backfill_success_rate:
             env = os.getenv('ENV_TYPE', 'intg').lower()
@@ -517,12 +517,12 @@ async def main():
                 vendor='eodhd',
                 environment=env
             ).set(success_rate)
-            
+
             # Push metrics to Prometheus gateway if configured
             try:
                 gateway = os.getenv('PROMETHEUS_GATEWAY', 'localhost:9091')
                 job_name = 'daily-prices-backfill-eodhd'
-                push_to_gateway(gateway, job=job_name, registry=None, 
+                push_to_gateway(gateway, job=job_name, registry=None,
                               grouping_key={'vendor': 'eodhd', 'environment': env})
                 logger.info(f"📊 Pushed metrics to Prometheus gateway: {gateway}")
             except Exception as e:

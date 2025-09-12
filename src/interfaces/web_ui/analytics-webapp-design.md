@@ -516,7 +516,7 @@ interface BacktestStore {
   currentBacktest: Backtest | null
   loading: boolean
   error: string | null
-  
+
   fetchBacktests: () => Promise<void>
   selectBacktest: (id: string) => void
   compareBacktests: (ids: string[]) => Promise<ComparisonResult>
@@ -527,7 +527,7 @@ interface RealtimeStore {
   isConnected: boolean
   lastUpdate: Date
   portfolioValue: number
-  
+
   connect: () => void
   disconnect: () => void
   subscribe: (callback: (data: any) => void) => void

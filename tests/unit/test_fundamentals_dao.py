@@ -11,10 +11,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date, datetime
 from decimal import Decimal
 
-from vendor.fmp.core.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
-from vendor.polygon.core.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental
-from vendor.tiingo.core.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
-from shared.utils.environment import Environment
+from infrastructure.vendor.fmp.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
+from infrastructure.vendor.polygon.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental  
+from infrastructure.vendor.tiingo.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
+from core.platform.config.environment import Environment
 
 
 @pytest.fixture

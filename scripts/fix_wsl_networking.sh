@@ -15,15 +15,15 @@ echo "🚀 Setting up networking..."
 # Alternative approach: Use socat for port forwarding within WSL
 if command -v socat >/dev/null 2>&1; then
     echo "✅ Using socat for internal port forwarding"
-    
+
     # Kill existing socat processes
     pkill -f "socat.*:3000" 2>/dev/null || true
     pkill -f "socat.*:4000" 2>/dev/null || true
-    
+
     # Start port forwarding in background
     nohup socat TCP-LISTEN:3000,fork,reuseaddr TCP:localhost:3000 > /dev/null 2>&1 &
     nohup socat TCP-LISTEN:4000,fork,reuseaddr TCP:localhost:4000 > /dev/null 2>&1 &
-    
+
     echo "✅ Internal port forwarding started"
 else
     echo "⚠️ socat not available, will need Windows-side port forwarding"
@@ -38,7 +38,7 @@ else
 fi
 
 if curl -s http://localhost:4000/health > /dev/null; then
-    echo "✅ ATS-INTG (port 4000) accessible"  
+    echo "✅ ATS-INTG (port 4000) accessible"
 else
     echo "❌ ATS-INTG (port 4000) not accessible"
 fi

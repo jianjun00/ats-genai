@@ -38,7 +38,7 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 - **[💻 DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Complete development workflow, testing, CI/CD, GitOps
 - **[🚢 DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment strategies, environments, monitoring, troubleshooting
 
-### 📋 Additional Resources  
+### 📋 Additional Resources
 - **[docs/README.md](docs/README.md)** - Complete documentation navigation hub
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions for the platform
 
@@ -46,7 +46,7 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 
 ### 💼 **Portfolio Management System** ⭐
 - **Market-Neutral Strategies**: Long-short portfolio construction with factor hedging
-- **Hourly Recommendations**: Automated portfolio recommendations for $200K portfolios  
+- **Hourly Recommendations**: Automated portfolio recommendations for $200K portfolios
 - **19-Factor Risk Model**: Comprehensive factor exposure management (market, sector, commodities)
 - **Advanced Performance Metrics**: Information Ratio, Calmar Ratio superior to basic Sharpe ratio
 - **Smart Money Integration**: Institutional flow analysis for alpha generation
@@ -77,7 +77,7 @@ PYTHONPATH=src pytest tests/integration/test_analytics_platform_integration.py::
 ```
 ats-genai/
 ├── 📊 src/portfolio/          ⭐ Market-neutral portfolio optimization system
-├── 📈 src/signals/            ⭐ Smart Money Zones & technical indicators  
+├── 📈 src/signals/            ⭐ Smart Money Zones & technical indicators
 ├── 📡 src/market_data/        Multi-vendor data ingestion & processing
 ├── 📅 src/events/             Unified event system (earnings, economic, news)
 ├── 🗄️ src/dao/                Data Access Objects with vendor abstraction
@@ -104,21 +104,21 @@ graph TB
     E --> F[Risk Management]
     F --> G[Order Management]
     E --> H[Performance Analytics]
-    
+
     subgraph "Data Sources"
         A1[Polygon.io]
         A2[Tiingo]
         A3[Finnhub]
         A4[Alpha Vantage]
     end
-    
+
     subgraph "Core Engine"
         E1[Factor Framework]
         E2[Signal Composition]
         E3[Portfolio Optimization]
         E4[Recommendation Engine]
     end
-    
+
     subgraph "Infrastructure"
         I1[PostgreSQL + TimescaleDB]
         I2[Redis Cache]
@@ -140,7 +140,7 @@ Our core strategy generates alpha through factor-neutral long-short equity posit
 
 ### **Alpha Sources**
 1. **Smart Money Zones**: Institutional accumulation/distribution patterns
-2. **Technical Signals**: 20+ enhanced indicators with session awareness  
+2. **Technical Signals**: 20+ enhanced indicators with session awareness
 3. **Event-Driven**: Earnings surprises and economic event reactions
 4. **Cross-Asset**: Multi-timeframe correlation and momentum signals
 5. **Sentiment Analysis**: News sentiment and social media integration
@@ -244,7 +244,7 @@ print(f"Short Positions: {len(recommendation.short_positions)}")
 ### **Critical: Real Data Only**
 ⚠️ **This system uses REAL market data only - no mock, fake, or synthetic data for modeling.**
 - All portfolio optimization uses actual market prices and volumes
-- Technical indicators compute from real intraday and daily data  
+- Technical indicators compute from real intraday and daily data
 - Smart Money Zone analysis requires authentic institutional flow data
 - Performance metrics reflect actual trading scenarios
 
@@ -259,7 +259,7 @@ Database Name: dev_db
 # Environment Variables
 export ENVIRONMENT=dev
 export DB_HOST=localhost
-export DB_PORT=5432  
+export DB_PORT=5432
 export DB_USER=postgres
 export DB_PASSWORD=dev_password
 export DB_NAME=dev_db
@@ -282,7 +282,7 @@ PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres D
 - **[Market Data](src/market_data/README.md)** - Multi-vendor data ingestion and real-time processing
 - **[Event System](src/events/README.md)** - Unified event ingestion from 10+ sources
 
-### 🏗️ **Infrastructure**  
+### 🏗️ **Infrastructure**
 - **[Database Management](src/db/README.md)** - PostgreSQL/TimescaleDB with automated migrations
 - **[Configuration](src/config/README.md)** - Environment-aware configuration management
 - **[Data Access](src/dao/README.md)** - Database abstraction with vendor support
@@ -290,6 +290,7 @@ PYTHONPATH=src ENVIRONMENT=dev DB_HOST=localhost DB_PORT=5432 DB_USER=postgres D
 ### 📚 **Architecture & Planning**
 - **[Source Overview](src/README.md)** - Complete source code architecture
 - **[Repository Analysis](REPOSITORY_ANALYSIS.md)** - Refactoring opportunities and code quality analysis
+- **[Autostart Services](docs/ATS_AUTOSTART_SERVICES.md)** - Complete service autostart configuration and troubleshooting
 
 ## 🧪 Testing
 
@@ -310,7 +311,7 @@ PYTHONPATH=src python -m pytest tests/ -m integration -v
 
 ### **Test Coverage**
 - **Portfolio System**: 94 test cases covering factor models, optimization, and performance metrics
-- **Signal Generation**: 167 test cases covering technical indicators and Smart Money analysis  
+- **Signal Generation**: 167 test cases covering technical indicators and Smart Money analysis
 - **Market Data**: 89 test cases covering multi-vendor ingestion and reconciliation
 - **Database**: 45 test cases covering migrations, DAOs, and data integrity
 
@@ -396,7 +397,7 @@ flytectl create execution --project ats --domain production \
 - ✅ **Signal Generation**: 20+ technical indicators with institutional analysis
 - 🔄 **Performance Analytics**: Advanced attribution and risk metrics
 
-### **Q2 2025**  
+### **Q2 2025**
 - 🔄 **ML Integration**: Temporal Fusion Transformer for price forecasting
 - 📋 **Options Trading**: Options strategies and Greeks calculations
 - 📋 **News Sentiment**: Real-time news sentiment analysis
@@ -412,7 +413,7 @@ flytectl create execution --project ats --domain production \
 
 ### **Documentation**
 - **[Architecture Guide](docs/architecture/)** - System architecture and design patterns
-- **[API Reference](docs/api/)** - Complete REST API documentation  
+- **[API Reference](docs/api/)** - Complete REST API documentation
 - **[Deployment Guide](docs/deployment/)** - Production deployment instructions
 - **[Developer Guide](docs/development/)** - Development setup and workflows
 

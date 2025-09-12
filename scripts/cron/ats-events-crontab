@@ -1,0 +1,69 @@
+# ATS Platform Events Collection Cron Configuration
+# Install with: crontab scripts/cron/ats-events-crontab
+#
+# Event Collection Schedule:
+# 7:00 AM - Daily earnings events update
+# 7:15 AM - Daily news events collection  
+# 7:30 AM - Daily financial events backfill
+# 7:45 AM - Economic events population (FRED/APIs)
+# 8:00 AM - Gap events detection and update
+# 10:00 PM - Evening news update
+# Every 4 hours - Real-time events monitoring
+
+# ============================================
+# EARNINGS EVENTS COLLECTION
+# ============================================
+# Daily earnings events update - 7:00 AM
+0 7 * * * cd /home/jianjun/ats-genai-data && ENVIRONMENT=intg PYTHONPATH=src uv run python3 scripts/tiingo_data_collector_intg.py --events earnings --backfill-days 7 >> /mnt/d/ats-logs/intg/earnings-events.log 2>&1
+
+# Weekly earnings backfill - Sundays at 3:00 AM  
+0 3 * * 0 cd /home/jianjun/ats-genai-data && ENVIRONMENT=intg PYTHONPATH=src uv run python3 scripts/tiingo_data_collector_intg.py --events earnings --backfill-days 30 >> /mnt/d/ats-logs/intg/earnings-backfill.log 2>&1
+
+# ============================================
+# NEWS EVENTS COLLECTION
+# ============================================
+# Daily news events collection - 7:15 AM (already exists but enhanced)
+15 7 * * * cd /home/jianjun/ats-genai-data && ENVIRONMENT=intg POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD" PYTHONPATH=src uv run python3 scripts/polygon_news_backfill.py --days 1 --limit 1000 >> /mnt/d/ats-logs/intg/daily-news.log 2>&1
+
+# Evening news update - 10:00 PM for after-market news
+0 22 * * * cd /home/jianjun/ats-genai-data && ENVIRONMENT=intg POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD" PYTHONPATH=src uv run python3 scripts/polygon_news_backfill.py --days 1 --limit 500 >> /mnt/d/ats-logs/intg/evening-news.log 2>&1
+
+# Weekly news backfill - Saturdays at 2:00 AM
+0 2 * * 6 cd /home/jianjun/ats-genai-data && ENVIRONMENT=intg POLYGON_API_KEY="wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD" PYTHONPATH=src uv run python3 scripts/polygon_news_backfill.py --days 7 --limit 5000 >> /mnt/d/ats-logs/intg/weekly-news-backfill.log 2>&1
+
+# ============================================
+# FINANCIAL EVENTS BACKFILL
+# ============================================
+# Daily financial events sync from dev to intg - 7:30 AM
+30 7 * * * /home/jianjun/ats-genai-model/scripts/cron/sync-financial-events.sh >> /mnt/d/ats-logs/intg/financial-events-sync.log 2>&1
+
+# ============================================
+# ECONOMIC EVENTS POPULATION
+# ============================================
+# Daily economic indicators update - 7:45 AM
+# Note: Uses demo data until FRED API key is configured
+45 7 * * * /home/jianjun/ats-genai-model/scripts/cron/update-economic-indicators.sh >> /mnt/d/ats-logs/intg/economic-indicators.log 2>&1
+
+# ============================================
+# GAP EVENTS DETECTION
+# ============================================
+# Daily gap events detection - 8:00 AM (after market open)
+0 8 * * * /home/jianjun/ats-genai-model/scripts/cron/detect-gap-events.sh >> /mnt/d/ats-logs/intg/gap-events.log 2>&1
+
+# ============================================
+# REAL-TIME EVENTS MONITORING
+# ============================================
+# Events health monitoring - Every 4 hours
+0 */4 * * * cd /home/jianjun/ats-genai-data && ENVIRONMENT=intg /home/jianjun/ats-genai-data/scripts/cron/news_health_monitor.sh >> /mnt/d/ats-logs/intg/events-health.log 2>&1
+
+# Events data validation - Daily at 9:00 AM
+0 9 * * * /home/jianjun/ats-genai-model/scripts/cron/validate-events.sh >> /mnt/d/ats-logs/intg/events-validation.log 2>&1
+
+# ============================================
+# CLEANUP AND MAINTENANCE
+# ============================================
+# Weekly events cleanup - Sundays at 1:00 AM
+0 1 * * 0 find /mnt/d/ats-logs/intg -name "*events*.log" -mtime +30 -delete
+
+# Monthly events archive - First Sunday at 4:00 AM
+0 4 1-7 * 0 echo "Monthly events archival - $(date)" >> /mnt/d/ats-logs/intg/events-archive.log 2>&1

@@ -195,7 +195,7 @@ LOCAL_MODEL_CONFIG = {
         "enable_quantization": True
     },
     "llama_8b": {
-        "model_id": "meta-llama/Meta-Llama-3.1-8B-Instruct", 
+        "model_id": "meta-llama/Meta-Llama-3.1-8B-Instruct",
         "precision": "fp16",
         "max_length": 8192,
         "temperature": 0.1,
@@ -245,7 +245,7 @@ PYTHONPATH=src python scripts/monitor_local_models.py
    ```python
    # Enable gradient checkpointing
    model.gradient_checkpointing_enable()
-   
+
    # Use memory-efficient attention
    model.config.use_memory_efficient_attention = True
    ```
@@ -325,7 +325,7 @@ PYTHONPATH=src python scripts/monitor_local_models.py
    ```bash
    # Check logs
    docker logs ats-fingpt-model
-   
+
    # Restart services
    docker compose restart
    ```
@@ -334,7 +334,7 @@ PYTHONPATH=src python scripts/monitor_local_models.py
    ```bash
    # Check model configuration
    curl http://localhost:8001/model/info
-   
+
    # Verify temperature settings
    export TEMPERATURE=0.1  # Lower for more consistent results
    ```
@@ -356,7 +356,7 @@ df -h
 ## 🎯 **Next Steps**
 
 1. **Start with Recommended Setup**: Deploy FinGPT v3.2 + Llama 8B on RTX 4090
-2. **Test Integration**: Verify system works with existing news processing pipeline  
+2. **Test Integration**: Verify system works with existing news processing pipeline
 3. **Monitor Performance**: Track latency, cost savings, and quality metrics
 4. **Optimize**: Fine-tune models on your specific financial data
 5. **Scale**: Add more GPUs or larger models based on performance needs
@@ -379,7 +379,7 @@ df -h
 
 Self-hosting LLM models for financial analysis provides significant benefits:
 - **Immediate cost savings** of 80-95%
-- **Improved latency** by 40-75%  
+- **Improved latency** by 40-75%
 - **Enhanced privacy** and data control
 - **Specialized performance** for financial tasks
 

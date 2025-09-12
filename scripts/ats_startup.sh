@@ -115,7 +115,7 @@ docker-compose -f docker-compose.intg-jobs.yml ps
 log "🌐 Service URLs:"
 log "  - ATS-DEV Analytics: http://localhost:3000"
 log "  - ATS-DEV EDA: http://localhost:3000/eda"
-log "  - ATS-INTG Analytics: http://localhost:4000" 
+log "  - ATS-INTG Analytics: http://localhost:4000"
 log "  - ATS-INTG EDA: http://localhost:4000/eda"
 
 # 9. Test database connectivity (no restoration warnings)

@@ -16,7 +16,7 @@ result = await generate_residual_return_training_data(
     connection_pool=pool, env=environment, universe_state_manager=manager,
     start_date=datetime(2023, 1, 1), end_date=datetime(2023, 12, 31),
     instrument_ids=[1, 2, 3], include_schema=True,
-    output_path="/data/training/aapl_2023"
+    output_path="/data/training_data/aapl_2023"
 )
 
 # 2. Access schema-aware results
@@ -87,7 +87,7 @@ generator = ResidualReturnTrainingDataGenerator(pool, env, universe_manager)
 
 result = await generator.generate_training_dataset(
     start_date=datetime(2023, 1, 1),
-    end_date=datetime(2023, 12, 31), 
+    end_date=datetime(2023, 12, 31),
     instrument_ids=[1, 2, 3],
     include_schema=True  # Enable schema management
 )
@@ -130,8 +130,8 @@ schema_hash = await dao.register_schema(
 
 # Find compatible schemas
 compatible = await dao.find_compatible_schemas(
-    feature_count=25, 
-    sequence_length=60, 
+    feature_count=25,
+    sequence_length=60,
     symbol="AAPL"
 )
 ```
@@ -147,14 +147,14 @@ def create_eda_config(schema):
         if feature_type not in feature_groups:
             feature_groups[feature_type] = []
         feature_groups[feature_type].append(feature.name)
-    
+
     # Automatic visualization recommendations
     viz_recommendations = {
         'technical_indicator': ['line_chart', 'overlay_plot'],
-        'return_series': ['histogram', 'qq_plot'], 
+        'return_series': ['histogram', 'qq_plot'],
         'volume_series': ['bar_chart', 'volume_profile']
     }
-    
+
     return feature_groups, viz_recommendations
 ```
 
@@ -175,7 +175,7 @@ schema = create_ohlcv_schema(
 
 # Automatically includes:
 # - OHLC price features
-# - Volume feature (if enabled)  
+# - Volume feature (if enabled)
 # - Specified technical indicators
 # - Appropriate feature type classifications
 ```
@@ -206,11 +206,11 @@ training_df = await generator.generate_training_dataset(
     start_date, end_date, instrument_ids
 )
 
-# After (Schema-aware approach)  
+# After (Schema-aware approach)
 result = await generator.generate_training_dataset(
     start_date, end_date, instrument_ids,
     include_schema=True,  # Enable schema features
-    output_path="/data/training/run_001"
+    output_path="/data/training_data/run_001"
 )
 
 # Access legacy DataFrame if needed
@@ -228,7 +228,7 @@ result = await generator.generate_training_dataset(
     include_schema=False  # Disable schema features
 )
 
-# Returns TrainingDatasetResult with DataFrame in metadata  
+# Returns TrainingDatasetResult with DataFrame in metadata
 legacy_dataframe = result.metadata['dataframe']
 ```
 
@@ -237,7 +237,7 @@ legacy_dataframe = result.metadata['dataframe']
 ### Enhanced Training Datasets Table
 
 ```sql
-ALTER TABLE dev_training_datasets 
+ALTER TABLE dev_training_datasets
 ADD COLUMN schema_hash VARCHAR(64),
 ADD COLUMN schema_version VARCHAR(50) DEFAULT '1.0.0',
 ADD COLUMN schema_json JSONB DEFAULT '{}',
@@ -290,7 +290,7 @@ PYTHONPATH=src python3 -m pytest tests/unit/test_training_schema_components.py -
 # Run integration tests
 PYTHONPATH=src python3 -m pytest tests/integration/test_schema_aware_training_generation.py -v
 
-# Run EDA integration tests  
+# Run EDA integration tests
 PYTHONPATH=src python3 -m pytest tests/integration/test_schema_eda_integration.py -v
 
 # Manual verification
@@ -323,7 +323,7 @@ python3 scripts/run_dev.py run --script test_schema_implementation.py
 ### 4. Performance
 
 - Batch schema operations when possible
-- Use schema hashing for duplicate detection  
+- Use schema hashing for duplicate detection
 - Index frequently queried JSONB fields
 - Cache schemas for repeated use
 
@@ -355,19 +355,19 @@ async def complete_training_pipeline():
         datetime(2023, 1, 1), datetime(2023, 12, 31),
         [1, 2, 3], include_schema=True
     )
-    
+
     # 2. Validate data quality
     if not result.validation_result.is_valid:
         raise ValueError("Data quality issues detected")
-    
+
     # 3. Prepare for ML training
     X = result.features_array
     y = result.labels_array
-    
+
     # 4. Register schema for future use
     dao = TrainingSchemaDAO(env)
     await dao.register_schema(result.schema, "Training Pipeline")
-    
+
     return X, y, result.schema
 ```
 

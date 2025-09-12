@@ -32,7 +32,7 @@ gh issue create \
     --label "data-infrastructure,phase-1,enhancement" \
     --body-file github-issues/issue-1-eodhd-integration.md
 
-# Issue 2: ETF Expansion  
+# Issue 2: ETF Expansion
 echo "📝 Creating Issue #2: ETF Expansion"
 gh issue create \
     --title "Phase 1: Critical ETF Universe Expansion" \
@@ -93,13 +93,13 @@ echo "✅ All GitHub Issues created successfully!"
 echo ""
 echo "🎯 Next steps:"
 echo "1. Review created issues at: https://github.com/AkoloTechnologies/ats-genai/issues"
-echo "2. Assign team members to critical issues (#3, #2, #9)" 
+echo "2. Assign team members to critical issues (#3, #2, #9)"
 echo "3. Set up project board for tracking progress"
 echo "4. Begin work on Phase 1 critical issues"
 echo ""
 echo "📋 Priority order:"
 echo "  1. Issue #3: Schema Enhancement (CRITICAL)"
-echo "  2. Issue #2: ETF Expansion (HIGH)" 
+echo "  2. Issue #2: ETF Expansion (HIGH)"
 echo "  3. Issue #9: Polygon API Key Fix (MEDIUM)"
 echo "  4. Issue #1: EODHD Quota Management (MEDIUM)"
 echo ""

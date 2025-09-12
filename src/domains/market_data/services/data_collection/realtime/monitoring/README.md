@@ -36,7 +36,7 @@ python3 scripts/test_monitoring_architecture.py
 After startup, the system provides these endpoints:
 
 - **Dashboard**: http://localhost:8090
-- **Health Check**: http://localhost:8090/health  
+- **Health Check**: http://localhost:8090/health
 - **Prometheus Metrics**: http://localhost:8091/metrics
 - **WebSocket Updates**: ws://localhost:8090/ws
 - **Alerting Rules**: http://localhost:8091/config/rules
@@ -178,7 +178,7 @@ TEAMS_WEBHOOK_URL=https://outlook.office.com/webhook/...
     },
     "dashboard": {
       "enabled": true,
-      "host": "0.0.0.0", 
+      "host": "0.0.0.0",
       "port": 8090,
       "update_interval_seconds": 30
     },
@@ -261,7 +261,7 @@ The monitoring dashboard provides:
 ### Interactive Features
 
 - **Real-time Updates**: WebSocket-based live data updates
-- **Historical Charts**: Plotly.js interactive visualizations  
+- **Historical Charts**: Plotly.js interactive visualizations
 - **Alert Management**: View, filter, and acknowledge alerts
 - **Health Checks**: Component status and connectivity
 - **Configuration**: Runtime configuration management
@@ -386,7 +386,7 @@ PGPASSWORD=intg_password psql -h ats-intg-postgres -U postgres -d intg_db -c "SE
 
 # Verify required tables exist
 PGPASSWORD=intg_password psql -h ats-intg-postgres -U postgres -d intg_db -c "
-SELECT table_name FROM information_schema.tables 
+SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE '%one_minute_live%'"
 ```
 
@@ -438,8 +438,8 @@ docker stats ats-intg-postgres ats-intg-analytics
 
 # Database query performance
 PGPASSWORD=intg_password psql -h ats-intg-postgres -U postgres -d intg_db -c "
-SELECT query, mean_time, calls 
-FROM pg_stat_statements 
+SELECT query, mean_time, calls
+FROM pg_stat_statements
 ORDER BY mean_time DESC LIMIT 10;"
 ```
 

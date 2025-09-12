@@ -5,6 +5,7 @@ Handles database operations for economic events from multiple vendors.
 """
 
 import asyncpg
+import json
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
@@ -271,6 +272,26 @@ class EconomicEventsDAO:
                 event_data.vendor_specific_data.get('function_name'),
                 event_data.vendor_specific_data.get('interval_period'),
                 event_data.raw_data)
+
+    async def create_eodhd_event_data(self, event_data: EconomicEventVendorData) -> int:
+        """Create EODHD-specific event data."""
+        table_name = self.env.get_table_name("economic_events_eodhd")
+
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval(f"""
+                INSERT INTO {table_name}
+                (economic_event_id, eodhd_event_id, event_name, country, importance,
+                 period, reference, source, raw_data)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING id
+            """, event_data.economic_event_id, event_data.vendor_event_id,
+                event_data.vendor_specific_data.get('event_name'),
+                event_data.vendor_specific_data.get('country'),
+                event_data.vendor_specific_data.get('importance_text'),
+                event_data.vendor_specific_data.get('period'),
+                event_data.vendor_specific_data.get('reference'),
+                event_data.vendor_specific_data.get('source'),
+                json.dumps(event_data.raw_data) if event_data.raw_data else None)
 
     async def create_fred_event_data(self, event_data: EconomicEventVendorData) -> int:
         """Create FRED-specific event data."""

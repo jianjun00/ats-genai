@@ -19,7 +19,7 @@ async def get_dataset(dataset_id: str):
         raise HTTPException(404, f"Dataset '{dataset_id}' not found")
     return dataset
 
-# ❌ WRONG: Demo fallback hides the real problem  
+# ❌ WRONG: Demo fallback hides the real problem
 async def get_dataset(dataset_id: str):
     try:
         return await db.fetch_dataset(dataset_id)
@@ -59,9 +59,9 @@ pre-commit run schema-anti-patterns
 ```python
 # File 1: Inconsistent path generation
 def get_training_path_v1(symbol, date_range):
-    return f"/data/training/{symbol}_{date_range}"
+    return f"/data/training_data/{symbol}_{date_range}"
 
-# File 2: Slightly different path generation  
+# File 2: Slightly different path generation
 def get_training_path_v2(symbol, start, end):
     return f"/mnt/d/ats-data/training/{symbol}_{start}_{end}"
 
@@ -76,7 +76,7 @@ def create_dataset_dir(symbol, dates):
 @staticmethod
 def get_training_dataset_basedir(run_id: str, symbol: str, date_range: str) -> str:
     """Canonical training dataset directory structure per PRD/DRD requirements"""
-    return f"/data/training/{run_id}/{symbol}_{date_range}"
+    return f"/data/training_data/{run_id}/{symbol}_{date_range}"
 
 def get_timeframe_file_path(basedir: str, timeframe: str, symbol: str) -> str:
     """Canonical ArrayRecord file path per QR4 requirements"""
@@ -85,14 +85,14 @@ def get_timeframe_file_path(basedir: str, timeframe: str, symbol: str) -> str:
 
 **Rules:**
 - ✅ **One function per responsibility** - no variations
-- ✅ **Import and reuse** - never reimplement  
+- ✅ **Import and reuse** - never reimplement
 - ✅ **Document the canonical location** in code comments
 - ❌ **Never create "similar but different" functions**
 - ❌ **Never copy-paste with modifications**
 
 **Schema validation will catch:**
 - ❌ Wrong table names (`dev_training_datasets` vs `dev_training_dataset`)
-- ❌ Wrong column names (`created_at` vs `creation_timestamp`)  
+- ❌ Wrong column names (`created_at` vs `creation_timestamp`)
 - ❌ Missing tables or columns
 - ❌ SQL syntax errors
 - ❌ Type mismatches
@@ -125,7 +125,7 @@ Brief description of the feature
 "
 ```
 
-#### 2. 🌿 Git Branching Workflow  
+#### 2. 🌿 Git Branching Workflow
 ```bash
 # Start from latest main
 git checkout main && git pull origin main
@@ -155,7 +155,7 @@ python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should FAIL (proves test works)
 
 # 2. Write minimal code to make test pass
-# 3. Verify test passes  
+# 3. Verify test passes
 python scripts/run_dev.py test --test tests/integration/test_new_feature.py
 # ✅ Should PASS
 
@@ -167,7 +167,7 @@ python scripts/run_dev.py test
 **Features must complete entire pipeline:**
 1. Generate real data using Docker containers
 2. Store data in database with correct schema
-3. API serves data to external clients  
+3. API serves data to external clients
 4. Frontend displays data in browser
 5. All integration tests pass
 
@@ -182,7 +182,7 @@ gh pr create --title "feat: description (closes #123)" --body "
 - Detailed description of changes
 - Why this change was needed
 
-## Related Issue  
+## Related Issue
 Closes #123
 
 ## Testing
@@ -254,14 +254,14 @@ def test_ohlc_data():
     # ❌ PROBLEM: Passes with ANY structurally valid data
 ```
 
-#### ✅ **Thorough Value Testing (REQUIRED)**  
+#### ✅ **Thorough Value Testing (REQUIRED)**
 ```python
 # GOOD: Checking exact computed values
 def test_ohlc_data():
     # Use deterministic test data with known outcomes
     test_data = create_deterministic_minute_bars()
     result = aggregate_to_5m(test_data)
-    
+
     # Validate EXACT computed values with mathematical precision
     assert abs(result['open'] - 100.25) < 0.01
     assert abs(result['high'] - 102.75) < 0.01
@@ -278,20 +278,20 @@ def test_ohlc_data():
 def test_lead_vs_lag_return_different_data():
     # SAME reference point
     reference_datetime = datetime(2025, 9, 6, 14, 30, 0)
-    
+
     # Different directions should yield different data
     lag_result = get_lag_prices(ref_datetime, periods=5)    # backward
     lead_result = get_lead_prices(ref_datetime, periods=5)   # forward
-    
+
     # CRITICAL: Must return different values (different time periods)
     lag_closes = lag_result['close'].tolist()
     lead_closes = lead_result['close'].tolist()
-    
+
     assert lag_closes != lead_closes, "MUST return different time periods"
     assert avg(lead_closes) > avg(lag_closes), "Future > historical (with trend)"
-    
+
     # Validate EXACT expected values from deterministic test data
-    assert lag_closes == [98.50, 99.25, 100.10], "Historical data"  
+    assert lag_closes == [98.50, 99.25, 100.10], "Historical data"
     assert lead_closes == [102.80, 103.45, 104.20], "Future data"
 ```
 
@@ -310,7 +310,7 @@ class FileBasedMinuteMarketDataManager(MarketDataManager):
     def get_ohlcv_data(self, instrument_id, reference_datetime, periods):
         # ✅ CORRECT: Synchronous (matches base class)
         return asyncio.run(self._get_ohlcv_data_async(...))
-    
+
     # ❌ WRONG: async def get_ohlcv_data(...)  # Interface violation!
 ```
 
@@ -321,7 +321,7 @@ def test_interface_consistency():
     manager = FileBasedMinuteMarketDataManager(env, path)
     universe_manager = UniverseStateManager(env)
     universe_manager.market_data_manager = manager
-    
+
     # This must work synchronously (no await needed)
     result = universe_manager.get_lag_prices(instrument_id, datetime, periods=3)
     assert not result.empty
@@ -401,7 +401,7 @@ curl -s http://localhost:4000/interface
 - [ ] **Browser Tested** - Opened interface in actual browser
 - [ ] **Element Verification** - Confirmed specific DOM elements added/removed
 - [ ] **Functionality Testing** - Tested interactive features work
-- [ ] **API Integration** - Verified APIs return proper data structures  
+- [ ] **API Integration** - Verified APIs return proper data structures
 - [ ] **User Workflow** - Completed full user workflow successfully
 - [ ] **Automated Test Created** - Created test script to prevent regression
 - [ ] **Before/After Documentation** - Clear evidence of what changed
@@ -461,7 +461,7 @@ PYTHONPATH=src pytest tests/performance/ -v
 - **❌ Mock-only testing** without real integration verification
 - **❌ Claiming functionality works** without user scenario validation
 
-### Development Anti-Patterns to Avoid  
+### Development Anti-Patterns to Avoid
 - **❌ Using manual operations** for dev work
 - **❌ Setting environment variables manually**
 - **❌ Creating new deployment patterns** when existing work
@@ -480,7 +480,7 @@ PYTHONPATH=src pytest tests/performance/ -v
 |-------------|--------|---------|-----------------|
 | **test** | `test_*` | Unit tests | Local PostgreSQL |
 | **dev** | `dev_*` | Development | Docker PostgreSQL |
-| **intg** | `intg_*` | Integration | Docker PostgreSQL |  
+| **intg** | `intg_*` | Integration | Docker PostgreSQL |
 | **prod** | `prod_*` | Production | Docker PostgreSQL |
 
 ### Testing Commands
@@ -517,7 +517,7 @@ uv run python src/script.py
 - You create automated tests that catch regressions
 - You document what was actually observed, not what should happen
 - **You validate computed values with mathematical precision**
-- **You test that different inputs produce different outputs**  
+- **You test that different inputs produce different outputs**
 - **You verify interface contracts are correctly implemented**
 
 **Testing is complete when:**
@@ -547,7 +547,7 @@ uv run python src/script.py
 9. **Deterministic Data Enables Validation** - Random test data makes thorough testing impossible
 10. **Integration Reveals Interface Issues** - Mock-only testing misses critical bugs
 
-### General Principles  
+### General Principles
 11. **Real Data Reveals Truth** - Mock data hides production problems
 12. **Tests First Prevent Issues** - TDD catches problems before they reach users
 13. **Question Assumptions** - "Both methods call the same function with same parameters - do they really return different data?"

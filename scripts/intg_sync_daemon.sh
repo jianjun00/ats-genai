@@ -23,7 +23,7 @@ log_message() {
     local level="$1"
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     echo "$timestamp - $level - $message" | tee -a "$SYNC_LOG_FILE"
 }
 
@@ -49,27 +49,27 @@ log_warning() {
 
 check_prerequisites() {
     log_info "Checking sync daemon prerequisites..."
-    
+
     # Create log directory
     mkdir -p "$SYNC_LOG_DIR"
-    
+
     # Check if Python script exists
     if [ ! -f "scripts/intg_incremental_sync.py" ]; then
         log_error "Incremental sync script not found"
         return 1
     fi
-    
+
     # Check database connections
     if ! python scripts/run_dev.py query --query "SELECT 1" >/dev/null 2>&1; then
         log_error "DEV database not accessible"
         return 1
     fi
-    
+
     if ! python scripts/run_intg.py query --query "SELECT 1" >/dev/null 2>&1; then
         log_error "INTG database not accessible"
         return 1
     fi
-    
+
     log_success "Prerequisites check passed"
     return 0
 }
@@ -85,7 +85,7 @@ acquire_lock() {
             rm "$LOCK_FILE"
         fi
     fi
-    
+
     echo $$ > "$LOCK_FILE"
     return 0
 }
@@ -100,19 +100,19 @@ run_incremental_sync() {
     local sync_type="$1"
     local lookback_hours="$2"
     local extra_args="$3"
-    
+
     log_info "Starting $sync_type incremental sync (lookback: ${lookback_hours}h)"
-    
+
     if ! acquire_lock; then
         return 1
     fi
-    
+
     # Create sync context
     local sync_start_time=$(date '+%Y-%m-%d %H:%M:%S')
     local sync_id="sync_$(date +%s)"
-    
+
     log_info "[$sync_id] Starting sync operation: $sync_type"
-    
+
     # Run the sync
     if python scripts/intg_incremental_sync.py sync --lookback-hours "$lookback_hours" $extra_args; then
         local duration=$(($(date +%s) - $(date -d "$sync_start_time" +%s)))
@@ -148,10 +148,10 @@ run_comprehensive_sync() {
 
 check_sync_health() {
     log_info "🔍 Checking sync system health..."
-    
+
     # Check recent sync history
     local health_report=$(python scripts/intg_incremental_sync.py status 2>/dev/null | head -20)
-    
+
     if [ $? -eq 0 ]; then
         log_success "Sync system health check passed"
         return 0
@@ -168,11 +168,11 @@ run_reconciliation() {
 
 cleanup_old_logs() {
     log_info "🧹 Cleaning up old sync logs..."
-    
+
     # Keep logs for 30 days
     find "$SYNC_LOG_DIR" -name "*.log" -type f -mtime +30 -delete 2>/dev/null || true
     find "$SYNC_LOG_DIR" -name "INTG-SYNC-STATUS-*.md" -type f -mtime +7 -delete 2>/dev/null || true
-    
+
     # Rotate current log if it's too large (>100MB)
     if [ -f "$SYNC_LOG_FILE" ]; then
         local log_size=$(stat -f%z "$SYNC_LOG_FILE" 2>/dev/null || stat -c%s "$SYNC_LOG_FILE" 2>/dev/null || echo 0)
@@ -187,7 +187,7 @@ cleanup_old_logs() {
 
 start_daemon() {
     log_info "🚀 Starting ATS-INTG Sync Daemon..."
-    
+
     if [ -f "$PID_FILE" ]; then
         local old_pid=$(cat "$PID_FILE")
         if kill -0 "$old_pid" 2>/dev/null; then
@@ -198,59 +198,59 @@ start_daemon() {
             rm "$PID_FILE"
         fi
     fi
-    
+
     # Store PID
     echo $$ > "$PID_FILE"
-    
+
     # Setup trap for cleanup
     trap cleanup_and_exit EXIT INT TERM
-    
+
     log_info "Sync daemon started (PID: $$)"
-    
+
     # Main daemon loop
     while true; do
         local current_hour=$(date +%H)
         local current_minute=$(date +%M)
-        
+
         # Market hours price sync (every 4 hours during 9 AM - 4 PM ET)
         if [[ "$current_hour" -ge 14 && "$current_hour" -le 21 ]] && [[ "$current_minute" -eq 0 ]]; then
             if [[ $((current_hour % 4)) -eq 2 ]]; then  # 10 AM, 2 PM, 6 PM ET (14, 18, 22 UTC)
                 run_price_sync
             fi
         fi
-        
+
         # Off-hours comprehensive sync (every 8 hours)
         if [[ "$current_minute" -eq 0 ]]; then
             if [[ $((current_hour % 8)) -eq 0 ]]; then  # 12 AM, 8 AM, 4 PM UTC
                 run_comprehensive_sync
             fi
         fi
-        
+
         # Daily instruments sync at 6 AM UTC
         if [[ "$current_hour" -eq 6 && "$current_minute" -eq 0 ]]; then
             run_instruments_sync
         fi
-        
-        # Daily fundamentals sync at 7 AM UTC  
+
+        # Daily fundamentals sync at 7 AM UTC
         if [[ "$current_hour" -eq 7 && "$current_minute" -eq 0 ]]; then
             run_fundamentals_sync
         fi
-        
+
         # Health check every hour
         if [[ "$current_minute" -eq 30 ]]; then
             check_sync_health
         fi
-        
+
         # Weekly reconciliation on Sundays at 2 AM UTC
         if [[ "$(date +%u)" -eq 7 && "$current_hour" -eq 2 && "$current_minute" -eq 0 ]]; then
             run_reconciliation
         fi
-        
+
         # Daily log cleanup at 3 AM UTC
         if [[ "$current_hour" -eq 3 && "$current_minute" -eq 0 ]]; then
             cleanup_old_logs
         fi
-        
+
         # Sleep for 1 minute before next check
         sleep 60
     done
@@ -258,36 +258,36 @@ start_daemon() {
 
 stop_daemon() {
     log_info "🛑 Stopping ATS-INTG Sync Daemon..."
-    
+
     if [ -f "$PID_FILE" ]; then
         local daemon_pid=$(cat "$PID_FILE")
-        
+
         if kill -0 "$daemon_pid" 2>/dev/null; then
             log_info "Sending TERM signal to daemon (PID: $daemon_pid)"
             kill -TERM "$daemon_pid"
-            
+
             # Wait up to 30 seconds for graceful shutdown
             local count=0
             while kill -0 "$daemon_pid" 2>/dev/null && [ $count -lt 30 ]; do
                 sleep 1
                 count=$((count + 1))
             done
-            
+
             if kill -0 "$daemon_pid" 2>/dev/null; then
                 log_warning "Daemon didn't stop gracefully, forcing shutdown"
                 kill -KILL "$daemon_pid"
             fi
-            
+
             log_success "Sync daemon stopped"
         else
             log_warning "Daemon PID file exists but process not running"
         fi
-        
+
         rm -f "$PID_FILE"
     else
         log_warning "No daemon PID file found"
     fi
-    
+
     # Clean up any stale locks
     release_lock
 }
@@ -295,16 +295,16 @@ stop_daemon() {
 get_daemon_status() {
     if [ -f "$PID_FILE" ]; then
         local daemon_pid=$(cat "$PID_FILE")
-        
+
         if kill -0 "$daemon_pid" 2>/dev/null; then
             log_success "Sync daemon is running (PID: $daemon_pid)"
-            
+
             # Show recent activity
             if [ -f "$SYNC_LOG_FILE" ]; then
                 log_info "Recent sync activity:"
                 tail -n 10 "$SYNC_LOG_FILE"
             fi
-            
+
             return 0
         else
             log_error "Daemon PID file exists but process not running"
@@ -326,7 +326,7 @@ cleanup_and_exit() {
 
 install_cron_jobs() {
     log_info "📅 Installing cron jobs for ATS-INTG sync..."
-    
+
     # Create cron jobs file
     cat > /tmp/intg_sync_cron << 'EOF'
 # ATS-INTG Incremental Sync Jobs
@@ -354,11 +354,11 @@ SHELL=/bin/bash
 # Daily log cleanup at 3 AM UTC
 0 3 * * * cd /workspace && ./scripts/intg_sync_daemon.sh cleanup >> /mnt/d/ats-logs/intg/cron.log 2>&1
 EOF
-    
+
     # Install cron jobs
     crontab /tmp/intg_sync_cron
     rm /tmp/intg_sync_cron
-    
+
     log_success "Cron jobs installed successfully"
     log_info "View installed jobs with: crontab -l"
 }
@@ -366,72 +366,72 @@ EOF
 # Main script logic
 main() {
     local action="${1:-status}"
-    
+
     # Ensure we're in the right directory
     if [ ! -f "scripts/intg_incremental_sync.py" ]; then
         echo "Error: Must be run from ATS project root directory"
         exit 1
     fi
-    
+
     case "$action" in
         "start")
             check_prerequisites || exit 1
             start_daemon
             ;;
-            
+
         "stop")
             stop_daemon
             ;;
-            
+
         "restart")
             stop_daemon
             sleep 2
             check_prerequisites || exit 1
             start_daemon
             ;;
-            
+
         "status")
             get_daemon_status
             ;;
-            
+
         "install-cron")
             install_cron_jobs
             ;;
-            
+
         "price-sync")
             check_prerequisites || exit 1
             run_price_sync
             ;;
-            
+
         "instruments-sync")
             check_prerequisites || exit 1
             run_instruments_sync
             ;;
-            
+
         "fundamentals-sync")
             check_prerequisites || exit 1
             run_fundamentals_sync
             ;;
-            
+
         "comprehensive-sync")
             check_prerequisites || exit 1
             run_comprehensive_sync
             ;;
-            
+
         "reconciliation")
             check_prerequisites || exit 1
             run_reconciliation
             ;;
-            
+
         "health-check")
             check_prerequisites || exit 1
             check_sync_health
             ;;
-            
+
         "cleanup")
             cleanup_old_logs
             ;;
-            
+
         *)
             echo "Usage: $0 {start|stop|restart|status|install-cron|price-sync|instruments-sync|fundamentals-sync|comprehensive-sync|reconciliation|health-check|cleanup}"
             echo ""

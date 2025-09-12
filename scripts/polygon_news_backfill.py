@@ -136,8 +136,8 @@ class PolygonNewsBackfill:
         if symbols:
             logger.info(f"Filtering for symbols: {symbols}")
 
-        # Ensure news table exists
-        await self._ensure_news_table_exists()
+        # Table should already exist - skip creation for existing environments
+        # await self._ensure_news_table_exists()
 
         # Create session with timeout
         timeout = aiohttp.ClientTimeout(total=30)
@@ -174,8 +174,8 @@ class PolygonNewsBackfill:
         # Polygon API parameters for symbol-specific news
         params = {
             "ticker": symbol,
-            "published_utc.gte": start_date.strftime("%Y-%m-%dT%H:%M:%S"),
-            "published_utc.lt": end_date.strftime("%Y-%m-%dT%H:%M:%S"),
+            "published_utc.gte": start_date.strftime("%Y-%m-%d"),
+            "published_utc.lt": end_date.strftime("%Y-%m-%d"),
             "limit": min(limit_per_request, 1000),
             "sort": "published_utc",
             "apikey": self.api_key
@@ -198,8 +198,8 @@ class PolygonNewsBackfill:
             next_date = min(current_date + timedelta(days=1), end_date)
 
             params = {
-                "published_utc.gte": current_date.strftime("%Y-%m-%dT%H:%M:%S"),
-                "published_utc.lt": next_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                "published_utc.gte": current_date.strftime("%Y-%m-%d"),
+                "published_utc.lt": next_date.strftime("%Y-%m-%d"),
                 "limit": min(limit_per_request, 1000),
                 "sort": "published_utc",
                 "apikey": self.api_key
@@ -331,18 +331,16 @@ class PolygonNewsBackfill:
                     tickers.append(ticker_obj)
 
             return {
-                "article_id": article_id,
+                "vendor_id": article_id,
                 "title": article.get("title", ""),
                 "description": article.get("description", ""),
-                "content": article.get("article_url", ""),  # Polygon doesn't provide full content
-                "url": article.get("article_url"),
+                "article_url": article.get("article_url"),
                 "author": article.get("author"),
-                "published_date": published_date,
-                "source": article.get("publisher", {}).get("name", "") if isinstance(article.get("publisher"), dict) else str(article.get("publisher", "")),
+                "published_utc": published_date,
+                "publisher_name": article.get("publisher", {}).get("name", "") if isinstance(article.get("publisher"), dict) else str(article.get("publisher", "")),
                 "tickers": tickers,
                 "keywords": article.get("keywords", []),
-                "vendor": "polygon",
-                "raw_data": article
+                "data": article  # raw data goes in 'data' column
             }
         except Exception as e:
             logger.warning(f"Error processing Polygon article: {e}")
@@ -382,48 +380,70 @@ class PolygonNewsBackfill:
 
         try:
             async with self.pool.acquire() as conn:
+                # Get initial count for validation
+                initial_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
+
                 # Prepare records for insertion
                 news_records = []
+                article_ids_to_check = []
                 for article in articles:
                     news_records.append((
-                        article["article_id"],
+                        article["vendor_id"],
                         article["title"],
                         article["description"],
-                        article["content"],
-                        article["url"],
+                        article["article_url"],
                         article["author"],
-                        article["published_date"],
-                        article["source"],
+                        article["published_utc"],
+                        article["publisher_name"],
                         article["tickers"],
                         article["keywords"],
-                        article["vendor"],
-                        json.dumps(article["raw_data"])
+                        json.dumps(article["data"])
                     ))
+                    article_ids_to_check.append(article["vendor_id"])
 
-                # Use ON CONFLICT to handle duplicates
-                result = await conn.executemany(f"""
+                # Check which articles already exist for accurate counting
+                existing_articles = await conn.fetch(f"""
+                    SELECT vendor_id FROM {self.table_name}
+                    WHERE vendor_id = ANY($1)
+                """, article_ids_to_check)
+
+                existing_ids = {row['vendor_id'] for row in existing_articles}
+                expected_new_inserts = len(article_ids_to_check) - len(existing_ids)
+
+                # Use ON CONFLICT to handle duplicates (vendor_id is unique)
+                await conn.executemany(f"""
                     INSERT INTO {self.table_name}
-                    (article_id, title, description, content, url, author,
-                     published_date, source, tickers, keywords, vendor, raw_data)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                    ON CONFLICT (article_id, vendor) DO UPDATE SET
+                    (vendor_id, title, description, article_url, author,
+                     published_utc, publisher_name, tickers, keywords, data)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    ON CONFLICT (vendor_id) DO UPDATE SET
                     title = EXCLUDED.title,
                     description = EXCLUDED.description,
-                    content = EXCLUDED.content,
-                    url = EXCLUDED.url,
+                    article_url = EXCLUDED.article_url,
                     author = EXCLUDED.author,
-                    published_date = EXCLUDED.published_date,
-                    source = EXCLUDED.source,
+                    published_utc = EXCLUDED.published_utc,
+                    publisher_name = EXCLUDED.publisher_name,
                     tickers = EXCLUDED.tickers,
                     keywords = EXCLUDED.keywords,
-                    raw_data = EXCLUDED.raw_data::jsonb,
+                    data = EXCLUDED.data::jsonb,
                     updated_at = CURRENT_TIMESTAMP
                     WHERE {self.table_name}.title IS DISTINCT FROM EXCLUDED.title
                     OR {self.table_name}.description IS DISTINCT FROM EXCLUDED.description
                 """, news_records)
 
-                # For simplicity, consider all as inserted (PostgreSQL doesn't easily return insert vs update counts)
-                inserted_count = len(news_records)
+                # Validate actual database changes
+                final_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
+                actual_inserted = final_count - initial_count
+
+                # Accurate counting based on actual database changes
+                inserted_count = actual_inserted
+                updated_count = len(existing_ids)
+                skipped_count = len(news_records) - inserted_count - updated_count
+
+                # Log validation info for debugging
+                if actual_inserted != expected_new_inserts:
+                    logger.warning(f"Insert count mismatch: expected {expected_new_inserts}, actual {actual_inserted}")
+                    logger.debug(f"Articles processed: {len(news_records)}, existing: {len(existing_ids)}, final DB change: {actual_inserted}")
 
         except Exception as e:
             logger.error(f"Error storing articles: {e}")
@@ -586,7 +606,7 @@ No need to provide API key on command line - it uses existing codebase infrastru
         # Create database connection pool using shared utility
         logger.info("Creating database connection pool...")
         pool = await get_database_pool(args.environment, max_retries=3, timeout=10.0)
-        table_name = get_table_name("news", args.environment)
+        table_name = get_table_name("news_polygon", args.environment)
 
         try:
             # Create backfill service

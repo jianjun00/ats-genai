@@ -12,7 +12,7 @@ This comprehensive test suite prevents the recurrence of major issues that were 
 - **Fix**: Interpret recent `endDate` (within 7 days) as active, set `end_date = NULL`
 - **Test Coverage**: `test_tiingo_end_date_interpretation.py`
 
-### 2. Hardcoded API Keys Security Vulnerability  
+### 2. Hardcoded API Keys Security Vulnerability
 **Issue**: API keys were hardcoded throughout 18+ files in the codebase, creating security risks.
 
 - **Impact**: Potential credential exposure in version control, logs, and documentation
@@ -24,7 +24,7 @@ This comprehensive test suite prevents the recurrence of major issues that were 
 **Issue**: Scripts expected different table schemas than what existed in the database.
 
 - **Impact**: Runtime failures, data insertion errors, failed backfills
-- **Root Cause**: Column name mismatches (e.g., `adj_close` vs `adjclose`) 
+- **Root Cause**: Column name mismatches (e.g., `adj_close` vs `adjclose`)
 - **Fix**: Validate and align schema expectations with database reality
 - **Test Coverage**: `test_database_schema_compatibility.py`
 
@@ -36,7 +36,7 @@ tests/regression/
 ├── pytest.ini                           # Pytest configuration
 ├── README.md                            # This documentation
 ├── test_tiingo_end_date_interpretation.py  # Tiingo date logic tests
-├── test_hardcoded_api_keys_security.py     # API key security tests  
+├── test_hardcoded_api_keys_security.py     # API key security tests
 ├── test_database_schema_compatibility.py   # Schema compatibility tests
 └── test_regression_suite_runner.py         # Meta-tests for the suite itself
 ```
@@ -78,7 +78,7 @@ pytest tests/regression/ -v -m integration
 # Security tests only
 pytest tests/regression/ -v -m security
 
-# Schema tests only  
+# Schema tests only
 pytest tests/regression/ -v -m schema
 
 # Integration tests (require database connection)
@@ -97,7 +97,7 @@ pytest tests/regression/ -v -m slow
 - **API Response Parsing**: Tests interpretation of Tiingo API responses
 - **Active Percentage Check**: Validates >70% of stocks are active (realistic)
 
-### API Key Security Tests  
+### API Key Security Tests
 - **Hardcoded Key Detection**: Scans codebase for specific leaked keys
 - **Environment Variable Usage**: Validates proper `os.getenv()` patterns
 - **Test File Placeholders**: Ensures test files use placeholder keys
@@ -150,7 +150,7 @@ DB_NAME=dev_db         # Database name
 - **After database schema changes** - Prevents compatibility issues
 - **After API key management changes** - Ensures security
 
-### Recommended Test Runs  
+### Recommended Test Runs
 - **During development** - Catch issues early
 - **In CI/CD pipelines** - Automated prevention
 - **After major refactoring** - Comprehensive validation
@@ -161,7 +161,7 @@ DB_NAME=dev_db         # Database name
 # Daily automated runs
 0 2 * * * /path/to/run_regression_tests.py --fast
 
-# Pre-deployment runs  
+# Pre-deployment runs
 python3 scripts/run_regression_tests.py --integration
 
 # Development runs
@@ -241,7 +241,7 @@ python3 scripts/run_regression_tests.py --category security --fast
 ### Getting Help
 
 1. **Check test output** - Most failures have specific error messages
-2. **Run individual tests** - Isolate failing tests for debugging  
+2. **Run individual tests** - Isolate failing tests for debugging
 3. **Check dependencies** - Ensure required packages are installed
 4. **Validate environment** - Check database connectivity and env vars
 5. **Review documentation** - This README and inline test documentation

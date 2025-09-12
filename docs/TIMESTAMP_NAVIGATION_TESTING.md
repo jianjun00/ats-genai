@@ -1,6 +1,6 @@
 # Timestamp-Based Multi-Timeframe Navigation Test Suite
 
-**Date**: September 7, 2025  
+**Date**: September 7, 2025
 **Purpose**: Comprehensive testing for the new timestamp-based multi-timeframe navigation architecture
 
 ## 🎯 Overview
@@ -18,7 +18,7 @@ This test suite validates the new timestamp-based multi-timeframe navigation sys
 
 ### 1. **Unit Tests** (`tests/unit/test_timestamp_based_navigation.py`)
 **Purpose**: Isolated component testing with mocks
-- ✅ 1-hour navigation functionality 
+- ✅ 1-hour navigation functionality
 - ✅ 21-bar context window calculation
 - ✅ Multi-timeframe data retrieval by timestamp
 - ✅ Timestamp synchronization logic
@@ -81,7 +81,7 @@ python scripts/run_timestamp_navigation_tests.py
 
 # Or run specific test types
 python scripts/run_timestamp_navigation_tests.py --type unit
-python scripts/run_timestamp_navigation_tests.py --type integration  
+python scripts/run_timestamp_navigation_tests.py --type integration
 python scripts/run_timestamp_navigation_tests.py --type contract
 python scripts/run_timestamp_navigation_tests.py --type performance
 python scripts/run_timestamp_navigation_tests.py --type playwright
@@ -99,7 +99,7 @@ PYTHONPATH=src python -m pytest tests/integration/test_timestamp_navigation_inte
 # API contract tests
 PYTHONPATH=src python -m pytest tests/integration/test_api_contract_timestamp_synchronization.py -v
 
-# Performance tests  
+# Performance tests
 pip install aiohttp psutil
 PYTHONPATH=src python -m pytest tests/performance/test_timestamp_navigation_performance.py -v
 
@@ -117,20 +117,20 @@ PYTHONPATH=src python -m pytest tests/browser_tests/test_timestamp_navigation_pl
   - 21-bar context window selection
   - Timestamp extraction and return
   - Edge case handling (negative index, beyond bounds)
-- **Multi-Timeframe**: `/api/v1/training-datasets/{id}/sequences/{seq}/multi-timeframe`  
+- **Multi-Timeframe**: `/api/v1/training-datasets/{id}/sequences/{seq}/multi-timeframe`
   - Timestamp parameter handling
   - Multi-timeframe data retrieval (5m, 15m, 1d, 1w)
   - 21-bar synchronization around timestamp
   - Data consistency validation
 
-### **Data Flow Validation** 
+### **Data Flow Validation**
 - **Timestamp Synchronization**: Verify exact timestamp matching between endpoints
 - **21-Bar Logic**: Validate 10 before + 1 current + 10 after logic across all timeframes
 - **Table Display**: Confirm 1-hour data always shown in table
 - **Chart Updates**: Verify multi-timeframe charts synchronized to 1-hour timestamp
 
 ### **Performance Requirements**
-- **Response Time**: < 3s for 1-hour navigation, < 5s for multi-timeframe  
+- **Response Time**: < 3s for 1-hour navigation, < 5s for multi-timeframe
 - **Memory Usage**: < 100MB growth during navigation session
 - **Concurrent Handling**: ≥ 70% success rate under 10 concurrent requests
 - **Stress Testing**: Handle 20 rapid requests with ≥ 70% success rate
@@ -145,7 +145,7 @@ PYTHONPATH=src python -m pytest tests/browser_tests/test_timestamp_navigation_pl
 
 ### **✅ All Tests Must Pass**
 1. **Unit Tests**: 100% pass rate (isolated functionality)
-2. **Integration Tests**: 100% pass rate (API endpoints) 
+2. **Integration Tests**: 100% pass rate (API endpoints)
 3. **Contract Tests**: 100% pass rate (API compliance)
 4. **Performance Tests**: Meet all performance thresholds
 5. **Playwright Tests**: End-to-end workflow successful
@@ -219,7 +219,7 @@ python scripts/run_timestamp_navigation_tests.py --type unit
 python scripts/run_timestamp_navigation_tests.py --type integration
 ```
 
-### **Full Validation**  
+### **Full Validation**
 ```bash
 # Complete test suite for releases
 python scripts/run_timestamp_navigation_tests.py

@@ -137,14 +137,14 @@ sleep 3
 # Check service status
 if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
     echo -e "${GREEN}✅ Service started successfully!${NC}"
-    
+
     # Send test alert
     echo -e "${YELLOW}Sending test Slack alert...${NC}"
     python3 ${SCRIPT_DIR}/wsl_system_monitor.py \\
         --slack-webhook="${SLACK_WEBHOOK_URL}" \\
         --config-file=${SCRIPT_DIR}/monitor_config.json \\
         --test-alert
-    
+
     echo -e "${GREEN}=== Installation Complete ===${NC}"
     echo -e "Service Status: ${GREEN}ACTIVE${NC}"
     echo -e "View logs: ${YELLOW}journalctl -u ${SERVICE_NAME} -f${NC}"
@@ -152,7 +152,7 @@ if sudo systemctl is-active --quiet ${SERVICE_NAME}; then
     echo -e "Start service: ${YELLOW}sudo systemctl start ${SERVICE_NAME}${NC}"
     echo -e "Restart service: ${YELLOW}sudo systemctl restart ${SERVICE_NAME}${NC}"
     echo -e "Disable service: ${YELLOW}sudo systemctl disable ${SERVICE_NAME}${NC}"
-    
+
 else
     echo -e "${RED}❌ Service failed to start!${NC}"
     echo -e "Check logs: ${YELLOW}journalctl -u ${SERVICE_NAME} -n 50${NC}"

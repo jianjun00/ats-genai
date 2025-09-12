@@ -95,6 +95,9 @@ class UnifiedAnalyticsService:
         self.ray_enabled = RAY_AVAILABLE
         self.visualization_enabled = VISUALIZATION_AVAILABLE
 
+        # CRITICAL: Validate environment setup before starting
+        self._validate_environment_setup()
+
         # Initialize visualization components
         if self.visualization_enabled:
             self.multi_panel_chart = MultiPanelTradingChart()
@@ -361,10 +364,10 @@ class UnifiedAnalyticsService:
                             # New structure: /data/training_data/<run_id>/<timeframe>/<symbol>_<startdatetime>_<enddatetime>.arrayrecord
                             f"/data/training_data/*/{timeframe}/{symbol_lower}_*.arrayrecord",
                             f"/data/training_data/*/*/{symbol_lower}_*.arrayrecord",
-                            # Legacy numpy files (existing structure)
-                            f"/data/training/arrayrecord_aapl_tsla_2025/{symbol_lower}_features.npy",
-                            f"/data/training/{dataset_info['dataset_name'].lower()}/{symbol_lower}_features.npy",
-                            f"/data/training/{dataset_id}/{symbol_lower}_features.npy",
+                            # Legacy numpy files (existing structure) - FIXED: Use correct path
+                            f"/data/training_data/arrayrecord_aapl_tsla_2025/{symbol_lower}_features.npy",
+                            f"/data/training_data/{dataset_info['dataset_name'].lower()}/{symbol_lower}_features.npy",
+                            f"/data/training_data/{dataset_id}/{symbol_lower}_features.npy",
                         ]
 
                         logger.info(f"Checking file paths for timeframe {timeframe}: {possible_file_paths}")
@@ -1437,7 +1440,7 @@ class UnifiedAnalyticsService:
                     # Get recent news events from both sources
                     news_events = []
 
-                    # Query Polygon news
+                    # Query Polygon news (use intg environment table)
                     polygon_query = """
                         SELECT
                             'Polygon' as source,
@@ -1450,7 +1453,7 @@ class UnifiedAnalyticsService:
                             article_url,
                             publisher_name,
                             created_at
-                        FROM dev_news_polygon
+                        FROM intg_news_polygon
                         WHERE 1=1
                     """
 
@@ -1496,45 +1499,46 @@ class UnifiedAnalyticsService:
                         logger.warning(f"Could not fetch Polygon news: {e}")
 
                     # Query Tiingo news
-                    tiingo_query = """
+                    # Query realtime news (additional live news source)
+                    realtime_query = """
                         SELECT
-                            'Tiingo' as source,
-                            vendor_id::text as event_id,
+                            'Realtime' as source,
+                            article_id as event_id,
                             title,
-                            description,
-                            published_date as published_at,
+                            summary as description,
+                            published_utc as published_at,
                             tickers,
-                            tags as keywords,
-                            article_url as url,
-                            source as publisher,
+                            keywords,
+                            article_url,
+                            publisher_name,
                             created_at
-                        FROM dev_news_tiingo
+                        FROM intg_realtime_news
                         WHERE 1=1
                     """
 
-                    # Build dynamic filters for Tiingo news
-                    tiingo_params = []
+                    # Build dynamic filters for realtime news
+                    realtime_params = []
 
                     if symbol:
-                        tiingo_query += " AND %s = ANY(tickers)"
-                        tiingo_params.append(symbol.upper())
+                        realtime_query += " AND %s = ANY(tickers)"
+                        realtime_params.append(symbol.upper())
 
                     if start_date:
-                        tiingo_query += " AND published_date >= %s"
-                        tiingo_params.append(start_date)
+                        realtime_query += " AND published_utc >= %s"
+                        realtime_params.append(start_date)
 
                     if end_date:
-                        tiingo_query += " AND published_date <= %s"
-                        tiingo_params.append(end_date)
+                        realtime_query += " AND published_utc <= %s"
+                        realtime_params.append(end_date)
 
-                    tiingo_query += " ORDER BY published_date DESC LIMIT %s"
-                    tiingo_params.append(limit // 2)
+                    realtime_query += " ORDER BY published_utc DESC LIMIT %s"
+                    realtime_params.append(limit // 2)
 
                     try:
-                        cursor.execute(tiingo_query, tiingo_params)
-                        tiingo_news = cursor.fetchall()
+                        cursor.execute(realtime_query, realtime_params)
+                        realtime_news = cursor.fetchall()
 
-                        for news in tiingo_news:
+                        for news in realtime_news:
                             news_events.append({
                                 'source': news['source'],
                                 'event_id': news['event_id'],
@@ -1543,15 +1547,15 @@ class UnifiedAnalyticsService:
                                 'published_at': news['published_at'].isoformat() if news['published_at'] else None,
                                 'symbols': news['tickers'] or [],
                                 'keywords': news['keywords'] or [],
-                                'url': news['url'],
-                                'publisher': news['publisher'],
+                                'url': news['article_url'],
+                                'publisher': news['publisher_name'],
                                 'created_at': news['created_at'].isoformat() if news['created_at'] else None
                             })
 
-                        logger.info(f"Retrieved {len(tiingo_news)} Tiingo news events")
+                        logger.info(f"Retrieved {len(realtime_news)} Realtime news events")
 
                     except Exception as e:
-                        logger.warning(f"Could not fetch Tiingo news: {e}")
+                        logger.warning(f"Could not fetch realtime news: {e}")
 
                     # Sort all events by published date
                     news_events.sort(key=lambda x: x['published_at'] or '1970-01-01', reverse=True)
@@ -1639,7 +1643,7 @@ class UnifiedAnalyticsService:
                     if start_date:
                         earnings_query += " AND report_period >= %s"
                         params.append(start_date)
-                    
+
                     if end_date:
                         earnings_query += " AND report_period <= %s"
                         params.append(end_date)
@@ -1675,13 +1679,13 @@ class UnifiedAnalyticsService:
 
                     # Get summary statistics
                     unique_symbols = set(event['symbol'] for event in processed_events)
-                    
+
                     # Count beats and misses
                     eps_beats = sum(1 for event in processed_events if event['earnings_beat'] is True)
                     eps_misses = sum(1 for event in processed_events if event['earnings_beat'] is False)
                     revenue_beats = sum(1 for event in processed_events if event['revenue_beat'] is True)
                     revenue_misses = sum(1 for event in processed_events if event['revenue_beat'] is False)
-                    
+
                     # Count guidance changes
                     guidance_raised_count = sum(1 for event in processed_events if event['guidance_raised'] is True)
                     guidance_lowered_count = sum(1 for event in processed_events if event['guidance_lowered'] is True)
@@ -1719,17 +1723,22 @@ class UnifiedAnalyticsService:
             }
 
     def get_gap_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
-        """Get gap events from gap_events table with optional filters."""
+        """Get gap events from environment-specific gap_events table with optional filters."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime, timedelta
+            import os
+
+            # Get environment-specific table name
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            gap_table = f"{environment}_gap_events"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
 
                     # Query gap events
-                    gap_query = """
+                    gap_query = f"""
                         SELECT
                             symbol,
                             gap_date,
@@ -1752,7 +1761,7 @@ class UnifiedAnalyticsService:
                             processed,
                             created_at,
                             updated_at
-                        FROM gap_events
+                        FROM {gap_table}
                         WHERE 1=1
                     """
 
@@ -1767,7 +1776,7 @@ class UnifiedAnalyticsService:
                     if start_date:
                         gap_query += " AND gap_date >= %s"
                         params.append(start_date)
-                    
+
                     if end_date:
                         gap_query += " AND gap_date <= %s"
                         params.append(end_date)
@@ -1808,21 +1817,21 @@ class UnifiedAnalyticsService:
 
                     # Get summary statistics
                     unique_symbols = set(event['symbol'] for event in processed_events)
-                    
+
                     # Count gap types and directions
                     gap_ups = sum(1 for event in processed_events if event['direction'] == 'gap_up')
                     gap_downs = sum(1 for event in processed_events if event['direction'] == 'gap_down')
-                    
+
                     # Count gap sizes
                     micro_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'micro')
-                    small_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'small') 
+                    small_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'small')
                     medium_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'medium')
                     large_gaps = sum(1 for event in processed_events if event['gap_size_class'] == 'large')
-                    
+
                     # Count filled vs unfilled gaps
                     filled_gaps = sum(1 for event in processed_events if event['is_filled'] is True)
                     unfilled_gaps = sum(1 for event in processed_events if event['is_filled'] is False)
-                    
+
                     # Calculate average significance score
                     sig_scores = [event['significance_score'] for event in processed_events if event['significance_score'] is not None]
                     avg_significance = sum(sig_scores) / len(sig_scores) if sig_scores else 0
@@ -1861,6 +1870,459 @@ class UnifiedAnalyticsService:
                 'events': [],
                 'total_events': 0
             }
+
+    def get_economic_events(self, limit: int = 100, vendor: str = None, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """Get consolidated economic events from multiple event tables."""
+        logger.info(f"NEW get_economic_events method called with limit={limit}, vendor={vendor}")
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.config.environment import Environment
+            import psycopg2.extras
+            from datetime import datetime, timedelta
+            import os
+
+            # Get environment-specific table names
+            environment = os.getenv('ENVIRONMENT', 'dev')
+            earnings_table = f"{environment}_earnings_events"
+            news_table = f"{environment}_news"
+            gap_table = f"{environment}_gap_events"
+
+            # Get environment-aware table names
+            env = Environment()
+            events_table = env.get_table_name('economic_events')
+            event_types_table = env.get_table_name('economic_event_types')
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    all_events = []
+
+                    # Get earnings events
+                    try:
+                        earnings_query = f"""
+                            SELECT
+                                'earnings' as event_type,
+                                symbol,
+                                report_period as event_date,
+                                COALESCE(earnings_call_datetime, report_period) as event_datetime,
+                                CONCAT('Earnings Report: ', symbol, ' Q', EXTRACT(QUARTER FROM report_period)) as title,
+                                CASE
+                                    WHEN earnings_beat = true AND revenue_beat = true THEN 'Beat both EPS and Revenue'
+                                    WHEN earnings_beat = true THEN 'Beat EPS expectations'
+                                    WHEN revenue_beat = true THEN 'Beat Revenue expectations'
+                                    ELSE 'Mixed/Miss results'
+                                END as description,
+                                CASE
+                                    WHEN earnings_beat = true AND revenue_beat = true THEN 'high'
+                                    WHEN earnings_beat = true OR revenue_beat = true THEN 'medium'
+                                    ELSE 'low'
+                                END as importance,
+                                'eodhd' as vendor,
+                                created_at,
+                                updated_at
+                            FROM {earnings_table}
+                            WHERE 1=1
+                        """
+
+                        params = []
+                        if symbol:
+                            earnings_query += " AND UPPER(symbol) = UPPER(%s)"
+                            params.append(symbol)
+                        if start_date:
+                            earnings_query += " AND report_period >= %s"
+                            params.append(start_date)
+                        if end_date:
+                            earnings_query += " AND report_period <= %s"
+                            params.append(end_date)
+
+                        earnings_query += " ORDER BY report_period DESC LIMIT %s"
+                        params.append(min(limit // 4, 25))  # Divide limit among 4 sources
+
+                        cursor.execute(earnings_query, params)
+                        earnings_events = cursor.fetchall()
+                        all_events.extend(earnings_events)
+
+                    except Exception as e:
+                        logger.warning(f"Could not fetch earnings events: {e}")
+
+                    # Get gap events
+                    try:
+                        gap_query = f"""
+                            SELECT
+                                'gap' as event_type,
+                                symbol,
+                                gap_date as event_date,
+                                gap_datetime as event_datetime,
+                                CONCAT(symbol, ' Gap ', UPPER(direction), ': ', gap_percentage::text, '%') as title,
+                                CONCAT('Gap ', direction, ' of ', gap_points, ' points (', gap_percentage, '%) with significance score ', significance_score) as description,
+                                CASE
+                                    WHEN ABS(gap_percentage) > 10 THEN 'high'
+                                    WHEN ABS(gap_percentage) > 5 THEN 'medium'
+                                    ELSE 'low'
+                                END as importance,
+                                'internal' as vendor,
+                                created_at,
+                                updated_at
+                            FROM {gap_table}
+                            WHERE 1=1
+                        """
+
+                        params = []
+                        if symbol:
+                            gap_query += " AND UPPER(symbol) = UPPER(%s)"
+                            params.append(symbol)
+                        if start_date:
+                            gap_query += " AND gap_date >= %s"
+                            params.append(start_date)
+                        if end_date:
+                            gap_query += " AND gap_date <= %s"
+                            params.append(end_date)
+
+                        gap_query += " ORDER BY gap_date DESC LIMIT %s"
+                        params.append(min(limit // 4, 25))
+
+                        cursor.execute(gap_query, params)
+                        gap_events = cursor.fetchall()
+                        all_events.extend(gap_events)
+
+                    except Exception as e:
+                        logger.warning(f"Could not fetch gap events: {e}")
+
+                    # Get economic events (macro indicators) - NEW ADDITION
+                    try:
+                        economic_query = f"""
+                            SELECT DISTINCT
+                                'economic' as event_type,
+                                NULL as symbol,
+                                ee.date as event_date,
+                                ee.release_time as event_datetime,
+                                et.name as title,
+                                CONCAT(et.description,
+                                    CASE
+                                        WHEN ee.actual IS NOT NULL THEN ' - Actual: ' || ee.actual
+                                        ELSE ''
+                                    END,
+                                    CASE
+                                        WHEN ee.estimate IS NOT NULL THEN ' (Est: ' || ee.estimate || ')'
+                                        ELSE ''
+                                    END
+                                ) as description,
+                                CASE
+                                    WHEN et.importance_level >= 5 THEN 'high'
+                                    WHEN et.importance_level >= 3 THEN 'medium'
+                                    ELSE 'low'
+                                END as importance,
+                                ee.source_vendor as vendor,
+                                ee.created_at,
+                                ee.updated_at
+                            FROM {events_table} ee
+                            JOIN {event_types_table} et ON ee.event_type_id = et.id
+                            WHERE 1=1
+                        """
+
+                        params = []
+
+                        # Add vendor filter
+                        if vendor:
+                            economic_query += " AND LOWER(ee.source_vendor) = LOWER(%s)"
+                            params.append(vendor)
+
+                        # Add date range filters
+                        if start_date:
+                            economic_query += " AND ee.date >= %s"
+                            params.append(start_date)
+
+                        if end_date:
+                            economic_query += " AND ee.date <= %s"
+                            params.append(end_date)
+
+                        economic_query += " ORDER BY ee.date DESC, ee.release_time DESC LIMIT %s"
+                        params.append(min(limit // 4, 25))
+
+                        cursor.execute(economic_query, params)
+                        economic_events = cursor.fetchall()
+                        all_events.extend(economic_events)
+
+                    except Exception as e:
+                        logger.warning(f"Could not fetch economic events: {e}")
+
+                    # Sort all events by date and limit
+                    all_events.sort(key=lambda x: x['event_datetime'] if x['event_datetime'] else x['event_date'], reverse=True)
+                    all_events = all_events[:limit]
+
+                    # Process events for consistent format
+                    processed_events = []
+                    for event in all_events:
+                        processed_event = {
+                            'event_type': event['event_type'],
+                            'symbol': event['symbol'],
+                            'event_date': event['event_date'].strftime('%Y-%m-%d') if event['event_date'] else None,
+                            'event_datetime': event['event_datetime'].isoformat() if event['event_datetime'] else None,
+                            'title': event['title'],
+                            'description': event['description'],
+                            'importance': event['importance'],
+                            'vendor': event['vendor'],
+                            'created_at': event['created_at'].isoformat() if event['created_at'] else None,
+                            'updated_at': event['updated_at'].isoformat() if event['updated_at'] else None
+                        }
+                        processed_events.append(processed_event)
+
+                    # Get summary statistics
+                    unique_symbols = set(event['symbol'] for event in processed_events)
+                    event_types = set(event['event_type'] for event in processed_events)
+
+                    high_importance = sum(1 for event in processed_events if event['importance'] == 'high')
+                    medium_importance = sum(1 for event in processed_events if event['importance'] == 'medium')
+                    low_importance = sum(1 for event in processed_events if event['importance'] == 'low')
+
+                    logger.info(f"Retrieved {len(processed_events)} consolidated economic events")
+
+                    return {
+                        'success': True,
+                        'events': processed_events,
+                        'total_events': len(processed_events),
+                        'unique_symbols': len(unique_symbols),
+                        'event_types': list(event_types),
+                        'summary': {
+                            'high_importance': high_importance,
+                            'medium_importance': medium_importance,
+                            'low_importance': low_importance
+                        },
+                        'filters': {
+                            'vendor_filter': vendor,
+                            'symbol_filter': symbol,
+                            'start_date': start_date,
+                            'end_date': end_date
+                        },
+                        'query_timestamp': datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting economic events: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'events': [],
+                'total_events': 0
+            }
+
+    def get_economic_indicators(self, indicators: List[str] = None) -> Dict[str, Any]:
+        """Get economic indicators with current and upcoming releases."""
+        try:
+            from datetime import datetime, timedelta
+
+            # Current date context
+            today = datetime.now().date()
+            tomorrow = today + timedelta(days=1)
+
+            # Demo economic indicators data (will be replaced with real FRED API data)
+            all_indicators = [
+                {
+                    'indicator_id': 'PPIFIS',
+                    'name': 'Producer Price Index: Finished Goods',
+                    'frequency': 'Monthly',
+                    'release_date': today.strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'released_today',
+                    'previous_value': '0.2%',
+                    'forecasted_value': '0.1%',
+                    'actual_value': '0.3%',
+                    'importance': 'high',
+                    'impact': 'markets_higher',
+                    'description': 'Measures average change in selling prices received by domestic producers for their output',
+                    'source': 'Bureau of Labor Statistics',
+                    'next_release': (today + timedelta(days=30)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'CPIAUCSL',
+                    'name': 'Consumer Price Index for All Urban Consumers',
+                    'frequency': 'Monthly',
+                    'release_date': tomorrow.strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'scheduled_tomorrow',
+                    'previous_value': '0.4%',
+                    'forecasted_value': '0.2%',
+                    'actual_value': None,
+                    'importance': 'high',
+                    'impact': 'tbd',
+                    'description': 'Measures average change in prices of goods and services consumed by urban households',
+                    'source': 'Bureau of Labor Statistics',
+                    'next_release': (tomorrow + timedelta(days=30)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'GDP',
+                    'name': 'Gross Domestic Product',
+                    'frequency': 'Quarterly',
+                    'release_date': (today + timedelta(days=45)).strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'upcoming',
+                    'previous_value': '2.8%',
+                    'forecasted_value': '2.5%',
+                    'actual_value': None,
+                    'importance': 'high',
+                    'impact': 'tbd',
+                    'description': 'Comprehensive measure of U.S. economic activity',
+                    'source': 'Bureau of Economic Analysis',
+                    'next_release': (today + timedelta(days=135)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'UNRATE',
+                    'name': 'Unemployment Rate',
+                    'frequency': 'Monthly',
+                    'release_date': (today + timedelta(days=3)).strftime('%Y-%m-%d'),
+                    'release_time': '08:30',
+                    'status': 'upcoming',
+                    'previous_value': '4.1%',
+                    'forecasted_value': '4.2%',
+                    'actual_value': None,
+                    'importance': 'high',
+                    'impact': 'tbd',
+                    'description': 'Percentage of labor force that is unemployed',
+                    'source': 'Bureau of Labor Statistics',
+                    'next_release': (today + timedelta(days=33)).strftime('%Y-%m-%d')
+                },
+                {
+                    'indicator_id': 'EFFR',
+                    'name': 'Federal Funds Effective Rate',
+                    'frequency': 'Daily',
+                    'release_date': today.strftime('%Y-%m-%d'),
+                    'release_time': '16:00',
+                    'status': 'released_today',
+                    'previous_value': '5.25%',
+                    'forecasted_value': None,
+                    'actual_value': '5.25%',
+                    'importance': 'medium',
+                    'impact': 'neutral',
+                    'description': 'Interest rate at which depository institutions lend balances to other institutions overnight',
+                    'source': 'Federal Reserve',
+                    'next_release': (today + timedelta(days=1)).strftime('%Y-%m-%d')
+                }
+            ]
+
+            # Filter indicators if specific ones requested
+            if indicators:
+                filtered_indicators = [ind for ind in all_indicators if ind['indicator_id'] in indicators]
+            else:
+                filtered_indicators = all_indicators
+
+            # Categorize indicators by status
+            released_today = [ind for ind in filtered_indicators if ind['status'] == 'released_today']
+            scheduled_tomorrow = [ind for ind in filtered_indicators if ind['status'] == 'scheduled_tomorrow']
+            upcoming = [ind for ind in filtered_indicators if ind['status'] == 'upcoming']
+
+            logger.info(f"Retrieved {len(filtered_indicators)} economic indicators")
+
+            return {
+                'success': True,
+                'indicators': filtered_indicators,
+                'total_indicators': len(filtered_indicators),
+                'categorized': {
+                    'released_today': released_today,
+                    'scheduled_tomorrow': scheduled_tomorrow,
+                    'upcoming': upcoming
+                },
+                'summary': {
+                    'high_importance': sum(1 for ind in filtered_indicators if ind['importance'] == 'high'),
+                    'medium_importance': sum(1 for ind in filtered_indicators if ind['importance'] == 'medium'),
+                    'low_importance': sum(1 for ind in filtered_indicators if ind['importance'] == 'low'),
+                    'released_today_count': len(released_today),
+                    'scheduled_tomorrow_count': len(scheduled_tomorrow),
+                    'upcoming_count': len(upcoming)
+                },
+                'data_source': 'demo_data',  # Will be 'fred_api' when real API is integrated
+                'query_timestamp': datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting economic indicators: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'indicators': [],
+                'total_indicators': 0
+            }
+
+    def _validate_environment_setup(self):
+        """Validate environment configuration and database connectivity before service startup."""
+        import os
+
+        # Get environment
+        environment = os.getenv('ENVIRONMENT', 'dev')
+
+        logger.info(f"🔍 Validating environment setup for: {environment}")
+
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+
+            # Get expected configuration
+            expected_db = f"{environment}_db"
+            expected_min_tables = {
+                'dev': 30,
+                'intg': 50,
+                'prod': 50
+            }.get(environment, 30)
+
+            with get_raw_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+
+                    # 1. Verify we're connected to correct database
+                    cursor.execute("SELECT current_database(), current_user, inet_server_addr(), inet_server_port()")
+                    db_info = cursor.fetchone()
+
+                    actual_db = db_info['current_database']
+                    server_addr = db_info['inet_server_addr']
+                    server_port = db_info['inet_server_port']
+
+                    if actual_db != expected_db:
+                        raise EnvironmentError(
+                            f"❌ CRITICAL DATABASE ERROR: Connected to '{actual_db}' but expected '{expected_db}'. "
+                            f"Environment: {environment}. Server: {server_addr}:{server_port}. "
+                            f"Check Docker network configuration!"
+                        )
+
+                    logger.info(f"✅ Database validation: {actual_db}@{server_addr}:{server_port}")
+
+                    # 2. Verify expected tables exist
+                    cursor.execute("""
+                        SELECT tablename FROM pg_tables
+                        WHERE schemaname = 'public' AND tablename LIKE %s
+                        ORDER BY tablename
+                    """, (f"{environment}_%",))
+
+                    tables = [row['tablename'] for row in cursor.fetchall()]
+                    actual_table_count = len(tables)
+
+                    if actual_table_count < expected_min_tables:
+                        raise EnvironmentError(
+                            f"❌ CRITICAL TABLE ERROR: Only {actual_table_count} tables found, expected {expected_min_tables}+. "
+                            f"Environment: {environment}. Database: {actual_db}. "
+                            f"Missing data or wrong database!"
+                        )
+
+                    logger.info(f"✅ Table validation: {actual_table_count} tables found (expected {expected_min_tables}+)")
+
+                    # 3. Verify key event tables exist for this functionality
+                    key_tables = [f"{environment}_earnings_events", f"{environment}_gap_events", f"{environment}_news"]
+                    missing_tables = [table for table in key_tables if table not in tables]
+
+                    if missing_tables:
+                        logger.warning(f"⚠️ Missing event tables: {missing_tables} - some functionality may be limited")
+                    else:
+                        logger.info(f"✅ Event tables validation: All key tables present")
+
+                    # 4. Test basic query functionality
+                    cursor.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'")
+                    total_tables = cursor.fetchone()['count']
+
+                    logger.info(f"✅ Environment validation complete: {environment} environment with {total_tables} total tables")
+
+        except Exception as e:
+            logger.error(f"❌ ENVIRONMENT VALIDATION FAILED: {e}")
+            raise EnvironmentError(
+                f"Cannot start analytics service in {environment} environment. "
+                f"Database connectivity or configuration error: {e}"
+            )
 
     # ==============================================
     # MULTI-PANEL VISUALIZATION (NEW)
@@ -2011,6 +2473,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadBarCollectionMetrics()">📈 Bar Collection Metrics</button>
                 <button onclick="loadUniverseAnalytics()">🌐 Universe Analytics</button>
                 <button onclick="loadTrainingDatasets()">🤖 Training Datasets</button>
+                <button onclick="loadMonthlyTrainingData()">📅 Monthly Training Data</button>
                 <button onclick="loadNewsEvents()">📰 News Events</button>
                 <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
                 <button onclick="loadGapEvents()">⚡ Gap Events</button>
@@ -2062,25 +2525,25 @@ class UnifiedAnalyticsService:
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
                                     <div>
                                         <label for="symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbol:</label>
-                                        <input type="text" id="symbol-filter" placeholder="e.g., AAPL, TSLA" 
+                                        <input type="text" id="symbol-filter" placeholder="e.g., AAPL, TSLA"
                                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     </div>
                                     <div>
                                         <label for="date-from" style="display: block; margin-bottom: 5px; font-weight: bold;">From Date:</label>
-                                        <input type="date" id="date-from" 
+                                        <input type="date" id="date-from"
                                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     </div>
                                     <div>
                                         <label for="date-to" style="display: block; margin-bottom: 5px; font-weight: bold;">To Date:</label>
-                                        <input type="date" id="date-to" 
+                                        <input type="date" id="date-to"
                                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     </div>
                                     <div>
-                                        <button onclick="applyFilters()" 
+                                        <button onclick="applyFilters()"
                                                 style="padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                             Apply Filters
                                         </button>
-                                        <button onclick="clearFilters()" 
+                                        <button onclick="clearFilters()"
                                                 style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">
                                             Clear
                                         </button>
@@ -2133,15 +2596,15 @@ class UnifiedAnalyticsService:
                     }
 
                     document.getElementById('table-content').style.display = 'block';
-                    
+
                     // Show filters for tables that typically have symbol and date columns
-                    const hasFiltering = tableName.includes('daily_prices') || 
-                                       tableName.includes('instruments') || 
+                    const hasFiltering = tableName.includes('daily_prices') ||
+                                       tableName.includes('instruments') ||
                                        tableName.includes('gap_events') ||
                                        tableName.includes('fundamentals') ||
                                        tableName.includes('news') ||
                                        tableName.includes('earnings');
-                    
+
                     document.getElementById('filter-controls').style.display = hasFiltering ? 'block' : 'none';
                     document.getElementById('table-info').innerHTML = '<p>Loading table information...</p>';
                     document.getElementById('column-summary').innerHTML = '<p>Loading column information...</p>';
@@ -2176,7 +2639,7 @@ class UnifiedAnalyticsService:
 
                         // Load sample data
                         loadSampleData(tableName);
-                        
+
                     } catch (error) {
                         console.error('Error loading table data:', error);
                         document.getElementById('table-info').innerHTML = '<p style="color: red;">Error loading table information</p>';
@@ -2206,7 +2669,7 @@ class UnifiedAnalyticsService:
                                             <div style="margin-top: 10px;">
                                                 <strong>Most Common Values:</strong>
                                                 <div style="margin: 5px 0;">
-                                                    ${Object.entries(stats.most_common).slice(0, 5).map(([val, count]) => 
+                                                    ${Object.entries(stats.most_common).slice(0, 5).map(([val, count]) =>
                                                         `<span style="background: #e9ecef; padding: 2px 6px; margin: 2px; border-radius: 3px; display: inline-block;">${val} (${count})</span>`
                                                     ).join('')}
                                                 </div>
@@ -2234,7 +2697,7 @@ class UnifiedAnalyticsService:
                         if (filters.dateTo) queryParams += `&date_to=${filters.dateTo}`;
                         if (filters.sortBy) queryParams += `&sort_by=${encodeURIComponent(filters.sortBy)}`;
                         if (filters.sortDir) queryParams += `&sort_dir=${filters.sortDir}`;
-                        
+
                         const sampleResponse = await fetch(`/api/table-sample/${tableName}?limit=50${queryParams}`);
                         if (sampleResponse.ok) {
                             const sample = await sampleResponse.json();
@@ -2255,7 +2718,7 @@ class UnifiedAnalyticsService:
 
                 function renderSortableTable(rows, sortApplied = null) {
                     if (!rows || rows.length === 0) return;
-                    
+
                     const headers = Object.keys(rows[0]);
                     const tableHtml = `
                         <div style="margin-bottom: 10px;">
@@ -2273,7 +2736,7 @@ class UnifiedAnalyticsService:
                                             sortDirection = sortApplied.direction;
                                         }
                                         return `
-                                            <th onclick="sortTable('${h}')" 
+                                            <th onclick="sortTable('${h}')"
                                                 style="padding: 8px; border: 1px solid #ddd; text-align: left; cursor: pointer; user-select: none;">
                                                 ${h} <span id="sort-${h}" style="color: #666;">${sortIcon}</span>
                                             </th>
@@ -2300,10 +2763,10 @@ class UnifiedAnalyticsService:
                 function sortTable(column) {
                     const tableName = document.getElementById('table-selector').value;
                     if (!tableName) return;
-                    
+
                     // Update sort indicators
                     document.querySelectorAll('[id^="sort-"]').forEach(span => span.innerHTML = '⇅');
-                    
+
                     // Determine sort direction
                     if (currentSortColumn === column) {
                         sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -2311,10 +2774,10 @@ class UnifiedAnalyticsService:
                         currentSortColumn = column;
                         sortDirection = 'asc';
                     }
-                    
+
                     // Update visual indicator
                     document.getElementById(`sort-${column}`).innerHTML = sortDirection === 'asc' ? '▲' : '▼';
-                    
+
                     // Get current filters and reload data with sorting
                     const filters = {
                         symbol: document.getElementById('symbol-filter').value.trim(),
@@ -2323,10 +2786,10 @@ class UnifiedAnalyticsService:
                         sortBy: column,
                         sortDir: sortDirection
                     };
-                    
+
                     // Show loading message
                     document.getElementById('sample-data').innerHTML = '<p>Sorting data...</p>';
-                    
+
                     // Reload data with server-side sorting
                     loadSampleData(tableName, filters);
                 }
@@ -2335,13 +2798,13 @@ class UnifiedAnalyticsService:
                 function applyFilters() {
                     const tableName = document.getElementById('table-selector').value;
                     if (!tableName) return;
-                    
+
                     const filters = {
                         symbol: document.getElementById('symbol-filter').value.trim(),
                         dateFrom: document.getElementById('date-from').value,
                         dateTo: document.getElementById('date-to').value
                     };
-                    
+
                     document.getElementById('sample-data').innerHTML = '<p>Applying filters...</p>';
                     loadSampleData(tableName, filters);
                 }
@@ -2350,7 +2813,7 @@ class UnifiedAnalyticsService:
                     document.getElementById('symbol-filter').value = '';
                     document.getElementById('date-from').value = '';
                     document.getElementById('date-to').value = '';
-                    
+
                     const tableName = document.getElementById('table-selector').value;
                     if (tableName) {
                         document.getElementById('sample-data').innerHTML = '<p>Loading data...</p>';
@@ -2502,12 +2965,12 @@ class UnifiedAnalyticsService:
 async function loadUniverseAnalytics() {
                     document.getElementById('analysis-content').innerHTML =
                         '<h3>🌐 Universe Analytics</h3><p>Loading universe selection menu...</p>';
-                    
+
                     try {
                         // Load available universes
                         const universesResponse = await fetch('/api/universes');
                         const universesData = await universesResponse.json();
-                        
+
                         if (universesData.success) {
                             let html = `
                                 <h3>🌐 Universe Analytics</h3>
@@ -2519,11 +2982,11 @@ async function loadUniverseAnalytics() {
                                             <select id="universe-selector" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                                 <option value="">-- Select a universe --</option>
                             `;
-                            
+
                             universesData.universes.forEach(universe => {
                                 html += `<option value="${universe.id}">${universe.name} - ${universe.description}</option>`;
                             });
-                            
+
                             html += `
                                             </select>
                                         </div>
@@ -2545,20 +3008,20 @@ async function loadUniverseAnalytics() {
                                         <strong>Available Universes:</strong> ${universesData.universes.length} total
                                     </p>
                                 </div>
-                                
+
                                 <div id="universe-members-content" style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
                                     <h4>📊 Universe Members</h4>
                                     <p style="color: #666;">Select a universe and date range above to view members.</p>
                                 </div>
                             `;
-                            
+
                             document.getElementById('analysis-content').innerHTML = html;
-                            
+
                             // Set default date range (last 30 days)
                             const today = new Date();
                             const thirtyDaysAgo = new Date(today);
                             thirtyDaysAgo.setDate(today.getDate() - 30);
-                            
+
                             document.getElementById('universe-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
                             document.getElementById('universe-date-to').value = today.toISOString().split('T')[0];
                         }
@@ -2572,24 +3035,24 @@ async function loadUniverseAnalytics() {
                     const universeId = document.getElementById('universe-selector').value;
                     const dateFrom = document.getElementById('universe-date-from').value;
                     const dateTo = document.getElementById('universe-date-to').value;
-                    
+
                     if (!universeId) {
                         alert('Please select a universe first.');
                         return;
                     }
-                    
+
                     if (!dateFrom || !dateTo) {
                         alert('Please select both from and to dates.');
                         return;
                     }
-                    
+
                     const membersContent = document.getElementById('universe-members-content');
                     membersContent.innerHTML = '<h4>📊 Universe Members</h4><p>Loading universe members...</p>';
-                    
+
                     try {
                         const response = await fetch(`/api/universe-members/${universeId}?date_from=${dateFrom}&date_to=${dateTo}`);
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             let html = `
                                 <h4>📊 Universe Members</h4>
@@ -2600,12 +3063,12 @@ async function loadUniverseAnalytics() {
                                     <strong>Total Members:</strong> ${data.members.length} symbols
                                 </div>
                             `;
-                            
+
                             if (data.members.length > 0) {
                                 // Group members by status (active vs historical)
                                 const activeMembers = data.members.filter(member => !member.end_at);
                                 const historicalMembers = data.members.filter(member => member.end_at);
-                                
+
                                 html += `
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                                         <div>
@@ -2620,7 +3083,7 @@ async function loadUniverseAnalytics() {
                                                     </thead>
                                                     <tbody>
                                 `;
-                                
+
                                 activeMembers.forEach(member => {
                                     const startDate = new Date(member.start_at).toISOString().split('T')[0];
                                     html += `
@@ -2630,13 +3093,13 @@ async function loadUniverseAnalytics() {
                                         </tr>
                                     `;
                                 });
-                                
+
                                 html += `
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
-                                        
+
                                         <div>
                                             <h5 style="color: #f57c00;">📋 Historical Members (${historicalMembers.length})</h5>
                                             <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
@@ -2650,7 +3113,7 @@ async function loadUniverseAnalytics() {
                                                     </thead>
                                                     <tbody>
                                 `;
-                                
+
                                 historicalMembers.forEach(member => {
                                     const startDate = new Date(member.start_at).toISOString().split('T')[0];
                                     const endDate = member.end_at ? new Date(member.end_at).toISOString().split('T')[0] : 'Active';
@@ -2662,7 +3125,7 @@ async function loadUniverseAnalytics() {
                                         </tr>
                                     `;
                                 });
-                                
+
                                 html += `
                                                     </tbody>
                                                 </table>
@@ -2678,7 +3141,7 @@ async function loadUniverseAnalytics() {
                                     </div>
                                 `;
                             }
-                            
+
                             membersContent.innerHTML = html;
                         } else {
                             membersContent.innerHTML = `
@@ -2890,7 +3353,7 @@ async function loadUniverseAnalytics() {
 
                         if (data.success && data.events) {
                             html = '<h3>📊 Earnings Events Analysis</h3>' +
-                                
+
                                 '<!-- Filter Controls -->' +
                                 '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">' +
                                     '<h4 style="margin: 0 0 15px 0;">🔍 Filters</h4>' +
@@ -2915,7 +3378,7 @@ async function loadUniverseAnalytics() {
                                         '</div>' +
                                     '</div>' +
                                 '</div>' +
-                                
+
                                 '<!-- Summary Cards -->' +
                                 '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">' +
                                     '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">' +
@@ -2967,21 +3430,21 @@ async function loadUniverseAnalytics() {
                             data.events.forEach((event, index) => {
                                 const backgroundColor = index % 2 === 0 ? 'white' : '#f8f9fa';
                                 const reportDate = event.report_period ? event.report_period : 'N/A';
-                                
+
                                 // Format EPS data
                                 const epsActual = event.eps_actual !== null ? '$' + event.eps_actual : 'N/A';
                                 const epsEstimated = event.eps_estimated !== null ? '$' + event.eps_estimated : 'N/A';
                                 const epsSurprise = event.eps_surprise_pct !== null ? event.eps_surprise_pct.toFixed(1) + '%' : 'N/A';
-                                
+
                                 // Format Revenue data
                                 const revenueActual = event.revenue_actual_millions !== null ? '$' + event.revenue_actual_millions + 'M' : 'N/A';
                                 const revenueEstimated = event.revenue_estimated_millions !== null ? '$' + event.revenue_estimated_millions + 'M' : 'N/A';
                                 const revenueSurprise = event.revenue_surprise_pct !== null ? event.revenue_surprise_pct.toFixed(1) + '%' : 'N/A';
-                                
+
                                 // Beat/miss indicators
                                 const epsBeat = event.earnings_beat === true ? '✅' : event.earnings_beat === false ? '❌' : '❓';
                                 const revenueBeat = event.revenue_beat === true ? '✅' : event.revenue_beat === false ? '❌' : '❓';
-                                
+
                                 // Guidance indicators
                                 let guidanceIndicator = '➖';
                                 if (event.guidance_raised === true) guidanceIndicator = '📈';
@@ -3026,13 +3489,13 @@ async function loadUniverseAnalytics() {
                                         '<div>' +
                                             '<strong>EPS Performance:</strong><br>' +
                                             'Beats: ' + data.summary.eps_beats + ' | Misses: ' + data.summary.eps_misses + '<br>' +
-                                            'EPS Success Rate: ' + (data.summary.eps_beats + data.summary.eps_misses > 0 ? 
+                                            'EPS Success Rate: ' + (data.summary.eps_beats + data.summary.eps_misses > 0 ?
                                                 Math.round(data.summary.eps_beats / (data.summary.eps_beats + data.summary.eps_misses) * 100) : 0) + '%' +
                                         '</div>' +
                                         '<div>' +
                                             '<strong>Revenue Performance:</strong><br>' +
                                             'Beats: ' + data.summary.revenue_beats + ' | Misses: ' + data.summary.revenue_misses + '<br>' +
-                                            'Revenue Success Rate: ' + (data.summary.revenue_beats + data.summary.revenue_misses > 0 ? 
+                                            'Revenue Success Rate: ' + (data.summary.revenue_beats + data.summary.revenue_misses > 0 ?
                                                 Math.round(data.summary.revenue_beats / (data.summary.revenue_beats + data.summary.revenue_misses) * 100) : 0) + '%' +
                                         '</div>' +
                                     '</div>' +
@@ -3058,7 +3521,7 @@ async function loadUniverseAnalytics() {
                     const symbolFilter = document.getElementById('symbol-filter').value.trim();
                     const startDate = document.getElementById('start-date-filter').value;
                     const endDate = document.getElementById('end-date-filter').value;
-                    
+
                     loadEarningsEvents(symbolFilter, startDate, endDate);
                 }
 
@@ -3066,7 +3529,7 @@ async function loadUniverseAnalytics() {
                     document.getElementById('symbol-filter').value = '';
                     document.getElementById('start-date-filter').value = '';
                     document.getElementById('end-date-filter').value = '';
-                    
+
                     loadEarningsEvents('', '', '');
                 }
 
@@ -3090,7 +3553,7 @@ async function loadUniverseAnalytics() {
 
                         if (data.success && data.events) {
                             html = '<h3>⚡ Gap Events Analysis</h3>' +
-                                
+
                                 '<!-- Filter Controls -->' +
                                 '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">' +
                                     '<h4 style="margin: 0 0 15px 0;">🔍 Filters</h4>' +
@@ -3115,7 +3578,7 @@ async function loadUniverseAnalytics() {
                                         '</div>' +
                                     '</div>' +
                                 '</div>' +
-                                
+
                                 '<!-- Summary Cards -->' +
                                 '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">' +
                                     '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">' +
@@ -3178,20 +3641,20 @@ async function loadUniverseAnalytics() {
                                     'medium': 'background: #e8f5e8; color: #388e3c',
                                     'large': 'background: #ffebee; color: #d32f2f'
                                 }[event.gap_size_class] || 'background: #f5f5f5; color: #666';
-                                
-                                const filledStatus = event.is_filled ? 
-                                    '✅ ' + (event.days_to_fill || 'N/A') + 'd' : 
+
+                                const filledStatus = event.is_filled ?
+                                    '✅ ' + (event.days_to_fill || 'N/A') + 'd' :
                                     '⏳ Open';
 
                                 html += '<tr style="border-bottom: 1px solid #f0f0f0;">' +
                                     '<td style="padding: 10px; font-weight: bold;">' + event.symbol + '</td>' +
                                     '<td style="padding: 10px;">' + event.gap_date + '</td>' +
-                                    '<td style="padding: 10px; text-align: right; font-weight: bold; ' + directionClass + '">' + 
+                                    '<td style="padding: 10px; text-align: right; font-weight: bold; ' + directionClass + '">' +
                                         (event.gap_percentage !== null ? event.gap_percentage.toFixed(2) + '%' : 'N/A') + '</td>' +
                                     '<td style="padding: 10px; text-align: center; ' + directionClass + '">' + directionIcon + '</td>' +
-                                    '<td style="padding: 10px; text-align: center;"><span style="padding: 4px 8px; border-radius: 12px; font-size: 11px; ' + sizeClass + '">' + 
+                                    '<td style="padding: 10px; text-align: center;"><span style="padding: 4px 8px; border-radius: 12px; font-size: 11px; ' + sizeClass + '">' +
                                         (event.gap_size_class || 'unknown').toUpperCase() + '</span></td>' +
-                                    '<td style="padding: 10px; text-align: right;">' + 
+                                    '<td style="padding: 10px; text-align: right;">' +
                                         (event.significance_score !== null ? event.significance_score.toFixed(2) : 'N/A') + '</td>' +
                                     '<td style="padding: 10px; text-align: center;">' + filledStatus + '</td>' +
                                 '</tr>';
@@ -3229,7 +3692,7 @@ async function loadUniverseAnalytics() {
                     const symbolFilter = document.getElementById('gap-symbol-filter').value.trim();
                     const startDate = document.getElementById('gap-start-date-filter').value;
                     const endDate = document.getElementById('gap-end-date-filter').value;
-                    
+
                     loadGapEvents(symbolFilter, startDate, endDate);
                 }
 
@@ -3237,7 +3700,7 @@ async function loadUniverseAnalytics() {
                     document.getElementById('gap-symbol-filter').value = '';
                     document.getElementById('gap-start-date-filter').value = '';
                     document.getElementById('gap-end-date-filter').value = '';
-                    
+
                     loadGapEvents('', '', '');
                 }
 
@@ -4317,6 +4780,265 @@ async function loadUniverseAnalytics() {
 
                 console.log('🎮 Time Navigation initialized. Keyboard shortcuts: ← → (prev/next), Home/End (first/last)');
 
+                // Monthly Training Data Table
+                async function loadMonthlyTrainingData() {
+                    document.getElementById('analysis-content').innerHTML = `
+                        <h3>📅 Monthly Training Data</h3>
+                        <p>Loading monthly training data records...</p>
+                    `;
+
+                    try {
+                        const response = await fetch('/api/v1/monthly-training-data');
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        const data = await response.json();
+
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to load monthly training data');
+                        }
+
+                        let html = `
+                            <h3>📅 Monthly Training Data Browser</h3>
+
+                            <!-- Filters -->
+                            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                                <h4>🔍 Filters</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
+                                    <div>
+                                        <label for="symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbols:</label>
+                                        <input type="text" id="symbol-filter" placeholder="e.g., AAPL,TSLA"
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label for="status-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Status:</label>
+                                        <select id="status-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">All Status</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="failed">Failed</option>
+                                            <option value="processing">Processing</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="sort-by" style="display: block; margin-bottom: 5px; font-weight: bold;">Sort By:</label>
+                                        <select id="sort-by" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="created_at">Created Date</option>
+                                            <option value="symbol">Symbol</option>
+                                            <option value="year_month">Month</option>
+                                            <option value="total_records">Record Count</option>
+                                            <option value="data_quality_score">Quality Score</option>
+                                        </select>
+                                    </div>
+                                    <button onclick="filterMonthlyTrainingData()"
+                                            style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                        Apply Filters
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Summary Stats -->
+                            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                                <h4>📊 Summary Statistics</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                    ${data.summary.map(stat => `
+                                        <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; text-align: center;">
+                                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">${stat.symbol}</div>
+                                            <div style="font-size: 14px; color: #666; margin: 5px 0;">${stat.total_months} months</div>
+                                            <div style="font-size: 12px; color: #666;">${stat.total_records?.toLocaleString() || 0} records</div>
+                                            <div style="font-size: 12px; color: #666;">Quality: ${(stat.avg_quality_score * 100).toFixed(1)}%</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- Data Table -->
+                            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                                <h4>📋 Monthly Training Data Records (${data.data.length} records)</h4>
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                        <thead>
+                                            <tr style="background: #f8f9fa; border-bottom: 2px solid #ddd;">
+                                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Symbol</th>
+                                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Month</th>
+                                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Records</th>
+                                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Size (MB)</th>
+                                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Quality</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">Status</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="monthly-data-table-body">
+                                            ${data.data.map(record => {
+                                                const statusColor = record.status === 'completed' ? '#28a745' :
+                                                                  record.status === 'failed' ? '#dc3545' : '#ffc107';
+                                                const qualityPercent = (record.data_quality_score * 100).toFixed(1);
+
+                                                return `
+                                                    <tr style="border-bottom: 1px solid #eee;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
+                                                        <td style="padding: 12px; font-weight: bold;">${record.symbol}</td>
+                                                        <td style="padding: 12px;">${record.year_month}</td>
+                                                        <td style="padding: 12px; text-align: right;">${record.total_records?.toLocaleString() || 0}</td>
+                                                        <td style="padding: 12px; text-align: right;">${record.file_size_mb?.toFixed(2) || 0}</td>
+                                                        <td style="padding: 12px; text-align: right;">${qualityPercent}%</td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                                                                ${record.status}
+                                                            </span>
+                                                        </td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            <button onclick="visualizeMonthlyRecord(${record.id}, '${record.symbol}', '${record.year_month}')"
+                                                                    style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                                📊 Visualize
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Visualization Panel (hidden initially) -->
+                            <div id="monthly-visualization-panel" style="display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-top: 20px;">
+                                <h4 id="visualization-title">📊 Multi-Timeframe Visualization</h4>
+                                <div id="visualization-content">
+                                    <!-- Multi-timeframe charts will be loaded here -->
+                                </div>
+                            </div>
+                        `;
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        console.error('Error loading monthly training data:', error);
+                        document.getElementById('analysis-content').innerHTML = `
+                            <h3>📅 Monthly Training Data</h3>
+                            <div style="background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; border-radius: 8px;">
+                                <strong>Error:</strong> ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+
+                // Filter monthly training data
+                async function filterMonthlyTrainingData() {
+                    const symbols = document.getElementById('symbol-filter').value;
+                    const status = document.getElementById('status-filter').value;
+                    const sortBy = document.getElementById('sort-by').value;
+
+                    let url = '/api/v1/monthly-training-data?';
+                    if (symbols) url += `symbols=${encodeURIComponent(symbols)}&`;
+                    if (status) url += `status=${encodeURIComponent(status)}&`;
+                    if (sortBy) url += `order_by=${encodeURIComponent(sortBy)}&`;
+
+                    try {
+                        const response = await fetch(url);
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // Update table body only
+                            const tableBody = document.getElementById('monthly-data-table-body');
+                            tableBody.innerHTML = data.data.map(record => {
+                                const statusColor = record.status === 'completed' ? '#28a745' :
+                                                  record.status === 'failed' ? '#dc3545' : '#ffc107';
+                                const qualityPercent = (record.data_quality_score * 100).toFixed(1);
+
+                                return `
+                                    <tr style="border-bottom: 1px solid #eee;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
+                                        <td style="padding: 12px; font-weight: bold;">${record.symbol}</td>
+                                        <td style="padding: 12px;">${record.year_month}</td>
+                                        <td style="padding: 12px; text-align: right;">${record.total_records?.toLocaleString() || 0}</td>
+                                        <td style="padding: 12px; text-align: right;">${record.file_size_mb?.toFixed(2) || 0}</td>
+                                        <td style="padding: 12px; text-align: right;">${qualityPercent}%</td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                                                ${record.status}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <button onclick="visualizeMonthlyRecord(${record.id}, '${record.symbol}', '${record.year_month}')"
+                                                    style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                📊 Visualize
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }
+                    } catch (error) {
+                        console.error('Error filtering data:', error);
+                    }
+                }
+
+                // Visualize monthly training record
+                async function visualizeMonthlyRecord(recordId, symbol, yearMonth) {
+                    const panel = document.getElementById('monthly-visualization-panel');
+                    const title = document.getElementById('visualization-title');
+                    const content = document.getElementById('visualization-content');
+
+                    title.textContent = `📊 ${symbol} - ${yearMonth} Multi-Timeframe Visualization`;
+                    content.innerHTML = '<p>Loading visualization data...</p>';
+                    panel.style.display = 'block';
+
+                    try {
+                        const response = await fetch(`/api/v1/monthly-training-data/visualization?record_id=${recordId}&center_timeframe=1h&center_index=0`);
+                        const data = await response.json();
+
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to load visualization data');
+                        }
+
+                        // Create multi-timeframe chart grid
+                        let chartsHtml = `
+                            <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                                <h5>📊 Data Overview</h5>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 14px;">
+                                    ${Object.entries(data.timeframe_data_counts).map(([tf, count]) =>
+                                        `<div><strong>${tf}:</strong> ${count} points</div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        `;
+
+                        // Generate charts for each timeframe
+                        const timeframes = ['5m', '15m', '1h', '1d'];
+                        timeframes.forEach(timeframe => {
+                            if (data.charts[timeframe]) {
+                                chartsHtml += `
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                        <h5>${timeframe.toUpperCase()} Timeframe</h5>
+                                        <div id="chart-${timeframe}-${recordId}" style="height: 300px;"></div>
+                                    </div>
+                                `;
+                            }
+                        });
+
+                        chartsHtml += '</div>';
+                        content.innerHTML = chartsHtml;
+
+                        // Render plotly charts
+                        timeframes.forEach(timeframe => {
+                            if (data.charts[timeframe]) {
+                                const chartId = `chart-${timeframe}-${recordId}`;
+                                Plotly.newPlot(chartId, data.charts[timeframe].data, data.charts[timeframe].layout, {responsive: true});
+                            }
+                        });
+
+                    } catch (error) {
+                        console.error('Error loading visualization:', error);
+                        content.innerHTML = `
+                            <div style="background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; border-radius: 8px;">
+                                <strong>Error:</strong> ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+
             </script>
         </body>
         </html>
@@ -4367,6 +5089,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     self._serve_training_dataset_visualization_data()
                 else:
                     self._serve_training_datasets()
+            elif self.path.startswith('/api/v1/monthly-training-data'):
+                if '/visualization' in self.path:
+                    self._serve_monthly_training_visualization()
+                else:
+                    self._serve_monthly_training_data_table()
             elif self.path.startswith('/api/ray-analytics/'):
                 self._serve_ray_analytics()
             elif self.path.startswith('/api/news-events'):
@@ -4375,6 +5102,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_earnings_events()
             elif self.path.startswith('/api/gap-events'):
                 self._serve_gap_events()
+            elif self.path.startswith('/api/economic-events'):
+                self._serve_economic_events()
+            elif self.path.startswith('/api/economic-indicators'):
+                self._serve_economic_indicators()
             elif self.path == '/api/bar-collection-metrics':
                 self._serve_bar_collection_metrics()
             elif self.path == '/api/tables':
@@ -4983,7 +5714,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     def _serve_table_sample(self):
         """Serve sample data from table with optional filtering."""
         from urllib.parse import urlparse, parse_qs
-        
+
         # Parse table name and query parameters
         parsed_url = urlparse(self.path)
         table_name = parsed_url.path.split('/')[-1]
@@ -5008,19 +5739,19 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                    
+
                     # Build base query
                     base_query = "SELECT * FROM {}"
                     where_conditions = []
                     params = []
-                    
+
                     # Add symbol filter if provided (simplified approach)
                     if symbol_filter and 'daily_prices' in table_name:
                         # For daily_prices tables, we know symbol column exists
                         where_conditions.append('symbol ILIKE %s')
                         params.append(f"%{symbol_filter}%")
-                    
-                    # Add date filters if provided (simplified approach)  
+
+                    # Add date filters if provided (simplified approach)
                     if (date_from or date_to) and ('daily_prices' in table_name or 'gap_events' in table_name):
                         # For price/event tables, we know date column exists
                         if date_from:
@@ -5029,23 +5760,23 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         if date_to:
                             where_conditions.append('date <= %s')
                             params.append(date_to)
-                    
+
                     # Build ORDER BY clause
                     order_clause = ""
                     if sort_column:
                         # Validate sort direction
                         if sort_direction not in ['asc', 'desc']:
                             sort_direction = 'asc'
-                        
+
                         # Validate column exists to prevent SQL injection
                         cursor.execute("""
-                            SELECT column_name FROM information_schema.columns 
+                            SELECT column_name FROM information_schema.columns
                             WHERE table_name = %s AND column_name = %s
                         """, (table_name, sort_column))
-                        
+
                         if cursor.fetchone():
                             order_clause = f" ORDER BY \"{sort_column}\" {sort_direction.upper()}"
-                    
+
                     # Build final query
                     if where_conditions:
                         query = f"{base_query} WHERE {' AND '.join(where_conditions)}{order_clause} LIMIT %s"
@@ -5053,7 +5784,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     else:
                         query = f"{base_query}{order_clause} LIMIT %s"
                         params = [limit]
-                    
+
                     cursor.execute(
                         sql.SQL(query).format(sql.Identifier(table_name)),
                         params
@@ -5069,7 +5800,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         rows.append(row_dict)
 
                     response = {
-                        "table_name": table_name, 
+                        "table_name": table_name,
                         "rows": rows,
                         "filters_applied": {
                             "symbol": symbol_filter,
@@ -5310,6 +6041,80 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
 
+    def _serve_economic_events(self):
+        """Serve consolidated economic events from multiple tables."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Get parameters with error handling
+            try:
+                limit = int(query_params.get('limit', [100])[0])
+            except (ValueError, TypeError):
+                limit = 100  # Default fallback
+
+            vendor = query_params.get('vendor', [None])[0]
+            symbol = query_params.get('symbol', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+
+            # Limit the results to reasonable bounds
+            limit = min(max(limit, 1), 500)  # Between 1 and 500 events
+
+            # Get economic events from the analytics service
+            events_data = self.analytics_service.get_economic_events(limit=limit, vendor=vendor, symbol=symbol, start_date=start_date, end_date=end_date)
+            self.wfile.write(json.dumps(events_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving economic events: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "events": [],
+                "total_events": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
+    def _serve_economic_indicators(self):
+        """Serve economic indicators with current and upcoming releases."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            indicators = query_params.get('indicators', [None])[0]
+            if indicators:
+                indicators = indicators.split(',')
+
+            # Get economic indicators from the analytics service
+            indicators_data = self.analytics_service.get_economic_indicators(indicators=indicators)
+            self.wfile.write(json.dumps(indicators_data, indent=2, default=str).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error serving economic indicators: {e}")
+            error_response = {
+                "success": False,
+                "error": str(e),
+                "indicators": [],
+                "total_indicators": 0
+            }
+            self.wfile.write(json.dumps(error_response, indent=2).encode('utf-8'))
+
     def _serve_404(self):
         """Serve 404 response."""
         self.send_response(404)
@@ -5347,24 +6152,24 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             import os
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            
+
             # Get environment-aware table name
             environment = os.getenv('ENVIRONMENT', 'dev')
             universe_table = f"{environment}_universe"
-            
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     cursor.execute(f"""
-                        SELECT id, name, description 
-                        FROM {universe_table} 
+                        SELECT id, name, description
+                        FROM {universe_table}
                         ORDER BY name
                     """)
-                    
+
                     universes = []
                     for row in cursor.fetchall():
                         universes.append({
@@ -5372,13 +6177,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             "name": row['name'],
                             "description": row['description']
                         })
-                    
+
                     response = {
                         "success": True,
                         "universes": universes,
                         "count": len(universes)
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error loading universes: {e}")
             response = {
@@ -5387,7 +6192,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "universes": [],
                 "count": 0
             }
-        
+
         self.wfile.write(json.dumps(response).encode('utf-8'))
 
     def _serve_universe_members(self):
@@ -5395,44 +6200,49 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
         try:
             import os
             from urllib.parse import urlparse, parse_qs
             from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
-            
+
             # Get environment-aware table names
             environment = os.getenv('ENVIRONMENT', 'dev')
             universe_table = f"{environment}_universe"
             membership_table = f"{environment}_universe_membership"
-            
+
             # Parse universe ID from URL path
             universe_id = self.path.split('/')[-1].split('?')[0]
-            
+
             # Parse query parameters
             parsed_url = urlparse(self.path)
             query_params = parse_qs(parsed_url.query)
-            date_from = query_params.get('date_from', [None])[0]
-            date_to = query_params.get('date_to', [None])[0]
-            
-            if not universe_id or not date_from or not date_to:
+            date_from_raw = query_params.get('date_from', [None])[0]
+            date_to_raw = query_params.get('date_to', [None])[0]
+
+            if not universe_id or not date_from_raw or not date_to_raw:
                 response = {
                     "success": False,
                     "error": "Missing required parameters: universe_id, date_from, date_to"
                 }
                 self.wfile.write(json.dumps(response).encode('utf-8'))
                 return
-            
+
+            # Convert date_to to end of day to include all entries on that date
+            # date_from stays as start of day (default behavior)
+            date_from = date_from_raw
+            date_to = f"{date_to_raw} 23:59:59"
+
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                     # Get universe information
                     cursor.execute(f"""
-                        SELECT id, name, description 
-                        FROM {universe_table} 
+                        SELECT id, name, description
+                        FROM {universe_table}
                         WHERE id = %s
                     """, (universe_id,))
-                    
+
                     universe_info = cursor.fetchone()
                     if not universe_info:
                         response = {
@@ -5441,7 +6251,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         }
                         self.wfile.write(json.dumps(response).encode('utf-8'))
                         return
-                    
+
                     # Get universe members within date range
                     cursor.execute(f"""
                         SELECT um.universe_id, um.symbol, um.start_at, um.end_at, um.instrument_id
@@ -5454,7 +6264,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         )
                         ORDER BY um.symbol, um.start_at
                     """, (universe_id, date_to, date_from, date_from, date_to, date_from, date_to))
-                    
+
                     members = []
                     for row in cursor.fetchall():
                         members.append({
@@ -5464,7 +6274,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             "end_at": row['end_at'].isoformat() if row['end_at'] else None,
                             "instrument_id": row['instrument_id']
                         })
-                    
+
                     response = {
                         "success": True,
                         "universe_info": {
@@ -5479,15 +6289,301 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         },
                         "count": len(members)
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error loading universe members: {e}")
             response = {
                 "success": False,
                 "error": f"Failed to load universe members: {str(e)}"
             }
-        
+
         self.wfile.write(json.dumps(response).encode('utf-8'))
+
+    def _serve_monthly_training_data_table(self):
+        """Serve monthly training data table with filtering and sorting."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters for filtering and sorting
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Extract parameters
+            symbols = query_params.get('symbols', [])
+            symbols = symbols[0].split(',') if symbols and symbols[0] else None
+
+            status = query_params.get('status', [None])[0]
+            limit = int(query_params.get('limit', [100])[0])
+            offset = int(query_params.get('offset', [0])[0])
+            order_by = query_params.get('order_by', ['created_at'])[0]
+            order_direction = query_params.get('order_direction', ['DESC'])[0]
+
+            # Get data using MonthlyTrainingDataDAO
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
+                from shared.utils.environment import Environment
+
+                # Create environment and DAO
+                environment = Environment()
+                dao = MonthlyTrainingDataDAO(environment)
+
+                # Get monthly training data records
+                records = loop.run_until_complete(dao.list_monthly_records(
+                    symbols=symbols,
+                    status=status,
+                    limit=limit,
+                    offset=offset,
+                    order_by=order_by,
+                    order_direction=order_direction,
+                    include_instrument_details=True
+                ))
+
+                # Convert records to JSON-serializable format
+                records_data = []
+                for record in records:
+                    record_dict = {
+                        'id': record.id,
+                        'run_id': record.run_id,
+                        'symbol': record.symbol,
+                        'instrument_id': record.instrument_id,
+                        'year_month': record.year_month.isoformat() if record.year_month else None,
+                        'timeframe_paths': record.timeframe_paths,
+                        'total_records': record.total_records,
+                        'file_size_mb': record.file_size_mb,
+                        'data_quality_score': record.data_quality_score,
+                        'status': record.status,
+                        'error_message': record.error_message,
+                        'created_at': record.created_at.isoformat() if record.created_at else None,
+                        'updated_at': record.updated_at.isoformat() if record.updated_at else None,
+                        # Extended fields
+                        'instrument_name': record.instrument_name,
+                        'exchange': record.exchange,
+                        'sector': record.sector,
+                        'market_cap': record.market_cap
+                    }
+                    records_data.append(record_dict)
+
+                # Get summary statistics
+                summary = loop.run_until_complete(dao.get_summary_by_symbol())
+
+                response = {
+                    "success": True,
+                    "data": records_data,
+                    "summary": summary,
+                    "pagination": {
+                        "limit": limit,
+                        "offset": offset,
+                        "total_returned": len(records_data)
+                    },
+                    "filters_applied": {
+                        "symbols": symbols,
+                        "status": status,
+                        "order_by": order_by,
+                        "order_direction": order_direction
+                    }
+                }
+
+            finally:
+                loop.close()
+
+        except Exception as e:
+            logger.error(f"Error serving monthly training data table: {e}")
+            import traceback
+            traceback.print_exc()
+
+            response = {
+                "success": False,
+                "error": f"Failed to load monthly training data: {str(e)}"
+            }
+
+        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+
+    def _serve_monthly_training_visualization(self):
+        """Serve monthly training data visualization with multi-timeframe plotly charts."""
+        from urllib.parse import urlparse, parse_qs
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            # Extract visualization parameters
+            record_id = int(query_params.get('record_id', [0])[0])
+            center_timeframe = query_params.get('center_timeframe', ['1h'])[0]  # Default to 1h navigation
+            center_index = int(query_params.get('center_index', [0])[0])  # Index within 60m data
+
+            if not record_id:
+                raise ValueError("record_id parameter is required")
+
+            # Get data using MonthlyTrainingDataDAO
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
+                from shared.utils.environment import Environment
+                import array_record.python.array_record_module as array_record
+
+                # Create environment and DAO
+                environment = Environment()
+                dao = MonthlyTrainingDataDAO(environment)
+
+                # Get the monthly record
+                record = loop.run_until_complete(dao.get_monthly_record(record_id))
+                if not record:
+                    raise ValueError(f"No monthly training data record found with ID: {record_id}")
+
+                # Load ArrayRecord data from timeframe paths
+                timeframe_data = {}
+                timeframes = ['5m', '15m', '1h', '1d']  # Order matters for visualization
+
+                for timeframe in timeframes:
+                    file_path = record.timeframe_paths.get(timeframe)
+                    if not file_path:
+                        continue
+
+                    try:
+                        # Read ArrayRecord file
+                        reader = array_record.ArrayRecordReader(file_path)
+                        data_points = []
+
+                        # Read all records from the file
+                        for i in range(len(reader)):
+                            try:
+                                record_data = reader[i]
+                                # Parse binary data based on schema
+                                # This is a simplified parser - real implementation would use schema
+                                data_points.append({
+                                    'timestamp': i,  # Use index as timestamp for now
+                                    'open': float(record_data[0]) if len(record_data) > 0 else 0.0,
+                                    'high': float(record_data[1]) if len(record_data) > 1 else 0.0,
+                                    'low': float(record_data[2]) if len(record_data) > 2 else 0.0,
+                                    'close': float(record_data[3]) if len(record_data) > 3 else 0.0,
+                                    'volume': float(record_data[4]) if len(record_data) > 4 else 0.0,
+                                })
+                            except Exception as parse_error:
+                                logger.warning(f"Failed to parse record {i} in {timeframe}: {parse_error}")
+                                continue
+
+                        timeframe_data[timeframe] = data_points
+                        logger.info(f"Loaded {len(data_points)} data points for {timeframe}")
+
+                    except Exception as file_error:
+                        logger.warning(f"Failed to read {timeframe} file {file_path}: {file_error}")
+                        timeframe_data[timeframe] = []
+
+                # Generate plotly chart configurations
+                chart_configs = self._generate_multi_timeframe_charts(
+                    timeframe_data,
+                    record.symbol,
+                    center_timeframe,
+                    center_index
+                )
+
+                response = {
+                    "success": True,
+                    "record_info": {
+                        "id": record.id,
+                        "symbol": record.symbol,
+                        "year_month": record.year_month.strftime('%Y-%m') if record.year_month else None,
+                        "total_records": record.total_records,
+                        "data_quality_score": record.data_quality_score
+                    },
+                    "timeframe_data_counts": {tf: len(data) for tf, data in timeframe_data.items()},
+                    "charts": chart_configs,
+                    "navigation": {
+                        "center_timeframe": center_timeframe,
+                        "center_index": center_index,
+                        "available_timeframes": list(timeframe_data.keys())
+                    }
+                }
+
+            finally:
+                loop.close()
+
+        except Exception as e:
+            logger.error(f"Error serving monthly training visualization: {e}")
+            import traceback
+            traceback.print_exc()
+
+            response = {
+                "success": False,
+                "error": f"Failed to load visualization data: {str(e)}"
+            }
+
+        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+
+    def _generate_multi_timeframe_charts(self, timeframe_data: Dict[str, List], symbol: str, center_timeframe: str, center_index: int) -> Dict[str, Any]:
+        """Generate plotly chart configurations for multi-timeframe visualization."""
+
+        charts = {}
+
+        # Get center point from center_timeframe data
+        center_data = timeframe_data.get(center_timeframe, [])
+        if not center_data or center_index >= len(center_data):
+            # Fallback to middle of available data
+            center_index = len(center_data) // 2 if center_data else 0
+
+        center_timestamp = center_data[center_index]['timestamp'] if center_data else 0
+
+        # Generate chart for each timeframe
+        for timeframe, data_points in timeframe_data.items():
+            if not data_points:
+                continue
+
+            # Create OHLC candlestick chart
+            chart_config = {
+                "data": [{
+                    "type": "candlestick",
+                    "x": [point['timestamp'] for point in data_points],
+                    "open": [point['open'] for point in data_points],
+                    "high": [point['high'] for point in data_points],
+                    "low": [point['low'] for point in data_points],
+                    "close": [point['close'] for point in data_points],
+                    "name": f"{symbol} {timeframe}",
+                    "increasing": {"line": {"color": "#00ff00"}},
+                    "decreasing": {"line": {"color": "#ff0000"}}
+                }],
+                "layout": {
+                    "title": f"{symbol} - {timeframe} Timeframe",
+                    "xaxis": {"title": "Time Index", "type": "linear"},
+                    "yaxis": {"title": "Price"},
+                    "height": 300,
+                    "margin": {"l": 50, "r": 50, "t": 50, "b": 50},
+                    "showlegend": False
+                }
+            }
+
+            # Add center line if this is the center timeframe
+            if timeframe == center_timeframe:
+                chart_config["layout"]["shapes"] = [{
+                    "type": "line",
+                    "x0": center_timestamp,
+                    "x1": center_timestamp,
+                    "y0": 0,
+                    "y1": 1,
+                    "yref": "paper",
+                    "line": {"color": "blue", "width": 2, "dash": "dash"}
+                }]
+
+            charts[timeframe] = chart_config
+
+        return charts
 
 
 def start_unified_analytics_server(port: int = 3000):

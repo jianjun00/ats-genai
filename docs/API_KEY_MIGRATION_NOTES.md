@@ -83,7 +83,7 @@ python3 scripts/run_dev.py run --script scripts/script_name.py
 
 ## 🚨 **Breaking Changes**
 
-### **None!** 
+### **None!**
 The migration was designed to be **100% backward compatible**:
 - ✅ Environment variables still work (highest priority)
 - ✅ Existing scripts continue working without changes
@@ -108,7 +108,7 @@ python3 scripts/run_dev.py run --script scripts/populate_30year_eodhd_minute_bar
 
 ### **Expected Results**
 - ✅ **EODHD**: Should work automatically with documented key
-- ✅ **Polygon**: Should work automatically with documented key  
+- ✅ **Polygon**: Should work automatically with documented key
 - ✅ **Tiingo**: Should work automatically with documented key
 - 📊 **Data Collection**: Should proceed without authentication errors
 

@@ -4,9 +4,9 @@
 
 **Title**: Implement Volume Profile indicator with POC and Value Area calculation
 
-**Priority**: High  
-**Labels**: enhancement, indicators, volume-analysis  
-**Assignee**: @dev-team  
+**Priority**: High
+**Labels**: enhancement, indicators, volume-analysis
+**Assignee**: @dev-team
 
 ### Description
 Implement a comprehensive Volume Profile indicator that provides market structure analysis through volume distribution across price levels. This indicator should integrate seamlessly with our existing indicator framework.
@@ -27,7 +27,7 @@ Implement a comprehensive Volume Profile indicator that provides market structur
 {
     'value': poc_price,                    # Main value (POC)
     'poc': poc_price,                      # Point of Control
-    'vah': value_area_high,               # Value Area High  
+    'vah': value_area_high,               # Value Area High
     'val': value_area_low,                # Value Area Low
     'value_area_volume_pct': 70.0,        # VA volume percentage
     'volume_distribution': price_volume_dict,  # Full distribution
@@ -56,9 +56,9 @@ Implement a comprehensive Volume Profile indicator that provides market structur
 
 **Title**: Integrate Volume Profile indicators into training dataset generation pipeline
 
-**Priority**: High  
-**Labels**: ml, training-data, indicators  
-**Assignee**: @ml-team  
+**Priority**: High
+**Labels**: ml, training-data, indicators
+**Assignee**: @ml-team
 
 ### Description
 Integrate Volume Profile indicators into the training dataset generation pipeline to provide volume-based features for ML models. This includes multi-timeframe volume profile features and proper serialization.
@@ -90,9 +90,9 @@ Integrate Volume Profile indicators into the training dataset generation pipelin
 
 **Title**: Create per-timeframe chart visualization for Volume Profile signals
 
-**Priority**: Medium  
-**Labels**: visualization, charts, ui  
-**Assignee**: @frontend-team  
+**Priority**: Medium
+**Labels**: visualization, charts, ui
+**Assignee**: @frontend-team
 
 ### Description
 Develop a visualization system for Volume Profile indicators that displays volume distribution overlaid on price charts across multiple timeframes. This should integrate with existing chart infrastructure.
@@ -127,9 +127,9 @@ Develop a visualization system for Volume Profile indicators that displays volum
 
 **Title**: Implement comprehensive Volume Profile configuration and testing suite
 
-**Priority**: High  
-**Labels**: testing, configuration, quality-assurance  
-**Assignee**: @qa-team  
+**Priority**: High
+**Labels**: testing, configuration, quality-assurance
+**Assignee**: @qa-team
 
 ### Description
 Create comprehensive configuration system and testing suite for Volume Profile indicators to ensure reliability and maintainability in production financial systems.
@@ -164,9 +164,9 @@ Create comprehensive configuration system and testing suite for Volume Profile i
 
 **Title**: Create comprehensive documentation and usage examples for Volume Profile
 
-**Priority**: Medium  
-**Labels**: documentation, examples, user-guide  
-**Assignee**: @docs-team  
+**Priority**: Medium
+**Labels**: documentation, examples, user-guide
+**Assignee**: @docs-team
 
 ### Description
 Develop comprehensive documentation for Volume Profile implementation including theoretical background, practical usage examples, and integration guides.

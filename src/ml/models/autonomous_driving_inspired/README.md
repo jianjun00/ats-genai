@@ -19,7 +19,7 @@ This model treats **multi-timeframe financial data like multi-sensor inputs in a
 
 ### Core Components
 
-1. **Multi-Timeframe Sensor Encoder** 
+1. **Multi-Timeframe Sensor Encoder**
    - Processes each timeframe (5m, 15m, 1h, 1d, 1w) as different "sensor" modalities
    - Individual transformer encoders with variable selection networks
    - Autonomous driving style position encoding (timestamp_offset + timeframe_id + bar_index + market_regime)
@@ -63,7 +63,7 @@ Multi-Timeframe Input (5m, 15m, 1h, 1d, 1w OHLCV + Technical Signals)
 │
 ├── 3. Multi-Scale Attention Layers (× N layers)
 │   ├── Task Self-Attention (queries interact with each other)
-│   ├── Sensor Cross-Attention (queries attend to all timeframes)  
+│   ├── Sensor Cross-Attention (queries attend to all timeframes)
 │   └── Temporal Cross-Attention (queries attend to historical states)
 │
 ├── 4. Temporal Memory Update (FIFO Queue)
@@ -71,7 +71,7 @@ Multi-Timeframe Input (5m, 15m, 1h, 1d, 1w OHLCV + Technical Signals)
 │
 └── 5. Multi-Horizon Prediction (Next 10 Hours)
     ├── Price Movement: [batch, 10, 1] ├── Volatility: [batch, 10, 1]
-    ├── Volume: [batch, 10, 1]          ├── Regime: [batch, 10, 4]  
+    ├── Volume: [batch, 10, 1]          ├── Regime: [batch, 10, 4]
     └── Risk: [batch, 10, 1]
 ```
 
@@ -94,7 +94,7 @@ Multi-Timeframe Input (5m, 15m, 1h, 1d, 1w OHLCV + Technical Signals)
 2. **Basic Usage Example**
    ```python
    from ml.models.autonomous_driving_inspired import (
-       AutonomousFinanceTransformer, 
+       AutonomousFinanceTransformer,
        TransformerConfig,
        AutonomousFinanceDataLoader
    )
@@ -102,7 +102,7 @@ Multi-Timeframe Input (5m, 15m, 1h, 1d, 1w OHLCV + Technical Signals)
    # Configure model
    config = TransformerConfig(
        d_model=256,
-       num_heads=8, 
+       num_heads=8,
        num_layers=6,
        prediction_horizon=10,
        temporal_memory_size=100
@@ -122,10 +122,10 @@ Multi-Timeframe Input (5m, 15m, 1h, 1d, 1w OHLCV + Technical Signals)
    for batch in train_loader:
        outputs = model(
            batch['timeframe_sequences'],
-           batch['position_data'], 
+           batch['position_data'],
            return_attention_weights=True
        )
-       
+
        predictions = outputs['predictions']
        attention_weights = outputs['attention_weights']
        break
@@ -184,7 +184,7 @@ The model is evaluated using both traditional ML metrics and financial performan
 
 **Regression Tasks** (Price, Volatility, Volume, Risk):
 - Mean Squared Error (MSE)
-- Mean Absolute Error (MAE) 
+- Mean Absolute Error (MAE)
 - **Directional Accuracy**: % of correct up/down predictions
 - **Sharpe Ratio**: Risk-adjusted returns based on predictions
 - **Maximum Drawdown**: Worst peak-to-trough decline
@@ -207,7 +207,7 @@ The model is evaluated using both traditional ML metrics and financial performan
 - Cross-attention mechanisms fuse information across temporal scales
 - Similar to autonomous vehicle multi-camera fusion
 
-### 2. Streaming Market State Processing  
+### 2. Streaming Market State Processing
 - FIFO queue maintains historical market states
 - Real-time inference with temporal context
 - Inspired by autonomous driving's need for temporal consistency
@@ -234,7 +234,7 @@ The model is evaluated using both traditional ML metrics and financial performan
 - **Adapted**: FIFO temporal memory bank for market states
 - **Innovation**: Multi-task financial prediction instead of driving tasks
 
-### BEVFormer (2022)  
+### BEVFormer (2022)
 - **Adopted**: Spatio-temporal attention with grid queries
 - **Adapted**: Time-horizon grid queries for prediction targets
 - **Innovation**: Market regime spatial-temporal representation
@@ -258,14 +258,14 @@ outputs = model(data, return_attention_weights=True)
 attention_weights = outputs['attention_weights']
 
 # Visualize which timeframes the model focuses on
-sensor_attention = attention_weights[0]['sensor_cross_attention'] 
+sensor_attention = attention_weights[0]['sensor_cross_attention']
 # Shows: [batch, heads, tasks, sequence_positions] for each timeframe
 
 # Visualize task interactions
 task_attention = attention_weights[0]['task_self_attention']
 # Shows: [batch, heads, tasks, tasks] - how tasks inform each other
 
-# Visualize temporal memory usage  
+# Visualize temporal memory usage
 temporal_attention = attention_weights[0]['temporal_cross_attention']
 # Shows: [batch, heads, tasks, memory_size] - historical context usage
 ```
@@ -278,10 +278,10 @@ model.eval()
 for new_market_data in market_stream:
     # Process new data
     timeframe_sequences = preprocess(new_market_data)
-    
+
     # Inference with memory update
     predictions = model(timeframe_sequences, update_memory=True)
-    
+
     # Predictions automatically incorporate historical context
     # Memory bank maintains sliding window of market states
 ```
@@ -291,10 +291,10 @@ for new_market_data in market_stream:
 # Adaptive uncertainty-based task weighting
 training_config = TrainingConfig(
     task_weights={
-        'price_movement': 1.0,    # Primary prediction  
+        'price_movement': 1.0,    # Primary prediction
         'volatility': 0.8,        # Risk management
         'volume_profile': 0.6,    # Microstructure
-        'regime_change': 0.4,     # Regime detection  
+        'regime_change': 0.4,     # Regime detection
         'risk_assessment': 0.7    # Downside protection
     }
 )
@@ -312,21 +312,21 @@ TransformerConfig(
     num_heads=8,                    # Attention heads
     num_layers=6,                   # Transformer layers
     dropout=0.1,                    # Dropout rate
-    
-    # Multi-scale attention  
+
+    # Multi-scale attention
     attention_temperature=1.0,      # Attention sharpening
     temporal_memory_size=100,       # FIFO memory size
-    
+
     # Tasks & predictions
-    num_tasks=5,                    # Prediction tasks  
+    num_tasks=5,                    # Prediction tasks
     prediction_horizon=10,          # Hours ahead to predict
-    
+
     # Timeframe configuration (automatically configured)
     timeframe_configs=[...]
 )
 ```
 
-### Training Configuration  
+### Training Configuration
 ```python
 TrainingConfig(
     # Optimization
@@ -334,7 +334,7 @@ TrainingConfig(
     batch_size=32,
     num_epochs=100,
     weight_decay=0.01,
-    
+
     # Curriculum learning
     curriculum_enabled=True,
     curriculum_schedule=[
@@ -342,7 +342,7 @@ TrainingConfig(
         {'epoch': 25, 'timeframes': ['15m', '1h', '1d'], 'prediction_horizon': 5},
         {'epoch': 50, 'timeframes': ['5m', '15m', '1h', '1d', '1w'], 'prediction_horizon': 10}
     ],
-    
+
     # Task weighting
     task_weights={
         'price_movement': 1.0,
@@ -359,7 +359,7 @@ TrainingConfig(
 - **GPU Memory**: 4-16 GB depending on batch size and model size
 - **Training Time**: Hours to days depending on dataset size
 
-### Inference Performance  
+### Inference Performance
 - **Latency**: <100ms per prediction (GPU), <500ms (CPU)
 - **Throughput**: 1000+ predictions/second (batched)
 - **Memory**: Constant memory usage with FIFO temporal memory
@@ -380,7 +380,7 @@ class ExtendedTaskQuerySystem(TaskQuerySystem):
         # Add new task queries
         self.task_names.append('new_task_name')
 
-# 2. Extend MultiHorizonPredictor  
+# 2. Extend MultiHorizonPredictor
 class ExtendedPredictor(MultiHorizonPredictor):
     def __init__(self, config):
         super().__init__(config)
@@ -406,11 +406,11 @@ class CustomAttentionLayer(MultiScaleAttentionLayer):
         super().__init__(config)
         # Add custom attention mechanism
         self.custom_attention = YourCustomAttention(config)
-    
+
     def forward(self, task_queries, sensor_features, **kwargs):
         # Apply custom attention
         custom_attended = self.custom_attention(task_queries, sensor_features)
-        
+
         # Apply standard multi-scale attention
         return super().forward(custom_attended, sensor_features, **kwargs)
 ```
@@ -420,18 +420,18 @@ class CustomAttentionLayer(MultiScaleAttentionLayer):
 **Primary Inspirations:**
 1. **DriveTransformer** (2025): "Unified Transformer for Scalable End-to-End Autonomous Driving" - Multi-task attention mechanisms
 2. **BEVFormer** (2022): "Learning Bird's-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers" - Spatio-temporal attention
-3. **Temporal Fusion Transformer** (2019): "Interpretable multi-horizon time series forecasting" - Multi-scale temporal processing  
+3. **Temporal Fusion Transformer** (2019): "Interpretable multi-horizon time series forecasting" - Multi-scale temporal processing
 4. **Decision Transformer** (2021): "Reinforcement Learning via Sequence Modeling" - Sequential decision making
 
 **Related Work:**
 - Multi-scale attention in computer vision
-- Sensor fusion in autonomous systems  
+- Sensor fusion in autonomous systems
 - Financial time series transformers
 - Multi-task learning in deep networks
 
 ## 📄 License & Usage
 
-This implementation is part of the ATS fintech platform and follows the project's licensing terms. 
+This implementation is part of the ATS fintech platform and follows the project's licensing terms.
 
 **Research Use**: ✅ Encouraged for academic research and extension
 **Commercial Use**: See project license for commercial usage terms
@@ -444,7 +444,7 @@ This implementation is part of the ATS fintech platform and follows the project'
 We welcome contributions! Areas of particular interest:
 
 - **New attention mechanisms** inspired by latest autonomous driving research
-- **Additional financial tasks** (options pricing, portfolio optimization, etc.)  
+- **Additional financial tasks** (options pricing, portfolio optimization, etc.)
 - **Alternative temporal memory architectures** (attention-based, graph-based)
 - **Performance optimizations** for real-time trading applications
 - **Interpretability tools** for understanding model decisions

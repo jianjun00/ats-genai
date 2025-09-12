@@ -19,43 +19,43 @@ from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor
 
 async def test_sync_metrics():
     """Test database sync with metrics collection."""
-    
+
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     logger = logging.getLogger(__name__)
-    
+
     logger.info("🧪 Testing batch job metrics collection...")
-    
+
     # Set up test environment variables
     os.environ['PROMETHEUS_GATEWAY'] = 'localhost:9091'  # Prometheus Pushgateway
-    
+
     # Test EODHD sync with a small subset
     logger.info("📊 Testing EODHD database sync with metrics...")
-    
+
     try:
         # Run a limited sync operation for testing
         source_config = {
             'host': 'localhost',
             'port': 3432,
-            'user': 'postgres', 
+            'user': 'postgres',
             'password': 'dev_password',
             'database': 'dev_db'
         }
-        
+
         target_config = {
             'host': 'localhost',
             'port': 4432,
             'user': 'postgres',
-            'password': 'intg_password', 
+            'password': 'intg_password',
             'database': 'intg_db'
         }
-        
+
         # Run sync for EODHD with metrics collection
         result = await sync_vendor_daily_prices('eodhd', source_config, target_config)
-        
+
         if result['success']:
             logger.info("✅ Sync completed successfully!")
             logger.info(f"   Records processed: {result['records_processed']:,}")
@@ -65,7 +65,7 @@ async def test_sync_metrics():
             logger.info(f"   Duration: {result['total_time']:.1f} seconds")
         else:
             logger.error(f"❌ Sync failed: {result.get('error', 'Unknown error')}")
-            
+
     except Exception as e:
         logger.error(f"❌ Test failed: {e}")
         import traceback

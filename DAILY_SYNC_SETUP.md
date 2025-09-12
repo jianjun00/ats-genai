@@ -36,7 +36,7 @@ sudo systemctl start ats-daily-sync.timer
 systemctl status ats-daily-sync.timer
 ```
 
-### **3. Test the Setup** 
+### **3. Test the Setup**
 ```bash
 # Test the service manually (optional)
 sudo systemctl start ats-daily-sync.service
@@ -49,7 +49,7 @@ tail -f /mnt/d/ats-logs/daily-sync.log
 
 **Daily Schedule (Mon-Fri 1:00 AM):**
 1. **EODHD**: DEV → INTG database sync
-2. **Tiingo**: DEV → INTG database sync  
+2. **Tiingo**: DEV → INTG database sync
 3. **Polygon**: DEV → INTG database sync
 
 **Data Flow:**
@@ -95,12 +95,12 @@ sudo systemctl disable ats-daily-sync.timer
 
 ## 🎉 **Benefits**
 
-✅ **Automated**: Runs Monday-Friday at 1:00 AM  
-✅ **Monitored**: Full Prometheus metrics and Grafana dashboard  
-✅ **Safe**: Uses `ON CONFLICT DO NOTHING` - never deletes existing data  
-✅ **Logged**: Comprehensive logging for troubleshooting  
-✅ **Efficient**: Only syncs new/changed records  
-✅ **Resilient**: Systemd restart policies and error handling  
+✅ **Automated**: Runs Monday-Friday at 1:00 AM
+✅ **Monitored**: Full Prometheus metrics and Grafana dashboard
+✅ **Safe**: Uses `ON CONFLICT DO NOTHING` - never deletes existing data
+✅ **Logged**: Comprehensive logging for troubleshooting
+✅ **Efficient**: Only syncs new/changed records
+✅ **Resilient**: Systemd restart policies and error handling
 
 ---
 

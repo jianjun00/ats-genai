@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 
 class NewsIngestionManager:
     """Manager for news ingestion systems."""
-    
+
     def __init__(self, namespace: str = "ats-intg"):
         self.namespace = namespace
         self.cronjob_file = "k8s/intg/news-ingestion-cronjobs.yaml"
-        
+
         # News system components
         self.components = {
             'news-backfill-30days': {
@@ -41,7 +41,7 @@ class NewsIngestionManager:
                 'runtime': '2 hours'
             },
             'news-backfill-comprehensive': {
-                'type': 'cronjob', 
+                'type': 'cronjob',
                 'description': 'Weekly 90-day comprehensive backfill',
                 'schedule': '0 7 * * 0',  # 2 AM EST Sunday
                 'runtime': '4 hours'
@@ -59,7 +59,7 @@ class NewsIngestionManager:
                 'runtime': '30 minutes'
             }
         }
-    
+
     def run_kubectl(self, command: List[str]) -> Dict:
         """Run kubectl command and return result."""
         try:
@@ -69,7 +69,7 @@ class NewsIngestionManager:
                 text=True,
                 timeout=60
             )
-            
+
             return {
                 'success': result.returncode == 0,
                 'stdout': result.stdout.strip(),
@@ -90,11 +90,11 @@ class NewsIngestionManager:
                 'stderr': str(e),
                 'returncode': -1
             }
-    
+
     def deploy_news_systems(self) -> bool:
         """Deploy news ingestion systems to Kubernetes."""
         logger.info("🚀 Deploying news ingestion systems...")
-        
+
         # Check if namespace exists
         ns_result = self.run_kubectl(['get', 'namespace', self.namespace])
         if not ns_result['success']:
@@ -103,43 +103,43 @@ class NewsIngestionManager:
             if not create_ns['success']:
                 logger.error(f"❌ Failed to create namespace: {create_ns['stderr']}")
                 return False
-        
+
         # Apply the resources
         logger.info(f"📄 Applying news ingestion definitions from {self.cronjob_file}")
         apply_result = self.run_kubectl(['apply', '-f', self.cronjob_file])
-        
+
         if apply_result['success']:
             logger.info("✅ News ingestion systems deployed successfully")
-            
+
             # Show deployed components
             logger.info("\n📋 Deployed Components:")
             for component, info in self.components.items():
                 logger.info(f"  • {component} ({info['type']}): {info['description']}")
                 logger.info(f"    Schedule: {info['schedule']}, Runtime: {info['runtime']}")
-            
+
             return True
         else:
             logger.error(f"❌ Failed to deploy systems: {apply_result['stderr']}")
             return False
-    
+
     def get_news_system_status(self) -> Dict:
         """Get status of all news system components."""
         logger.info(f"📊 Checking news system status in namespace: {self.namespace}")
-        
+
         status = {
             'cronjobs': {},
             'deployments': {},
             'services': {}
         }
-        
+
         # Get CronJobs
         cronjobs_result = self.run_kubectl([
-            'get', 'cronjobs', 
+            'get', 'cronjobs',
             '-n', self.namespace,
-            '-l', 'component in (data-collection,data-validation,monitoring)', 
+            '-l', 'component in (data-collection,data-validation,monitoring)',
             '-o', 'json'
         ])
-        
+
         if cronjobs_result['success']:
             try:
                 cronjobs_data = json.loads(cronjobs_result['stdout'])
@@ -148,7 +148,7 @@ class NewsIngestionManager:
                     if 'news' in name:  # Filter to news-related jobs
                         spec = item['spec']
                         status_info = item.get('status', {})
-                        
+
                         status['cronjobs'][name] = {
                             'schedule': spec['schedule'],
                             'suspend': spec.get('suspend', False),
@@ -158,15 +158,15 @@ class NewsIngestionManager:
                         }
             except json.JSONDecodeError:
                 logger.error("❌ Failed to parse CronJobs JSON")
-        
-        # Get Deployments  
+
+        # Get Deployments
         deployments_result = self.run_kubectl([
             'get', 'deployments',
             '-n', self.namespace,
             '-l', 'app=realtime-news-ingestion',
             '-o', 'json'
         ])
-        
+
         if deployments_result['success']:
             try:
                 deployments_data = json.loads(deployments_result['stdout'])
@@ -174,7 +174,7 @@ class NewsIngestionManager:
                     name = item['metadata']['name']
                     spec = item['spec']
                     status_info = item.get('status', {})
-                    
+
                     status['deployments'][name] = {
                         'desired_replicas': spec.get('replicas', 0),
                         'ready_replicas': status_info.get('readyReplicas', 0),
@@ -183,7 +183,7 @@ class NewsIngestionManager:
                     }
             except json.JSONDecodeError:
                 logger.error("❌ Failed to parse Deployments JSON")
-        
+
         # Get Services
         services_result = self.run_kubectl([
             'get', 'services',
@@ -191,14 +191,14 @@ class NewsIngestionManager:
             '-l', 'app=realtime-news-ingestion',
             '-o', 'json'
         ])
-        
+
         if services_result['success']:
             try:
                 services_data = json.loads(services_result['stdout'])
                 for item in services_data.get('items', []):
                     name = item['metadata']['name']
                     spec = item['spec']
-                    
+
                     status['services'][name] = {
                         'type': spec.get('type', 'ClusterIP'),
                         'ports': spec.get('ports', []),
@@ -206,34 +206,34 @@ class NewsIngestionManager:
                     }
             except json.JSONDecodeError:
                 logger.error("❌ Failed to parse Services JSON")
-        
+
         return status
-    
+
     def print_status(self):
         """Print formatted status of news systems."""
         status = self.get_news_system_status()
-        
+
         logger.info("\n📊 NEWS INGESTION SYSTEMS STATUS")
         logger.info("=" * 80)
-        
+
         # CronJobs status
         if status['cronjobs']:
             logger.info("\n🕐 CRONJOBS:")
             for name, info in status['cronjobs'].items():
                 component_info = self.components.get(name, {})
                 description = component_info.get('description', 'News CronJob')
-                
+
                 logger.info(f"\n📋 {name}")
                 logger.info(f"   Description: {description}")
                 logger.info(f"   Schedule: {info['schedule']}")
                 logger.info(f"   Suspended: {info['suspend']}")
                 logger.info(f"   Active jobs: {info['active_jobs']}")
-                
+
                 if info['last_schedule']:
                     logger.info(f"   Last scheduled: {info['last_schedule']}")
                 if info['last_successful']:
                     logger.info(f"   Last successful: {info['last_successful']}")
-                
+
                 # Status indicator
                 if info['suspend']:
                     logger.info("   Status: 🔴 SUSPENDED")
@@ -243,7 +243,7 @@ class NewsIngestionManager:
                     logger.info("   Status: 🟢 HEALTHY")
                 else:
                     logger.info("   Status: ⚪ NOT RUN YET")
-        
+
         # Deployments status
         if status['deployments']:
             logger.info("\n🚀 DEPLOYMENTS:")
@@ -252,7 +252,7 @@ class NewsIngestionManager:
                 logger.info(f"   Desired replicas: {info['desired_replicas']}")
                 logger.info(f"   Ready replicas: {info['ready_replicas']}")
                 logger.info(f"   Available replicas: {info['available_replicas']}")
-                
+
                 # Status indicator
                 if info['ready_replicas'] == info['desired_replicas'] > 0:
                     logger.info("   Status: 🟢 HEALTHY")
@@ -260,7 +260,7 @@ class NewsIngestionManager:
                     logger.info("   Status: 🟡 PARTIAL")
                 else:
                     logger.info("   Status: 🔴 UNHEALTHY")
-        
+
         # Services status
         if status['services']:
             logger.info("\n🔗 SERVICES:")
@@ -268,19 +268,19 @@ class NewsIngestionManager:
                 logger.info(f"\n🌐 {name}")
                 logger.info(f"   Type: {info['type']}")
                 logger.info(f"   Ports: {[f\"{p['port']}:{p['targetPort']}\" for p in info['ports']]}")
-        
+
         if not any(status.values()):
             logger.warning("⚠️ No news ingestion components found")
-    
+
     def get_component_logs(self, component_name: str, lines: int = 100) -> Optional[str]:
         """Get logs from a news system component."""
         logger.info(f"📝 Getting logs for {component_name} (last {lines} lines)")
-        
+
         # Determine component type and get appropriate logs
         if component_name in ['realtime-news-ingestion']:
             # Get deployment logs
             logs_result = self.run_kubectl([
-                'logs', 
+                'logs',
                 f'deployment/{component_name}',
                 '-n', self.namespace,
                 '--tail', str(lines)
@@ -294,7 +294,7 @@ class NewsIngestionManager:
                 '--sort-by', '.metadata.creationTimestamp',
                 '-o', 'jsonpath={.items[-1:].metadata.name}'
             ])
-            
+
             if jobs_result['success'] and jobs_result['stdout']:
                 job_name = jobs_result['stdout']
                 logs_result = self.run_kubectl([
@@ -306,17 +306,17 @@ class NewsIngestionManager:
             else:
                 logger.warning(f"⚠️ No recent jobs found for {component_name}")
                 return None
-        
+
         if logs_result['success']:
             return logs_result['stdout']
         else:
             logger.error(f"❌ Failed to get logs: {logs_result['stderr']}")
             return None
-    
+
     async def run_backfill(self, vendor: str = "all", days: int = 30, symbols: Optional[str] = None) -> bool:
         """Run news backfill operation."""
         logger.info(f"🔄 Running news backfill: {vendor} vendor, {days} days")
-        
+
         # Prepare command
         vendors = vendor if vendor != "all" else "tiingo,polygon,eodhd"
         cmd = [
@@ -324,13 +324,13 @@ class NewsIngestionManager:
             "--vendors", vendors,
             "--days", str(days)
         ]
-        
+
         if symbols:
             cmd.extend(["--symbols", symbols])
-        
+
         # Create one-time job
         job_name = f"news-backfill-manual-{int(datetime.now().timestamp())}"
-        
+
         job_yaml = f"""
 apiVersion: batch/v1
 kind: Job
@@ -384,17 +384,17 @@ spec:
             memory: "4Gi"
             cpu: "2000m"
 """
-        
+
         # Apply job
         apply_result = self.run_kubectl(['apply', '-f', '-'], input=job_yaml)
-        
+
         if not apply_result['success']:
             logger.error(f"❌ Failed to create backfill job: {apply_result['stderr']}")
             return False
-        
+
         logger.info(f"✅ Backfill job created: {job_name}")
         logger.info("🔍 Waiting for job to complete...")
-        
+
         # Wait for completion (up to 30 minutes)
         for i in range(180):  # 180 * 10 = 30 minutes
             job_status = self.run_kubectl([
@@ -402,46 +402,46 @@ spec:
                 '-n', self.namespace,
                 '-o', 'jsonpath={.status.conditions[0].type}'
             ])
-            
+
             if job_status['success']:
                 if job_status['stdout'] == 'Complete':
                     logger.info("✅ Backfill job completed successfully")
-                    
+
                     # Show logs
                     logs = self.get_component_logs(job_name, 200)
                     if logs:
                         logger.info("\n📝 Backfill job logs:")
                         print(logs[-3000:])  # Last 3000 characters
-                    
+
                     # Cleanup
                     self.run_kubectl(['delete', 'job', job_name, '-n', self.namespace])
                     return True
                 elif job_status['stdout'] == 'Failed':
                     logger.error("❌ Backfill job failed")
-                    
+
                     # Show error logs
                     logs = self.get_component_logs(job_name, 200)
                     if logs:
                         logger.error("\n📝 Backfill job error logs:")
                         print(logs[-3000:])
-                    
+
                     # Cleanup
                     self.run_kubectl(['delete', 'job', job_name, '-n', self.namespace])
                     return False
-            
+
             await asyncio.sleep(10)
-        
+
         logger.error("❌ Backfill job timed out")
         self.run_kubectl(['delete', 'job', job_name, '-n', self.namespace])
         return False
-    
+
     async def run_health_check(self) -> bool:
         """Run news system health check."""
         logger.info("🔍 Running news system health check...")
-        
+
         # Create health check job
         job_name = f"news-health-check-{int(datetime.now().timestamp())}"
-        
+
         job_yaml = f"""
 apiVersion: batch/v1
 kind: Job
@@ -482,14 +482,14 @@ spec:
             memory: "1Gi"
             cpu: "500m"
 """
-        
+
         # Apply and wait for completion
         apply_result = self.run_kubectl(['apply', '-f', '-'], input=job_yaml)
-        
+
         if not apply_result['success']:
             logger.error(f"❌ Failed to create health check job: {apply_result['stderr']}")
             return False
-        
+
         # Wait for completion
         for i in range(30):  # 5 minutes max
             job_status = self.run_kubectl([
@@ -497,7 +497,7 @@ spec:
                 '-n', self.namespace,
                 '-o', 'jsonpath={.status.conditions[0].type}'
             ])
-            
+
             if job_status['success']:
                 if job_status['stdout'] == 'Complete':
                     # Show health check results
@@ -507,7 +507,7 @@ spec:
                         print("HEALTH CHECK RESULTS")
                         print("="*80)
                         print(logs)
-                    
+
                     # Cleanup and return success
                     self.run_kubectl(['delete', 'job', job_name, '-n', self.namespace])
                     return True
@@ -515,9 +515,9 @@ spec:
                     logger.error("❌ Health check failed")
                     self.run_kubectl(['delete', 'job', job_name, '-n', self.namespace])
                     return False
-            
+
             await asyncio.sleep(10)
-        
+
         logger.error("❌ Health check timed out")
         self.run_kubectl(['delete', 'job', job_name, '-n', self.namespace])
         return False
@@ -539,28 +539,28 @@ async def main():
                        help='Number of log lines to show')
     parser.add_argument('--namespace', type=str, default='ats-intg',
                        help='Kubernetes namespace')
-    
+
     args = parser.parse_args()
-    
+
     if args.command == 'help':
         parser.print_help()
         return
-    
+
     manager = NewsIngestionManager(args.namespace)
-    
+
     try:
         if args.command == 'deploy':
             success = manager.deploy_news_systems()
             sys.exit(0 if success else 1)
-            
+
         elif args.command == 'status':
             manager.print_status()
-            
+
         elif args.command == 'logs':
             if not args.service:
                 logger.error("❌ --service parameter required for logs command")
                 sys.exit(1)
-            
+
             logs = manager.get_component_logs(args.service, args.lines)
             if logs:
                 print("\n" + "="*80)
@@ -570,15 +570,15 @@ async def main():
             else:
                 logger.error("❌ Could not retrieve logs")
                 sys.exit(1)
-                
+
         elif args.command == 'backfill':
             success = await manager.run_backfill(args.vendor, args.days, args.symbols)
             sys.exit(0 if success else 1)
-            
+
         elif args.command == 'health-check':
             success = await manager.run_health_check()
             sys.exit(0 if success else 1)
-    
+
     except KeyboardInterrupt:
         logger.info("\n👋 Operation cancelled by user")
         sys.exit(1)

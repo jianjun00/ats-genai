@@ -82,7 +82,7 @@ python scripts/run_dev.py test
 
 **Features aren't complete until entire pipeline works:**
 1. **Generate real data** using Docker services
-2. **Store in database** with correct schema  
+2. **Store in database** with correct schema
 3. **API serves data** to external clients
 4. **Frontend displays data** in browser
 5. **All integration tests pass**
@@ -98,7 +98,7 @@ http://localhost:3000/health          # Health check endpoint
 http://localhost:3000/eda            # EDA Dashboard interface
 http://localhost:3000/api/           # Analytics API endpoints
 
-# API Service  
+# API Service
 http://localhost:8000/health          # API health check
 http://localhost:8000/api/           # Main API endpoints
 
@@ -184,7 +184,7 @@ python scripts/run_dev.py query --query "SELECT COUNT(*) as eodhd_instruments FR
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_instrument_tiingo WHERE end_date < '2020-01-01'"
 ```
 
-### 🎨 Frontend Engineer  
+### 🎨 Frontend Engineer
 ```bash
 # Start analytics service
 python scripts/run_dev.py start --service analytics
@@ -207,7 +207,7 @@ python scripts/run_dev.py query --query "SELECT dataset_name, total_sequences FR
 # 1. Database connectivity
 python scripts/run_dev.py query --query "SELECT version()"
 
-# 2. Job execution capability  
+# 2. Job execution capability
 python scripts/run_dev.py status
 
 # 3. External service access
@@ -229,7 +229,7 @@ python scripts/run_dev.py status
 # If works: check dev CLI exists at scripts/run_dev.py
 ```
 
-### "Database connection failed"  
+### "Database connection failed"
 ```bash
 python scripts/run_dev.py query --query "SELECT 1"
 # If fails: check PostgreSQL service is running
@@ -276,7 +276,7 @@ curl -v "http://localhost:3001/health"
 - [ ] Execute a data job and see results in database
 - [ ] Start a service and access it via localhost
 - [ ] Write failing test → implement code → see test pass
-- [ ] Run integration tests and have them pass  
+- [ ] Run integration tests and have them pass
 - [ ] Access services via Docker networking
 
 ---
@@ -292,7 +292,7 @@ curl -v "http://localhost:3001/health"
 - **🚫 No demo data** - real data only in dev/staging/prod
 - **✅ End-to-end validation** - complete pipelines must work
 
-### Deployment Standards  
+### Deployment Standards
 - **✅ Use GitOps workflows** for all deployments
 - **✅ Run safety checks** before deploying
 - **✅ Monitor deployments** during rollout
@@ -301,7 +301,7 @@ curl -v "http://localhost:3001/health"
 
 ### Quality Requirements
 - **📊 Schema validation tests** for database changes
-- **🔒 Security scanning** for code changes  
+- **🔒 Security scanning** for code changes
 - **📈 Performance testing** for critical paths
 - **📝 Documentation updates** for new features
 - **✅ Code review approval** before merging

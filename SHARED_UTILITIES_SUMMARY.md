@@ -12,7 +12,7 @@ From analyzing the recent polygon news backfill implementation, we identified **
 ```python
 # OLD: Repeated in every file
 POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY") or env.get_api_key('polygon')
-EODHD_API_KEY = os.environ.get("EODHD_API_KEY") or env.get_api_key('eodhd')  
+EODHD_API_KEY = os.environ.get("EODHD_API_KEY") or env.get_api_key('eodhd')
 TIINGO_API_KEY = os.environ.get("TIINGO_API_KEY") or env.get_api_key('tiingo')
 ```
 
@@ -53,7 +53,7 @@ table_name = get_table_name('news', 'dev')  # Returns 'dev_news'
 
 **Key Features**:
 - ✅ **Automatic fallbacks**: Advanced Database class → Simple asyncpg
-- ✅ **Environment support**: dev, test, intg, prod configurations  
+- ✅ **Environment support**: dev, test, intg, prod configurations
 - ✅ **Table naming**: Consistent environment-prefixed tables
 - ✅ **Context manager**: DatabaseConnectionManager for cleanup
 - ✅ **Connection testing**: Built-in connection validation
@@ -99,7 +99,7 @@ if not polygon_api_key:
         pass
 # ... even more fallback logic
 
-# Complex database setup (25+ lines) 
+# Complex database setup (25+ lines)
 try:
     from shared.data_handling.utils.database import Database
     # ... complex setup
@@ -170,7 +170,7 @@ await rate_limiter.wait_if_needed()
 
 ### High Priority Files to Migrate:
 1. **`src/infrastructure/vendor/polygon/services/populate_instrument_polygon.py`**
-2. **`src/infrastructure/vendor/eodhd/services/populate_instrument_eodhd.py`**  
+2. **`src/infrastructure/vendor/eodhd/services/populate_instrument_eodhd.py`**
 3. **`src/infrastructure/vendor/tiingo/services/populate_instrument_tiingo.py`**
 4. **`src/infrastructure/vendor/polygon/services/polygon_30_year_daily_backfill.py`**
 

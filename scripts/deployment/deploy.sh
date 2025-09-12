@@ -30,99 +30,99 @@ log_error() {
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     if ! command -v docker &> /dev/null; then
         log_error "Docker is not installed"
         exit 1
     fi
-    
+
     if ! command -v docker-compose &> /dev/null; then
         log_error "Docker Compose is not installed"
         exit 1
     fi
-    
+
     if [[ ! -f "$ENV_FILE" ]]; then
         log_error "Environment file $ENV_FILE not found"
         log_info "Please create $ENV_FILE from .env.template"
         exit 1
     fi
-    
+
     log_info "Prerequisites check passed"
 }
 
 # Validate environment configuration
 validate_environment() {
     log_info "Validating environment configuration..."
-    
+
     source "$ENV_FILE"
-    
+
     required_vars=(
         "DB_PASSWORD"
         "POLYGON_API_KEY"
         "TIINGO_API_KEY"
     )
-    
+
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
             log_error "Required environment variable $var is not set"
             exit 1
         fi
     done
-    
+
     log_info "Environment validation passed"
 }
 
 # Deploy services
 deploy_services() {
     log_info "Deploying ATS Platform services..."
-    
+
     # Pull latest images
     docker-compose -f "$COMPOSE_FILE" pull
-    
+
     # Stop existing services
     docker-compose -f "$COMPOSE_FILE" down --remove-orphans
-    
+
     # Start services
     docker-compose -f "$COMPOSE_FILE" up -d
-    
+
     log_info "Services deployment initiated"
 }
 
 # Health check
 health_check() {
     log_info "Performing health checks..."
-    
+
     max_attempts=30
     attempt=0
-    
+
     while [[ $attempt -lt $max_attempts ]]; do
         if docker-compose -f "$COMPOSE_FILE" ps --filter status=running | grep -q "ats-postgres"; then
             log_info "Database is running"
             break
         fi
-        
+
         attempt=$((attempt + 1))
         log_warn "Waiting for database to start... ($attempt/$max_attempts)"
         sleep 5
     done
-    
+
     if [[ $attempt -eq $max_attempts ]]; then
         log_error "Health check failed - database did not start"
         exit 1
     fi
-    
+
     log_info "Health checks passed"
 }
 
 # Main deployment process
 main() {
     log_info "Starting ATS Platform deployment for environment: $ENVIRONMENT"
-    
+
     check_prerequisites
     validate_environment
     deploy_services
     health_check
-    
+
     log_info "Deployment completed successfully!"
     log_info "Access the analytics dashboard at: http://localhost:3000"
 }

@@ -2,7 +2,7 @@
   "description": "ATS Real-time Collection Monitoring System Configuration",
   "version": "1.0",
   "last_updated": "2025-09-02",
-  
+
   "components": {
     "monitor": {
       "enabled": true,
@@ -25,7 +25,7 @@
         "price_spike_pct": 10.0
       }
     },
-    
+
     "alerting": {
       "enabled": true,
       "test_on_startup": true,
@@ -58,7 +58,7 @@
         }
       }
     },
-    
+
     "dashboard": {
       "enabled": true,
       "host": "0.0.0.0",
@@ -67,7 +67,7 @@
       "websocket_enabled": true,
       "api_enabled": true
     },
-    
+
     "prometheus": {
       "enabled": true,
       "port": 8091,
@@ -77,7 +77,7 @@
       "include_grafana_dashboard": true
     }
   },
-  
+
   "logging": {
     "level": "INFO",
     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -85,7 +85,7 @@
     "max_size_mb": 100,
     "backup_count": 5
   },
-  
+
   "health_checks": {
     "enabled": true,
     "interval_seconds": 120,
@@ -93,20 +93,20 @@
     "max_restart_attempts": 3,
     "components_to_monitor": ["monitor", "dashboard", "prometheus"]
   },
-  
+
   "data_retention": {
     "metrics_history_hours": 168,
     "alert_history_days": 30,
     "performance_data_days": 7
   },
-  
+
   "performance_settings": {
     "max_concurrent_db_connections": 10,
     "metric_collection_timeout_seconds": 30,
     "websocket_max_connections": 50,
     "prometheus_scrape_timeout_seconds": 10
   },
-  
+
   "security": {
     "dashboard_auth_required": false,
     "api_rate_limiting": true,

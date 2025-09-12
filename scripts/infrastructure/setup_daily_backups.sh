@@ -72,11 +72,11 @@ if command -v crontab &> /dev/null; then
     (crontab -l 2>/dev/null || echo "") | grep -v "ATS Platform Daily Backups" | grep -v "$SCRIPT_DIR" > /tmp/existing_cron || true
     cat /tmp/existing_cron "$CRON_FILE" | crontab -
     log "✅ Cron jobs installed successfully"
-    
+
     # Show installed cron jobs
     log "📋 Installed cron schedule:"
     crontab -l | grep -A 10 "ATS Platform Daily Backups" || true
-    
+
 else
     log "⚠️  WARNING: crontab not available. Manual scheduling required:"
     log "   Add the following to your cron configuration:"
@@ -86,7 +86,7 @@ fi
 # Create systemd timer as alternative (if systemd available)
 if command -v systemctl &> /dev/null && [[ -d "/etc/systemd/system" ]] && [[ $EUID -eq 0 ]]; then
     log "🔧 Setting up systemd timers as alternative..."
-    
+
     # Create service files
     cat > "/etc/systemd/system/ats-backup-dev.service" << EOF
 [Unit]
@@ -117,7 +117,7 @@ EOF
     systemctl daemon-reload
     systemctl enable ats-backup-dev.timer
     systemctl start ats-backup-dev.timer
-    
+
     log "✅ Systemd timers configured"
 fi
 

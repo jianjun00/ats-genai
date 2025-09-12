@@ -1,0 +1,40 @@
+# ATS Platform Complete Cron Configuration
+# Install with: crontab scripts/cron/ats-complete-crontab
+#
+# Schedule Overview:
+# 2:00 AM - Database backups
+# 2:30 AM - FirstRate minute bar downloads
+# 4:00 AM - Data backups
+# 5:00 AM - Backup cleanup
+
+# ATS Platform Daily Database Backups
+0 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_dev.sh
+15 2 * * * /home/jianjun/ats-genai-data/scripts/daily_backup_ats_intg.sh
+
+# FirstRate Daily Download - 2:30 AM EST/EDT daily (after DB backups)
+30 2 * * * cd /home/jianjun/ats-genai-data && PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily.log 2>> /mnt/d/ats-logs/firstrate-daily-error.log
+
+# FirstRate Download Backup/Retry - 8:00 AM if morning job failed
+0 8 * * * /bin/bash -c 'if [ ! -f "/mnt/d/ats-data/firstrate-data/daily/stock/stock_$(date +\%Y\%m\%d)_1min_adj_split.zip" ]; then cd /home/jianjun/ats-genai-data && PYTHONPATH=src uv run python scripts/firstrate_daily_download.py --all >> /mnt/d/ats-logs/firstrate-daily-retry.log 2>&1; fi'
+
+# ATS Data Backup Jobs
+# Full snapshot backup - Sundays at 1 AM
+0 1 * * 0 /home/jianjun/ats-genai-admin/scripts/full_snapshot_ats_data.sh >> /mnt/d/ats-logs/cron-data-backup.log 2>&1
+
+# Incremental sync backup - Daily at 4 AM (after minute bar downloads)
+0 4 * * * /home/jianjun/ats-genai-admin/scripts/incremental_sync_ats_data.sh >> /mnt/d/ats-logs/cron-data-backup.log 2>&1
+
+# Backup cleanup - Daily at 5 AM (after incremental)
+0 5 * * * /home/jianjun/ats-genai-admin/scripts/manage_ats_data_backups.sh cleanup >> /mnt/d/ats-logs/cron-data-backup.log 2>&1
+
+# Log rotation - Weekly cleanup of large log files
+0 6 * * 0 find /mnt/d/ats-logs -name "*.log" -type f -size +100M -mtime +7 -exec gzip {} \; >> /mnt/d/ats-logs/log-rotation.log 2>&1
+
+# Health monitoring - Daily check of critical services
+30 6 * * * /home/jianjun/ats-genai-data/scripts/cron/daily_health_check.sh >> /mnt/d/ats-logs/health-check.log 2>&1
+
+# Daily prices validation - Check for missing and abnormal prices (90-day analysis)
+45 6 * * * cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/daily_prices_validation.py >> /mnt/d/ats-logs/daily-prices-validation.log 2>> /mnt/d/ats-logs/daily-prices-validation-error.log
+
+# Minute bar validation - Check for missing minute bars across all vendors (90-day analysis)
+0 7 * * * cd /home/jianjun/ats-genai-data && PYTHONPATH=src python3 scripts/minute_bar_validation.py >> /mnt/d/ats-logs/minute-bar-validation.log 2>> /mnt/d/ats-logs/minute-bar-validation-error.log

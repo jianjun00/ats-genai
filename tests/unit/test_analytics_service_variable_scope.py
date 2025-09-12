@@ -2,6 +2,9 @@
 """
 Unit Tests for Analytics Service Variable Scope Issues
 Tests the specific job_manager variable scope bugs we fixed
+
+DISABLED: This test is for legacy architecture that has been completely refactored.
+The UnifiedAnalyticsService no longer uses AnalyticsHandler or JobManager classes.
 """
 
 import pytest
@@ -14,8 +17,10 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from services.analytics_service import AnalyticsHandler, JobManager
+# Disabled - legacy test for deprecated architecture
+# from services.analytics_service import UnifiedAnalyticsService, UnifiedAnalyticsRequestHandler
 
+@pytest.mark.skip(reason="Legacy test for deprecated AnalyticsHandler/JobManager architecture - service has been refactored")
 class TestAnalyticsServiceVariableScope:
     """Test job_manager variable scope fixes in AnalyticsHandler"""
 
@@ -304,6 +309,7 @@ class TestAnalyticsServiceVariableScope:
             assert post_instantiations > 0, "Should have JobManager() instantiations in do_POST"
 
 
+@pytest.mark.skip(reason="Legacy test for deprecated JobManager architecture")
 class TestJobManagerErrorHandling:
     """Test that JobManager errors are handled gracefully"""
 

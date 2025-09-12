@@ -8,7 +8,7 @@ Transform the sprawling 100+ file `src/` directory into a well-defined, maintain
 
 ### **1. Architectural Anti-Patterns**
 - ❌ **DAO Sprawl**: 20+ DAO files scattered without domain boundaries
-- ❌ **Service Chaos**: Multiple analytics services, unclear responsibilities  
+- ❌ **Service Chaos**: Multiple analytics services, unclear responsibilities
 - ❌ **Mixed Abstractions**: Infrastructure mixed with domain logic
 - ❌ **Deep Nesting**: Paths like `market_data/agent/monitoring/dashboards/`
 - ❌ **Duplicate Logic**: Similar patterns repeated across modules
@@ -16,7 +16,7 @@ Transform the sprawling 100+ file `src/` directory into a well-defined, maintain
 
 ### **2. Quantified Complexity**
 - **100+ Python files** in src/ directory
-- **15+ subdirectories** at varying depths  
+- **15+ subdirectories** at varying depths
 - **Multiple similar modules**: 5+ analytics variants, 8+ data ingestion patterns
 - **Inconsistent naming**: Mixed conventions across modules
 - **Circular dependencies**: Implied by scattered organization
@@ -45,7 +45,7 @@ src/
 │   │   ├── services/          # Security master logic
 │   │   └── value_objects/     # Symbol, ISIN, etc.
 │   ├── trading/               # Portfolio, positions, signals
-│   │   ├── entities/          # Portfolio, Position models  
+│   │   ├── entities/          # Portfolio, Position models
 │   │   ├── repositories/      # Trading data access
 │   │   ├── services/          # Trading business logic
 │   │   └── value_objects/     # Money, Quantity, etc.

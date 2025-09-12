@@ -70,7 +70,7 @@ async def create_pool_with_retry(self, asyncpg, max_retries=3, initial_delay=1.0
     async def connect_to_db():
         connection_url = self.get_database_url()
         return await asyncpg.create_pool(connection_url)
-    
+
     # Use retry logic
     return await retry_async(
         connect_to_db,

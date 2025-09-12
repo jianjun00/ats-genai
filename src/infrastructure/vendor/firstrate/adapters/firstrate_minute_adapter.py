@@ -396,7 +396,7 @@ class FirstRateMinuteAdapter:
         files = []
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days_back)
-        
+
         current_date = start_date
         while current_date <= end_date:
             filename = f"stock_{current_date.strftime('%Y%m%d')}_1min_adj_split.zip"
@@ -404,10 +404,10 @@ class FirstRateMinuteAdapter:
             if file_path.exists():
                 files.append(file_path)
             current_date += timedelta(days=1)
-            
+
         logger.info(f"Found {len(files)} FirstRate daily files for past {days_back} days")
         return files
-        
+
     def extract_symbol_from_daily_zip(self, zip_path: Path, symbol: str) -> pd.DataFrame:
         """Extract minute data for symbol from daily ZIP file."""
         try:
@@ -415,62 +415,62 @@ class FirstRateMinuteAdapter:
                 target_file = f"{symbol}_day_1min_adjsplit.txt"
                 if target_file not in zf.namelist():
                     return pd.DataFrame()
-                    
+
                 with zf.open(target_file) as f:
                     content = f.read().decode('utf-8').strip()
                     if not content:
                         return pd.DataFrame()
-                    
+
                     # Parse CSV without header
-                    df = pd.read_csv(StringIO(content), 
+                    df = pd.read_csv(StringIO(content),
                                    names=['timestamp', 'open', 'high', 'low', 'close', 'volume'],
                                    parse_dates=['timestamp'])
-                    
+
                     # Add metadata columns
                     df['vwap'] = None
-                    df['trade_count'] = None  
+                    df['trade_count'] = None
                     df['vendor'] = 'firstrate'
                     df['quality_score'] = 1.0
-                    
+
                     return df
-                    
+
         except Exception as e:
             logger.error(f"Error reading {symbol} from {zip_path.name}: {e}")
             return pd.DataFrame()
-    
+
     def fetch_symbol_data_for_backfill(self, symbol: str, days_back: int = 30) -> pd.DataFrame:
         """Fetch all recent data for symbol from daily files."""
         files = self.get_recent_firstrate_files(days_back)
         all_data = []
-        
+
         for zip_path in files:
             df = self.extract_symbol_from_daily_zip(zip_path, symbol)
             if not df.empty:
                 all_data.append(df)
-                
+
         if not all_data:
             return pd.DataFrame()
-            
+
         # Combine and deduplicate
         combined_df = pd.concat(all_data, ignore_index=True)
         combined_df = combined_df.drop_duplicates(subset=['timestamp']).sort_values('timestamp')
-        
+
         logger.info(f"Fetched {len(combined_df)} records for {symbol}")
         return combined_df
-    
+
     def get_monthly_file_path(self, symbol: str, year: int, month: int, output_path: str = "/mnt/d/ats-data/minute-bars/firstrate") -> Path:
         """Get path to monthly parquet file."""
         first_letter = symbol[0]
-        return (Path(output_path) / first_letter / symbol / str(year) / 
+        return (Path(output_path) / first_letter / symbol / str(year) /
                 f"{month:02d}" / f"{symbol}_{year}_{month:02d}.parquet")
-                
+
     def calculate_hash(self, df: pd.DataFrame) -> str:
         """Calculate data hash for change detection."""
         if df.empty:
             return "empty"
         hash_data = f"{len(df)}|{df['timestamp'].min()}|{df['timestamp'].max()}|{df['volume'].sum()}"
         return hashlib.md5(hash_data.encode()).hexdigest()
-        
+
     def read_existing_data(self, symbol: str, year: int, month: int, output_path: str = "/mnt/d/ats-data/minute-bars/firstrate") -> pd.DataFrame:
         """Read existing monthly data."""
         file_path = self.get_monthly_file_path(symbol, year, month, output_path)
@@ -480,96 +480,96 @@ class FirstRateMinuteAdapter:
             except Exception as e:
                 logger.error(f"Error reading {file_path}: {e}")
         return pd.DataFrame()
-        
+
     def filter_month_data(self, df: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
         """Filter data to specific month."""
         if df.empty:
             return df
-            
+
         month_start = pd.Timestamp(year, month, 1)
         if month == 12:
             month_end = pd.Timestamp(year + 1, 1, 1)
         else:
             month_end = pd.Timestamp(year, month + 1, 1)
-            
+
         mask = (df['timestamp'] >= month_start) & (df['timestamp'] < month_end)
         return df[mask].copy()
-        
+
     def write_monthly_file(self, symbol: str, year: int, month: int, df: pd.DataFrame, output_path: str = "/mnt/d/ats-data/minute-bars/firstrate") -> bool:
         """Write monthly file if changed."""
         if df.empty:
             return False
-            
+
         file_path = self.get_monthly_file_path(symbol, year, month, output_path)
-        
+
         # Check for changes
         existing_df = self.read_existing_data(symbol, year, month, output_path)
         new_hash = self.calculate_hash(df)
         existing_hash = self.calculate_hash(existing_df)
-        
+
         if new_hash == existing_hash:
             logger.info(f"⏭️  No changes for {symbol} {year}-{month:02d}, skipping")
             self.files_skipped += 1
             return False
-            
+
         # Create directory and write file
         file_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(file_path, index=False)
-        
+
         logger.info(f"✅ Wrote {len(df)} records to {symbol}_{year}_{month:02d}.parquet")
         self.files_written += 1
         return True
-    
+
     async def process_symbol_incremental(self, symbol: str, days_back: int = 30, output_path: str = "/mnt/d/ats-data/minute-bars/firstrate") -> dict:
         """Process single symbol for incremental backfill."""
         result = {'symbol': symbol, 'success': False, 'files_written': 0}
-        
+
         try:
             logger.info(f"🔄 Processing {symbol}")
-            
+
             # Get new data
             new_data = self.fetch_symbol_data_for_backfill(symbol, days_back)
             if new_data.empty:
                 logger.info(f"No data for {symbol}")
                 result['success'] = True
                 return result
-                
+
             # Process last 2 months
             now = datetime.now()
             months = [
                 (now.year, now.month),
                 ((now.replace(day=1) - timedelta(days=1)).year, (now.replace(day=1) - timedelta(days=1)).month)
             ]
-            
+
             for year, month in months:
                 # Filter new data to this month
                 month_new = self.filter_month_data(new_data, year, month)
-                
+
                 if month_new.empty:
                     continue
-                    
+
                 # Read existing data
                 existing = self.read_existing_data(symbol, year, month, output_path)
-                
+
                 # Merge data
                 if existing.empty:
                     merged = month_new
                 else:
                     combined = pd.concat([existing, month_new], ignore_index=True)
                     merged = combined.drop_duplicates(subset=['timestamp']).sort_values('timestamp')
-                
+
                 # Write if changed
                 if self.write_monthly_file(symbol, year, month, merged, output_path):
                     result['files_written'] += 1
-                    
+
             result['success'] = True
-            
+
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}")
             result['error'] = str(e)
-            
+
         return result
-    
+
     async def incremental_backfill_to_files(
         self,
         symbols: List[str],
@@ -578,11 +578,11 @@ class FirstRateMinuteAdapter:
     ) -> Dict[str, Any]:
         """Run incremental backfill for multiple symbols."""
         start_time = datetime.now()
-        
+
         logger.info(f"🚀 Starting FirstRate Incremental Backfill")
         logger.info(f"📅 Processing past {days_back} days")
         logger.info(f"💾 Output: {output_path}")
-        
+
         # Check files available
         files = self.get_recent_firstrate_files(days_back)
         if not files:
@@ -594,17 +594,17 @@ class FirstRateMinuteAdapter:
                 'success': False,
                 'error': 'No FirstRate files found'
             }
-            
+
         # Process each symbol
         results = []
         for symbol in symbols:
             result = await self.process_symbol_incremental(symbol, days_back, output_path)
             results.append(result)
-            
+
         # Summary
         elapsed = (datetime.now() - start_time).total_seconds()
         successful = [r for r in results if r.get('success')]
-        
+
         return {
             'symbols_processed': [r['symbol'] for r in successful],
             'files_written': self.files_written,

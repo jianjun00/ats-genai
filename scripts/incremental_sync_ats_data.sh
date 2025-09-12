@@ -86,10 +86,10 @@ if eval "$RSYNC_CMD" 2>>"$LOG_FILE"; then
     HOURS=$((DURATION / 3600))
     MINUTES=$(((DURATION % 3600) / 60))
     SECONDS_REMAINING=$((DURATION % 60))
-    
+
     BACKUP_SIZE=$(du -sh "$BACKUP_PATH" | cut -f1)
     BACKUP_SIZE_BYTES=$(du -sb "$BACKUP_PATH" | cut -f1)
-    
+
     # Calculate space saved through hard links (if applicable)
     if [[ -n "$LINK_DEST" ]]; then
         BACKUP_SIZE_ACTUAL=$(du -sh --apparent-size "$BACKUP_PATH" | cut -f1)
@@ -99,22 +99,22 @@ if eval "$RSYNC_CMD" 2>>"$LOG_FILE"; then
         log "✅ Initial full backup completed successfully"
         log "📊 Backup size: $BACKUP_SIZE"
     fi
-    
+
     log "⏱️  Duration: ${HOURS}h ${MINUTES}m ${SECONDS_REMAINING}s"
-    
+
     # Extract rsync statistics
     if [[ -f "$LOG_FILE.rsync" ]]; then
         TRANSFERRED=$(grep "Total transferred file size:" "$LOG_FILE.rsync" | tail -1 | awk '{print $5, $6}' || echo "unknown")
         FILES_TRANSFERRED=$(grep "Number of files transferred:" "$LOG_FILE.rsync" | tail -1 | awk '{print $5}' || echo "unknown")
         FILES_CREATED=$(grep "Number of created files:" "$LOG_FILE.rsync" | tail -1 | awk '{print $5}' || echo "unknown")
         FILES_DELETED=$(grep "Number of deleted files:" "$LOG_FILE.rsync" | tail -1 | awk '{print $5}' || echo "unknown")
-        
+
         log "📊 Files transferred: $FILES_TRANSFERRED"
         log "📊 Files created: $FILES_CREATED"
         log "📊 Files deleted: $FILES_DELETED"
         log "📊 Data transferred: $TRANSFERRED"
     fi
-    
+
     # Create metadata file
     cat > "$BACKUP_PATH/.backup_metadata.json" << EOF
 {
@@ -128,21 +128,21 @@ if eval "$RSYNC_CMD" 2>>"$LOG_FILE"; then
     "backup_size_bytes": $BACKUP_SIZE_BYTES,
     "duration_seconds": $DURATION,
     "files_transferred": "$FILES_TRANSFERRED",
-    "files_created": "$FILES_CREATED", 
+    "files_created": "$FILES_CREATED",
     "files_deleted": "$FILES_DELETED",
     "data_transferred": "$TRANSFERRED",
     "rsync_log": "$LOG_FILE.rsync"
 }
 EOF
-    
+
     # Update latest incremental symlink
     ln -sfn "$BACKUP_NAME" "$INCREMENTAL_DIR/latest"
     log "🔗 Updated latest incremental symlink"
-    
+
     # Verify backup integrity (quick check)
     log "🔍 Performing quick integrity check..."
     SAMPLE_CHECK_PASSED=true
-    
+
     # Check a few critical directories exist
     for critical_dir in "minute-bars/firstrate" "training_data" "checkpoints" "config"; do
         if [[ -d "$SOURCE_DIR/$critical_dir" ]] && [[ ! -d "$BACKUP_PATH/$critical_dir" ]]; then
@@ -150,13 +150,13 @@ EOF
             SAMPLE_CHECK_PASSED=false
         fi
     done
-    
+
     if [[ "$SAMPLE_CHECK_PASSED" == "true" ]]; then
         log "✅ Basic integrity check passed"
     else
         log "⚠️  WARNING: Some integrity checks failed"
     fi
-    
+
 else
     log "❌ ERROR: Incremental backup failed"
     # Clean up failed backup

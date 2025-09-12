@@ -61,7 +61,7 @@
       ]
     },
     {
-      "id": "16", 
+      "id": "16",
       "name": "MSFT Hourly Training Dataset (CSV format)",
       "description": "Microsoft stock training data from CSV file",
       "format": "csv",
@@ -109,7 +109,7 @@
       "id": "17",
       "name": "GOOGL Training Dataset (CSV format)",
       "description": "Google stock training data with 15m timeframe",
-      "format": "csv", 
+      "format": "csv",
       "file_path": "/data/training/dataset_17.csv",
       "total_sequences": 89,
       "sequence_length": 60,
@@ -147,7 +147,7 @@
           "created_at": "2024-01-15T10:30:00Z"
         },
         {
-          "id": "16", 
+          "id": "16",
           "name": "MSFT Hourly Training Dataset",
           "total_sequences": 145,
           "technical_indicators": ["etop", "ebot", "pldot", "sma_20", "ema_12"],
@@ -183,7 +183,7 @@
       "expected_traces": ["OHLC", "Envelope Top (etop)", "Envelope Bottom (ebot)", "PL Dot", "SMA 20", "EMA 12"]
     },
     "successful_table_rendering": {
-      "dataset_id": "15", 
+      "dataset_id": "15",
       "expected_columns": ["Sequence ID", "Technical Indicators", "OHLC Data", "Labels"],
       "expected_indicators": ["etop", "ebot", "pldot", "sma_20"],
       "expected_ohlc_fields": ["5m_high", "5m_low", "5m_close"]

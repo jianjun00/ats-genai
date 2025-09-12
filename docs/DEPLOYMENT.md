@@ -11,7 +11,7 @@
 
 #### Quick Deployment
 ```bash
-# Deploy changes using GitOps workflow  
+# Deploy changes using GitOps workflow
 ./scripts/dev_deploy.sh
 
 # Monitor deployment progress
@@ -38,7 +38,7 @@ python scripts/detect_k8s_conflicts.py k8s/
 # Fast Kubernetes rollback (~30 seconds)
 ./scripts/rollback_deployment.sh service-name k8s
 
-# Safe Git revert + ArgoCD sync (~2 minutes)  
+# Safe Git revert + ArgoCD sync (~2 minutes)
 ./scripts/rollback_deployment.sh service-name git
 
 # ArgoCD application rollback
@@ -62,7 +62,7 @@ kubectl port-forward service/service-name 8080:80 -n ats-dev
 curl http://localhost:8080/health
 ```
 
-#### Integration Environment  
+#### Integration Environment
 ```bash
 # Apply integration configuration
 kubectl apply -k k8s/environments/intg
@@ -94,7 +94,7 @@ watch kubectl get pods -n ats-prod
 | Environment | Purpose | Update Frequency | Auto-Sync | Branch |
 |-------------|---------|------------------|-----------|--------|
 | **dev** | Development & Testing | Continuous | ✅ Yes | `main` |
-| **intg** | Weekly Integration Testing | Weekly | ✅ Yes | `develop` |  
+| **intg** | Weekly Integration Testing | Weekly | ✅ Yes | `develop` |
 | **prod** | Live Customer System | Monthly | ❌ Manual | `main` |
 
 ### Database Environments
@@ -105,7 +105,7 @@ watch kubectl get pods -n ats-prod
 # Host: localhost
 # Port: 5432 (Docker container)
 # User: postgres
-# Password: dev_password  
+# Password: dev_password
 # Database: dev_db
 # Tables: dev_* prefixed (e.g., dev_daily_prices, dev_instruments)
 
@@ -123,7 +123,7 @@ PGPASSWORD=dev_password psql -h localhost -p 5432 -U postgres -d dev_db
 # Host: localhost
 # Port: 5433 (Docker container)
 # User: postgres
-# Password: intg_password  
+# Password: intg_password
 # Database: intg_db
 # Tables: intg_* prefixed (e.g., intg_daily_prices, intg_instruments)
 
@@ -381,7 +381,7 @@ data:
   script.py: |
     f.write('''complex string''')  # Breaks YAML
 
-# ✅ CORRECT: Proper string handling  
+# ✅ CORRECT: Proper string handling
 data:
   script.py: |
     content = '''complex string'''

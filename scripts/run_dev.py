@@ -22,27 +22,27 @@ class DevCLI:
     def __init__(self, environment=None):
         # Detect environment based on containers or explicit parameter
         self.environment = environment or self.detect_environment()
-        
+
         # Set database configuration based on environment
         self.configure_database()
-        
+
         # ATS persistent volume paths (D: drive)
         self.ats_data_path = "/mnt/d/ats-data"
         self.ats_backup_path = "/mnt/d/ats-backup"
         self.ats_logs_path = "/mnt/d/ats-logs"
-        
+
         # Ensure ATS directories exist
         self.ensure_ats_directories()
-        
+
         # Check if we need to use port-forwarded connection
         self.check_database_connection()
-    
+
     def detect_environment(self):
         """Auto-detect environment based on running containers"""
         try:
             result = subprocess.run("docker ps --format '{{.Names}}'", shell=True, capture_output=True, text=True)
             containers = result.stdout.strip().split('\n')
-            
+
             # run_dev.py should prefer dev environment even if both are running
             if 'ats-dev-postgres' in containers:
                 return 'dev'
@@ -54,7 +54,7 @@ class DevCLI:
         except:
             print("⚠️  Could not detect environment, defaulting to dev")
             return 'dev'
-    
+
     def configure_database(self):
         """Configure database settings based on environment"""
         if self.environment == 'intg':
@@ -71,9 +71,9 @@ class DevCLI:
             self.db_password = "dev_password"  # ATS-DEV PostgreSQL password
             self.db_name = "dev_db"
             self.table_prefix = "dev_"
-            
+
         print(f"🔧 Configured for {self.environment} environment: {self.db_host}:{self.db_port}/{self.db_name}")
-    
+
     def ensure_ats_directories(self):
         """Ensure ATS directories exist on D: drive"""
         for path in [self.ats_data_path, self.ats_backup_path, self.ats_logs_path]:
@@ -83,22 +83,22 @@ class DevCLI:
                     print(f"📁 Created directory: {path}")
                 except Exception as e:
                     print(f"⚠️  Could not create {path}: {e}")
-    
+
     def get_volume_mounts(self):
         """Get Docker volume mount string for ATS directories"""
         volumes = []
         volumes.append(f"-v {os.getcwd()}:/workspace")
-        
+
         # Add ATS persistent volumes if they exist
         if os.path.exists(self.ats_data_path):
             volumes.append(f"-v {self.ats_data_path}:/data")
         if os.path.exists(self.ats_backup_path):
-            volumes.append(f"-v {self.ats_backup_path}:/backup") 
+            volumes.append(f"-v {self.ats_backup_path}:/backup")
         if os.path.exists(self.ats_logs_path):
             volumes.append(f"-v {self.ats_logs_path}:/logs")
-            
+
         return " ".join(volumes)
-        
+
     def check_database_connection(self):
         """Check which database connection works"""
         # Try localhost:3432 first (ATS-DEV PostgreSQL)
@@ -106,18 +106,18 @@ class DevCLI:
             self.db_host = "localhost"
             self.db_port = "3432"
             return
-            
+
         # Try localhost:4432 (ATS-INTG)
         if self.test_db_connection("localhost", "4432"):
             self.db_host = "localhost"
             self.db_port = "4432"
             return
-            
+
         print("⚠️  No database connection available. You may need to:")
         print("   1. Start Docker PostgreSQL: python scripts/run_dev.py start --service postgres")
         print("   2. Start local PostgreSQL")
         print("   3. Or use existing database connection")
-        
+
     def test_db_connection(self, host, port):
         """Test database connection"""
         try:
@@ -127,37 +127,37 @@ class DevCLI:
                 result = subprocess.run(cmd, shell=True, capture_output=True)
                 if result.returncode == 0:
                     return True
-            
+
             # Try without password (for Docker containers)
             cmd = f'psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
             result = subprocess.run(cmd, shell=True, capture_output=True)
             if result.returncode == 0:
                 self.db_password = ""
                 return True
-                
+
             # Try common passwords based on environment
             passwords_to_try = []
             if self.environment == 'intg':
                 passwords_to_try = ['intg_password', 'password', 'postgres']
             else:
                 passwords_to_try = ['dev_password', 'password', 'postgres']
-                
+
             for password in passwords_to_try:
                 cmd = f'PGPASSWORD={password} psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
                 result = subprocess.run(cmd, shell=True, capture_output=True)
                 if result.returncode == 0:
                     self.db_password = password
                     return True
-                
+
             return False
         except:
             return False
-        
+
     def run_command(self, cmd, description=None):
         """Run command and handle output"""
         if description:
             print(f"🔧 {description}")
-        
+
         try:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             if result.returncode == 0:
@@ -169,7 +169,7 @@ class DevCLI:
         except Exception as e:
             print(f"❌ Exception running command: {e}")
             return None
-    
+
     def run_docker_job(self, script_command, job_name=None, gpu=False):
         """Run a job using Docker instead of Kubernetes"""
         # Handle full command with arguments (e.g., "python script.py --arg1 value1 --arg2 value2")
@@ -190,18 +190,18 @@ class DevCLI:
                 print(f"❌ Script not found: {script_command}")
                 return False
             command_to_run = f"python {script_command}"
-            
+
         print(f"🐳 Running Docker job: {script_command}")
-        
+
         # Build Docker command
         gpu_flag = "--gpus all" if gpu else ""
-        
+
         # Use our official image
         image = "dragonflyer762/ats-genai:latest"
-        
+
         # Mount directories and set database connection
         volume_mounts = self.get_volume_mounts()
-        
+
         # Add network connection to PostgreSQL if it exists
         network_link = ""
         if self.environment == 'intg':
@@ -249,26 +249,26 @@ class DevCLI:
             -e OPENAI_API_KEY={os.getenv('OPENAI_API_KEY', '')} \
             {image} \
             bash -c "pip install array-record tensorflow && {command_to_run}" """
-        
+
         print(f"🚀 Running: docker run ... {command_to_run}")
         result = subprocess.run(cmd, shell=True)
-        
+
         if result.returncode == 0:
             print("✅ Job completed successfully")
             return True
         else:
             print(f"❌ Job failed with exit code: {result.returncode}")
             return False
-    
+
     def start_service(self, service_name, port=None, gpu=False):
         """Start a service using Docker"""
         print(f"🚀 Starting service: {service_name}")
-        
+
         # Common service configurations
         services = {
             "postgres": {
                 "image": "postgres:13",
-                "port": "3432:5432",  # ATS-DEV PostgreSQL port 
+                "port": "3432:5432",  # ATS-DEV PostgreSQL port
                 "env": {
                     "POSTGRES_USER": self.db_user,
                     "POSTGRES_PASSWORD": self.db_password,
@@ -316,44 +316,44 @@ class DevCLI:
                 }
             },
             "api": {
-                "image": "dragonflyer762/ats-genai:latest", 
+                "image": "dragonflyer762/ats-genai:latest",
                 "port": "8000:8000",
                 "command": "uvicorn src.main:app --host 0.0.0.0 --port 8000"
             }
         }
-        
+
         if service_name not in services:
             print(f"❌ Unknown service: {service_name}")
             print(f"Available services: {', '.join(services.keys())}")
             return False
-            
+
         config = services[service_name]
-        
+
         # Build Docker command
         gpu_flag = "--gpus all" if gpu else ""
         port_flag = f"-p {port or config['port']}" if ('port' in config or port) else ""
-        
+
         env_vars = ""
         if 'env' in config:
             env_vars = " ".join([f"-e {k}={v}" for k, v in config['env'].items()])
         if 'environment' in config:
             env_vars += " " + " ".join([f"-e {k}={v}" for k, v in config['environment'].items()])
-        
+
         # Container name
         container_name = f"ats-dev-{service_name}"
-        
+
         # Check if container is already running
         check_cmd = f"docker ps -q -f name={container_name}"
         if subprocess.run(check_cmd, shell=True, capture_output=True).stdout.strip():
             print(f"⚠️  Container {container_name} is already running")
             return True
-        
+
         # Build volume mounts for service
         volume_mounts = self.get_volume_mounts()
         if 'volumes' in config:
             for volume in config['volumes']:
                 volume_mounts += f" -v {volume}"
-        
+
         # Special handling for PostgreSQL to fix D: drive permissions
         additional_args = ""
         if service_name == "postgres":
@@ -364,7 +364,7 @@ class DevCLI:
                 print(f"📁 Created database directory: {db_dir}")
             # Run as root initially to fix permissions, then PostgreSQL will handle user switching
             additional_args = "--user root"
-        
+
         cmd = f"""docker run -d --name {container_name} {gpu_flag} \
             --network ats-network \
             {volume_mounts} \
@@ -378,25 +378,25 @@ class DevCLI:
             -e POSTGRES_INITDB_ARGS="--auth-host=md5 --auth-local=trust" \
             {env_vars} \
             {config['image']}"""
-        
+
         if 'command' in config:
             cmd += f" {config['command']}"
-        
+
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        
+
         if result.returncode == 0:
             print(f"✅ Service {service_name} started successfully")
             print(f"🌐 Container name: {container_name}")
             if 'port' in config:
                 print(f"🔗 Access at: http://localhost:{config['port'].split(':')[0]}")
-            
+
             # Note: Automatic backup/restore removed - use manual initialization only
-            
+
             return True
         else:
             print(f"❌ Failed to start service: {result.stderr}")
             return False
-    
+
     def _removed_backup_restore_function(self):
         """
         REMOVED: Automatic backup/restore functionality
@@ -404,13 +404,13 @@ class DevCLI:
         Use manual database initialization instead
         """
         pass
-    
+
     def stop_service(self, service_name):
         """Stop a Docker service"""
         container_name = f"ats-dev-{service_name}"
-        
+
         print(f"🛑 Stopping service: {service_name}")
-        
+
         # Backup PostgreSQL before stopping
         if "postgres" in service_name:
             # Get service config to determine database name and backup directory
@@ -421,36 +421,36 @@ class DevCLI:
             if service_name in services:
                 service_config = services[service_name]
                 self._backup_postgres_to_d_drive(container_name, service_config["db"], service_config["backup_dir"])
-        
+
         cmd = f"docker stop {container_name} && docker rm {container_name}"
         result = subprocess.run(cmd, shell=True, capture_output=True)
-        
+
         if result.returncode == 0:
             print(f"✅ Service {service_name} stopped")
             return True
         else:
             print(f"❌ Failed to stop service {service_name}")
             return False
-    
+
     def _backup_postgres_to_d_drive(self, container_name, db_name, backup_dir):
         """Backup PostgreSQL to D: drive before stopping"""
         try:
             print("💾 Backing up database to D: drive...")
-            
+
             # Ensure backup directory exists
             os.makedirs(backup_dir, exist_ok=True)
-            
+
             # Create timestamped backup
             from datetime import datetime
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_file = f"{backup_dir}/backup_{timestamp}.sql"
             latest_backup = f"{backup_dir}/latest_backup.sql"
-            
+
             # Perform backup
             backup_cmd = f"docker exec {container_name} pg_dump -U postgres -d {db_name}"
             with open(backup_file, 'w') as f:
                 result = subprocess.run(backup_cmd, shell=True, stdout=f, stderr=subprocess.PIPE)
-            
+
             if result.returncode == 0:
                 # Copy to latest backup
                 import shutil
@@ -459,33 +459,33 @@ class DevCLI:
                 print(f"✅ Latest backup: {latest_backup}")
             else:
                 print(f"⚠️  Backup failed: {result.stderr.decode()}")
-                
+
         except Exception as e:
             print(f"⚠️  Backup error: {e}")
-    
+
     def list_services(self):
         """List running Docker services"""
         print("🐳 Running ATS services:")
         cmd = "docker ps --filter name=ats-dev- --format 'table {{.Names}}\\t{{.Status}}\\t{{.Ports}}'"
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        
+
         if result.stdout.strip():
             print(result.stdout)
         else:
             print("No ATS services currently running")
-    
+
     def run_test(self, test_path=None, pattern=None):
         """Run tests using Docker"""
         print("🧪 Running tests...")
-        
+
         test_cmd = "pytest"
         if test_path:
             test_cmd += f" {test_path}"
         if pattern:
             test_cmd += f" -k {pattern}"
-        
+
         test_cmd += " -v"
-        
+
         volume_mounts = self.get_volume_mounts()
         cmd = f"""docker run --rm \
             {volume_mounts} \
@@ -496,39 +496,39 @@ class DevCLI:
             -e ATS_LOGS_PATH=/logs \
             dragonflyer762/ats-genai:latest \
             {test_cmd}"""
-        
+
         result = subprocess.run(cmd, shell=True)
         return result.returncode == 0
-    
+
     def query_db(self, sql_query, description=None):
         """Run database query directly"""
         if description:
             print(f"📊 {description}")
-        
+
         # Use password if we have one, otherwise connect without password
         if self.db_password:
             cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -c "{sql_query}"'
         else:
             cmd = f'psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -c "{sql_query}"'
-        
+
         result = self.run_command(cmd)
-        
+
         if result:
             print(result)
         return result
-    
+
     def get_run(self, run_id):
         """Get run information from runs table"""
         if not run_id:
             print("❌ Run ID is required")
             return False
-        
+
         print(f"📊 Getting run information for ID: {run_id}")
-        
+
         # Query runs table for the specific run_id
         runs_table = f"{self.table_prefix}runs"
         query = f"""
-        SELECT 
+        SELECT
             id,
             run_type,
             status,
@@ -543,24 +543,24 @@ class DevCLI:
             created_by,
             working_directory,
             python_version
-        FROM {runs_table} 
+        FROM {runs_table}
         WHERE id = {run_id}
         """
-        
+
         return self.query_db(query, f"Run details for ID {run_id}")
-    
+
     def get_training_dataset(self, dataset_id):
         """Get training dataset information from training datasets table"""
         if not dataset_id:
             print("❌ Dataset ID is required")
             return False
-        
+
         print(f"📊 Getting training dataset information for ID: {dataset_id}")
-        
+
         # Query training datasets table for the specific dataset_id
         datasets_table = f"{self.table_prefix}training_datasets"
         query = f"""
-        SELECT 
+        SELECT
             id,
             dataset_name,
             symbols,
@@ -582,28 +582,28 @@ class DevCLI:
             feature_metadata,
             technical_indicators,
             total_sequences
-        FROM {datasets_table} 
+        FROM {datasets_table}
         WHERE id = {dataset_id}
         """
-        
+
         return self.query_db(query, f"Training dataset details for ID {dataset_id}")
-    
+
     def sample_training_dataset(self, dataset_id, sample_size):
         """Sample N rows from a training dataset by ID"""
         if not dataset_id:
             print("❌ Dataset ID is required")
             return False
-            
+
         if not sample_size or sample_size <= 0:
             print("❌ Sample size must be a positive integer")
             return False
-            
+
         print(f"🎯 Sampling {sample_size} rows from training dataset ID: {dataset_id}")
-        
+
         # First get dataset information to find file paths
         datasets_table = f"{self.table_prefix}training_datasets"
         query = f"""
-        SELECT 
+        SELECT
             id,
             dataset_name,
             total_sequences,
@@ -614,10 +614,10 @@ class DevCLI:
             date_range_end,
             technical_indicators,
             file_metadata
-        FROM {datasets_table} 
+        FROM {datasets_table}
         WHERE id = {dataset_id}
         """
-        
+
         # Execute query and capture result
         try:
             # Use the same database connection method as other commands
@@ -625,24 +625,24 @@ class DevCLI:
                 cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -t -c "{query}"'
             else:
                 cmd = f'psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -t -c "{query}"'
-            
+
             result_process = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-            
+
             if result_process.returncode != 0:
                 print(f"❌ Database query failed: {result_process.stderr}")
                 return False
-                
+
             result_lines = result_process.stdout.strip().split('\n')
             if not result_lines or not result_lines[0].strip():
                 print(f"❌ No training dataset found with ID: {dataset_id}")
                 return False
-                
+
             # Parse the result row
             row_data = [item.strip() for item in result_lines[0].split('|')]
             if len(row_data) < 10:
                 print(f"❌ Incomplete dataset information for ID: {dataset_id}")
                 return False
-                
+
             dataset_name = row_data[1]
             total_sequences = int(row_data[2]) if row_data[2].isdigit() else 0
             feature_count = int(row_data[3]) if row_data[3].isdigit() else 0
@@ -652,62 +652,62 @@ class DevCLI:
             date_range_end = row_data[7]
             technical_indicators = row_data[8]
             file_metadata = row_data[9] if len(row_data) > 9 else '{}'
-            
+
             print(f"📋 Dataset: {dataset_name}")
             print(f"🔢 Total sequences: {total_sequences}")
             print(f"📊 Features: {feature_count}, Labels: {label_count}")
             print(f"🎯 Symbols: {symbols}")
             print(f"📅 Date range: {date_range_start} to {date_range_end}")
             print(f"🔧 Technical indicators: {technical_indicators}")
-            
+
             if sample_size > total_sequences:
                 print(f"⚠️  Requested sample size ({sample_size}) exceeds total sequences ({total_sequences})")
                 print(f"🔧 Adjusting sample size to {total_sequences}")
                 sample_size = total_sequences
-            
+
             # Try to find and sample actual data files
             # Use default data format for newer training datasets
             data_format = "arrayrecord"  # Modern datasets use arrayrecord format
-            return self._sample_dataset_files(dataset_name, file_metadata, sample_size, data_format, 
+            return self._sample_dataset_files(dataset_name, file_metadata, sample_size, data_format,
                                            "", "")
-                                           
+
         except subprocess.TimeoutExpired:
             print("❌ Database query timed out")
             return False
         except Exception as e:
             print(f"❌ Error sampling dataset: {e}")
             return False
-    
-    def _sample_dataset_files(self, dataset_name, run_id, sample_size, data_format, 
+
+    def _sample_dataset_files(self, dataset_name, run_id, sample_size, data_format,
                             features_file_path, labels_file_path):
         """Sample data from actual dataset files"""
-        
+
         # Define potential file locations
         training_data_paths = [
             f"/mnt/d/ats-data/training/{run_id}",
             f"/mnt/d/ats-data/training_data",
-            f"/data/training/{run_id}",
+            f"/data/training_data/{run_id}",
             f"./training_data_output"
         ]
-        
+
         print(f"🔍 Searching for training data files...")
-        
+
         # Look for files in potential locations
         for base_path in training_data_paths:
             if os.path.exists(base_path):
                 print(f"📁 Found training data directory: {base_path}")
-                
+
                 # Look for files matching dataset pattern
                 for file_path in Path(base_path).rglob("*"):
                     if dataset_name.replace(" ", "_") in str(file_path) or (run_id and run_id in str(file_path)):
                         print(f"📄 Found potential dataset file: {file_path}")
-                        
+
                         try:
                             return self._sample_file(file_path, sample_size, data_format)
                         except Exception as e:
                             print(f"⚠️  Could not sample {file_path}: {e}")
                             continue
-                            
+
                 # Look for numpy files, JSON files, ArrayRecord files, or other common formats
                 for file_ext in ["*.npy", "*.json", "*.csv", "*.parquet", "*.arrayrecord"]:
                     for file_path in Path(base_path).rglob(file_ext):
@@ -720,18 +720,18 @@ class DevCLI:
                             except Exception as e:
                                 print(f"⚠️  Could not sample {file_path}: {e}")
                                 continue
-        
+
         print("⚠️  No accessible training data files found")
         print("💡 Files may be stored in different location or format")
         return True
-        
+
     def _sample_file(self, file_path, sample_size, data_format):
         """Sample data from a specific file"""
         file_path = Path(file_path)
         file_ext = file_path.suffix.lower()
-        
+
         print(f"📖 Attempting to sample {sample_size} rows from: {file_path}")
-        
+
         try:
             if file_ext == '.npy':
                 # NumPy array
@@ -739,99 +739,99 @@ class DevCLI:
                 if len(data) == 0:
                     print("❌ Empty numpy array")
                     return False
-                    
+
                 total_rows = len(data)
                 actual_sample_size = min(sample_size, total_rows)
-                
+
                 # Random sample
                 indices = np.random.choice(total_rows, size=actual_sample_size, replace=False)
                 sampled_data = data[indices]
-                
+
                 print(f"✅ Sampled {actual_sample_size} rows from {total_rows} total")
                 print(f"📊 Sample shape: {sampled_data.shape}")
                 print(f"🔢 Data type: {sampled_data.dtype}")
-                
+
                 # Show first few elements
                 if sampled_data.ndim > 1:
                     print(f"📋 First row preview: {sampled_data[0]}")
                 else:
                     print(f"📋 First values preview: {sampled_data[:min(10, len(sampled_data))]}")
-                    
+
                 return True
-                
+
             elif file_ext == '.json':
                 # JSON file
                 import json
                 with open(file_path, 'r') as f:
                     data = json.load(f)
-                
+
                 if isinstance(data, list):
                     total_rows = len(data)
                     actual_sample_size = min(sample_size, total_rows)
                     sampled_data = np.random.choice(data, size=actual_sample_size, replace=False)
-                    
+
                     print(f"✅ Sampled {actual_sample_size} items from {total_rows} total")
                     print(f"📋 Sample preview: {sampled_data[:3] if len(sampled_data) > 3 else sampled_data}")
                 elif isinstance(data, dict):
                     print(f"📋 JSON metadata: {list(data.keys())}")
                     for key, value in list(data.items())[:5]:
                         print(f"   {key}: {value}")
-                        
+
                 return True
-                
+
             elif file_ext == '.csv':
-                # CSV file  
+                # CSV file
                 df = pd.read_csv(file_path)
                 total_rows = len(df)
                 actual_sample_size = min(sample_size, total_rows)
-                
+
                 sampled_df = df.sample(n=actual_sample_size)
                 print(f"✅ Sampled {actual_sample_size} rows from {total_rows} total")
                 print(f"📊 Columns: {list(df.columns)}")
                 print(f"📋 Sample preview:")
                 print(sampled_df.head())
-                
+
                 return True
-                
+
             elif file_ext == '.parquet':
                 # Parquet file
                 df = pd.read_parquet(file_path)
                 total_rows = len(df)
                 actual_sample_size = min(sample_size, total_rows)
-                
+
                 sampled_df = df.sample(n=actual_sample_size)
                 print(f"✅ Sampled {actual_sample_size} rows from {total_rows} total")
                 print(f"📊 Columns: {list(df.columns)}")
                 print(f"📋 Sample preview:")
                 print(sampled_df.head())
-                
+
                 return True
-                
+
             elif file_ext == '.arrayrecord':
                 # ArrayRecord file
                 try:
                     from array_record.python.array_record_module import ArrayRecordReader
-                    
+
                     reader = ArrayRecordReader(str(file_path))
                     total_records = reader.num_records()
-                    
+
                     if total_records == 0:
                         print("❌ Empty ArrayRecord file")
                         return False
-                    
+
                     actual_sample_size = min(sample_size, total_records)
-                    
+
                     print(f"✅ Sampling {actual_sample_size} records from {total_records} total")
-                    
+
                     # Sample random records
                     import random
                     record_indices = sorted(random.sample(range(total_records), actual_sample_size))
-                    
+
                     print(f"📋 ArrayRecord sample preview:")
                     for i, record_idx in enumerate(record_indices[:3]):  # Show first 3 samples
                         reader.seek(record_idx)
                         record = reader.read()
-                        
+
                         print(f"   Record {record_idx}: {type(record)}")
                         if isinstance(record, np.ndarray):
                             print(f"      Shape: {record.shape}, Dtype: {record.dtype}")
@@ -841,142 +841,198 @@ class DevCLI:
                                 print(f"      Sample values: {record[:10]}")
                         else:
                             print(f"      Content: {str(record)[:100]}")
-                    
+
                     reader.close()
                     return True
-                    
+
                 except ImportError:
                     print("❌ ArrayRecord module not available. Install with: pip install array_record")
                     return False
                 except Exception as e:
                     print(f"❌ Error reading ArrayRecord file: {e}")
                     return False
-                
+
             else:
                 print(f"❌ Unsupported file format: {file_ext}")
                 return False
-                
+
         except Exception as e:
             print(f"❌ Error reading file {file_path}: {e}")
             return False
-    
+
     def read_arrayrecord(self, file_path, sample_size=5, full_display=False, columns_filter=None):
         """Read and sample an ArrayRecord file directly"""
         if not os.path.exists(file_path):
             print(f"❌ File not found: {file_path}")
             return False
-        
+
         print(f"📖 Reading ArrayRecord file: {file_path}")
-        
+
         try:
             from array_record.python.array_record_module import ArrayRecordReader
-            
+
             reader = ArrayRecordReader(str(file_path))
             total_records = reader.num_records()
-            
+
             if total_records == 0:
                 print("❌ Empty ArrayRecord file")
                 return False
-            
+
             actual_sample_size = min(sample_size, total_records)
-            
+
             print(f"📊 Total records: {total_records}")
             print(f"✅ Sampling {actual_sample_size} records:")
-            
+
             # Always show first 2 records as examples, then additional samples
             example_indices = list(range(min(2, total_records)))
             additional_indices = []
-            
+
             if sample_size > 2 and total_records > 2:
                 additional_count = min(sample_size - 2, total_records - 2)
                 additional_indices = sorted(random.sample(range(2, total_records), additional_count))
-            
+
             record_indices = example_indices + additional_indices
-            
+
             print(f"\n📋 ArrayRecord contents:")
-            
+
             # Read all records to decode properly
             all_records = []
             columns = None  # Store column names for full display
-            
+
             for record_idx in record_indices:
                 reader.seek(record_idx)
                 record = reader.read()
                 all_records.append((record_idx, record))
-            
+
             print(f"✅ Displaying {len(record_indices)} records:")
             print(f"   🎯 Examples: Records {example_indices}")
             if additional_indices:
                 print(f"   📊 Additional samples: Records {additional_indices}")
-            
+
             for i, (record_idx, record) in enumerate(all_records):
                 is_example = record_idx in example_indices
                 label = "EXAMPLE" if is_example else "SAMPLE"
                 icon = "🎯" if is_example else "📊"
-                
+
                 print(f"\n{icon} Record {record_idx} ({label}):")
-                
+
                 if isinstance(record, bytes):
-                    # Try JSON decoding first (QR4 format uses JSON objects)
+                    # Try binary format decoding first (optimized ArrayRecord format)
                     try:
-                        decoded_str = record.decode('utf-8')
-                        import json
-                        json_data = json.loads(decoded_str)
-                        
-                        if isinstance(json_data, dict):
-                            print(f"   📋 JSON Record with {len(json_data)} fields")
-                            
-                            # Show all fields for examples, limited for samples
-                            field_limit = None if is_example or full_display else 15
-                            
-                            # Apply column filter if specified
-                            filtered_fields = list(json_data.items())
-                            if columns_filter:
-                                import fnmatch
-                                filter_patterns = [p.strip().lower() for p in columns_filter.split(',')]
-                                filtered_fields = [(k, v) for k, v in json_data.items() 
-                                                 if any(fnmatch.fnmatch(k.lower(), pattern) for pattern in filter_patterns)]
-                                print(f"   🔍 Filtered to {len(filtered_fields)} fields matching '{columns_filter}'")
-                            
-                            # Group fields by category for better display
-                            field_groups = {
-                                'metadata': [],
-                                'prices': [],
-                                'volume': [], 
-                                'indicators': [],
-                                'other': []
-                            }
-                            
-                            for key, value in filtered_fields:
-                                key_lower = key.lower()
-                                if any(meta_term in key_lower for meta_term in ['timestamp', 'symbol', 'date']):
-                                    field_groups['metadata'].append((key, value))
-                                elif any(price_term in key_lower for price_term in ['open', 'high', 'low', 'close', 'price']):
-                                    field_groups['prices'].append((key, value))
-                                elif 'volume' in key_lower or 'vwap' in key_lower:
-                                    field_groups['volume'].append((key, value))
-                                elif any(ind_term in key_lower for ind_term in ['rsi', 'ema', 'sma', 'macd', 'bb', 'atr']):
-                                    field_groups['indicators'].append((key, value))
-                                else:
-                                    field_groups['other'].append((key, value))
-                            
+                        import struct
+
+                        # Parse binary format: indicator_count(2) + timestamp(8) + symbol_len(4) + symbol + ohlcv(20) + indicators
+                        if len(record) >= 16:  # Minimum size for header
+                            indicator_count = struct.unpack('>H', record[:2])[0]
+                            timestamp = struct.unpack('>d', record[2:10])[0]
+                            symbol_len = struct.unpack('>I', record[10:14])[0]
+
+                            if 14 + symbol_len + 20 <= len(record):  # Validate record size
+                                symbol = record[14:14+symbol_len].decode('utf-8')
+                                ohlcv_data = struct.unpack('>fffff', record[14+symbol_len:14+symbol_len+20])
+
+                                # Parse core OHLCV data
+                                json_data = {
+                                    'timestamp': timestamp,
+                                    'symbol': symbol,
+                                    'open': ohlcv_data[0],
+                                    'high': ohlcv_data[1],
+                                    'low': ohlcv_data[2],
+                                    'close': ohlcv_data[3],
+                                    'volume': ohlcv_data[4]
+                                }
+
+                                # Parse technical indicators
+                                indicator_offset = 14 + symbol_len + 20
+                                for _ in range(indicator_count):
+                                    if indicator_offset + 6 < len(record):  # name_len(2) + value(4) minimum
+                                        key_len = struct.unpack('>H', record[indicator_offset:indicator_offset+2])[0]
+                                        if indicator_offset + 2 + key_len + 4 <= len(record):
+                                            key = record[indicator_offset+2:indicator_offset+2+key_len].decode('utf-8')
+                                            value = struct.unpack('>f', record[indicator_offset+2+key_len:indicator_offset+2+key_len+4])[0]
+                                            json_data[key] = value
+                                            indicator_offset += 2 + key_len + 4
+                                        else:
+                                            break
+                                    else:
+                                        break
+
+                                print(f"   📋 Binary Record with {len(json_data)} fields (OHLCV + {indicator_count} indicators)")
+                            else:
+                                raise ValueError("Invalid binary record format")
+                        else:
+                            raise ValueError("Record too short for binary format")
+
+                    except (struct.error, ValueError, UnicodeDecodeError):
+                        # Fallback to JSON decoding (legacy format)
+                        try:
+                            decoded_str = record.decode('utf-8')
+                            import json
+                            json_data = json.loads(decoded_str)
+
+                            if isinstance(json_data, dict):
+                                print(f"   📋 JSON Record with {len(json_data)} fields")
+                            else:
+                                print(f"   📋 Raw Record: {record[:100]}{'...' if len(record) > 100 else ''}")
+                                continue
+                        except (UnicodeDecodeError, json.JSONDecodeError):
+                            print(f"   📋 Raw Binary Record: {len(record)} bytes")
+                            print(f"       First 50 bytes: {record[:50].hex()}")
+                            continue
+
+                    # Display parsed data (either from binary or JSON)
+                    if 'json_data' in locals() and isinstance(json_data, dict):
+                        # Show all fields for examples, limited for samples
+                        field_limit = None if is_example or full_display else 15
+
+                        # Apply column filter if specified
+                        filtered_fields = list(json_data.items())
+                        if columns_filter:
+                            import fnmatch
+                            filter_patterns = [p.strip().lower() for p in columns_filter.split(',')]
+                            filtered_fields = [(k, v) for k, v in json_data.items()
+                                             if any(fnmatch.fnmatch(k.lower(), pattern) for pattern in filter_patterns)]
+                            print(f"   🔍 Filtered to {len(filtered_fields)} fields matching '{columns_filter}'")
+
+                        # Group fields by category for better display
+                        field_groups = {
+                            'metadata': [],
+                            'prices': [],
+                            'volume': [],
+                            'indicators': [],
+                            'other': []
+                        }
+
+                        for key, value in filtered_fields:
+                            key_lower = key.lower()
+                            if any(meta_term in key_lower for meta_term in ['timestamp', 'symbol', 'date']):
+                                field_groups['metadata'].append((key, value))
+                            elif any(price_term in key_lower for price_term in ['open', 'high', 'low', 'close', 'price']):
+                                field_groups['prices'].append((key, value))
+                            elif 'volume' in key_lower or 'vwap' in key_lower:
+                                field_groups['volume'].append((key, value))
+                            elif any(ind_term in key_lower for ind_term in ['rsi', 'ema', 'sma', 'macd', 'bb', 'atr']):
+                                field_groups['indicators'].append((key, value))
+                            else:
+                                field_groups['other'].append((key, value))
+
                             # Display each group
                             displayed_count = 0
                             for group_name, group_fields in field_groups.items():
                                 if not group_fields:
                                     continue
-                                    
+
                                 if field_limit and displayed_count >= field_limit:
                                     remaining = sum(len(fields) for fields in field_groups.values()) - displayed_count
                                     print(f"   ... and {remaining} more fields (use --full to see all)")
                                     break
-                                
+
                                 print(f"\n   📊 {group_name.upper()} ({len(group_fields)} fields):")
-                                
+
                                 for key, value in group_fields:
                                     if field_limit and displayed_count >= field_limit:
                                         break
-                                        
+
                                     # Format value based on type and magnitude
                                     if isinstance(value, (int, float)):
                                         if value == 0:
@@ -993,60 +1049,36 @@ class DevCLI:
                                         value_str = f"'{value}'"
                                     else:
                                         value_str = str(value)
-                                    
+
                                     print(f"      {key:<25}: {value_str}")
                                     displayed_count += 1
-                            
+
                             # Feature analysis for examples
                             if is_example:
                                 print(f"\n   🔬 Analysis for {label}:")
                                 numeric_fields = [(k, v) for k, v in json_data.items() if isinstance(v, (int, float)) and v != 0]
                                 zero_fields = [(k, v) for k, v in json_data.items() if isinstance(v, (int, float)) and v == 0]
                                 text_fields = [(k, v) for k, v in json_data.items() if isinstance(v, str)]
-                                
+
                                 print(f"      📈 Non-zero numeric: {len(numeric_fields)}/{len(json_data)} fields")
                                 print(f"      🔢 Zero values: {len(zero_fields)} fields")
                                 print(f"      📝 Text fields: {len(text_fields)} fields")
-                                
+
                                 if numeric_fields:
                                     values = [v for k, v in numeric_fields]
                                     print(f"      📊 Value range: {min(values):.4f} to {max(values):.4f}")
-                                    
+
                                     # Detect value patterns
                                     price_like = [v for v in values if 0.01 <= v <= 10000]
                                     volume_like = [v for v in values if v > 1000]
-                                    
+
                                     if price_like:
                                         print(f"      💰 Price-like values: {len(price_like)} (${min(price_like):.2f}-${max(price_like):.2f})")
                                     if volume_like:
                                         print(f"      📊 Volume-like values: {len(volume_like)} ({min(volume_like):,.0f}-{max(volume_like):,.0f})")
                         else:
                             print(f"   📋 JSON Array/Value: {json_data}")
-                            
-                    except (UnicodeDecodeError, json.JSONDecodeError) as json_error:
-                        # Try binary float32 array
-                        try:
-                            import numpy as np
-                            float_array = np.frombuffer(record, dtype=np.float32)
-                            print(f"   🔢 Binary Float32 Array: {len(float_array):,} elements")
-                            
-                            non_zero = np.count_nonzero(float_array)
-                            print(f"   📈 Non-zero: {non_zero:,}/{len(float_array):,} ({100*non_zero/len(float_array):.1f}%)")
-                            
-                            if non_zero > 0:
-                                non_zero_values = float_array[float_array != 0]
-                                print(f"   📊 Range: {non_zero_values.min():.4f} to {non_zero_values.max():.4f}")
-                                if is_example:
-                                    print(f"   📋 First 20 values: {float_array[:20]}")
-                                    print(f"   📋 Sample non-zero: {non_zero_values[:15]}")
-                            else:
-                                print(f"   ⚠️  All values are zero")
-                                
-                        except Exception as binary_error:
-                            print(f"   ❌ Could not decode as JSON or binary array")
-                            print(f"   📄 Raw bytes (first 200): {record[:200]}")
-                            print(f"   📄 Decoded preview: {record[:200].decode('utf-8', errors='replace')}")
-                
+
                 else:
                     # Handle other data types
                     print(f"   📄 Data type: {type(record).__name__}")
@@ -1057,7 +1089,7 @@ class DevCLI:
                         non_zero = np.count_nonzero(record) if record.size > 0 else 0
                         print(f"   📈 Non-zero elements: {non_zero:,}/{record.size:,}")
                     print(f"   📋 Content preview: {str(record)[:200]}")
-            
+
             # Add summary statistics for all records
             print(f"\n📊 ArrayRecord Summary:")
             print(f"   📁 File: {os.path.basename(file_path)}")
@@ -1066,11 +1098,11 @@ class DevCLI:
             print(f"   🎯 Examples shown: {len(example_indices)}")
             if additional_indices:
                 print(f"   📈 Additional samples: {len(additional_indices)}")
-            
+
             reader.close()
             print(f"\n✅ Successfully read ArrayRecord file with {total_records:,} records")
             return True
-            
+
         except ImportError:
             print("❌ ArrayRecord module not available. Install with:")
             print("   pip install array_record")
@@ -1080,15 +1112,15 @@ class DevCLI:
             import traceback
             traceback.print_exc()
             return False
-    
+
     def setup_dev_env(self):
         """Setup complete development environment"""
         print("🏗️  Setting up development environment...")
-        
+
         # Start PostgreSQL
         if not self.start_service("postgres"):
             return False
-        
+
         # Wait for database to be ready
         print("⏳ Waiting for database to be ready...")
         for i in range(30):
@@ -1098,7 +1130,7 @@ class DevCLI:
         else:
             print("❌ Database failed to start")
             return False
-        
+
         print("✅ Development environment ready!")
         print("🔗 Database: postgresql://postgres:dev_password@localhost:3432/dev_db")
         return True
@@ -1106,11 +1138,11 @@ class DevCLI:
 def main():
     parser = argparse.ArgumentParser(description="Dev CLI for localhost/Docker development operations")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
+
     # Add existing actions as subcommands to avoid conflicts
     # Main arguments that apply to all commands
     parser.add_argument("--environment", choices=["dev", "intg"], help="Environment to use (auto-detected if not specified)")
-    
+
     # Legacy support - add old actions as subcommands
     for action in ["run", "start", "stop", "status", "test", "query", "setup", "logs", "get", "arrayrecord"]:
         action_parser = subparsers.add_parser(action, help=f"{action.capitalize()} action")
@@ -1136,24 +1168,24 @@ def main():
             action_parser.add_argument("--service", required=True, help="Service name")
         elif action == "get":
             action_parser.add_argument("--run-id", required=True, help="Run ID")
-    
+
     # Training dataset subcommand
     training_parser = subparsers.add_parser("training_dataset", help="Training dataset operations")
     training_subparsers = training_parser.add_subparsers(dest="training_action", help="Training dataset actions")
-    
+
     # training_dataset get subcommand
     get_parser = training_subparsers.add_parser("get", help="Get training dataset details")
     get_parser.add_argument("dataset_id", help="Training dataset ID")
-    
+
     # training_dataset sample subcommand
     sample_parser = training_subparsers.add_parser("sample", help="Sample N rows from training dataset")
     sample_parser.add_argument("dataset_id", help="Training dataset ID")
     sample_parser.add_argument("sample_size", type=int, help="Number of rows to sample")
-    
+
     args = parser.parse_args()
-    
+
     cli = DevCLI(environment=args.environment)
-    
+
     # Parse environment variables if provided
     environment = None
     if hasattr(args, 'env') and args.env:
@@ -1162,7 +1194,7 @@ def main():
         except json.JSONDecodeError:
             print("❌ Invalid JSON format for --env")
             sys.exit(1)
-    
+
     # Handle commands based on subcommand structure
     if args.command == "training_dataset":
         if args.training_action == "get":
@@ -1172,44 +1204,44 @@ def main():
         else:
             print("❌ Unknown training_dataset action")
             sys.exit(1)
-    
+
     elif args.command == "run":
         gpu = getattr(args, 'gpu', False)
         cli.run_docker_job(args.script, gpu=gpu)
-        
+
     elif args.command == "start":
         port = getattr(args, 'port', None)
         gpu = getattr(args, 'gpu', False)
         cli.start_service(args.service, port, gpu)
-        
+
     elif args.command == "stop":
         cli.stop_service(args.service)
-        
+
     elif args.command == "status":
         cli.list_services()
-        
+
     elif args.command == "test":
         cli.run_test(args.test)
-        
+
     elif args.command == "query":
         cli.query_db(args.query)
-        
+
     elif args.command == "arrayrecord":
         columns_filter = getattr(args, 'columns', None)
         full_display = getattr(args, 'full', False)
         cli.read_arrayrecord(args.file, args.sample_size, full_display, columns_filter)
-        
+
     elif args.command == "setup":
         cli.setup_dev_env()
-        
+
     elif args.command == "logs":
         container_name = f"ats-dev-{args.service}"
         cmd = f"docker logs -f {container_name}"
         subprocess.run(cmd, shell=True)
-        
+
     elif args.command == "get":
         cli.get_run(args.run_id)
-        
+
     else:
         print("❌ No command specified. Use --help for available options.")
         parser.print_help()

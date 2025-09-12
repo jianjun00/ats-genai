@@ -120,12 +120,17 @@ class Settings:
             default_host = "localhost"
             default_port = "5433"
 
+        # Environment-aware defaults
+        env_name = os.getenv("ENVIRONMENT", "dev").lower()
+        default_db_name = f"{env_name}_db"
+        default_password = f"{env_name}_password"
+
         # But always respect explicit environment variables
         self.database_host = os.getenv("DB_HOST", default_host)
         self.database_port = int(os.getenv("DB_PORT", default_port))
-        self.database_name = os.getenv("DB_NAME", "dev_db")
+        self.database_name = os.getenv("DB_NAME", default_db_name)
         self.database_user = os.getenv("DB_USER", "postgres")
-        self.database_password = os.getenv("DB_PASSWORD", "dev_password")
+        self.database_password = os.getenv("DB_PASSWORD", default_password)
 
     def _get_environment(self) -> Environment:
         """Detect and validate environment."""

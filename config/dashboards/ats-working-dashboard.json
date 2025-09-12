@@ -1,0 +1,126 @@
+{
+  "title": "ATS Platform Monitor",
+  "description": "ATS platform monitoring with real available metrics",
+  "tags": ["ats", "monitoring"],
+  "layout": [
+    {
+      "id": "instruments-panel",
+      "x": 0,
+      "y": 0,
+      "w": 6,
+      "h": 3,
+      "panelTypes": "value",
+      "query": {
+        "queryType": "",
+        "promql": [
+          {
+            "query": "ats_instruments_with_recent_data",
+            "legend": "Instruments with Recent Data",
+            "disabled": false
+          }
+        ]
+      },
+      "title": "📊 Active Instruments"
+    },
+    {
+      "id": "data-freshness-panel",
+      "x": 6,
+      "y": 0,
+      "w": 6,
+      "h": 3,
+      "panelTypes": "value",
+      "query": {
+        "queryType": "",
+        "promql": [
+          {
+            "query": "ats_data_freshness_hours",
+            "legend": "Data Freshness (hours)",
+            "disabled": false
+          }
+        ]
+      },
+      "title": "⏱️ Data Freshness"
+    },
+    {
+      "id": "price-coverage-panel",
+      "x": 12,
+      "y": 0,
+      "w": 6,
+      "h": 3,
+      "panelTypes": "value",
+      "query": {
+        "queryType": "",
+        "promql": [
+          {
+            "query": "ats_price_coverage_percentage",
+            "legend": "Price Coverage %",
+            "disabled": false
+          }
+        ]
+      },
+      "title": "📈 Price Coverage"
+    },
+    {
+      "id": "missing-data-panel",
+      "x": 18,
+      "y": 0,
+      "w": 6,
+      "h": 3,
+      "panelTypes": "value",
+      "query": {
+        "queryType": "",
+        "promql": [
+          {
+            "query": "ats_missing_price_data_alerts",
+            "legend": "Missing Data Alerts",
+            "disabled": false
+          }
+        ]
+      },
+      "title": "🚨 Data Alerts"
+    },
+    {
+      "id": "filesystem-panel",
+      "x": 0,
+      "y": 3,
+      "w": 12,
+      "h": 4,
+      "panelTypes": "graph",
+      "query": {
+        "queryType": "",
+        "promql": [
+          {
+            "query": "ats_filesystem_size_bytes / 1024 / 1024 / 1024",
+            "legend": "Filesystem Size (GB)",
+            "disabled": false
+          }
+        ]
+      },
+      "title": "💾 Storage Usage"
+    },
+    {
+      "id": "postgres-connections-panel",
+      "x": 12,
+      "y": 3,
+      "w": 12,
+      "h": 4,
+      "panelTypes": "graph",
+      "query": {
+        "queryType": "",
+        "promql": [
+          {
+            "query": "postgresql_connections_active",
+            "legend": "Active DB Connections",
+            "disabled": false
+          },
+          {
+            "query": "postgresql_connections_idle",
+            "legend": "Idle DB Connections",
+            "disabled": false
+          }
+        ]
+      },
+      "title": "🗄️ Database Connections"
+    }
+  ]
+}

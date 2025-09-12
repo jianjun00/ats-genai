@@ -9,7 +9,7 @@ The ATS platform uses Google's **gin dependency injection framework** with envir
 ### Key Features
 
 - 🌍 **Automatic Environment Detection** - Detects dev/intg/prod based on environment variables and system indicators
-- 🔧 **Environment-Specific Overrides** - Each environment can override base configuration values  
+- 🔧 **Environment-Specific Overrides** - Each environment can override base configuration values
 - 📋 **Centralized Configuration** - All hardcoded values moved to gin configuration files
 - ✅ **Configuration Validation** - Built-in validation and health checks
 - 🔄 **Dynamic Loading** - Configuration can be reloaded without application restart
@@ -61,7 +61,7 @@ export ATS_ENVIRONMENT=dev    # or intg, prod, test
 ```
 config/
 ├── hardcoded_values.gin     # Base configuration (268+ parameters)
-├── app_dev.gin             # Development overrides  
+├── app_dev.gin             # Development overrides
 ├── app_intg.gin            # Integration/staging overrides
 ├── app_prod.gin            # Production overrides
 └── app_test.gin            # Testing overrides
@@ -92,7 +92,7 @@ export ATS_ENVIRONMENT=dev|intg|prod|test
 
 ### 2. Database Connection Indicators
 - **Port 3432** → Development
-- **Port 4432** → Integration  
+- **Port 4432** → Integration
 - **Hostname with 'prod'** → Production
 
 ### 3. Container/Hostname Indicators
@@ -238,7 +238,7 @@ def main():
     # Load environment configuration at startup
     env = load_gin_config()
     print(f"🚀 Starting ATS platform in {env.value} environment")
-    
+
     # Your gin-configured classes will now use environment-specific values
     start_services()
 ```
@@ -273,7 +273,7 @@ from config.environment_config import get_current_env, Environment
 
 def configure_logging():
     env = get_current_env()
-    
+
     if env == Environment.DEVELOPMENT:
         logging.basicConfig(level=logging.DEBUG)
     elif env == Environment.PRODUCTION:
@@ -401,7 +401,7 @@ class Service:
 def main():
     # Load configuration
     env = load_gin_config()
-    
+
     # Validate configuration
     result = validate_current_config()
     if not result.is_valid:
@@ -409,7 +409,7 @@ def main():
         for error in result.errors:
             logger.error(f"  - {error}")
         sys.exit(1)
-    
+
     # Start services
     start_application()
 ```
@@ -515,7 +515,7 @@ class CollectorConfig:
     batch_size: int = 100
     timeout: int = 30
     symbols: List[str] = None
-    
+
     def __post_init__(self):
         if self.symbols is None:
             self.symbols = ['AAPL', 'MSFT']
@@ -543,7 +543,7 @@ data.CollectorConfig.symbols = ['AAPL'] # Smaller set for dev
 See `examples/environment_config_example.py` for comprehensive usage examples including:
 
 - Automatic environment detection
-- Explicit environment loading  
+- Explicit environment loading
 - Configuration validation
 - Environment-specific behavior
 - Parameter access patterns
@@ -553,7 +553,7 @@ See `examples/environment_config_example.py` for comprehensive usage examples in
 The environment-specific gin configuration system provides:
 
 ✅ **Eliminated 268+ hardcoded values** across the platform
-✅ **Automatic environment detection** based on system indicators  
+✅ **Automatic environment detection** based on system indicators
 ✅ **Environment-specific optimization** (dev/intg/prod)
 ✅ **Centralized configuration management** with inheritance
 ✅ **Built-in validation and health checks**

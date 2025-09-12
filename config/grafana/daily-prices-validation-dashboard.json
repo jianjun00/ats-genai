@@ -1,0 +1,817 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ATS Daily Prices Validation",
+    "tags": ["ats", "data-quality", "daily-prices", "validation"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Missing Prices Count by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 1000}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Missing Prices Percentage by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 5},
+                {"color": "red", "value": 10}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Abnormal Prices Count by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_abnormal_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 200}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Abnormal Prices Percentage by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_abnormal_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 2},
+                {"color": "red", "value": 5}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Missing Prices Trend (Past 30 Days)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Missing",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": 900000,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "none",
+            "min": 0
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Abnormal Prices Breakdown by Type",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (vendor) (ats_daily_prices_negative_count{environment=\"intg\"})",
+            "legendFormat": "Negative Prices",
+            "refId": "A"
+          },
+          {
+            "expr": "sum by (vendor) (ats_daily_prices_zero_volume_count{environment=\"intg\"})",
+            "legendFormat": "Zero Volume",
+            "refId": "B"
+          },
+          {
+            "expr": "sum by (vendor) (ats_daily_prices_price_spike_count{environment=\"intg\"})",
+            "legendFormat": "Price Spikes",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "pie",
+          "tooltip": {
+            "mode": "single"
+          },
+          "legend": {
+            "displayMode": "visible",
+            "placement": "right",
+            "values": ["value", "percent"]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 7,
+        "title": "Expected vs Actual Price Records",
+        "type": "barchart",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_expected_total{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Expected",
+            "refId": "A"
+          },
+          {
+            "expr": "ats_daily_prices_expected_total{environment=\"intg\"} - ats_daily_prices_missing_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} Actual",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "orientation": "auto",
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              }
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "Data Quality Score by Vendor",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "100 - ats_daily_prices_missing_percentage{environment=\"intg\"} - ats_daily_prices_abnormal_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 85},
+                {"color": "green", "value": 95}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      },
+      {
+        "id": 9,
+        "title": "Minute Bars - Missing Instruments by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_missing_instruments_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} ({{source}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 3},
+                {"color": "red", "value": 10}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40}
+      },
+      {
+        "id": 10,
+        "title": "Minute Bars - Missing Periods Percentage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_missing_periods_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} ({{source}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 20},
+                {"color": "red", "value": 50}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40}
+      },
+      {
+        "id": 11,
+        "title": "Minute Bars File Count by Vendor",
+        "type": "barchart",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_file_count{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "File Count",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "orientation": "auto"
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 48}
+      },
+      {
+        "id": 12,
+        "title": "Minute Bars Coverage Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "100 - ats_minute_bars_missing_instruments_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} ({{source}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 70},
+                {"color": "green", "value": 90}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 48}
+      },
+      {
+        "id": 13,
+        "title": "Minute Bars vs Daily Prices Comparison",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_missing_instruments_percentage{environment=\"intg\"}",
+            "legendFormat": "Minute Bars Missing - {{vendor}} ({{source}})",
+            "refId": "A"
+          },
+          {
+            "expr": "ats_daily_prices_missing_percentage{environment=\"intg\"}",
+            "legendFormat": "Daily Prices Missing - {{vendor}}",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "Missing Percentage",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": 900000,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "percent",
+            "min": 0
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 56}
+      },
+      {
+        "id": 14,
+        "title": "Trading Day Coverage - T-0 vs T-1",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_trading_t0_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-0 (Latest Trading Day)",
+            "refId": "A"
+          },
+          {
+            "expr": "ats_minute_bars_trading_t1_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-1 (Previous Trading Day)",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "green", "value": 1000}
+              ]
+            },
+            "unit": "none"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 64}
+      },
+      {
+        "id": 15,
+        "title": "Trading Day T-0 Coverage Percentage",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_trading_t0_coverage_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-0",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "green", "value": 50}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 64}
+      },
+      {
+        "id": 16,
+        "title": "Trading Day Coverage Trend",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_trading_t0_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-0 Coverage",
+            "refId": "A"
+          },
+          {
+            "expr": "ats_minute_bars_trading_t1_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}} T-1 Coverage",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "Files Updated",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": 900000,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "none",
+            "min": 0
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 72}
+      },
+      {
+        "id": 17,
+        "title": "Data Freshness by Vendor",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ats_minute_bars_trading_total_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "A",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_trading_t0_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "B",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_trading_t1_symbols{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "C",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_trading_t0_coverage_percentage{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "D",
+            "format": "table"
+          },
+          {
+            "expr": "ats_minute_bars_trading_last_date{environment=\"intg\"}",
+            "legendFormat": "{{vendor}}",
+            "refId": "E",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 20},
+                {"color": "red", "value": 50}
+              ]
+            },
+            "unit": "none",
+            "custom": {
+              "align": "center",
+              "displayMode": "auto"
+            }
+          }
+        },
+        "options": {
+          "showHeader": true
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 80}
+      }
+    ],
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "5m",
+    "schemaVersion": 30,
+    "version": 1,
+    "links": [
+      {
+        "title": "ATS Vendor Monitoring",
+        "url": "/d/f9afe708-9be9-4c39-b901-f5c43a0a479f/ats-vendor-monitoring-dashboard-fixed",
+        "type": "dashboards"
+      }
+    ],
+    "description": "Comprehensive data validation metrics showing missing and abnormal daily price data, plus minute bar coverage across EODHD, Tiingo, Polygon, and FirstRate vendors for the past 90 days."
+  }
+}

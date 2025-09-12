@@ -288,13 +288,13 @@ class UnifiedAnalyticsService:
 
                     # Get summary statistics
                     unique_symbols = set(event['symbol'] for event in processed_events)
-                    
+
                     # Count beats and misses
                     eps_beats = sum(1 for event in processed_events if event['earnings_beat'] is True)
                     eps_misses = sum(1 for event in processed_events if event['earnings_beat'] is False)
                     revenue_beats = sum(1 for event in processed_events if event['revenue_beat'] is True)
                     revenue_misses = sum(1 for event in processed_events if event['revenue_beat'] is False)
-                    
+
                     # Count guidance changes
                     guidance_raised_count = sum(1 for event in processed_events if event['guidance_raised'] is True)
                     guidance_lowered_count = sum(1 for event in processed_events if event['guidance_lowered'] is True)

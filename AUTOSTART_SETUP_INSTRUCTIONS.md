@@ -30,7 +30,7 @@ After WSL boots, the following services will start automatically:
 
 - **✅ ATS-DEV PostgreSQL**: `localhost:3432` (dev_db)
 - **✅ ATS-DEV Analytics**: `http://localhost:3000` (unified analytics service)
-- **✅ ATS-INTG PostgreSQL**: `localhost:4432` (intg_db) 
+- **✅ ATS-INTG PostgreSQL**: `localhost:4432` (intg_db)
 - **✅ ATS-INTG Analytics**: `http://localhost:4000`
 - **✅ ATS-INTG Services**: Minute bars, monitoring, Slack notifications
 

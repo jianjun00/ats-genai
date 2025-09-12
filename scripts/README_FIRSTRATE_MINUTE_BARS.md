@@ -78,7 +78,7 @@ PYTHONPATH=src uv run python scripts/populate_firstrate_minute_bars.py --limit 1
 
 ### Key Features
 - **Memory Efficient**: Processes data monthly to avoid memory issues
-- **Resumable**: Checkpoint-based processing can resume from interruptions  
+- **Resumable**: Checkpoint-based processing can resume from interruptions
 - **Error Recovery**: Failed months are tracked and can be retried
 - **Timezone Aware**: Proper EDT/EST to UTC conversion
 - **Scalable**: Handles thousands of symbols across decades of data

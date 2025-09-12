@@ -29,7 +29,7 @@ for vendor in tiingo polygon eodhd; do
         echo "📝 ${vendor^} Latest Log: $(basename $LATEST_LOG)"
         LAST_ACTIVITY=$(stat -c %y "$LATEST_LOG" 2>/dev/null | cut -d' ' -f1-2 | cut -d'.' -f1)
         echo "⏰ Last Activity: $LAST_ACTIVITY"
-        
+
         # Show last few log lines
         echo "🔍 Recent Activity:"
         tail -3 "$LATEST_LOG" 2>/dev/null | sed 's/^/   /'
@@ -44,10 +44,10 @@ done
 echo "📊 CURRENT DATABASE PROGRESS:"
 echo "-------------------------------------------------------------------"
 python3 scripts/run_dev.py query --query "
-SELECT 
-    CASE 
+SELECT
+    CASE
         WHEN 'tiingo' = 'tiingo' THEN '🟢 Tiingo'
-        WHEN 'polygon' = 'polygon' THEN '🔵 Polygon' 
+        WHEN 'polygon' = 'polygon' THEN '🔵 Polygon'
         WHEN 'eodhd' = 'eodhd' THEN '🟡 EODHD'
     END as vendor,
     TO_CHAR(COUNT(*), 'FM999,999,999') as records,
@@ -58,7 +58,7 @@ FROM (
     SELECT 'tiingo' as source, instrument_id, date FROM dev_daily_prices_tiingo
     UNION ALL
     SELECT 'polygon' as source, instrument_id, date FROM dev_daily_prices_polygon
-    UNION ALL  
+    UNION ALL
     SELECT 'eodhd' as source, instrument_id, date FROM dev_daily_prices_eodhd
 ) combined
 GROUP BY source
@@ -80,7 +80,7 @@ echo ""
 echo "🚦 RATE LIMIT ANALYSIS:"
 echo "-------------------------------------------------------------------"
 echo "🟢 Tiingo: 1000 calls/hour (≈16.7/min) - 1s delays"
-echo "🔵 Polygon: 5 calls/minute - 12s delays" 
+echo "🔵 Polygon: 5 calls/minute - 12s delays"
 echo "🟡 EODHD: 20 calls/minute - 3s delays"
 echo ""
 echo "⏰ Expected Total Time: 15-24 hours per vendor (parallel execution)"

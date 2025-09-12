@@ -16,7 +16,7 @@ This DRD defines the comprehensive architecture for multi-timeframe OHLC aggrega
 ### 2.1 High-Level Architecture
 
 ```
-1-Minute Data → FileBasedMinuteMarketDataManager → Multi-Timeframe Aggregation → 
+1-Minute Data → FileBasedMinuteMarketDataManager → Multi-Timeframe Aggregation →
 Signal Computation → Training Data Construction → Riegeli Output Files
 ```
 
@@ -43,7 +43,7 @@ interface MinuteOHLCV {
   timestamp: DateTime;  // 1-minute intervals
   open: float64;       // Opening price
   high: float64;       // Highest price
-  low: float64;        // Lowest price  
+  low: float64;        // Lowest price
   close: float64;      // Closing price
   volume: int64;       // Trading volume
 }
@@ -70,16 +70,16 @@ interface MinuteOHLCV {
 ```python
 class FileBasedMinuteMarketDataManager:
     def __init__(self, base_path: str)
-    
+
     async def get_multi_timeframe_data(
         self,
         symbols: List[str],
         start: datetime,
-        end: datetime, 
+        end: datetime,
         intervals: List[str] = None,
         signals: List[str] = None
     ) -> Dict[str, Dict[str, pd.DataFrame]]
-    
+
     async def get_ohlc_for_interval(
         self,
         symbols: List[str],
@@ -87,12 +87,12 @@ class FileBasedMinuteMarketDataManager:
         end: datetime,
         interval: str = '1m'
     ) -> Dict[str, pd.DataFrame]
-    
+
     def _parse_interval_to_minutes(self, interval: str) -> int
-    
+
     def compute_technical_signals(
-        self, 
-        df: pd.DataFrame, 
+        self,
+        df: pd.DataFrame,
         signals: List[str]
     ) -> pd.DataFrame
 ```
@@ -101,7 +101,7 @@ class FileBasedMinuteMarketDataManager:
 ```python
 INTERVAL_MAPPINGS = {
     '1m': 1,
-    '5m': 5, 
+    '5m': 5,
     '15m': 15,
     '1h': 60,
     '1d': 1440,
@@ -124,7 +124,7 @@ async def load_symbol_data(self, symbol: str, start: datetime, end: datetime):
     cache_key = f"{symbol}_{start}_{end}"
     if cache_key in self.data_cache:
         return self.data_cache[cache_key]
-    
+
     data = await self._load_from_parquet(symbol, start, end)
     self.data_cache[cache_key] = data
     return data
@@ -138,7 +138,7 @@ async def load_symbol_data(self, symbol: str, start: datetime, end: datetime):
 ```python
 AGGREGATION_RULES = {
     'open': 'first',    # First value in period
-    'high': 'max',      # Maximum value in period  
+    'high': 'max',      # Maximum value in period
     'low': 'min',       # Minimum value in period
     'close': 'last',    # Last value in period
     'volume': 'sum'     # Sum of all volumes in period
@@ -154,7 +154,7 @@ def aggregate_to_timeframe(self, df: pd.DataFrame, interval: str) -> pd.DataFram
 
 **Resampling Logic**:
 - **5-minute**: Aggregate every 5 consecutive 1-minute bars
-- **15-minute**: Aggregate every 15 consecutive 1-minute bars  
+- **15-minute**: Aggregate every 15 consecutive 1-minute bars
 - **1-hour**: Aggregate every 60 consecutive 1-minute bars
 - **1-day**: Aggregate all bars within trading day (market hours)
 - **1-week**: Aggregate all bars within trading week (Monday-Friday)
@@ -167,7 +167,7 @@ def validate_ohlc_relationships(self, df: pd.DataFrame) -> bool:
     """Validate OHLC mathematical relationships."""
     return all([
         (df['high'] >= df['low']).all(),
-        (df['high'] >= df['open']).all(), 
+        (df['high'] >= df['open']).all(),
         (df['high'] >= df['close']).all(),
         (df['low'] <= df['open']).all(),
         (df['low'] <= df['close']).all(),
@@ -196,7 +196,7 @@ def validate_ohlc_relationships(self, df: pd.DataFrame) -> bool:
 def compute_technical_signals(self, df: pd.DataFrame, signals: List[str]) -> pd.DataFrame:
     """Compute technical signals for given OHLCV dataframe."""
     result = df.copy()
-    
+
     for signal in signals:
         if signal == 'sma_20':
             result['sma_20'] = df['close'].rolling(window=20).mean()
@@ -214,7 +214,7 @@ def compute_technical_signals(self, df: pd.DataFrame, signals: List[str]) -> pd.
             result['ebot'] = df['low'].rolling(window=20).min()
         elif signal == 'pldot':
             result['pldot'] = (df['high'] + df['low'] + df['close']) / 3
-    
+
     return result.bfill().ffill()  # Handle NaN values
 ```
 
@@ -242,13 +242,13 @@ class IntervalBasedTrainingDataCallback:
         storage_manager: Any,
         output_dir: str
     )
-    
+
     async def _generate_multi_timeframe_example(
-        self, 
-        symbol: str, 
+        self,
+        symbol: str,
         current_time: datetime
     ) -> Optional[Dict]
-    
+
     async def _generate_examples(self) -> AsyncGenerator[Tuple[str, datetime, Dict], None]
 ```
 
@@ -261,7 +261,7 @@ FEATURE_MATRIX_SCHEMA = {
     'prediction_horizon': 5,    # 5 time steps forward
     'timeframes': {
         '5m': {'lookback_periods': 12, 'features': 11},   # 1 hour of 5m data
-        '15m': {'lookback_periods': 4, 'features': 11},   # 1 hour of 15m data  
+        '15m': {'lookback_periods': 4, 'features': 11},   # 1 hour of 15m data
         '1h': {'lookback_periods': 1, 'features': 11},    # 1 hour of 1h data
         '1d': {'lookback_periods': 1, 'features': 11},    # 1 day of 1d data
         '1w': {'lookback_periods': 1, 'features': 11}     # 1 week of 1w data
@@ -284,7 +284,7 @@ FEATURES_PER_TIMEFRAME = [
 ```python
 async def _generate_multi_timeframe_example(self, symbol: str, current_time: datetime):
     """Generate training example with multi-timeframe features."""
-    
+
     # 1. Collect data from all timeframes
     multi_timeframe_data = await self.minute_data_manager.get_multi_timeframe_data(
         symbols=[symbol],
@@ -293,21 +293,21 @@ async def _generate_multi_timeframe_example(self, symbol: str, current_time: dat
         intervals=list(self.config.timeframes.keys()),
         signals=self.config.features
     )
-    
+
     # 2. Extract features for each timeframe
     feature_matrix = []
     for timeframe in ['5m', '15m', '1h', '1d', '1w']:
         timeframe_data = multi_timeframe_data[symbol][timeframe]
         lookback_periods = self.config.timeframes[timeframe]['lookback_periods']
-        
+
         # Get most recent periods for this timeframe
         recent_data = timeframe_data.tail(lookback_periods)
         features = recent_data[self.config.features].values
         feature_matrix.append(features)
-    
+
     # 3. Combine into unified feature matrix
     combined_features = np.concatenate(feature_matrix, axis=1)
-    
+
     return {
         'symbol': symbol,
         'timestamp': current_time,
@@ -356,7 +356,7 @@ TRAINING_EXAMPLE_SCHEMA = {
     'labels': np.ndarray,       # Shape: [5]
     'metadata': {
         'timeframes': List[str],
-        'signals': List[str], 
+        'signals': List[str],
         'sequence_length': int,
         'prediction_horizon': int,
         'total_features': int
@@ -378,23 +378,23 @@ TRAINING_EXAMPLE_SCHEMA = {
 graph TD
     A[1-Minute Parquet Files] --> B[FileBasedMinuteMarketDataManager]
     B --> C[5m Aggregation]
-    B --> D[15m Aggregation] 
+    B --> D[15m Aggregation]
     B --> E[1h Aggregation]
     B --> F[1d Aggregation]
     B --> G[1w Aggregation]
-    
+
     C --> C1[5m Signal Computation]
     D --> D1[15m Signal Computation]
-    E --> E1[1h Signal Computation] 
+    E --> E1[1h Signal Computation]
     F --> F1[1d Signal Computation]
     G --> G1[1w Signal Computation]
-    
+
     C1 --> H[IntervalBasedTrainingDataCallback]
     D1 --> H
     E1 --> H
-    F1 --> H 
+    F1 --> H
     G1 --> H
-    
+
     H --> I[Feature Matrix Construction]
     I --> J[Riegeli Serialization]
     J --> K[Training Data Files]
@@ -415,7 +415,7 @@ graph TD
 **Processing Order**:
 1. Load base 1-minute data for requested time range
 2. Aggregate to all target timeframes in parallel
-3. Compute technical signals for each timeframe independently  
+3. Compute technical signals for each timeframe independently
 4. Extract features using timeframe-specific lookback periods
 5. Construct unified training examples
 6. Serialize to output files
@@ -454,7 +454,7 @@ def validate_ohlcv_data(df: pd.DataFrame) -> bool:
     return all([
         (df['high'] >= df['low']).all(),
         (df['high'] >= df['open']).all(),
-        (df['high'] >= df['close']).all(), 
+        (df['high'] >= df['close']).all(),
         (df['low'] <= df['open']).all(),
         (df['low'] <= df['close']).all(),
         (df['volume'] >= 0).all(),
@@ -463,7 +463,7 @@ def validate_ohlcv_data(df: pd.DataFrame) -> bool:
 ```
 
 **Signal Validation**:
-```python  
+```python
 def validate_technical_signals(df: pd.DataFrame) -> bool:
     return all([
         df['rsi_14'].between(0, 100, inclusive='both').all(),
@@ -484,7 +484,7 @@ def validate_technical_signals(df: pd.DataFrame) -> bool:
 
 **Integration Test Coverage**:
 - Multi-timeframe pipeline validation
-- Performance benchmark verification  
+- Performance benchmark verification
 - Error handling and recovery
 - Concurrent processing validation
 
@@ -555,7 +555,7 @@ def validate_technical_signals(df: pd.DataFrame) -> bool:
 **Performance Test Results**:
 - ✅ Single symbol: 1.3M records/sec processing rate
 - ✅ Batch processing: 11.8 symbols/sec, 101K records/sec
-- ✅ Scalability: Linear scaling validated 1-8 symbols  
+- ✅ Scalability: Linear scaling validated 1-8 symbols
 - ✅ Large datasets: 1.8M records/sec for 3-month processing
 - ✅ Memory efficiency: Concurrent timeframe processing
 
@@ -578,7 +578,7 @@ def validate_technical_signals(df: pd.DataFrame) -> bool:
 ### 10.2 Scalability Roadmap
 
 - **Phase 1**: Support 100+ symbols concurrently
-- **Phase 2**: Multi-vendor data source integration  
+- **Phase 2**: Multi-vendor data source integration
 - **Phase 3**: Cloud-native deployment (AWS/GCP)
 - **Phase 4**: Real-time model training integration
 

@@ -30,7 +30,7 @@ Example:
         connection_pool=pool, env=environment, universe_state_manager=manager,
         start_date=datetime(2023, 1, 1), end_date=datetime(2023, 12, 31),
         instrument_ids=[1, 2, 3], include_schema=True,
-        output_path="/data/training/residual_returns_2023"
+        output_path="/data/training_data/residual_returns_2023"
     )
 
     # Access schema-aware results

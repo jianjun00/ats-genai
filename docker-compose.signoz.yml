@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # SigNoz ClickHouse for metrics storage
+  clickhouse:
+    image: clickhouse/clickhouse-server:22.8.8.3-alpine
+    container_name: ats-signoz-clickhouse
+    restart: on-failure
+    tty: true
+    depends_on:
+      - zookeeper-1
+    logging:
+      options:
+        max-size: 50m
+        max-file: "3"
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'localhost:8123/ping']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    ports:
+      - "9001:9000"  # ClickHouse HTTP port
+      - "8124:8123"  # ClickHouse native port
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse/
+      - ./config/clickhouse-config.xml:/etc/clickhouse-server/config.xml
+      - ./config/clickhouse-users.xml:/etc/clickhouse-server/users.xml
+    networks:
+      - ats-network
+    environment:
+      - CLICKHOUSE_DB=signoz_traces
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+
+  # AlertManager for SigNoz alerts  
+  alertmanager:
+    image: prom/alertmanager:v0.23.0
+    container_name: ats-signoz-alertmanager
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
+    networks:
+      - ats-network
+
+  # SigNoz Query Service
+  query-service:
+    image: signoz/query-service:0.15.0
+    container_name: ats-signoz-query-service
+    command: ["-config=/root/config/prometheus.yml"]
+    ports:
+      - "8085:8085"  # Query service port
+    volumes:
+      - ./config/prometheus.yml:/root/config/prometheus.yml
+      - ../logs/signoz/:/var/tmp/
+    environment:
+      - ClickHouseUrl=tcp://clickhouse:9000/?database=signoz_traces
+      - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
+      - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
+      - DASHBOARDS_PATH=/root/config/dashboards
+      - STORAGE=clickhouse
+      - GODEBUG=netdns=go
+      - TELEMETRY_ENABLED=true
+      - DEPLOYMENT_TYPE=docker-standalone-amd
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8085/api/v1/version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - ats-network
+
+  # SigNoz Frontend
+  frontend:
+    image: signoz/frontend:0.15.0  
+    container_name: ats-signoz-frontend
+    restart: on-failure
+    depends_on:
+      - alertmanager
+      - query-service
+    ports:
+      - "3301:3301"  # SigNoz UI port
+    volumes:
+      - ../logs/signoz/:/var/tmp/
+    networks:
+      - ats-network
+
+  # SigNoz OtelCollector
+  otel-collector:
+    image: signoz/signoz-otel-collector:0.66.0
+    container_name: ats-signoz-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml", "--log-level=DEBUG"]
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=signoz-otel-collector,service.version=0.66.0
+    ports:
+      - "1777:1777"     # pprof extension
+      - "8888:8888"     # Prometheus metrics exposed by the agent
+      - "8889:8889"     # Prometheus exporter metrics
+      - "13133:13133"   # health_check extension
+      - "4317:4317"     # OTLP gRPC receiver
+      - "4318:4318"     # OTLP HTTP receiver  
+      - "9411:9411"     # Zipkin receiver
+      - "14250:14250"   # Jaeger gRPC
+      - "14268:14268"   # Jaeger thrift HTTP
+      - "9080:9080"     # SignalFx receiver
+    restart: on-failure
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - ats-network
+
+  # Zookeeper for ClickHouse replication
+  zookeeper-1:
+    image: bitnami/zookeeper:3.7.1
+    container_name: ats-signoz-zookeeper-1
+    hostname: zookeeper-1
+    user: root
+    ports:
+      - "2181:2181"
+      - "2888:2888"
+      - "3888:3888"
+    volumes:
+      - zookeeper-1-data:/bitnami/zookeeper
+    environment:
+      - ZOO_ENABLE_AUTH=yes
+      - ZOO_SERVER_USERS=signoz
+      - ZOO_SERVER_PASSWORDS=signoz
+      - ZOO_CLIENT_USER=signoz
+      - ZOO_CLIENT_PASSWORD=signoz
+    networks:
+      - ats-network
+
+volumes:
+  clickhouse-data:
+  zookeeper-1-data:
+
+networks:
+  ats-network:
+    external: true

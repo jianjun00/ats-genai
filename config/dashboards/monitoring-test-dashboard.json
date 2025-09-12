@@ -1,0 +1,26 @@
+{
+  "title": "ATS Simple Test Dashboard",
+  "description": "Simple test dashboard with one panel",
+  "tags": ["test"],
+  "layout": [
+    {
+      "id": "test-panel-1",
+      "x": 0,
+      "y": 0,
+      "w": 6,
+      "h": 3,
+      "panelTypes": "value",
+      "query": {
+        "queryType": "",
+        "promql": [
+          {
+            "query": "ats_instruments_total",
+            "legend": "Instruments Count",
+            "disabled": false
+          }
+        ]
+      },
+      "title": "📊 Total Instruments"
+    }
+  ]
+}

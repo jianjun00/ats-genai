@@ -63,7 +63,7 @@ echo "💾 System files that might be large:"
 echo "Hibernation file (hiberfil.sys):"
 ls -lh /mnt/c/hiberfil.sys 2>/dev/null || echo "Not accessible"
 
-echo "Page file (pagefile.sys):"  
+echo "Page file (pagefile.sys):"
 ls -lh /mnt/c/pagefile.sys 2>/dev/null || echo "Not accessible"
 
 echo "Swap file (swapfile.sys):"

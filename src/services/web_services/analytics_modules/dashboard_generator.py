@@ -548,7 +548,7 @@ from core.config.settings import get_settings
                         if (data.success && data.events) {
                             html = `
                                 <h3>📊 Earnings Events Analysis</h3>
-                                
+
                                 <!-- Summary Cards -->
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
                                     <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
@@ -601,21 +601,21 @@ from core.config.settings import get_settings
                             data.events.forEach((event, index) => {
                                 const backgroundColor = index % 2 === 0 ? 'white' : '#f8f9fa';
                                 const reportDate = event.report_period ? event.report_period : 'N/A';
-                                
+
                                 // Format EPS data
                                 const epsActual = event.eps_actual !== null ? `$${event.eps_actual}` : 'N/A';
                                 const epsEstimated = event.eps_estimated !== null ? `$${event.eps_estimated}` : 'N/A';
                                 const epsSurprise = event.eps_surprise_pct !== null ? `${event.eps_surprise_pct.toFixed(1)}%` : 'N/A';
-                                
+
                                 // Format Revenue data
                                 const revenueActual = event.revenue_actual_millions !== null ? `$${event.revenue_actual_millions}M` : 'N/A';
                                 const revenueEstimated = event.revenue_estimated_millions !== null ? `$${event.revenue_estimated_millions}M` : 'N/A';
                                 const revenueSurprise = event.revenue_surprise_pct !== null ? `${event.revenue_surprise_pct.toFixed(1)}%` : 'N/A';
-                                
+
                                 // Beat/miss indicators
                                 const epsBeat = event.earnings_beat === true ? '✅' : event.earnings_beat === false ? '❌' : '❓';
                                 const revenueBeat = event.revenue_beat === true ? '✅' : event.revenue_beat === false ? '❌' : '❓';
-                                
+
                                 // Guidance indicators
                                 let guidanceIndicator = '➖';
                                 if (event.guidance_raised === true) guidanceIndicator = '📈';
@@ -663,13 +663,13 @@ from core.config.settings import get_settings
                                         <div>
                                             <strong>EPS Performance:</strong><br>
                                             Beats: ${data.summary.eps_beats} | Misses: ${data.summary.eps_misses}<br>
-                                            Success Rate: ${data.summary.eps_beats + data.summary.eps_misses > 0 ? 
+                                            Success Rate: ${data.summary.eps_beats + data.summary.eps_misses > 0 ?
                                                 Math.round(data.summary.eps_beats / (data.summary.eps_beats + data.summary.eps_misses) * 100) : 0}%
                                         </div>
                                         <div>
                                             <strong>Revenue Performance:</strong><br>
                                             Beats: ${data.summary.revenue_beats} | Misses: ${data.summary.revenue_misses}<br>
-                                            Success Rate: ${data.summary.revenue_beats + data.summary.revenue_misses > 0 ? 
+                                            Success Rate: ${data.summary.revenue_beats + data.summary.revenue_misses > 0 ?
                                                 Math.round(data.summary.revenue_beats / (data.summary.revenue_beats + data.summary.revenue_misses) * 100) : 0}%
                                         </div>
                                     </div>

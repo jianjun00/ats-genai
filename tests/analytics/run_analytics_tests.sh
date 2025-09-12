@@ -58,7 +58,7 @@ echo "=============================================="
 echo ""
 echo "📊 Test Summary:"
 echo "  ✅ Database schema validation - Prevents wrong table/column names"
-echo "  ✅ Endpoint integration tests - Prevents data inconsistencies"  
+echo "  ✅ Endpoint integration tests - Prevents data inconsistencies"
 echo "  ✅ Query performance tests - Prevents slow queries and timeouts"
 echo ""
 echo "🛡️ These tests prevent the following issues we previously encountered:"
@@ -73,7 +73,7 @@ echo ""
 if [ "$RUN_LOAD_TESTS" = "true" ]; then
     echo "🚀 Running Load Tests..."
     echo "======================="
-    
+
     # Simple load test with curl
     echo "Testing concurrent requests..."
     for i in {1..10}; do
@@ -81,7 +81,7 @@ if [ "$RUN_LOAD_TESTS" = "true" ]; then
         curl -s "${ANALYTICS_SERVICE_URL}/api/v1/coverage/summary" > /dev/null &
     done
     wait
-    
+
     echo "✅ Load test completed"
 fi
 

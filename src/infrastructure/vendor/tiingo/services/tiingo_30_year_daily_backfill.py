@@ -70,7 +70,7 @@ class Tiingo30YearBackfiller:
             'errors': 0,
             'skipped_instruments': 0
         }
-        
+
         # Initialize Prometheus metrics if available
         if PROMETHEUS_AVAILABLE:
             self.backfill_symbols_processed = Counter(
@@ -79,7 +79,7 @@ class Tiingo30YearBackfiller:
                 ['vendor', 'environment']
             )
             self.backfill_prices_collected = Counter(
-                'ats_daily_prices_backfill_prices_collected_total', 
+                'ats_daily_prices_backfill_prices_collected_total',
                 'Total number of price records collected during backfill',
                 ['vendor', 'environment']
             )
@@ -95,7 +95,7 @@ class Tiingo30YearBackfiller:
             )
             self.backfill_success_rate = Gauge(
                 'ats_daily_prices_backfill_success_rate',
-                'Success rate of daily prices backfill operations (0.0 to 1.0)', 
+                'Success rate of daily prices backfill operations (0.0 to 1.0)',
                 ['vendor', 'environment']
             )
         else:

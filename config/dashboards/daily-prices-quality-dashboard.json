@@ -1,0 +1,548 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "📊 Daily Prices Quality Monitoring",
+    "tags": ["ats", "daily-prices", "data-quality", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 27,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"],
+      "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🚨 Missing Daily Prices by Vendor",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_symbols_total",
+            "legendFormat": "{{vendor}} Missing Symbols",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 10},
+                {"color": "red", "value": 100}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "id": 2,
+        "title": "📉 Missing Daily Price Records",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_records_total",
+            "legendFormat": "{{vendor}} Missing Records",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1000},
+                {"color": "red", "value": 10000}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "id": 3,
+        "title": "✅ Data Coverage Percentage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_coverage_percent",
+            "legendFormat": "{{vendor}} Coverage",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 80},
+                {"color": "green", "value": 95}
+              ]
+            },
+            "unit": "percent",
+            "max": 100,
+            "min": 0
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "id": 4,
+        "title": "📈 Missing Prices Trend (24h)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_symbols_total",
+            "legendFormat": "{{vendor}} Missing Symbols",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "yAxes": [
+          {
+            "label": "Missing Symbols",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "xAxis": {
+          "show": true
+        },
+        "lines": true,
+        "fill": 1,
+        "fillGradient": 0,
+        "pointradius": 2,
+        "points": false,
+        "bars": false,
+        "stack": false,
+        "percentage": false,
+        "legend": {
+          "avg": false,
+          "current": false,
+          "max": false,
+          "min": false,
+          "show": true,
+          "total": false,
+          "values": false
+        },
+        "nullPointMode": "null",
+        "steppedLine": false,
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        }
+      },
+      {
+        "id": 5,
+        "title": "🎯 Coverage Trend (24h)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_coverage_percent",
+            "legendFormat": "{{vendor}} Coverage %",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "yAxes": [
+          {
+            "label": "Coverage %",
+            "min": 0,
+            "max": 100
+          },
+          {
+            "show": false
+          }
+        ],
+        "xAxis": {
+          "show": true
+        },
+        "lines": true,
+        "fill": 1,
+        "fillGradient": 0,
+        "pointradius": 2,
+        "points": false,
+        "bars": false,
+        "stack": false,
+        "percentage": false,
+        "legend": {
+          "avg": false,
+          "current": false,
+          "max": false,
+          "min": false,
+          "show": true,
+          "total": false,
+          "values": false
+        },
+        "nullPointMode": "null",
+        "steppedLine": false,
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "thresholds": [
+          {
+            "value": 80,
+            "colorMode": "critical",
+            "op": "lt",
+            "fill": true,
+            "line": true,
+            "yAxis": "left"
+          },
+          {
+            "value": 95,
+            "colorMode": "critical",
+            "op": "lt",
+            "fill": true,
+            "line": true,
+            "yAxis": "left"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "🚨 Bad Prices Detection",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_bad_symbols_total",
+            "legendFormat": "{{vendor}} Bad Symbols",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 16},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 10}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "id": 7,
+        "title": "⚠️ Bad Price Records Count",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_bad_records_total",
+            "legendFormat": "{{vendor}} Bad Records",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 16},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 10},
+                {"color": "red", "value": 100}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "id": 8,
+        "title": "📊 Data Quality Summary Table",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ats_daily_prices_missing_symbols_total",
+            "legendFormat": "",
+            "refId": "A",
+            "format": "table"
+          },
+          {
+            "expr": "ats_daily_prices_missing_records_total",
+            "legendFormat": "",
+            "refId": "B",
+            "format": "table"
+          },
+          {
+            "expr": "ats_daily_prices_coverage_percent",
+            "legendFormat": "",
+            "refId": "C",
+            "format": "table"
+          },
+          {
+            "expr": "ats_daily_prices_bad_symbols_total",
+            "legendFormat": "",
+            "refId": "D",
+            "format": "table"
+          },
+          {
+            "expr": "ats_daily_prices_bad_records_total",
+            "legendFormat": "",
+            "refId": "E",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+        "styles": [
+          {
+            "alias": "Vendor",
+            "align": "auto",
+            "colorMode": null,
+            "colors": ["rgba(245, 54, 54, 0.9)", "rgba(237, 129, 40, 0.89)", "rgba(50, 172, 45, 0.97)"],
+            "dateFormat": "YYYY-MM-DD HH:mm:ss",
+            "decimals": 2,
+            "mappingType": 1,
+            "pattern": "vendor",
+            "thresholds": [],
+            "type": "string",
+            "unit": "short"
+          },
+          {
+            "alias": "Missing Symbols",
+            "align": "auto",
+            "colorMode": "cell",
+            "colors": ["rgba(50, 172, 45, 0.97)", "rgba(237, 129, 40, 0.89)", "rgba(245, 54, 54, 0.9)"],
+            "dateFormat": "YYYY-MM-DD HH:mm:ss",
+            "decimals": 0,
+            "mappingType": 1,
+            "pattern": "Value #A",
+            "thresholds": ["10", "100"],
+            "type": "number",
+            "unit": "short"
+          },
+          {
+            "alias": "Coverage %",
+            "align": "auto",
+            "colorMode": "cell",
+            "colors": ["rgba(245, 54, 54, 0.9)", "rgba(237, 129, 40, 0.89)", "rgba(50, 172, 45, 0.97)"],
+            "dateFormat": "YYYY-MM-DD HH:mm:ss",
+            "decimals": 1,
+            "mappingType": 1,
+            "pattern": "Value #C",
+            "thresholds": ["80", "95"],
+            "type": "number",
+            "unit": "percent"
+          }
+        ],
+        "transform": "table"
+      },
+      {
+        "id": 9,
+        "title": "🕐 Last Data Update",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "time() - ats_daily_prices_coverage_percent",
+            "legendFormat": "Time Since Last Update",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 12, "x": 0, "y": 22},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1800},
+                {"color": "red", "value": 3600}
+              ]
+            },
+            "unit": "dtdurations"
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "id": 10,
+        "title": "📋 Quality Metrics Info",
+        "type": "text",
+        "gridPos": {"h": 4, "w": 12, "x": 12, "y": 22},
+        "options": {
+          "content": "## 📊 Daily Prices Quality Metrics\n\n**Coverage Analysis:**\n- ✅ **Green**: >95% coverage (excellent)\n- ⚠️ **Yellow**: 80-95% coverage (needs attention)\n- 🚨 **Red**: <80% coverage (critical)\n\n**Data Sources:** Polygon, Tiingo, EODHD\n**Update Frequency:** Every 30 minutes\n**Analysis Period:** Past 90 trading days (weekdays only)\n\n**Bad Prices Detection:**\n- Invalid prices (≤0, NULL values)\n- Illogical OHLC relationships\n- Extreme price changes (>50%)\n- Negative volume",
+          "mode": "markdown"
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "vendor",
+          "type": "query",
+          "query": "label_values(ats_daily_prices_coverage_percent, vendor)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true,
+          "allValue": ".*",
+          "regex": "/.*/"
+        },
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(ats_daily_prices_coverage_percent, environment)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true,
+          "allValue": ".*",
+          "regex": "/.*/"
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Quality Issues",
+          "enable": true,
+          "iconColor": "red",
+          "query": "ats_daily_prices_coverage_percent < 80"
+        },
+        {
+          "name": "Bad Prices Detected",
+          "enable": true,
+          "iconColor": "orange",
+          "query": "increase(ats_daily_prices_bad_records_total[1h]) > 0"
+        }
+      ]
+    },
+    "links": [
+      {
+        "title": "ATS Operations Guide",
+        "url": "/docs/OPERATIONS.md",
+        "type": "link"
+      },
+      {
+        "title": "Daily Prices Quality Script",
+        "url": "/scripts/daily_prices_quality_metrics.py",
+        "type": "link"
+      }
+    ]
+  }
+}

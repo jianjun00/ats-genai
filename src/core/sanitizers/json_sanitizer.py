@@ -6,6 +6,7 @@ Comprehensive sanitization of JSON responses to prevent NaN, Infinity, and other
 
 import json
 import math
+from decimal import Decimal
 from typing import Any, Dict, List, Union
 import numpy as np
 
@@ -35,6 +36,22 @@ class JSONSanitizer:
             elif math.isinf(value):
                 return 1e10 if value > 0 else -1e10  # Large but finite number
             return value
+
+        # Handle Decimal types (from PostgreSQL numeric columns)
+        elif isinstance(value, Decimal):
+            return float(value)
+
+        # Handle datetime objects
+        elif hasattr(value, 'isoformat'):
+            return value.isoformat()
+
+        # Handle Decimal types (from PostgreSQL numeric columns)
+        elif isinstance(value, Decimal):
+            return float(value)
+
+        # Handle datetime objects
+        elif hasattr(value, 'isoformat'):
+            return value.isoformat()
 
         # Handle dictionaries
         elif isinstance(value, dict):

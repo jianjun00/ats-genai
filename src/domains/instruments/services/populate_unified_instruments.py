@@ -1,10 +1,10 @@
 import argparse
 import asyncio
 from shared.utils.environment import Environment, EnvironmentType
-from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from infrastructure.database.repositories.vendors_dao import VendorsDAO
+from domains.instruments.repositories.vendors_dao import VendorsDAO
 from datetime import datetime, date
 import ray
 
@@ -48,27 +48,53 @@ async def batch_logic_for_test(batch, polygon_dao, instruments_dao, xrefs_dao, v
             'list_date': inst.get('list_date'),
             'delist_date': inst.get('delist_date')
         })
-    # Step 1: Check which symbols already exist via xrefs
+
+    # Step 1: Categorize instruments into existing vs new, and check for missing xrefs
     symbol_to_id = {}
     new_instruments = []
+    missing_xref_instruments = []
+
     for inst in valid_instruments:
-        instrument_id = await xrefs_dao.resolve_instrument_id(inst['symbol'], vendor_id=ticker_vendor_id)
+        symbol = inst['symbol']
+
+        # First check if xref already exists (fastest check)
+        instrument_id = await xrefs_dao.resolve_instrument_id(symbol, vendor_id=ticker_vendor_id)
         if instrument_id:
-            symbol_to_id[inst['symbol']] = instrument_id
+            # Xref exists, instrument is already fully configured
+            symbol_to_id[symbol] = instrument_id
+            if debug:
+                print(f"[SKIP] Instrument {symbol} already has xref, skipping.")
+            continue
+
+        # No xref found, check if instrument exists in instruments table
+        existing_instrument = await instruments_dao.get_instrument_by_symbol(symbol)
+        if existing_instrument:
+            # Instrument exists but missing xref
+            symbol_to_id[symbol] = existing_instrument['id']
+            missing_xref_instruments.append(inst)
+            if debug:
+                print(f"[XREF] Instrument {symbol} exists but missing xref, will create xref.")
         else:
+            # Completely new instrument
             new_instruments.append(inst)
-    # Step 2: Batch insert instruments for new symbols
+            if debug:
+                print(f"[NEW] Instrument {symbol} is completely new, will create instrument and xref.")
+
+    # Step 2: Batch insert new instruments
     if new_instruments:
         await instruments_dao.create_instruments_batch(new_instruments, pool_min_size=1, pool_max_size=1)
-        # For each new symbol, fetch its instrument_id from the instruments table
+        # Update symbol_to_id mapping for new instruments
         for inst in new_instruments:
             row = await instruments_dao.get_instrument_by_symbol(inst['symbol'])
             if not row:
                 raise RuntimeError(f"Instrument {inst['symbol']} not found after insert.")
             symbol_to_id[inst['symbol']] = row['id']
-    # Step 3: Prepare xref inserts for new symbols only
+
+    # Step 3: Prepare xref inserts for both new instruments AND existing instruments with missing xrefs
     xref_inserts = []
-    for inst in new_instruments:
+    instruments_needing_xrefs = new_instruments + missing_xref_instruments
+
+    for inst in instruments_needing_xrefs:
         symbol = inst['symbol']
         instrument_id = symbol_to_id[symbol]
         start_at = parse_date(inst['list_date'])
@@ -81,9 +107,14 @@ async def batch_logic_for_test(batch, polygon_dao, instruments_dao, xrefs_dao, v
             'start_at': start_at,
             'end_at': end_at
         })
-    # Step 4: Batch insert xrefs for new symbols only
+
+    # Step 4: Batch insert xrefs for both new instruments and existing instruments with missing xrefs
     if xref_inserts:
         await xrefs_dao.create_xrefs_batch(xref_inserts, pool_min_size=1, pool_max_size=1)
+
+    if debug:
+        print(f"[INFO] Batch processed: {len(new_instruments)} new instruments, {len(missing_xref_instruments)} missing xrefs, {len(xref_inserts)} total xrefs created")
+
     return len(valid_instruments)
 
 async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, vendors_dao, tickers=None, debug=False):
@@ -120,10 +151,10 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
         import nest_asyncio
         nest_asyncio.apply()
         from shared.utils.environment import Environment
-        from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+        from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
         from domains.instruments.repositories.instruments_dao import InstrumentsDAO
         from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-        from infrastructure.database.repositories.vendors_dao import VendorsDAO
+        from domains.instruments.repositories.vendors_dao import VendorsDAO
         # Recreate DAOs in Ray worker
         env = Environment(*env_args)
         polygon_dao = InstrumentPolygonDAO(env)
@@ -139,7 +170,6 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                 polygon_instruments[symbol] = await polygon_dao.get_instrument_by_symbol(symbol)
             # Filter out missing or invalid instruments
             valid_instruments = []
-            xref_inserts = []
             for symbol, inst in polygon_instruments.items():
                 if not inst:
                     if debug:
@@ -158,27 +188,53 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                     'list_date': inst.get('list_date'),
                     'delist_date': inst.get('delist_date')
                 })
-            # Step 1: Check which symbols already exist via xrefs
+
+            # Step 1: Categorize instruments into existing vs new, and check for missing xrefs
             symbol_to_id = {}
             new_instruments = []
+            missing_xref_instruments = []
+
             for inst in valid_instruments:
-                instrument_id = await xrefs_dao.resolve_instrument_id(inst['symbol'], vendor_id=ticker_vendor_id)
+                symbol = inst['symbol']
+
+                # First check if xref already exists (fastest check)
+                instrument_id = await xrefs_dao.resolve_instrument_id(symbol, vendor_id=ticker_vendor_id)
                 if instrument_id:
-                    symbol_to_id[inst['symbol']] = instrument_id
+                    # Xref exists, instrument is already fully configured
+                    symbol_to_id[symbol] = instrument_id
+                    if debug:
+                        print(f"[SKIP] Instrument {symbol} already has xref, skipping.")
+                    continue
+
+                # No xref found, check if instrument exists in instruments table
+                existing_instrument = await instruments_dao.get_instrument_by_symbol(symbol)
+                if existing_instrument:
+                    # Instrument exists but missing xref
+                    symbol_to_id[symbol] = existing_instrument['id']
+                    missing_xref_instruments.append(inst)
+                    if debug:
+                        print(f"[XREF] Instrument {symbol} exists but missing xref, will create xref.")
                 else:
+                    # Completely new instrument
                     new_instruments.append(inst)
-            # Step 2: Batch insert instruments for new symbols
+                    if debug:
+                        print(f"[NEW] Instrument {symbol} is completely new, will create instrument and xref.")
+
+            # Step 2: Batch insert new instruments
             if new_instruments:
                 await instruments_dao.create_instruments_batch(new_instruments, pool_min_size=1, pool_max_size=1)
-                # For each new symbol, fetch its instrument_id from the instruments table
+                # Update symbol_to_id mapping for new instruments
                 for inst in new_instruments:
                     row = await instruments_dao.get_instrument_by_symbol(inst['symbol'])
                     if not row:
                         raise RuntimeError(f"Instrument {inst['symbol']} not found after insert.")
                     symbol_to_id[inst['symbol']] = row['id']
-            # Step 3: Prepare xref inserts for new symbols only
+
+            # Step 3: Prepare xref inserts for both new instruments AND existing instruments with missing xrefs
             xref_inserts = []
-            for idx, inst in enumerate(new_instruments):
+            instruments_needing_xrefs = new_instruments + missing_xref_instruments
+
+            for inst in instruments_needing_xrefs:
                 symbol = inst['symbol']
                 instrument_id = symbol_to_id[symbol]
                 start_at = parse_date(inst['list_date'])
@@ -191,9 +247,14 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
                     'start_at': start_at,
                     'end_at': end_at
                 })
-            # Step 4: Batch insert xrefs for new symbols only
+
+            # Step 4: Batch insert xrefs for both new instruments and existing instruments with missing xrefs
             if xref_inserts:
                 await xrefs_dao.create_xrefs_batch(xref_inserts, pool_min_size=1, pool_max_size=1)
+
+            if debug:
+                print(f"[INFO] Batch processed: {len(new_instruments)} new instruments, {len(missing_xref_instruments)} missing xrefs, {len(xref_inserts)} total xrefs created")
+
             return len(valid_instruments)
         return asyncio.run(batch_logic())
 

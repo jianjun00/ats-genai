@@ -15,9 +15,9 @@ def run_test_suite(test_file, description):
     print(f"🧪 {description}")
     print(f"📁 {test_file}")
     print("="*60)
-    
+
     start_time = datetime.now()
-    
+
     try:
         if 'playwright' in test_file:
             # Playwright tests need special handling
@@ -29,9 +29,9 @@ def run_test_suite(test_file, description):
             result = subprocess.run([
                 'python3', '-m', 'pytest', test_file, '-v', '--tb=short'
             ], capture_output=True, text=True, cwd='/home/jianjun/ats-genai-admin')
-        
+
         duration = (datetime.now() - start_time).total_seconds()
-        
+
         if result.returncode == 0:
             print("✅ PASSED")
             print(f"⏱️  Duration: {duration:.2f}s")
@@ -50,9 +50,9 @@ def run_test_suite(test_file, description):
             if result.stderr:
                 print("\nSTDERR:")
                 print(result.stderr)
-        
+
         return result.returncode == 0, duration
-        
+
     except Exception as e:
         print(f"❌ ERROR: {e}")
         return False, 0
@@ -60,13 +60,13 @@ def run_test_suite(test_file, description):
 def check_services_running():
     """Check if required services are running"""
     print("🔍 Checking required services...")
-    
+
     # Check if analytics service is running on port 4000 (integration)
     try:
         result = subprocess.run([
             'curl', '-s', 'http://localhost:4000/health'
         ], capture_output=True, text=True, timeout=5)
-        
+
         if result.returncode == 0:
             print("✅ Integration analytics service (port 4000) is running")
         else:
@@ -76,13 +76,13 @@ def check_services_running():
     except Exception as e:
         print(f"❌ Failed to check analytics service: {e}")
         return False
-    
+
     # Check database connectivity
     try:
         result = subprocess.run([
             'python3', 'scripts/run_intg.py', 'query', '--query', 'SELECT 1'
         ], capture_output=True, text=True, cwd='/home/jianjun/ats-genai-admin')
-        
+
         if result.returncode == 0:
             print("✅ Integration database is accessible")
         else:
@@ -91,7 +91,7 @@ def check_services_running():
     except Exception as e:
         print(f"❌ Failed to check database: {e}")
         return False
-    
+
     return True
 
 def main():
@@ -99,12 +99,12 @@ def main():
     print("🚀 COMPREHENSIVE UNIVERSE ANALYTICS TEST SUITE")
     print("🎯 Testing real stock examples and market dynamics")
     print(f"📅 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
+
     # Check prerequisites
     if not check_services_running():
         print("\n❌ Prerequisites not met. Please start required services.")
         return 1
-    
+
     # Define test suites
     test_suites = [
         {
@@ -113,21 +113,21 @@ def main():
             'category': 'unit'
         },
         {
-            'file': 'tests/integration/test_universe_simple.py', 
+            'file': 'tests/integration/test_universe_simple.py',
             'description': 'Integration Tests - Database & API Validation',
             'category': 'integration'
         },
         {
             'file': 'tests/browser_tests/test_universe_analytics_playwright.py',
-            'description': 'Browser Tests - End-to-End UI Functionality', 
+            'description': 'Browser Tests - End-to-End UI Functionality',
             'category': 'e2e'
         }
     ]
-    
+
     # Run all test suites
     results = []
     total_duration = 0
-    
+
     for suite in test_suites:
         success, duration = run_test_suite(suite['file'], suite['description'])
         results.append({
@@ -137,23 +137,23 @@ def main():
             'duration': duration
         })
         total_duration += duration
-    
+
     # Print summary
     print(f"\n{'='*60}")
     print("📊 TEST SUITE SUMMARY")
     print("="*60)
-    
+
     passed_count = sum(1 for r in results if r['success'])
     total_count = len(results)
-    
+
     for result in results:
         status = "✅ PASSED" if result['success'] else "❌ FAILED"
         print(f"{status} | {result['category'].upper():<12} | {result['duration']:>6.2f}s | {result['name']}")
-    
+
     print("-"*60)
     print(f"📈 Overall Results: {passed_count}/{total_count} test suites passed")
     print(f"⏱️  Total Duration: {total_duration:.2f}s")
-    
+
     if passed_count == total_count:
         print("\n🎉 ALL TESTS PASSED! Universe Analytics is fully validated.")
         print("\n🔍 Test Coverage Summary:")

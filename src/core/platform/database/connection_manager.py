@@ -206,18 +206,11 @@ class DatabaseConnectionManager:
             }
         ]
 
-        # If inside container, add container-specific fallbacks
-        if os.path.exists('/.dockerenv'):
-            container_attempts = [
-                # Container network attempts
-                {'host': 'postgres', 'port': 5432, 'database': 'dev_db', 'user': 'postgres', 'password': 'dev_password'},
-                {'host': 'ats-dev-postgres', 'port': 5432, 'database': 'dev_db', 'user': 'postgres', 'password': 'dev_password'},
-                {'host': '172.17.0.2', 'port': 5432, 'database': 'dev_db', 'user': 'postgres', 'password': 'dev_password'}
-            ]
-            # Add container fallbacks if they're different from primary
-            for attempt in container_attempts:
-                if attempt not in connection_attempts:
-                    connection_attempts.append(attempt)
+        # REMOVED: No fallback connections - fail fast instead of silent fallbacks to wrong databases
+        # This prevents network misconfigurations from being masked by connecting to dev database
+
+        # Validate network connectivity before attempting connection
+        self._validate_network_connectivity()
 
         last_exception = None
         for attempt in connection_attempts:
@@ -305,6 +298,47 @@ class DatabaseConnectionManager:
         """Mask password in database URL for logging."""
         import re
         return re.sub(r'://([^:]+):([^@]+)@', r'://\1:***@', url)
+
+    def _validate_network_connectivity(self):
+        """Validate network connectivity and environment configuration before connection attempts."""
+        import socket
+        import os
+
+        # Get expected configuration based on environment
+        environment = os.getenv('ENVIRONMENT', 'dev')
+        expected_host = self.settings.database_host
+        expected_db = self.settings.database_name
+
+        # Validate DNS resolution first
+        try:
+            socket.gethostbyname(expected_host)
+            logger.debug(f"✅ DNS resolution successful for {expected_host}")
+        except socket.gaierror as e:
+            raise DatabaseConnectionError(
+                f"❌ NETWORK ERROR: Cannot resolve hostname '{expected_host}'. "
+                f"Check Docker network configuration for {environment} environment. "
+                f"Container may be on wrong network. Error: {e}"
+            )
+
+        # Validate expected database name matches environment
+        expected_pattern = f"{environment}_db"
+        if expected_db != expected_pattern:
+            logger.warning(
+                f"⚠️ Database name '{expected_db}' doesn't match expected pattern '{expected_pattern}' "
+                f"for environment '{environment}'"
+            )
+
+        # Test socket connectivity
+        try:
+            sock = socket.create_connection((expected_host, self.settings.database_port), timeout=5)
+            sock.close()
+            logger.debug(f"✅ Socket connectivity successful to {expected_host}:{self.settings.database_port}")
+        except (socket.timeout, ConnectionRefusedError, OSError) as e:
+            raise DatabaseConnectionError(
+                f"❌ NETWORK ERROR: Cannot connect to {expected_host}:{self.settings.database_port}. "
+                f"Database server may be down or containers on different networks. "
+                f"Environment: {environment}. Error: {e}"
+            )
 
 
 # Global connection manager instance

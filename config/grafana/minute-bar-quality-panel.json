@@ -4,7 +4,7 @@
   "type": "stat",
   "targets": [
     {
-      "datasource": "ATS-INTG-PostgreSQL", 
+      "datasource": "ATS-INTG-PostgreSQL",
       "rawSql": "SELECT \n  'Polygon Records' as metric,\n  COUNT(*) as value\nFROM intg_one_minute_live_polygon\nWHERE timestamp >= NOW() - INTERVAL '24 hours'\nUNION ALL\nSELECT \n  'Tiingo Records' as metric,\n  COUNT(*) as value  \nFROM intg_one_minute_live_tiingo\nWHERE timestamp >= NOW() - INTERVAL '24 hours'\nUNION ALL\nSELECT\n  'Avg Quality Score' as metric,\n  ROUND(AVG(quality_score), 3) as value\nFROM (\n  SELECT quality_score FROM intg_one_minute_live_polygon WHERE timestamp >= NOW() - INTERVAL '24 hours'\n  UNION ALL  \n  SELECT quality_score FROM intg_one_minute_live_tiingo WHERE timestamp >= NOW() - INTERVAL '24 hours'\n) combined\nUNION ALL\nSELECT\n  'Avg Latency (ms)' as metric,\n  ROUND(AVG(data_latency_ms)) as value\nFROM (\n  SELECT data_latency_ms FROM intg_one_minute_live_polygon WHERE timestamp >= NOW() - INTERVAL '24 hours'\n  UNION ALL\n  SELECT data_latency_ms FROM intg_one_minute_live_tiingo WHERE timestamp >= NOW() - INTERVAL '24 hours' \n) combined",
       "format": "table"
     }

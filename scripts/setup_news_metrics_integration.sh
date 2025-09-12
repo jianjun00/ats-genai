@@ -13,7 +13,7 @@ else
     echo "✅ Prometheus detected: $PROMETHEUS_RUNNING"
 fi
 
-# Check if Grafana is running  
+# Check if Grafana is running
 GRAFANA_RUNNING=$(docker ps | grep grafana || echo "")
 if [ -z "$GRAFANA_RUNNING" ]; then
     echo "⚠️  Grafana not detected."
@@ -58,7 +58,7 @@ cat > /tmp/news_dashboard.json << 'EOF'
       {
         "id": 3,
         "title": "API Call Success Rate",
-        "type": "graph", 
+        "type": "graph",
         "targets": [
           {
             "expr": "rate(ats_news_api_calls_total{status=\"200\"}[5m]) / rate(ats_news_api_calls_total[5m])",
@@ -81,7 +81,7 @@ echo ""
 echo "1. 📊 **Start News Services:**"
 echo "   ./scripts/start_news_ingestion_intg.sh"
 echo ""
-echo "2. 📈 **Verify Metrics:**" 
+echo "2. 📈 **Verify Metrics:**"
 echo "   curl http://localhost:8081/metrics | grep ats_news"
 echo ""
 echo "3. 🎛️  **Add to Grafana** (if available):"

@@ -93,6 +93,7 @@ DB_HOST=ats-dev-postgres    # Container name, NOT localhost
 DB_PORT=5432               # Internal port
 DB_USER=postgres
 DB_PASSWORD=dev_password
+DB_PASSWORD=dev_password
 DB_NAME=dev_db
 ENVIRONMENT=dev
 PYTHONPATH=/workspace/src
@@ -176,7 +177,7 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 1. Minute Bar Files (INPUT - Raw Data)
    ↓
 2. FileBasedMinuteManager (Reads parquet files)
-   ↓  
+   ↓
 3. FileBasedMinuteMarketDataManager (Aggregates timeframes)
    ↓
 4. Training Data Generator (Creates sequences, features, labels)
@@ -236,3 +237,5 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 ---
 
 **🔥 This is a Docker-first, test-driven, DEBUG-FIRST development platform. Every change must be validated end-to-end with REAL DATA ONLY. When systems fail, investigate and understand before implementing workarounds.**
+
+**🚫 ZERO TOLERANCE for file proliferation, superficial testing, and premature claims of completion. Excellence is non-negotiable.**

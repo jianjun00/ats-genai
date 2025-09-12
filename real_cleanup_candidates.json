@@ -1,0 +1,187 @@
+{
+  "summary": {
+    "total_candidates": 15,
+    "total_size_kb": 98.28515625,
+    "by_category": {
+      "debug/demo/test_script": 12,
+      "unused_imports": 3
+    },
+    "safety_breakdown": {
+      "high": 15,
+      "medium": 0
+    }
+  },
+  "candidates": [
+    {
+      "name": "fingpt_alternative_demo.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 14.4541015625,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "train_real_aapl_simple.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 13.5244140625,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "train_aapl_limited_real.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 13.251953125,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "fingpt_llama_demo.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 12.6220703125,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "test_observability_setup.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 8.0615234375,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "simple_news_signal_test.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 7.720703125,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "debug_analytics_service.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 7.6259765625,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "analyze_universe_differences.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 6.935546875,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "demo_time_navigation.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 4.2802734375,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "debug_arrayrecord_api.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 4.015625,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "debug_comprehensive_features.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 3.6826171875,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "debug_analytics_content.py",
+      "type": "file",
+      "category": "debug/demo/test_script",
+      "size_kb": 2.1103515625,
+      "reason": "Development/debug script not needed in production",
+      "action": "remove_file",
+      "safety": "high"
+    },
+    {
+      "name": "src/services/analytics_service.py",
+      "type": "file_with_unused_imports",
+      "category": "unused_imports",
+      "unused_imports": 3,
+      "imports": [
+        {
+          "line": "from dataclasses import asdict",
+          "imported_name": "asdict",
+          "usage_count": 1
+        },
+        {
+          "line": "from core.platform.database.connection_manager import get_connection_manager",
+          "imported_name": "get_connection_manager",
+          "usage_count": 1
+        },
+        {
+          "line": "from core.platform.config.settings import get_settings",
+          "imported_name": "get_settings",
+          "usage_count": 1
+        }
+      ],
+      "reason": "3 potentially unused imports",
+      "action": "remove_unused_imports",
+      "safety": "high"
+    },
+    {
+      "name": "src/observability/cleanup_detector.py",
+      "type": "file_with_unused_imports",
+      "category": "unused_imports",
+      "unused_imports": 2,
+      "imports": [
+        {
+          "line": "import subprocess",
+          "imported_name": "subprocess",
+          "usage_count": 1
+        },
+        {
+          "line": "import importlib.util",
+          "imported_name": "importlib",
+          "usage_count": 1
+        }
+      ],
+      "reason": "2 potentially unused imports",
+      "action": "remove_unused_imports",
+      "safety": "high"
+    },
+    {
+      "name": "src/observability/database_usage_tracker.py",
+      "type": "file_with_unused_imports",
+      "category": "unused_imports",
+      "unused_imports": 1,
+      "imports": [
+        {
+          "line": "from psycopg2.extensions import cursor as PgCursor",
+          "imported_name": "PgCursor",
+          "usage_count": 1
+        }
+      ],
+      "reason": "1 potentially unused imports",
+      "action": "remove_unused_imports",
+      "safety": "high"
+    }
+  ]
+}

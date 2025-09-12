@@ -6,15 +6,16 @@ Coordinates fetching and storing economic events from multiple vendors.
 
 import asyncpg
 import logging
-from datetime import date
+from datetime import date, datetime
 from typing import List, Dict, Any, Optional
 
 from core.platform.config.environment import Environment
-from core.dao.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
-from vendor.polygon.economic_events_client import PolygonEconomicEventsClient
-from vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
-from vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient
-from economic_events.fred_client import FREDEconomicClient
+from core.dao.analytics.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
+from infrastructure.vendor.polygon.economic_events_client import PolygonEconomicEventsClient
+from infrastructure.vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
+from infrastructure.vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient
+from infrastructure.vendor.eodhd.economic_events_client import EODHDEconomicEventsClient
+from domains.analytics.services.economic_events.fred_client import FREDEconomicClient
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +32,13 @@ class EconomicEventsPopulationService:
         self.polygon_client: Optional[PolygonEconomicEventsClient] = None
         self.tiingo_client: Optional[TiingoEconomicEventsClient] = None
         self.alpha_vantage_client: Optional[AlphaVantageEconomicClient] = None
+        self.eodhd_client: Optional[EODHDEconomicEventsClient] = None
         self.fred_client: Optional[FREDEconomicClient] = None
 
     def initialize_clients(self, polygon_api_key: Optional[str] = None,
                           tiingo_api_key: Optional[str] = None,
                           alpha_vantage_api_key: Optional[str] = None,
+                          eodhd_api_key: Optional[str] = None,
                           fred_api_key: Optional[str] = None):
         """
         Initialize API clients with provided keys.
@@ -44,6 +47,7 @@ class EconomicEventsPopulationService:
             polygon_api_key: Polygon API key
             tiingo_api_key: Tiingo API key
             alpha_vantage_api_key: Alpha Vantage API key
+            eodhd_api_key: EODHD API key
             fred_api_key: FRED API key
         """
         if polygon_api_key:
@@ -57,6 +61,10 @@ class EconomicEventsPopulationService:
         if alpha_vantage_api_key:
             self.alpha_vantage_client = AlphaVantageEconomicClient(alpha_vantage_api_key)
             logger.info("Initialized Alpha Vantage Economic client")
+
+        if eodhd_api_key:
+            self.eodhd_client = EODHDEconomicEventsClient(eodhd_api_key)
+            logger.info("Initialized EODHD Economic Events client")
 
         if fred_api_key:
             self.fred_client = FREDEconomicClient(fred_api_key)
@@ -80,7 +88,7 @@ class EconomicEventsPopulationService:
         logger.info(f"Starting economic events population for {start_date} to {end_date}")
 
         if vendors is None:
-            vendors = ["polygon", "tiingo", "alpha_vantage", "fred"]
+            vendors = ["polygon", "tiingo", "alpha_vantage", "eodhd", "fred"]
 
         results = {
             "start_date": start_date,
@@ -140,6 +148,8 @@ class EconomicEventsPopulationService:
             return await self._populate_from_tiingo(start_date, end_date, min_importance)
         elif vendor == "alpha_vantage" and self.alpha_vantage_client:
             return await self._populate_from_alpha_vantage(start_date, end_date, min_importance)
+        elif vendor == "eodhd" and self.eodhd_client:
+            return await self._populate_from_eodhd(start_date, end_date, min_importance)
         elif vendor == "fred" and self.fred_client:
             return await self._populate_from_fred(start_date, end_date, min_importance)
         else:
@@ -250,6 +260,70 @@ class EconomicEventsPopulationService:
             logger.error(f"Error populating from Alpha Vantage: {e}")
             return {"error": str(e), "events_processed": 0, "events_stored": 0}
 
+    async def _populate_from_eodhd(self, start_date: date, end_date: date,
+                                 min_importance: int) -> Dict[str, Any]:
+        """Populate events from EODHD."""
+        try:
+            # Fetch economic calendar events
+            calendar_events = await self.eodhd_client.fetch_economic_events(start_date, end_date)
+
+            # Fetch macro indicators (recent data)
+            macro_events = await self.eodhd_client.fetch_macro_indicators()
+
+            # Combine all events
+            all_raw_events = []
+            events_stored = 0
+
+            # Process calendar events
+            for raw_event in calendar_events:
+                try:
+                    parsed_event = self.eodhd_client.parse_eodhd_event(raw_event)
+
+                    # Skip if importance too low
+                    if parsed_event.get("importance", 0) < min_importance:
+                        continue
+
+                    all_raw_events.append(raw_event)
+
+                    # Store event
+                    await self._store_economic_event(parsed_event, "eodhd")
+                    events_stored += 1
+
+                except Exception as e:
+                    logger.error(f"Error storing EODHD calendar event: {e}")
+
+            # Process macro indicators
+            for raw_indicator in macro_events:
+                try:
+                    parsed_event = self.eodhd_client.parse_macro_indicator(raw_indicator)
+
+                    # Skip if importance too low
+                    if parsed_event.get("importance", 0) < min_importance:
+                        continue
+
+                    # Only include recent macro data (within date range)
+                    if parsed_event.get("event_date") and start_date <= parsed_event["event_date"] <= end_date:
+                        all_raw_events.append(raw_indicator)
+
+                        # Store event
+                        await self._store_economic_event(parsed_event, "eodhd")
+                        events_stored += 1
+
+                except Exception as e:
+                    logger.error(f"Error storing EODHD macro indicator: {e}")
+
+            return {
+                "events_processed": len(all_raw_events),
+                "events_stored": events_stored,
+                "source": "eodhd",
+                "calendar_events": len(calendar_events),
+                "macro_events": len([e for e in macro_events if start_date <= datetime.strptime(e.get("Date", "1900-01-01"), "%Y-%m-%d").date() <= end_date])
+            }
+
+        except Exception as e:
+            logger.error(f"Error populating from EODHD: {e}")
+            return {"error": str(e), "events_processed": 0, "events_stored": 0}
+
     async def _populate_from_fred(self, start_date: date, end_date: date,
                                 min_importance: int) -> Dict[str, Any]:
         """Populate events from FRED."""
@@ -336,6 +410,8 @@ class EconomicEventsPopulationService:
                     await self.dao.create_tiingo_event_data(vendor_data)
                 elif vendor == "alpha_vantage":
                     await self.dao.create_alpha_vantage_event_data(vendor_data)
+                elif vendor == "eodhd":
+                    await self.dao.create_eodhd_event_data(vendor_data)
                 elif vendor == "fred":
                     await self.dao.create_fred_event_data(vendor_data)
 

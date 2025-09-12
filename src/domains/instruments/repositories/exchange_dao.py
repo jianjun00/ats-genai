@@ -6,7 +6,7 @@ Provides data access layer for exchange entities following the established BaseD
 
 from typing import Dict, Any, List, Optional, Union
 
-from infrastructure.database.repositories.base.base_dao import BaseDAO
+from core.dao.base.base_dao import BaseDAO
 from core.security.validation.data_validators import ValidationResult
 
 

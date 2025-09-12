@@ -102,7 +102,7 @@ PLAYWRIGHT_WIDTH=1280 PLAYWRIGHT_HEIGHT=720 pytest tests/ui/ -v
 responses = []
 page.on("response", lambda r: responses.append(r))
 
-# Timing measurements  
+# Timing measurements
 start_time = time.time()
 await page.click(".dataset-card")
 load_time = time.time() - start_time
@@ -188,7 +188,7 @@ pytest tests/ui/ -k "large_dataset" -v -s
 ### ✅ Passing Tests
 - EDA page loads with unified tabs: **PASS**
 - Database/Training tabs switching: **PASS**
-- Dataset selection functionality: **PASS**  
+- Dataset selection functionality: **PASS**
 - Plotly.js chart interactions: **PASS**
 - Table sorting with indicators: **PASS**
 - Mobile responsive design: **PASS**

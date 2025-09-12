@@ -5,7 +5,7 @@
 ### **📋 REQUIREMENTS FULFILLED:**
 - ✅ **Centralized dataset service** for all metadata operations
 - ✅ **File location & record count** logic abstracted from training/EDA
-- ✅ **Client-side integration** with simple, clean interfaces  
+- ✅ **Client-side integration** with simple, clean interfaces
 - ✅ **Training job integration** using dataset service for data discovery
 - ✅ **EDA integration** with dataset-aware analysis capabilities
 - ✅ **Iterator configuration** with batch size recommendations and memory estimation
@@ -142,7 +142,7 @@ dev_training_dataset:
   - feature_count, label_count, data_quality_score
   - creation_timestamp, processing_config
 
--- File paths and locations  
+-- File paths and locations
 dev_training_dataset_files:
   - dataset_id, file_path, file_format, file_size_mb
 
@@ -159,7 +159,7 @@ Core Identity:
   - dataset_type: 'training', 'eda', 'validation'
 
 Data Characteristics:
-  - symbols: ['AAPL', 'TSLA'] 
+  - symbols: ['AAPL', 'TSLA']
   - total_sequences: 16525
   - total_records: 1000000
   - feature_count: 15
@@ -210,7 +210,7 @@ validation = client.validate_dataset_for_training(
 if validation['valid']:
     # Create data loader with optimized settings
     loader = client.create_data_loader(config)
-    
+
     # Training loop with batch iterator
     for epoch in range(num_epochs):
         for X_batch, y_batch in loader.get_batch_iterator():
@@ -232,7 +232,7 @@ analyzer = EDAAnalyzer(client)
 # Explore available datasets
 datasets = analyzer.explore_available_datasets(['AAPL', 'TSLA'])
 
-# Analyze specific dataset  
+# Analyze specific dataset
 analysis = analyzer.analyze_dataset(dataset_id=4)
 
 # Generate comprehensive report
@@ -303,7 +303,7 @@ if eda_config['processing_recommendations']['use_sampling']:
 ```
 🧪 Dataset Service Integration Tests:
    ✅ PASS: dataset_service_basic
-   ✅ PASS: dataset_client  
+   ✅ PASS: dataset_client
    ⚠️  PARTIAL: data_loading (database connectivity)
    ⚠️  PARTIAL: metadata_operations (minor bug fixed)
 

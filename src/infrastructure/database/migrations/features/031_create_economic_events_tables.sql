@@ -74,6 +74,21 @@ CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_alpha_vantage (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Economic events from EODHD
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_eodhd (
+    id SERIAL PRIMARY KEY,
+    economic_event_id INTEGER NOT NULL REFERENCES {table_prefix}economic_events(id),
+    eodhd_event_id VARCHAR(255),
+    event_name VARCHAR(500),
+    country VARCHAR(3),
+    importance VARCHAR(50),
+    period VARCHAR(100),
+    reference VARCHAR(255),
+    source VARCHAR(255),
+    raw_data JSONB, -- Store original response for debugging
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Economic events from FRED (Federal Reserve Economic Data)
 CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_fred (
     id SERIAL PRIMARY KEY,
@@ -100,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_economic_events_country ON {table_prefix}economic
 CREATE INDEX IF NOT EXISTS idx_economic_events_polygon_event_id ON {table_prefix}economic_events_polygon(economic_event_id);
 CREATE INDEX IF NOT EXISTS idx_economic_events_tiingo_event_id ON {table_prefix}economic_events_tiingo(economic_event_id);
 CREATE INDEX IF NOT EXISTS idx_economic_events_alpha_vantage_event_id ON {table_prefix}economic_events_alpha_vantage(economic_event_id);
+CREATE INDEX IF NOT EXISTS idx_economic_events_eodhd_event_id ON {table_prefix}economic_events_eodhd(economic_event_id);
 CREATE INDEX IF NOT EXISTS idx_economic_events_fred_event_id ON {table_prefix}economic_events_fred(economic_event_id);
 
 -- Create function to automatically update updated_at timestamp
