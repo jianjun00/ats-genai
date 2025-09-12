@@ -1,64 +1,53 @@
-# 📖 ATS Platform Documentation
+# 📖 ATS Platform Documentation Hub
 
-**Enterprise algorithmic trading platform - Complete documentation in 10 essential guides**
+**Enterprise algorithmic trading platform - Complete documentation in 9 essential guides**
 
 ---
 
 ## 🚀 **Quick Start (New Users)**
 
 **Get running in 15 minutes:**
-1. **[START_HERE.md](START_HERE.md)** ⭐ **Essential setup and core concepts**
-2. **[DEVELOPMENT.md](DEVELOPMENT.md)** ⭐ **Complete development workflow** 
-3. **[DEPLOYMENT.md](DEPLOYMENT.md)** ⭐ **All deployment strategies**
+1. **[01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)** ⭐ **Essential 15-minute setup and core concepts**
+2. **[02_DEVELOPMENT_GUIDE.md](02_DEVELOPMENT_GUIDE.md)** ⭐ **Complete development workflow and TDD** 
+3. **[03_INFRASTRUCTURE_OPERATIONS.md](03_INFRASTRUCTURE_OPERATIONS.md)** ⭐ **Infrastructure and daily operations**
 
 ---
 
-## 📚 **Complete Documentation (15 Essential Guides)**
+## 📚 **Complete Documentation (9 Essential Guides)**
 
-### **🎯 Platform Essentials**
-1. **[README.md](README.md)** - This navigation hub
-2. **[START_HERE.md](START_HERE.md)** - 15-minute setup guide
-3. **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow, TDD, CI/CD
-4. **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment strategies and GitOps
+### **🎯 Core Platform**
+1. **[01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)** - 15-minute setup, service architecture, verification
+2. **[02_DEVELOPMENT_GUIDE.md](02_DEVELOPMENT_GUIDE.md)** - TDD workflow, testing, quality standards
+3. **[03_INFRASTRUCTURE_OPERATIONS.md](03_INFRASTRUCTURE_OPERATIONS.md)** - Docker, databases, deployment, monitoring
 
-### **🔧 Claude Code Guidance** ⭐ **NEW**
-5. **[CLAUDE.md](../CLAUDE.md)** - Simplified core development principles for Claude Code
-6. **[DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md)** - Detailed TDD, testing protocols, quality standards
-7. **[OPERATIONS.md](OPERATIONS.md)** - Daily operations, monitoring, cron jobs, troubleshooting  
-8. **[INFRASTRUCTURE.md](INFRASTRUCTURE.md)** - Database connections, Docker networking, storage architecture
+### **🔧 Platform Integration**  
+4. **[04_API_CONFIGURATION.md](04_API_CONFIGURATION.md)** - API endpoints, authentication, environment config
+5. **[05_DATA_ML_PLATFORM.md](05_DATA_ML_PLATFORM.md)** - Data pipelines, ML training, feature engineering
+6. **[06_MONITORING_SERVICES.md](06_MONITORING_SERVICES.md)** - Service management, alerts, automation
 
-### **🏗️ Technical Architecture**  
-9. **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** - Complete technical architecture
-10. **[BACKEND_PLATFORM.md](BACKEND_PLATFORM.md)** - APIs, services, authentication
-11. **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)** - Data pipelines, storage, ETL
-12. **[DATABASE_ENVIRONMENTS.md](DATABASE_ENVIRONMENTS.md)** - Database setup, ats-dev/ats-intg environments
-13. **[ML_PLATFORM.md](ML_PLATFORM.md)** - AI/ML training, inference, optimization
-
-### **⚙️ Additional Operations**
-14. **[ANALYTICS_DASHBOARD.md](ANALYTICS_DASHBOARD.md)** - Real-time database analytics and job management
-15. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, solutions, emergency procedures
-
-### **📋 Project Documentation**
-16. **[projects/](projects/)** - Active project requirements and design documents
+### **📈 Advanced Features**
+7. **[07_NEWS_EVENTS_SYSTEM.md](07_NEWS_EVENTS_SYSTEM.md)** - News collection, LLM analysis, signal generation
+8. **[08_TROUBLESHOOTING_FAQ.md](08_TROUBLESHOOTING_FAQ.md)** - Common issues, emergency procedures, debugging
+9. **[09_PROJECT_SPECIFICATIONS.md](09_PROJECT_SPECIFICATIONS.md)** - Active projects, features, roadmap
 
 ---
 
 ## 🎯 **Role-Based Quick Paths**
 
 ### **🔧 Backend Engineers**
-→ **[START_HERE.md](START_HERE.md)** → **[BACKEND_PLATFORM.md](BACKEND_PLATFORM.md)** → **[DEVELOPMENT.md](DEVELOPMENT.md)**
+→ **[01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)** → **[04_API_CONFIGURATION.md](04_API_CONFIGURATION.md)** → **[02_DEVELOPMENT_GUIDE.md](02_DEVELOPMENT_GUIDE.md)**
 
 ### **📊 Data Engineers**
-→ **[START_HERE.md](START_HERE.md)** → **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)** → **[DEVELOPMENT.md](DEVELOPMENT.md)**
+→ **[01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)** → **[05_DATA_ML_PLATFORM.md](05_DATA_ML_PLATFORM.md)** → **[02_DEVELOPMENT_GUIDE.md](02_DEVELOPMENT_GUIDE.md)**
 
 ### **🤖 Data Scientists**
-→ **[START_HERE.md](START_HERE.md)** → **[ML_PLATFORM.md](ML_PLATFORM.md)** → **[DATA_INFRASTRUCTURE.md](DATA_INFRASTRUCTURE.md)**
+→ **[01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)** → **[05_DATA_ML_PLATFORM.md](05_DATA_ML_PLATFORM.md)** → **[07_NEWS_EVENTS_SYSTEM.md](07_NEWS_EVENTS_SYSTEM.md)**
 
 ### **☁️ DevOps Engineers**
-→ **[DEPLOYMENT.md](DEPLOYMENT.md)** → **[OPERATIONS.md](OPERATIONS.md)** → **[ANALYTICS_DASHBOARD.md](ANALYTICS_DASHBOARD.md)** → **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
+→ **[03_INFRASTRUCTURE_OPERATIONS.md](03_INFRASTRUCTURE_OPERATIONS.md)** → **[06_MONITORING_SERVICES.md](06_MONITORING_SERVICES.md)** → **[08_TROUBLESHOOTING_FAQ.md](08_TROUBLESHOOTING_FAQ.md)**
 
 ### **👥 Product Managers**
-→ **[START_HERE.md](START_HERE.md)** → **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** → All platform docs
+→ **[01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)** → **[09_PROJECT_SPECIFICATIONS.md](09_PROJECT_SPECIFICATIONS.md)** → All platform docs
 
 ---
 
@@ -67,10 +56,10 @@
 ### **🆘 Critical Issues**
 ```bash
 # System health check
-kubectl cluster-info && kubectl get pods -n ats-dev
+python scripts/run_dev.py status && python scripts/run_intg.py status
 python scripts/run_dev.py query --query "SELECT 1"
 
-# Emergency contacts
+# Emergency contacts  
 Slack: #incident-response
 Platform Team: @team-lead
 ```
@@ -78,90 +67,142 @@ Platform Team: @team-lead
 ### **📊 Key Commands**  
 ```bash
 # Development
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices"
-python scripts/run_dev.py deploy --file k8s/job.yaml
-python scripts/run_dev.py logs --job job-name
+python scripts/run_dev.py setup                    # Complete dev environment setup
+python scripts/run_dev.py query --query "SQL"     # Database queries
+python scripts/run_dev.py test                     # Run test suite
+python scripts/run_dev.py start --service postgres # Start services
 
 # Operations
-kubectl get all -n ats-dev
-kubectl logs -f deployment/service-name -n ats-dev
+python scripts/run_intg.py status                  # Integration environment status
+curl -f http://localhost:3000/health              # ATS-DEV health
+curl -f http://localhost:4000/health              # ATS-INTG health
 ```
 
-### **🌐 API Endpoints Quick Reference**
+### **🌐 Service Endpoints Quick Reference**
 ```bash
 # ATS-DEV Environment (Development)
 http://localhost:3000/health          # Analytics health check
 http://localhost:3000/eda            # EDA Dashboard interface
 http://localhost:8000/health          # API health check
+postgresql://postgres:dev_password@localhost:3432/dev_db
 
 # ATS-INTG Environment (Integration Testing)  
 http://localhost:4000/health          # Analytics health check
 http://localhost:4000/eda            # EDA Dashboard interface
 http://localhost:4080/metrics        # Prometheus metrics
 http://localhost:4002/               # Grafana dashboards (admin/admin)
+postgresql://postgres:intg_password@localhost:4432/intg_db
 
-# How to find endpoints
+# Service discovery
 python scripts/run_dev.py status     # Check running services
-./scripts/get_external_access.sh service-name    # Get service endpoints
+docker ps | grep -E "(ats-dev|intg)"  # Container status with ports
 ```
-
-**📖 Complete API reference**: See [START_HERE.md - API Endpoints](START_HERE.md#🌐-api-endpoints-reference)
-
----
-
-## 🎯 **Success Criteria**
-
-**You're ready to contribute when you can:**
-- [ ] Complete the 15-minute setup in START_HERE.md
-- [ ] Deploy a service and access it externally  
-- [ ] Write failing test → implement code → see test pass
-- [ ] Navigate to the right documentation for your role
-- [ ] Resolve common issues using TROUBLESHOOTING.md
-
----
-
-## 📋 **Active Projects**
-
-### **🏗️ 30-Year Daily Price History System**
-**Status**: Ready for implementation | **Timeline**: 6-8 weeks | **Owner**: Data Infrastructure Team
-
-Complete historical daily price database covering all US stocks and critical market factor ETFs from 1995-2025.
-
-**Quick Links:**
-- **[Project Overview](projects/30year-price-history/README.md)** - Executive summary and getting started
-- **[PRD](projects/30year-price-history/PRD_30_Year_Daily_Price_History.md)** - Business requirements and success metrics  
-- **[DRD](projects/30year-price-history/DRD_30_Year_Daily_Price_History.md)** - Technical architecture and implementation
-
-**Key Deliverables:**
-- ✅ **30-year coverage**: 1995-2025 daily OHLCV data
-- ✅ **Complete universe**: 4,000+ stocks, 250+ critical ETFs (including TLT, HYG, UUP)
-- ✅ **99.95% accuracy**: Multi-vendor validation (Polygon, EODHD, Alpha Vantage)
-- ✅ **<100ms queries**: Optimized for backtesting workloads
 
 ---
 
 ## 🏗️ **What Is ATS?**
 
 **ATS is a Docker-first fintech platform** for algorithmic trading:
-- **🎯 AI-Powered Portfolio Recommendations** - Hourly ML-driven investment signals
-- **📊 Multi-Vendor Data Infrastructure** - Polygon, Tiingo, Alpha Vantage, FMP integration  
-- **🔑 Centralized API Key Management** - Automatic authentication across all vendors ([docs](API_KEY_MANAGEMENT.md))
+
+### **🎯 Core Capabilities**
+- **AI-Powered Portfolio Recommendations** - Hourly ML-driven investment signals
+- **📊 Multi-Vendor Data Infrastructure** - Polygon, Tiingo, EODHD, FMP integration  
+- **🔑 Centralized API Key Management** - Automatic authentication across all vendors
 - **🤖 Smart Money Zone Detection** - Institutional flow analysis and pattern recognition
-- **☸️ Enterprise Kubernetes Architecture** - Scalable, reliable, production-ready
+- **🐳 Enterprise Docker Architecture** - Scalable, reliable, production-ready
 - **🔄 Complete MLOps Pipeline** - Automated training, validation, deployment, monitoring
 
-**Target Users:** Retail traders, RIAs, family offices, institutional investors
+### **🚀 Technical Architecture**
+- **Languages**: Python, SQL, JavaScript
+- **Databases**: PostgreSQL with TimescaleDB
+- **Containers**: Docker with GPU support
+- **ML Platform**: PyTorch, Ray distributed computing
+- **APIs**: RESTful APIs with real-time data
+- **Testing**: Pytest, Playwright for browser testing
+- **Monitoring**: Prometheus, Grafana, SigNoz
+
+### **🎯 Target Users**
+Retail traders, RIAs, family offices, institutional investors
 
 ---
 
 ## 🚨 **Critical Development Rules**
 
+### **Mandatory Development Standards**
 - **🐳 Docker-First** - All development in Docker containers (`python scripts/run_dev.py`)
 - **🧪 Test-Driven Development** - Write failing tests first, then implement
 - **🚫 No Demo Data** - Real data only in dev/staging/prod environments  
 - **✅ End-to-End Validation** - Complete pipeline must work before claiming done
 - **🔍 Schema Validation First** - Prevent database errors with validation
+- **🎫 GitHub Issue Required** - Before any work
+- **🌿 Feature Branches Only** - NEVER commit to main
+
+### **Zero Tolerance Policies**
+- **No mock/synthetic data** outside unit tests
+- **No new files** without exhaustive search for existing functionality
+- **No superficial testing** (file exists, 200 OK responses)
+- **No completion claims** without thorough validation
+- **Debug-first methodology** - understand root causes before fixes
 
 ---
 
-**🎉 Welcome to ATS! These 12 guides contain everything you need to build enterprise algorithmic trading infrastructure.**
+## 📋 **Active Projects**
+
+### **🏗️ Multi-Timeframe OHLC Signals System**
+**Status**: Production Ready | **Timeline**: Deployed | **Owner**: ML Team
+
+Complete multi-timeframe technical analysis signals for enhanced trading decisions.
+- **Quick Links**: [09_PROJECT_SPECIFICATIONS.md#multi-timeframe-ohlc-signals](09_PROJECT_SPECIFICATIONS.md#1-multi-timeframe-ohlc-signals-system)
+
+### **🎨 ATS EDA (Exploratory Data Analysis) Tool**
+**Status**: Production Deployed | **Timeline**: Active | **Owner**: Analytics Team
+
+Interactive web-based tool for exploring training datasets, sequences, and feature analysis.
+- **Access**: http://localhost:3000/eda
+- **Quick Links**: [09_PROJECT_SPECIFICATIONS.md#ats-eda-tool](09_PROJECT_SPECIFICATIONS.md#2-ats-eda-exploratory-data-analysis-tool)
+
+### **📰 LLM News Signal Extraction System**
+**Status**: Integration Testing | **Timeline**: Q1 2025 | **Owner**: NLP Team
+
+Extract trading signals from news articles using large language models and sentiment analysis.
+- **Quick Links**: [07_NEWS_EVENTS_SYSTEM.md](07_NEWS_EVENTS_SYSTEM.md) | [09_PROJECT_SPECIFICATIONS.md#llm-news-signals](09_PROJECT_SPECIFICATIONS.md#3-llm-news-signal-extraction-system)
+
+---
+
+## ✅ **Documentation Validation**
+
+### **Coverage Verification**
+All essential ATS platform functionality is covered across the 9 guides:
+
+- ✅ **Setup & Onboarding** - Covered in Guide 1
+- ✅ **Development Workflow** - Covered in Guide 2  
+- ✅ **Infrastructure & Operations** - Covered in Guide 3
+- ✅ **API Integration** - Covered in Guide 4
+- ✅ **Data & ML Platform** - Covered in Guide 5
+- ✅ **Monitoring & Services** - Covered in Guide 6
+- ✅ **News & Events** - Covered in Guide 7
+- ✅ **Troubleshooting** - Covered in Guide 8
+- ✅ **Project Specifications** - Covered in Guide 9
+
+### **No Duplication**
+- Each guide covers distinct functionality areas
+- Cross-references used instead of content duplication
+- All guides under 30k characters
+- Total consolidation: 37 original docs → 9 comprehensive guides
+
+---
+
+## 🎯 **Success Criteria**
+
+**You're ready to contribute when you can:**
+- [ ] Complete the 15-minute setup in Guide 1
+- [ ] Deploy a service and access it externally  
+- [ ] Write failing test → implement code → see test pass
+- [ ] Navigate to the right documentation for your role
+- [ ] Resolve common issues using the troubleshooting guide
+
+---
+
+**🎉 Welcome to ATS! These 9 comprehensive guides contain everything you need to build enterprise algorithmic trading infrastructure.**
+
+**📖 For immediate help: Start with [01_QUICKSTART_GUIDE.md](01_QUICKSTART_GUIDE.md)**
