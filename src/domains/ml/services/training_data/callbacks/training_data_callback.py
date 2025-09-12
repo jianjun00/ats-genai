@@ -11,6 +11,7 @@ from datetime import datetime, date
 from typing import Any, Optional, List, Dict, Union
 from pathlib import Path
 import json
+from dateutil.relativedelta import relativedelta
 
 from domains.trading.services.state.runner_callback import RunnerCallback
 # TrainingDataConfig is imported from the specific runner that uses this callback
@@ -32,27 +33,45 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                  storage_format: str = "arrayrecord",
                  output_dir: str = "/data/training_data",
                  start_date: Optional[Union[str, date]] = None,
-                 end_date: Optional[Union[str, date]] = None):
+                 end_date: Optional[Union[str, date]] = None,
+                 start_day_offset: int = 0,
+                 end_day_offset: int = 0,
+                 collection_start_date: Optional[Union[str, date]] = None,
+                 collection_end_date: Optional[Union[str, date]] = None):
         """Initialize interval-based callback.
         
         Args:
             start_date: Start date for training data range (YYYY-MM-DD string or date object)
             end_date: End date for training data range (YYYY-MM-DD string or date object)
+            start_day_offset: Days to extend backwards for data collection
+            end_day_offset: Days to extend forwards for data collection
+            collection_start_date: Actual start date for data collection (with offset)
+            collection_end_date: Actual end date for data collection (with offset)
         """
         self.symbols = symbols
         self.config = config  # Use provided config or None
         self.storage_format = storage_format
         self.output_dir = Path(output_dir)
         
-        # FIXED: Store full date range for single symbol directory creation
+        # Store target date range (for file naming and saving)
         self.start_date = self._parse_date(start_date) if start_date else None
         self.end_date = self._parse_date(end_date) if end_date else None
+        
+        # Store collection window (for data processing)
+        self.start_day_offset = start_day_offset
+        self.end_day_offset = end_day_offset
+        self.collection_start_date = self._parse_date(collection_start_date) if collection_start_date else self.start_date
+        self.collection_end_date = self._parse_date(collection_end_date) if collection_end_date else self.end_date
 
         self.logger = logging.getLogger(__name__)
         self.training_generator = None
         self.interval_counter = 0
 
         # 🚨 CRITICAL: Store ArrayRecord writers to append intervals over time
+        # NEW: Track monthly file metadata for database storage
+        self.monthly_file_paths = {}  # {symbol_timeframe_YYYY_MM: file_path}
+        self.monthly_record_counts = {}  # {symbol_timeframe_YYYY_MM: count}
+        self.monthly_file_sizes = {}  # {symbol_timeframe_YYYY_MM: size_mb}
         # This prevents OOM by streaming data instead of accumulating in memory
         self.array_record_writers = {}  # Dict[file_path_str, writer]
         self.dataset_initialized = False
@@ -197,17 +216,24 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
     async def _stream_training_examples_to_writers(self, examples: List[Dict], current_time: datetime):
         """
-        🚨 CRITICAL FIX (September 10, 2025): Handle timeframe_features structure properly
+        NEW MONTHLY STREAMING: Filter by target date range and write to monthly files.
         
-        ISSUE: Training examples had nested timeframe_features structure but original streaming
-               method expected simple OHLCV intervals, causing examples to be generated but never written.
-        IMPACT: ArrayRecord files remained empty despite successful training example generation.
-        SOLUTION: New method to convert timeframe_features → interval_record → ArrayRecord files.
-        
-        Converts nested timeframe_features structure to individual ArrayRecord files per timeframe.
-        Example: {timeframe_features: {5m: {5m_open: 205.27, ...}, 1h: {...}}} → separate files
+        CHANGES:
+        - Only save data within target date range (not expanded collection window)
+        - Route data to appropriate monthly ArrayRecord files
+        - Use new file key structure: symbol_timeframe_YYYY_MM
         """
-        print(f"🔄 DEBUG: Processing {len(examples)} training examples for streaming")
+        print(f"🔄 DEBUG: Processing {len(examples)} training examples for monthly streaming")
+        
+        # CRITICAL: Only save data within target date range, not collection window
+        current_date = current_time.date()
+        if current_date < self.start_date or current_date > self.end_date:
+            print(f"⏭️ DEBUG: Skipping {current_time} - outside target range ({self.start_date} to {self.end_date})")
+            return
+        
+        # Determine which month this data belongs to
+        year_month_str = current_date.strftime('%Y_%m')
+        print(f"📅 DEBUG: Saving data for month {year_month_str}")
         
         try:
             for example_idx, example in enumerate(examples):
@@ -221,7 +247,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 print(f"🎯 DEBUG: Processing example {example_idx} for symbol {symbol}")
                 print(f"📊 DEBUG: Available timeframes: {list(timeframe_features.keys())}")
                 
-                # Stream each timeframe to its respective ArrayRecord file
+                # Stream each timeframe to its respective monthly ArrayRecord file
                 for timeframe, features in timeframe_features.items():
                     if not isinstance(features, dict) or not features:
                         print(f"⚠️ DEBUG: Skipping {timeframe} - empty or invalid features")
@@ -246,14 +272,21 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                         indicator_name = key.split('_', 1)[1]  # Remove timeframe prefix
                         interval_record[indicator_name] = value
                     
-                    # Write to appropriate ArrayRecord file
-                    file_key = f"{symbol}_{timeframe}"
-                    if file_key in self.array_record_writers:
-                        writer = self.array_record_writers[file_key]
-                        print(f"📝 DEBUG: Writing {timeframe} record for {symbol} with {len(interval_record)} fields")
+                    # Write to appropriate monthly ArrayRecord file
+                    monthly_file_key = f"{symbol}_{timeframe}_{year_month_str}"
+                    if monthly_file_key in self.array_record_writers:
+                        writer = self.array_record_writers[monthly_file_key]
+                        print(f"📝 DEBUG: Writing {timeframe} record for {symbol} month {year_month_str} with {len(interval_record)} fields")
                         await self._write_interval_to_writer(writer, symbol, interval_record)
+                        
+                        # Track record count for database storage
+                        if monthly_file_key not in self.monthly_record_counts:
+                            self.monthly_record_counts[monthly_file_key] = 0
+                        self.monthly_record_counts[monthly_file_key] += 1
+                        
                     else:
-                        print(f"❌ DEBUG: No writer found for {file_key}")
+                        print(f"❌ DEBUG: No monthly writer found for {monthly_file_key}")
+                        print(f"   Available writers: {list(self.array_record_writers.keys())[:5]}...")
                         
             print(f"✅ DEBUG: Completed streaming {len(examples)} examples to ArrayRecord files")
             
@@ -264,67 +297,182 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
     async def _initialize_dataset_structure(self):
         """
-        Initialize ArrayRecord writers ONCE for the entire training period.
+        Initialize ArrayRecord writers for MONTHLY storage.
         
-        CRITICAL: Create writers at the start, keep them open for streaming.
-        This prevents OOM by never accumulating data in memory.
+        NEW MONTHLY APPROACH:
+        - Create separate files for each month within target date range
+        - File structure: /data/training_data/{dataset_id}/SYMBOL_YYYY_MM/{timeframe}/SYMBOL_YYYY_MM.arrayrecord
+        - Only save data within target date range (not collection window)
         """
         import array_record.python.array_record_module as array_record
+        from datetime import date, timedelta
+        from dateutil.relativedelta import relativedelta
         
         try:
             # Get dataset_id from callback (set by runner)
             dataset_id = getattr(self, 'dataset_id', 'unknown_dataset')
             
-            # Calculate full date range naming
-            if self.start_date and self.end_date:
-                start_datetime = f"{self.start_date.strftime('%Y%m%d')}_000000"
-                end_datetime = f"{self.end_date.strftime('%Y%m%d')}_235959"
-            else:
+            if not self.start_date or not self.end_date:
                 # Fallback (should not happen)
-                from datetime import date
                 today = date.today()
-                start_datetime = f"{today.strftime('%Y%m%d')}_000000"
-                end_datetime = f"{today.strftime('%Y%m%d')}_235959"
+                self.start_date = today
+                self.end_date = today
             
-            print(f"🔧 INITIALIZING STREAMING ARRAYRECORD WRITERS")
+            print(f"🔧 INITIALIZING MONTHLY ARRAYRECORD WRITERS")
             print(f"   Dataset ID: {dataset_id}")
-            print(f"   Date range: {start_datetime} to {end_datetime}")
+            print(f"   Target date range: {self.start_date} to {self.end_date}")
+            print(f"   Collection window: {self.collection_start_date} to {self.collection_end_date}")
             
-            # Initialize writers for each symbol/timeframe combination
+            # Generate list of months within target date range
+            months_in_range = self._get_months_in_target_range()
+            print(f"   Monthly files to create: {len(months_in_range)} months")
+            for month_date in months_in_range:
+                print(f"     - {month_date.strftime('%Y-%m')}")
+            
+            # Initialize writers for each symbol/timeframe/month combination
             timeframes = ['5m', '15m', '1h', '1d']
             
             for symbol in self.symbols:
-                symbol_datetime_str = f"{symbol}_{start_datetime}_{end_datetime}"
-                dataset_dir = self.output_dir / str(dataset_id) / symbol_datetime_str
+                print(f"   Initializing monthly writers for {symbol}")
                 
-                print(f"   Initializing writers for {symbol}")
-                
-                for timeframe in timeframes:
-                    # Create timeframe directory
-                    timeframe_dir = dataset_dir / timeframe
-                    timeframe_dir.mkdir(parents=True, exist_ok=True)
+                for month_date in months_in_range:
+                    year_month_str = f"{symbol}_{month_date.strftime('%Y_%m')}"
+                    dataset_dir = self.output_dir / str(dataset_id) / year_month_str
                     
-                    # Create ArrayRecord file path
-                    arrayrecord_file = timeframe_dir / f"{symbol_datetime_str}.arrayrecord"
-                    
-                    # 🚨 CRITICAL: Create writer ONCE and store for streaming
-                    writer = array_record.ArrayRecordWriter(str(arrayrecord_file), 'group_size:1')
-                    
-                    # Store writer by file path for later access
-                    file_key = f"{symbol}_{timeframe}"
-                    self.array_record_writers[file_key] = writer
-                    
-                    print(f"     ✅ Created writer for {symbol} {timeframe}: {arrayrecord_file.name}")
+                    for timeframe in timeframes:
+                        # Create timeframe directory
+                        timeframe_dir = dataset_dir / timeframe
+                        timeframe_dir.mkdir(parents=True, exist_ok=True)
+                        
+                        # Create ArrayRecord file path for this month
+                        arrayrecord_file = timeframe_dir / f"{year_month_str}.arrayrecord"
+                        
+                        # Create writer ONCE and store for streaming
+                        writer = array_record.ArrayRecordWriter(str(arrayrecord_file), 'group_size:1')
+                        
+                        # Store writer by symbol_timeframe_month for later access
+                        file_key = f"{symbol}_{timeframe}_{month_date.strftime('%Y_%m')}"
+                        self.array_record_writers[file_key] = writer
+                        
+                        # Track file path for database storage
+                        self.monthly_file_paths[file_key] = str(arrayrecord_file)
+                        
+                        print(f"     ✅ Created monthly writer: {symbol} {timeframe} {month_date.strftime('%Y-%m')}")
             
-            print(f"✅ Initialized {len(self.array_record_writers)} ArrayRecord writers for streaming")
+            print(f"✅ Initialized {len(self.array_record_writers)} monthly ArrayRecord writers")
             
-            # 🚨 NEW: Save schema metadata for documentation
+            # Save schema metadata for documentation
             schema_file = self.output_dir / str(dataset_id) / "schema_metadata.json"
             self.binary_schema.save_schema_to_file(str(schema_file))
             print(f"📋 Schema metadata saved: {schema_file}")
             
         except Exception as e:
-            print(f"❌ Error initializing dataset structure: {e}")
+            print(f"❌ Error initializing monthly dataset structure: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _get_months_in_target_range(self) -> List[date]:
+        """Get list of first-day-of-month dates within target date range."""
+        from dateutil.relativedelta import relativedelta
+        
+        months = []
+        current_month = self.start_date.replace(day=1)  # First day of start month
+        end_month = self.end_date.replace(day=1)  # First day of end month
+        
+        while current_month <= end_month:
+            months.append(current_month)
+            current_month += relativedelta(months=1)
+        
+        return months
+    
+    async def _save_monthly_training_data_records(self, runner: Any):
+        """
+        Save monthly training data records to database using MonthlyTrainingDataDAO.
+        Called at the end of processing to register all generated monthly files.
+        """
+        try:
+            from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
+            from shared.utils.environment import Environment
+            
+            # Get environment and run info
+            environment = runner.get_environment()
+            run_id = getattr(self, 'run_id', None)
+            if not run_id:
+                print("⚠️ WARNING: No run_id available for monthly training data records")
+                return
+            
+            dao = MonthlyTrainingDataDAO(environment)
+            
+            # Group files by symbol and month for database records
+            symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
+            
+            for file_key, file_path in self.monthly_file_paths.items():
+                # Parse file_key: symbol_timeframe_YYYY_MM
+                parts = file_key.split('_')
+                if len(parts) < 4:
+                    continue
+                
+                symbol = parts[0]
+                timeframe = parts[1]
+                year_month = f"{parts[2]}_{parts[3]}"  # YYYY_MM
+                
+                # Convert YYYY_MM to date object (first day of month)
+                year = int(parts[2])
+                month = int(parts[3])
+                month_date = date(year, month, 1)
+                
+                # Group by symbol and month
+                key = (symbol, year_month)
+                if key not in symbol_month_records:
+                    symbol_month_records[key] = {
+                        'symbol': symbol,
+                        'year_month': month_date,
+                        'timeframe_paths': {},
+                        'total_records': 0,
+                        'file_size_mb': 0.0
+                    }
+                
+                # Add timeframe path
+                symbol_month_records[key]['timeframe_paths'][timeframe] = file_path
+                
+                # Add record count and file size
+                record_count = self.monthly_record_counts.get(file_key, 0)
+                symbol_month_records[key]['total_records'] += record_count
+                
+                # Calculate file size
+                try:
+                    file_size_bytes = Path(file_path).stat().st_size
+                    file_size_mb = file_size_bytes / (1024 * 1024)
+                    symbol_month_records[key]['file_size_mb'] += file_size_mb
+                except FileNotFoundError:
+                    print(f"⚠️ File not found for size calculation: {file_path}")
+            
+            # Create database records
+            for (symbol, year_month), record_data in symbol_month_records.items():
+                try:
+                    # Create monthly training data record
+                    monthly_record = MonthlyTrainingDataRecord(
+                        run_id=run_id,
+                        symbol=symbol,
+                        instrument_id=None,  # Could be filled later with instrument lookup
+                        year_month=record_data['year_month'],
+                        timeframe_paths=record_data['timeframe_paths'],
+                        total_records=record_data['total_records'],
+                        file_size_mb=record_data['file_size_mb'],
+                        data_quality_score=1.0,  # Default quality score
+                        status="completed"
+                    )
+                    
+                    record_id = await dao.create_monthly_record(monthly_record)
+                    print(f"✅ Saved monthly training data record: {symbol} {year_month} (ID: {record_id})")
+                    
+                except Exception as e:
+                    print(f"❌ Failed to save monthly record for {symbol} {year_month}: {e}")
+            
+            print(f"✅ Saved {len(symbol_month_records)} monthly training data records to database")
+            
+        except Exception as e:
+            print(f"❌ Error saving monthly training data records: {e}")
             import traceback
             traceback.print_exc()
 
@@ -626,6 +774,10 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     print(f"   ❌ Error closing writer for {file_key}: {e}")
             
             print(f"✅ Closed {len(self.array_record_writers)} ArrayRecord writers")
+            
+            # Save monthly training data records to database
+            print(f"\n💾 SAVING MONTHLY TRAINING DATA RECORDS TO DATABASE")
+            await self._save_monthly_training_data_records(runner)
             
             # Clear writers dict
             self.array_record_writers.clear()

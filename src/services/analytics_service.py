@@ -2473,6 +2473,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadBarCollectionMetrics()">📈 Bar Collection Metrics</button>
                 <button onclick="loadUniverseAnalytics()">🌐 Universe Analytics</button>
                 <button onclick="loadTrainingDatasets()">🤖 Training Datasets</button>
+                <button onclick="loadMonthlyTrainingData()">📅 Monthly Training Data</button>
                 <button onclick="loadNewsEvents()">📰 News Events</button>
                 <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
                 <button onclick="loadGapEvents()">⚡ Gap Events</button>
@@ -4779,6 +4780,265 @@ async function loadUniverseAnalytics() {
 
                 console.log('🎮 Time Navigation initialized. Keyboard shortcuts: ← → (prev/next), Home/End (first/last)');
 
+                // Monthly Training Data Table
+                async function loadMonthlyTrainingData() {
+                    document.getElementById('analysis-content').innerHTML = `
+                        <h3>📅 Monthly Training Data</h3>
+                        <p>Loading monthly training data records...</p>
+                    `;
+
+                    try {
+                        const response = await fetch('/api/v1/monthly-training-data');
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        const data = await response.json();
+                        
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to load monthly training data');
+                        }
+
+                        let html = `
+                            <h3>📅 Monthly Training Data Browser</h3>
+                            
+                            <!-- Filters -->
+                            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                                <h4>🔍 Filters</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
+                                    <div>
+                                        <label for="symbol-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Symbols:</label>
+                                        <input type="text" id="symbol-filter" placeholder="e.g., AAPL,TSLA" 
+                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label for="status-filter" style="display: block; margin-bottom: 5px; font-weight: bold;">Status:</label>
+                                        <select id="status-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="">All Status</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="failed">Failed</option>
+                                            <option value="processing">Processing</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="sort-by" style="display: block; margin-bottom: 5px; font-weight: bold;">Sort By:</label>
+                                        <select id="sort-by" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="created_at">Created Date</option>
+                                            <option value="symbol">Symbol</option>
+                                            <option value="year_month">Month</option>
+                                            <option value="total_records">Record Count</option>
+                                            <option value="data_quality_score">Quality Score</option>
+                                        </select>
+                                    </div>
+                                    <button onclick="filterMonthlyTrainingData()" 
+                                            style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                        Apply Filters
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Summary Stats -->
+                            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                                <h4>📊 Summary Statistics</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                    ${data.summary.map(stat => `
+                                        <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; text-align: center;">
+                                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">${stat.symbol}</div>
+                                            <div style="font-size: 14px; color: #666; margin: 5px 0;">${stat.total_months} months</div>
+                                            <div style="font-size: 12px; color: #666;">${stat.total_records?.toLocaleString() || 0} records</div>
+                                            <div style="font-size: 12px; color: #666;">Quality: ${(stat.avg_quality_score * 100).toFixed(1)}%</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- Data Table -->
+                            <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                                <h4>📋 Monthly Training Data Records (${data.data.length} records)</h4>
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                        <thead>
+                                            <tr style="background: #f8f9fa; border-bottom: 2px solid #ddd;">
+                                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Symbol</th>
+                                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Month</th>
+                                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Records</th>
+                                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Size (MB)</th>
+                                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Quality</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">Status</th>
+                                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="monthly-data-table-body">
+                                            ${data.data.map(record => {
+                                                const statusColor = record.status === 'completed' ? '#28a745' : 
+                                                                  record.status === 'failed' ? '#dc3545' : '#ffc107';
+                                                const qualityPercent = (record.data_quality_score * 100).toFixed(1);
+                                                
+                                                return `
+                                                    <tr style="border-bottom: 1px solid #eee;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
+                                                        <td style="padding: 12px; font-weight: bold;">${record.symbol}</td>
+                                                        <td style="padding: 12px;">${record.year_month}</td>
+                                                        <td style="padding: 12px; text-align: right;">${record.total_records?.toLocaleString() || 0}</td>
+                                                        <td style="padding: 12px; text-align: right;">${record.file_size_mb?.toFixed(2) || 0}</td>
+                                                        <td style="padding: 12px; text-align: right;">${qualityPercent}%</td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                                                                ${record.status}
+                                                            </span>
+                                                        </td>
+                                                        <td style="padding: 12px; text-align: center;">
+                                                            <button onclick="visualizeMonthlyRecord(${record.id}, '${record.symbol}', '${record.year_month}')" 
+                                                                    style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                                📊 Visualize
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Visualization Panel (hidden initially) -->
+                            <div id="monthly-visualization-panel" style="display: none; background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-top: 20px;">
+                                <h4 id="visualization-title">📊 Multi-Timeframe Visualization</h4>
+                                <div id="visualization-content">
+                                    <!-- Multi-timeframe charts will be loaded here -->
+                                </div>
+                            </div>
+                        `;
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        console.error('Error loading monthly training data:', error);
+                        document.getElementById('analysis-content').innerHTML = `
+                            <h3>📅 Monthly Training Data</h3>
+                            <div style="background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; border-radius: 8px;">
+                                <strong>Error:</strong> ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+
+                // Filter monthly training data
+                async function filterMonthlyTrainingData() {
+                    const symbols = document.getElementById('symbol-filter').value;
+                    const status = document.getElementById('status-filter').value;
+                    const sortBy = document.getElementById('sort-by').value;
+                    
+                    let url = '/api/v1/monthly-training-data?';
+                    if (symbols) url += `symbols=${encodeURIComponent(symbols)}&`;
+                    if (status) url += `status=${encodeURIComponent(status)}&`;
+                    if (sortBy) url += `order_by=${encodeURIComponent(sortBy)}&`;
+                    
+                    try {
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            // Update table body only
+                            const tableBody = document.getElementById('monthly-data-table-body');
+                            tableBody.innerHTML = data.data.map(record => {
+                                const statusColor = record.status === 'completed' ? '#28a745' : 
+                                                  record.status === 'failed' ? '#dc3545' : '#ffc107';
+                                const qualityPercent = (record.data_quality_score * 100).toFixed(1);
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #eee;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
+                                        <td style="padding: 12px; font-weight: bold;">${record.symbol}</td>
+                                        <td style="padding: 12px;">${record.year_month}</td>
+                                        <td style="padding: 12px; text-align: right;">${record.total_records?.toLocaleString() || 0}</td>
+                                        <td style="padding: 12px; text-align: right;">${record.file_size_mb?.toFixed(2) || 0}</td>
+                                        <td style="padding: 12px; text-align: right;">${qualityPercent}%</td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                                                ${record.status}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <button onclick="visualizeMonthlyRecord(${record.id}, '${record.symbol}', '${record.year_month}')" 
+                                                    style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                📊 Visualize
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }
+                    } catch (error) {
+                        console.error('Error filtering data:', error);
+                    }
+                }
+
+                // Visualize monthly training record
+                async function visualizeMonthlyRecord(recordId, symbol, yearMonth) {
+                    const panel = document.getElementById('monthly-visualization-panel');
+                    const title = document.getElementById('visualization-title');
+                    const content = document.getElementById('visualization-content');
+                    
+                    title.textContent = `📊 ${symbol} - ${yearMonth} Multi-Timeframe Visualization`;
+                    content.innerHTML = '<p>Loading visualization data...</p>';
+                    panel.style.display = 'block';
+                    
+                    try {
+                        const response = await fetch(`/api/v1/monthly-training-data/visualization?record_id=${recordId}&center_timeframe=1h&center_index=0`);
+                        const data = await response.json();
+                        
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to load visualization data');
+                        }
+                        
+                        // Create multi-timeframe chart grid
+                        let chartsHtml = `
+                            <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                                <h5>📊 Data Overview</h5>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 14px;">
+                                    ${Object.entries(data.timeframe_data_counts).map(([tf, count]) => 
+                                        `<div><strong>${tf}:</strong> ${count} points</div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        `;
+                        
+                        // Generate charts for each timeframe
+                        const timeframes = ['5m', '15m', '1h', '1d'];
+                        timeframes.forEach(timeframe => {
+                            if (data.charts[timeframe]) {
+                                chartsHtml += `
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                        <h5>${timeframe.toUpperCase()} Timeframe</h5>
+                                        <div id="chart-${timeframe}-${recordId}" style="height: 300px;"></div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        
+                        chartsHtml += '</div>';
+                        content.innerHTML = chartsHtml;
+                        
+                        // Render plotly charts
+                        timeframes.forEach(timeframe => {
+                            if (data.charts[timeframe]) {
+                                const chartId = `chart-${timeframe}-${recordId}`;
+                                Plotly.newPlot(chartId, data.charts[timeframe].data, data.charts[timeframe].layout, {responsive: true});
+                            }
+                        });
+                        
+                    } catch (error) {
+                        console.error('Error loading visualization:', error);
+                        content.innerHTML = `
+                            <div style="background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; border-radius: 8px;">
+                                <strong>Error:</strong> ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+
             </script>
         </body>
         </html>
@@ -4829,6 +5089,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     self._serve_training_dataset_visualization_data()
                 else:
                     self._serve_training_datasets()
+            elif self.path.startswith('/api/v1/monthly-training-data'):
+                if '/visualization' in self.path:
+                    self._serve_monthly_training_visualization()
+                else:
+                    self._serve_monthly_training_data_table()
             elif self.path.startswith('/api/ray-analytics/'):
                 self._serve_ray_analytics()
             elif self.path.startswith('/api/news-events'):
@@ -6033,6 +6298,292 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
         
         self.wfile.write(json.dumps(response).encode('utf-8'))
+
+    def _serve_monthly_training_data_table(self):
+        """Serve monthly training data table with filtering and sorting."""
+        from urllib.parse import urlparse, parse_qs
+        
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        
+        try:
+            # Parse query parameters for filtering and sorting
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            # Extract parameters
+            symbols = query_params.get('symbols', [])
+            symbols = symbols[0].split(',') if symbols and symbols[0] else None
+            
+            status = query_params.get('status', [None])[0]
+            limit = int(query_params.get('limit', [100])[0])
+            offset = int(query_params.get('offset', [0])[0])
+            order_by = query_params.get('order_by', ['created_at'])[0]
+            order_direction = query_params.get('order_direction', ['DESC'])[0]
+            
+            # Get data using MonthlyTrainingDataDAO
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
+                from shared.utils.environment import Environment
+                
+                # Create environment and DAO
+                environment = Environment()
+                dao = MonthlyTrainingDataDAO(environment)
+                
+                # Get monthly training data records
+                records = loop.run_until_complete(dao.list_monthly_records(
+                    symbols=symbols,
+                    status=status,
+                    limit=limit,
+                    offset=offset,
+                    order_by=order_by,
+                    order_direction=order_direction,
+                    include_instrument_details=True
+                ))
+                
+                # Convert records to JSON-serializable format
+                records_data = []
+                for record in records:
+                    record_dict = {
+                        'id': record.id,
+                        'run_id': record.run_id,
+                        'symbol': record.symbol,
+                        'instrument_id': record.instrument_id,
+                        'year_month': record.year_month.isoformat() if record.year_month else None,
+                        'timeframe_paths': record.timeframe_paths,
+                        'total_records': record.total_records,
+                        'file_size_mb': record.file_size_mb,
+                        'data_quality_score': record.data_quality_score,
+                        'status': record.status,
+                        'error_message': record.error_message,
+                        'created_at': record.created_at.isoformat() if record.created_at else None,
+                        'updated_at': record.updated_at.isoformat() if record.updated_at else None,
+                        # Extended fields
+                        'instrument_name': record.instrument_name,
+                        'exchange': record.exchange,
+                        'sector': record.sector,
+                        'market_cap': record.market_cap
+                    }
+                    records_data.append(record_dict)
+                
+                # Get summary statistics
+                summary = loop.run_until_complete(dao.get_summary_by_symbol())
+                
+                response = {
+                    "success": True,
+                    "data": records_data,
+                    "summary": summary,
+                    "pagination": {
+                        "limit": limit,
+                        "offset": offset,
+                        "total_returned": len(records_data)
+                    },
+                    "filters_applied": {
+                        "symbols": symbols,
+                        "status": status,
+                        "order_by": order_by,
+                        "order_direction": order_direction
+                    }
+                }
+                
+            finally:
+                loop.close()
+            
+        except Exception as e:
+            logger.error(f"Error serving monthly training data table: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            response = {
+                "success": False,
+                "error": f"Failed to load monthly training data: {str(e)}"
+            }
+        
+        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+
+    def _serve_monthly_training_visualization(self):
+        """Serve monthly training data visualization with multi-timeframe plotly charts."""
+        from urllib.parse import urlparse, parse_qs
+        
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            # Extract visualization parameters
+            record_id = int(query_params.get('record_id', [0])[0])
+            center_timeframe = query_params.get('center_timeframe', ['1h'])[0]  # Default to 1h navigation
+            center_index = int(query_params.get('center_index', [0])[0])  # Index within 60m data
+            
+            if not record_id:
+                raise ValueError("record_id parameter is required")
+            
+            # Get data using MonthlyTrainingDataDAO
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
+                from shared.utils.environment import Environment
+                import array_record.python.array_record_module as array_record
+                
+                # Create environment and DAO
+                environment = Environment()
+                dao = MonthlyTrainingDataDAO(environment)
+                
+                # Get the monthly record
+                record = loop.run_until_complete(dao.get_monthly_record(record_id))
+                if not record:
+                    raise ValueError(f"No monthly training data record found with ID: {record_id}")
+                
+                # Load ArrayRecord data from timeframe paths
+                timeframe_data = {}
+                timeframes = ['5m', '15m', '1h', '1d']  # Order matters for visualization
+                
+                for timeframe in timeframes:
+                    file_path = record.timeframe_paths.get(timeframe)
+                    if not file_path:
+                        continue
+                    
+                    try:
+                        # Read ArrayRecord file
+                        reader = array_record.ArrayRecordReader(file_path)
+                        data_points = []
+                        
+                        # Read all records from the file
+                        for i in range(len(reader)):
+                            try:
+                                record_data = reader[i]
+                                # Parse binary data based on schema
+                                # This is a simplified parser - real implementation would use schema
+                                data_points.append({
+                                    'timestamp': i,  # Use index as timestamp for now
+                                    'open': float(record_data[0]) if len(record_data) > 0 else 0.0,
+                                    'high': float(record_data[1]) if len(record_data) > 1 else 0.0,
+                                    'low': float(record_data[2]) if len(record_data) > 2 else 0.0,
+                                    'close': float(record_data[3]) if len(record_data) > 3 else 0.0,
+                                    'volume': float(record_data[4]) if len(record_data) > 4 else 0.0,
+                                })
+                            except Exception as parse_error:
+                                logger.warning(f"Failed to parse record {i} in {timeframe}: {parse_error}")
+                                continue
+                        
+                        timeframe_data[timeframe] = data_points
+                        logger.info(f"Loaded {len(data_points)} data points for {timeframe}")
+                        
+                    except Exception as file_error:
+                        logger.warning(f"Failed to read {timeframe} file {file_path}: {file_error}")
+                        timeframe_data[timeframe] = []
+                
+                # Generate plotly chart configurations
+                chart_configs = self._generate_multi_timeframe_charts(
+                    timeframe_data, 
+                    record.symbol, 
+                    center_timeframe, 
+                    center_index
+                )
+                
+                response = {
+                    "success": True,
+                    "record_info": {
+                        "id": record.id,
+                        "symbol": record.symbol,
+                        "year_month": record.year_month.strftime('%Y-%m') if record.year_month else None,
+                        "total_records": record.total_records,
+                        "data_quality_score": record.data_quality_score
+                    },
+                    "timeframe_data_counts": {tf: len(data) for tf, data in timeframe_data.items()},
+                    "charts": chart_configs,
+                    "navigation": {
+                        "center_timeframe": center_timeframe,
+                        "center_index": center_index,
+                        "available_timeframes": list(timeframe_data.keys())
+                    }
+                }
+                
+            finally:
+                loop.close()
+            
+        except Exception as e:
+            logger.error(f"Error serving monthly training visualization: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            response = {
+                "success": False,
+                "error": f"Failed to load visualization data: {str(e)}"
+            }
+        
+        self.wfile.write(json.dumps(response, indent=2).encode('utf-8'))
+
+    def _generate_multi_timeframe_charts(self, timeframe_data: Dict[str, List], symbol: str, center_timeframe: str, center_index: int) -> Dict[str, Any]:
+        """Generate plotly chart configurations for multi-timeframe visualization."""
+        
+        charts = {}
+        
+        # Get center point from center_timeframe data
+        center_data = timeframe_data.get(center_timeframe, [])
+        if not center_data or center_index >= len(center_data):
+            # Fallback to middle of available data
+            center_index = len(center_data) // 2 if center_data else 0
+        
+        center_timestamp = center_data[center_index]['timestamp'] if center_data else 0
+        
+        # Generate chart for each timeframe
+        for timeframe, data_points in timeframe_data.items():
+            if not data_points:
+                continue
+            
+            # Create OHLC candlestick chart
+            chart_config = {
+                "data": [{
+                    "type": "candlestick",
+                    "x": [point['timestamp'] for point in data_points],
+                    "open": [point['open'] for point in data_points],
+                    "high": [point['high'] for point in data_points],
+                    "low": [point['low'] for point in data_points],
+                    "close": [point['close'] for point in data_points],
+                    "name": f"{symbol} {timeframe}",
+                    "increasing": {"line": {"color": "#00ff00"}},
+                    "decreasing": {"line": {"color": "#ff0000"}}
+                }],
+                "layout": {
+                    "title": f"{symbol} - {timeframe} Timeframe",
+                    "xaxis": {"title": "Time Index", "type": "linear"},
+                    "yaxis": {"title": "Price"},
+                    "height": 300,
+                    "margin": {"l": 50, "r": 50, "t": 50, "b": 50},
+                    "showlegend": False
+                }
+            }
+            
+            # Add center line if this is the center timeframe
+            if timeframe == center_timeframe:
+                chart_config["layout"]["shapes"] = [{
+                    "type": "line",
+                    "x0": center_timestamp,
+                    "x1": center_timestamp,
+                    "y0": 0,
+                    "y1": 1,
+                    "yref": "paper",
+                    "line": {"color": "blue", "width": 2, "dash": "dash"}
+                }]
+            
+            charts[timeframe] = chart_config
+        
+        return charts
 
 
 def start_unified_analytics_server(port: int = 3000):

@@ -229,6 +229,12 @@ def parse_args():
     # Date range
     parser.add_argument('--start-date', required=True, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', required=True, help='End date (YYYY-MM-DD)')
+    
+    # Day offsets for expanded data collection window
+    parser.add_argument('--start-day-offset', type=int, default=0,
+                       help='Days to extend backwards from start date for data collection (default: 0)')
+    parser.add_argument('--end-day-offset', type=int, default=0,
+                       help='Days to extend forwards from end date for data collection (default: 0)')
 
     # Configuration
     parser.add_argument('--environment', default='dev',
@@ -474,10 +480,25 @@ async def main():
     logger.info(f"✅ Environment object created successfully")
 
     # Parse and validate dates
-    from datetime import datetime as dt
+    from datetime import datetime as dt, timedelta
     try:
         start_date = dt.strptime(args.start_date, "%Y-%m-%d").date()
         end_date = dt.strptime(args.end_date, "%Y-%m-%d").date()
+        
+        # Calculate actual data collection window with offsets
+        collection_start_date = start_date - timedelta(days=args.start_day_offset)
+        collection_end_date = end_date + timedelta(days=args.end_day_offset)
+        
+        logger.info(f"📅 Date Range Configuration:")
+        logger.info(f"   Target range: {start_date} to {end_date} ({(end_date - start_date).days + 1} days)")
+        logger.info(f"   Collection window: {collection_start_date} to {collection_end_date} ({(collection_end_date - collection_start_date).days + 1} days)")
+        logger.info(f"   Start offset: {args.start_day_offset} days backward")
+        logger.info(f"   End offset: {args.end_day_offset} days forward")
+        
+        # Validate offsets
+        if args.start_day_offset < 0 or args.end_day_offset < 0:
+            logger.error(f"❌ Invalid offsets: start_day_offset and end_day_offset must be >= 0")
+            raise ValueError(f"Offsets must be non-negative: start_day_offset={args.start_day_offset}, end_day_offset={args.end_day_offset}")
         
         # Validate date range
         if end_date < start_date:
@@ -625,12 +646,59 @@ async def main():
             config=config,
             output_dir=args.output_dir,
             storage_format=args.storage_format,
-            start_date=args.start_date,  # Pass full date range
-            end_date=args.end_date
+            start_date=args.start_date,  # Pass target date range (not collection window)
+            end_date=args.end_date,
+            start_day_offset=args.start_day_offset,
+            end_day_offset=args.end_day_offset,
+            collection_start_date=collection_start_date,
+            collection_end_date=collection_end_date
         )
         
         # Pass dataset_id to callback for completion tracking
         training_callback.dataset_id = dataset_id
+        
+        # Create a run record for tracking monthly training data
+        try:
+            from services.core.app.database_manager import DatabaseManager
+            db_manager = DatabaseManager(environment)
+            
+            # Create run record for this training data generation
+            run_parameters = {
+                "symbols": args.symbols,
+                "start_date": str(start_date),
+                "end_date": str(end_date),
+                "start_day_offset": args.start_day_offset,
+                "end_day_offset": args.end_day_offset,
+                "storage_format": args.storage_format,
+                "monthly_storage": True,
+                "dataset_id": dataset_id
+            }
+            
+            async with db_manager.get_connection() as conn:
+                runs_table = environment.get_table_name("runs")
+                run_query = f"""
+                INSERT INTO {runs_table} (
+                    run_type, status, start_time, created_by, parameters
+                ) VALUES ($1, $2, $3, $4, $5)
+                RETURNING id
+                """
+                
+                run_id = await conn.fetchval(
+                    run_query,
+                    "monthly_training_data_generation",
+                    "running",
+                    datetime.now(),
+                    "training_data_callback_runner",
+                    json.dumps(run_parameters)
+                )
+            
+            # Pass run_id to callback for monthly record creation
+            training_callback.run_id = run_id
+            logger.info(f"✅ Created run record for monthly training data: {run_id}")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to create run record: {e}")
+            # Continue without run_id - monthly records won't be saved but training data will still be generated
         logger.info(f"✅ Training callback created successfully")
         logger.info(f"   Callback type: {type(training_callback).__name__}")
         logger.info(f"   Dataset ID: {dataset_id}")
@@ -640,12 +708,12 @@ async def main():
         logger.error(f"❌ Failed to create training callback: {e}")
         raise
 
-    # Create Runner with callback
+    # Create Runner with callback using expanded collection window
     try:
-        logger.debug("Creating Runner with training callback")
+        logger.debug("Creating Runner with training callback using expanded collection window")
         runner = Runner(
-            start_date=start_date.strftime("%Y-%m-%d"),
-            end_date=end_date.strftime("%Y-%m-%d"),
+            start_date=collection_start_date.strftime("%Y-%m-%d"),
+            end_date=collection_end_date.strftime("%Y-%m-%d"),
             environment=environment,
             universe_id=args.universe_id or 1,
             callbacks=[training_callback],  # ONLY the callback
@@ -653,7 +721,8 @@ async def main():
         )
         
         logger.info(f"✅ Runner created successfully")
-        logger.info(f"   Date range: {start_date} to {end_date}")
+        logger.info(f"   Target date range: {start_date} to {end_date}")
+        logger.info(f"   Collection window: {collection_start_date} to {collection_end_date}")
         logger.info(f"   Base duration: {args.base_duration}")
         logger.info(f"   Universe ID: {args.universe_id or 1}")
         logger.info(f"   Environment: {args.environment}")
@@ -671,7 +740,10 @@ async def main():
     execution_summary = {
         'symbols': args.symbols,
         'symbol_count': len(args.symbols),
-        'date_range_days': (end_date - start_date).days + 1,
+        'target_date_range_days': (end_date - start_date).days + 1,
+        'collection_date_range_days': (collection_end_date - collection_start_date).days + 1,
+        'start_day_offset': args.start_day_offset,
+        'end_day_offset': args.end_day_offset,
         'base_duration': args.base_duration,
         'output_directory': args.output_dir,
         'dataset_id': dataset_id,

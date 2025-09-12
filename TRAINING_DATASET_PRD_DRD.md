@@ -830,6 +830,228 @@ PYTHONPATH=src python3 scripts/run_dev.py query \
 
 ---
 
+## 🗓️ **CRITICAL: MONTHLY TRAINING DATA MANAGEMENT SYSTEM - SEPTEMBER 2025** 
+
+### **🎯 MONTHLY TRAINING DATA SYSTEM OVERVIEW**
+
+As of September 2025, the training data generation system has been enhanced with a comprehensive monthly training data management architecture to support enhanced EDA (Exploratory Data Analysis) capabilities and improved training data organization.
+
+#### **Key New Requirements Added**
+
+##### **R8: Monthly Training Data Generation with Offset Windows**
+- **Description**: Training data generation accepts `start_day_offset` and `end_day_offset` parameters to expand data collection windows beyond target date ranges
+- **Implementation**: Enhanced `training_data_callback_runner.py` with offset parameter support
+- **Collection Window Logic**: 
+  - **Target Range**: `[start_date, end_date]` - Data to be saved in training files
+  - **Collection Window**: `[start_date - start_day_offset, end_date + end_day_offset]` - Data to be collected for feature extraction
+  - **Use Case**: Collect 30 days of data but only save 7 days, using extra data for proper technical indicator calculation
+- **Database Integration**: Monthly tracking records linked to runs table via `run_id`
+
+##### **R9: Monthly File Storage Architecture**
+- **Description**: Training data stored as one file per month per symbol instead of daily files
+- **File Structure**: 
+  ```
+  /data/training_data/dataset_YYYYMMDD_HHMMSS/
+  ├── SYMBOL_STARTDT_ENDDT/
+  │   ├── 5m/SYMBOL_STARTDT_ENDDT.arrayrecord
+  │   ├── 15m/SYMBOL_STARTDT_ENDDT.arrayrecord  
+  │   ├── 1h/SYMBOL_STARTDT_ENDDT.arrayrecord
+  │   └── 1d/SYMBOL_STARTDT_ENDDT.arrayrecord
+  ```
+- **Benefits**: Reduced file count, better organization, easier EDA navigation
+- **Monthly Boundaries**: Data aggregated by calendar month for consistent temporal organization
+
+##### **R10: Monthly Training Data Tracking Database**
+- **Description**: Comprehensive database schema to track monthly training data with timeframe file path mapping
+- **Implementation**: New `dev_monthly_training_data` and `intg_monthly_training_data` tables
+- **Schema**:
+  ```sql
+  CREATE TABLE dev_monthly_training_data (
+      id SERIAL PRIMARY KEY,
+      run_id INTEGER NOT NULL,
+      symbol VARCHAR(10) NOT NULL,
+      instrument_id INTEGER,
+      year_month DATE NOT NULL, -- First day of month (e.g., '2025-07-01')
+      timeframe_paths JSONB DEFAULT '{}', -- {"5m": "/path/5m.arrayrecord", "15m": "/path/15m.arrayrecord"}
+      total_records INTEGER DEFAULT 0,
+      file_size_mb FLOAT DEFAULT 0.0,
+      data_quality_score FLOAT DEFAULT 0.0,
+      status VARCHAR(50) DEFAULT 'created',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      CONSTRAINT unique_dev_monthly_training_run_symbol_month UNIQUE(run_id, symbol, year_month)
+  );
+  ```
+
+##### **R11: EDA Monthly Training Data Interface**  
+- **Description**: Enhanced EDA interface with table view for filtering and sorting monthly training data records
+- **Implementation**: New EDA tab "Monthly Training Data" in analytics service
+- **Features**:
+  - **Table Interface**: Symbol, Month, Records, Size (MB), Quality Score, Status columns
+  - **Filtering**: By symbol, status, date range
+  - **Sorting**: By any column (quality score, creation date, record count)
+  - **Selection**: Click row to load data for visualization
+
+##### **R12: Multi-Timeframe Plotly Visualization**
+- **Description**: Interactive plotly.js visualization using 5m, 15m, 60m, 1d, 1w timeframes with 60m as navigation backbone
+- **Implementation**: JavaScript frontend with plotly candlestick charts
+- **Navigation Features**:
+  - **60m Navigation**: Primary timeframe for navigation (Previous/Next buttons)
+  - **Centered Display**: Other timeframes (5m, 15m, 1d, 1w) center around selected 60m record
+  - **Multi-Chart Layout**: 5 charts displayed simultaneously for comprehensive analysis
+  - **Real-time Updates**: Charts update when navigating through 60m timeframe
+- **Data Sources**: ArrayRecord files for each timeframe loaded via API endpoints
+
+#### **Database Schema Implementation**
+
+##### **Monthly Training Data DAO**
+- **Location**: `src/domains/ml/services/training_data/dao/monthly_training_data_dao.py`
+- **Core Methods**:
+  - `create_monthly_record()` - Insert monthly training data record
+  - `list_monthly_records()` - Query with filtering and sorting support
+  - `get_monthly_record()` - Retrieve single record by ID
+  - `update_monthly_record()` - Update record status and metadata
+  - `get_timeframe_paths()` - Extract timeframe paths from JSONB field
+
+##### **Training Data Generation Integration**
+- **Location**: `src/domains/ml/services/training_data/callbacks/training_data_callback.py`
+- **Enhanced Methods**:
+  - `_get_months_in_target_range()` - Calculate months within target date range
+  - `_create_monthly_database_records()` - Create database records for each month/symbol
+  - `_update_monthly_records_with_file_paths()` - Update with actual file paths after generation
+  - `_calculate_monthly_statistics()` - Compute record counts and quality scores per month
+
+#### **EDA Integration Architecture**
+
+##### **Analytics Service API Endpoints**
+- **Location**: `src/services/analytics_service.py`
+- **New Endpoints**:
+  - `GET /api/monthly-training-data` - List monthly records with filtering
+  - `GET /api/monthly-training-data/{id}/visualization` - Get visualization data for specific record
+  - `GET /api/monthly-training-data/timeframes/{timeframe}` - Get data for specific timeframe
+- **Response Formats**: JSON with timeframe file paths, metadata, and plotly-ready data structures
+
+##### **Frontend JavaScript Implementation**
+- **Interactive Table**: Dynamic filtering and sorting with real-time API calls
+- **Plotly Integration**: 
+  ```javascript
+  // Multi-timeframe chart creation
+  const timeframes = ['5m', '15m', '60m', '1d', '1w'];
+  timeframes.forEach(tf => {
+      Plotly.newPlot(`chart-${tf}`, candlestickData, layout, config);
+  });
+  
+  // 60m navigation logic
+  function navigate60m(direction) {
+      const newIndex = current60mIndex + direction;
+      updateAllTimeframes(newIndex);
+  }
+  ```
+
+#### **Command Line Interface Enhancements**
+
+##### **Enhanced Training Data Generation**
+```bash
+# New command with offset parameters
+python3 src/domains/ml/services/training_data/runners/training_data_callback_runner.py \
+  --symbols AAPL,TSLA \
+  --start-date 2024-07-01 \
+  --end-date 2024-07-30 \
+  --start-day-offset 5 \
+  --end-day-offset 2 \
+  --environment dev \
+  --storage-format arrayrecord \
+  --output-dir /data/training_data \
+  --gin-config config/training_data.gin \
+  --base-duration 60m
+```
+
+**Parameters Explained**:
+- `--start-day-offset 5`: Collect data starting 5 days before start-date for indicator calculation
+- `--end-day-offset 2`: Collect data ending 2 days after end-date for complete analysis
+- **Target Range**: July 1-30 (data saved to files)
+- **Collection Window**: June 26 - August 1 (data used for feature extraction)
+
+##### **Monthly Data Query Interface**
+```bash
+# Query monthly training data via run_dev
+python3 scripts/run_dev.py query \
+  --query "SELECT symbol, year_month, total_records, data_quality_score 
+           FROM dev_monthly_training_data 
+           WHERE symbol = 'AAPL' 
+           ORDER BY year_month DESC"
+```
+
+#### **Quality Requirements for Monthly System**
+
+##### **QR6: Monthly Data Consistency**
+- **Temporal Boundaries**: Each monthly record covers complete calendar month (1st-last day)
+- **Cross-Month Validation**: Ensure no gaps or overlaps between monthly records
+- **Timeframe Synchronization**: All timeframes (5m-1w) have data for same monthly periods
+- **File Path Integrity**: JSONB timeframe_paths must reference existing, accessible files
+
+##### **QR7: EDA Performance Requirements**
+- **Table Loading**: Monthly data table loads in <500ms for 100 records
+- **Visualization Loading**: Multi-timeframe charts render in <2 seconds
+- **Navigation Response**: 60m navigation responds in <200ms
+- **Filtering Performance**: Real-time filtering updates in <100ms
+
+##### **QR8: Monthly Data Validation**
+- **Database Integrity**: Foreign key constraints to runs and instruments tables
+- **File Existence**: All timeframe_paths reference valid ArrayRecord files
+- **Data Quality Scoring**: Monthly quality scores based on completeness and consistency
+- **Status Tracking**: Proper status transitions (created → processing → completed → failed)
+
+#### **Testing Requirements for Monthly System**
+
+##### **Unit Tests - Monthly DAO**
+- **Location**: `tests/unit/test_monthly_training_data_generation.py`
+- **Coverage**: Monthly DAO operations, date calculations, file path management
+- **Key Tests**:
+  - Monthly record CRUD operations
+  - Date range calculations with offsets
+  - JSONB timeframe path operations
+  - Database constraint validation
+
+##### **Integration Tests - End-to-End Flow**
+- **Location**: `tests/integration/test_monthly_training_data_integration.py`
+- **Coverage**: Complete monthly generation workflow, database integration, API endpoints
+- **Key Tests**:
+  - Monthly generation with offset parameters
+  - Database schema validation
+  - EDA API endpoint responses
+  - Multi-timeframe file structure
+
+##### **Playwright Tests - EDA Interface**
+- **Location**: `tests/browser_tests/test_monthly_training_data_playwright.py`
+- **Coverage**: Complete user workflow testing
+- **Key Tests**:
+  - Monthly training data table interface
+  - Multi-timeframe plotly visualization
+  - 60m navigation functionality
+  - Complete filtering and selection workflow
+
+#### **Benefits and Impact**
+
+##### **EDA Capabilities Enhancement**
+- **Temporal Organization**: Monthly view provides intuitive time-based data exploration
+- **Multi-Timeframe Analysis**: Simultaneous view of 5 timeframes enables comprehensive analysis
+- **Interactive Navigation**: 60m backbone allows detailed temporal navigation
+- **Filtering Efficiency**: Database-backed filtering enables rapid dataset discovery
+
+##### **Training Data Management**
+- **Improved Organization**: Monthly files reduce filesystem clutter
+- **Enhanced Metadata**: Comprehensive tracking of training data quality and characteristics  
+- **Flexible Collection**: Offset parameters enable proper technical indicator calculation
+- **Database Integration**: Full metadata tracking enables automated dataset discovery
+
+##### **Developer Experience**
+- **Clear File Structure**: Intuitive monthly organization
+- **Rich APIs**: Comprehensive endpoints for training data discovery
+- **Testing Coverage**: Full test suite ensures reliability
+- **Documentation**: Complete implementation documentation for maintenance
+
+---
+
 ## 🚨 **CRITICAL: SEPTEMBER 2025 ARRAYRECORD PIPELINE ISSUES & RESOLUTION**
 
 ### **🐛 NEWLY DISCOVERED ISSUES - September 10, 2025**
@@ -1029,6 +1251,553 @@ writer.write(binary_record)
 ---
 
 ## 🔧 **DETAILED REQUIREMENTS DOCUMENT (DRD)**
+
+### **🗓️ MONTHLY TRAINING DATA SYSTEM - TECHNICAL IMPLEMENTATION**
+
+#### **Monthly Training Data Database Schema**
+
+##### **Core Table Structure**
+```sql
+-- Monthly training data tracking for dev environment
+CREATE TABLE IF NOT EXISTS dev_monthly_training_data (
+    id SERIAL PRIMARY KEY,
+    run_id INTEGER NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
+    instrument_id INTEGER,
+    year_month DATE NOT NULL, -- First day of the month (e.g., '2025-07-01')
+    
+    -- Timeframe file paths as JSONB for flexible storage
+    timeframe_paths JSONB DEFAULT '{}', -- e.g., {"5m": "/path/to/5m.arrayrecord", "15m": "/path/to/15m.arrayrecord"}
+    
+    -- Metadata for quick filtering and sorting
+    total_records INTEGER DEFAULT 0, -- Number of records in this month
+    file_size_mb FLOAT DEFAULT 0.0, -- Total size of all timeframe files for this month
+    data_quality_score FLOAT DEFAULT 0.0, -- Quality score for this month's data
+    
+    -- Status tracking
+    status VARCHAR(50) DEFAULT 'created', -- created, processing, completed, failed
+    error_message TEXT DEFAULT '',
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Constraints
+    CONSTRAINT unique_dev_monthly_training_run_symbol_month UNIQUE(run_id, symbol, year_month)
+);
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_dev_monthly_training_symbol_month ON dev_monthly_training_data(symbol, year_month);
+CREATE INDEX IF NOT EXISTS idx_dev_monthly_training_run_symbol ON dev_monthly_training_data(run_id, symbol);
+CREATE INDEX IF NOT EXISTS idx_dev_monthly_training_status ON dev_monthly_training_data(status);
+
+-- Foreign key constraints
+ALTER TABLE dev_monthly_training_data 
+ADD CONSTRAINT fk_dev_monthly_training_run_id 
+FOREIGN KEY (run_id) REFERENCES dev_runs(id) ON DELETE CASCADE;
+
+ALTER TABLE dev_monthly_training_data 
+ADD CONSTRAINT fk_dev_monthly_training_instrument_id 
+FOREIGN KEY (instrument_id) REFERENCES dev_instruments(id) ON DELETE SET NULL;
+```
+
+##### **JSONB Timeframe Paths Structure**
+```json
+{
+  "5m": "/data/training_data/dataset_20250910_123456/AAPL_20250701_000000_20250731_235959/5m/AAPL_20250701_000000_20250731_235959.arrayrecord",
+  "15m": "/data/training_data/dataset_20250910_123456/AAPL_20250701_000000_20250731_235959/15m/AAPL_20250701_000000_20250731_235959.arrayrecord",
+  "1h": "/data/training_data/dataset_20250910_123456/AAPL_20250701_000000_20250731_235959/1h/AAPL_20250701_000000_20250731_235959.arrayrecord",
+  "1d": "/data/training_data/dataset_20250910_123456/AAPL_20250701_000000_20250731_235959/1d/AAPL_20250701_000000_20250731_235959.arrayrecord"
+}
+```
+
+##### **Database View for EDA Integration**
+```sql
+CREATE OR REPLACE VIEW dev_monthly_training_data_with_instruments AS
+SELECT 
+    mtd.*,
+    i.name as instrument_name,
+    i.exchange,
+    i.sector,
+    i.market_cap
+FROM dev_monthly_training_data mtd
+LEFT JOIN dev_instruments i ON mtd.instrument_id = i.id;
+```
+
+#### **DAO Layer Implementation**
+
+##### **MonthlyTrainingDataDAO Core Methods**
+```python
+# Location: src/domains/ml/services/training_data/dao/monthly_training_data_dao.py
+
+@dataclass
+class MonthlyTrainingDataRecord:
+    run_id: int
+    symbol: str
+    instrument_id: Optional[int]
+    year_month: date
+    timeframe_paths: Dict[str, str]
+    total_records: int = 0
+    file_size_mb: float = 0.0
+    data_quality_score: float = 0.0
+    status: str = "created"
+    error_message: str = ""
+    id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class MonthlyTrainingDataDAO:
+    async def create_monthly_record(self, record: MonthlyTrainingDataRecord) -> int:
+        """Insert new monthly training data record."""
+        query = """
+        INSERT INTO {table_name} 
+        (run_id, symbol, instrument_id, year_month, timeframe_paths, total_records, 
+         file_size_mb, data_quality_score, status, error_message)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id
+        """
+        return await self._execute_insert(query, record)
+    
+    async def list_monthly_records(self, 
+                                 symbols: Optional[List[str]] = None,
+                                 status: Optional[str] = None,
+                                 year_month_start: Optional[date] = None,
+                                 year_month_end: Optional[date] = None,
+                                 limit: int = 100,
+                                 order_by: str = "created_at",
+                                 order_direction: str = "DESC") -> List[MonthlyTrainingDataRecord]:
+        """Query monthly records with filtering and sorting."""
+        where_conditions = []
+        params = []
+        
+        if symbols:
+            where_conditions.append(f"symbol = ANY(${len(params) + 1})")
+            params.append(symbols)
+        
+        if status:
+            where_conditions.append(f"status = ${len(params) + 1}")
+            params.append(status)
+        
+        # Additional filtering logic...
+        
+        query = f"""
+        SELECT * FROM {self.table_name}
+        {"WHERE " + " AND ".join(where_conditions) if where_conditions else ""}
+        ORDER BY {order_by} {order_direction}
+        LIMIT ${len(params) + 1}
+        """
+        params.append(limit)
+        
+        return await self._execute_query(query, params)
+```
+
+#### **Training Data Generation Integration**
+
+##### **Enhanced Callback Methods**
+```python
+# Location: src/domains/ml/services/training_data/callbacks/training_data_callback.py
+
+class IntervalBasedTrainingDataCallback:
+    def __init__(self, start_day_offset: int = 0, end_day_offset: int = 0, **kwargs):
+        super().__init__(**kwargs)
+        self.start_day_offset = start_day_offset
+        self.end_day_offset = end_day_offset
+        self.monthly_dao = MonthlyTrainingDataDAO(self.environment_type)
+        self.monthly_records: Dict[Tuple[str, date], int] = {}  # (symbol, month) -> record_id
+    
+    def _calculate_collection_window(self) -> Tuple[datetime, datetime]:
+        """Calculate expanded collection window with offsets."""
+        collection_start = self.start_date - timedelta(days=self.start_day_offset)
+        collection_end = self.end_date + timedelta(days=self.end_day_offset)
+        return collection_start, collection_end
+    
+    def _get_months_in_target_range(self) -> List[date]:
+        """Get list of months within target date range (not collection window)."""
+        months = []
+        current_month = self.start_date.replace(day=1)
+        end_month = self.end_date.replace(day=1)
+        
+        while current_month <= end_month:
+            months.append(current_month)
+            current_month += relativedelta(months=1)
+        
+        return months
+    
+    async def _create_monthly_database_records(self) -> None:
+        """Create database records for each month/symbol combination."""
+        months = self._get_months_in_target_range()
+        
+        for symbol in self.symbols:
+            instrument_id = await self._resolve_instrument_id(symbol)
+            
+            for month in months:
+                record = MonthlyTrainingDataRecord(
+                    run_id=self.run_id,
+                    symbol=symbol,
+                    instrument_id=instrument_id,
+                    year_month=month,
+                    timeframe_paths={},  # Will be updated after file generation
+                    status="created"
+                )
+                
+                record_id = await self.monthly_dao.create_monthly_record(record)
+                self.monthly_records[(symbol, month)] = record_id
+                
+                logger.info(f"Created monthly record {record_id} for {symbol} {month.strftime('%Y-%m')}")
+    
+    async def _update_monthly_records_with_file_paths(self) -> None:
+        """Update monthly records with actual file paths after generation."""
+        for (symbol, month), record_id in self.monthly_records.items():
+            # Calculate file paths for this symbol/month
+            timeframe_paths = self._calculate_timeframe_paths(symbol, month)
+            
+            # Calculate statistics
+            total_records, file_size_mb, quality_score = await self._calculate_monthly_statistics(
+                symbol, month, timeframe_paths
+            )
+            
+            # Update database record
+            await self.monthly_dao.update_monthly_record(
+                record_id=record_id,
+                timeframe_paths=timeframe_paths,
+                total_records=total_records,
+                file_size_mb=file_size_mb,
+                data_quality_score=quality_score,
+                status="completed"
+            )
+            
+            logger.info(f"Updated monthly record {record_id}: {total_records} records, "
+                       f"{file_size_mb:.1f}MB, quality={quality_score:.3f}")
+```
+
+#### **EDA Analytics Service Integration**
+
+##### **New API Endpoints**
+```python
+# Location: src/services/analytics_service.py
+
+class AnalyticsService:
+    def _serve_monthly_training_data_table(self):
+        """Serve monthly training data table with filtering and sorting."""
+        query_params = parse_qs(self.path.split('?')[1] if '?' in self.path else '')
+        
+        # Parse query parameters
+        symbols = query_params.get('symbols', [])
+        status = query_params.get('status', [None])[0]
+        year_month_start = query_params.get('year_month_start', [None])[0]
+        year_month_end = query_params.get('year_month_end', [None])[0]
+        limit = int(query_params.get('limit', [100])[0])
+        order_by = query_params.get('order_by', ['created_at'])[0]
+        order_direction = query_params.get('order_direction', ['DESC'])[0]
+        
+        # Convert date strings to date objects
+        start_date = datetime.strptime(year_month_start, '%Y-%m-%d').date() if year_month_start else None
+        end_date = datetime.strptime(year_month_end, '%Y-%m-%d').date() if year_month_end else None
+        
+        # Get data using DAO
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            dao = MonthlyTrainingDataDAO(environment_type=EnvironmentType.DEV)
+            records = loop.run_until_complete(dao.list_monthly_records(
+                symbols=symbols if symbols else None,
+                status=status,
+                year_month_start=start_date,
+                year_month_end=end_date,
+                limit=limit,
+                order_by=order_by,
+                order_direction=order_direction
+            ))
+            
+            # Convert to JSON-serializable format
+            table_data = []
+            for record in records:
+                table_data.append({
+                    'id': record.id,
+                    'symbol': record.symbol,
+                    'year_month': record.year_month.strftime('%Y-%m'),
+                    'total_records': record.total_records,
+                    'file_size_mb': round(record.file_size_mb, 2),
+                    'data_quality_score': round(record.data_quality_score, 3),
+                    'status': record.status,
+                    'created_at': record.created_at.isoformat() if record.created_at else None,
+                    'timeframe_paths': record.timeframe_paths
+                })
+            
+            response_data = {
+                'success': True,
+                'data': table_data,
+                'total_records': len(table_data),
+                'filters_applied': {
+                    'symbols': symbols,
+                    'status': status,
+                    'date_range': f"{year_month_start} to {year_month_end}" if start_date and end_date else None
+                }
+            }
+            
+            self._send_json_response(response_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get monthly training data: {e}")
+            self._send_json_response({
+                'success': False,
+                'error': str(e),
+                'data': []
+            })
+        finally:
+            loop.close()
+    
+    def _serve_monthly_training_data_visualization(self):
+        """Serve visualization data for specific monthly record."""
+        # Extract record ID from path
+        path_parts = self.path.split('/')
+        record_id = int(path_parts[-2])  # .../monthly-training-data/{id}/visualization
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            dao = MonthlyTrainingDataDAO(environment_type=EnvironmentType.DEV)
+            record = loop.run_until_complete(dao.get_monthly_record(record_id))
+            
+            if not record:
+                self._send_json_response({
+                    'success': False,
+                    'error': 'Record not found'
+                })
+                return
+            
+            # Load ArrayRecord data for each timeframe
+            visualization_data = {}
+            
+            for timeframe, file_path in record.timeframe_paths.items():
+                try:
+                    # Read ArrayRecord file and convert to plotly-ready format
+                    array_data = self._read_arrayrecord_file(file_path)
+                    candlestick_data = self._convert_to_candlestick_format(array_data)
+                    visualization_data[timeframe] = candlestick_data
+                except Exception as e:
+                    logger.warning(f"Failed to load {timeframe} data from {file_path}: {e}")
+                    visualization_data[timeframe] = {'error': str(e)}
+            
+            response_data = {
+                'success': True,
+                'record_info': {
+                    'id': record.id,
+                    'symbol': record.symbol,
+                    'year_month': record.year_month.strftime('%Y-%m'),
+                    'total_records': record.total_records
+                },
+                'timeframe_data': visualization_data,
+                'available_timeframes': list(record.timeframe_paths.keys())
+            }
+            
+            self._send_json_response(response_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get visualization data for record {record_id}: {e}")
+            self._send_json_response({
+                'success': False,
+                'error': str(e)
+            })
+        finally:
+            loop.close()
+```
+
+#### **Frontend JavaScript Implementation**
+
+##### **Monthly Training Data Table**
+```javascript
+// Enhanced EDA interface with monthly training data table
+class MonthlyTrainingDataInterface {
+    constructor() {
+        this.currentData = [];
+        this.filters = {
+            symbol: '',
+            status: '',
+            yearMonthStart: '',
+            yearMonthEnd: ''
+        };
+        this.sorting = {
+            column: 'created_at',
+            direction: 'DESC'
+        };
+    }
+    
+    async loadMonthlyData() {
+        const params = new URLSearchParams({
+            symbols: this.filters.symbol,
+            status: this.filters.status,
+            year_month_start: this.filters.yearMonthStart,
+            year_month_end: this.filters.yearMonthEnd,
+            order_by: this.sorting.column,
+            order_direction: this.sorting.direction,
+            limit: 100
+        });
+        
+        try {
+            const response = await fetch(`/api/monthly-training-data?${params}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentData = data.data;
+                this.renderTable();
+            } else {
+                console.error('Failed to load monthly data:', data.error);
+                this.showError(data.error);
+            }
+        } catch (error) {
+            console.error('Network error loading monthly data:', error);
+            this.showError('Network error loading data');
+        }
+    }
+    
+    renderTable() {
+        const tableContainer = document.getElementById('monthly-training-data-table');
+        
+        const tableHTML = `
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th onclick="monthlyInterface.sortBy('symbol')">Symbol</th>
+                        <th onclick="monthlyInterface.sortBy('year_month')">Month</th>
+                        <th onclick="monthlyInterface.sortBy('total_records')">Records</th>
+                        <th onclick="monthlyInterface.sortBy('file_size_mb')">Size (MB)</th>
+                        <th onclick="monthlyInterface.sortBy('data_quality_score')">Quality</th>
+                        <th onclick="monthlyInterface.sortBy('status')">Status</th>
+                        <th onclick="monthlyInterface.sortBy('created_at')">Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${this.currentData.map(record => `
+                        <tr onclick="monthlyInterface.selectRecord(${record.id})" style="cursor: pointer;">
+                            <td><strong>${record.symbol}</strong></td>
+                            <td>${record.year_month}</td>
+                            <td>${record.total_records.toLocaleString()}</td>
+                            <td>${record.file_size_mb}</td>
+                            <td>
+                                <span class="badge badge-${this.getQualityBadgeClass(record.data_quality_score)}">
+                                    ${record.data_quality_score}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-${this.getStatusBadgeClass(record.status)}">
+                                    ${record.status}
+                                </span>
+                            </td>
+                            <td>${new Date(record.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        
+        tableContainer.innerHTML = tableHTML;
+    }
+    
+    async selectRecord(recordId) {
+        console.log(`Loading visualization for record ${recordId}`);
+        
+        try {
+            const response = await fetch(`/api/monthly-training-data/${recordId}/visualization`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.loadVisualization(data);
+            } else {
+                console.error('Failed to load visualization:', data.error);
+            }
+        } catch (error) {
+            console.error('Network error loading visualization:', error);
+        }
+    }
+    
+    loadVisualization(data) {
+        // Clear existing charts
+        const vizContainer = document.getElementById('monthly-training-visualization');
+        vizContainer.style.display = 'block';
+        
+        // Create multi-timeframe layout
+        const timeframes = ['5m', '15m', '60m', '1d', '1w'];
+        let chartsHTML = '<div class="row">';
+        
+        timeframes.forEach((tf, index) => {
+            chartsHTML += `
+                <div class="col-md-6">
+                    <h5>${tf.toUpperCase()} - ${data.record_info.symbol}</h5>
+                    <div id="chart-${tf}" style="height: 300px;"></div>
+                </div>
+                ${index % 2 === 1 ? '</div><div class="row">' : ''}
+            `;
+        });
+        
+        chartsHTML += '</div>';
+        
+        // Add navigation controls
+        chartsHTML += `
+            <div class="row mt-3">
+                <div class="col-md-12 text-center">
+                    <div id="timeframe-navigation">
+                        <button class="btn btn-primary" onclick="monthlyInterface.navigate(-1)">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <span id="current-time-display" class="mx-3">
+                            ${data.record_info.year_month} - ${data.record_info.symbol}
+                        </span>
+                        <button class="btn btn-primary" onclick="monthlyInterface.navigate(1)">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        vizContainer.innerHTML = chartsHTML;
+        
+        // Create plotly charts for each timeframe
+        timeframes.forEach(tf => {
+            if (data.timeframe_data[tf] && !data.timeframe_data[tf].error) {
+                this.createCandlestickChart(tf, data.timeframe_data[tf], data.record_info.symbol);
+            } else {
+                document.getElementById(`chart-${tf}`).innerHTML = 
+                    `<div class="alert alert-warning">No data available for ${tf}</div>`;
+            }
+        });
+    }
+    
+    createCandlestickChart(timeframe, data, symbol) {
+        const trace = {
+            type: 'candlestick',
+            x: data.timestamps,
+            open: data.open,
+            high: data.high,
+            low: data.low,
+            close: data.close,
+            name: `${symbol} ${timeframe.toUpperCase()}`
+        };
+        
+        const layout = {
+            title: `${symbol} - ${timeframe.toUpperCase()}`,
+            xaxis: { title: 'Time' },
+            yaxis: { title: 'Price' },
+            height: 300,
+            margin: { t: 40, b: 40, l: 50, r: 50 }
+        };
+        
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d']
+        };
+        
+        Plotly.newPlot(`chart-${timeframe}`, [trace], layout, config);
+    }
+}
+
+// Initialize monthly training data interface
+const monthlyInterface = new MonthlyTrainingDataInterface();
+```
 
 ### **🗄️ DATABASE SCHEMA DESIGN**
 

@@ -148,211 +148,22 @@ class UniverseStateManager:
         else:
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
 
-        # ✅ CRITICAL FIX: Use Runner's universe state builder data instead of direct FileBasedMinuteMarketDataManager calls
-        # The Runner has already collected data with corrected time ranges [current_time - duration, current_time]
-        # We should use that cached data instead of bypassing the fixed architecture
-        try:
-            print(f"DEBUG get_lag_prices: Attempting to use Runner's universe state data for instrument_id={instrument_id}, lag_periods={lag_periods}, time_interval={time_interval}")
-            
-            # Try to get data from Runner's universe state builder first
-            runner_data = self._get_lag_prices_from_runner_cache(instrument_id, lag_periods, time_interval, cur_datetime)
-            if runner_data is not None and len(runner_data) > 0:
-                print(f"DEBUG get_lag_prices: Successfully retrieved {len(runner_data)} records from Runner cache")
-                return runner_data
-            else:
-                print(f"DEBUG get_lag_prices: No data in Runner cache, falling back to direct FileBasedMinuteMarketDataManager")
+        # ✅ CRITICAL DEBUG: Understand why universe state cache is empty
+        print(f"🔍 DEBUG get_lag_prices: Checking universe state cache status:")
+        print(f"   instrument_id={instrument_id}, lag_periods={lag_periods}, time_interval={time_interval}")
+        print(f"   _instrument_history keys: {list(self._instrument_history.keys()) if hasattr(self, '_instrument_history') else 'No _instrument_history'}")
+        print(f"   _cache timestamps: {list(self._cache.keys()) if hasattr(self, '_cache') else 'No _cache'}")
+        print(f"   Latest timestamp: {self.get_latest_timestamp() if hasattr(self, 'get_latest_timestamp') else 'No get_latest_timestamp method'}")
         
-        except Exception as e:
-            print(f"DEBUG get_lag_prices: Runner cache access failed: {e}, falling back to direct access")
+        # ❌ ARCHITECTURE ISSUE: Training data generation must populate universe state cache
+        # The Runner should have collected data during update_for_sod() and interval processing
+        # This forces the system to work correctly by requiring proper data population
         
-        # Use FileBasedMinuteMarketDataManager directly (skip database lookup)
-        # This follows the correct architecture: FileBasedMinuteManager → FileBasedMinuteMarketDataManager → Training Data
-        try:
-            import pandas as pd
-            from datetime import timedelta
-            
-            print(f"DEBUG get_lag_prices: Using direct file-based approach for instrument_id={instrument_id}, lag_periods={lag_periods}, time_interval={time_interval}")
-            
-            # Calculate time range based on interval and lag_periods
-            interval_deltas = {
-                '1m': timedelta(minutes=1),
-                '5m': timedelta(minutes=5), 
-                '15m': timedelta(minutes=15),
-                '1h': timedelta(hours=1),
-                '1d': timedelta(days=1),
-                '1w': timedelta(weeks=1)
-            }
-            
-            if time_interval not in interval_deltas:
-                print(f"DEBUG get_lag_prices: Unsupported interval {time_interval}, returning empty DataFrame")
-                return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            
-            interval_delta = interval_deltas[time_interval]
-            
-            # Calculate lookback period (with buffer for market closures)
-            total_lookback = interval_delta * lag_periods * 3  # Extra buffer
-            start_datetime = cur_datetime - total_lookback
-            
-            print(f"DEBUG get_lag_prices: Getting file-based OHLCV data from {start_datetime} to {cur_datetime}")
-            
-            # Use FileBasedMinuteMarketDataManager to get actual minute bar data
-            # This follows the correct architecture: FileBasedMinuteManager → FileBasedMinuteMarketDataManager → Training Data
-            from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-            
-            try:
-                # 🚨 CRITICAL FIX (September 10, 2025): AAPL bypass for testing
-                # ISSUE: Database dependencies were blocking training data generation testing
-                # CONTEXT: During AAPL training data generation (July 1 - September 11, 2025)
-                # SOLUTION: Hardcoded AAPL mapping for instrument_id=31 to enable pipeline testing
-                # TODO: Remove when database dependencies are fully resolved
-                if instrument_id == 31:
-                    symbol = "AAPL"
-                else:
-                    symbol = self._get_symbol_from_instrument_id(instrument_id)
-                
-                # Create FileBasedMinuteMarketDataManager - use correct host path 
-                # FileBasedMinuteManager adds 'firstrate' itself, so use base path
-                minute_data_manager = FileBasedMinuteMarketDataManager(self.env, '/mnt/d/ats-data/minute-bars')
-                
-                print(f"DEBUG get_lag_prices: Using FileBasedMinuteMarketDataManager to get {symbol} data")
-                
-                # Get minute OHLCV data and aggregate to requested time_interval
-                import asyncio
-                
-                # Convert time_interval to aggregation period
-                if time_interval == '1d':
-                    # Get daily aggregated data
-                    end_datetime = cur_datetime
-                    # Calculate how many days back we need
-                    from datetime import timedelta
-                    start_datetime_for_data = end_datetime - timedelta(days=lag_periods + 5)  # Add buffer
-                    
-                    # Get minute data and aggregate to daily
-                    import asyncio
-                    import concurrent.futures
-                    
-                    def get_minute_data_sync():
-                        """Run async call in a separate thread with new event loop"""
-                        print(f"DEBUG: About to call get_minute_ohlc_batch with:")
-                        print(f"  symbol: {symbol}")
-                        print(f"  start_datetime_for_data: {start_datetime_for_data}")
-                        print(f"  end_datetime: {end_datetime}")
-                        print(f"  minute_data_manager base_path: {minute_data_manager.base_path}")
-                        try:
-                            result = asyncio.run(minute_data_manager.get_minute_ohlc_batch(
-                                [symbol], start_datetime_for_data, end_datetime
-                            ))
-                            print(f"DEBUG: get_minute_ohlc_batch returned: {type(result)} with {len(result)} symbols")
-                            return result
-                        except Exception as e:
-                            print(f"DEBUG: get_minute_ohlc_batch failed with exception: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            raise
-                    
-                    try:
-                        # Run the async call in a thread pool to avoid event loop conflicts
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(get_minute_data_sync)
-                            minute_df = future.result(timeout=30)
-                    except Exception as e:
-                        print(f"DEBUG get_lag_prices: Failed to get minute data: {e}")
-                        minute_df = {}
-                    
-                    if symbol in minute_df and not minute_df[symbol].empty:
-                        df = minute_df[symbol]
-                        print(f"🔍 DEBUG get_lag_prices: Retrieved {len(df)} minute records for {symbol}")
-                        
-                        # Add detailed debugging for minute data
-                        print(f"📊 DEBUG get_lag_prices minute data for {symbol}:")
-                        print(f"   Columns: {list(df.columns)}")
-                        print(f"   Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-                        if 'open' in df.columns and 'close' in df.columns:
-                            print(f"   Price range: {df['open'].min():.2f} - {df['close'].max():.2f}")
-                            print(f"   Sample prices: Open={df['open'].iloc[0]:.2f}, Close={df['close'].iloc[-1]:.2f}")
-                        if 'volume' in df.columns:
-                            print(f"   Volume range: {df['volume'].min()} - {df['volume'].max()}")
-                            print(f"   Total volume: {df['volume'].sum()}")
-                        
-                        # Aggregate to daily OHLCV
-                        df['timestamp'] = pd.to_datetime(df['timestamp'])
-                        df.set_index('timestamp', inplace=True)
-                        
-                        # Resample to daily
-                        daily_df = df.resample('1D').agg({
-                            'open': 'first',
-                            'high': 'max', 
-                            'low': 'min',
-                            'close': 'last',
-                            'volume': 'sum'
-                        }).dropna()
-                        
-                        daily_df.reset_index(inplace=True)
-                        daily_df = daily_df.tail(lag_periods)  # Get last lag_periods days
-                        
-                        print(f"🔍 DEBUG get_lag_prices: Aggregated to {len(daily_df)} daily records")
-                        print(f"📊 DEBUG get_lag_prices daily aggregation results:")
-                        for _, row in daily_df.iterrows():
-                            print(f"   {row['timestamp'].date()}: O={row['open']:.2f}, H={row['high']:.2f}, L={row['low']:.2f}, C={row['close']:.2f}, V={row['volume']}")
-                        
-                        return daily_df
-                    else:
-                        print(f"DEBUG get_lag_prices: No minute data found for {symbol}")
-                        return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                
-                else:
-                    # For other intervals (5m, 15m, 1h), get minute data and aggregate accordingly
-                    print(f"DEBUG get_lag_prices: Interval {time_interval} not yet implemented, returning empty")
-                    return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                    
-            except Exception as e:
-                print(f"DEBUG get_lag_prices: FileBasedMinuteMarketDataManager failed: {e}")
-                return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            
-        except Exception as e:
-            import pandas as pd
-            print(f"DEBUG get_lag_prices: Exception {e}, returning empty DataFrame")
-            return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-
-        # Type validation for cur_datetime
-        if not hasattr(cur_datetime, 'date') and not hasattr(cur_datetime, 'year'):
-            raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
-
-        # Ensure cur_datetime is a datetime object for precise time operations
-        if not hasattr(cur_datetime, 'hour'):
-            # If it's a date object, convert to datetime at start of day
-            from datetime import datetime
-            if hasattr(cur_datetime, 'date'):
-                cur_datetime = datetime.combine(cur_datetime.date(), datetime.min.time())
-            else:
-                cur_datetime = datetime.combine(cur_datetime, datetime.min.time())
-
-        # Use market_data_manager to get data for specified time interval
-        try:
-            # Get aggregated data from market_data_manager for the specified interval
-            df = self.market_data_manager.get_ohlcv_data(
-                instrument_id=instrument_id,
-                reference_datetime=cur_datetime,  # Reference point: data BEFORE this datetime
-                periods=lag_periods,
-                time_interval=time_interval,
-                direction='backward'  # Explicitly specify backward direction for lag prices
-            )
-            if df is not None and not df.empty:
-                try:
-                    self.logger.debug(f"[get_lag_prices] market_data_manager: instrument_id={instrument_id} cur_datetime={cur_datetime} lag_periods={lag_periods} interval={time_interval} df.shape={df.shape}")
-                except Exception:
-                    pass
-                return df
-        except Exception as e:
-            try:
-                self.logger.error(f"[get_lag_prices] market_data_manager failed: {e}")
-            except Exception:
-                pass
-            raise IOError(f"Failed to get lag prices from market_data_manager: {e}")
-
-        # If we reach here, market_data_manager returned empty data
-        # Return empty DataFrame with only OHLCV columns (technical indicators come from get_lagged_signals)
-        return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
+        raise ValueError(f"🚨 UNIVERSE STATE CACHE EMPTY: instrument_id={instrument_id}\n"
+                        f"Training data generation requires populated universe state cache.\n"
+                        f"The Runner must call universe_state_manager.update_for_sod() and accumulate data.\n"
+                        f"Cache status - _instrument_history: {len(self._instrument_history) if hasattr(self, '_instrument_history') else 0} instruments, "
+                        f"_cache: {len(self._cache) if hasattr(self, '_cache') else 0} timestamps")
 
     def get_lead_prices(self, instrument_id: int, cur_datetime, lead_periods: int, time_interval: str = '1d') -> pd.DataFrame:
         """
