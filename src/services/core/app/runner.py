@@ -74,11 +74,19 @@ class Runner:
         else:
             self.run_context = run_context
 
+        # 🚨 UUID SYSTEM: Set run UUID in Environment for database operations
+        if self.run_context and hasattr(self.env, 'set_run_uuid'):
+            self.env.set_run_uuid(self.run_context.run_id)
+            self.logger.info(f"Set run UUID in Environment: {self.run_context.run_id}") if hasattr(self, 'logger') else None
+        
         # Set up run-aware logging if we have a run context
         if self.run_context and enable_run_isolation:
             setup_run_aware_logging(run_context=self.run_context)
             self.logger = get_run_aware_logger(__name__, self.run_context)
             self.logger.info(f"Initialized Runner with run-aware logging: {self.run_context.run_id}")
+            # Log UUID setup after logger is available
+            if hasattr(self.env, 'get_run_uuid') and self.env.get_run_uuid():
+                self.logger.info(f"✅ Environment configured with run UUID: {self.env.get_run_uuid()}")
         else:
             self.logger = logging.getLogger(__name__)
 
@@ -95,7 +103,6 @@ class Runner:
         else:
             self.universe_state_manager = UniverseStateManager(
                 self.env,
-                write_metadata=not is_test_env,
                 run_context=self.run_context if enable_run_isolation else None
             )
             if enable_run_isolation and self.run_context:

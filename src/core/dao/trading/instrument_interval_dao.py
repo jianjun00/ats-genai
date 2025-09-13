@@ -9,11 +9,20 @@ class InstrumentIntervalDAO:
 
     async def create(self, universe_state_interval_id: int, instrument_id: int, open: float, high: float, low: float, close: float, traded_volume: float, traded_dollar: float, status: str, market_cap: float, start_date_time=None, end_date_time=None, interval_duration: str = "60m", run_id: str = None) -> int:
         """Insert a new InstrumentInterval. Returns new id."""
+        
+        # 🚨 UUID SYSTEM: Use UUID from Environment if available, otherwise use provided run_id
+        effective_run_id = run_id
+        if hasattr(self.env, 'get_run_uuid') and self.env.get_run_uuid() is not None:
+            effective_run_id = self.env.get_run_uuid()
+            print(f"[UUID DEBUG] InstrumentIntervalDAO using Environment UUID: {effective_run_id}")
+        elif effective_run_id is None:
+            print(f"[UUID DEBUG] InstrumentIntervalDAO: No UUID available in Environment or parameters")
+        
         conn = await asyncpg.connect(self.db_url)
         try:
             # Include interval_start and interval_end if provided
             if start_date_time is not None and end_date_time is not None:
-                if run_id is not None:
+                if effective_run_id is not None:
                     row = await conn.fetchrow(
                         f"""
                         INSERT INTO {self.env.get_table_name('instrument_interval')} (
@@ -23,7 +32,7 @@ class InstrumentIntervalDAO:
                         RETURNING id
                         """,
                         universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap,
-                        start_date_time, end_date_time, interval_duration, run_id
+                        start_date_time, end_date_time, interval_duration, effective_run_id
                     )
                 else:
                     row = await conn.fetchrow(
@@ -38,7 +47,7 @@ class InstrumentIntervalDAO:
                         start_date_time, end_date_time, interval_duration
                     )
             else:
-                if run_id is not None:
+                if effective_run_id is not None:
                     row = await conn.fetchrow(
                         f"""
                         INSERT INTO {self.env.get_table_name('instrument_interval')} (
@@ -46,7 +55,7 @@ class InstrumentIntervalDAO:
                         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                         RETURNING id
                         """,
-                        universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap, interval_duration, run_id
+                        universe_state_interval_id, instrument_id, open, high, low, close, traded_volume, traded_dollar, status, market_cap, interval_duration, effective_run_id
                     )
                 else:
                     row = await conn.fetchrow(

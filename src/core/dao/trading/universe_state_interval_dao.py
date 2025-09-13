@@ -125,6 +125,15 @@ class UniverseStateIntervalDAO:
 
     async def create(self, universe_id: int, duration: str, start_date_time, end_date_time, run_id: str) -> int:
         """Insert a new UniverseStateInterval record. Returns the new id (or interval_id)."""
+        
+        # 🚨 UUID SYSTEM: Use UUID from Environment if available, otherwise use provided run_id
+        effective_run_id = run_id
+        if hasattr(self.env, 'get_run_uuid') and self.env.get_run_uuid() is not None:
+            effective_run_id = self.env.get_run_uuid()
+            print(f"[UUID DEBUG] UniverseStateIntervalDAO using Environment UUID: {effective_run_id}")
+        elif effective_run_id is None:
+            print(f"[UUID DEBUG] UniverseStateIntervalDAO: No UUID available in Environment or parameters")
+        
         conn = await asyncpg.connect(self.db_url)
         try:
             try:
@@ -135,7 +144,7 @@ class UniverseStateIntervalDAO:
                     ) VALUES ($1, $2, $3, $4, $5)
                     RETURNING id
                     """,
-                    universe_id, duration, start_date_time, end_date_time, run_id
+                    universe_id, duration, start_date_time, end_date_time, effective_run_id
                 )
                 return row['id']
             except asyncpg.UndefinedColumnError:
@@ -146,7 +155,7 @@ class UniverseStateIntervalDAO:
                     ) VALUES ($1, $2, $3, $4, $5)
                     RETURNING interval_id
                     """,
-                    universe_id, duration, start_date_time, end_date_time, run_id
+                    universe_id, duration, start_date_time, end_date_time, effective_run_id
                 )
                 return row['interval_id']
         finally:
