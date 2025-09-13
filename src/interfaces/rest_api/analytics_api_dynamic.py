@@ -1334,6 +1334,566 @@ def create_analytics_app() -> FastAPI:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
+    # ==============================================
+    # DATA QUALITY AGENT ENDPOINTS
+    # ==============================================
+    
+    # Initialize Data Quality Agent (singleton)
+    try:
+        from agents.data_quality_agent import DataQualityAgent
+        from agents.workflow_state_manager import WorkflowStateManager
+        from agents.agent_metrics_collector import AgentMetricsCollector
+        
+        # Global agent instance
+        data_quality_agent = DataQualityAgent()
+        agent_monitoring_task = None
+        AGENT_AVAILABLE = True
+        
+        @app.get("/agent/status")
+        async def get_agent_status():
+            """Get current Data Quality Agent status and metrics"""
+            try:
+                if not AGENT_AVAILABLE:
+                    return {"error": "Data Quality Agent not available"}
+                
+                status = await data_quality_agent.get_agent_status()
+                return status
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get agent status: {str(e)}")
+        
+        @app.post("/agent/start")
+        async def start_agent_monitoring():
+            """Start the Data Quality Agent monitoring"""
+            global agent_monitoring_task
+            
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                if agent_monitoring_task and not agent_monitoring_task.done():
+                    return {"success": True, "message": "Agent monitoring already running"}
+                
+                # Start monitoring task
+                agent_monitoring_task = asyncio.create_task(
+                    data_quality_agent.start_continuous_monitoring()
+                )
+                
+                return {
+                    "success": True,
+                    "message": "Data Quality Agent monitoring started",
+                    "agent_id": data_quality_agent.agent_id
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to start agent: {str(e)}")
+        
+        @app.post("/agent/stop")
+        async def stop_agent_monitoring():
+            """Stop the Data Quality Agent monitoring"""
+            global agent_monitoring_task
+            
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                await data_quality_agent.stop_monitoring()
+                
+                if agent_monitoring_task and not agent_monitoring_task.done():
+                    agent_monitoring_task.cancel()
+                
+                return {
+                    "success": True,
+                    "message": "Data Quality Agent monitoring stopped"
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to stop agent: {str(e)}")
+        
+        @app.get("/agent/workflows")
+        async def get_active_workflows():
+            """Get all active agent workflows"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                workflows = await data_quality_agent.workflow_manager.get_active_workflows()
+                
+                return {
+                    "workflows": [workflow.to_dict() for workflow in workflows],
+                    "total_count": len(workflows),
+                    "last_updated": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get workflows: {str(e)}")
+        
+        @app.get("/agent/workflows/{workflow_id}")
+        async def get_workflow_details(workflow_id: str):
+            """Get detailed information about a specific workflow"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                workflow = await data_quality_agent.workflow_manager.get_workflow(workflow_id)
+                
+                if not workflow:
+                    raise HTTPException(status_code=404, detail="Workflow not found")
+                
+                return data_quality_agent.workflow_manager.to_dict(workflow_id)
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get workflow: {str(e)}")
+        
+        @app.post("/agent/action")
+        async def trigger_agent_action(action_request: dict):
+            """Trigger manual agent action on specific issue"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                issue_id = action_request.get("issue_id")
+                action = action_request.get("action")
+                
+                if not issue_id or not action:
+                    raise HTTPException(status_code=400, detail="Missing issue_id or action")
+                
+                result = await data_quality_agent.execute_manual_action(issue_id, action)
+                
+                return result
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to execute action: {str(e)}")
+        
+        @app.get("/agent/metrics")
+        async def get_agent_metrics():
+            """Get comprehensive agent performance metrics"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                # Get metrics for different time periods
+                metrics_24h = await data_quality_agent.metrics_collector.get_performance_metrics(hours=24)
+                metrics_7d = await data_quality_agent.metrics_collector.get_performance_metrics(hours=168)  # 7 days
+                health_score = await data_quality_agent.metrics_collector.get_agent_health_score()
+                
+                return {
+                    "last_24_hours": {
+                        "total_issues": metrics_24h.total_issues_processed,
+                        "success_rate": metrics_24h.success_rate,
+                        "avg_resolution_time": metrics_24h.average_resolution_time_seconds,
+                        "issues_by_type": metrics_24h.issues_by_type,
+                        "complexity_performance": metrics_24h.complexity_performance
+                    },
+                    "last_7_days": {
+                        "total_issues": metrics_7d.total_issues_processed,
+                        "success_rate": metrics_7d.success_rate,
+                        "avg_resolution_time": metrics_7d.average_resolution_time_seconds
+                    },
+                    "health_score": health_score,
+                    "generated_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}")
+        
+        @app.get("/agent/health")
+        async def get_agent_health():
+            """Get agent health check and diagnostic information"""
+            try:
+                if not AGENT_AVAILABLE:
+                    return {
+                        "status": "unavailable",
+                        "message": "Data Quality Agent not available",
+                        "agent_enabled": False
+                    }
+                
+                status = await data_quality_agent.get_agent_status()
+                health_score = await data_quality_agent.metrics_collector.get_agent_health_score()
+                
+                return {
+                    "status": status["status"],
+                    "monitoring_active": status["monitoring_active"],
+                    "active_workflows": status["active_workflows"],
+                    "health_score": health_score["overall_health_score"],
+                    "health_status": health_score["health_status"],
+                    "last_scan": status["last_scan_time"],
+                    "agent_enabled": True,
+                    "recommendations": health_score.get("recommendations", [])
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get agent health: {str(e)}")
+        
+        # Agent Configuration Management Endpoints
+        @app.get("/agent/config")
+        async def get_agent_config():
+            """Get current agent configuration"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_config import get_config_manager
+                config_manager = get_config_manager()
+                
+                return {
+                    "config": config_manager.get_config_dict(),
+                    "config_file": str(config_manager.config_file_path),
+                    "last_updated": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get config: {str(e)}")
+        
+        @app.put("/agent/config")
+        async def update_agent_config(config_updates: dict):
+            """Update agent configuration"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_config import get_config_manager
+                config_manager = get_config_manager()
+                
+                success = config_manager.update_config(config_updates)
+                
+                if success:
+                    return {
+                        "success": True,
+                        "message": "Configuration updated successfully",
+                        "updated_config": config_manager.get_config_dict(),
+                        "updated_at": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(status_code=400, detail="Invalid configuration updates")
+                    
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")
+        
+        @app.post("/agent/config/reset")
+        async def reset_agent_config():
+            """Reset agent configuration to defaults"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_config import get_config_manager
+                config_manager = get_config_manager()
+                
+                config_manager.reset_to_defaults()
+                
+                return {
+                    "success": True,
+                    "message": "Configuration reset to defaults",
+                    "config": config_manager.get_config_dict(),
+                    "reset_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to reset config: {str(e)}")
+        
+        @app.post("/agent/config/export")
+        async def export_agent_config(export_path: dict):
+            """Export agent configuration to file"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_config import get_config_manager
+                config_manager = get_config_manager()
+                
+                path = export_path.get("path", "config/agent_config_export.json")
+                success = config_manager.export_config(path)
+                
+                if success:
+                    return {
+                        "success": True,
+                        "message": f"Configuration exported to {path}",
+                        "exported_at": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(status_code=500, detail="Export failed")
+                    
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to export config: {str(e)}")
+        
+        @app.post("/agent/config/import")
+        async def import_agent_config(import_path: dict):
+            """Import agent configuration from file"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_config import get_config_manager
+                config_manager = get_config_manager()
+                
+                path = import_path.get("path")
+                if not path:
+                    raise HTTPException(status_code=400, detail="Import path is required")
+                
+                success = config_manager.import_config(path)
+                
+                if success:
+                    return {
+                        "success": True,
+                        "message": f"Configuration imported from {path}",
+                        "config": config_manager.get_config_dict(),
+                        "imported_at": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(status_code=500, detail="Import failed")
+                    
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to import config: {str(e)}")
+        
+        @app.post("/agent/config/environment/{environment}")
+        async def apply_environment_config(environment: str):
+            """Apply environment-specific configuration (development/production)"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_config import apply_environment_config
+                apply_environment_config(environment)
+                
+                return {
+                    "success": True,
+                    "message": f"Applied {environment} configuration",
+                    "environment": environment,
+                    "applied_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to apply environment config: {str(e)}")
+        
+        # Agent Logging and Performance Endpoints
+        @app.get("/agent/logs")
+        async def get_agent_logs(count: int = 50):
+            """Get recent agent log entries"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_logger import get_agent_logger
+                agent_logger = get_agent_logger(data_quality_agent.agent_id)
+                
+                return {
+                    "logs": agent_logger.get_recent_logs(count),
+                    "performance_summary": agent_logger.get_performance_summary(),
+                    "error_summary": agent_logger.get_error_summary(),
+                    "retrieved_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get logs: {str(e)}")
+        
+        @app.get("/agent/performance")
+        async def get_agent_performance():
+            """Get detailed agent performance metrics"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.agent_logger import get_agent_logger
+                agent_logger = get_agent_logger(data_quality_agent.agent_id)
+                
+                # Get comprehensive performance data
+                performance_summary = agent_logger.get_performance_summary()
+                error_summary = agent_logger.get_error_summary()
+                
+                # Get agent health score
+                health_score = await data_quality_agent.metrics_collector.get_agent_health_score()
+                
+                # Get workflow performance
+                workflow_metrics = await data_quality_agent.workflow_manager.get_workflow_metrics()
+                
+                return {
+                    "operation_performance": performance_summary,
+                    "error_analysis": error_summary,
+                    "health_metrics": health_score,
+                    "workflow_metrics": workflow_metrics,
+                    "system_status": {
+                        "monitoring_active": data_quality_agent.monitoring_active,
+                        "agent_status": data_quality_agent.status.value,
+                        "last_scan": data_quality_agent.last_scan_time.isoformat() if data_quality_agent.last_scan_time else None,
+                        "active_workflows": len(data_quality_agent.active_workflows),
+                        "mcp_tools_count": len(data_quality_agent.mcp_tools)
+                    },
+                    "retrieved_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get performance data: {str(e)}")
+        
+        @app.get("/agent/system-health")
+        async def get_system_health():
+            """Get comprehensive system health and operational intelligence"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.system_monitor import get_system_monitor
+                system_monitor = get_system_monitor(data_quality_agent.agent_id)
+                
+                health_summary = await system_monitor.get_health_summary()
+                
+                return {
+                    "system_health": health_summary,
+                    "agent_integration": {
+                        "monitoring_active": data_quality_agent.monitoring_active,
+                        "agent_status": data_quality_agent.status.value,
+                        "agent_id": data_quality_agent.agent_id,
+                        "tools_available": list(data_quality_agent.mcp_tools.keys()),
+                        "config_loaded": bool(data_quality_agent.agent_config)
+                    },
+                    "operational_summary": {
+                        "total_workflows": len(data_quality_agent.active_workflows),
+                        "last_scan": data_quality_agent.last_scan_time.isoformat() if data_quality_agent.last_scan_time else None,
+                        "uptime_status": "operational" if data_quality_agent.monitoring_active else "idle"
+                    },
+                    "retrieved_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get system health: {str(e)}")
+        
+        # Alert Management Endpoints
+        @app.get("/agent/alerts")
+        async def get_alerts():
+            """Get active alerts and alert summary"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.alert_manager import get_alert_manager
+                alert_manager = get_alert_manager(data_quality_agent.agent_id)
+                
+                summary = await alert_manager.get_alert_summary()
+                
+                return {
+                    "active_alerts": [
+                        {
+                            "alert_id": alert.alert_id,
+                            "rule_id": alert.rule_id,
+                            "severity": alert.severity,
+                            "title": alert.title,
+                            "message": alert.message,
+                            "timestamp": alert.timestamp,
+                            "source_component": alert.source_component,
+                            "acknowledged": alert.acknowledged
+                        }
+                        for alert in alert_manager.active_alerts.values()
+                    ],
+                    "alert_summary": summary,
+                    "notification_channels": {
+                        channel_id: {
+                            "enabled": channel.enabled,
+                            "type": channel.channel_type,
+                            "rate_limit": channel.rate_limit_per_hour
+                        }
+                        for channel_id, channel in alert_manager.notification_channels.items()
+                    },
+                    "retrieved_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to get alerts: {str(e)}")
+        
+        @app.post("/agent/alerts/{alert_id}/acknowledge")
+        async def acknowledge_alert(alert_id: str):
+            """Acknowledge an active alert"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.alert_manager import get_alert_manager
+                alert_manager = get_alert_manager(data_quality_agent.agent_id)
+                
+                success = await alert_manager.acknowledge_alert(alert_id, "dashboard_user")
+                
+                if success:
+                    return {
+                        "success": True,
+                        "message": f"Alert {alert_id} acknowledged",
+                        "acknowledged_at": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(status_code=404, detail="Alert not found")
+                    
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to acknowledge alert: {str(e)}")
+        
+        @app.post("/agent/alerts/{alert_id}/resolve")
+        async def resolve_alert(alert_id: str):
+            """Resolve an active alert"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.alert_manager import get_alert_manager
+                alert_manager = get_alert_manager(data_quality_agent.agent_id)
+                
+                success = await alert_manager.resolve_alert(alert_id, "dashboard_user")
+                
+                if success:
+                    return {
+                        "success": True,
+                        "message": f"Alert {alert_id} resolved",
+                        "resolved_at": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(status_code=404, detail="Alert not found")
+                    
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to resolve alert: {str(e)}")
+        
+        @app.post("/agent/alerts/test-channels")
+        async def test_notification_channels():
+            """Test all configured notification channels"""
+            try:
+                if not AGENT_AVAILABLE:
+                    raise HTTPException(status_code=503, detail="Data Quality Agent not available")
+                
+                from agents.alert_manager import get_alert_manager
+                alert_manager = get_alert_manager(data_quality_agent.agent_id)
+                
+                results = await alert_manager.test_notification_channels()
+                
+                return {
+                    "test_results": results,
+                    "channels_tested": len(results),
+                    "successful_channels": len([r for r in results.values() if r]),
+                    "failed_channels": len([r for r in results.values() if not r]),
+                    "tested_at": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to test notification channels: {str(e)}")
+        
+    except ImportError as e:
+        AGENT_AVAILABLE = False
+        
+        # Alternative endpoints when agent is not available
+        @app.get("/agent/status")
+        async def get_agent_status_alternative():
+            return {
+                "error": "Data Quality Agent not available",
+                "message": f"Import error: {str(e)}",
+                "agent_enabled": False
+            }
+        
+        @app.get("/agent/health")
+        async def get_agent_health_alternative():
+            return {
+                "status": "unavailable",
+                "message": "Data Quality Agent not available",
+                "agent_enabled": False
+            }
+
     return app
 
 if __name__ == "__main__":
