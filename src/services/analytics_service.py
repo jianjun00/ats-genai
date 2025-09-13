@@ -36,9 +36,30 @@ from dataclasses import asdict
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import Data Quality Agent
+try:
+    from agents.data_quality_agent import DataQualityAgent
+    from agents.workflow_state_manager import WorkflowStateManager
+    from agents.agent_metrics_collector import AgentMetricsCollector
+    AGENT_AVAILABLE = True
+    logger.info("✅ Data Quality Agent loaded successfully")
+except ImportError as e:
+    AGENT_AVAILABLE = False
+    logger.warning(f"⚠️ Data Quality Agent not available: {e}")
+
 # Import core components
-from core.platform.database.connection_manager import get_connection_manager
-from core.platform.config.settings import get_settings
+try:
+    from core.platform.database.connection_manager import get_connection_manager
+    from core.platform.config.settings import get_settings
+    CORE_PLATFORM_AVAILABLE = True
+except ImportError:
+    try:
+        from infrastructure.database.connection_manager import DatabaseConnectionManager
+        get_connection_manager = lambda: DatabaseConnectionManager()
+        CORE_PLATFORM_AVAILABLE = True
+    except ImportError:
+        CORE_PLATFORM_AVAILABLE = False
+        logger.warning("⚠️ Core platform not available, using environment variables")
 
 # Import visualization components
 try:
@@ -94,6 +115,7 @@ class UnifiedAnalyticsService:
         self.type_system_enabled = TYPE_SYSTEM_AVAILABLE
         self.ray_enabled = RAY_AVAILABLE
         self.visualization_enabled = VISUALIZATION_AVAILABLE
+        self.agent_enabled = AGENT_AVAILABLE
 
         # CRITICAL: Validate environment setup before starting
         self._validate_environment_setup()
@@ -103,9 +125,16 @@ class UnifiedAnalyticsService:
             self.multi_panel_chart = MultiPanelTradingChart()
             self.feature_extractor = MultiTimeframeFeatureExtractor(TrainingDataConfig())
 
+        # Initialize Data Quality Agent
+        if self.agent_enabled:
+            self.data_quality_agent = DataQualityAgent()
+            self.agent_monitoring_task = None
+            logger.info("🤖 Data Quality Agent initialized")
+
         logger.info("🚀 Unified Analytics Service initialized")
         logger.info(f"   Type system: {'✅ Enabled' if self.type_system_enabled else '❌ Disabled'}")
         logger.info(f"   Ray computing: {'✅ Enabled' if self.ray_enabled else '❌ Disabled'}")
+        logger.info(f"   Agent system: {'✅ Enabled' if self.agent_enabled else '❌ Disabled'}")
         logger.info(f"   Multi-panel visualization: {'✅ Enabled' if self.visualization_enabled else '❌ Disabled'}")
 
         if self.type_system_enabled:
@@ -359,7 +388,7 @@ class UnifiedAnalyticsService:
                         logger.info(f"Looking for training data files for symbol: {symbol} (dataset_id: {dataset_id})")
 
                         # Look for timeframe-specific training data files
-                        # Priority order: Riegeli format > numpy files > fallback paths
+                        # Priority order: Riegeli format > numpy files > alternative paths
                         possible_file_paths = [
                             # New structure: /data/training_data/<run_id>/<timeframe>/<symbol>_<startdatetime>_<enddatetime>.arrayrecord
                             f"/data/training_data/*/{timeframe}/{symbol_lower}_*.arrayrecord",
@@ -472,10 +501,10 @@ class UnifiedAnalyticsService:
 
         except Exception as e:
             logger.error(f"Error getting sequence data for dataset {dataset_id}: {e}")
-            # Return sample data as fallback
+            # Return sample data as alternative
             sample_data = self._generate_sample_sequence_for_dataset({
                 'dataset_name': f'Dataset {dataset_id}',
-                'symbols': 'DEMO',
+                'symbols': 'TEST',
                 'sequence_length': 21
             }, dataset_id, row_index)
             sample_data['timeframe'] = timeframe
@@ -486,7 +515,7 @@ class UnifiedAnalyticsService:
         import random
 
         sequence_length = dataset_info.get('sequence_length', 21)
-        symbol = dataset_info.get('symbols', 'DEMO').split(',')[0] if dataset_info.get('symbols') else 'DEMO'
+        symbol = dataset_info.get('symbols', 'TEST').split(',')[0] if dataset_info.get('symbols') else 'TEST'
 
         # Generate realistic OHLC sequence
         base_price = 150.0 + random.uniform(-50, 50)  # Start price
@@ -634,7 +663,7 @@ class UnifiedAnalyticsService:
 
                         else:
                             # Fallback: use filesystem scanning (legacy approach)
-                            logger.warning(f"No file_metadata available for dataset {dataset_id}, using filesystem fallback")
+                            logger.warning(f"No file_metadata available for dataset {dataset_id}, using filesystem alternative")
 
                             symbols = dataset_info.get('symbols', [])
                             if isinstance(symbols, str):
@@ -710,7 +739,7 @@ class UnifiedAnalyticsService:
                         raise ValueError(f"Dataset {dataset_id} not found")
 
                     # Use actual run_id from database
-                    run_id = dataset_info.get('run_id') or str(dataset_id)  # Use actual run_id or fallback to dataset_id
+                    run_id = dataset_info.get('run_id') or str(dataset_id)  # Use actual run_id or alternative to dataset_id
                     symbols_data = dataset_info.get('symbols', '')
 
                     # Parse symbols - could be string, array, or PostgreSQL array format
@@ -745,7 +774,7 @@ class UnifiedAnalyticsService:
                     # Search for actual files in all potential locations (container-aware)
                     training_base_paths = [
                         Path("/data/training_data"),  # Container path
-                        Path("/mnt/d/ats-data/training_data")  # Host path fallback
+                        Path("/mnt/d/ats-data/training_data")  # Host path alternative
                     ]
 
                     arrayrecord_files = []
@@ -770,7 +799,7 @@ class UnifiedAnalyticsService:
                                         logger.info(f"Found matching file for run {run_id}: {arrayrecord_file}")
                                         break  # Use first match in correct run
 
-                            # If not found in run directory, fallback to general search
+                            # If not found in run directory, alternative to general search
                             if not arrayrecord_files:
                                 logger.warning(f"No files found in run {run_id}, falling back to general search")
                                 for arrayrecord_file in list(base_path.rglob("*.arrayrecord")):
@@ -780,7 +809,7 @@ class UnifiedAnalyticsService:
 
                                     if symbol_lower in file_name or f"/{symbol_lower}/" in file_path_str:
                                         arrayrecord_files.append(arrayrecord_file)
-                                        logger.info(f"Found fallback file: {arrayrecord_file}")
+                                        logger.info(f"Found alternative file: {arrayrecord_file}")
                                         break  # Use first match
 
                             # If files found in this base_path, stop searching other base_paths
@@ -927,7 +956,7 @@ class UnifiedAnalyticsService:
                             logger.error(f"ArrayRecord reading failed: {e}")
                             import traceback
                             logger.error(traceback.format_exc())
-                            raise RuntimeError(f"Failed to read training data file: {e}. No fallback data provided.")
+                            raise RuntimeError(f"Failed to read training data file: {e}. No alternative data provided.")
 
                     # No files found
                     raise ValueError(f"No Riegeli/ArrayRecord files found for dataset {dataset_id}, symbol {target_symbol}")
@@ -971,7 +1000,7 @@ class UnifiedAnalyticsService:
                     # Define training base paths (container-aware)
                     training_base_paths = [
                         Path("/data/training_data"),  # Container path
-                        Path("/mnt/d/ats-data/training_data")  # Host path fallback
+                        Path("/mnt/d/ats-data/training_data")  # Host path alternative
                     ]
 
                     # Find the sequence directory and read all timeframes
@@ -2229,7 +2258,7 @@ class UnifiedAnalyticsService:
                     'scheduled_tomorrow_count': len(scheduled_tomorrow),
                     'upcoming_count': len(upcoming)
                 },
-                'data_source': 'demo_data',  # Will be 'fred_api' when real API is integrated
+                'data_source': 'test_data',  # Will be 'fred_api' when real API is integrated
                 'query_timestamp': datetime.now().isoformat()
             }
 
@@ -2345,7 +2374,7 @@ class UnifiedAnalyticsService:
             import io
             import base64
 
-            # Generate sample OHLCV data for demonstration
+            # Generate sample OHLCV data for testnstration
             np.random.seed(42)
             n_periods = 50
             base_price = 180.0
@@ -5620,7 +5649,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
         except Exception as e:
             logger.error(f"Error getting tables list: {e}")
-            # Get environment-specific fallback tables
+            # Get environment-specific alternative tables
             import os
             environment = os.getenv('ENVIRONMENT', 'dev')
             response = {
@@ -5987,7 +6016,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             try:
                 limit = int(query_params.get('limit', [100])[0])
             except (ValueError, TypeError):
-                limit = 100  # Default fallback
+                limit = 100  # Default alternative
 
             symbol = query_params.get('symbol', [None])[0]
             start_date = query_params.get('start_date', [None])[0]
@@ -6028,7 +6057,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             try:
                 limit = int(query_params.get('limit', [100])[0])
             except (ValueError, TypeError):
-                limit = 100  # Default fallback
+                limit = 100  # Default alternative
 
             symbol = query_params.get('symbol', [None])[0]
             start_date = query_params.get('start_date', [None])[0]
@@ -6069,7 +6098,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             try:
                 limit = int(query_params.get('limit', [100])[0])
             except (ValueError, TypeError):
-                limit = 100  # Default fallback
+                limit = 100  # Default alternative
 
             vendor = query_params.get('vendor', [None])[0]
             symbol = query_params.get('symbol', [None])[0]
@@ -6177,6 +6206,46 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         <div style="margin-top: 15px;">
             <span>Last updated: <span id="last-updated">-</span></span>
             <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+        </div>
+        
+        <!-- AGENT STATUS AND CONTROLS -->
+        <div id="agent-section" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div id="agent-status" style="color: white; font-weight: bold;">
+                    🤖 Agent: Loading...
+                </div>
+                
+                <div id="agent-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button id="start-agent-btn" onclick="startAgent()" 
+                            style="padding: 6px 12px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        ▶️ Start
+                    </button>
+                    <button id="stop-agent-btn" onclick="stopAgent()" 
+                            style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9; display: none;">
+                        ⏹️ Stop
+                    </button>
+                    <button onclick="showWorkflowsDialog()" 
+                            style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        📋 Workflows
+                    </button>
+                    <button onclick="showAgentMetrics()" 
+                            style="padding: 6px 12px; background: #9b59b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        📊 Metrics
+                    </button>
+                    <button onclick="showConfigDialog()" 
+                            style="padding: 6px 12px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        ⚙️ Config
+                    </button>
+                    <button onclick="showSystemHealthDialog()" 
+                            style="padding: 6px 12px; background: #16a085; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        🩺 Health
+                    </button>
+                    <button onclick="showAlertsDialog()" 
+                            style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        🚨 Alerts
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -6297,6 +6366,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     issuesHtml += `<h3 style="margin-top: 30px; color: #2c3e50;">${severityEmoji} ${severity.toUpperCase()} ISSUES (${severityIssues.length})</h3>`;
                     
                     severityIssues.forEach(issue => {
+                        const actionButtons = getIssueActionButtons(issue);
                         issuesHtml += `
                             <div class="issue ${issue.severity}">
                                 <div class="issue-title">${issue.symbol}: ${issue.description}</div>
@@ -6308,6 +6378,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     ${issue.expected_value && issue.actual_value ? 
                                       `<br><span class="meta-item">💡 Expected: ${issue.expected_value}</span><span class="meta-item">📊 Actual: ${issue.actual_value}</span>` : ''}
                                 </div>
+                                ${actionButtons ? `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">${actionButtons}</div>` : ''}
                             </div>
                         `;
                     });
@@ -6317,11 +6388,741 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             issuesContainer.innerHTML = issuesHtml;
         }
         
+        // Helper function to get action buttons for issues
+        function getIssueActionButtons(issue) {
+            const actions = [];
+            
+            // Determine appropriate actions based on issue type and severity
+            switch (issue.issue_type) {
+                case 'missing_data':
+                    actions.push({
+                        label: '🔄 Trigger Backfill',
+                        action: 'trigger_backfill',
+                        color: '#3498db'
+                    });
+                    break;
+                    
+                case 'extreme_volume':
+                case 'extreme_price_range':
+                    actions.push({
+                        label: '🔍 Cross-Validate',
+                        action: 'cross_validate_vendors',
+                        color: '#9b59b6'
+                    });
+                    break;
+                    
+                case 'data_inconsistency':
+                    actions.push({
+                        label: '🔄 Auto-Deduplicate',
+                        action: 'auto_deduplicate', 
+                        color: '#27ae60'
+                    });
+                    actions.push({
+                        label: '🔍 Cross-Validate',
+                        action: 'cross_validate_vendors',
+                        color: '#9b59b6'
+                    });
+                    break;
+                    
+                default:
+                    if (issue.severity === 'critical' || issue.severity === 'high') {
+                        actions.push({
+                            label: '🚨 Escalate',
+                            action: 'escalate_to_human',
+                            color: '#e74c3c'
+                        });
+                    }
+                    break;
+            }
+            
+            // Add general "Investigate" action for all issues
+            actions.push({
+                label: '🕵️ Investigate',
+                action: 'investigate_issue',
+                color: '#f39c12'
+            });
+            
+            return actions.map(actionBtn => 
+                `<button onclick="triggerAgentAction('${actionBtn.action}', '${issue.id}')" 
+                         style="padding: 4px 8px; background: ${actionBtn.color}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                    ${actionBtn.label}
+                 </button>`
+            ).join('');
+        }
+        
+        // Agent control functions
+        async function loadAgentStatus() {
+            try {
+                const response = await fetch('/agent/status');
+                const status = await response.json();
+                
+                const statusElement = document.getElementById('agent-status');
+                const startBtn = document.getElementById('start-agent-btn');
+                const stopBtn = document.getElementById('stop-agent-btn');
+                
+                if (status.monitoring_active) {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Workflows: ${status.active_workflows} | Issues: ${status.pending_issues}`;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                } else {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #e74c3c;">STOPPED</span> | Last cycle: ${status.last_cycle || 'Never'}`;
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('agent-status').innerHTML = `🤖 Agent: <span style="color: #f39c12;">ERROR</span> - ${error.message}`;
+            }
+        }
+        
+        async function startAgent() {
+            try {
+                const response = await fetch('/agent/start', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    setTimeout(loadAgentStatus, 1000); // Reload status after delay
+                    showNotification('✅ Data Quality Agent started successfully', 'success');
+                } else {
+                    showNotification(`❌ Failed to start agent: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showNotification(`❌ Error starting agent: ${error.message}`, 'error');
+            }
+        }
+        
+        async function stopAgent() {
+            try {
+                const response = await fetch('/agent/stop', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    setTimeout(loadAgentStatus, 1000); // Reload status after delay
+                    showNotification('⏹️ Data Quality Agent stopped successfully', 'warning');
+                } else {
+                    showNotification(`❌ Failed to stop agent: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showNotification(`❌ Error stopping agent: ${error.message}`, 'error');
+            }
+        }
+        
+        async function showWorkflowsDialog() {
+            try {
+                const response = await fetch('/agent/workflows');
+                const data = await response.json();
+                
+                const workflows = data.workflows || [];
+                let workflowsHtml = '<h3>🔄 Active Workflows</h3>';
+                
+                if (workflows.length === 0) {
+                    workflowsHtml += '<p>No active workflows found.</p>';
+                } else {
+                    workflowsHtml += '<div style="max-height: 400px; overflow-y: auto;">';
+                    workflows.forEach(wf => {
+                        const statusColor = {
+                            'created': '#3498db',
+                            'executing': '#f39c12', 
+                            'pending_approval': '#9b59b6',
+                            'completed': '#27ae60',
+                            'failed': '#e74c3c'
+                        }[wf.status] || '#6c757d';
+                        
+                        workflowsHtml += `
+                            <div style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 8px; background: #f8f9fa;">
+                                <div><strong>${wf.issue_type}</strong> - ${wf.primary_action}</div>
+                                <div style="color: ${statusColor}; font-weight: bold;">Status: ${wf.status.toUpperCase()}</div>
+                                <div style="color: #6c757d; font-size: 0.9em;">
+                                    ID: ${wf.workflow_id} | Priority: ${wf.priority} | 
+                                    Created: ${new Date(wf.created_at).toLocaleString()}
+                                </div>
+                                ${wf.error ? `<div style="color: #e74c3c; margin-top: 5px;">Error: ${wf.error}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                    workflowsHtml += '</div>';
+                }
+                
+                showModal('Workflows', workflowsHtml);
+            } catch (error) {
+                showNotification(`❌ Error loading workflows: ${error.message}`, 'error');
+            }
+        }
+        
+        async function showAgentMetrics() {
+            try {
+                const response = await fetch('/agent/metrics');
+                const metrics = await response.json();
+                
+                let metricsHtml = '<h3>📊 Agent Performance Metrics</h3>';
+                metricsHtml += `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <h4>Workflow Statistics</h4>
+                            <p><strong>Total Workflows:</strong> ${metrics.workflow_stats?.total_workflows || 0}</p>
+                            <p><strong>Success Rate:</strong> ${((metrics.workflow_stats?.success_rate || 0) * 100).toFixed(1)}%</p>
+                            <p><strong>Active Workflows:</strong> ${metrics.workflow_stats?.active_workflows || 0}</p>
+                            <p><strong>Avg Duration:</strong> ${(metrics.workflow_stats?.avg_duration_seconds || 0).toFixed(1)}s</p>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <h4>Health Score</h4>
+                            <p><strong>Overall Health:</strong> ${(metrics.health_score?.overall_score || 0).toFixed(1)}/100</p>
+                            <p><strong>Performance:</strong> ${(metrics.health_score?.performance_score || 0).toFixed(1)}/100</p>
+                            <p><strong>Reliability:</strong> ${(metrics.health_score?.reliability_score || 0).toFixed(1)}/100</p>
+                        </div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <h4>Recent Activity</h4>
+                        <p><strong>Issues Resolved:</strong> ${metrics.resolution_stats?.total_resolved || 0}</p>
+                        <p><strong>Auto-resolved:</strong> ${metrics.resolution_stats?.auto_resolved || 0}</p>
+                        <p><strong>Escalated:</strong> ${metrics.resolution_stats?.escalated || 0}</p>
+                        <p><strong>Last Cycle:</strong> ${metrics.last_cycle ? new Date(metrics.last_cycle).toLocaleString() : 'Never'}</p>
+                    </div>
+                `;
+                
+                showModal('Agent Metrics', metricsHtml);
+            } catch (error) {
+                showNotification(`❌ Error loading metrics: ${error.message}`, 'error');
+            }
+        }
+        
+        async function triggerAgentAction(action, issueId = null) {
+            try {
+                const payload = { action };
+                if (issueId) payload.issue_id = issueId;
+                
+                const response = await fetch('/agent/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(`✅ Agent action "${action}" triggered successfully`, 'success');
+                    setTimeout(loadData, 2000); // Refresh dashboard after action
+                } else {
+                    showNotification(`❌ Agent action failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showNotification(`❌ Error triggering action: ${error.message}`, 'error');
+            }
+        }
+        
+        async function showConfigDialog() {
+            try {
+                const response = await fetch('/agent/config');
+                const data = await response.json();
+                
+                const config = data.config;
+                const configHtml = `
+                    <h3>⚙️ Agent Configuration</h3>
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <div style="margin-bottom: 20px;">
+                            <h4>Monitoring Settings</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
+                                <div>
+                                    <label>Cycle Interval (seconds):</label>
+                                    <input type="number" id="cycle-interval" value="${config.monitoring.cycle_interval_seconds}" 
+                                           style="width: 100%; padding: 5px; margin-top: 2px;">
+                                </div>
+                                <div>
+                                    <label>Max Concurrent Workflows:</label>
+                                    <input type="number" id="max-workflows" value="${config.monitoring.max_concurrent_workflows}" 
+                                           style="width: 100%; padding: 5px; margin-top: 2px;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <h4>Issue Thresholds</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
+                                <div>
+                                    <label>Extreme Volume Multiplier:</label>
+                                    <input type="number" step="0.1" id="volume-multiplier" value="${config.issue_thresholds.extreme_volume_multiplier}" 
+                                           style="width: 100%; padding: 5px; margin-top: 2px;">
+                                </div>
+                                <div>
+                                    <label>Price Change Threshold (%):</label>
+                                    <input type="number" step="0.1" id="price-change-threshold" value="${config.issue_thresholds.extreme_price_change_percent}" 
+                                           style="width: 100%; padding: 5px; margin-top: 2px;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <h4>Action Settings</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
+                                <div>
+                                    <label>Auto-resolve Confidence:</label>
+                                    <input type="number" step="0.01" min="0" max="1" id="auto-resolve-threshold" 
+                                           value="${config.action_thresholds.auto_resolve_confidence_threshold}" 
+                                           style="width: 100%; padding: 5px; margin-top: 2px;">
+                                </div>
+                                <div>
+                                    <label>Max Retry Attempts:</label>
+                                    <input type="number" id="max-retries" value="${config.action_thresholds.max_retry_attempts}" 
+                                           style="width: 100%; padding: 5px; margin-top: 2px;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <h4>Agent Behavior</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
+                                <div>
+                                    <label>
+                                        <input type="checkbox" id="autonomous-mode" ${config.enable_autonomous_mode ? 'checked' : ''}>
+                                        Enable Autonomous Mode
+                                    </label>
+                                </div>
+                                <div>
+                                    <label>
+                                        <input type="checkbox" id="learning-mode" ${config.enable_learning_mode ? 'checked' : ''}>
+                                        Enable Learning Mode
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
+                            <button onclick="updateAgentConfig()" 
+                                    style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                💾 Save Configuration
+                            </button>
+                            <button onclick="resetAgentConfig()" 
+                                    style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                🔄 Reset to Defaults
+                            </button>
+                            <button onclick="applyEnvironmentConfig('development')" 
+                                    style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                🔧 Dev Mode
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                showModal('Agent Configuration', configHtml);
+            } catch (error) {
+                showNotification(\`❌ Error loading configuration: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function updateAgentConfig() {
+            try {
+                const updates = {
+                    monitoring: {
+                        cycle_interval_seconds: parseInt(document.getElementById('cycle-interval').value),
+                        max_concurrent_workflows: parseInt(document.getElementById('max-workflows').value)
+                    },
+                    issue_thresholds: {
+                        extreme_volume_multiplier: parseFloat(document.getElementById('volume-multiplier').value),
+                        extreme_price_change_percent: parseFloat(document.getElementById('price-change-threshold').value)
+                    },
+                    action_thresholds: {
+                        auto_resolve_confidence_threshold: parseFloat(document.getElementById('auto-resolve-threshold').value),
+                        max_retry_attempts: parseInt(document.getElementById('max-retries').value)
+                    },
+                    enable_autonomous_mode: document.getElementById('autonomous-mode').checked,
+                    enable_learning_mode: document.getElementById('learning-mode').checked
+                };
+                
+                const response = await fetch('/agent/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Configuration updated successfully', 'success');
+                    document.querySelector('.modal').remove();
+                } else {
+                    showNotification('❌ Failed to update configuration', 'error');
+                }
+            } catch (error) {
+                showNotification(\`❌ Error updating configuration: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function resetAgentConfig() {
+            try {
+                const response = await fetch('/agent/config/reset', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Configuration reset to defaults', 'success');
+                    document.querySelector('.modal').remove();
+                    setTimeout(showConfigDialog, 1000); // Show updated config
+                } else {
+                    showNotification('❌ Failed to reset configuration', 'error');
+                }
+            } catch (error) {
+                showNotification(\`❌ Error resetting configuration: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function applyEnvironmentConfig(environment) {
+            try {
+                const response = await fetch(\`/agent/config/environment/\${environment}\`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(\`✅ Applied \${environment} configuration\`, 'success');
+                    document.querySelector('.modal').remove();
+                    setTimeout(showConfigDialog, 1000); // Show updated config
+                } else {
+                    showNotification(\`❌ Failed to apply \${environment} configuration\`, 'error');
+                }
+            } catch (error) {
+                showNotification(\`❌ Error applying \${environment} configuration: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function showAlertsDialog() {
+            try {
+                const response = await fetch('/agent/alerts');
+                const data = await response.json();
+                
+                const alerts = data.active_alerts || [];
+                const summary = data.alert_summary || {};
+                const channels = data.notification_channels || {};
+                
+                const alertsHtml = \`
+                    <h3>🚨 Alert Management</h3>
+                    <div style="max-height: 600px; overflow-y: auto;">
+                        
+                        <!-- Alert Summary -->
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                            <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h3 style="margin: 0;">\${summary.active_by_severity?.critical || 0}</h3>
+                                <p style="margin: 5px 0 0 0;">Critical</p>
+                            </div>
+                            <div style="background: #e67e22; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h3 style="margin: 0;">\${summary.active_by_severity?.high || 0}</h3>
+                                <p style="margin: 5px 0 0 0;">High</p>
+                            </div>
+                            <div style="background: #f39c12; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h3 style="margin: 0;">\${summary.active_by_severity?.medium || 0}</h3>
+                                <p style="margin: 5px 0 0 0;">Medium</p>
+                            </div>
+                            <div style="background: #3498db; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h3 style="margin: 0;">\${summary.active_by_severity?.low || 0}</h3>
+                                <p style="margin: 5px 0 0 0;">Low</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Active Alerts -->
+                        <div style="margin-bottom: 20px;">
+                            <h4>🔥 Active Alerts (\${alerts.length})</h4>
+                            \${alerts.length > 0 ? 
+                                alerts.map(alert => {
+                                    const severityColors = {
+                                        critical: '#e74c3c',
+                                        high: '#e67e22', 
+                                        medium: '#f39c12',
+                                        low: '#3498db'
+                                    };
+                                    const severityColor = severityColors[alert.severity] || '#6c757d';
+                                    
+                                    return \`
+                                        <div style="border-left: 4px solid \${severityColor}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
+                                            <div style="display: flex; justify-content: between; align-items: start;">
+                                                <div style="flex: 1;">
+                                                    <h5 style="margin: 0 0 5px 0; color: \${severityColor};">\${alert.title}</h5>
+                                                    <p style="margin: 0 0 8px 0;">\${alert.message}</p>
+                                                    <small style="color: #6c757d;">
+                                                        \${alert.source_component} • \${new Date(alert.timestamp).toLocaleString()}
+                                                        \${alert.acknowledged ? ' • ✅ Acknowledged' : ''}
+                                                    </small>
+                                                </div>
+                                                <div style="display: flex; gap: 5px; margin-left: 15px;">
+                                                    \${!alert.acknowledged ? 
+                                                        \`<button onclick="acknowledgeAlert('\${alert.alert_id}')" 
+                                                                 style="padding: 4px 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                                                            ✓ Ack
+                                                         </button>\` : ''
+                                                    }
+                                                    <button onclick="resolveAlert('\${alert.alert_id}')" 
+                                                            style="padding: 4px 8px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                                                        ✓ Resolve
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    \`;
+                                }).join('') : 
+                                '<p style="color: #27ae60; text-align: center; padding: 20px;">✅ No active alerts</p>'
+                            }
+                        </div>
+                        
+                        <!-- Alert Statistics -->
+                        <div style="margin-bottom: 20px;">
+                            <h4>📊 Alert Statistics</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                    <h5>Recent Activity</h5>
+                                    <p><strong>Last Hour:</strong> \${summary.alerts_last_hour || 0} alerts</p>
+                                    <p><strong>Last 24h:</strong> \${summary.alerts_last_24h || 0} alerts</p>
+                                    <p><strong>Rules Enabled:</strong> \${summary.alert_rules_enabled || 0}</p>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                    <h5>Notification Channels</h5>
+                                    \${Object.entries(channels).map(([id, channel]) => 
+                                        \`<p><strong>\${id}:</strong> \${channel.enabled ? '✅' : '❌'} \${channel.type}</p>\`
+                                    ).join('') || '<p>No channels configured</p>'}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Management Actions -->
+                        <div style="display: flex; gap: 10px; justify-content: center; padding-top: 15px; border-top: 1px solid #ddd;">
+                            <button onclick="testNotificationChannels()" 
+                                    style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                📧 Test Notifications
+                            </button>
+                            <button onclick="refreshAlerts()" 
+                                    style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        
+                        <div style="text-align: center; padding-top: 15px; color: #6c757d;">
+                            <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
+                        </div>
+                    </div>
+                \`;
+                
+                showModal('Alert Management', alertsHtml);
+            } catch (error) {
+                showNotification(\`❌ Error loading alerts: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function acknowledgeAlert(alertId) {
+            try {
+                const response = await fetch(\`/agent/alerts/\${alertId}/acknowledge\`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Alert acknowledged', 'success');
+                    setTimeout(showAlertsDialog, 1000); // Refresh alerts dialog
+                } else {
+                    showNotification('❌ Failed to acknowledge alert', 'error');
+                }
+            } catch (error) {
+                showNotification(\`❌ Error acknowledging alert: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function resolveAlert(alertId) {
+            try {
+                const response = await fetch(\`/agent/alerts/\${alertId}/resolve\`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Alert resolved', 'success');
+                    setTimeout(showAlertsDialog, 1000); // Refresh alerts dialog
+                } else {
+                    showNotification('❌ Failed to resolve alert', 'error');
+                }
+            } catch (error) {
+                showNotification(\`❌ Error resolving alert: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function testNotificationChannels() {
+            try {
+                const response = await fetch('/agent/alerts/test-channels', { method: 'POST' });
+                const result = await response.json();
+                
+                const successful = result.successful_channels;
+                const failed = result.failed_channels;
+                
+                if (successful > 0) {
+                    showNotification(\`✅ \${successful} channels tested successfully (\${failed} failed)\`, 'success');
+                } else {
+                    showNotification(\`❌ All \${failed} notification channels failed\`, 'error');
+                }
+            } catch (error) {
+                showNotification(\`❌ Error testing notification channels: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function refreshAlerts() {
+            document.querySelector('.modal').remove();
+            setTimeout(showAlertsDialog, 500);
+        }
+        
+        async function showSystemHealthDialog() {
+            try {
+                const response = await fetch('/agent/system-health');
+                const data = await response.json();
+                
+                const health = data.system_health;
+                const agent = data.agent_integration;
+                const ops = data.operational_summary;
+                
+                const statusColors = {
+                    excellent: '#27ae60',
+                    good: '#f39c12', 
+                    warning: '#e67e22',
+                    critical: '#e74c3c'
+                };
+                
+                const statusColor = statusColors[health.status] || '#6c757d';
+                
+                const healthHtml = \`
+                    <h3>🩺 System Health Monitor</h3>
+                    <div style="max-height: 600px; overflow-y: auto;">
+                        
+                        <!-- Overall Health Status -->
+                        <div style="background: \${statusColor}; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                            <h2 style="margin: 0;">Health Score: \${health.health_score}/100</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 1.1em;">Status: \${health.status.toUpperCase()}</p>
+                        </div>
+                        
+                        <!-- System Metrics -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                <h4>💻 System Resources</h4>
+                                <p><strong>CPU:</strong> \${health.latest_metrics?.cpu_percent || 0}%</p>
+                                <p><strong>Memory:</strong> \${health.latest_metrics?.memory_percent || 0}%</p>
+                                <p><strong>Disk Usage:</strong> \${health.latest_metrics?.disk_usage_percent || 0}%</p>
+                                <p><strong>Free Space:</strong> \${(health.latest_metrics?.disk_free_gb || 0).toFixed(1)}GB</p>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                <h4>🤖 Agent Status</h4>
+                                <p><strong>Status:</strong> \${agent.agent_status}</p>
+                                <p><strong>Monitoring:</strong> \${agent.monitoring_active ? 'Active' : 'Inactive'}</p>
+                                <p><strong>Workflows:</strong> \${ops.total_workflows}</p>
+                                <p><strong>Last Scan:</strong> \${ops.last_scan ? new Date(ops.last_scan).toLocaleTimeString() : 'Never'}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Active Alerts -->
+                        <div style="margin-bottom: 20px;">
+                            <h4>🚨 Active Alerts (\${health.active_alerts?.length || 0})</h4>
+                            \${health.active_alerts?.length > 0 ? 
+                                health.active_alerts.map(alert => \`
+                                    <div style="border-left: 4px solid \${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'}; 
+                                                padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 0 4px 4px 0;">
+                                        <strong>\${alert.component.toUpperCase()}:</strong> \${alert.message}
+                                        <br><small>\${new Date(alert.timestamp).toLocaleString()}</small>
+                                    </div>
+                                \`).join('') : 
+                                '<p style="color: #27ae60;">✅ No active alerts</p>'
+                            }
+                        </div>
+                        
+                        <!-- Performance Trends -->
+                        <div style="margin-bottom: 20px;">
+                            <h4>📈 Performance Trends</h4>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                <p><strong>CPU (10min avg):</strong> \${health.trends?.cpu_avg_10min || 0}%</p>
+                                <p><strong>Memory (10min avg):</strong> \${health.trends?.memory_avg_10min || 0}%</p>
+                                <p><strong>Monitoring Duration:</strong> \${(health.trends?.monitoring_duration_hours || 0).toFixed(1)} hours</p>
+                                <p><strong>Data Points:</strong> \${health.trends?.metrics_collected || 0}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Recommendations -->
+                        <div style="margin-bottom: 20px;">
+                            <h4>💡 Recommendations</h4>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                \${health.recommendations?.map(rec => \`<p>• \${rec}</p>\`).join('') || '<p>No recommendations available</p>'}
+                            </div>
+                        </div>
+                        
+                        <!-- MCP Tools Status -->
+                        <div style="margin-bottom: 20px;">
+                            <h4>🛠️ MCP Tools Available</h4>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                \${agent.tools_available?.map(tool => \`
+                                    <span style="display: inline-block; background: #3498db; color: white; padding: 3px 8px; margin: 2px; border-radius: 12px; font-size: 0.8em;">
+                                        \${tool}
+                                    </span>
+                                \`).join('') || 'No tools available'}
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; padding-top: 15px; border-top: 1px solid #ddd; color: #6c757d;">
+                            <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
+                        </div>
+                    </div>
+                \`;
+                
+                showModal('System Health Monitor', healthHtml);
+            } catch (error) {
+                showNotification(\`❌ Error loading system health: \${error.message}\`, 'error');
+            }
+        }
+        
+        // Utility functions for notifications and modals
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            const colors = {
+                success: '#27ae60',
+                error: '#e74c3c',
+                warning: '#f39c12',
+                info: '#3498db'
+            };
+            
+            notification.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 10000;
+                background: ${colors[type]}; color: white; padding: 15px 20px;
+                border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                max-width: 350px; font-weight: 500;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.3s';
+                setTimeout(() => notification.remove(), 300);
+            }, 4000);
+        }
+        
+        function showModal(title, content) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000;
+                background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; max-width: 80%; max-height: 80%; overflow: auto; position: relative;">
+                    <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0;">${title}</h2>
+                        <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+                    </div>
+                    <div style="padding: 20px;">
+                        ${content}
+                    </div>
+                </div>
+            `;
+            
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+            
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        }
+        
         // Load data on page load
         loadData();
+        loadAgentStatus();
         
         // Auto-refresh every 60 seconds
-        setInterval(loadData, 60000);
+        setInterval(() => {
+            loadData();
+            loadAgentStatus();
+        }, 60000);
     </script>
 </body>
 </html>
