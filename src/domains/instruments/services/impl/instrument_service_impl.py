@@ -10,6 +10,12 @@ import logging
 from typing import List, Optional, Dict, Any
 from datetime import date
 
+# Monitoring imports
+from infrastructure.monitoring.instrument_service_monitor import (
+    monitor_instrument_operation,
+    record_instrument_business_metric
+)
+
 from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentServiceInterface,
     InstrumentDTO,
@@ -99,7 +105,8 @@ class InstrumentServiceImpl(InstrumentServiceInterface):
         )
 
     # Core CRUD Operations
-
+    
+    @monitor_instrument_operation('create_instrument')
     async def create_instrument(self, instrument: InstrumentDTO) -> InstrumentOperationResult:
         """Create a new instrument with business validation"""
         try:
@@ -131,7 +138,13 @@ class InstrumentServiceImpl(InstrumentServiceInterface):
             )
 
             logger.info(f"Created instrument {instrument.symbol} with ID {instrument_id}")
-
+            
+            # Record business metric
+            record_instrument_business_metric('instruments_created', 1, {
+                'exchange': instrument.exchange or 'unknown',
+                'type': instrument.instrument_type or 'unknown'
+            })
+            
             return InstrumentOperationResult(
                 success=True,
                 instrument_id=instrument_id,
@@ -144,7 +157,8 @@ class InstrumentServiceImpl(InstrumentServiceInterface):
                 success=False,
                 error_message=str(e)
             )
-
+    
+    @monitor_instrument_operation('get_instrument_by_id')
     async def get_instrument_by_id(self, instrument_id: int) -> Optional[InstrumentDTO]:
         """Retrieve instrument by ID"""
         try:
@@ -153,7 +167,8 @@ class InstrumentServiceImpl(InstrumentServiceInterface):
         except Exception as e:
             logger.error(f"Error retrieving instrument {instrument_id}: {e}")
             return None
-
+    
+    @monitor_instrument_operation('get_instrument_by_symbol')
     async def get_instrument_by_symbol(self, symbol: str, vendor_name: str = "ticker") -> Optional[InstrumentDTO]:
         """Retrieve instrument by symbol and vendor with business logic"""
         try:
@@ -176,7 +191,8 @@ class InstrumentServiceImpl(InstrumentServiceInterface):
             success=False,
             error_message="Update operation not yet implemented"
         )
-
+    
+    @monitor_instrument_operation('list_instruments')
     async def list_instruments(self, criteria: InstrumentSearchCriteria) -> List[InstrumentDTO]:
         """List instruments based on search criteria with business logic"""
         try:
@@ -484,7 +500,8 @@ class InstrumentServiceImpl(InstrumentServiceInterface):
         except Exception as e:
             logger.error(f"Error getting instrument count: {e}")
             return 0
-
+    
+    @monitor_instrument_operation('validate_symbol')
     async def validate_symbol(self, symbol: str, vendor_name: str = "ticker") -> bool:
         """Validate if symbol exists for vendor"""
         try:
