@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 class AnalyticsConfig:
     """Unified analytics configuration."""
     environment: str = 'dev'
-    host: str = 'localhost'
+    host: str = '0.0.0.0'
     port: int = 3000
     enable_web_dashboard: bool = True
     enable_api: bool = True
@@ -254,27 +254,22 @@ class AnalyticsService:
         class AnalyticsRequestHandler(BaseHTTPRequestHandler):
             def do_GET(self):
                 self.service = service
-                asyncio.create_task(self._handle_request())
+                self._handle_request()
             
             def do_POST(self):
                 self.service = service
-                asyncio.create_task(self._handle_request())
+                self._handle_request()
             
-            async def _handle_request(self):
+            def _handle_request(self):
                 """Handle HTTP request."""
                 try:
                     path = self.path.split('?')[0]
-                    query_params = parse_qs(urlparse(self.path).query)
                     
                     # Route to appropriate handler
                     if path == '/':
-                        await self._serve_dashboard()
-                    elif path.startswith('/api/analytics/'):
-                        await self._handle_api_request(path, query_params)
-                    elif path.startswith('/api/data/'):
-                        await self._handle_data_request(path, query_params)
-                    elif path.startswith('/static/'):
-                        await self._serve_static_file(path)
+                        self._serve_dashboard()
+                    elif path.startswith('/api/'):
+                        self._serve_api_placeholder()
                     else:
                         self._send_error(404, "Not Found")
                         
@@ -282,10 +277,15 @@ class AnalyticsService:
                     logger.error(f"Request handling error: {e}")
                     self._send_error(500, "Internal Server Error")
             
-            async def _serve_dashboard(self):
+            def _serve_dashboard(self):
                 """Serve main analytics dashboard."""
-                html_content = await self.service._generate_dashboard_html()
+                html_content = self.service._generate_dashboard_html()
                 self._send_response(200, html_content, 'text/html')
+            
+            def _serve_api_placeholder(self):
+                """Serve API placeholder."""
+                response = {"status": "ok", "message": "ATS Analytics API - Consolidated Framework"}
+                self._send_json_response(response)
             
             async def _handle_api_request(self, path: str, params: Dict):
                 """Handle API requests."""
@@ -747,7 +747,7 @@ class AnalyticsService:
             logger.error(f"ML insights failed: {e}")
             return {}
     
-    async def _generate_dashboard_html(self) -> str:
+    def _generate_dashboard_html(self) -> str:
         """Generate analytics dashboard HTML."""
         return """
         <!DOCTYPE html>
@@ -834,7 +834,7 @@ async def create_analytics_service(environment: str = 'dev') -> AnalyticsService
     return service
 
 
-async def run_analytics_server(host: str = 'localhost', port: int = 3000, environment: str = 'dev'):
+async def run_analytics_server(host: str = '0.0.0.0', port: int = 3000, environment: str = 'dev'):
     """Run analytics server."""
     config = AnalyticsConfig(
         environment=environment,
