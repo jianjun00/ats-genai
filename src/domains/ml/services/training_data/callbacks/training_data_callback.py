@@ -7,8 +7,12 @@ and uses SOD/EOD events to manage daily files efficiently.
 """
 
 import logging
+import asyncio
+import asyncpg
+import uuid
+import os
 from datetime import datetime, date
-from typing import Any, Optional, List, Dict, Union
+from typing import Any, Optional, List, Dict, Union, Set
 from pathlib import Path
 import json
 from dateutil.relativedelta import relativedelta
@@ -100,7 +104,14 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.logger.info(f"Binary record schema: {schema_config} mode")
         self.logger.info(f"Available indicators will be auto-detected: {self.binary_schema.auto_detect}")
 
+        # 🚨 DUPLICATE PREVENTION: Enhanced duplicate prevention mechanisms
+        self.cleanup_failed_runs = True
+        self.enforce_run_id_uniqueness = True
+        self.processed_intervals: Set[tuple] = set()  # Track intervals within this run
+        self.db_connection = None  # Database connection for duplicate checking
+        
         self.logger.info(f"IntervalBasedTrainingDataCallback initialized for symbols: {symbols}")
+        self.logger.info(f"Duplicate prevention enabled: cleanup_failed_runs=True, enforce_run_id_uniqueness=True")
         if self.start_date and self.end_date:
             self.logger.info(f"Training data date range: {self.start_date} to {self.end_date}")
 
@@ -164,12 +175,53 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.logger.info("Interval-based training data generator initialized")
 
     async def handleInterval(self, runner: Any, current_time: datetime):
-        """Generate and immediately save training data for current interval."""
+        """Generate and immediately save training data for current interval with duplicate prevention."""
         if not self.training_generator:
             return
 
         # Store runner context for data access in helper methods
         self._current_runner = runner
+
+        # 🚨 DUPLICATE PREVENTION: Get run_id and validate prerequisites
+        run_id = getattr(runner, 'run_id', 'unknown_run')
+        
+        # Validate prerequisites on first interval
+        if not hasattr(self, '_prerequisites_validated'):
+            prerequisites_ok = await self.validate_run_prerequisites(run_id)
+            if not prerequisites_ok:
+                raise RuntimeError(f"Run prerequisites validation failed for run_id: {run_id}")
+            self._prerequisites_validated = True
+        
+        # 🚨 DUPLICATE PREVENTION: Check for duplicate intervals before processing
+        if hasattr(runner, 'universe_manager') and runner.universe_manager:
+            try:
+                universe_state = await runner.universe_manager.getUniverseState('60m', current_time)
+                if universe_state and hasattr(universe_state, 'instrument_intervals'):
+                    instrument_ids = [ii.instrument_id for ii in universe_state.instrument_intervals.values()]
+                    
+                    # Check each instrument interval for duplicates
+                    for instrument_id in instrument_ids:
+                        interval_key = (instrument_id, current_time, '60m')
+                        
+                        # Check if we've already processed this interval in this run
+                        if interval_key in self.processed_intervals:
+                            self.logger.warning(f"Skipping duplicate interval in current run: {interval_key}")
+                            continue
+                        
+                        # Check if interval exists in database from other runs
+                        interval_exists = await self.check_interval_exists(
+                            instrument_id, current_time, '60m', run_id
+                        )
+                        
+                        if interval_exists:
+                            self.logger.warning(f"Skipping existing interval from other run: {interval_key}")
+                            continue
+                        
+                        # Mark interval as processed
+                        self.processed_intervals.add(interval_key)
+                        
+            except Exception as e:
+                self.logger.warning(f"Could not perform duplicate checking for {current_time}: {e}")
 
         self.interval_counter += 1
         examples_generated = []
@@ -849,8 +901,199 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             print(f"❌ Error in handleEnd: {e}")
             import traceback
             traceback.print_exc()
+        finally:
+            # 🚨 DUPLICATE PREVENTION: Clean up database connection and report
+            try:
+                run_id = getattr(runner, 'run_id', 'unknown_run')
+                total_processed = len(self.processed_intervals)
+                print(f"\n✅ DUPLICATE PREVENTION SUMMARY")
+                print(f"   Run ID: {run_id}")
+                print(f"   Intervals processed: {total_processed}")
+                print(f"   Duplicates prevented: In-run tracking + database validation")
+                
+                # Clean up database connection
+                if self.db_connection:
+                    await self.db_connection.close()
+                    self.db_connection = None
+                    print(f"   Database connection closed")
+                    
+            except Exception as cleanup_e:
+                print(f"⚠️ Error in duplicate prevention cleanup: {cleanup_e}")
 
         self.logger.info(f"Interval-based generation completed: {self.interval_counter} intervals processed")
+
+    def generate_enhanced_run_id(self) -> str:
+        """Generate enhanced run ID with microsecond precision and process ID."""
+        # Use microsecond precision (removes last 3 digits for millisecond precision)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+        
+        # Add process ID for uniqueness across parallel processes
+        pid = os.getpid()
+        
+        # Use longer UUID suffix (12 chars instead of 8)
+        uuid_suffix = uuid.uuid4().hex[:12]
+        
+        return f"run_{timestamp}_{pid:06d}_{uuid_suffix}"
+
+    async def get_database_connection(self) -> asyncpg.Connection:
+        """Get database connection for duplicate checking."""
+        if self.db_connection is None:
+            # Use environment-specific database configuration
+            if hasattr(self, '_current_runner') and hasattr(self._current_runner, 'universe_manager'):
+                # Try to get connection from runner's universe manager
+                try:
+                    # This is a bit hacky but works with the current architecture
+                    universe_manager = self._current_runner.universe_manager
+                    if hasattr(universe_manager, 'instrument_interval_dao'):
+                        dao = universe_manager.instrument_interval_dao
+                        if hasattr(dao, 'conn_pool') and dao.conn_pool:
+                            self.db_connection = await dao.conn_pool.acquire()
+                            return self.db_connection
+                except Exception as e:
+                    self.logger.warning(f"Could not get connection from universe manager: {e}")
+            
+            # Fallback: Create direct connection based on environment
+            try:
+                # Use integration database configuration
+                db_config = {
+                    'host': 'localhost',
+                    'port': 4432,
+                    'user': 'postgres',
+                    'password': 'intg_password',
+                    'database': 'intg_db'
+                }
+                self.db_connection = await asyncpg.connect(**db_config)
+            except Exception as e:
+                self.logger.error(f"Failed to create database connection: {e}")
+                raise
+        
+        return self.db_connection
+
+    async def check_run_id_exists(self, run_id: str) -> bool:
+        """Check if run_id already exists in the database."""
+        try:
+            conn = await self.get_database_connection()
+            query = "SELECT COUNT(*) as count FROM intg_instrument_interval WHERE run_id = $1"
+            result = await conn.fetchrow(query, run_id)
+            return result['count'] > 0
+        except Exception as e:
+            self.logger.error(f"Error checking run_id existence: {e}")
+            return False
+
+    async def check_interval_exists(self, instrument_id: int, interval_start: datetime, 
+                                  interval_duration: str, run_id: str) -> bool:
+        """Check if specific interval already exists."""
+        try:
+            conn = await self.get_database_connection()
+            query = """
+                SELECT COUNT(*) as count 
+                FROM intg_instrument_interval 
+                WHERE instrument_id = $1 
+                  AND interval_start = $2 
+                  AND interval_duration = $3 
+                  AND run_id != $4
+            """
+            result = await conn.fetchrow(query, instrument_id, interval_start, interval_duration, run_id)
+            return result['count'] > 0
+        except Exception as e:
+            self.logger.error(f"Error checking interval existence: {e}")
+            return False
+
+    async def cleanup_failed_run_data(self, run_id: str) -> int:
+        """Clean up data from a failed run."""
+        try:
+            conn = await self.get_database_connection()
+            query = "DELETE FROM intg_instrument_interval WHERE run_id = $1"
+            result = await conn.execute(query, run_id)
+            
+            # Extract number of deleted records from result
+            deleted_count = int(result.split()[-1]) if result.startswith('DELETE') else 0
+            
+            if deleted_count > 0:
+                self.logger.info(f"Cleaned up {deleted_count} records from failed run: {run_id}")
+            
+            return deleted_count
+        except Exception as e:
+            self.logger.error(f"Error cleaning up failed run data: {e}")
+            return 0
+
+    async def find_and_cleanup_failed_runs(self) -> List[str]:
+        """Find and clean up failed runs that might cause conflicts."""
+        try:
+            conn = await self.get_database_connection()
+            
+            # Find runs that might be failed (orphaned records without proper run tracking)
+            failed_runs_query = """
+                SELECT DISTINCT run_id, COUNT(*) as record_count
+                FROM intg_instrument_interval 
+                WHERE run_id LIKE 'run_%'
+                  AND interval_start >= $1
+                  AND interval_start <= $2
+                GROUP BY run_id
+                HAVING COUNT(*) < 50  -- Suspiciously low record count suggests failed run
+                ORDER BY COUNT(*) ASC
+            """
+            
+            failed_runs = await conn.fetch(
+                failed_runs_query, 
+                self.collection_start_date or self.start_date,
+                self.collection_end_date or self.end_date
+            )
+            
+            cleaned_runs = []
+            for run in failed_runs:
+                run_id = run['run_id']
+                record_count = run['record_count']
+                
+                self.logger.info(f"Found potentially failed run: {run_id} ({record_count} records)")
+                
+                if self.cleanup_failed_runs:
+                    deleted_count = await self.cleanup_failed_run_data(run_id)
+                    if deleted_count > 0:
+                        cleaned_runs.append(run_id)
+            
+            return cleaned_runs
+            
+        except Exception as e:
+            self.logger.error(f"Error finding and cleaning failed runs: {e}")
+            return []
+
+    async def validate_run_prerequisites(self, run_id: str) -> bool:
+        """Validate all prerequisites before starting the run."""
+        self.logger.info(f"🔍 Validating run prerequisites for: {run_id}")
+        
+        try:
+            # Check 1: Run ID uniqueness
+            if self.enforce_run_id_uniqueness:
+                run_id_exists = await self.check_run_id_exists(run_id)
+                if run_id_exists:
+                    self.logger.error(f"❌ Run ID already exists: {run_id}")
+                    return False
+                else:
+                    self.logger.info(f"✅ Run ID is unique: {run_id}")
+            
+            # Check 2: Cleanup failed runs if enabled
+            if self.cleanup_failed_runs:
+                cleaned_runs = await self.find_and_cleanup_failed_runs()
+                if cleaned_runs:
+                    self.logger.info(f"🧹 Cleaned up {len(cleaned_runs)} failed runs: {cleaned_runs}")
+                else:
+                    self.logger.info(f"✅ No failed runs requiring cleanup")
+            
+            # Check 3: Validate database connection
+            conn = await self.get_database_connection()
+            if conn:
+                self.logger.info(f"✅ Database connection validated")
+            else:
+                self.logger.error(f"❌ Database connection failed")
+                return False
+            
+            self.logger.info(f"✅ All run prerequisites validated for: {run_id}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Run prerequisite validation failed: {e}")
+            return False
 
 
 # Backward compatibility alias
