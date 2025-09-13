@@ -498,7 +498,8 @@ secrets:
     file: ./secrets/tiingo_api_key.txt
 """
 
-        Path('docker-compose.production.yml').write_text(production_compose)
+        # Production environment not supported - only dev and intg environments available
+        # Path('docker-compose.production.yml').write_text(production_compose)
         print("🏭 Created production Docker Compose configuration")
         self.optimizations_applied.append("Production configuration with secrets and network isolation")
 
@@ -862,7 +863,7 @@ fi
             'optimizations_applied': self.optimizations_applied,
             'files_created': [
                 'docker-compose.optimized.yml',
-                'docker-compose.production.yml',
+                # 'docker-compose.production.yml',  # Production environment not supported
                 'docker-compose.monitoring.yml',
                 'scripts/deploy.sh',
                 'scripts/validate_env.sh',
@@ -875,7 +876,7 @@ fi
                 '2. Review SECURITY_GUIDE.md for security best practices',
                 '3. Test deployment with: ./scripts/deploy.sh',
                 '4. Set up monitoring with: docker-compose -f docker-compose.monitoring.yml up -d',
-                '5. Configure production environment using docker-compose.production.yml'
+                '5. Use development (dev) or integration (intg) environments - no production environment'
             ],
             'benefits': [
                 'Consolidated Docker Compose configuration',
