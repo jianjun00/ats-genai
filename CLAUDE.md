@@ -343,12 +343,23 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - ❌ **Using deprecated database tables (use unified schema)**
 - ❌ **Implementing separate issue resolution (use unified workflows)**
 
-**Debugging & Problem Solving:**
+**Validation & Testing - CURRENT RUN ONLY:**
+- ❌ **NEVER check prior runs/historical data** to claim current run success
+- ❌ **NEVER use old successful results** to validate current failures
+- ❌ **NEVER claim "working" based on previous executions**
+- ❌ Only the MOST RECENT execution results are relevant for validation
+- ✅ **ALWAYS validate current run outputs** - files, database records, actual results
+- ✅ **CURRENT FAILURE = CURRENT PROBLEM** - debug the actual failing case
+- ✅ **Test-first debugging**: Add test to reproduce → Fix logic → Confirm with passing test
+
+**Debugging & Problem Solving - MANDATORY TEST-FIRST APPROACH:**
 - ❌ Using workarounds without understanding root cause
 - ❌ Restarting services without checking logs first
 - ❌ Switching environments when current environment fails
 - ❌ Ignoring error messages and trying random fixes
 - ❌ Fixing symptoms instead of root causes
+- **❌ CRITICAL: Fixing issues without reproducing them in tests FIRST**
+- **✅ MANDATORY: When failure detected → Add test to reproduce → Fix logic → Verify with passing test**
 
 ## 🎯 **Success Criteria**
 

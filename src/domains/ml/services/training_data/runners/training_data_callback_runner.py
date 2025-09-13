@@ -721,9 +721,11 @@ async def main():
                     json.dumps(run_parameters)
                 )
 
-            # Pass run_id to callback for monthly record creation
-            training_callback.run_id = run_id
-            logger.info(f"✅ Created run record for monthly training data: {run_id}")
+            # 🚨 REMOVED PROBLEMATIC LINE: training_callback.run_id = run_id  
+            # ISSUE: This was setting a database integer run_id, but the callback should use Runner's run_context.run_id
+            # FIX: Callback now gets run_id from runner.run_context.run_id in handleInterval method
+            logger.info(f"✅ Created run record for monthly training data tracking: {run_id}")
+            logger.info("✅ Callback will use Runner's run_context.run_id for database insertions")
 
         except Exception as e:
             logger.warning(f"⚠️ Failed to create run record: {e}")
@@ -762,14 +764,30 @@ async def main():
         logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
         logger.info(f"   Base duration: {args.base_duration}")
         logger.info(f"   Target durations: {args.base_duration}")
-
+        
+        # 🚨 CRITICAL FIX: Create UniverseManager with proper symbols and initialize it
+        from domains.trading.services.universe.universe_manager import UniverseManager
+        universe_manager = UniverseManager(
+            env=environment,
+            universe_id=args.universe_id or 1,
+            symbols=args.symbols  # Pass the actual symbols instead of hardcoded ['TSLA']
+        )
+        
+        # Initialize the universe manager to resolve symbols to instrument_ids
+        logger.info(f"🔄 Initializing UniverseManager with symbols: {args.symbols}")
+        await universe_manager.initialize()
+        logger.info(f"✅ UniverseManager initialized with instrument_ids: {universe_manager.instrument_ids}")
+        
+        logger.info(f"✅ UniverseManager and UniverseStateBuilder ready for callback execution")
+        
         runner = Runner(
             start_date=collection_start_date.strftime("%Y-%m-%d"),
             end_date=collection_end_date.strftime("%Y-%m-%d"),
             environment=environment,
             universe_id=args.universe_id or 1,
-            callbacks=[universe_state_builder, training_callback],  # ARCHITECTURE FIX: Add universe state builder BEFORE training callback
+            callbacks=[universe_state_builder, training_callback],  # UniverseStateBuilder builds cache during offset period, training generates data from start_date
             market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
+            universe_manager=universe_manager,  # 🚨 CRITICAL FIX: Use custom universe manager with proper symbols
             base_duration=args.base_duration
         )
 
