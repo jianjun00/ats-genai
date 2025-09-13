@@ -550,38 +550,3 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         return True
 
 
-    def build_multi_duration_intervals(self, start_time: 'datetime', runner: 'Runner') -> dict:
-        """
-        Build intervals for all target durations for the current universe at start_time.
-        Returns a dict mapping duration string to FactorInterval.
-        """
-        intervals = {}
-        self.logger.debug(f"Building intervals for {len(self.target_durations)} durations at {start_time}")
-        for duration in self.target_durations:
-            end_time = duration.get_end_time(start_time)
-            instrument_intervals = {}
-            instrument_ids = runner.universe_manager.instrument_ids
-            ohlc_batch = runner.market_data_manager.get_ohlc_batch(instrument_ids, start_time, end_time)
-            self.logger.debug(f"Built ohlc_batch for {ohlc_batch} instruments at {start_time}, instrument_ids: {instrument_ids}")
-            for inst_id in instrument_ids:
-                ohlc = ohlc_batch.get(inst_id)
-                if ohlc:
-                    instrument_intervals[inst_id] = InstrumentInterval(
-                        instrument_id=inst_id,
-                        start_date_time=start_time,
-                        end_date_time=end_time,
-                        open=ohlc.get('open', 0.0),
-                        high=ohlc.get('high', 0.0),
-                        low=ohlc.get('low', 0.0),
-                        close=ohlc.get('close', 0.0),
-                        traded_volume=ohlc.get('volume', 0.0),
-                        traded_dollar=ohlc.get('close', 0.0) * ohlc.get('volume', 0.0),
-                        status='ok'
-                    )
-            self.logger.debug('Built interval for %s at %s, instrument_ids: %s', duration.get_duration_string(), start_time, instrument_ids)
-            intervals[duration.get_duration_string()] = FactorInterval(
-                start_date_time=start_time,
-                end_date_time=end_time,
-                instrument_intervals=instrument_intervals
-            )
-        return intervals
