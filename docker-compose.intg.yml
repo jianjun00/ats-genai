@@ -129,9 +129,187 @@ services:
         condition: service_healthy
     restart: unless-stopped
     ports:
-      - "8083:8080"
+      - "4083:8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # Redis Cache - Integration
+  redis-intg:
+    image: redis:7-alpine
+    container_name: ats-intg-redis
+    ports:
+      - "4379:6379"
+    volumes:
+      - redis-intg-data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ats-network
+
+  # Enhanced Instruments API Service - Integration
+  instruments-api-intg:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-instruments-api
+    environment:
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - REDIS_HOST=redis-intg
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+    ports:
+      - "4001:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: uvicorn services.web_services.api.enhanced_instruments_api:app --host 0.0.0.0 --port 8000
+    depends_on:
+      postgres-intg:
+        condition: service_healthy
+      redis-intg:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # Market Data Service - Integration
+  market-data-service-intg:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-market-data-service
+    environment:
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - REDIS_HOST=redis-intg
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-68aa0c7d2fe831.67386369}
+    ports:
+      - "4012:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 scripts/services/start_market_data_service.py
+    depends_on:
+      postgres-intg:
+        condition: service_healthy
+      redis-intg:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # Trading Service - Integration
+  trading-service-intg:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-trading-service
+    environment:
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - REDIS_HOST=redis-intg
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+    ports:
+      - "4013:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 scripts/services/start_trading_service.py
+    depends_on:
+      postgres-intg:
+        condition: service_healthy
+      redis-intg:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # Service Monitoring Dashboard - Integration
+  monitoring-dashboard-intg:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-intg-monitoring-dashboard
+    environment:
+      - ENVIRONMENT=intg
+      - DB_HOST=postgres-intg
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=intg_password
+      - DB_NAME=intg_db
+      - REDIS_HOST=redis-intg
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+    ports:
+      - "4014:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 scripts/services/start_monitoring_dashboard.py
+    depends_on:
+      postgres-intg:
+        condition: service_healthy
+      redis-intg:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -147,3 +325,5 @@ networks:
 volumes:
   postgres-intg-data:
     external: true
+  redis-intg-data:
+    driver: local
