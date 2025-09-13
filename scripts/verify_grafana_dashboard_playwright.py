@@ -193,7 +193,7 @@ class GrafanaDashboardVerifier:
         print(f"  4. Verify panels show metrics data")
 
         print(f"\n📈 To Update Metrics:")
-        print(f"  PYTHONPATH=src python3 scripts/daily_prices_quality_metrics.py --environment intg --push-metrics")
+        print(f"  PYTHONPATH=src python3 scripts/daily_price_polygon_quality_metrics.py --environment intg --push-metrics")
 
         print("\n" + "="*60)
 

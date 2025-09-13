@@ -186,8 +186,8 @@ class GrafanaDashboardSetup:
 
             # Check for our specific metrics
             required_metrics = [
-                "ats_daily_prices_coverage_percent",
-                "ats_daily_prices_missing_symbols_total"
+                "ats_daily_price_polygon_coverage_percent",
+                "ats_daily_price_polygon_missing_symbols_total"
             ]
 
             found_metrics = []
@@ -239,7 +239,7 @@ def main():
         print("4. Verify panels show data from Pushgateway")
         print()
         print("📈 To update metrics, run:")
-        print("   PYTHONPATH=src python3 scripts/daily_prices_quality_metrics.py --environment intg --push-metrics")
+        print("   PYTHONPATH=src python3 scripts/daily_price_polygon_quality_metrics.py --environment intg --push-metrics")
     else:
         print("\n❌ Dashboard setup failed. Check logs above for details.")
         sys.exit(1)

@@ -3,7 +3,7 @@ from datetime import datetime, date
 from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+from domains.market_data.repositories.daily_price_polygon_dao import DailyPricesDAO
 from shared.utils.environment import Environment
 
 class DBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):

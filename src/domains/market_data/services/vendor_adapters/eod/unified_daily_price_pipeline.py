@@ -153,7 +153,7 @@ class UnifiedDailyPricePipeline:
 
             # Insert unified price
             insert_query = """
-                INSERT INTO dev_daily_prices (
+                INSERT INTO dev_daily_price_polygon (
                     instrument_id, date, open_price, high_price, low_price, close, adj_close, volume,
                     validation_status_id, run_id, primary_vendor, secondary_vendors, vendor_count,
                     price_variance, statistical_score, confidence_score,
@@ -238,7 +238,7 @@ class UnifiedDailyPricePipeline:
         # Get symbols from active universe membership
         query = """
             SELECT DISTINCT i.symbol
-            FROM dev_instruments i
+            FROM dev_instrument i
             JOIN dev_universe_membership um ON i.symbol = um.symbol
             WHERE um.end_at IS NULL OR um.end_at >= CURRENT_DATE
             ORDER BY i.symbol
@@ -272,7 +272,7 @@ class UnifiedDailyPricePipeline:
                 ),
                 existing_prices AS (
                     SELECT date
-                    FROM dev_daily_prices
+                    FROM dev_daily_price_polygon
                     WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
                 )
                 SELECT bd.check_date

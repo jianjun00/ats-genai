@@ -53,7 +53,7 @@ def sample_quality_metric():
     """Sample data quality metric."""
     return DataQualityMetric(
         metric_name="completeness_check",
-        table_name="test_daily_prices",
+        table_name="test_daily_price_polygon",
         column_name="close",
         metric_value=0.95,
         threshold_warning=0.90,
@@ -82,7 +82,7 @@ def sample_quality_report(sample_quality_metric):
             "low_quality_tables": 0
         },
         recommendations=[
-            "Monitor null values in test_daily_prices.volume",
+            "Monitor null values in test_daily_price_polygon.volume",
             "Consider adding data validation for price ranges"
         ]
     )
@@ -108,7 +108,7 @@ class TestDataQualityMetric:
         metric = sample_quality_metric
 
         assert metric.metric_name == "completeness_check"
-        assert metric.table_name == "test_daily_prices"
+        assert metric.table_name == "test_daily_price_polygon"
         assert metric.column_name == "close"
         assert metric.metric_value == 0.95
         assert metric.threshold_warning == 0.90
@@ -200,11 +200,11 @@ class TestDataQualityMonitor:
 
         monitor = DataQualityMonitor(pool, mock_env)
 
-        metric = await monitor._check_table_completeness("daily_prices", "close")
+        metric = await monitor._check_table_completeness("daily_price_polygon", "close")
 
         assert isinstance(metric, DataQualityMetric)
         assert metric.metric_name == "completeness"
-        assert metric.table_name == "test_daily_prices"
+        assert metric.table_name == "test_daily_price_polygon"
         assert metric.column_name == "close"
         assert metric.metric_value == 0.95  # (10000 - 500) / 10000
         assert metric.quality_level in [DataQualityLevel.GOOD, DataQualityLevel.WARNING, DataQualityLevel.WARNING]
@@ -239,7 +239,7 @@ class TestDataQualityMonitor:
 
         monitor = DataQualityMonitor(pool, mock_env)
 
-        metric = await monitor._check_data_freshness("daily_prices")
+        metric = await monitor._check_data_freshness("daily_price_polygon")
 
         assert isinstance(metric, DataQualityMetric)
         assert metric.metric_name == "freshness"
@@ -257,7 +257,7 @@ class TestDataQualityMonitor:
 
         monitor = DataQualityMonitor(pool, mock_env)
 
-        metric = await monitor._check_data_freshness("daily_prices")
+        metric = await monitor._check_data_freshness("daily_price_polygon")
 
         assert metric.metric_value == 25.0
         assert metric.quality_level in [DataQualityLevel.WARNING, DataQualityLevel.CRITICAL]
@@ -276,7 +276,7 @@ class TestDataQualityMonitor:
 
         monitor = DataQualityMonitor(pool, mock_env)
 
-        metric = await monitor._check_duplicate_records("daily_prices")
+        metric = await monitor._check_duplicate_records("daily_price_polygon")
 
         assert isinstance(metric, DataQualityMetric)
         assert metric.metric_name == "duplicates"
@@ -311,7 +311,7 @@ class TestDataQualityMonitor:
 
         # Mock table list
         conn.fetch.return_value = [
-            {'table_name': 'test_daily_prices'},
+            {'table_name': 'test_daily_price_polygon'},
             {'table_name': 'test_instruments'}
         ]
 
@@ -518,13 +518,13 @@ class TestDataQualityIntegration:
 
         # Setup comprehensive mock data
         conn.fetch.return_value = [
-            {'table_name': 'test_daily_prices'},
+            {'table_name': 'test_daily_price_polygon'},
             {'table_name': 'test_instruments'}
         ]
 
         # Mock different quality scenarios for each table
         mock_responses = [
-            # daily_prices - good quality
+            # daily_price_polygon - good quality
             {'total_records': 100000}, {'null_count': 500},  # completeness
             {'hours_since_update': 2.0},  # freshness
             {'total_records': 100000}, {'duplicate_count': 10},  # duplicates
@@ -551,7 +551,7 @@ class TestDataQualityIntegration:
 
         # Check that we have metrics for both tables
         table_names = {m.table_name for m in report.metrics}
-        assert 'test_daily_prices' in table_names
+        assert 'test_daily_price_polygon' in table_names
         assert 'test_instruments' in table_names
 
         # Check metric types

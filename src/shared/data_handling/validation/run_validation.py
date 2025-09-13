@@ -14,7 +14,7 @@ from typing import Dict, Optional
 
 from core.platform.config.environment import Environment, EnvironmentType
 from core.config.database import get_connection_pool
-from validation.daily_prices_validator import DailyPricesValidator
+from validation.daily_price_polygon_validator import DailyPricesValidator
 from validation.missing_data_handler import MissingDataHandler
 
 # Configure logging
@@ -35,7 +35,7 @@ async def run_validation(env: Environment, validation_date: date,
 
     try:
         await validator.initialize()
-        results = await validator.validate_daily_prices(validation_date, vendors)
+        results = await validator.validate_daily_price_polygon(validation_date, vendors)
 
         # Print results
         print("\n📊 VALIDATION RESULTS")

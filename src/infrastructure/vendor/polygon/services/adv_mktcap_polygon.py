@@ -11,7 +11,7 @@ from typing import List, Tuple, Set
 
 async def get_existing_dates(pool, ticker: str) -> Set[str]:
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT date FROM daily_prices WHERE symbol = $1", ticker)
+        rows = await conn.fetch("SELECT date FROM daily_price_polygon WHERE symbol = $1", ticker)
     return set(str(row['date']) for row in rows)
 
 def compute_missing_ranges(existing_dates: Set[str], start: str, end: str) -> List[Tuple[str, str]]:
@@ -87,9 +87,9 @@ async def insert_adv_and_market_cap(prices, ticker, shares_outstanding, advs, po
     if not prices:
         return
     async with pool.acquire() as conn:
-        # Update ADV in daily_prices
+        # Update ADV in daily_price_polygon
         await conn.executemany(
-            "UPDATE daily_prices SET adv=$1 WHERE date=$2 AND symbol=$3",
+            "UPDATE daily_price_polygon SET adv=$1 WHERE date=$2 AND symbol=$3",
             [
                 (
                     advs[i],
@@ -98,10 +98,10 @@ async def insert_adv_and_market_cap(prices, ticker, shares_outstanding, advs, po
                 ) for i, row in enumerate(prices)
             ]
         )
-        # Update market cap in daily_prices
+        # Update market cap in daily_price_polygon
         if shares_outstanding:
             await conn.executemany(
-                "UPDATE daily_prices SET market_cap=$1 WHERE date=$2 AND symbol=$3",
+                "UPDATE daily_price_polygon SET market_cap=$1 WHERE date=$2 AND symbol=$3",
                 [
                     (
                         row['c'] * shares_outstanding,

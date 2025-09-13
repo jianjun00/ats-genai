@@ -94,7 +94,7 @@ def research_entry_exit_patterns():
                                 WHEN AVG(close * volume) >= 100000000 THEN 'QUALIFIES'
                                 ELSE 'BELOW_THRESHOLD'
                             END as qualification_status
-                        FROM intg_daily_prices_polygon
+                        FROM intg_daily_price_polygon
                         WHERE symbol = %s
                         AND date >= %s
                         AND date <= %s
@@ -141,7 +141,7 @@ def research_entry_exit_patterns():
                             date,
                             symbol,
                             close * volume as dollar_volume
-                        FROM intg_daily_prices_polygon
+                        FROM intg_daily_price_polygon
                         WHERE symbol = %s
                         AND date >= '2019-01-01'
                         AND date <= '2024-09-03'

@@ -76,12 +76,12 @@ class TestEnvironment:
         env = Environment(EnvironmentType.TEST, db_url="postgresql://postgres:password@localhost:5432/test_db_dummy")
 
         # Test with prefix (default behavior)
-        table_name = env.get_table_name("daily_prices")
-        assert table_name == "test_daily_prices"
+        table_name = env.get_table_name("daily_price_polygon")
+        assert table_name == "test_daily_price_polygon"
 
         # Test without prefix
-        table_name = env.get_table_name("daily_prices", with_prefix=False)
-        assert table_name == "daily_prices"
+        table_name = env.get_table_name("daily_price_polygon", with_prefix=False)
+        assert table_name == "daily_price_polygon"
 
     def test_get_api_key(self):
         """Test API key retrieval."""

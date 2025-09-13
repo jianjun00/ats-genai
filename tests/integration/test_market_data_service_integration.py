@@ -71,9 +71,9 @@ class TestMarketDataServiceArchitecture:
             'create_daily_price',
             'get_daily_price_by_id',
             'get_daily_price',
-            'list_daily_prices',
+            'list_daily_price_polygon',
             'update_daily_price',
-            'create_daily_prices_batch',
+            'create_daily_price_polygon_batch',
             'get_price_history',
             'create_fundamental',
             'get_fundamental_by_id',
@@ -214,9 +214,9 @@ class TestMarketDataServiceLogic:
         from unittest.mock import Mock
         
         # Create service with mock DAOs
-        daily_prices_dao = Mock()
+        daily_price_polygon_dao = Mock()
         fundamentals_dao = Mock()
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
         # Test valid price validation
         valid_price = DailyPriceDTO(
@@ -258,9 +258,9 @@ class TestMarketDataServiceLogic:
         from unittest.mock import Mock
         
         # Create service with mock DAOs
-        daily_prices_dao = Mock()
+        daily_price_polygon_dao = Mock()
         fundamentals_dao = Mock()
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
         # Test daily price DAO to DTO conversion
         dao_price = {
@@ -310,13 +310,13 @@ class TestMarketDataServiceLogic:
         from unittest.mock import Mock, AsyncMock
         
         # Create service with mock DAOs that raise exceptions
-        daily_prices_dao = Mock()
-        daily_prices_dao.insert_price = AsyncMock(side_effect=Exception("Database error"))
+        daily_price_polygon_dao = Mock()
+        daily_price_polygon_dao.insert_price = AsyncMock(side_effect=Exception("Database error"))
         
         fundamentals_dao = Mock()
         fundamentals_dao.insert_fundamental = AsyncMock(side_effect=Exception("Database error"))
         
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
         # Test price creation error handling
         test_price = DailyPriceDTO(
@@ -352,9 +352,9 @@ class TestMarketDataServiceLogic:
         from unittest.mock import Mock, AsyncMock
         
         # Create service with mock DAOs
-        daily_prices_dao = Mock()
+        daily_price_polygon_dao = Mock()
         fundamentals_dao = Mock()
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
         # Test anomaly detection logic directly with sample data (need at least 5 prices)
         sample_prices = [
@@ -411,12 +411,12 @@ class TestMarketDataServiceMigrationValidation:
         from unittest.mock import Mock
         
         # Create service with mock DAOs
-        daily_prices_dao = Mock()
+        daily_price_polygon_dao = Mock()
         fundamentals_dao = Mock()
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
         # Test service coordinates DAOs
-        assert hasattr(service, 'daily_prices_dao')
+        assert hasattr(service, 'daily_price_polygon_dao')
         assert hasattr(service, 'fundamentals_dao')
         
         # Test service provides proper methods
@@ -434,13 +434,13 @@ class TestMarketDataServiceMigrationValidation:
         from unittest.mock import Mock, AsyncMock
         
         # Create service with mock DAOs
-        daily_prices_dao = Mock()
-        daily_prices_dao.insert_price = AsyncMock(return_value=None)
+        daily_price_polygon_dao = Mock()
+        daily_price_polygon_dao.insert_price = AsyncMock(return_value=None)
         
         fundamentals_dao = Mock()
         fundamentals_dao.insert_fundamental = AsyncMock(return_value=None)
         
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
         # Test business validation patterns
         invalid_price = DailyPriceDTO(
@@ -475,9 +475,9 @@ class TestMarketDataServiceMigrationValidation:
         from unittest.mock import Mock
         
         # Create service with mock DAOs
-        daily_prices_dao = Mock()
+        daily_price_polygon_dao = Mock()
         fundamentals_dao = Mock()
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
         # Test analytics methods exist and have proper signatures
         analytics_methods = [
@@ -502,11 +502,11 @@ class TestMarketDataServiceMigrationValidation:
         import pandas as pd
         
         # Create service with mock DAOs
-        daily_prices_dao = Mock()
+        daily_price_polygon_dao = Mock()
         fundamentals_dao = Mock()
-        service = MarketDataServiceImpl(daily_prices_dao, fundamentals_dao)
+        service = MarketDataServiceImpl(daily_price_polygon_dao, fundamentals_dao)
         
-        # Mock list_daily_prices to return sample data
+        # Mock list_daily_price_polygon to return sample data
         sample_prices = [
             DailyPriceDTO(symbol="AAPL", date=date.today(), 
                          open=Decimal("150"), high=Decimal("155"), low=Decimal("149"), close=Decimal("153"), volume=1000),
@@ -514,10 +514,10 @@ class TestMarketDataServiceMigrationValidation:
                          open=Decimal("800"), high=Decimal("820"), low=Decimal("795"), close=Decimal("815"), volume=500)
         ]
         
-        async def mock_list_daily_prices(criteria):
+        async def mock_list_daily_price_polygon(criteria):
             return sample_prices
         
-        service.list_daily_prices = mock_list_daily_prices
+        service.list_daily_price_polygon = mock_list_daily_price_polygon
         
         # Test export to DataFrame
         criteria = MarketDataSearchCriteria(symbols=["AAPL", "TSLA"], limit=10)

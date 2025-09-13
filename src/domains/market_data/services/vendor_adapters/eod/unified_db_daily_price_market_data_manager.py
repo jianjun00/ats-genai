@@ -2,15 +2,15 @@ from datetime import datetime, date
 from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
-from vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.dao.daily_price_polygon_tiingo_dao import DailyPricesTiingoDAO
+from vendor.polygon.dao.daily_price_polygon_polygon_dao import DailyPricesPolygonDAO
 from shared.utils.environment import Environment
-from .unify_daily_prices import DatabaseDailyPricesUnifier
+from .unify_daily_price_polygon import DatabaseDailyPricesUnifier
 
 class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
     """
-    Loads raw daily prices from both daily_prices_tiingo and daily_prices_polygon tables,
-    then uses unify_daily_prices logic to produce unified daily prices for each symbol/date.
+    Loads raw daily prices from both daily_price_polygon_tiingo and daily_price_polygon_polygon tables,
+    then uses unify_daily_price_polygon logic to produce unified daily prices for each symbol/date.
     """
     def __init__(self, env: Environment, symbols: Optional[List[str]] = None):
         super().__init__(symbols)
@@ -50,12 +50,12 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
         if not symbol:
             print(f"[DEBUG][get_ohlc] Could not resolve symbol for instrument_id={instrument_id}")
             return None
-        # Use unify_daily_prices to get unified price for the date
+        # Use unify_daily_price_polygon to get unified price for the date
         # Pass a tuple of (start_date, end_date) as asof parameter
-        print(f"[DEBUG][get_ohlc] Calling unify_daily_prices with symbol={symbol}, asof=({start.date()}, {end.date()})")
-        result = await self.unifier.unify_daily_prices(symbol, (start.date(), end.date()), current_date)
-        print(f"[DEBUG][get_ohlc] unify_daily_prices returned {len(result)} rows: {result}")
-        # unify_daily_prices returns a list of dicts, one per date
+        print(f"[DEBUG][get_ohlc] Calling unify_daily_price_polygon with symbol={symbol}, asof=({start.date()}, {end.date()})")
+        result = await self.unifier.unify_daily_price_polygon(symbol, (start.date(), end.date()), current_date)
+        print(f"[DEBUG][get_ohlc] unify_daily_price_polygon returned {len(result)} rows: {result}")
+        # unify_daily_price_polygon returns a list of dicts, one per date
         for row in result:
             print(f"[DEBUG][get_ohlc] Checking row with date={row['date']}, start.date()={start.date()}, match={row['date'] == start.date()}")
             if row['date'] == start.date():
@@ -122,7 +122,7 @@ class UnifiedDBDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
 
             # Use bulk unify operation for all symbols at once
             with time_operation("bulk_unify_prices", instrument_count=len(valid_symbols)) as unify_timer:
-                bulk_results = await self.unifier.unify_daily_prices_batch(
+                bulk_results = await self.unifier.unify_daily_price_polygon_batch(
                     valid_symbols,
                     (start.date(), end.date()),
                     current_date

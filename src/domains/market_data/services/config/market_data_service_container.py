@@ -12,7 +12,7 @@ from datetime import datetime
 from core.platform.config.environment import Environment, EnvironmentType
 from ..interfaces.market_data_service_interface import MarketDataServiceInterface
 from ..impl.market_data_service_impl import MarketDataServiceImpl
-from ...repositories.daily_prices_dao import DailyPricesDAO
+from ...repositories.daily_price_polygon_dao import DailyPricesDAO
 from ...repositories.fundamentals_dao import FundamentalsDAO
 
 # Optional instruments DAO import with fallback
@@ -38,7 +38,7 @@ class MarketDataServiceContainer:
         self.logger = logging.getLogger(__name__)
         self._initialized = False
         self._service_instance: Optional[MarketDataServiceInterface] = None
-        self._daily_prices_dao: Optional[DailyPricesDAO] = None
+        self._daily_price_polygon_dao: Optional[DailyPricesDAO] = None
         self._fundamentals_dao: Optional[FundamentalsDAO] = None
         self._instruments_dao: Optional[Any] = None
     
@@ -51,7 +51,7 @@ class MarketDataServiceContainer:
             self.logger.info(f"Initializing MarketDataServiceContainer for environment: {self.environment.env_type}")
             
             # Initialize DAOs
-            self._daily_prices_dao = DailyPricesDAO(self.environment)
+            self._daily_price_polygon_dao = DailyPricesDAO(self.environment)
             self._fundamentals_dao = FundamentalsDAO(self.environment)
             
             # Initialize instruments DAO if available
@@ -63,7 +63,7 @@ class MarketDataServiceContainer:
             
             # Initialize service
             self._service_instance = MarketDataServiceImpl(
-                daily_prices_dao=self._daily_prices_dao,
+                daily_price_polygon_dao=self._daily_price_polygon_dao,
                 fundamentals_dao=self._fundamentals_dao,
                 instruments_dao=self._instruments_dao
             )
@@ -94,7 +94,7 @@ class MarketDataServiceContainer:
             'timestamp': datetime.utcnow().isoformat(),
             'status': 'healthy' if self._initialized else 'not_initialized',
             'components': {
-                'daily_prices_dao': self._daily_prices_dao is not None,
+                'daily_price_polygon_dao': self._daily_price_polygon_dao is not None,
                 'fundamentals_dao': self._fundamentals_dao is not None,
                 'instruments_dao': self._instruments_dao is not None,
                 'service_instance': self._service_instance is not None
@@ -110,7 +110,7 @@ class MarketDataServiceContainer:
             # Current DAOs don't have explicit cleanup, but this is where it would go
             
             self._service_instance = None
-            self._daily_prices_dao = None
+            self._daily_price_polygon_dao = None
             self._fundamentals_dao = None
             self._instruments_dao = None
             self._initialized = False
@@ -260,10 +260,10 @@ def validate_market_data_service_configuration(environment: Environment) -> Dict
     
     # Check table name configuration
     try:
-        daily_prices_table = environment.get_table_name('daily_prices')
+        daily_price_polygon_table = environment.get_table_name('daily_price_polygon')
         fundamentals_table = environment.get_table_name('fundamentals')
         
-        if not daily_prices_table:
+        if not daily_price_polygon_table:
             issues.append("Daily prices table name not configured")
         if not fundamentals_table:
             issues.append("Fundamentals table name not configured")

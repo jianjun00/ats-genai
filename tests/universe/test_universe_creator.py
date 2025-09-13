@@ -15,7 +15,7 @@ async def test_universe_add_remove(unit_test_db, monkeypatch):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     universe_table = env.get_table_name('universe')
     instrument_table = env.get_table_name('instrument_polygon')
-    daily_prices_table = env.get_table_name('daily_prices_tiingo')
+    daily_price_polygon_table = env.get_table_name('daily_price_polygon_tiingo')
     membership_table = env.get_table_name('universe_membership')
 
     # Insert test universe row for 'default'
@@ -47,33 +47,33 @@ async def test_universe_add_remove(unit_test_db, monkeypatch):
                 ('TESTC', 'Test C', 'XNYS', 'CS', 'USD', 'FIGI3', 'ISIN3', '2025-01-01', NULL, now(), now())
         """)
     print("[DEBUG] Inserted test instruments into both test_instruments and test_instrument_polygon with all required columns")
-    # Print schema for daily_prices_tiingo
+    # Print schema for daily_price_polygon_tiingo
     async with pool.acquire() as conn:
         columns = await conn.fetch(f"""
             SELECT column_name, data_type, is_nullable
             FROM information_schema.columns
-            WHERE table_name = '{daily_prices_table}'
+            WHERE table_name = '{daily_price_polygon_table}'
             ORDER BY ordinal_position
         """)
-        print(f"[DEBUG] Schema for {daily_prices_table}:")
+        print(f"[DEBUG] Schema for {daily_price_polygon_table}:")
         for col in columns:
             print(f"  {col['column_name']} {col['data_type']} nullable={col['is_nullable']}")
         indexes = await conn.fetch(f"""
             SELECT indexname, indexdef
             FROM pg_indexes
-            WHERE tablename = '{daily_prices_table}'
+            WHERE tablename = '{daily_price_polygon_table}'
         """)
-        print(f"[DEBUG] Indexes for {daily_prices_table}:")
+        print(f"[DEBUG] Indexes for {daily_price_polygon_table}:")
         for idx in indexes:
             print(f"  {idx['indexname']}: {idx['indexdef']}")
         # Print all rows before insert
-        rows = await conn.fetch(f"SELECT date, symbol, instrument_id FROM {daily_prices_table}")
-        print(f"[DEBUG] Existing rows in {daily_prices_table} before test insert: {len(rows)}")
+        rows = await conn.fetch(f"SELECT date, symbol, instrument_id FROM {daily_price_polygon_table}")
+        print(f"[DEBUG] Existing rows in {daily_price_polygon_table} before test insert: {len(rows)}")
         for row in rows:
             print(f"  {row}")
         # Clean up table before test insert
-        await conn.execute(f"DELETE FROM {daily_prices_table}")
-        print(f"[DEBUG] Deleted all rows from {daily_prices_table} before test insert.")
+        await conn.execute(f"DELETE FROM {daily_price_polygon_table}")
+        print(f"[DEBUG] Deleted all rows from {daily_price_polygon_table} before test insert.")
     # Insert daily prices
     # Fetch instrument_id for each symbol from instruments
     async with pool.acquire() as conn:
@@ -114,10 +114,10 @@ async def test_universe_add_remove(unit_test_db, monkeypatch):
 
     async with pool.acquire() as conn:
         await conn.executemany(
-            f"INSERT INTO {daily_prices_table} (date, symbol, instrument_id, close, volume) VALUES ($1, $2, $3, $4, $5)",
+            f"INSERT INTO {daily_price_polygon_table} (date, symbol, instrument_id, close, volume) VALUES ($1, $2, $3, $4, $5)",
             prices
         )
-    print(f"[DEBUG] Inserted {len(prices)} rows into test_daily_prices_tiingo with instrument_id")
+    print(f"[DEBUG] Inserted {len(prices)} rows into test_daily_price_polygon_tiingo with instrument_id")
     print(f"[DEBUG] Sample inserted prices: {prices[:5]}")
     # Print all prices for TESTA, TESTB, TESTC
     for symbol in ['TESTA', 'TESTB', 'TESTC']:
@@ -125,8 +125,8 @@ async def test_universe_add_remove(unit_test_db, monkeypatch):
         print(f"[DEBUG] All prices for {symbol}: {symbol_prices}")
     # Print table contents before running universe_creator
     async with pool.acquire() as conn:
-        rows = await conn.fetch(f"SELECT * FROM {daily_prices_table} ORDER BY date, symbol")
-        print(f"[DEBUG] test_daily_prices_tiingo contents before universe_creator: {rows}")
+        rows = await conn.fetch(f"SELECT * FROM {daily_price_polygon_table} ORDER BY date, symbol")
+        print(f"[DEBUG] test_daily_price_polygon_tiingo contents before universe_creator: {rows}")
         insts = await conn.fetch(f"SELECT * FROM {instrument_table} ORDER BY symbol")
         print(f"[DEBUG] test_instrument_polygon contents before universe_creator: {insts}")
     # Run the universe_creator logic with --environment test for table prefixing

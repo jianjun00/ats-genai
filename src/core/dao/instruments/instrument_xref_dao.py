@@ -253,7 +253,7 @@ class InstrumentXrefDAO(BaseDAO):
                     i.symbol
                 FROM {self.table_name} ix1
                 JOIN {self.table_name} ix2 ON ix1.instrument_id = ix2.instrument_id
-                JOIN dev_instruments i ON ix1.instrument_id = i.id
+                JOIN dev_instrument i ON ix1.instrument_id = i.id
                 WHERE ix1.vendor_id = %(exchange_vendor_id)s
                   AND ix2.vendor_id = %(exchange_vendor_id)s
                   AND ix1.end_date = ix2.start_date

@@ -15,7 +15,7 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor_daily_prices
+from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor_daily_price_polygon
 
 
 async def main():
@@ -48,7 +48,7 @@ async def main():
     }
 
     # Run sync using service
-    results = await sync_vendor_daily_prices(args.vendor, source_config, target_config)
+    results = await sync_vendor_daily_price_polygon(args.vendor, source_config, target_config)
 
     # Summary
     elapsed = (datetime.now() - start_time).total_seconds()

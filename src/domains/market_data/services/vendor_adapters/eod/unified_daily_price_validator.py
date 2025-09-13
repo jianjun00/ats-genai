@@ -143,7 +143,7 @@ class UnifiedDailyPriceValidator:
 
             query = """
                 SELECT open_price, high_price, low_price, close, volume, vwap
-                FROM dev_daily_prices_polygon
+                FROM dev_daily_price_polygon
                 WHERE instrument_id = $1 AND date = $2
             """
             row = await self.conn.fetchrow(query, instrument_id, target_date)
@@ -173,7 +173,7 @@ class UnifiedDailyPriceValidator:
 
             query = """
                 SELECT open_price, high_price, low_price, close, adj_close, volume
-                FROM dev_daily_prices_tiingo
+                FROM dev_daily_price_tiingo
                 WHERE instrument_id = $1 AND date = $2
             """
             row = await self.conn.fetchrow(query, instrument_id, target_date)
@@ -203,7 +203,7 @@ class UnifiedDailyPriceValidator:
 
             query = """
                 SELECT open_price, high_price, low_price, close, adj_close, volume
-                FROM dev_daily_prices_fmp
+                FROM dev_daily_price_fmp
                 WHERE instrument_id = $1 AND date = $2
             """
             row = await self.conn.fetchrow(query, instrument_id, target_date)
@@ -233,7 +233,7 @@ class UnifiedDailyPriceValidator:
 
             query = """
                 SELECT open_price, high_price, low_price, close, adj_close, volume
-                FROM dev_daily_prices_alphavantage
+                FROM dev_daily_price_alphavantage
                 WHERE instrument_id = $1 AND date = $2
             """
             row = await self.conn.fetchrow(query, instrument_id, target_date)
@@ -288,7 +288,7 @@ class UnifiedDailyPriceValidator:
     async def _get_instrument_id(self, symbol: str) -> Optional[int]:
         """Get instrument_id for symbol"""
         try:
-            query = "SELECT id FROM dev_instruments WHERE symbol = $1"
+            query = "SELECT id FROM dev_instrument WHERE symbol = $1"
             row = await self.conn.fetchrow(query, symbol)
             return row['id'] if row else None
         except Exception as e:
@@ -310,13 +310,13 @@ class UnifiedDailyPriceValidator:
             # Collect historical closes from unified table if available, otherwise from vendor tables
             query = """
                 WITH vendor_prices AS (
-                    SELECT date, close FROM dev_daily_prices_polygon
+                    SELECT date, close FROM dev_daily_price_polygon
                     WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
                     UNION ALL
-                    SELECT date, close FROM dev_daily_prices_tiingo
+                    SELECT date, close FROM dev_daily_price_tiingo
                     WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
                     UNION ALL
-                    SELECT date, close FROM dev_daily_prices_fmp
+                    SELECT date, close FROM dev_daily_price_fmp
                     WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
                 )
                 SELECT date, AVG(close) as avg_close

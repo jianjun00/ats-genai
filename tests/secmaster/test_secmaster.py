@@ -99,8 +99,8 @@ async def test_advance_membership_and_caches(monkeypatch):
         {'symbol': 'TICK1', 'start_date': date(2021,1,1), 'end_date': None},
         {'symbol': 'TICK2', 'start_date': date(2020,3,1), 'end_date': None},
     ]
-    # Simulate daily_prices rows for cache checks
-    daily_prices_rows = [
+    # Simulate daily_price_polygon rows for cache checks
+    daily_price_polygon_rows = [
         {'symbol': 'TICK1', 'close': 100, 'market_cap': 1000000, 'date': date(2020,3,1)},
         {'symbol': 'TICK2', 'close': 50, 'market_cap': 500000, 'date': date(2020,3,1)},
         {'symbol': 'TICK2', 'close': 60, 'market_cap': 600000, 'date': date(2021,2,1)},
@@ -113,10 +113,10 @@ async def test_advance_membership_and_caches(monkeypatch):
 
     class DummyConnAdv(DummyConn):
         async def fetch(self, query, *args, **kwargs):
-            if 'FROM daily_prices' in query and ('close' in query or 'market_cap' in query):
+            if 'FROM daily_price_polygon' in query and ('close' in query or 'market_cap' in query):
                 date_arg = args[0]
                 syms = set(args[1])
-                filtered = [r for r in daily_prices_rows if r['date'] == date_arg and r['symbol'] in syms]
+                filtered = [r for r in daily_price_polygon_rows if r['date'] == date_arg and r['symbol'] in syms]
                 # Assign instrument_id by symbol
                 symbol_to_id = {'TICK1': 1, 'TICK2': 2}
                 return [dict(r, instrument_id=symbol_to_id[r['symbol']], symbol=r['symbol']) for r in filtered]
@@ -128,7 +128,7 @@ async def test_advance_membership_and_caches(monkeypatch):
 
     class DummyPoolAdv:
         def acquire(self):
-            return DummyConnAdv(daily_prices_rows)
+            return DummyConnAdv(daily_price_polygon_rows)
         async def close(self):
             pass
 

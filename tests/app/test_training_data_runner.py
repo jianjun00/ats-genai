@@ -12,6 +12,8 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
+from tests.fixtures.insert_test_daily_price_polygon import insert_test_daily_price_polygon
+from tests.fixtures.setup_test_universe_data import setup_test_universe_data
 
 
 def test_training_data_runner_traditional_mode(unit_test_db, setup_test_universe_data):

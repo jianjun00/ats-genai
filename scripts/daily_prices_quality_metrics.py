@@ -8,7 +8,7 @@ Generates and pushes metrics to SignOz for:
 - Coverage statistics per vendor (Polygon, Tiingo, EODHD)
 
 Usage:
-    python scripts/daily_prices_quality_metrics.py [--days 90] [--push-metrics]
+    python scripts/daily_price_polygon_quality_metrics.py [--days 90] [--push-metrics]
 """
 
 import argparse
@@ -118,14 +118,14 @@ class DailyPricesQualityAnalyzer:
 
         # Missing prices metrics
         self.missing_prices_by_vendor = Gauge(
-            'ats_daily_prices_missing_symbols_total',
+            'ats_daily_price_polygon_missing_symbols_total',
             'Number of symbols missing daily prices per vendor',
             ['vendor', 'environment'],
             registry=self.registry
         )
 
         self.missing_price_records = Gauge(
-            'ats_daily_prices_missing_records_total',
+            'ats_daily_price_polygon_missing_records_total',
             'Number of missing daily price records per vendor',
             ['vendor', 'environment'],
             registry=self.registry
@@ -133,14 +133,14 @@ class DailyPricesQualityAnalyzer:
 
         # Bad prices metrics
         self.bad_prices_by_vendor = Gauge(
-            'ats_daily_prices_bad_symbols_total',
+            'ats_daily_price_polygon_bad_symbols_total',
             'Number of symbols with bad daily prices per vendor',
             ['vendor', 'environment'],
             registry=self.registry
         )
 
         self.bad_price_records = Gauge(
-            'ats_daily_prices_bad_records_total',
+            'ats_daily_price_polygon_bad_records_total',
             'Number of bad daily price records per vendor',
             ['vendor', 'environment'],
             registry=self.registry
@@ -148,7 +148,7 @@ class DailyPricesQualityAnalyzer:
 
         # Coverage metrics
         self.coverage_percentage = Gauge(
-            'ats_daily_prices_coverage_percent',
+            'ats_daily_price_polygon_coverage_percent',
             'Daily prices coverage percentage per vendor',
             ['vendor', 'environment'],
             registry=self.registry
@@ -172,7 +172,7 @@ class DailyPricesQualityAnalyzer:
         missing_results = {}
 
         for vendor in self.vendors:
-            table_name = f"{self.environment}_daily_prices_{vendor}"
+            table_name = f"{self.environment}_daily_price_polygon_{vendor}"
 
             try:
                 # Get symbols that should have data
@@ -248,7 +248,7 @@ class DailyPricesQualityAnalyzer:
         bad_results = {}
 
         for vendor in self.vendors:
-            table_name = f"{self.environment}_daily_prices_{vendor}"
+            table_name = f"{self.environment}_daily_price_polygon_{vendor}"
 
             try:
                 # Query for bad prices (invalid values, abnormal patterns)
@@ -368,7 +368,7 @@ class DailyPricesQualityAnalyzer:
                 if 'error' not in data:
                     metrics_data.extend([
                         {
-                            "name": "ats_daily_prices_missing_symbols_total",
+                            "name": "ats_daily_price_polygon_missing_symbols_total",
                             "description": "Number of symbols missing daily prices per vendor",
                             "unit": "1",
                             "gauge": {
@@ -383,7 +383,7 @@ class DailyPricesQualityAnalyzer:
                             }
                         },
                         {
-                            "name": "ats_daily_prices_missing_records_total",
+                            "name": "ats_daily_price_polygon_missing_records_total",
                             "description": "Number of missing daily price records per vendor",
                             "unit": "1",
                             "gauge": {
@@ -398,7 +398,7 @@ class DailyPricesQualityAnalyzer:
                             }
                         },
                         {
-                            "name": "ats_daily_prices_coverage_percent",
+                            "name": "ats_daily_price_polygon_coverage_percent",
                             "description": "Daily prices coverage percentage per vendor",
                             "unit": "1",
                             "gauge": {
@@ -419,7 +419,7 @@ class DailyPricesQualityAnalyzer:
                 if 'error' not in data:
                     metrics_data.extend([
                         {
-                            "name": "ats_daily_prices_bad_symbols_total",
+                            "name": "ats_daily_price_polygon_bad_symbols_total",
                             "description": "Number of symbols with bad daily prices per vendor",
                             "unit": "1",
                             "gauge": {
@@ -434,7 +434,7 @@ class DailyPricesQualityAnalyzer:
                             }
                         },
                         {
-                            "name": "ats_daily_prices_bad_records_total",
+                            "name": "ats_daily_price_polygon_bad_records_total",
                             "description": "Number of bad daily price records per vendor",
                             "unit": "1",
                             "gauge": {
@@ -461,7 +461,7 @@ class DailyPricesQualityAnalyzer:
                     },
                     "scopeMetrics": [{
                         "scope": {
-                            "name": "ats.daily_prices.metrics",
+                            "name": "ats.daily_price_polygon.metrics",
                             "version": "1.0.0"
                         },
                         "metrics": metrics_data

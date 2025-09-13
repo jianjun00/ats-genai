@@ -12,6 +12,8 @@ from pathlib import Path
 from datetime import datetime
 
 from tests.fixtures.insert_test_daily_prices import insert_test_daily_prices
+from tests.fixtures.insert_test_daily_price_polygon import insert_test_daily_price_polygon
+from tests.fixtures.setup_test_universe_data import setup_test_universe_data
 
 from state.training_data_callback import DateBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
@@ -32,7 +34,7 @@ class TestTrainingDataCallback:
         Uses real test data setup from fixtures.
         """
         # Insert test daily prices for AAPL
-        insert_test_daily_prices(unit_test_db, ['AAPL'], '2024-01-15', '2024-01-17')
+        insert_test_daily_price_polygon(unit_test_db, ['AAPL'], '2024-01-15', '2024-01-17')
 
         config = TrainingDataConfig(
             base_interval_minutes=1,
@@ -179,7 +181,7 @@ class TestTrainingDataCallback:
         from app.runner import Runner
 
         # Insert test data
-        insert_test_daily_prices(unit_test_db, ['AAPL'], '2024-01-15', '2024-01-15')
+        insert_test_daily_price_polygon(unit_test_db, ['AAPL'], '2024-01-15', '2024-01-15')
 
         config = TrainingDataConfig(
             sequence_lengths={'5m': 1, '15m': 1, '1h': 1, '1d': 1},
@@ -242,7 +244,7 @@ class TestTrainingDataCallback:
         Test that each day gets its own file as requested.
         """
         # Insert test data for multiple days
-        insert_test_daily_prices(unit_test_db, ['AAPL'], '2024-01-15', '2024-01-17')
+        insert_test_daily_price_polygon(unit_test_db, ['AAPL'], '2024-01-15', '2024-01-17')
 
         config = TrainingDataConfig(
             sequence_lengths={'5m': 1, '15m': 1, '1h': 1, '1d': 1},

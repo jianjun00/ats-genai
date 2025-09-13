@@ -7,7 +7,7 @@ import time
 from datetime import datetime, date
 from unittest.mock import AsyncMock, MagicMock
 from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPricesUnifier
+from domains.market_data.services.eod.unify_daily_price_polygon import DatabaseDailyPricesUnifier
 from shared.utils.environment import Environment
 
 
@@ -129,7 +129,7 @@ class TestOptimizedDataPipelinePerformance:
         })
 
         # Mock batch unifier response
-        mock_unifier.unify_daily_prices_batch = AsyncMock(return_value={
+        mock_unifier.unify_daily_price_polygon_batch = AsyncMock(return_value={
             "AAPL": [{"date": start_time.date(), "open": 150.0, "high": 155.0, "low": 149.0, "close": 154.0, "volume": 1000000}],
             "MSFT": [{"date": start_time.date(), "open": 250.0, "high": 255.0, "low": 249.0, "close": 254.0, "volume": 800000}],
             "GOOGL": [{"date": start_time.date(), "open": 2500.0, "high": 2550.0, "low": 2490.0, "close": 2540.0, "volume": 500000}],
@@ -149,7 +149,7 @@ class TestOptimizedDataPipelinePerformance:
         assert results[2]["close"] == 254.0
 
         # Verify batch unifier was called once (not per instrument)
-        mock_unifier.unify_daily_prices_batch.assert_called_once()
+        mock_unifier.unify_daily_price_polygon_batch.assert_called_once()
 
         print(f"Batch operation completed in {batch_time:.4f}s")
         print(f"Processing {len(instrument_ids)} instruments")
@@ -184,7 +184,7 @@ class TestOptimizedDataPipelinePerformance:
 
                 # Test batch processing
                 symbols = ["AAPL", "MSFT"]
-                results = await unifier.unify_daily_prices_batch(
+                results = await unifier.unify_daily_price_polygon_batch(
                     symbols,
                     (date(2024, 1, 1), date(2024, 1, 1)),
                     date(2024, 1, 1)

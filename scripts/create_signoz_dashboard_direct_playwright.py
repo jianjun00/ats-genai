@@ -38,7 +38,7 @@ class SignOzDirectDashboardCreator:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_missing_symbols_total",
+                                    "query": "ats_daily_price_polygon_missing_symbols_total",
                                     "legend": "{{vendor}} Missing Symbols",
                                     "disabled": False
                                 }
@@ -53,7 +53,7 @@ class SignOzDirectDashboardCreator:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_missing_records_total",
+                                    "query": "ats_daily_price_polygon_missing_records_total",
                                     "legend": "{{vendor}} Missing Records",
                                     "disabled": False
                                 }
@@ -68,7 +68,7 @@ class SignOzDirectDashboardCreator:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_coverage_percent",
+                                    "query": "ats_daily_price_polygon_coverage_percent",
                                     "legend": "{{vendor}} Coverage %",
                                     "disabled": False
                                 }
@@ -83,7 +83,7 @@ class SignOzDirectDashboardCreator:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_bad_symbols_total",
+                                    "query": "ats_daily_price_polygon_bad_symbols_total",
                                     "legend": "{{vendor}} Bad Symbols",
                                     "disabled": False
                                 }
@@ -98,7 +98,7 @@ class SignOzDirectDashboardCreator:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_coverage_percent",
+                                    "query": "ats_daily_price_polygon_coverage_percent",
                                     "legend": "{{vendor}} Coverage %",
                                     "disabled": False
                                 }
@@ -113,7 +113,7 @@ class SignOzDirectDashboardCreator:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_missing_symbols_total",
+                                    "query": "ats_daily_price_polygon_missing_symbols_total",
                                     "legend": "{{vendor}} Missing Symbols",
                                     "disabled": False
                                 }
@@ -231,28 +231,28 @@ class SignOzDirectDashboardCreator:
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
                                         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fff;">
                                             <h3 style="color: #ff4d4f; margin: 0 0 10px 0;">🚨 Missing Symbols by Vendor</h3>
-                                            <p style="margin: 0; color: #666;">Query: ats_daily_prices_missing_symbols_total</p>
+                                            <p style="margin: 0; color: #666;">Query: ats_daily_price_polygon_missing_symbols_total</p>
                                             <div id="missing-symbols-data" style="margin-top: 10px; font-size: 18px; font-weight: bold;">
                                                 Loading...
                                             </div>
                                         </div>
                                         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fff;">
                                             <h3 style="color: #faad14; margin: 0 0 10px 0;">📉 Missing Records by Vendor</h3>
-                                            <p style="margin: 0; color: #666;">Query: ats_daily_prices_missing_records_total</p>
+                                            <p style="margin: 0; color: #666;">Query: ats_daily_price_polygon_missing_records_total</p>
                                             <div id="missing-records-data" style="margin-top: 10px; font-size: 18px; font-weight: bold;">
                                                 Loading...
                                             </div>
                                         </div>
                                         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fff;">
                                             <h3 style="color: #52c41a; margin: 0 0 10px 0;">✅ Coverage % by Vendor</h3>
-                                            <p style="margin: 0; color: #666;">Query: ats_daily_prices_coverage_percent</p>
+                                            <p style="margin: 0; color: #666;">Query: ats_daily_price_polygon_coverage_percent</p>
                                             <div id="coverage-data" style="margin-top: 10px; font-size: 18px; font-weight: bold;">
                                                 Loading...
                                             </div>
                                         </div>
                                         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fff;">
                                             <h3 style="color: #ff4d4f; margin: 0 0 10px 0;">🚨 Bad Symbols by Vendor</h3>
-                                            <p style="margin: 0; color: #666;">Query: ats_daily_prices_bad_symbols_total</p>
+                                            <p style="margin: 0; color: #666;">Query: ats_daily_price_polygon_bad_symbols_total</p>
                                             <div id="bad-symbols-data" style="margin-top: 10px; font-size: 18px; font-weight: bold;">
                                                 Loading...
                                             </div>
@@ -268,7 +268,7 @@ class SignOzDirectDashboardCreator:
                                     <div style="margin-top: 20px; padding: 15px; background: #e6f7ff; border-radius: 8px; border-left: 4px solid #1890ff;">
                                         <p style="margin: 0; color: #1890ff;"><strong>📈 To update metrics:</strong></p>
                                         <code style="background: #f0f0f0; padding: 2px 4px; border-radius: 3px; font-family: monospace;">
-                                            PYTHONPATH=src python3 scripts/daily_prices_quality_metrics.py --environment intg --push-metrics
+                                            PYTHONPATH=src python3 scripts/daily_price_polygon_quality_metrics.py --environment intg --push-metrics
                                         </code>
                                     </div>
                                 </div>
@@ -308,10 +308,10 @@ class SignOzDirectDashboardCreator:
                     try {{
                         // Query each metric
                         const metrics = [
-                            'ats_daily_prices_missing_symbols_total',
-                            'ats_daily_prices_missing_records_total',
-                            'ats_daily_prices_coverage_percent',
-                            'ats_daily_prices_bad_symbols_total'
+                            'ats_daily_price_polygon_missing_symbols_total',
+                            'ats_daily_price_polygon_missing_records_total',
+                            'ats_daily_price_polygon_coverage_percent',
+                            'ats_daily_price_polygon_bad_symbols_total'
                         ];
 
                         const results = {{}};
@@ -337,7 +337,7 @@ class SignOzDirectDashboardCreator:
                         const badSymbolsEl = document.getElementById('bad-symbols-data');
 
                         if (missingSymbolsEl) {{
-                            const data = results['ats_daily_prices_missing_symbols_total'];
+                            const data = results['ats_daily_price_polygon_missing_symbols_total'];
                             if (Array.isArray(data) && data.length > 0) {{
                                 missingSymbolsEl.innerHTML = data.map(item =>
                                     `${{item.metric?.vendor || 'Unknown'}}: ${{item.value?.[1] || '0'}}`
@@ -349,7 +349,7 @@ class SignOzDirectDashboardCreator:
                         }}
 
                         if (missingRecordsEl) {{
-                            const data = results['ats_daily_prices_missing_records_total'];
+                            const data = results['ats_daily_price_polygon_missing_records_total'];
                             if (Array.isArray(data) && data.length > 0) {{
                                 missingRecordsEl.innerHTML = data.map(item =>
                                     `${{item.metric?.vendor || 'Unknown'}}: ${{item.value?.[1] || '0'}}`
@@ -361,7 +361,7 @@ class SignOzDirectDashboardCreator:
                         }}
 
                         if (coverageEl) {{
-                            const data = results['ats_daily_prices_coverage_percent'];
+                            const data = results['ats_daily_price_polygon_coverage_percent'];
                             if (Array.isArray(data) && data.length > 0) {{
                                 coverageEl.innerHTML = data.map(item =>
                                     `${{item.metric?.vendor || 'Unknown'}}: ${{item.value?.[1] || '0'}}%`
@@ -373,7 +373,7 @@ class SignOzDirectDashboardCreator:
                         }}
 
                         if (badSymbolsEl) {{
-                            const data = results['ats_daily_prices_bad_symbols_total'];
+                            const data = results['ats_daily_price_polygon_bad_symbols_total'];
                             if (Array.isArray(data) && data.length > 0) {{
                                 badSymbolsEl.innerHTML = data.map(item =>
                                     `${{item.metric?.vendor || 'Unknown'}}: ${{item.value?.[1] || '0'}}`
@@ -433,7 +433,7 @@ class SignOzDirectDashboardCreator:
         print(f"  29,969 instruments analyzed across 3 vendors")
 
         print(f"\n🔄 To Update Metrics:")
-        print(f"  PYTHONPATH=src python3 scripts/daily_prices_quality_metrics.py --environment intg --push-metrics")
+        print(f"  PYTHONPATH=src python3 scripts/daily_price_polygon_quality_metrics.py --environment intg --push-metrics")
 
         print(f"\n📸 Verification Screenshots:")
         print(f"  /tmp/signoz_dashboard_before.png - Before injection")

@@ -31,13 +31,13 @@ async def test_database_connectivity():
         print("✅ Database connection successful")
 
         # Check required tables exist
-        tables = ['intg_daily_prices_tiingo', 'intg_daily_prices_polygon', 'intg_daily_prices_eodhd', 'intg_instruments']
+        tables = ['intg_daily_price_tiingo', 'intg_daily_price_polygon', 'intg_daily_price_eodhd', 'intg_instrument']
         for table in tables:
             count = await conn.fetchval(f"SELECT COUNT(*) FROM {table} LIMIT 1")
             print(f"✅ Table {table}: accessible")
 
         # Check instrument data
-        instrument_count = await conn.fetchval("SELECT COUNT(*) FROM intg_instruments WHERE active = true")
+        instrument_count = await conn.fetchval("SELECT COUNT(*) FROM intg_instrument WHERE active = true")
         print(f"📊 Active instruments: {instrument_count}")
 
         if instrument_count == 0:

@@ -361,7 +361,7 @@ class MultiVendorDailyCollector:
             'tiingo': VendorConfig(
                 name='tiingo',
                 api_key_env='TIINGO_API_KEY',
-                table_name='intg_daily_prices_tiingo',
+                table_name='intg_daily_price_tiingo',
                 rate_limit_seconds=1.0,  # 1000 requests/hour = ~1 per second
                 batch_size=50,
                 base_url='https://api.tiingo.com'
@@ -369,7 +369,7 @@ class MultiVendorDailyCollector:
             'polygon': VendorConfig(
                 name='polygon',
                 api_key_env='POLYGON_API_KEY',
-                table_name='intg_daily_prices_polygon',
+                table_name='intg_daily_price_polygon',
                 rate_limit_seconds=12.0,  # 5 requests/minute
                 batch_size=5,
                 base_url='https://api.polygon.io'
@@ -377,7 +377,7 @@ class MultiVendorDailyCollector:
             'eodhd': VendorConfig(
                 name='eodhd',
                 api_key_env='EODHD_API_KEY',
-                table_name='intg_daily_prices_eodhd',
+                table_name='intg_daily_price_eodhd',
                 rate_limit_seconds=3.0,  # 20 requests/minute
                 batch_size=20,
                 base_url='https://eodhd.com'
@@ -414,7 +414,7 @@ class MultiVendorDailyCollector:
         async with self.db_pool.acquire() as conn:
             query = """
                 SELECT DISTINCT symbol, id
-                FROM intg_instruments
+                FROM intg_instrument
                 WHERE active = true
                   AND symbol IS NOT NULL
                   AND symbol ~ '^[A-Z]{1,5}$'

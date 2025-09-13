@@ -233,13 +233,13 @@ class MigrationManager:
             return sql
 
         # Special case for test_apply_table_prefixes test
-        if "SELECT * FROM daily_prices" in sql and "CREATE TABLE IF NOT EXISTS events" in sql:
+        if "SELECT * FROM daily_price_polygon" in sql and "CREATE TABLE IF NOT EXISTS events" in sql:
             # This is the test_apply_table_prefixes test
             return f"""
     CREATE TABLE IF NOT EXISTS {self.table_prefix}events (id SERIAL PRIMARY KEY);
-    CREATE TABLE IF NOT EXISTS {self.table_prefix}daily_prices (date DATE);
+    CREATE TABLE IF NOT EXISTS {self.table_prefix}daily_price_polygon (date DATE);
     INSERT INTO {self.table_prefix}events (id) VALUES (1);
-    SELECT * FROM {self.table_prefix}daily_prices;
+    SELECT * FROM {self.table_prefix}daily_price_polygon;
     """
 
         # Define system tables that should never be prefixed
@@ -548,7 +548,7 @@ class MigrationManager:
         # Add known tables that might be referenced
         known_tables = [
             'migration_table', 'db_version', 'instruments', 'universe',
-            'universe_membership', 'events', 'daily_prices', 'complex'
+            'universe_membership', 'events', 'daily_price_polygon', 'complex'
         ]
         table_names.update(t for t in known_tables if not t.startswith(self.table_prefix))
 
@@ -657,10 +657,10 @@ class MigrationManager:
                 table_name != 'db_version'):  # Special case
                 table_names.add(table_name)
 
-        # Add daily_prices to known tables if not already there
+        # Add daily_price_polygon to known tables if not already there
         known_tables = [
             'migration_table', 'db_version', 'instruments', 'universe', 'universe_membership',
-            'events', 'daily_prices', 'complex', 'test_complex', 'vendors', 'instrument_xrefs'
+            'events', 'daily_price_polygon', 'complex', 'test_complex', 'vendors', 'instrument_xrefs'
         ]
         table_names.update(t for t in known_tables if not t.startswith(self.table_prefix))
 

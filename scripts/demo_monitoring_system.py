@@ -19,7 +19,7 @@ sys.path.insert(0, 'src')
 # Set up Prometheus gateway
 os.environ['PROMETHEUS_GATEWAY'] = 'localhost:9091'
 
-from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor_daily_prices
+from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor_daily_price_polygon
 
 async def demo_monitoring():
     """Demonstrate the monitoring system with a limited sync operation."""
@@ -62,7 +62,7 @@ async def demo_monitoring():
 
     try:
         # Run EODHD sync with monitoring
-        result = await sync_vendor_daily_prices('eodhd', source_config, target_config)
+        result = await sync_vendor_daily_price_polygon('eodhd', source_config, target_config)
 
         duration = time.time() - start_time
 
@@ -79,10 +79,10 @@ async def demo_monitoring():
         print()
 
         print("📡 Prometheus Metrics:")
-        print("   ✅ ats_daily_prices_sync_symbols_processed_total")
-        print("   ✅ ats_daily_prices_sync_prices_processed_total")
-        print("   ✅ ats_daily_prices_sync_duration_seconds")
-        print("   ✅ ats_daily_prices_sync_success_rate")
+        print("   ✅ ats_daily_price_polygon_sync_symbols_processed_total")
+        print("   ✅ ats_daily_price_polygon_sync_prices_processed_total")
+        print("   ✅ ats_daily_price_polygon_sync_duration_seconds")
+        print("   ✅ ats_daily_price_polygon_sync_success_rate")
         print()
 
         print("🔗 Monitoring Endpoints:")

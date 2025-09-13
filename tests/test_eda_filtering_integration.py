@@ -57,6 +57,7 @@ class TestEDAFilteringIntegration:
     def test_column_values_endpoint_numeric(self):
         """Test column values endpoint for numeric columns."""
         dataset_name = "dev_daily_price"
+        dataset_name = "dev_daily_price_polygon"
         column_name = "price"
 
         response = requests.get(
@@ -186,6 +187,7 @@ class TestEDAFilteringIntegration:
     def test_filtered_data_endpoint_numeric_filter(self):
         """Test filtered data endpoint with numeric range filter."""
         dataset_name = "dev_daily_price"
+        dataset_name = "dev_daily_price_polygon"
 
         payload = {
             "filters": {
@@ -218,6 +220,7 @@ class TestEDAFilteringIntegration:
     def test_filtered_data_endpoint_mixed_filters(self):
         """Test filtered data endpoint with both categorical and numeric filters."""
         dataset_name = "dev_daily_price"
+        dataset_name = "dev_daily_price_polygon"
 
         payload = {
             "filters": {

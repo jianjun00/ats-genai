@@ -232,7 +232,7 @@ class SlackMinuteBarsNotifier:
         try:
             async with self.db_pool.acquire() as conn:
                 # Total instruments
-                total_query = "SELECT COUNT(*) FROM intg_instruments WHERE active = true"
+                total_query = "SELECT COUNT(*) FROM intg_instrument WHERE active = true"
                 stats['total_instruments'] = await conn.fetchval(total_query)
 
                 # Instrument type breakdown
@@ -248,7 +248,7 @@ class SlackMinuteBarsNotifier:
                             ELSE 'stock'
                         END as instrument_type,
                         COUNT(*) as count
-                    FROM intg_instruments
+                    FROM intg_instrument
                     WHERE active = true
                     GROUP BY 1
                 """

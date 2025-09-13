@@ -111,8 +111,8 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             print(f"[DEBUG][fetch_prices_by_instrument_id] Available dates for instrument_id={instrument_id} in {table}: {[r['date'] for r in all_dates]}")
         return {row['date']: dict(row) for row in rows}
 
-    async def unify_daily_prices(self, symbol, asof, current_date):
-        print(f"[DEBUG][unify_daily_prices] Called with symbol={symbol}, asof={asof}, current_date={current_date}")
+    async def unify_daily_price_polygon(self, symbol, asof, current_date):
+        print(f"[DEBUG][unify_daily_price_polygon] Called with symbol={symbol}, asof={asof}, current_date={current_date}")
         # asof can be date or (start, end)
         if isinstance(asof, (tuple, list)):
             start_date, end_date = asof
@@ -124,18 +124,18 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
 
         # Use the standard method which uses 'ticker' vendor
         instrument_id = await xrefs_dao.resolve_instrument_id_by_symbol(symbol)
-        print(f"[DEBUG][unify_daily_prices] Resolved instrument_id={instrument_id} for symbol={symbol}")
+        print(f"[DEBUG][unify_daily_price_polygon] Resolved instrument_id={instrument_id} for symbol={symbol}")
         if instrument_id is None:
-            print(f"[DEBUG][unify_daily_prices] Could not resolve instrument_id for symbol={symbol}")
+            print(f"[DEBUG][unify_daily_price_polygon] Could not resolve instrument_id for symbol={symbol}")
             return []
 
         pool = await asyncpg.create_pool(self.environment.get_database_url())
         results = []
         async with pool.acquire() as conn:
             # Fetch by instrument_id, not symbol
-            tiingo = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_prices_tiingo'), instrument_id, start_date, end_date)
-            polygon = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_prices_polygon'), instrument_id, start_date, end_date)
-            print(f"[DEBUG][unify_daily_prices] tiingo keys: {list(tiingo.keys())}, polygon keys: {list(polygon.keys())}")
+            tiingo = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_price_polygon_tiingo'), instrument_id, start_date, end_date)
+            polygon = await self.fetch_prices_by_instrument_id(conn, self.environment.get_table_name('daily_price_polygon_polygon'), instrument_id, start_date, end_date)
+            print(f"[DEBUG][unify_daily_price_polygon] tiingo keys: {list(tiingo.keys())}, polygon keys: {list(polygon.keys())}")
             # Only process dates in the requested range
             requested_dates = set()
             curr = start_date
@@ -162,12 +162,12 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                 if all_msgs:
                     status = 'invalid' if row_msgs or date_msgs or sigma_msgs else 'conflict'
                     note = "; ".join(all_msgs)
-                print(f"[DEBUG][unify_daily_prices] For date={d}: t={t}, p={p}, row={row}")
+                print(f"[DEBUG][unify_daily_price_polygon] For date={d}: t={t}, p={p}, row={row}")
                 open_, high, low, close, volume = [row.get(k) if row else None for k in ['open','high','low','close','volume']]
-                print(f"[DEBUG][unify_daily_prices] Date={d}, open={open_}, high={high}, low={low}, close={close}, volume={volume}, status={status}, note={note}")
+                print(f"[DEBUG][unify_daily_price_polygon] Date={d}, open={open_}, high={high}, low={low}, close={close}, volume={volume}, status={status}, note={note}")
                 await conn.execute(
                     f"""
-                    INSERT INTO {self.environment.get_table_name('daily_prices')} (date, instrument_id, symbol, open, high, low, close, volume, source, status, note)
+                    INSERT INTO {self.environment.get_table_name('daily_price_polygon')} (date, instrument_id, symbol, open, high, low, close, volume, source, status, note)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                     ON CONFLICT (date, instrument_id) DO UPDATE SET symbol=EXCLUDED.symbol, open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low, close=EXCLUDED.close, volume=EXCLUDED.volume, source=EXCLUDED.source, status=EXCLUDED.status, note=EXCLUDED.note
                     """,
@@ -189,15 +189,15 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                     'note': note
                 })
         await pool.close()
-        print(f"[DEBUG][unify_daily_prices] Final results for symbol={symbol}: {results}")
+        print(f"[DEBUG][unify_daily_price_polygon] Final results for symbol={symbol}: {results}")
         return results
 
-    async def unify_daily_prices_batch(self, symbols, asof, current_date):
+    async def unify_daily_price_polygon_batch(self, symbols, asof, current_date):
         """
         Optimized batch processing for multiple symbols at once.
         Performance improvement: Reduces database connections and query overhead.
         """
-        print(f"[DEBUG][unify_daily_prices_batch] Processing {len(symbols)} symbols: {symbols}")
+        print(f"[DEBUG][unify_daily_price_polygon_batch] Processing {len(symbols)} symbols: {symbols}")
 
         # asof can be date or (start, end)
         if isinstance(asof, (tuple, list)):
@@ -215,7 +215,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             if instrument_id:
                 symbol_to_id[symbol] = instrument_id
 
-        print(f"[DEBUG][unify_daily_prices_batch] Resolved {len(symbol_to_id)} instrument IDs")
+        print(f"[DEBUG][unify_daily_price_polygon_batch] Resolved {len(symbol_to_id)} instrument IDs")
 
         if not symbol_to_id:
             return {symbol: [] for symbol in symbols}
@@ -231,7 +231,7 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             tiingo_rows = await conn.fetch(
                 f"""
                 SELECT date, instrument_id, open, high, low, close, volume
-                FROM {self.environment.get_table_name('daily_prices_tiingo')}
+                FROM {self.environment.get_table_name('daily_price_polygon_tiingo')}
                 WHERE instrument_id = ANY($1) AND date >= $2 AND date <= $3
                 ORDER BY instrument_id, date
                 """,
@@ -242,14 +242,14 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
             polygon_rows = await conn.fetch(
                 f"""
                 SELECT date, instrument_id, open, high, low, close, volume
-                FROM {self.environment.get_table_name('daily_prices_polygon')}
+                FROM {self.environment.get_table_name('daily_price_polygon_polygon')}
                 WHERE instrument_id = ANY($1) AND date >= $2 AND date <= $3
                 ORDER BY instrument_id, date
                 """,
                 instrument_ids, start_date, end_date
             )
 
-            print(f"[DEBUG][unify_daily_prices_batch] Fetched {len(tiingo_rows)} Tiingo rows, {len(polygon_rows)} Polygon rows")
+            print(f"[DEBUG][unify_daily_price_polygon_batch] Fetched {len(tiingo_rows)} Tiingo rows, {len(polygon_rows)} Polygon rows")
 
             # Organize data by symbol and date
             tiingo_data = {}
@@ -332,41 +332,41 @@ class DatabaseDailyPricesUnifier(DailyPricesUnifierBase):
                 all_results[symbol] = results
 
         await pool.close()
-        print(f"[DEBUG][unify_daily_prices_batch] Returning results for {len(all_results)} symbols")
+        print(f"[DEBUG][unify_daily_price_polygon_batch] Returning results for {len(all_results)} symbols")
         return all_results
 
 class FileDailyPricesUnifier(DailyPricesUnifierBase):
-    def unify_daily_prices_sync(self, symbol, asof, current_date):
+    def unify_daily_price_polygon_sync(self, symbol, asof, current_date):
         import asyncio
         import logging
         logging.getLogger(__name__)
 
         # Debug: Log input parameters
-        print(f"[DEBUG][unify_daily_prices_sync] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
-        print(f"[DEBUG][unify_daily_prices_sync] tiingo_data keys: {list(self.tiingo_data.keys())}")
-        print(f"[DEBUG][unify_daily_prices_sync] polygon_data keys: {list(self.polygon_data.keys())}")
+        print(f"[DEBUG][unify_daily_price_polygon_sync] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
+        print(f"[DEBUG][unify_daily_price_polygon_sync] tiingo_data keys: {list(self.tiingo_data.keys())}")
+        print(f"[DEBUG][unify_daily_price_polygon_sync] polygon_data keys: {list(self.polygon_data.keys())}")
 
         # Debug: Check if symbol exists in either data source
         if symbol not in self.tiingo_data and symbol not in self.polygon_data:
-            print(f"[ERROR][unify_daily_prices_sync] Symbol {symbol} not found in tiingo or polygon data")
-            print(f"[DEBUG][unify_daily_prices_sync] tiingo_data: {self.tiingo_data}")
-            print(f"[DEBUG][unify_daily_prices_sync] polygon_data: {self.polygon_data}")
+            print(f"[ERROR][unify_daily_price_polygon_sync] Symbol {symbol} not found in tiingo or polygon data")
+            print(f"[DEBUG][unify_daily_price_polygon_sync] tiingo_data: {self.tiingo_data}")
+            print(f"[DEBUG][unify_daily_price_polygon_sync] polygon_data: {self.polygon_data}")
             return []
 
         # Debug: Log data for the symbol if found
         if symbol in self.tiingo_data:
-            print(f"[DEBUG][unify_daily_prices_sync] Found {symbol} in tiingo_data with {len(self.tiingo_data[symbol])} records")
+            print(f"[DEBUG][unify_daily_price_polygon_sync] Found {symbol} in tiingo_data with {len(self.tiingo_data[symbol])} records")
             dates = sorted(self.tiingo_data[symbol].keys())
             if dates:
-                print(f"[DEBUG][unify_daily_prices_sync] Tiingo date range for {symbol}: {dates[0]} to {dates[-1]} ({len(dates)} days)")
+                print(f"[DEBUG][unify_daily_price_polygon_sync] Tiingo date range for {symbol}: {dates[0]} to {dates[-1]} ({len(dates)} days)")
 
         if symbol in self.polygon_data:
-            print(f"[DEBUG][unify_daily_prices_sync] Found {symbol} in polygon_data with {len(self.polygon_data[symbol])} records")
+            print(f"[DEBUG][unify_daily_price_polygon_sync] Found {symbol} in polygon_data with {len(self.polygon_data[symbol])} records")
             dates = sorted(self.polygon_data[symbol].keys())
             if dates:
-                print(f"[DEBUG][unify_daily_prices_sync] Polygon date range for {symbol}: {dates[0]} to {dates[-1]} ({len(dates)} days)")
+                print(f"[DEBUG][unify_daily_price_polygon_sync] Polygon date range for {symbol}: {dates[0]} to {dates[-1]} ({len(dates)} days)")
 
-        coro = self.unify_daily_prices(symbol, asof, current_date)
+        coro = self.unify_daily_price_polygon(symbol, asof, current_date)
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -381,15 +381,15 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             result = loop.run_until_complete(coro)
 
         # Debug: Log results
-        print(f"[DEBUG][unify_daily_prices_sync] Results for {symbol} on {asof}:")
+        print(f"[DEBUG][unify_daily_price_polygon_sync] Results for {symbol} on {asof}:")
         if not result:
-            print("[DEBUG][unify_daily_prices_sync]   No results returned from unify_daily_prices")
+            print("[DEBUG][unify_daily_price_polygon_sync]   No results returned from unify_daily_price_polygon")
         else:
-            print(f"[DEBUG][unify_daily_prices_sync]   Found {len(result)} records")
+            print(f"[DEBUG][unify_daily_price_polygon_sync]   Found {len(result)} records")
             for i, r in enumerate(result[:3], 1):
-                print(f"[DEBUG][unify_daily_prices_sync]   Result {i}: {r}")
+                print(f"[DEBUG][unify_daily_price_polygon_sync]   Result {i}: {r}")
             if len(result) > 3:
-                print(f"[DEBUG][unify_daily_prices_sync]   ... and {len(result) - 3} more records")
+                print(f"[DEBUG][unify_daily_price_polygon_sync]   ... and {len(result) - 3} more records")
 
         return result
 
@@ -398,13 +398,13 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
         self.tiingo_data = tiingo_data
         self.polygon_data = polygon_data
 
-    async def unify_daily_prices(self, symbol, asof, current_date):
+    async def unify_daily_price_polygon(self, symbol, asof, current_date):
         import logging
         from datetime import timedelta
         logging.getLogger(__name__)
 
         # Debug: Log input parameters
-        print(f"[DEBUG][unify_daily_prices] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
+        print(f"[DEBUG][unify_daily_price_polygon] ENTER: symbol={symbol}, asof={asof}, current_date={current_date}")
 
         # asof can be date or (start, end)
         if isinstance(asof, (tuple, list)):
@@ -419,21 +419,21 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             end_date = end_date.date()
 
         # Debug: Log date range
-        print(f"[DEBUG][unify_daily_prices] Processing date range: {start_date} to {end_date}")
+        print(f"[DEBUG][unify_daily_price_polygon] Processing date range: {start_date} to {end_date}")
 
         tiingo = self.tiingo_data.get(symbol, {})
         polygon = self.polygon_data.get(symbol, {})
 
         # Debug: Log available dates in each data source
-        print(f"[DEBUG][unify_daily_prices] Tiingo data for {symbol}: {len(tiingo)} dates")
+        print(f"[DEBUG][unify_daily_price_polygon] Tiingo data for {symbol}: {len(tiingo)} dates")
         if tiingo:
             tiingo_dates = sorted(tiingo.keys())
-            print(f"[DEBUG][unify_daily_prices] Tiingo date range: {tiingo_dates[0]} to {tiingo_dates[-1]} ({len(tiingo_dates)} days)")
+            print(f"[DEBUG][unify_daily_price_polygon] Tiingo date range: {tiingo_dates[0]} to {tiingo_dates[-1]} ({len(tiingo_dates)} days)")
 
-        print(f"[DEBUG][unify_daily_prices] Polygon data for {symbol}: {len(polygon)} dates")
+        print(f"[DEBUG][unify_daily_price_polygon] Polygon data for {symbol}: {len(polygon)} dates")
         if polygon:
             polygon_dates = sorted(polygon.keys())
-            print(f"[DEBUG][unify_daily_prices] Polygon date range: {polygon_dates[0]} to {polygon_dates[-1]} ({len(polygon_dates)} days)")
+            print(f"[DEBUG][unify_daily_price_polygon] Polygon date range: {polygon_dates[0]} to {polygon_dates[-1]} ({len(polygon_dates)} days)")
 
         # Debug: Check if we have data for the requested date range
         all_dates = set()
@@ -443,7 +443,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             all_dates.update(polygon.keys())
 
         if not all_dates:
-            print(f"[ERROR][unify_daily_prices] No price data available for {symbol} in any data source")
+            print(f"[ERROR][unify_daily_price_polygon] No price data available for {symbol} in any data source")
             return []
 
         # Generate all dates in the requested range
@@ -453,18 +453,18 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             date_range.append(current)
             current += timedelta(days=1)
 
-        print(f"[DEBUG][unify_daily_prices] Checking {len(date_range)} dates from {start_date} to {end_date}")
+        print(f"[DEBUG][unify_daily_price_polygon] Checking {len(date_range)} dates from {start_date} to {end_date}")
 
         # Check which dates have data
         missing_dates = [d for d in date_range if d not in all_dates]
         if missing_dates:
-            print(f"[DEBUG][unify_daily_prices] Missing data for {len(missing_dates)}/{len(date_range)} dates")
+            print(f"[DEBUG][unify_daily_price_polygon] Missing data for {len(missing_dates)}/{len(date_range)} dates")
             if len(missing_dates) <= 10:
-                print(f"[DEBUG][unify_daily_prices] Missing dates: {missing_dates}")
+                print(f"[DEBUG][unify_daily_price_polygon] Missing dates: {missing_dates}")
             else:
-                print(f"[DEBUG][unify_daily_prices] Missing dates (first 10): {missing_dates[:10]}...")
+                print(f"[DEBUG][unify_daily_price_polygon] Missing dates (first 10): {missing_dates[:10]}...")
         else:
-            print(f"[DEBUG][unify_daily_prices] Data available for all {len(date_range)} dates")
+            print(f"[DEBUG][unify_daily_price_polygon] Data available for all {len(date_range)} dates")
         # Only process dates within the requested interval
         # Emit a row for every calendar day in the requested interval (not just trading days)
         from datetime import timedelta
@@ -476,7 +476,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
             p = polygon.get(d)
             if not t and not p:
                 # No vendor data for this trading day
-                print(f"[DEBUG][unify_daily_prices] No vendor data for date={d}, symbol={symbol}")
+                print(f"[DEBUG][unify_daily_price_polygon] No vendor data for date={d}, symbol={symbol}")
                 results.append({
                     'date': d,
                     'symbol': symbol,
@@ -512,7 +512,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
                 open_, high, low, close, volume = [p.get('o'), p.get('h'), p.get('l'), p.get('c'), p.get('v')]
             # Log if any OHLC is NaN or None
             if any(x is None or (isinstance(x, float) and np.isnan(x)) for x in [open_, high, low, close]):
-                print(f"[DEBUG][unify_daily_prices] NaN/None OHLC for date={d}, symbol={symbol}: open={open_}, high={high}, low={low}, close={close}, volume={volume}")
+                print(f"[DEBUG][unify_daily_price_polygon] NaN/None OHLC for date={d}, symbol={symbol}: open={open_}, high={high}, low={low}, close={close}, volume={volume}")
             results.append({
                 'date': d,
                 'symbol': symbol,
@@ -522,7 +522,7 @@ class FileDailyPricesUnifier(DailyPricesUnifierBase):
                 'note': note
             })
             self.update_close_history(close)
-        print(f"[DEBUG][unify_daily_prices] Final results for symbol={symbol}: {results}")
+        print(f"[DEBUG][unify_daily_price_polygon] Final results for symbol={symbol}: {results}")
         return results
 
 
@@ -537,4 +537,4 @@ if __name__ == "__main__":
     from shared.utils.environment import Environment
     environment = Environment()
     unifier = DatabaseDailyPricesUnifier(environment)
-    asyncio.run(unifier.unify_daily_prices(args.symbol, (args.start_date, args.end_date)))
+    asyncio.run(unifier.unify_daily_price_polygon(args.symbol, (args.start_date, args.end_date)))

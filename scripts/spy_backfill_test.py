@@ -28,7 +28,7 @@ async def main():
         conn = await asyncpg.connect(db_url)
 
         # Get SPY instrument ID
-        result = await conn.fetchrow("SELECT id, symbol FROM dev_instruments WHERE symbol = 'SPY'")
+        result = await conn.fetchrow("SELECT id, symbol FROM dev_instrument WHERE symbol = 'SPY'")
 
         if not result:
             logger.error("❌ SPY not found in instruments table")
@@ -41,7 +41,7 @@ async def main():
 
         # Check existing data
         existing_count = await conn.fetchval(
-            "SELECT COUNT(*) FROM dev_daily_prices_tiingo WHERE instrument_id = $1",
+            "SELECT COUNT(*) FROM dev_daily_price_tiingo WHERE instrument_id = $1",
             instrument_id
         )
         logger.info(f"📈 Existing Tiingo records for {symbol}: {existing_count}")
@@ -87,7 +87,7 @@ async def main():
                 if rows:
                     logger.info(f"💾 Inserting {len(rows)} records for {symbol}...")
                     await conn.executemany("""
-                        INSERT INTO dev_daily_prices_tiingo
+                        INSERT INTO dev_daily_price_tiingo
                         (date, symbol, open, high, low, close, volume, instrument_id)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                         ON CONFLICT (date, instrument_id) DO NOTHING
@@ -95,7 +95,7 @@ async def main():
 
                     # Verify insertion
                     final_count = await conn.fetchval(
-                        "SELECT COUNT(*) FROM dev_daily_prices_tiingo WHERE instrument_id = $1",
+                        "SELECT COUNT(*) FROM dev_daily_price_tiingo WHERE instrument_id = $1",
                         instrument_id
                     )
 

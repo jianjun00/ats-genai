@@ -105,12 +105,12 @@ async def ensure_test_tables(db_url):
                 )
             """)
 
-        # Check and create daily_prices table if needed
-        daily_prices_table = env.get_table_name('daily_prices')
-        if daily_prices_table not in existing_tables:
-            logger.info(f"Creating {daily_prices_table} table")
+        # Check and create daily_price_polygon table if needed
+        daily_price_polygon_table = env.get_table_name('daily_price_polygon')
+        if daily_price_polygon_table not in existing_tables:
+            logger.info(f"Creating {daily_price_polygon_table} table")
             await conn.execute(f"""
-                CREATE TABLE {daily_prices_table} (
+                CREATE TABLE {daily_price_polygon_table} (
                     id SERIAL PRIMARY KEY,
                     instrument_id INTEGER NOT NULL,
                     symbol TEXT,
@@ -129,11 +129,11 @@ async def ensure_test_tables(db_url):
             # Check if symbol column exists and add it if not
             symbol_exists = await conn.fetchval(f"""
                 SELECT COUNT(*) FROM information_schema.columns
-                WHERE table_name = '{daily_prices_table.replace("'", "''")}' AND column_name = 'symbol'
+                WHERE table_name = '{daily_price_polygon_table.replace("'", "''")}' AND column_name = 'symbol'
             """)
             if not symbol_exists:
-                logger.info(f"Adding symbol column to {daily_prices_table}")
-                await conn.execute(f"ALTER TABLE {daily_prices_table} ADD COLUMN symbol TEXT;")
+                logger.info(f"Adding symbol column to {daily_price_polygon_table}")
+                await conn.execute(f"ALTER TABLE {daily_price_polygon_table} ADD COLUMN symbol TEXT;")
 
 
         # Create daily_market_cap table if needed

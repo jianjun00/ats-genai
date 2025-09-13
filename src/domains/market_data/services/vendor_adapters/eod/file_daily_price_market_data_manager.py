@@ -4,7 +4,7 @@ print(f"[IMPORT_DEBUG] Loaded file_daily_price_market_data_manager.py from {__fi
 from datetime import datetime, date
 from typing import List, Dict, Optional
 from .base_daily_price_market_data_manager import BaseDailyPriceMarketDataManager
-from .unify_daily_prices import FileDailyPricesUnifier
+from .unify_daily_price_polygon import FileDailyPricesUnifier
 
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from shared.utils.environment import Environment
@@ -15,8 +15,8 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
     Accepts a dict of vendor -> directory with daily price request/response files.
     Example usage:
         vendors_dirs = {
-            'polygon': 'tests/data/daily_prices_polygon',
-            'tiingo': 'tests/data/daily_prices_tiingo'
+            'polygon': 'tests/data/daily_price_polygon_polygon',
+            'tiingo': 'tests/data/daily_price_polygon_tiingo'
         }
         mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
     """
@@ -126,9 +126,9 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
                 # Try to find the directory in the project structure
                 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
                 possible_paths = [
-                    os.path.join(project_root, 'tests', 'data', f'daily_prices_{vendor}'),
-                    os.path.join(project_root, 'data', f'daily_prices_{vendor}'),
-                    os.path.join(project_root, f'daily_prices_{vendor}')
+                    os.path.join(project_root, 'tests', 'data', f'daily_price_polygon_{vendor}'),
+                    os.path.join(project_root, 'data', f'daily_price_polygon_{vendor}'),
+                    os.path.join(project_root, f'daily_price_polygon_{vendor}')
                 ]
 
                 found = False
@@ -512,13 +512,13 @@ class FileDailyPriceMarketDataManager(BaseDailyPriceMarketDataManager):
 
     # Synchronous wrapper for FileDailyPricesUnifier
     # (for integration with existing code expecting sync get_ohlc)
-    def unify_daily_prices_sync(self, symbol, asof, current_date: Optional[date] = None):
-        print(f"[DEBUG][unify_daily_prices_sync] Calling unifier for symbol={symbol}, asof={asof}, current_date={current_date}")
-        result = self.unifier.unify_daily_prices_sync(symbol, asof, current_date)
-        print(f"[DEBUG][unify_daily_prices_sync] Unifier result for {symbol}: "
+    def unify_daily_price_polygon_sync(self, symbol, asof, current_date: Optional[date] = None):
+        print(f"[DEBUG][unify_daily_price_polygon_sync] Calling unifier for symbol={symbol}, asof={asof}, current_date={current_date}")
+        result = self.unifier.unify_daily_price_polygon_sync(symbol, asof, current_date)
+        print(f"[DEBUG][unify_daily_price_polygon_sync] Unifier result for {symbol}: "
               f"{len(result) if result else 0} records, sample: {result[0] if result else 'None'}")
         return result
-        coro = self.unifier.unify_daily_prices(symbol, asof, sod_date)
+        coro = self.unifier.unify_daily_price_polygon(symbol, asof, sod_date)
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:

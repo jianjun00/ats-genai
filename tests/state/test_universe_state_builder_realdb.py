@@ -37,9 +37,9 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
             assert row, f"Instrument ID not found for symbol {symbol}"
             symbol_to_id[symbol] = row['id']
 
-    # Insert required daily_prices data for test symbols
+    # Insert required daily_price_polygon data for test symbols
     test_date = date(2025, 7, 25)
-    table_name = env.get_table_name("daily_prices")
+    table_name = env.get_table_name("daily_price_polygon")
     async with pool.acquire() as conn:
         # Clean up
         await conn.execute(f"DELETE FROM {table_name}")

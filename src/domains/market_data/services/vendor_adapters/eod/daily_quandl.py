@@ -1,7 +1,7 @@
 import os
 import asyncio
 from core.platform.config.environment import EnvironmentType
-from domains.market_data.services.eod.daily_prices_quandl_dao import DailyPricesQuandlDAO
+from domains.market_data.services.eod.daily_price_polygon_quandl_dao import DailyPricesQuandlDAO
 import requests
 from datetime import datetime, timedelta
 import time
@@ -52,7 +52,7 @@ def download_prices_quandl(ticker, start, end, api_key):
     return prices
 
 CREATE_DAILY_PRICES_QUANDL_SQL = """
-CREATE TABLE IF NOT EXISTS daily_prices_quandl (
+CREATE TABLE IF NOT EXISTS daily_price_polygon_quandl (
     date DATE NOT NULL,
     symbol TEXT NOT NULL,
     open DOUBLE PRECISION,

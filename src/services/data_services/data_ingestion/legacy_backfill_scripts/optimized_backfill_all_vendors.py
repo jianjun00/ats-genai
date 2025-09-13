@@ -167,7 +167,7 @@ class MultiVendorOptimizedBackfiller:
             if not config['api_key']:
                 continue
 
-            table_name = f"{table_prefix}daily_prices_{config['table_suffix']}"
+            table_name = f"{table_prefix}daily_price_polygon_{config['table_suffix']}"
 
             try:
                 result = await conn.fetchrow(f"SELECT to_regclass('{table_name}')")
@@ -225,7 +225,7 @@ class MultiVendorOptimizedBackfiller:
         """
         env = os.getenv('ENV_TYPE', 'intg').lower()
         table_prefix = 'intg_' if env == 'intg' else 'dev_'
-        table_name = f"{table_prefix}daily_prices_{self.vendors[vendor_name]['table_suffix']}"
+        table_name = f"{table_prefix}daily_price_polygon_{self.vendors[vendor_name]['table_suffix']}"
 
         # Get all existing dates for this instrument from this vendor
         existing_dates = await conn.fetch(f"""
@@ -424,7 +424,7 @@ class MultiVendorOptimizedBackfiller:
         # Insert with idempotent UPSERT
         env = os.getenv('ENV_TYPE', 'intg').lower()
         table_prefix = 'intg_' if env == 'intg' else 'dev_'
-        table_name = f"{table_prefix}daily_prices_{self.vendors[vendor_name]['table_suffix']}"
+        table_name = f"{table_prefix}daily_price_polygon_{self.vendors[vendor_name]['table_suffix']}"
 
         try:
             result = await conn.executemany(f"""

@@ -102,7 +102,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
             for symbol in UNIVERSE_SYMBOLS:
                 instrument_id = instrument_ids[symbol]
                 for d in pd.date_range(TEST_START_DATE, TEST_END_DATE):
-                    table_name = env.get_table_name('daily_prices')
+                    table_name = env.get_table_name('daily_price_polygon')
                     await conn.execute(
                         f"INSERT INTO {table_name} (date, symbol, instrument_id, open, high, low, close, volume) "
                         f"VALUES ($1, $2, $3, 100, 110, 90, 105, 1000) ON CONFLICT DO NOTHING",
@@ -141,7 +141,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     monkeypatch.setattr(env, 'get', lambda section, key, default=None: ['state.universe_state_builder.UniverseStateIntervalBuilder'] if (section, key) == ('runner', 'callbacks') else env.__class__.get(env, section, key, default))
     runner = Runner(TEST_START_DATE, TEST_END_DATE, env, UNIVERSE_ID, ['state.universe_state_builder.UniverseStateIntervalBuilder'], '1d')
     # Insert test daily prices for AAPL/TSLA for each test date
-    from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+    from domains.market_data.repositories.daily_price_polygon_dao import DailyPricesDAO
     dao = DailyPricesDAO(env)
     test_dates = [pd.to_datetime(d).date() for d in pd.date_range(TEST_START_DATE, TEST_END_DATE)]
     async def setup_prices():

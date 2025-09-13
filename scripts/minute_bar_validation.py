@@ -230,7 +230,7 @@ class MinuteBarValidator:
                 # Get instruments that have recent daily price data
                 query = f"""
                 SELECT DISTINCT symbol
-                FROM intg_daily_prices_{vendor}
+                FROM intg_daily_price_polygon_{vendor}
                 WHERE date >= CURRENT_DATE - INTERVAL '30 days'
                 ORDER BY symbol
                 """

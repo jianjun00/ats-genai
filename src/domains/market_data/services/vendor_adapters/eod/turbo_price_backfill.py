@@ -232,7 +232,7 @@ class TurboDatabaseInserter:
                 ) for item in data_batch]
 
                 await conn.executemany("""
-                    INSERT INTO dev_daily_prices_polygon
+                    INSERT INTO dev_daily_price_polygon
                     (date, instrument_id, open, high, low, close, volume)
                     VALUES ($1, $2, $3, $4, $5, $6, $7)
                     ON CONFLICT (date, instrument_id) DO NOTHING
@@ -261,7 +261,7 @@ class TurboDatabaseInserter:
                 ) for item in data_batch]
 
                 await conn.executemany("""
-                    INSERT INTO dev_daily_prices_tiingo
+                    INSERT INTO dev_daily_price_tiingo
                     (date, instrument_id, open, high, low, close, volume)
                     VALUES ($1, $2, $3, $4, $5, $6, $7)
                     ON CONFLICT (date, instrument_id) DO NOTHING

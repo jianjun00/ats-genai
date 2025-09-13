@@ -4,7 +4,7 @@ import asyncpg
 class DailyPricesAlphaVantageDAO:
     def __init__(self, env: Environment):
         self.env = env
-        self.table_name = self.env.get_table_name('daily_prices_alphavantage')
+        self.table_name = self.env.get_table_name('daily_price_polygon_alphavantage')
         self.db_url = self.env.get_database_url()
 
     async def insert_price(self, date, instrument_id, open_price, high_price, low_price, close, adj_close, volume):

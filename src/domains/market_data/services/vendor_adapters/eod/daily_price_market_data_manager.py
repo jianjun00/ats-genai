@@ -2,7 +2,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, date, time
 
 from domains.market_data.services.core.market_data_manager import MarketDataManager
-from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+from domains.market_data.repositories.daily_price_polygon_dao import DailyPricesDAO
 from core.business.calendars.exchange_calendar import ExchangeCalendar
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 
@@ -48,7 +48,7 @@ class DailyPriceMarketDataManager(MarketDataManager):
         import logging
         logger = logging.getLogger(__name__)
         logger.debug(f"update_for_sod: cur_date={cur_date}")
-        # Load daily_prices for cur_date and store as InstrumentInterval
+        # Load daily_price_polygon for cur_date and store as InstrumentInterval
         symbols = self._get_all_symbols()
         logger.debug(f"update_for_sod: fetched symbols: {symbols}")
         instrument_ids = []

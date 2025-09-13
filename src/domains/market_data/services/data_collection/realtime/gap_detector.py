@@ -481,7 +481,7 @@ class GapDetectionEngine:
 
     async def _get_instrument_id(self, symbol: str) -> int:
         """Get instrument_id for symbol"""
-        query = "SELECT id FROM dev_instruments WHERE symbol = $1 LIMIT 1"
+        query = "SELECT id FROM dev_instrument WHERE symbol = $1 LIMIT 1"
 
         async with self.pool.acquire() as conn:
             result = await conn.fetchval(query, symbol)

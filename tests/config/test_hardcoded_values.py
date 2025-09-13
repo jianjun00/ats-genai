@@ -213,6 +213,7 @@ class TestHardcodedValues:
         expected_tables = [
             "dev_instrument",
             "dev_daily_price",
+            "dev_daily_price_polygon",
             "backtest_runs",
             "portfolio_metrics"
         ]

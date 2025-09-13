@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_events_type_time ON events(event_type, event_time
 """
 
 CREATE_DAILY_PRICES_SQL = """
-CREATE TABLE IF NOT EXISTS daily_prices (
+CREATE TABLE IF NOT EXISTS daily_price_polygon (
     date DATE NOT NULL,
     symbol TEXT NOT NULL,
     open DOUBLE PRECISION,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS dividends (
 """
 
 CREATE_HYPERTABLE_SQL = """
-SELECT create_hypertable('daily_prices', 'date', if_not_exists => TRUE);
+SELECT create_hypertable('daily_price_polygon', 'date', if_not_exists => TRUE);
 """
 
 CREATE_SPY_MEMBERSHIP_SQL = """

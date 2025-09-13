@@ -27,7 +27,7 @@ class DatabaseTestHelper:
                 return [{'count': len(query_results.get('default', []))}]
             elif 'instruments' in query_lower:
                 return query_results.get('instruments', [])
-            elif 'daily_prices' in query_lower:
+            elif 'daily_price_polygon' in query_lower:
                 return query_results.get('prices', [])
             else:
                 return query_results.get('default', [])

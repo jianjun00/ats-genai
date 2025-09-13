@@ -1672,8 +1672,8 @@ if __name__ == "__main__":
                         if os.environ.get('FILE_BASED_PRICES') == '1':
                             logger.debug('Using FileDailyPriceMarketDataManager for prices')
                             vendors_dirs = {
-                                'polygon': 'tests/data/daily_prices_polygon',
-                                'tiingo': 'tests/data/daily_prices_tiingo'
+                                'polygon': 'tests/data/daily_price_polygon_polygon',
+                                'tiingo': 'tests/data/daily_price_polygon_tiingo'
                             }
                             self.market_data_manager = PatchedFileDailyPriceMarketDataManager(vendors_dirs, symbols=["AAPL", "TSLA"])
                         else:

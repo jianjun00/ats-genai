@@ -88,11 +88,11 @@ class DatabaseTester:
             
             # Check for key tables
             key_tables = [
-                "intg_daily_prices",
-                "intg_instruments", 
-                "intg_daily_prices_polygon",
-                "intg_daily_prices_tiingo",
-                "intg_daily_prices_eodhd"
+                "intg_daily_price",
+                "intg_instrument", 
+                "intg_daily_price_polygon",
+                "intg_daily_price_tiingo",
+                "intg_daily_price_eodhd"
             ]
             
             for table in key_tables:
@@ -150,7 +150,7 @@ class DatabaseTester:
             
             # Test with sample parameters (if database is available)
             test_params = {
-                "table_name": "intg_daily_prices",
+                "table_name": "intg_daily_price",
                 "date_range": {
                     "start_date": (date.today() - timedelta(days=7)).isoformat(),
                     "end_date": date.today().isoformat()
@@ -276,7 +276,7 @@ class DatabaseTester:
             ),
             actual_dates AS (
                 SELECT DISTINCT date as actual_date
-                FROM intg_daily_prices 
+                FROM intg_daily_price 
                 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                 LIMIT 100  -- Limit for testing
             )
@@ -309,7 +309,7 @@ class DatabaseTester:
                    COUNT(DISTINCT symbol) as unique_symbols,
                    MIN(date) as earliest_date,
                    MAX(date) as latest_date
-            FROM intg_daily_prices
+            FROM intg_daily_price
             WHERE date >= CURRENT_DATE - INTERVAL '30 days'
             """
             
@@ -337,7 +337,7 @@ class DatabaseTester:
             freshness_query = """
             SELECT MAX(date) as latest_date,
                    CURRENT_DATE - MAX(date) as days_old
-            FROM intg_daily_prices
+            FROM intg_daily_price
             """
             
             try:

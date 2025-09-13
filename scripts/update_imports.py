@@ -50,7 +50,7 @@ class ImportUpdater:
         dao_name = match.group(1)
 
         # Market data DAOs
-        if any(keyword in dao_name for keyword in ['daily_prices', 'fundamentals']):
+        if any(keyword in dao_name for keyword in ['daily_price_polygon', 'fundamentals']):
             return f'from domains.market_data.repositories.{dao_name} import'
 
         # Instrument DAOs
@@ -78,7 +78,7 @@ class ImportUpdater:
         dao_name = match.group(1)
 
         # Market data DAOs
-        if any(keyword in dao_name for keyword in ['daily_prices', 'fundamentals']):
+        if any(keyword in dao_name for keyword in ['daily_price_polygon', 'fundamentals']):
             return f'import domains.market_data.repositories.{dao_name}'
 
         # Instrument DAOs

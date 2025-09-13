@@ -23,7 +23,7 @@ async def find_symbol_filter_issue():
             # Select dataset
             print("🧪 Selecting dataset...")
             dataset_select = page.locator("#dataset-select")
-            await dataset_select.select_option("intg_daily_prices_tiingo")
+            await dataset_select.select_option("intg_daily_price_tiingo")
             await page.wait_for_timeout(8000)  # Wait longer for data to load
 
             # Find ALL tables on the page

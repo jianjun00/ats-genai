@@ -216,7 +216,7 @@ class BaseRealtimeCollector(ABC):
                 # Get active instruments from universe membership
                 query = """
                     SELECT DISTINCT i.symbol
-                    FROM dev_instruments i
+                    FROM dev_instrument i
                     INNER JOIN dev_universe_membership um ON i.id = um.instrument_id
                     WHERE um.is_active = true
                       AND i.symbol IS NOT NULL
@@ -258,7 +258,7 @@ class BaseRealtimeCollector(ABC):
             async with self.db_pool.acquire() as conn:
                 # Get instrument_id for symbol
                 instrument_query = """
-                    SELECT id FROM dev_instruments WHERE symbol = $1 LIMIT 1
+                    SELECT id FROM dev_instrument WHERE symbol = $1 LIMIT 1
                 """
                 instrument_row = await conn.fetchrow(instrument_query, bar.symbol)
 

@@ -1,11 +1,13 @@
 import pytest
 from datetime import date
 from shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPricesUnifier
+from domains.market_data.services.eod.unify_daily_price_polygon import DatabaseDailyPricesUnifier
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from core.dao.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from vendor.polygon.core.dao.daily_price_polygon_polygon_dao import DailyPricesPolygonDAO
+from src.db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -45,8 +47,8 @@ async def test_polygon_price_fields_are_not_none(unit_test_db):
 
     # Run the unifier
     unifier = DatabaseDailyPricesUnifier(env)
-    results = await unifier.unify_daily_prices(symbol, test_date, test_date)
-    assert results, "unify_daily_prices should return at least one result"
+    results = await unifier.unify_daily_price_polygon(symbol, test_date, test_date)
+    assert results, "unify_daily_price_polygon should return at least one result"
     row = results[0]
     assert row['date'] == test_date
     assert row['symbol'] == symbol

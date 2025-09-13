@@ -307,7 +307,7 @@ class TFTDataLoader:
             timestamp,
             open, high, low, close, volume,
             (close - LAG(close) OVER (PARTITION BY symbol ORDER BY timestamp)) / LAG(close) OVER (PARTITION BY symbol ORDER BY timestamp) as returns
-        FROM {self.env.get_table_name('daily_prices')}
+        FROM {self.env.get_table_name('daily_price_polygon')}
         WHERE symbol = ANY($1)
         AND timestamp BETWEEN $2 AND $3
         ORDER BY symbol, timestamp

@@ -216,8 +216,8 @@ class SignOzDashboardCreator:
 
         # Add our daily prices metrics - fail if not available
         metric_queries = [
-            "ats_daily_prices_coverage_percent",
-            "ats_daily_prices_missing_symbols_total"
+            "ats_daily_price_polygon_coverage_percent",
+            "ats_daily_price_polygon_missing_symbols_total"
         ]
 
         for metric in metric_queries:

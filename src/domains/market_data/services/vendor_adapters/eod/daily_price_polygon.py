@@ -6,7 +6,7 @@ import requests
 import datetime as dt
 import time
 
-from infrastructure.vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+from infrastructure.vendor.polygon.dao.daily_price_polygon_polygon_dao import DailyPricesPolygonDAO
 import argparse
 
 # POLYGON_API_KEY is now managed via Gin and set_polygon_api_key
@@ -35,7 +35,7 @@ def download_prices_polygon(ticker, start, end, api_key, logging=False, log_star
         except Exception:
             return False
     if logging and ticker.upper() in log_tickers and in_log_range(start, end):
-        log_dir = log_dir or "test/data/daily_prices_polygon"
+        log_dir = log_dir or "test/data/daily_price_polygon_polygon"
         os.makedirs(log_dir, exist_ok=True)
         req_path = os.path.join(log_dir, f"polygon_{ticker.lower()}_{start}_{end}_request.json")
         resp_path = os.path.join(log_dir, f"polygon_{ticker.lower()}_{start}_{end}_response.json")
@@ -65,7 +65,7 @@ async def insert_prices(prices, instrument_id, shares_outstanding, dao: DailyPri
         parser.add_argument('--gin_config', type=str, default='config/app.gin')
         known_args, _ = parser.parse_known_args()
         env = Environment(gin_config_path=getattr(known_args, 'gin_config', 'config/app.gin'))
-    env.get_table_name('daily_prices_polygon')
+    env.get_table_name('daily_price_polygon_polygon')
     if not prices:
         return
     # Batch version for efficiency
@@ -263,7 +263,7 @@ async def main():
     parser.add_argument('--end_date', type=str, required=True, help='End date (YYYY-MM-DD)')
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod', 'dev'], help='Environment to use (test, intg, prod, dev)')
     parser.add_argument('--logging', action='store_true', help='Enable logging of Polygon API requests/responses for specified tickers in date range')
-    parser.add_argument('--log_dir', type=str, default='test/data/daily_prices_polygon', help='Directory to store Polygon API logs (default: test/data/daily_prices_polygon)')
+    parser.add_argument('--log_dir', type=str, default='test/data/daily_price_polygon_polygon', help='Directory to store Polygon API logs (default: test/data/daily_price_polygon_polygon)')
     parser.add_argument('--gin_config', type=str, default='config/app.gin', help='Path to Gin config file (default: config/app.gin)')
     args = parser.parse_args()
 
@@ -296,7 +296,7 @@ async def main():
         print("[ERROR] No valid tickers with instrument_id found. Exiting.")
         return
 
-    from infrastructure.vendor.polygon.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
+    from infrastructure.vendor.polygon.dao.daily_price_polygon_polygon_dao import DailyPricesPolygonDAO
     prices_dao = DailyPricesPolygonDAO(env)
     total_success = 0
     total_fail = 0

@@ -74,10 +74,10 @@ class CrossVendorPriceComparator:
 
         # Vendor tables
         self.vendor_tables = {
-            'polygon': env.get_table_name('daily_prices_polygon'),
-            'tiingo': env.get_table_name('daily_prices_tiingo'),
-            'alphavantage': env.get_table_name('daily_prices_alphavantage'),
-            'fmp': env.get_table_name('daily_prices_fmp')
+            'polygon': env.get_table_name('daily_price_polygon_polygon'),
+            'tiingo': env.get_table_name('daily_price_polygon_tiingo'),
+            'alphavantage': env.get_table_name('daily_price_polygon_alphavantage'),
+            'fmp': env.get_table_name('daily_price_polygon_fmp')
         }
 
         # Comparison thresholds

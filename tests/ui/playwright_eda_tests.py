@@ -87,7 +87,7 @@ class EDAPlaywrightTests:
         assert dataset_cards > 0, "No dataset cards found"
 
         # Check for large datasets (should show row counts)
-        large_dataset = page.locator(".dataset-card:has-text('daily_prices')")
+        large_dataset = page.locator(".dataset-card:has-text('daily_price_polygon')")
         await expect(large_dataset).to_be_visible()
 
         # Verify row count formatting (should show comma-separated numbers)
@@ -202,7 +202,7 @@ class EDAPlaywrightTests:
         await page.wait_for_selector(".dataset-card")
 
         # Try to select a large dataset
-        large_dataset = page.locator(".dataset-card:has-text('daily_prices_tiingo')")
+        large_dataset = page.locator(".dataset-card:has-text('daily_price_polygon_tiingo')")
         if await large_dataset.count() > 0:
             start_time = time.time()
             await large_dataset.click()

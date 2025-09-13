@@ -175,7 +175,7 @@ class APITester:
         # Analytics endpoints (if available)
         print("\n📈 Analytics Endpoints:")
         await self.test_endpoint("GET", "/api/tables", "Get database tables", expected_status=[200, 404, 500])
-        await self.test_endpoint("GET", "/api/table-info/dev_instruments", "Table info", 
+        await self.test_endpoint("GET", "/api/table-info/dev_instrument", "Table info", 
                                 expected_status=[200, 404, 500])
     
     def generate_report(self):

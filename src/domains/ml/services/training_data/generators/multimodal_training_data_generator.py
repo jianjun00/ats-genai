@@ -236,7 +236,7 @@ class MultiModalFeatureGenerator:
             # Get 60 days of price history for technical indicators
             price_data = await conn.fetch("""
                 SELECT date, open, high, low, close, adjusted_close, volume
-                FROM dev_daily_prices
+                FROM dev_daily_price_polygon
                 WHERE symbol = $1 AND date <= $2
                 ORDER BY date DESC
                 LIMIT 60
@@ -396,13 +396,13 @@ class MultiModalFeatureGenerator:
         async with self.pool.acquire() as conn:
             # Get SPY price for market correlation (simplified)
             spy_prices = await conn.fetch("""
-                SELECT close FROM dev_daily_prices
+                SELECT close FROM dev_daily_price_polygon
                 WHERE symbol = 'SPY' AND date <= $1
                 ORDER BY date DESC LIMIT 20
             """, sample_date)
 
             symbol_prices = await conn.fetch("""
-                SELECT close FROM dev_daily_prices
+                SELECT close FROM dev_daily_price_polygon
                 WHERE symbol = $1 AND date <= $2
                 ORDER BY date DESC LIMIT 20
             """, symbol, sample_date)
@@ -434,7 +434,7 @@ class MultiModalFeatureGenerator:
             # Get future price data for targets
             future_prices = await conn.fetch("""
                 SELECT date, close, adjusted_close, volume
-                FROM dev_daily_prices
+                FROM dev_daily_price_polygon
                 WHERE symbol = $1
                 AND date > $2
                 AND date <= $3
@@ -447,7 +447,7 @@ class MultiModalFeatureGenerator:
             # Get current price
             current_price_row = await conn.fetchrow("""
                 SELECT close, adjusted_close
-                FROM dev_daily_prices
+                FROM dev_daily_price_polygon
                 WHERE symbol = $1 AND date <= $2
                 ORDER BY date DESC LIMIT 1
             """, symbol, sample_date)

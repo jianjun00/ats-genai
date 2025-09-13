@@ -13,9 +13,9 @@ class DummyConn:
                 {'symbol': 'TICK1', 'start_date': date(2021,1,1), 'end_date': None, 'instrument_id': 1},
                 {'symbol': 'TICK2', 'start_date': date(2020,3,1), 'end_date': None, 'instrument_id': 2},
             ]
-        if 'FROM daily_prices' in query and ('close' in query or 'market_cap' in query):
+        if 'FROM daily_price_polygon' in query and ('close' in query or 'market_cap' in query):
             # Return dummy close and market_cap for all current members, include instrument_id and symbol
-            daily_prices_rows = [
+            daily_price_polygon_rows = [
                 {'date': date(2020,1,1), 'symbol': 'TICK1', 'close': 100.0, 'market_cap': 1000000, 'instrument_id': 1},
                 {'date': date(2020,1,1), 'symbol': 'TICK2', 'close': 200.0, 'market_cap': 2000000, 'instrument_id': 2},
                 {'date': date(2021,1,1), 'symbol': 'TICK1', 'close': 150.0, 'market_cap': 1500000, 'instrument_id': 1},
@@ -23,7 +23,7 @@ class DummyConn:
             ]
             date_arg = args[0]
             syms = set(args[1])
-            return [row for row in daily_prices_rows if row['date'] == date_arg and row['symbol'] in syms]
+            return [row for row in daily_price_polygon_rows if row['date'] == date_arg and row['symbol'] in syms]
         return self._rows
     async def __aenter__(self):
         return self

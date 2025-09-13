@@ -76,8 +76,8 @@ class DashboardTemplateEngine:
                         } else {
                             // Fallback to common financial tables
                             tables = [
-                                'dev_daily_prices', 'dev_training_datasets', 'dev_instruments',
-                                'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd'
+                                'dev_daily_price', 'dev_training_datasets', 'dev_instrument',
+                                'dev_daily_price_polygon', 'dev_daily_price_tiingo', 'dev_daily_price_eodhd'
                             ];
                         }
 
@@ -155,12 +155,12 @@ class DashboardTemplateEngine:
                                 <h4>Select Table (Fallback)</h4>
                                 <select id="table-selector" onchange="loadTableData()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <option value="">Choose a table...</option>
-                                    <option value="dev_daily_prices">dev_daily_prices</option>
+                                    <option value="dev_daily_price">dev_daily_price</option>
                                     <option value="dev_training_datasets">dev_training_datasets</option>
-                                    <option value="dev_instruments">dev_instruments</option>
-                                    <option value="dev_daily_prices_polygon">dev_daily_prices_polygon</option>
-                                    <option value="dev_daily_prices_tiingo">dev_daily_prices_tiingo</option>
-                                    <option value="dev_daily_prices_eodhd">dev_daily_prices_eodhd</option>
+                                    <option value="dev_instrument">dev_instrument</option>
+                                    <option value="dev_daily_price_polygon">dev_daily_price_polygon</option>
+                                    <option value="dev_daily_price_tiingo">dev_daily_price_tiingo</option>
+                                    <option value="dev_daily_price_eodhd">dev_daily_price_eodhd</option>
                                 </select>
                             </div>
                         `;

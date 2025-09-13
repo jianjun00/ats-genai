@@ -8,20 +8,20 @@ def test_select_statement_prefixing():
     manager = MigrationManager("postgresql://postgres:password@localhost:5432/test_db")
 
     # Test simple SELECT statement
-    sql = "SELECT * FROM daily_prices;"
+    sql = "SELECT * FROM daily_price_polygon;"
     prefixed_sql = manager._apply_table_prefixes(sql)
-    assert "SELECT * FROM test_daily_prices" in prefixed_sql
+    assert "SELECT * FROM test_daily_price_polygon" in prefixed_sql
 
     # Test SELECT with WHERE clause
-    sql = "SELECT * FROM daily_prices WHERE date = '2025-01-01';"
+    sql = "SELECT * FROM daily_price_polygon WHERE date = '2025-01-01';"
     prefixed_sql = manager._apply_table_prefixes(sql)
-    assert "SELECT * FROM test_daily_prices WHERE date = '2025-01-01'" in prefixed_sql
+    assert "SELECT * FROM test_daily_price_polygon WHERE date = '2025-01-01'" in prefixed_sql
 
     # Test SELECT with JOIN
-    sql = "SELECT * FROM daily_prices JOIN instruments ON daily_prices.instrument_id = instruments.id;"
+    sql = "SELECT * FROM daily_price_polygon JOIN instruments ON daily_price_polygon.instrument_id = instruments.id;"
     prefixed_sql = manager._apply_table_prefixes(sql)
-    assert "SELECT * FROM test_daily_prices JOIN test_instruments" in prefixed_sql
-    assert "test_daily_prices.instrument_id = test_instruments.id" in prefixed_sql
+    assert "SELECT * FROM test_daily_price_polygon JOIN test_instruments" in prefixed_sql
+    assert "test_daily_price_polygon.instrument_id = test_instruments.id" in prefixed_sql
 
 
 @pytest.mark.unit
@@ -31,14 +31,14 @@ def test_foreign_key_references_prefixing():
 
     # Test REFERENCES in CREATE TABLE
     sql = """
-    CREATE TABLE daily_prices (
+    CREATE TABLE daily_price_polygon (
         id SERIAL PRIMARY KEY,
         instrument_id INTEGER REFERENCES instruments(id),
         date DATE NOT NULL
     );
     """
     prefixed_sql = manager._apply_table_prefixes(sql)
-    assert "CREATE TABLE test_daily_prices" in prefixed_sql
+    assert "CREATE TABLE test_daily_price_polygon" in prefixed_sql
     assert "REFERENCES test_instruments(id)" in prefixed_sql
 
     # Test REFERENCES with ON DELETE CASCADE
@@ -107,9 +107,9 @@ def test_complex_sql_prefixing():
     );
 
     /*
-     * Create daily_prices table with foreign key
+     * Create daily_price_polygon table with foreign key
      */
-    CREATE TABLE daily_prices (
+    CREATE TABLE daily_price_polygon (
         id SERIAL PRIMARY KEY,
         instrument_id INTEGER REFERENCES instruments(id),
         date DATE NOT NULL,
@@ -121,7 +121,7 @@ def test_complex_sql_prefixing():
     );
 
     -- Add index
-    CREATE INDEX idx_daily_prices_instrument_date ON daily_prices(instrument_id, date);
+    CREATE INDEX idx_daily_price_polygon_instrument_date ON daily_price_polygon(instrument_id, date);
 
     -- Insert some data
     INSERT INTO instruments (name) VALUES ('AAPL'), ('TSLA');
@@ -131,13 +131,13 @@ def test_complex_sql_prefixing():
 
     # Check table creation
     assert "CREATE TABLE test_instruments" in prefixed_sql
-    assert "CREATE TABLE test_daily_prices" in prefixed_sql
+    assert "CREATE TABLE test_daily_price_polygon" in prefixed_sql
 
     # Check foreign key reference
     assert "REFERENCES test_instruments(id)" in prefixed_sql
 
     # Check index creation
-    assert "CREATE INDEX idx_daily_prices_instrument_date ON test_daily_prices" in prefixed_sql
+    assert "CREATE INDEX idx_daily_price_polygon_instrument_date ON test_daily_price_polygon" in prefixed_sql
 
     # Check insert statement
     assert "INSERT INTO test_instruments" in prefixed_sql

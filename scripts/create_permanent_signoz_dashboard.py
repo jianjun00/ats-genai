@@ -47,7 +47,7 @@ class SignOzDashboardCreator:
             "description": "Count of symbols with missing daily prices data",
             "type": "value",
             "targets": [{
-                "query": "ats_daily_prices_missing_symbols_total",
+                "query": "ats_daily_price_polygon_missing_symbols_total",
                 "legend": "",
                 "disabled": False
             }],
@@ -65,7 +65,7 @@ class SignOzDashboardCreator:
             },
             "pluginVersion": "7.0.0",
             "targets": [{
-                "expr": "ats_daily_prices_missing_symbols_total",
+                "expr": "ats_daily_price_polygon_missing_symbols_total",
                 "refId": "A"
             }],
             "gridPos": {"x": 0, "y": 0, "w": 8, "h": 6}
@@ -78,7 +78,7 @@ class SignOzDashboardCreator:
             "description": "Total count of missing daily price records",
             "type": "value",
             "targets": [{
-                "query": "ats_daily_prices_missing_records_total",
+                "query": "ats_daily_price_polygon_missing_records_total",
                 "legend": "",
                 "disabled": False
             }],
@@ -96,7 +96,7 @@ class SignOzDashboardCreator:
             },
             "pluginVersion": "7.0.0",
             "targets": [{
-                "expr": "ats_daily_prices_missing_records_total",
+                "expr": "ats_daily_price_polygon_missing_records_total",
                 "refId": "B"
             }],
             "gridPos": {"x": 8, "y": 0, "w": 8, "h": 6}
@@ -109,7 +109,7 @@ class SignOzDashboardCreator:
             "description": "Percentage of coverage for daily prices",
             "type": "value",
             "targets": [{
-                "query": "ats_daily_prices_coverage_percent",
+                "query": "ats_daily_price_polygon_coverage_percent",
                 "legend": "",
                 "disabled": False
             }],
@@ -128,7 +128,7 @@ class SignOzDashboardCreator:
             },
             "pluginVersion": "7.0.0",
             "targets": [{
-                "expr": "ats_daily_prices_coverage_percent",
+                "expr": "ats_daily_price_polygon_coverage_percent",
                 "refId": "C"
             }],
             "gridPos": {"x": 16, "y": 0, "w": 8, "h": 6}
@@ -141,7 +141,7 @@ class SignOzDashboardCreator:
             "description": "Count of symbols with bad/invalid daily prices",
             "type": "value",
             "targets": [{
-                "query": "ats_daily_prices_bad_symbols_total",
+                "query": "ats_daily_price_polygon_bad_symbols_total",
                 "legend": "",
                 "disabled": False
             }],
@@ -159,7 +159,7 @@ class SignOzDashboardCreator:
             },
             "pluginVersion": "7.0.0",
             "targets": [{
-                "expr": "ats_daily_prices_bad_symbols_total",
+                "expr": "ats_daily_price_polygon_bad_symbols_total",
                 "refId": "D"
             }],
             "gridPos": {"x": 0, "y": 6, "w": 12, "h": 6}
@@ -188,7 +188,7 @@ class SignOzDashboardCreator:
 
 **📝 To update metrics:**
 ```bash
-PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_prices_quality_metrics.py
+PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_price_polygon_quality_metrics.py
 ```
                 """,
                 "mode": "markdown"

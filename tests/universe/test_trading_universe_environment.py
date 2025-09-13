@@ -113,6 +113,7 @@ class TestEnvironmentSpecificBehavior:
     #     intg_universe = TradingUniverse()
     #     intg_table = intg_universe.env.get_table_name("daily_prices")
     #     assert intg_table == "intg_daily_price"
+    #     assert intg_table == "intg_daily_price_polygon"
     #
     #     # Production environment
     #     # set_environment(EnvironmentType.PRODUCTION)

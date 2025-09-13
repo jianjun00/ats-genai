@@ -104,7 +104,7 @@ class WeeklyMaintenance:
             vendors = ['tiingo', 'polygon', 'eodhd']
 
             for vendor in vendors:
-                table_name = f"intg_daily_prices_{vendor}"
+                table_name = f"intg_daily_price_{vendor}"
 
                 try:
                     # Data completeness metrics
@@ -234,7 +234,7 @@ class WeeklyMaintenance:
                 cleanup_details = {}
 
                 for vendor in vendors:
-                    table_name = f"intg_daily_prices_{vendor}"
+                    table_name = f"intg_daily_price_{vendor}"
 
                     # Remove records with invalid dates (far future or far past)
                     invalid_dates_query = f"""
@@ -258,7 +258,7 @@ class WeeklyMaintenance:
                     # Remove records referencing non-existent instruments
                     orphaned_query = f"""
                     DELETE FROM {table_name}
-                    WHERE instrument_id NOT IN (SELECT id FROM intg_instruments)
+                    WHERE instrument_id NOT IN (SELECT id FROM intg_instrument)
                     """
                     orphaned_deleted = await conn.execute(orphaned_query)
                     orphaned_count = int(orphaned_deleted.split()[-1])
@@ -305,10 +305,10 @@ class WeeklyMaintenance:
 
                 # Update table statistics
                 tables_to_analyze = [
-                    'intg_instruments',
-                    'intg_daily_prices_tiingo',
-                    'intg_daily_prices_polygon',
-                    'intg_daily_prices_eodhd'
+                    'intg_instrument',
+                    'intg_daily_price_tiingo',
+                    'intg_daily_price_polygon',
+                    'intg_daily_price_eodhd'
                 ]
 
                 for table in tables_to_analyze:
@@ -475,7 +475,7 @@ class WeeklyMaintenance:
                 vendor_stats = {}
 
                 for vendor in vendors:
-                    table_name = f"intg_daily_prices_{vendor}"
+                    table_name = f"intg_daily_price_{vendor}"
                     try:
                         count_query = f"SELECT COUNT(*) as count FROM {table_name}"
                         count = await conn.fetchval(count_query)

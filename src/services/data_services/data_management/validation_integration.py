@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 from dataclasses import dataclass
 
 from core.platform.config.environment import Environment
-from validation.daily_prices_validator import DailyPricesValidator
+from validation.daily_price_polygon_validator import DailyPricesValidator
 from validation.missing_data_handler import MissingDataHandler
 from frontfill.checkpoint_manager import CheckpointManager
 
@@ -75,7 +75,7 @@ class ValidationIntegration:
 
         try:
             # Step 1: Run comprehensive validation
-            results = await self.validator.validate_daily_prices(validation_date, vendors)
+            results = await self.validator.validate_daily_price_polygon(validation_date, vendors)
             validation_results.update(results)
 
             quality_score = results["data_quality_score"]
@@ -148,7 +148,7 @@ class ValidationIntegration:
                     # Re-run validation after backfill
                     if validation_results["backfill_results"]["successful_backfills"] > 0:
                         logger.info("Re-running validation after backfill")
-                        updated_results = await self.validator.validate_daily_prices(validation_date)
+                        updated_results = await self.validator.validate_daily_price_polygon(validation_date)
                         validation_results["quality_score"] = updated_results["data_quality_score"]
                         validation_results["actions_taken"].append("re_validated_after_backfill")
 

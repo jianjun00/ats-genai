@@ -4,7 +4,7 @@ from core.platform.config.environment import Environment
 class DailyPricesQuandlDAO:
     def __init__(self, env: Environment):
         self.env = env
-        self.table = self.env.get_table_name('daily_prices_quandl')
+        self.table = self.env.get_table_name('daily_price_polygon_quandl')
         self.pool = None  # Set externally or use context
 
     def set_pool(self, pool):

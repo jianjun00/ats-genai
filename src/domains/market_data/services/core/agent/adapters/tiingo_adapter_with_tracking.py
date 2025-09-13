@@ -63,7 +63,7 @@ class TiingoAdapterWithTracking(VendorAdapter):
 
         Args:
             url: Full request URL
-            endpoint: API endpoint type (daily_prices, instruments, etc.)
+            endpoint: API endpoint type (daily_price_polygon, instruments, etc.)
             symbol: Symbol being requested (for context)
 
         Returns:
@@ -199,7 +199,7 @@ class TiingoAdapterWithTracking(VendorAdapter):
                     api_key=self.api_key
                 )
 
-                resp = self._make_tracked_request(url, "daily_prices", symbol=ticker)
+                resp = self._make_tracked_request(url, "daily_price_polygon", symbol=ticker)
 
                 # Handle rate limiting (429 errors)
                 if resp.status_code == 429:
@@ -265,7 +265,7 @@ class TiingoAdapterWithTracking(VendorAdapter):
                 logger.error(f"❌ Failed to fetch EOD for {ticker}: {e}")
                 continue
 
-        logger.info(f"✅ {self.vendor_name} daily_prices: Retrieved {len(eod_prices)} price records for {len(symbols)} symbols")
+        logger.info(f"✅ {self.vendor_name} daily_price_polygon: Retrieved {len(eod_prices)} price records for {len(symbols)} symbols")
         return eod_prices
 
     def fetch_fundamentals(self, symbols: List[str]) -> List[dict]:

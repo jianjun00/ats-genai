@@ -120,7 +120,7 @@ class Tiingo30YearBackfiller:
 
         instruments = await conn.fetch(f"""
             SELECT id, symbol, name, exchange, active
-            FROM {table_prefix}instruments
+            FROM {table_prefix}instrument
             WHERE active = true
               AND symbol IS NOT NULL
               AND symbol != ''

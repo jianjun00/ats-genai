@@ -74,7 +74,7 @@ async def run_daily_jobs(env: Environment, api_keys: Dict[str, str]):
         for vendor in ["polygon", "tiingo"]:
             if api_keys.get(vendor):
                 try:
-                    await orchestrator.run_manual_job("daily_prices", vendor)
+                    await orchestrator.run_manual_job("daily_price_polygon", vendor)
                     success_count += 1
                 except Exception as e:
                     logger.error(f"Daily prices {vendor} job failed: {e}")
@@ -160,7 +160,7 @@ def main():
 
     parser.add_argument(
         "--job-type",
-        choices=["instruments", "daily_prices", "news", "economic_events"],
+        choices=["instruments", "daily_price_polygon", "news", "economic_events"],
         help="Job type (for single mode)"
     )
 

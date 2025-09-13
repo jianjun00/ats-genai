@@ -5,7 +5,7 @@ Creates universes for modeling based on specific market cap and volume criteria.
 Filters stocks by average market cap > 400M and average dollar trading volume > 100M
 over the past 20 trading days to ensure adequate liquidity and size for modeling.
 
-Uses proper database joins: dev_daily_prices_polygon -> dev_instrument_xrefs -> vendor_symbol
+Uses proper database joins: dev_daily_price_polygon -> dev_instrument_xrefs -> vendor_symbol
 """
 
 import asyncio

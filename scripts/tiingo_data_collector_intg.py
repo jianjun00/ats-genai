@@ -56,7 +56,7 @@ async def collect_tiingo_data(lookback_days: int = 10, max_symbols: int = 100, d
         # Get active symbols
         symbols_result = await conn.fetch(f"""
             SELECT DISTINCT symbol, id
-            FROM intg_instruments
+            FROM intg_instrument
             WHERE active = true
               AND symbol IS NOT NULL
               AND symbol ~ '^[A-Z]{{1,5}}$'
@@ -106,14 +106,14 @@ async def collect_tiingo_data(lookback_days: int = 10, max_symbols: int = 100, d
 
                         # Check if record exists
                         existing = await conn.fetchrow(
-                            "SELECT instrument_id FROM intg_daily_prices_tiingo WHERE instrument_id = $1 AND date = $2",
+                            "SELECT instrument_id FROM intg_daily_price_tiingo WHERE instrument_id = $1 AND date = $2",
                             instrument_id, record_date
                         )
 
                         if existing:
                             # Update existing record
                             await conn.execute("""
-                                UPDATE intg_daily_prices_tiingo
+                                UPDATE intg_daily_price_tiingo
                                 SET open = $3, high = $4, low = $5, close = $6, volume = $7,
                                     adjusted_close = $8, symbol = $9, updated_at = CURRENT_TIMESTAMP
                                 WHERE instrument_id = $1 AND date = $2
@@ -124,7 +124,7 @@ async def collect_tiingo_data(lookback_days: int = 10, max_symbols: int = 100, d
                         else:
                             # Insert new record
                             await conn.execute("""
-                                INSERT INTO intg_daily_prices_tiingo
+                                INSERT INTO intg_daily_price_tiingo
                                 (instrument_id, date, open, high, low, close, volume, adjusted_close, symbol, created_at, updated_at)
                                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                                 ON CONFLICT (instrument_id, date) DO NOTHING
@@ -156,13 +156,13 @@ async def collect_tiingo_data(lookback_days: int = 10, max_symbols: int = 100, d
         # Final verification
         recent_count = await conn.fetchval("""
             SELECT COUNT(*)
-            FROM intg_daily_prices_tiingo
+            FROM intg_daily_price_tiingo
             WHERE date >= CURRENT_DATE - INTERVAL '7 days'
         """)
 
         latest_date = await conn.fetchval("""
             SELECT MAX(date)
-            FROM intg_daily_prices_tiingo
+            FROM intg_daily_price_tiingo
         """)
 
         results['recent_records_count'] = recent_count

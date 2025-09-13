@@ -7193,7 +7193,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     # Check for extreme volumes
                     extreme_volume_query = """
                     SELECT symbol, date as price_date, volume, close
-                    FROM intg_daily_prices 
+                    FROM intg_daily_price 
                     WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     AND volume > 50000000
                     ORDER BY volume DESC
@@ -7220,7 +7220,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     # Check for duplicate records
                     duplicate_query = """
                     SELECT symbol, date as price_date, COUNT(*) as count
-                    FROM intg_daily_prices 
+                    FROM intg_daily_price 
                     WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     GROUP BY symbol, date
                     HAVING COUNT(*) > 1
@@ -7248,7 +7248,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     # Check for stale data
                     freshness_query = """
                     SELECT symbol, MAX(date) as latest_date
-                    FROM intg_daily_prices
+                    FROM intg_daily_price
                     GROUP BY symbol
                     HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
                     ORDER BY MAX(date) DESC

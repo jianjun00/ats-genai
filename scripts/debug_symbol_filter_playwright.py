@@ -46,8 +46,8 @@ async def debug_symbol_filter():
             await page.wait_for_timeout(3000)  # Wait for datasets to load
 
             # Select the first dataset with data
-            await dataset_select.select_option("intg_daily_prices_tiingo")
-            print("✅ Selected intg_daily_prices_tiingo dataset")
+            await dataset_select.select_option("intg_daily_price_tiingo")
+            print("✅ Selected intg_daily_price_tiingo dataset")
 
             # Wait for dataset to load
             await page.wait_for_timeout(5000)

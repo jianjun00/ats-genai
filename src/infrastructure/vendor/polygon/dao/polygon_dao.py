@@ -2,7 +2,7 @@
 Polygon.io data access operations.
 
 This module consolidates all Polygon-specific database operations that were
-previously scattered across multiple files like daily_prices_polygon_dao.py,
+previously scattered across multiple files like daily_price_polygon_polygon_dao.py,
 dividend_polygon_dao.py, and stock_splits_polygon_dao.py.
 """
 
@@ -11,7 +11,7 @@ from datetime import datetime, date
 from sqlalchemy import text
 
 from core.dao.base.vendor_dao import MarketDataVendorDAO, VendorType
-from core.dao.market_data.daily_prices_dao import DailyPricesDAO
+from core.dao.market_data.daily_price_polygon_dao import DailyPricesDAO
 from core.platform.logging.logger_config import get_logger
 
 
@@ -25,7 +25,7 @@ class PolygonDAO(MarketDataVendorDAO):
 
     def __init__(self):
         super().__init__("polygon_data", VendorType.POLYGON)
-        self.daily_prices_dao = DailyPricesDAO()
+        self.daily_price_polygon_dao = DailyPricesDAO()
         self.logger = get_logger(__name__)
 
     def get_vendor_config(self) -> Dict[str, Any]:
@@ -47,7 +47,7 @@ class PolygonDAO(MarketDataVendorDAO):
         """Get Polygon data table schema."""
         return {
             "id": "SERIAL PRIMARY KEY",
-            "data_type": "VARCHAR(50) NOT NULL",  # 'daily_prices', 'dividends', 'splits', etc.
+            "data_type": "VARCHAR(50) NOT NULL",  # 'daily_price_polygon', 'dividends', 'splits', etc.
             "symbol": "VARCHAR(10) NOT NULL",
             "date": "DATE NOT NULL",
             "data": "JSONB NOT NULL",  # Store all Polygon-specific data
@@ -69,7 +69,7 @@ class PolygonDAO(MarketDataVendorDAO):
 
         return transformed
 
-    # Daily Prices Operations (replacing daily_prices_polygon_dao.py)
+    # Daily Prices Operations (replacing daily_price_polygon_polygon_dao.py)
     def insert_daily_price(
         self,
         symbol: str,
@@ -118,7 +118,7 @@ class PolygonDAO(MarketDataVendorDAO):
             self.logger.error(f"Invalid price data for {symbol} on {date}")
             return None
 
-        return self.daily_prices_dao.create(price_data)
+        return self.daily_price_polygon_dao.create(price_data)
 
     def get_daily_price(
         self,
@@ -135,9 +135,9 @@ class PolygonDAO(MarketDataVendorDAO):
         Returns:
             Price record or None
         """
-        return self.daily_prices_dao.get_price_by_symbol_date(symbol, date, vendor="polygon")
+        return self.daily_price_polygon_dao.get_price_by_symbol_date(symbol, date, vendor="polygon")
 
-    def list_daily_prices(
+    def list_daily_price_polygon(
         self,
         symbol: str,
         start_date: Optional[Union[date, datetime]] = None,
@@ -155,17 +155,17 @@ class PolygonDAO(MarketDataVendorDAO):
             List of price records
         """
         if start_date and end_date:
-            return self.daily_prices_dao.get_price_history(symbol, start_date, end_date, vendor="polygon")
+            return self.daily_price_polygon_dao.get_price_history(symbol, start_date, end_date, vendor="polygon")
         else:
             # Get all prices for symbol
             query = f"""
-                SELECT * FROM {self.daily_prices_dao.table_name}
+                SELECT * FROM {self.daily_price_polygon_dao.table_name}
                 WHERE symbol = :symbol AND vendor = 'polygon'
                 ORDER BY date
             """
-            return self.daily_prices_dao.execute_query(query, {"symbol": symbol.upper()})
+            return self.daily_price_polygon_dao.execute_query(query, {"symbol": symbol.upper()})
 
-    def bulk_insert_daily_prices(self, price_records: List[Dict[str, Any]]) -> int:
+    def bulk_insert_daily_price_polygon(self, price_records: List[Dict[str, Any]]) -> int:
         """
         Bulk insert daily price records.
 
@@ -187,7 +187,7 @@ class PolygonDAO(MarketDataVendorDAO):
             else:
                 self.logger.warning(f"Skipping invalid price record: {record}")
 
-        return self.daily_prices_dao.bulk_insert(enhanced_records)
+        return self.daily_price_polygon_dao.bulk_insert(enhanced_records)
 
     # Dividend Operations (replacing dividend_polygon_dao.py)
     def insert_dividend(

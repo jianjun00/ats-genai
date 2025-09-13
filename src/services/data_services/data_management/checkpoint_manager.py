@@ -38,7 +38,7 @@ class JobStatus(Enum):
 class Checkpoint:
     """Checkpoint data structure."""
     job_name: str
-    job_type: str  # instruments, daily_prices, news, economic_events
+    job_type: str  # instruments, daily_price_polygon, news, economic_events
     vendor: str
     checkpoint_type: CheckpointType
     checkpoint_value: str
@@ -311,7 +311,7 @@ class CheckpointManager:
         """Generate a unique key for duplicate detection."""
         if job_type == "instruments":
             return f"{vendor}:{record_data.get('symbol', '')}"
-        elif job_type == "daily_prices":
+        elif job_type == "daily_price_polygon":
             return f"{vendor}:{record_data.get('symbol', '')}:{record_data.get('date', '')}"
         elif job_type == "news":
             return f"{vendor}:{record_data.get('id', '')}:{record_data.get('publishedDate', '')}"
@@ -341,11 +341,11 @@ class CheckpointManager:
                 """, lookback_time, record_keys)
                 processed_keys.update([f"{vendor}:{row['symbol']}" for row in rows])
 
-        elif job_type == "daily_prices":
+        elif job_type == "daily_price_polygon":
             # Check both polygon and tiingo tables
             for table_suffix in ["polygon", "tiingo"]:
                 if vendor.lower() in table_suffix:
-                    table_name = self.env.get_table_name(f"daily_prices_{table_suffix}")
+                    table_name = self.env.get_table_name(f"daily_price_polygon_{table_suffix}")
                     async with self.pool.acquire() as conn:
                         # Extract symbol:date pairs from keys
                         symbol_date_pairs = []

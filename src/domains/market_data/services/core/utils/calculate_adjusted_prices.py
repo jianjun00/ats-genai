@@ -6,7 +6,7 @@ TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/
 async def get_all_symbols():
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT DISTINCT symbol FROM daily_prices")
+        rows = await conn.fetch("SELECT DISTINCT symbol FROM daily_price_polygon")
     await pool.close()
     return [row['symbol'] for row in rows]
 
@@ -18,7 +18,7 @@ async def get_events_for_symbol(symbol):
         # Get dividends
         dividends = await conn.fetch("SELECT ex_date, amount FROM dividends WHERE symbol=$1 ORDER BY ex_date", symbol)
         # Get daily prices
-        prices = await conn.fetch("SELECT date, close FROM daily_prices WHERE symbol=$1 ORDER BY date", symbol)
+        prices = await conn.fetch("SELECT date, close FROM daily_price_polygon WHERE symbol=$1 ORDER BY date", symbol)
     await pool.close()
     return splits, dividends, prices
 
@@ -26,7 +26,7 @@ async def update_adjusted_prices(symbol, adjusted):
     pool = await asyncpg.create_pool(TSDB_URL)
     async with pool.acquire() as conn:
         await conn.executemany(
-            "UPDATE daily_prices SET adjusted_price=$1 WHERE symbol=$2 AND date=$3",
+            "UPDATE daily_price_polygon SET adjusted_price=$1 WHERE symbol=$2 AND date=$3",
             [(adj, symbol, dt) for dt, adj in adjusted.items()]
         )
     await pool.close()

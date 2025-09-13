@@ -209,7 +209,7 @@ class DataQualityAgent:
         
         # Run comprehensive quality scan
         scan_result = await self.mcp_tools["quality_scan"].execute({
-            "table_name": "intg_daily_prices",
+            "table_name": "intg_daily_price_polygon",
             "date_range": {"days_back": 1},  # Check last day for new issues
             "quality_rules": ["completeness", "timeliness", "consistency", "accuracy"],
             "severity_threshold": "medium"
@@ -520,7 +520,7 @@ class DataQualityAgent:
         
         # Re-run quality scan to check if issue is resolved
         scan_result = await self.mcp_tools["quality_scan"].execute({
-            "table_name": "intg_daily_prices", 
+            "table_name": "intg_daily_price_polygon", 
             "date_range": {"specific_date": workflow.metadata.get("affected_date")},
             "symbol_filter": workflow.metadata.get("symbol"),
             "quality_rules": ["completeness", "consistency"]

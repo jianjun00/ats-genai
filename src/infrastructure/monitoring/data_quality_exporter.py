@@ -22,8 +22,8 @@ logger = logging.getLogger("data_quality_exporter")
 
 # Prometheus metrics
 instrument_counts = Gauge('ats_instruments_count', 'Number of instruments by vendor', ['vendor', 'environment'])
-daily_price_counts = Gauge('ats_daily_prices_count', 'Number of daily prices by vendor', ['vendor', 'environment'])
-daily_price_last_update = Gauge('ats_daily_prices_last_update', 'Timestamp of last daily price update by vendor', ['vendor', 'environment'])
+daily_price_counts = Gauge('ats_daily_price_polygon_count', 'Number of daily prices by vendor', ['vendor', 'environment'])
+daily_price_last_update = Gauge('ats_daily_price_polygon_last_update', 'Timestamp of last daily price update by vendor', ['vendor', 'environment'])
 data_quality_score = Gauge('ats_data_quality_score', 'Data quality score by vendor (0-1)', ['vendor', 'metric', 'environment'])
 scrape_duration = Histogram('ats_metrics_scrape_duration_seconds', 'Time spent scraping metrics')
 scrape_errors = Counter('ats_metrics_scrape_errors_total', 'Total scrape errors', ['error_type'])
@@ -99,14 +99,14 @@ class DataQualityExporter:
                 try:
                     # Count daily prices
                     price_count = await conn.fetchval(f"""
-                        SELECT COUNT(*) FROM {self.env.get_table_name('daily_prices')}
+                        SELECT COUNT(*) FROM {self.env.get_table_name('daily_price_polygon')}
                         WHERE vendor = $1
                     """, vendor)
                     daily_price_counts.labels(vendor=vendor, environment=self.environment).set(price_count)
 
                     # Get last update timestamp
                     last_update = await conn.fetchval(f"""
-                        SELECT EXTRACT(EPOCH FROM MAX(updated_at)) FROM {self.env.get_table_name('daily_prices')}
+                        SELECT EXTRACT(EPOCH FROM MAX(updated_at)) FROM {self.env.get_table_name('daily_price_polygon')}
                         WHERE vendor = $1
                     """, vendor)
 
@@ -140,7 +140,7 @@ class DataQualityExporter:
                         ),
                         instruments_with_prices AS (
                             SELECT COUNT(DISTINCT symbol) as instruments_with_data
-                            FROM {self.env.get_table_name('daily_prices')}
+                            FROM {self.env.get_table_name('daily_price_polygon')}
                             WHERE vendor = $1
                               AND date >= CURRENT_DATE - INTERVAL '7 days'
                         )
@@ -159,7 +159,7 @@ class DataQualityExporter:
                     # Calculate freshness score (how recent is the latest data)
                     latest_price_age = await conn.fetchval(f"""
                         SELECT EXTRACT(EPOCH FROM (NOW() - MAX(date))) / 86400.0 as days_old
-                        FROM {self.env.get_table_name('daily_prices')}
+                        FROM {self.env.get_table_name('daily_price_polygon')}
                         WHERE vendor = $1
                     """, vendor)
 

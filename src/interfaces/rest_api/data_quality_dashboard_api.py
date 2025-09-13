@@ -66,7 +66,7 @@ class RealDataQualityDetector:
             ),
             actual_dates AS (
                 SELECT DISTINCT date_trunc('day', timestamp)::date as actual_date
-                FROM intg_daily_prices
+                FROM intg_daily_price_polygon
                 WHERE timestamp >= CURRENT_DATE - INTERVAL '%s days'
             )
             SELECT ds.expected_date
@@ -102,7 +102,7 @@ class RealDataQualityDetector:
             SELECT symbol, date_trunc('day', timestamp)::date as price_date,
                    open_price, high_price, low_price, close_price, volume,
                    LAG(close_price) OVER (PARTITION BY symbol ORDER BY timestamp) as prev_close
-            FROM intg_daily_prices
+            FROM intg_daily_price_polygon
             WHERE timestamp >= CURRENT_DATE - INTERVAL '%s days'
             AND (high_price / low_price > 1.5  -- 50%% intraday range
                  OR volume > 100000000)        -- 100M+ volume
@@ -171,7 +171,7 @@ class RealDataQualityDetector:
             # Find duplicate records
             duplicate_query = """
             SELECT symbol, date_trunc('day', timestamp)::date as price_date, COUNT(*)
-            FROM intg_daily_prices
+            FROM intg_daily_price_polygon
             WHERE timestamp >= CURRENT_DATE - INTERVAL '%s days'
             GROUP BY symbol, date_trunc('day', timestamp)::date
             HAVING COUNT(*) > 1

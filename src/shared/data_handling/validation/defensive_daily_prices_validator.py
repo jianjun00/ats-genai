@@ -604,7 +604,7 @@ class DefensiveDailyPricesValidator:
     def get_health_status(self) -> Dict[str, Any]:
         """Get validator health status"""
         return {
-            "validator_type": "defensive_daily_prices",
+            "validator_type": "defensive_daily_price_polygon",
             "resource_manager_health": self.resource_manager.get_resource_health(),
             "thresholds": self.thresholds,
             "components": {

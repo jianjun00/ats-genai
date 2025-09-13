@@ -86,7 +86,7 @@ def validation_summary():
                 SELECT
                     AVG(close * volume) as avg_volume_50d,
                     COUNT(*) as days
-                FROM intg_daily_prices_polygon
+                FROM intg_daily_price_polygon
                 WHERE symbol = 'ARKB'
                 AND date >= CURRENT_DATE - INTERVAL '50 days'
             """)

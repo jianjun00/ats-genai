@@ -117,7 +117,7 @@ class MarketDataServiceInterface(ABC):
         """Retrieve daily price for symbol and date"""
     
     @abstractmethod
-    async def list_daily_prices(self, criteria: MarketDataSearchCriteria) -> List[DailyPriceDTO]:
+    async def list_daily_price_polygon(self, criteria: MarketDataSearchCriteria) -> List[DailyPriceDTO]:
         """List daily prices based on search criteria"""
     
     @abstractmethod
@@ -125,7 +125,7 @@ class MarketDataServiceInterface(ABC):
         """Update daily price record"""
     
     @abstractmethod
-    async def create_daily_prices_batch(self, prices: List[DailyPriceDTO]) -> MarketDataOperationResult:
+    async def create_daily_price_polygon_batch(self, prices: List[DailyPriceDTO]) -> MarketDataOperationResult:
         """Create multiple daily price records in batch"""
     
     @abstractmethod

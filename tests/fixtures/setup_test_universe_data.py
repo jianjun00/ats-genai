@@ -36,13 +36,13 @@ async def setup_test_universe_data(unit_test_db):
         VALUES (1, 1, 'AAPL', $1, NULL)
         ON CONFLICT (universe_id, instrument_id, start_at) DO NOTHING;
     """, date(2020, 1, 1))
-    # Insert daily prices for AAPL for the full test date range into test_daily_prices_polygon
+    # Insert daily prices for AAPL for the full test date range into test_daily_price_polygon_polygon
     start = date(2024, 1, 1)
     end = date(2024, 2, 15)
     d = start
     while d <= end:
         await conn.execute('''
-            INSERT INTO test_daily_prices_polygon (date, instrument_id, open, high, low, close, volume)
+            INSERT INTO test_daily_price_polygon_polygon (date, instrument_id, open, high, low, close, volume)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (date, instrument_id) DO NOTHING;
         ''', d, 1, 100.0, 110.0, 90.0, 105.0, 1000)

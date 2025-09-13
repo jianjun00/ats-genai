@@ -10,7 +10,7 @@ class DummyConn:
         # Record call for assertion
         self._calls.append((query, args))
         # Use the query string to pick the result
-        if 'FROM daily_prices' in query and 'ORDER BY date DESC LIMIT 1' in query:
+        if 'FROM daily_price_polygon' in query and 'ORDER BY date DESC LIMIT 1' in query:
             if 'market_cap' in query:
                 # get_market_cap
                 return self._fetchval_map.get('market_cap', None)

@@ -440,14 +440,14 @@ class UnifiedMarketCapProvider:
             if self.conn:
                 query = """
                     SELECT DISTINCT i.symbol
-                    FROM dev_instruments i
-                    JOIN dev_daily_prices_polygon p ON i.id = p.instrument_id
+                    FROM dev_instrument i
+                    JOIN dev_daily_price_polygon p ON i.id = p.instrument_id
                     WHERE ($1::date IS NULL OR p.date >= $1)
                       AND ($2::date IS NULL OR p.date <= $2)
                     UNION
                     SELECT DISTINCT i.symbol
-                    FROM dev_instruments i
-                    JOIN dev_daily_prices_tiingo p ON i.id = p.instrument_id
+                    FROM dev_instrument i
+                    JOIN dev_daily_price_tiingo p ON i.id = p.instrument_id
                     WHERE ($1::date IS NULL OR p.date >= $1)
                       AND ($2::date IS NULL OR p.date <= $2)
                     ORDER BY symbol

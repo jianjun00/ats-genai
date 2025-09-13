@@ -147,7 +147,7 @@ class MissingDataHandler:
                                 trading_days: List[date]) -> List[DataGap]:
         """Detect gaps for a specific vendor."""
         gaps = []
-        table_name = self.env.get_table_name(f"daily_prices_{vendor}")
+        table_name = self.env.get_table_name(f"daily_price_polygon_{vendor}")
 
         async with self.pool.acquire() as conn:
             for instrument in instruments:
@@ -450,7 +450,7 @@ class MissingDataHandler:
     async def _store_price_data(self, vendor: str, instrument_id: int,
                               price_data: Dict[str, Any]) -> int:
         """Store price data in database."""
-        table_name = self.env.get_table_name(f"daily_prices_{vendor}")
+        table_name = self.env.get_table_name(f"daily_price_polygon_{vendor}")
 
         async with self.pool.acquire() as conn:
             if vendor == "polygon":

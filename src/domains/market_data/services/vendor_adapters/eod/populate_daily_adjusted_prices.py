@@ -29,11 +29,11 @@ async def fetch_prices(pool, symbol=None, instrument_id=None):
     async with pool.acquire() as conn:
         if instrument_id is not None:
             rows = await conn.fetch(
-                "SELECT * FROM daily_prices WHERE instrument_id = $1 ORDER BY date ASC", instrument_id
+                "SELECT * FROM daily_price_polygon WHERE instrument_id = $1 ORDER BY date ASC", instrument_id
             )
         elif symbol is not None:
             rows = await conn.fetch(
-                "SELECT * FROM daily_prices WHERE symbol = $1 ORDER BY date ASC", symbol
+                "SELECT * FROM daily_price_polygon WHERE symbol = $1 ORDER BY date ASC", symbol
             )
         else:
             raise ValueError("Must provide symbol or instrument_id")

@@ -189,7 +189,7 @@ class PrometheusMetricsServer:
                 # Total active instruments
                 total_instruments_query = """
                 SELECT COUNT(*)
-                FROM intg_instruments
+                FROM intg_instrument
                 WHERE active = true
                 """
                 total_instruments = await conn.fetchval(total_instruments_query)
@@ -204,7 +204,7 @@ class PrometheusMetricsServer:
                 vendors = ['tiingo', 'polygon', 'eodhd']
 
                 for vendor in vendors:
-                    table_name = f"intg_daily_prices_{vendor}"
+                    table_name = f"intg_daily_price_polygon_{vendor}"
 
                     # Check if table exists
                     table_exists_query = """
@@ -241,7 +241,7 @@ class PrometheusMetricsServer:
 
                     missing_today_query = f"""
                     SELECT COUNT(*)
-                    FROM intg_instruments i
+                    FROM intg_instrument i
                     WHERE i.active = true
                       AND i.id NOT IN (
                           SELECT DISTINCT instrument_id

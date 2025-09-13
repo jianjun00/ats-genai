@@ -41,12 +41,12 @@ def download_prices_polygon(ticker, start, end, api_key):
         logger.error(f"Error fetching {ticker}: {e}")
         return []
 
-async def insert_daily_prices(pool, env, ticker, instrument_id, prices):
+async def insert_daily_price_polygon(pool, env, ticker, instrument_id, prices):
     """Insert daily prices into the database."""
     if not prices:
         return 0
 
-    table_name = env.get_table_name('daily_prices_polygon')
+    table_name = env.get_table_name('daily_price_polygon_polygon')
 
     async with pool.acquire() as conn:
         rows = []
@@ -114,7 +114,7 @@ async def get_instruments_to_backfill(pool, env, limit=None):
 
 async def check_existing_prices(pool, env, instrument_id, start_date, end_date):
     """Check how many price records already exist for an instrument."""
-    table_name = env.get_table_name('daily_prices_polygon')
+    table_name = env.get_table_name('daily_price_polygon_polygon')
 
     async with pool.acquire() as conn:
         count = await conn.fetchval(f"""
@@ -124,7 +124,7 @@ async def check_existing_prices(pool, env, instrument_id, start_date, end_date):
 
         return count
 
-async def backfill_daily_prices(pool, env, polygon_api_key, start_date, end_date, limit=None, skip_existing=True):
+async def backfill_daily_price_polygon(pool, env, polygon_api_key, start_date, end_date, limit=None, skip_existing=True):
     """
     Backfill daily prices for instruments.
 
@@ -177,7 +177,7 @@ async def backfill_daily_prices(pool, env, polygon_api_key, start_date, end_date
                 continue
 
             # Insert prices into database
-            inserted_count = await insert_daily_prices(pool, env, symbol, instrument_id, prices)
+            inserted_count = await insert_daily_price_polygon(pool, env, symbol, instrument_id, prices)
             total_prices_inserted += inserted_count
             total_processed += 1
 
@@ -288,7 +288,7 @@ async def main():
         logger.info("Connected to database")
 
         # Run backfill
-        await backfill_daily_prices(
+        await backfill_daily_price_polygon(
             pool, env, polygon_api_key, start_date, end_date,
             limit=args.limit, skip_existing=args.skip_existing
         )

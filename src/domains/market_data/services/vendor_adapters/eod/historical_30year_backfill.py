@@ -291,7 +291,7 @@ class HistoricalDatabaseInserter:
     def __init__(self, db_config: dict):
         self.db_config = db_config
 
-    async def batch_insert_daily_prices(self, vendor: str, records: List[Dict[str, Any]]) -> int:
+    async def batch_insert_daily_price_polygon(self, vendor: str, records: List[Dict[str, Any]]) -> int:
         """Batch insert daily price records."""
         if not records:
             return 0
@@ -311,10 +311,10 @@ class HistoricalDatabaseInserter:
             env = Environment()
 
             if vendor == 'polygon':
-                table_name = env.get_table_name('daily_prices_polygon')
+                table_name = env.get_table_name('daily_price_polygon_polygon')
                 columns = ['date', 'instrument_id', 'open', 'high', 'low', 'close', 'volume']
             else:  # tiingo
-                table_name = env.get_table_name('daily_prices_tiingo')
+                table_name = env.get_table_name('daily_price_polygon_tiingo')
                 columns = ['date', 'instrument_id', 'open', 'high', 'low', 'close', 'volume']
 
             # Prepare data for bulk insert
@@ -724,7 +724,7 @@ class Historical30YearBackfill:
             # Store data
             if primary_data['records']:
                 inserter = self.db_inserters[hash(job.symbol) % len(self.db_inserters)]
-                insert_result = await inserter.batch_insert_daily_prices.remote(
+                insert_result = await inserter.batch_insert_daily_price_polygon.remote(
                     primary_data['vendor'],
                     primary_data['records']
                 )

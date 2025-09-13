@@ -13,7 +13,7 @@ import logging
 from typing import List, Dict, Any
 
 from shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
+from domains.market_data.repositories.daily_price_polygon_alphavantage_dao import DailyPricesAlphaVantageDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.business.calendars.exchange_calendar import ExchangeCalendar
 
@@ -57,7 +57,7 @@ def get_missing_date_ranges(existing_dates, start_date, end_date):
     ranges.append((range_start, prev))
     return ranges
 
-async def fetch_alphavantage_daily_prices(session: aiohttp.ClientSession, symbol: str) -> List[Dict[str, Any]]:
+async def fetch_alphavantage_daily_price_polygon(session: aiohttp.ClientSession, symbol: str) -> List[Dict[str, Any]]:
     """
     Fetch daily stock prices from Alpha Vantage API.
 
@@ -154,7 +154,7 @@ async def process_symbol(dao: DailyPricesAlphaVantageDAO, session: aiohttp.Clien
         return True
 
     # Fetch all data from Alpha Vantage (they provide full historical data)
-    prices = await fetch_alphavantage_daily_prices(session, symbol)
+    prices = await fetch_alphavantage_daily_price_polygon(session, symbol)
     if not prices:
         logger.warning(f"No price data received for {symbol}")
         return False

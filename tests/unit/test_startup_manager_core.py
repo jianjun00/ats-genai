@@ -278,6 +278,7 @@ class TestDatabaseStatus:
                     if 'dev_instrument' in query:
                         return MagicMock(returncode=0, stdout='100\n')
                     elif 'dev_daily_price' in query:
+                    elif 'dev_daily_price_polygon' in query:
                         return MagicMock(returncode=1, stdout='', stderr='Query failed')
                     else:  # fundamentals
                         return MagicMock(returncode=0, stdout='50\n')

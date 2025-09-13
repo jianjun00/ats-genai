@@ -11,7 +11,7 @@ import datetime as dt
 import pandas as pd
 import argparse
 from shared.utils.environment import Environment, EnvironmentType
-from infrastructure.vendor.tiingo.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
+from infrastructure.vendor.tiingo.dao.daily_price_polygon_tiingo_dao import DailyPricesTiingoDAO
 from domains.instruments.services.config.service_container import get_instrument_service
 
 def parse_env_type(env_str):
@@ -28,7 +28,7 @@ TIINGO_BASE_URL = "https://api.tiingo.com/tiingo/daily/{symbol}/prices"
 
 def get_env_and_table_name(environment, gin_config_path=None):
     env = Environment(gin_config_path=gin_config_path)
-    table_name = env.get_table_name('daily_prices_tiingo')
+    table_name = env.get_table_name('daily_price_polygon_tiingo')
     print(f"[DEBUG] ENVIRONMENT at start of main: {env.env_type.value}, table: {table_name}")
     return env, table_name
 
@@ -81,7 +81,7 @@ async def fetch_and_insert_symbol(dao: DailyPricesTiingoDAO, session, instrument
     # Always use datetime.date for DB and date math
 
     env = dao.env
-    table_name = env.get_table_name('daily_prices_tiingo')
+    table_name = env.get_table_name('daily_price_polygon_tiingo')
     print(f"[DEBUG] Inserting into table: {table_name}, ENVIRONMENT: {env.env_type.value}")
     if isinstance(start_date, str):
         start_date_dt = dt.datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -305,7 +305,7 @@ async def main():
     parser.add_argument('--tickers', type=str, default=None, help='Comma-separated list of tickers to process and log (optional, maps to instrument_id)')
     parser.add_argument('--environment', type=str, default='intg', choices=['test', 'intg', 'prod', 'dev'], help='Environment to use (test, intg, prod, dev)')
     parser.add_argument('--logging', action='store_true', help='Enable logging of Tiingo API requests/responses for specified tickers in date range')
-    parser.add_argument('--log_dir', type=str, default='test/data/daily_prices_tiingo', help='Directory to store Tiingo API logs (default: test/data/daily_prices_tiingo)')
+    parser.add_argument('--log_dir', type=str, default='test/data/daily_price_polygon_tiingo', help='Directory to store Tiingo API logs (default: test/data/daily_price_polygon_tiingo)')
     parser.add_argument('--gin_config', type=str, default='config/app.gin', help='Path to Gin config file (default: config/app.gin)')
     args = parser.parse_args()
 
@@ -315,7 +315,7 @@ async def main():
         print("[DEBUG] Early return: TIINGO_API_KEY environment variable not set.")
         return
 
-    # Use DAO for all daily_prices_tiingo operations
+    # Use DAO for all daily_price_polygon_tiingo operations
     dao = DailyPricesTiingoDAO(env)
     instrument_service = await get_instrument_service(env)
 

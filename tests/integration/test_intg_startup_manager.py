@@ -123,7 +123,7 @@ class TestStartupManagerDecisionTree:
                 summary = get_dev_data_summary()
 
                 assert summary['instruments'] == 500
-                assert summary['daily_prices'] == 10000
+                assert summary['daily_price_polygon'] == 10000
                 assert summary['fundamentals'] == 250
                 assert summary['available'] is True
 
@@ -133,7 +133,7 @@ class TestStartupManagerDecisionTree:
             summary = get_dev_data_summary()
 
             assert summary['instruments'] == 0
-            assert summary['daily_prices'] == 0
+            assert summary['daily_price_polygon'] == 0
             assert summary['fundamentals'] == 0
             assert summary['available'] is False
 
@@ -209,7 +209,7 @@ class TestStartupManagerIntegration:
 
         mock_dev_summary = {
             'instruments': 500,
-            'daily_prices': 10000,
+            'daily_price_polygon': 10000,
             'fundamentals': 250,
             'available': True
         }
@@ -371,7 +371,7 @@ class TestStartupManagerStatusReport:
                     mock_dev_conn.return_value = True
                     mock_dev_summary.return_value = {
                         'instruments': 500,
-                        'daily_prices': 1000,
+                        'daily_price_polygon': 1000,
                         'fundamentals': 100
                     }
 

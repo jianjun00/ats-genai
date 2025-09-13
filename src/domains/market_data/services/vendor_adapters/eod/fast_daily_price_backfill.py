@@ -151,7 +151,7 @@ class DatabaseInserter:
         try:
             # Use COPY for maximum insert performance
             await conn.copy_records_to_table(
-                'dev_daily_prices_polygon',
+                'dev_daily_price_polygon',
                 records=[(
                     item['date'],
                     item['instrument_id'],
@@ -188,7 +188,7 @@ class DatabaseInserter:
 
         try:
             await conn.copy_records_to_table(
-                'dev_daily_prices_tiingo',
+                'dev_daily_price_tiingo',
                 records=[(
                     item['date'],
                     item['instrument_id'],

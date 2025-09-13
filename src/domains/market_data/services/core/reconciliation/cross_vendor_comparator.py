@@ -61,10 +61,10 @@ class CrossVendorPriceComparator:
 
         # Vendor tables
         self.vendor_tables = {
-            'polygon': env.get_table_name('daily_prices_polygon'),
-            'tiingo': env.get_table_name('daily_prices_tiingo'),
-            'alphavantage': env.get_table_name('daily_prices_alphavantage'),
-            'fmp': env.get_table_name('daily_prices_fmp')
+            'polygon': env.get_table_name('daily_price_polygon_polygon'),
+            'tiingo': env.get_table_name('daily_price_polygon_tiingo'),
+            'alphavantage': env.get_table_name('daily_price_polygon_alphavantage'),
+            'fmp': env.get_table_name('daily_price_polygon_fmp')
         }
 
         # Comparison thresholds
@@ -85,7 +85,7 @@ class CrossVendorPriceComparator:
             async with pool.acquire() as conn:
                 # Get instrument ID
                 instrument_id = await conn.fetchval(
-                    "SELECT id FROM dev_instruments WHERE symbol = $1", symbol
+                    "SELECT id FROM dev_instrument WHERE symbol = $1", symbol
                 )
 
                 if not instrument_id:

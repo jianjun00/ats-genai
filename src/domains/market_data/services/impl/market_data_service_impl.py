@@ -22,7 +22,7 @@ from ..interfaces.market_data_service_interface import (
     PriceAnalysisResult,
     MarketDataOperationResult
 )
-from ...repositories.daily_prices_dao import DailyPricesDAO
+from ...repositories.daily_price_polygon_dao import DailyPricesDAO
 from ...repositories.fundamentals_dao import FundamentalsDAO
 
 
@@ -35,10 +35,10 @@ class MarketDataServiceImpl(MarketDataServiceInterface):
     """
     
     def __init__(self, 
-                 daily_prices_dao: DailyPricesDAO, 
+                 daily_price_polygon_dao: DailyPricesDAO, 
                  fundamentals_dao: FundamentalsDAO,
                  instruments_dao: Optional[Any] = None):
-        self.daily_prices_dao = daily_prices_dao
+        self.daily_price_polygon_dao = daily_price_polygon_dao
         self.fundamentals_dao = fundamentals_dao
         self.instruments_dao = instruments_dao
         self.logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class MarketDataServiceImpl(MarketDataServiceInterface):
                 )
             
             # Insert price record
-            await self.daily_prices_dao.insert_price(
+            await self.daily_price_polygon_dao.insert_price(
                 date=price_data.date,
                 instrument_id=price_data.instrument_id,
                 open_=price_data.open,
@@ -104,7 +104,7 @@ class MarketDataServiceImpl(MarketDataServiceInterface):
             self.logger.error(f"Error retrieving daily price for {symbol} on {date}: {e}")
             return None
     
-    async def list_daily_prices(self, criteria: MarketDataSearchCriteria) -> List[DailyPriceDTO]:
+    async def list_daily_price_polygon(self, criteria: MarketDataSearchCriteria) -> List[DailyPriceDTO]:
         """List daily prices based on search criteria"""
         try:
             prices = []
@@ -115,13 +115,13 @@ class MarketDataServiceImpl(MarketDataServiceInterface):
                 if criteria.end_date:
                     # Multiple dates - would need enhanced DAO method
                     for instrument_id in criteria.instrument_ids:
-                        instrument_prices = await self.daily_prices_dao.list_prices(instrument_id)
+                        instrument_prices = await self.daily_price_polygon_dao.list_prices(instrument_id)
                         for price_record in instrument_prices:
                             if criteria.start_date <= price_record['date'] <= criteria.end_date:
                                 prices.append(self._dao_to_daily_price_dto(price_record))
                 else:
                     # Single date
-                    price_records = await self.daily_prices_dao.list_prices_for_instruments_and_date(
+                    price_records = await self.daily_price_polygon_dao.list_prices_for_instruments_and_date(
                         criteria.instrument_ids, criteria.start_date
                     )
                     prices = [self._dao_to_daily_price_dto(record) for record in price_records]
@@ -144,7 +144,7 @@ class MarketDataServiceImpl(MarketDataServiceInterface):
             error_message="Update operation not supported in current DAO implementation"
         )
     
-    async def create_daily_prices_batch(self, prices: List[DailyPriceDTO]) -> MarketDataOperationResult:
+    async def create_daily_price_polygon_batch(self, prices: List[DailyPriceDTO]) -> MarketDataOperationResult:
         """Create multiple daily price records in batch"""
         try:
             created_count = 0
@@ -576,7 +576,7 @@ class MarketDataServiceImpl(MarketDataServiceInterface):
                               format: str = "csv") -> Union[str, pd.DataFrame]:
         """Export price data in specified format"""
         try:
-            prices = await self.list_daily_prices(criteria)
+            prices = await self.list_daily_price_polygon(criteria)
             
             if format.lower() == "dataframe":
                 # Convert to pandas DataFrame

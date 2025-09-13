@@ -18,7 +18,7 @@ SELECT
     p.close,
     p.volume,
     m.market_cap
-FROM daily_prices p
+FROM daily_price_polygon p
 JOIN daily_market_cap m ON p.date = m.date AND p.symbol = m.symbol
 WHERE p.date >= $1 AND p.date <= $2
 ORDER BY p.symbol, p.date

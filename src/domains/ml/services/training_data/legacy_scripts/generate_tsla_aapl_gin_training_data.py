@@ -23,7 +23,7 @@ async def load_market_data_from_polygon(symbols: list, start_date: date, end_dat
 
     logger.info(f"Loading data from Polygon for {symbols}")
 
-    table_name = f"{env.table_prefix}daily_prices_polygon"
+    table_name = f"{env.table_prefix}daily_price_polygon_polygon"
     db_url = env.get_database_url()
 
     all_data = []
@@ -72,7 +72,7 @@ async def load_market_data(symbols: list, start_date: date, end_date: date, env:
     # Try EODHD first (comprehensive historical data)
     eodhd_data = []
     try:
-        table_name = f"{env.table_prefix}daily_prices_eodhd"
+        table_name = f"{env.table_prefix}daily_price_polygon_eodhd"
         db_url = env.get_database_url()
         conn = await asyncpg.connect(db_url)
 

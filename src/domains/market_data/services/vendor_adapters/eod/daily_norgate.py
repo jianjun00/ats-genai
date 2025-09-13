@@ -8,7 +8,7 @@ import argparse
 TSDB_URL = os.getenv("TSDB_URL", "postgresql://postgres:postgres@localhost:5432/trading_db")
 
 CREATE_DAILY_PRICES_NORGATE_SQL = """
-CREATE TABLE IF NOT EXISTS daily_prices_norgate (
+CREATE TABLE IF NOT EXISTS daily_price_polygon_norgate (
     date DATE NOT NULL,
     symbol TEXT NOT NULL,
     open DOUBLE PRECISION,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS daily_prices_norgate (
 );
 """
 
-def get_norgate_daily_prices(symbol, start_date=None, end_date=None):
+def get_norgate_daily_price_polygon(symbol, start_date=None, end_date=None):
     # Returns a pandas DataFrame with columns: Date, Open, High, Low, Close, Volume
     df = norgatedata.price_timeseries(symbol)
     df = df.reset_index()  # Ensure 'Date' is a column
@@ -39,7 +39,7 @@ async def insert_prices(pool, df, symbol):
     async with pool.acquire() as conn:
         await conn.execute(CREATE_DAILY_PRICES_NORGATE_SQL)
         await conn.executemany(
-            "INSERT INTO daily_prices_norgate (date, symbol, open, high, low, close, volume) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING",
+            "INSERT INTO daily_price_polygon_norgate (date, symbol, open, high, low, close, volume) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING",
             [(
                 row['Date'].date(),
                 symbol,
@@ -77,7 +77,7 @@ async def main():
     for symbol in tickers:
         print(f"Downloading {symbol} from Norgate Data...")
         try:
-            df = get_norgate_daily_prices(symbol, args.start, args.end)
+            df = get_norgate_daily_price_polygon(symbol, args.start, args.end)
             await insert_prices(pool, df, symbol)
         except Exception as e:
             print(f"Error with {symbol}: {e}")

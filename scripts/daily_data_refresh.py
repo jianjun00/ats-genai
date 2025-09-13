@@ -120,7 +120,7 @@ class DailyDataRefresh:
         async with self.db_pool.acquire() as conn:
             query = """
             SELECT DISTINCT symbol
-            FROM intg_instruments
+            FROM intg_instrument
             WHERE active = true
               AND symbol IS NOT NULL
               AND symbol != ''
@@ -160,16 +160,16 @@ class DailyDataRefresh:
             # Get adapter
             if vendor == 'tiingo':
                 adapter = self.tiingo_adapter
-                table_name = 'intg_daily_prices_tiingo'
+                table_name = 'intg_daily_price_tiingo'
             elif vendor == 'polygon':
                 adapter = self.polygon_adapter
-                table_name = 'intg_daily_prices_polygon'
+                table_name = 'intg_daily_price_polygon'
             elif vendor == 'eodhd':
                 if self.eodhd_adapter is None:
                     result.errors.append("EODHD adapter not yet implemented")
                     return result
                 adapter = self.eodhd_adapter
-                table_name = 'intg_daily_prices_eodhd'
+                table_name = 'intg_daily_price_eodhd'
             else:
                 raise ValueError(f"Unknown vendor: {vendor}")
 
@@ -412,7 +412,7 @@ class DailyDataRefresh:
 
     async def _get_instrument_id(self, conn, symbol: str) -> Optional[int]:
         """Get instrument ID for a symbol."""
-        query = "SELECT id FROM intg_instruments WHERE symbol = $1 AND active = true"
+        query = "SELECT id FROM intg_instrument WHERE symbol = $1 AND active = true"
         row = await conn.fetchrow(query, symbol)
         return row['id'] if row else None
 
@@ -457,7 +457,7 @@ class DailyDataRefresh:
                     for vendor in ['tiingo', 'polygon', 'eodhd']:
                         query = f"""
                         SELECT date, open, high, low, close, volume
-                        FROM intg_daily_prices_{vendor}
+                        FROM intg_daily_price_{vendor}
                         WHERE instrument_id = $1 AND date >= $2 AND date <= $3
                         ORDER BY date
                         """

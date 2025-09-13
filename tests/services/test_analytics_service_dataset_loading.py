@@ -92,6 +92,7 @@ class TestTablePrefixEnvironmentDetection(TestAnalyticsServiceDatasetLoading):
         self.mock_cursor.fetchall.return_value = [
             {'tablename': 'intg_instrument', 'size': '2 MB', 'schemaname': 'public'},
             {'tablename': 'intg_daily_price', 'size': '200 MB', 'schemaname': 'public'},
+            {'tablename': 'intg_daily_price_polygon', 'size': '200 MB', 'schemaname': 'public'},
             {'tablename': 'intg_comprehensive_backtest_runs', 'size': '50 KB', 'schemaname': 'public'}
         ]
         self.mock_cursor.fetchone.return_value = {'count': 5000}
@@ -109,6 +110,7 @@ class TestTablePrefixEnvironmentDetection(TestAnalyticsServiceDatasetLoading):
         self.assertEqual(len(datasets), 3)
         self.assertEqual(datasets[0]['name'], 'intg_instrument')
         self.assertEqual(datasets[1]['name'], 'intg_daily_price')
+        self.assertEqual(datasets[1]['name'], 'intg_daily_price_polygon')
         self.assertEqual(datasets[2]['name'], 'intg_comprehensive_backtest_runs')
 
     @patch('services.analytics_service.get_raw_connection')
@@ -400,6 +402,7 @@ class TestIntegrationScenarios(TestAnalyticsServiceDatasetLoading):
         self.mock_cursor.fetchall.return_value = [
             {'tablename': 'intg_instrument', 'size': '2 MB', 'schemaname': 'public'},
             {'tablename': 'intg_daily_price', 'size': '200 MB', 'schemaname': 'public'}
+            {'tablename': 'intg_daily_price_polygon', 'size': '200 MB', 'schemaname': 'public'}
         ]
         self.mock_cursor.fetchone.return_value = {'count': 5000}
 
@@ -412,6 +415,7 @@ class TestIntegrationScenarios(TestAnalyticsServiceDatasetLoading):
         self.assertEqual(len(intg_datasets), 2)
         self.assertEqual(intg_datasets[0]['name'], 'intg_instrument')
         self.assertEqual(intg_datasets[1]['name'], 'intg_daily_price')
+        self.assertEqual(intg_datasets[1]['name'], 'intg_daily_price_polygon')
 
         # Verify different prefixes were used
         table_query_params = [call[0][1] for call in self.mock_cursor.execute.call_args_list
