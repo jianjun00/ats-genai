@@ -61,6 +61,184 @@ services:
     networks:
       - ats-network
 
+  # Redis Cache - Development
+  redis-dev:
+    image: redis:7-alpine
+    container_name: ats-dev-redis
+    ports:
+      - "3379:6379"
+    volumes:
+      - redis-dev-data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ats-network
+
+  # Enhanced Instruments API Service - Development
+  instruments-api-dev:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-dev-instruments-api
+    environment:
+      - ENVIRONMENT=dev
+      - DB_HOST=postgres-dev
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=dev_password
+      - DB_NAME=dev_db
+      - REDIS_HOST=redis-dev
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+    ports:
+      - "3001:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: uvicorn services.web_services.api.enhanced_instruments_api:app --host 0.0.0.0 --port 8000
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # Market Data Service - Development
+  market-data-service-dev:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-dev-market-data-service
+    environment:
+      - ENVIRONMENT=dev
+      - DB_HOST=postgres-dev
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=dev_password
+      - DB_NAME=dev_db
+      - REDIS_HOST=redis-dev
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+      # Market Data API Keys
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD}
+      - TIINGO_API_KEY=${TIINGO_API_KEY:-5f40b4f36e171405746304ec0e5a6f3aa9ca77e5}
+      - EODHD_API_KEY=${EODHD_API_KEY:-68aa0c7d2fe831.67386369}
+    ports:
+      - "3012:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 scripts/services/start_market_data_service.py
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # Trading Service - Development
+  trading-service-dev:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-dev-trading-service
+    environment:
+      - ENVIRONMENT=dev
+      - DB_HOST=postgres-dev
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=dev_password
+      - DB_NAME=dev_db
+      - REDIS_HOST=redis-dev
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+    ports:
+      - "3013:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 scripts/services/start_trading_service.py
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
+  # Service Monitoring Dashboard - Development
+  monitoring-dashboard-dev:
+    image: dragonflyer762/ats-genai:latest
+    container_name: ats-dev-monitoring-dashboard
+    environment:
+      - ENVIRONMENT=dev
+      - DB_HOST=postgres-dev
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=dev_password
+      - DB_NAME=dev_db
+      - REDIS_HOST=redis-dev
+      - REDIS_PORT=6379
+      - ATS_DATA_PATH=/data
+      - ATS_LOGS_PATH=/logs
+      - PYTHONPATH=/workspace/src
+    ports:
+      - "3014:8000"
+    volumes:
+      - .:/workspace
+      - /mnt/d/ats-data:/data
+      - /mnt/d/ats-logs:/logs
+    working_dir: /workspace
+    command: python3 scripts/services/start_monitoring_dashboard.py
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ats-network
+
 networks:
   ats-network:
     driver: bridge
@@ -69,3 +247,5 @@ networks:
 volumes:
   postgres-data-new:
     external: true
+  redis-dev-data:
+    driver: local

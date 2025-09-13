@@ -938,7 +938,7 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Migration Manager CLI")
     parser.add_argument("command", choices=["migrate", "validate", "version"], help="Migration command to run")
-    parser.add_argument("--environment", "-e", choices=["test", "dev", "intg", "prod"], default="test", help="Environment to use (test, dev, intg, prod)")
+    parser.add_argument("--environment", "-e", choices=["test", "dev", "intg"], default="test", help="Environment to use (test, dev, intg)")
     parser.add_argument("--db-url", help="Database URL (overrides environment-based URL)")
     args = parser.parse_args()
 
@@ -952,7 +952,7 @@ async def main():
     elif args.environment == "test":
         db_url = "postgresql://postgres:password@localhost:5432/test_db"
     else:
-        db_url = None  # Use prod default or raise error if needed
+        raise ValueError(f"Unsupported environment: {args.environment}")
 
     manager = MigrationManager(db_url=db_url)
 
