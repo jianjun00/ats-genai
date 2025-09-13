@@ -7,8 +7,6 @@ Validates the code structure and documentation without requiring external depend
 
 import os
 import re
-import ast
-from pathlib import Path
 
 def validate_universe_state_manager():
     """Validate UniverseStateManager multi-timeframe enhancements."""

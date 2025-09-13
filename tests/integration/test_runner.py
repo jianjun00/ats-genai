@@ -8,7 +8,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ats-genai-admin/src'))
 
 import requests
-import json
 
 def test_eda_unified_system():
     """Test the core EDA unified metadata system functionality"""

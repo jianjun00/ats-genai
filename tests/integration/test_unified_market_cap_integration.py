@@ -6,8 +6,7 @@ using actual fundamental and price data from multiple vendors.
 """
 
 import pytest
-import asyncio
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from domains.market_data.services.market_cap.unified_market_cap_provider import (
     UnifiedMarketCapProvider,

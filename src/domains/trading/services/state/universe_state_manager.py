@@ -661,8 +661,7 @@ class UniverseStateManager:
             DataFrame with OHLCV data from Runner cache, or None if not available
         """
         try:
-            import pandas as pd
-            from datetime import timedelta
+            pass
 
             print(f"DEBUG _get_lag_prices_from_runner_cache: Looking for cached data for instrument_id={instrument_id}")
 

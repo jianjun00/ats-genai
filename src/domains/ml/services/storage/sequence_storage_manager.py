@@ -4,7 +4,6 @@ ArrayRecord Storage Manager for Sequence Training Data
 Uses ArrayRecord format exclusively for training data storage per PRD/DRD requirements.
 """
 
-import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import logging

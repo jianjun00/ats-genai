@@ -12,9 +12,7 @@ Tests the resilience and error handling capabilities of our market cap system:
 import pytest
 import asyncio
 import asyncpg
-import logging
 from datetime import date, datetime, timedelta
-from typing import List, Dict, Any, Optional
 
 from shared.utils.environment import Environment
 

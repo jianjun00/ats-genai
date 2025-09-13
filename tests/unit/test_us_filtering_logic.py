@@ -7,9 +7,7 @@ Tests the filtering logic for all three vendors:
 - EODHD: country and exchange filtering
 """
 
-import pytest
 import unittest
-from unittest.mock import Mock, patch, AsyncMock
 import sys
 import os
 

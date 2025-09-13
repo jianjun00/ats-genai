@@ -13,14 +13,11 @@ Tests cover:
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 
 from domains.trading.services.performance_metrics import (
     PerformanceMetrics,
     PerformanceAnalyzer
 )
-from domains.trading.services.factor_framework import FactorRiskModel
 
 
 class TestPerformanceMetrics:

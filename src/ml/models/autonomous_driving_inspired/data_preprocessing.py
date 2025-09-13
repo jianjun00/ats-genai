@@ -12,10 +12,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any, Union
+from typing import Dict, List, Tuple, Optional, Any
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from dataclasses import dataclass
 import array_record
 

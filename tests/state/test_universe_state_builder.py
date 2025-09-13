@@ -8,15 +8,11 @@ membership changes, and integration with data sources.
 import os
 import pytest
 import pandas as pd
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, date
-import asyncpg
+from unittest.mock import MagicMock
 
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
-from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
+from shared.utils.environment import Environment
 
 class TestUniverseStateIntervalBuilder:
     """Test suite for UniverseStateIntervalBuilder class."""
@@ -76,12 +72,7 @@ class TestUniverseStateIntervalBuilder:
     async def test_indicator_builder_rolling_cache(self):
         """Test that UniverseStateIntervalBuilder maintains rolling cache and builds indicator intervals correctly."""
         from state.universe_state_builder import UniverseStateIntervalBuilder
-        from state.instrument_interval import InstrumentInterval
-        from state.factor_interval import FactorInterval
-        from state.universe_state import UniverseStateInterval
-        from state.indicator_interval import IndicatorInterval
         from datetime import datetime, timedelta
-        from types import SimpleNamespace
         import random
         # Setup
         class DummyEnv:

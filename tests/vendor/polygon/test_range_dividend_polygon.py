@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from datetime import date
 from vendor.polygon.services.range_dividend_polygon import parse_date, date_chunks, insert_dividends_polygon
 

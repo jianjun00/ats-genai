@@ -9,12 +9,10 @@ Tests the new API architecture:
 4. 21-bar context window calculations
 """
 
-import pytest
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import sys
 import os
-from datetime import datetime, timezone
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

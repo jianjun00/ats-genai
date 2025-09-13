@@ -3,14 +3,12 @@
 Integration tests for ATS-INTG job monitoring and failure scenarios
 """
 
-import asyncio
 import asyncpg
 import pytest
 import os
 import sys
 import subprocess
-from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

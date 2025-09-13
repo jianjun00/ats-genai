@@ -5,7 +5,6 @@ Following TDD principles: First write tests to detect the issue, then fix.
 """
 
 import pytest
-import asyncio
 from unittest.mock import Mock, AsyncMock
 import asyncpg
 import os

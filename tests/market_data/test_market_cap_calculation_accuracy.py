@@ -10,7 +10,6 @@ import asyncpg
 import aiohttp
 import os
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

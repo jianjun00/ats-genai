@@ -15,8 +15,8 @@ Value ETF Categories:
 import asyncio
 import pytest
 import aiohttp
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import date, timedelta
+from typing import Dict, List
 import os
 
 

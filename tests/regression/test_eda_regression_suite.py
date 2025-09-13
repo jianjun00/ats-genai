@@ -4,11 +4,9 @@ Comprehensive regression test suite for EDA integration issues.
 Prevents reoccurrence of critical issues identified during implementation.
 """
 
-import pytest
 import requests
 import time
 import concurrent.futures
-import threading
 import sys
 import os
 

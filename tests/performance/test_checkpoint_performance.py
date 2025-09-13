@@ -12,15 +12,13 @@ This module contains comprehensive performance tests to validate:
 
 import asyncio
 import asyncpg
-import aiohttp
 import time
 import psutil
 import logging
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Tuple
-import json
 import statistics
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import os
 import gc
 

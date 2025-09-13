@@ -6,7 +6,6 @@ Tests concurrent request handling to prevent service timeouts.
 
 import pytest
 import requests
-import threading
 import time
 import concurrent.futures
 import sys

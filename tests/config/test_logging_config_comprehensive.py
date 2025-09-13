@@ -1,4 +1,3 @@
-import pytest
 import gin
 from shared.utils.logging_config import LoggingConfig
 

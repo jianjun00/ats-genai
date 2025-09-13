@@ -16,16 +16,13 @@ news signal extraction system, validating:
 import pytest
 import asyncio
 import json
-import tempfile
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
-from typing import Dict, Any
+from datetime import datetime
 
 import asyncpg
 
 from services.realtime_news_service_launcher import RealTimeNewsServiceManager
-from infrastructure.llm.multi_provider_client import MultiProviderLLMClient
 from domains.market_data.services.news.realtime_news_ingestion import RealTimeNewsIngestionService
 from domains.market_data.services.signals.signal_broadcasting_system import TradingSignalBroadcastingSystem
 from core.config.environment import Environment

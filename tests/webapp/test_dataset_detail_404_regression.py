@@ -11,9 +11,7 @@ This test ensures:
 """
 
 import pytest
-import asyncio
 import aiohttp
-import json
 
 class TestDatasetDetail404Regression:
     """Regression test for the specific dataset detail page 404 issue"""

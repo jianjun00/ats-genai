@@ -1,8 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta
-import asyncio
+from datetime import datetime
 
 import torch
 import pytest

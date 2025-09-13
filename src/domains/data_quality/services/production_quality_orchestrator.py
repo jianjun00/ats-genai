@@ -7,13 +7,13 @@ with real vendor APIs, regulatory compliance, and human-in-the-loop review.
 
 import asyncio
 import logging
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Set, Any, Tuple
+from datetime import datetime, date
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-from ..ml.anomaly_detection_ensemble import DataQualityAnomalyEnsemble, AnomalyType
-from .hitl_orchestrator import HITLOrchestrator, HITLDecision, ReviewPriority
+from ..ml.anomaly_detection_ensemble import DataQualityAnomalyEnsemble
+from .hitl_orchestrator import HITLOrchestrator, HITLDecision
 from ...infrastructure.vendor.real_api_client import RealVendorAPIClient
 from ...infrastructure.regulatory.compliance_validator import (
     ProductionComplianceValidator,

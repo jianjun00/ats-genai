@@ -6,18 +6,16 @@ dependencies, and detailed health reporting.
 """
 
 import asyncio
-import json
 import time
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set, Any, Callable, Union
+from typing import Dict, List, Optional, Any, Callable, Union
 import logging
 import aiohttp
 import psutil
-from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +69,6 @@ class HealthCheck(ABC):
     @abstractmethod
     async def perform_check(self) -> HealthCheckResult:
         """Perform the health check and return the result."""
-        pass
 
     async def check_with_timeout(self) -> HealthCheckResult:
         """Perform health check with timeout protection."""

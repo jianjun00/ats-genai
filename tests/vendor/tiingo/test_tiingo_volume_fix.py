@@ -5,9 +5,7 @@ Tests the fix for missing 'volume' field in Tiingo API responses.
 """
 
 import pytest
-import pandas as pd
 from datetime import datetime
-from unittest.mock import Mock, patch
 
 from domains.market_data.services.agent.tiingo_intraday_adapter import TiingoIntradayAdapter, TiingoMinuteBar
 

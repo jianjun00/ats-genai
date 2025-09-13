@@ -10,7 +10,6 @@ class AnalyticsService:
 
     def __init__(self):
         """Initialize the analytics service."""
-        pass
 
     def get_status(self):
         """Get service status."""

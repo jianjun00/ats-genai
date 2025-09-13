@@ -17,12 +17,11 @@ This validator implements security-first principles for financial data validatio
 import asyncio
 import asyncpg
 import logging
-from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Optional, Tuple, AsyncGenerator
+from datetime import datetime, date
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
-import statistics
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 import json
 
 # Defensive imports with graceful degradation
@@ -40,7 +39,6 @@ except ImportError:
 # Import our defensive components
 from core.defensive import (
     DefensiveFinancialValidator,
-    ValidationResult,
     SecurityLevel,
     SecureErrorHandler,
     ErrorCategory,
@@ -48,7 +46,6 @@ from core.defensive import (
     DefensiveResourceManager,
     ResourceType,
     ResourceLimits,
-    defensive_db_connection,
     secure_financial_operation,
     with_validation_error_handling
 )

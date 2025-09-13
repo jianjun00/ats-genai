@@ -6,10 +6,6 @@ Tests the simple background process approach with a small batch
 
 import subprocess
 import time
-import os
-from pathlib import Path
-from datetime import datetime
-import json
 
 def test_parallel_backfill():
     """Test parallel backfill with 8 symbols split into 2 workers"""

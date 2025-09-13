@@ -1,6 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+from datetime import datetime
 from core.calendars.time_duration import TimeDuration, DurationType
 
 

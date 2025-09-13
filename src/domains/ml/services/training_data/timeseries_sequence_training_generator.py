@@ -8,10 +8,8 @@ supporting multiple timeframes and sequence-based features for advanced ML model
 import pandas as pd
 import numpy as np
 import logging
-import asyncio
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
-from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional
 import gin
 
 # Optional imports - will be None if not available

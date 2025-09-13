@@ -15,7 +15,6 @@ import tempfile
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict
 
 from src.storage.hdf5_multi_scale_cache import (
     HDF5MultiScaleCache,
@@ -24,8 +23,7 @@ from src.storage.hdf5_multi_scale_cache import (
 )
 from src.storage.multi_scale_sequence import (
     TimeScale,
-    MultiScaleSequence,
-    create_multi_scale_sequence
+    MultiScaleSequence
 )
 
 

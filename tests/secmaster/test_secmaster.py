@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from datetime import date
 from domains.instruments.services.secmaster import SecMaster
 

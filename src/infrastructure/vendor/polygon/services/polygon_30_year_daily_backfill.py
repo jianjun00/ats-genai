@@ -15,13 +15,11 @@ import asyncio
 import asyncpg
 import requests
 import logging
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, timezone
 import time
-import json
 import argparse
 
 from shared.utils.vendor_api_keys import get_polygon_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 
 # Configure logging

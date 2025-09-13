@@ -7,10 +7,8 @@ and edge cases for combining data from multiple vendors.
 
 import pytest
 import numpy as np
-import pandas as pd
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
-from typing import List
+from unittest.mock import patch
 
 from domains.market_data.services.reconciliation.cross_vendor_reconciler import (
     CrossVendorReconciler,

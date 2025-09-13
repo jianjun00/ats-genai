@@ -1,9 +1,6 @@
 import os
 print(f"[IMPORT_DEBUG][TEST] PYTHONPATH={{os.environ.get('PYTHONPATH')}}")
-import sys
 print(f"[IMPORT_DEBUG][TEST] sys.path={{sys.path}}")
-import tempfile
-from datetime import datetime, timedelta, date
 import pytest
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -359,7 +356,6 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     universe_state_manager = UniverseStateManager(env=env, base_path=output_dir, write_metadata=False)
 
     import asyncpg
-    import asyncio
     # Insert a test instrument and membership into the test DB
     async def insert_test_data():
         conn = await asyncpg.connect(unit_test_db)

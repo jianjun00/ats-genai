@@ -5,10 +5,9 @@ Event Database Storage - PostgreSQL with JSONB support for ATS Events
 import json
 import logging
 import psycopg2
-import hashlib
 import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 from contextlib import contextmanager
 from psycopg2.extras import RealDictCursor, Json
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT

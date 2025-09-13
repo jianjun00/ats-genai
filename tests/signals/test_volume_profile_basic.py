@@ -4,8 +4,6 @@ Unit tests for Volume Profile indicator basic functionality.
 import unittest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, Any
 
 import sys
 import os

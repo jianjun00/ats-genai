@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
 import numpy as np
-import pandas as pd
 from dataclasses import asdict
 
 from ..interfaces.risk_service_interface import (

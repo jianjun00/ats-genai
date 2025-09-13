@@ -107,32 +107,26 @@ class MarketDataServiceInterface(ABC):
     @abstractmethod
     async def create_daily_price(self, price_data: DailyPriceDTO) -> MarketDataOperationResult:
         """Create a new daily price record with business validation"""
-        pass
     
     @abstractmethod
     async def get_daily_price_by_id(self, price_id: int) -> Optional[DailyPriceDTO]:
         """Retrieve daily price by ID"""
-        pass
     
     @abstractmethod
     async def get_daily_price(self, symbol: str, date: date, vendor: Optional[str] = None) -> Optional[DailyPriceDTO]:
         """Retrieve daily price for symbol and date"""
-        pass
     
     @abstractmethod
     async def list_daily_prices(self, criteria: MarketDataSearchCriteria) -> List[DailyPriceDTO]:
         """List daily prices based on search criteria"""
-        pass
     
     @abstractmethod
     async def update_daily_price(self, price_data: DailyPriceDTO) -> MarketDataOperationResult:
         """Update daily price record"""
-        pass
     
     @abstractmethod
     async def create_daily_prices_batch(self, prices: List[DailyPriceDTO]) -> MarketDataOperationResult:
         """Create multiple daily price records in batch"""
-        pass
     
     @abstractmethod
     async def get_price_history(self, 
@@ -141,34 +135,28 @@ class MarketDataServiceInterface(ABC):
                               end_date: date,
                               vendor: Optional[str] = None) -> List[DailyPriceDTO]:
         """Get price history for symbol and date range"""
-        pass
     
     # Fundamental Data Operations
     
     @abstractmethod
     async def create_fundamental(self, fundamental: FundamentalDTO) -> MarketDataOperationResult:
         """Create a new fundamental data record"""
-        pass
     
     @abstractmethod
     async def get_fundamental_by_id(self, fundamental_id: int) -> Optional[FundamentalDTO]:
         """Retrieve fundamental data by ID"""
-        pass
     
     @abstractmethod
     async def get_fundamental(self, instrument_id: int, date: date) -> Optional[FundamentalDTO]:
         """Retrieve fundamental data for instrument and date"""
-        pass
     
     @abstractmethod
     async def list_fundamentals(self, instrument_id: int) -> List[FundamentalDTO]:
         """List fundamental data for instrument"""
-        pass
     
     @abstractmethod
     async def create_fundamentals_batch(self, fundamentals: List[FundamentalDTO]) -> MarketDataOperationResult:
         """Create multiple fundamental records in batch"""
-        pass
     
     # Price Analytics Operations
     
@@ -179,7 +167,6 @@ class MarketDataServiceInterface(ABC):
                               end_date: date,
                               return_type: str = "simple") -> Optional[Decimal]:
         """Calculate returns for symbol over date range"""
-        pass
     
     @abstractmethod
     async def calculate_volatility(self, 
@@ -188,7 +175,6 @@ class MarketDataServiceInterface(ABC):
                                  end_date: date,
                                  window: int = 30) -> Optional[Decimal]:
         """Calculate volatility for symbol over date range"""
-        pass
     
     @abstractmethod
     async def analyze_price_performance(self, 
@@ -197,7 +183,6 @@ class MarketDataServiceInterface(ABC):
                                       end_date: date,
                                       benchmark: Optional[str] = None) -> PriceAnalysisResult:
         """Comprehensive price performance analysis"""
-        pass
     
     @abstractmethod
     async def get_correlation_matrix(self, 
@@ -205,14 +190,12 @@ class MarketDataServiceInterface(ABC):
                                    start_date: date, 
                                    end_date: date) -> Dict[str, Dict[str, float]]:
         """Calculate correlation matrix for multiple symbols"""
-        pass
     
     # Market Data Quality Operations
     
     @abstractmethod
     async def validate_price_data(self, price_data: DailyPriceDTO) -> Dict[str, Any]:
         """Validate price data quality and consistency"""
-        pass
     
     @abstractmethod
     async def detect_price_anomalies(self, 
@@ -220,7 +203,6 @@ class MarketDataServiceInterface(ABC):
                                    start_date: date, 
                                    end_date: date) -> List[Dict[str, Any]]:
         """Detect anomalies in price data"""
-        pass
     
     @abstractmethod
     async def get_data_coverage_report(self, 
@@ -228,7 +210,6 @@ class MarketDataServiceInterface(ABC):
                                      start_date: Optional[date] = None,
                                      end_date: Optional[date] = None) -> Dict[str, Any]:
         """Get data coverage report for symbols and date range"""
-        pass
     
     # Vendor Data Operations
     
@@ -237,14 +218,12 @@ class MarketDataServiceInterface(ABC):
                                     symbol: str, 
                                     date: date) -> Optional[DailyPriceDTO]:
         """Consolidate data from multiple vendors for symbol and date"""
-        pass
     
     @abstractmethod
     async def get_vendor_comparison(self, 
                                   symbol: str, 
                                   date: date) -> Dict[str, DailyPriceDTO]:
         """Compare data from different vendors for symbol and date"""
-        pass
     
     @abstractmethod
     async def sync_vendor_data(self, 
@@ -253,14 +232,12 @@ class MarketDataServiceInterface(ABC):
                              start_date: Optional[date] = None,
                              end_date: Optional[date] = None) -> MarketDataOperationResult:
         """Synchronize data from specific vendor"""
-        pass
     
     # Market Statistics Operations
     
     @abstractmethod
     async def get_market_summary(self, date: Optional[date] = None) -> Dict[str, Any]:
         """Get market summary statistics for date"""
-        pass
     
     @abstractmethod
     async def get_top_performers(self, 
@@ -268,12 +245,10 @@ class MarketDataServiceInterface(ABC):
                                metric: str = "return",
                                limit: int = 10) -> List[Dict[str, Any]]:
         """Get top performing securities by metric"""
-        pass
     
     @abstractmethod
     async def get_market_breadth(self, date: date) -> Dict[str, Any]:
         """Get market breadth statistics"""
-        pass
     
     # Data Export Operations
     
@@ -282,7 +257,6 @@ class MarketDataServiceInterface(ABC):
                               criteria: MarketDataSearchCriteria,
                               format: str = "csv") -> Union[str, pd.DataFrame]:
         """Export price data in specified format"""
-        pass
     
     @abstractmethod
     async def get_ohlc_data(self, 
@@ -290,4 +264,3 @@ class MarketDataServiceInterface(ABC):
                           start_date: date, 
                           end_date: date) -> pd.DataFrame:
         """Get OHLC data as pandas DataFrame"""
-        pass

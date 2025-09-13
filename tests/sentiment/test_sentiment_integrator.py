@@ -3,12 +3,10 @@ Tests for sentiment integration framework.
 """
 
 import pytest
-import asyncio
 import pandas as pd
-import numpy as np
 import json
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
 from sentiment.sentiment_integrator import (

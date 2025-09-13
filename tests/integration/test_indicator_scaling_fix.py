@@ -7,7 +7,6 @@ Ensures all indicators return actual values, not normalized ones.
 import os
 import sys
 import numpy as np
-import pandas as pd
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))

@@ -3,13 +3,12 @@ import sys
 import unittest
 import tempfile
 from unittest.mock import patch, MagicMock
-import json
 import asyncio
 
 # Add src to PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
-from vendor.polygon.services.populate_instrument_polygon import parse_date, upsert_instrument, fetch_and_store_instruments
+from vendor.polygon.services.populate_instrument_polygon import parse_date, fetch_and_store_instruments
 
 
 class TestPopulateInstrumentPolygon(unittest.TestCase):

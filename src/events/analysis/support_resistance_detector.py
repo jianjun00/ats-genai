@@ -13,17 +13,15 @@ Key Features:
 - Integration with existing market data infrastructure
 """
 
-import asyncio
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Union
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 from enum import Enum
 import logging
 # Optional scientific computing imports
 try:
-    from scipy import stats
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -807,7 +805,6 @@ class SupportResistanceDetector:
         """Update level strength based on test outcome"""
         # Implementation would update the level's statistics and strength
         # based on the test outcome
-        pass
 
     async def process_new_data(self, symbol: str, new_ohlcv: pd.DataFrame):
         """Process new market data and update S/R levels and tests"""

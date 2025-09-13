@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import requests
-import json
-import pytest
 import time
 
 class TestEDAColumnSelection:

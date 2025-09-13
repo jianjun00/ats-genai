@@ -15,15 +15,13 @@ This test suite covers:
 import pytest
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta
 
-import aiohttp
 import redis.asyncio as redis
 
 from infrastructure.llm.multi_provider_client import (
     MultiProviderLLMClient,
-    LLMProvider,
     OpenAIProvider,
     AnthropicProvider,
     GoogleProvider,

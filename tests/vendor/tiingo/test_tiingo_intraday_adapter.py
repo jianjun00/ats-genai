@@ -5,11 +5,9 @@ Tests both mock scenarios and integration with real API when keys are available.
 """
 
 import pytest
-import asyncio
 import aiohttp
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
-from typing import List
 
 from domains.market_data.services.agent.tiingo_intraday_adapter import (
     TiingoIntradayAdapter,

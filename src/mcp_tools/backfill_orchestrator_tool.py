@@ -8,11 +8,10 @@ priority management, and progress monitoring.
 
 import asyncio
 import asyncpg
-import aiohttp
 import logging
 from datetime import datetime, date, timedelta
-from typing import Any, Dict, List, Optional, Tuple
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 from enum import Enum
 import uuid
 
@@ -519,7 +518,6 @@ class BackfillOrchestratorTool:
     async def _update_job_progress(self, job: BackfillJob):
         """Update job progress in database"""
         # Placeholder - would update progress in database
-        pass
     
     async def _send_completion_notification(self, job: BackfillJob, result: BackfillResult):
         """Send notification about job completion"""

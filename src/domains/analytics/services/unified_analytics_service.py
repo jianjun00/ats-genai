@@ -22,22 +22,15 @@ import asyncio
 import json
 import logging
 import os
-import sys
-import time
-import numpy as np
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Dict, List, Any, Optional
-from urllib.parse import urlparse, parse_qs
-from dataclasses import asdict
+from typing import Dict, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.platform.database.connection_manager import get_connection_manager
-from core.platform.config.settings import get_settings
 
 # Import type system components (from analytics_service_class.py)
 try:

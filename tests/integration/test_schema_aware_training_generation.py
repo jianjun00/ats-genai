@@ -6,12 +6,11 @@ validation, and database persistence.
 """
 
 import pytest
-import asyncio
 import numpy as np
 import pandas as pd
 import tempfile
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.ml.training_data.generators.training_data_generator import (
@@ -21,7 +20,6 @@ from src.ml.training_data.generators.training_data_generator import (
     generate_residual_return_training_data
 )
 from src.schema.training_schema import TrainingDatasetSchema, FeatureType, ValidationResult
-from domains.ml.repositories.training_schema_dao import TrainingSchemaDAO
 
 
 @pytest.fixture

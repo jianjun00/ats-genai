@@ -7,22 +7,17 @@ providing comprehensive health monitoring and service registration.
 
 import asyncio
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import logging
 
 from src.infrastructure.service_discovery import (
-    ServiceRegistry,
     ServiceInstance,
     ServiceEndpoint,
-    ServiceStatus,
     HealthCheck as ServiceHealthCheck,
-    service_registration_context,
     get_global_registry,
-    HealthCheckManager,
     DatabaseHealthCheck,
     SystemResourceHealthCheck,
     CustomHealthCheck,
-    HealthStatus,
     HealthCheckType,
     get_health_manager
 )

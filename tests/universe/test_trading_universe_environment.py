@@ -6,7 +6,6 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import date
 
-from shared.utils.environment import EnvironmentType
 
 def make_mock_asyncpg_pool(mock_conn):
     pool = MagicMock()

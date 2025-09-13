@@ -3,7 +3,6 @@ Tests for Support/Resistance Training Data Generator
 """
 
 import pytest
-import asyncio
 import numpy as np
 import pandas as pd
 from datetime import date, datetime, timedelta
@@ -18,7 +17,6 @@ from domains.ml.services.training_data.support_resistance_generator import (
     SupportResistanceLevel,
     TrainingExample
 )
-from shared.utils.environment import Environment
 
 class TestSupportResistanceTrainingGenerator:
     """Test suite for SupportResistanceTrainingGenerator"""

@@ -10,8 +10,6 @@ import logging
 from datetime import datetime, date
 from typing import Any, Optional, List, Dict, Union
 from pathlib import Path
-import json
-from dateutil.relativedelta import relativedelta
 
 from domains.trading.services.state.runner_callback import RunnerCallback
 # TrainingDataConfig is imported from the specific runner that uses this callback
@@ -352,8 +350,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         - Only save data within target date range (not collection window)
         """
         import array_record.python.array_record_module as array_record
-        from datetime import date, timedelta
-        from dateutil.relativedelta import relativedelta
+        from datetime import date
 
         try:
             # Get dataset_id from callback (set by runner)
@@ -439,7 +436,6 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         """
         try:
             from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
-            from shared.utils.environment import Environment
 
             # Get environment and run info
             environment = runner.get_environment()
@@ -530,7 +526,6 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         CRITICAL: Process current interval immediately and append to existing writers.
         This maintains chronological order and prevents memory issues.
         """
-        import struct
 
         try:
             for example in examples:

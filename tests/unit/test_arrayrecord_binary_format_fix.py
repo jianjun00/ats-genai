@@ -17,7 +17,6 @@ import tempfile
 import shutil
 import struct
 import json
-from datetime import datetime
 from unittest.mock import Mock
 
 # ArrayRecord imports

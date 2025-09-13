@@ -18,8 +18,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Set
-from dataclasses import asdict
+from typing import Dict, List, Optional, Set
 import pandas as pd
 from decimal import Decimal
 import json

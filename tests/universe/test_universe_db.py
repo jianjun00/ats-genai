@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from domains.trading.services.universe_db import UniverseDB

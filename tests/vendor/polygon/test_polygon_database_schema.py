@@ -5,12 +5,10 @@ Tests the critical fix for missing dev_polygon_prices table that was causing
 0 records to be stored despite successful API data retrieval.
 """
 
-import asyncio
 import pytest
 import asyncpg
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
 
 
 @pytest.fixture

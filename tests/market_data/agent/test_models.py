@@ -1,5 +1,4 @@
-import pytest
-from datetime import date, datetime
+from datetime import date
 from domains.market_data.services.agent.models import InstrumentMetadata, EODPrice
 
 def test_instrument_metadata_schema():

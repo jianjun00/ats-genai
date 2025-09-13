@@ -4,8 +4,6 @@ Each test gets its own isolated database.
 """
 
 import pytest
-import pytest_asyncio
-import asyncio
 from src.db.migration_manager import MigrationManager
 
 

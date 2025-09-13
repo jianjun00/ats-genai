@@ -7,12 +7,10 @@ earnings data quality fixes, including EPS extraction and call timing.
 """
 
 import pytest
-import asyncio
 import os
 import sys
-from datetime import datetime, date, timedelta
-from decimal import Decimal
-from typing import Dict, List, Any, Optional
+from datetime import datetime, date
+from typing import Dict, List
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

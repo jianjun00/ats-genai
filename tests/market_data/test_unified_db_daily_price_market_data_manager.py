@@ -1,6 +1,5 @@
 import pytest
-import asyncio
-from datetime import datetime, date
+from datetime import datetime
 from shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
 from vendor.tiingo.core.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
@@ -8,7 +7,6 @@ from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonD
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.dao.vendors_dao import VendorsDAO
-from src.db.test_db_manager import unit_test_db
 
 async def get_or_create_vendor(vendors_dao, name, description=None):
     """Helper function to get a vendor by name or create it if it doesn't exist"""

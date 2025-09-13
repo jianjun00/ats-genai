@@ -4,7 +4,6 @@ Generate training data for TSLA and AAPL using training_data.gin configuration
 Starting from 2000 or their listing dates (AAPL: 1995-09-05, TSLA: 2010-06-29)
 """
 
-import gin
 import asyncio
 import logging
 import pandas as pd
@@ -17,12 +16,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 from shared.utils.environment import Environment
-from domains.trading.services.feature_registry import FeatureRegistry
-from domains.trading.services.label_registry import LabelRegistry
-from modeling.configurable_train_data_generator import (
-    ConfigurableTrainingDataGenerator,
-    ConfigurableTrainingDataConfig
-)
 import asyncpg
 
 async def load_market_data_from_polygon(symbols: list, start_date: date, end_date: date, env: Environment):

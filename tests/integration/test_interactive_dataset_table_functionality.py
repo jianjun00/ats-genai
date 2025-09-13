@@ -14,13 +14,8 @@ This test suite ensures:
 """
 
 import pytest
-import asyncio
 import httpx
 import asyncpg
-import json
-from typing import Dict, List, Any
-from unittest.mock import AsyncMock, patch
-from datetime import datetime
 
 # Import the enhanced analytics manager
 from unified_analytics_fixed import UnifiedAnalyticsManager, Environment

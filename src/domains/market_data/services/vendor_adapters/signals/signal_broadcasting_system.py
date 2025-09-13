@@ -18,8 +18,8 @@ Features:
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Set, Callable
+from datetime import datetime
+from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, field
 from enum import Enum
 import json

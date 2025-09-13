@@ -7,11 +7,10 @@ Extends the unified analytics service with multi-panel trading visualization cap
 import asyncio
 import json
 import logging
-import os
 import io
 import base64
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Core imports

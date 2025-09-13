@@ -10,7 +10,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
-import logging
 
 def create_minute_test_data(symbol: str, start_date: datetime, end_date: datetime, base_path: Path):
     """Create realistic minute-level OHLCV data for testing."""

@@ -13,8 +13,7 @@ Tests cover:
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict
 
 from domains.trading.services.optimization import (
     OptimizationConstraints,

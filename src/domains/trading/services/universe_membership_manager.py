@@ -6,9 +6,8 @@ with proper start_at/end_at dates based on actual qualification criteria
 """
 
 import sys
-import os
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict
 import logging
 
 sys.path.append('/home/jianjun/ats-genai-admin/src')

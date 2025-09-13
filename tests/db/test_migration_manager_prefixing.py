@@ -1,5 +1,4 @@
 import pytest
-import re
 from db.migration_manager import MigrationManager
 
 

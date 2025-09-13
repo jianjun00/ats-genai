@@ -6,11 +6,8 @@ Tests dataset generation, feature engineering, database operations, and data qua
 
 import pytest
 import asyncio
-import json
-import numpy as np
 from datetime import datetime, date, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict, Any
+from unittest.mock import AsyncMock, patch
 
 # Add src to path for imports
 import sys
@@ -548,7 +545,6 @@ class TestDataQualityAndValidation:
 
                 # This would need to be tested with the actual quality calculation logic
                 # in generate_sample_for_symbol_date method
-                pass
 
     def test_feature_value_bounds_validation(self):
         """Test that feature values stay within expected bounds"""
@@ -590,7 +586,6 @@ class TestDataQualityAndValidation:
 
         # Test that volume calculations would be consistent
         # (This would require mocking the actual database calls)
-        pass
 
     def test_date_range_validation(self):
         """Test proper date range handling"""

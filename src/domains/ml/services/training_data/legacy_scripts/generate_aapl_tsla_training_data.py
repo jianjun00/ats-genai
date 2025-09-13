@@ -8,7 +8,6 @@ Generate training data for AAPL and TSLA from their listing dates until now
 import asyncio
 import logging
 from datetime import date
-from pathlib import Path
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

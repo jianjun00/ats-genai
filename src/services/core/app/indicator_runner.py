@@ -326,7 +326,6 @@ class IndicatorRunner(Runner):
         Returns:
             Dict mapping instrument_id to list of IndicatorInterval objects for the timeframe
         """
-        from datetime import timedelta
 
         print(f"[DEBUG_MULTI_TF] Computing signals for timeframe: {timeframe}")
 
@@ -390,7 +389,6 @@ class IndicatorRunner(Runner):
         if not minute_intervals:
             return []
 
-        from datetime import timedelta
 
         aggregated = []
 

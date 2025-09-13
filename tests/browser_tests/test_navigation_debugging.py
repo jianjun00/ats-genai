@@ -5,11 +5,9 @@ Tests navigation functionality and captures debug output
 """
 
 import pytest
-import asyncio
-from playwright.async_api import async_playwright, Page
+from playwright.async_api import async_playwright
 import sys
 import os
-import time
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

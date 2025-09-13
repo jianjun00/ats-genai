@@ -3,10 +3,8 @@ Tests for Historical Universe Creator (Bias-Free Universe Generation)
 """
 
 import pytest
-import asyncio
 import numpy as np
-import pandas as pd
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import sys
@@ -17,7 +15,6 @@ from domains.trading.services.historical_universe_creator import (
     HistoricalUniverseCreator,
     HistoricalStock
 )
-from shared.utils.environment import Environment
 
 class TestHistoricalStock:
     """Test suite for HistoricalStock data structure"""

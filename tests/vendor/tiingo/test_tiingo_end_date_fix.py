@@ -19,7 +19,6 @@ import os
 import pytest
 import asyncpg
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))

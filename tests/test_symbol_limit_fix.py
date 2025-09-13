@@ -4,7 +4,6 @@ Simple test to verify the symbol limit fix without requiring full browser automa
 """
 
 import requests
-import time
 
 def test_symbol_limit_fix():
     """Test that symbol API returns more symbols than before."""

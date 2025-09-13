@@ -26,7 +26,6 @@ INTERACTIONS:
 """
 
 import pandas as pd
-import gin
 try:
     from domains.trading.services.state.runner_callback import RunnerCallback
 except Exception:

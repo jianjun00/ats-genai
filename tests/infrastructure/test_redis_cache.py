@@ -6,14 +6,11 @@ and integration with InstrumentService.
 """
 
 import pytest
-import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
 
 from infrastructure.caching.redis_cache import (
-    RedisCache, 
     CacheKeyBuilder, 
-    CacheStats,
+    CacheStats, 
     InMemoryCache
 )
 from domains.instruments.services.impl.cached_instrument_service_impl import CachedInstrumentServiceImpl
@@ -22,7 +19,7 @@ from domains.instruments.services.interfaces.instrument_service_interface import
     InstrumentDTO, 
     InstrumentOperationResult
 )
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config.environment import EnvironmentType
 
 
 class TestCacheKeyBuilder:

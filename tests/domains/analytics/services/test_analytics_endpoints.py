@@ -16,7 +16,6 @@ import asyncio
 import httpx
 import asyncpg
 import os
-from typing import Dict, List, Any
 
 
 class TestAnalyticsEndpoints:

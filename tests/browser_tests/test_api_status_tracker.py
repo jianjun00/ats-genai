@@ -14,8 +14,6 @@ import asyncio
 import sys
 import argparse
 import random
-import time
-from datetime import datetime
 
 # Add src and scripts to path
 sys.path.insert(0, '/workspace/src')

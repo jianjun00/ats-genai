@@ -7,8 +7,7 @@ Tests that Plotly OHLC charts render correctly with technical indicators.
 import asyncio
 import pytest
 import requests
-import time
-from playwright.async_api import async_playwright, Browser, Page
+from playwright.async_api import async_playwright, Page
 
 
 class TestPlotlyOHLCVisualization:

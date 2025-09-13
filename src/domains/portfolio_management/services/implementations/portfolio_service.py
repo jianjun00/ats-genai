@@ -4,14 +4,11 @@ Portfolio Management Service Implementation
 Comprehensive portfolio management operations implementation.
 """
 
-import asyncio
 import logging
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, Union, Callable
-from dataclasses import asdict
-import pandas as pd
+from typing import Dict, List, Optional, Any, Callable
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 
@@ -637,17 +634,14 @@ class PortfolioManagementService(PortfolioServiceInterface):
     async def _persist_portfolio(self, portfolio: Portfolio):
         """Persist portfolio to database."""
         # Implementation would insert/update portfolio in database
-        pass
 
     async def _persist_position(self, position: PortfolioPosition):
         """Persist position to database."""
         # Implementation would insert/update position in database
-        pass
 
     async def _persist_transaction(self, transaction: PortfolioTransaction):
         """Persist transaction to database."""
         # Implementation would insert transaction in database
-        pass
 
     async def _load_portfolio_from_db(self, portfolio_id: str) -> Optional[Portfolio]:
         """Load portfolio from database."""

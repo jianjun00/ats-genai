@@ -1,4 +1,3 @@
-import state.universe_state_builder as universe_state_builder
 from state.universe_state_builder import UniverseStateIntervalBuilder
 import app.runner
 
@@ -6,7 +5,6 @@ import pytest
 import asyncpg
 from datetime import date
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db_clean
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
 

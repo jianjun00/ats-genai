@@ -12,9 +12,8 @@ import threading
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Set, Any, Optional, Tuple
+from typing import Dict, List, Set, Any
 import psycopg2
-from psycopg2.extensions import cursor as PgCursor
 
 
 class DatabaseUsageTracker:

@@ -7,8 +7,6 @@ Simulates browser behavior for testing EDA interface without requiring Playwrigh
 import requests
 import json
 import re
-from urllib.parse import urljoin
-import time
 
 class EDABrowserSimulator:
     """Simulates browser behavior for testing EDA interface."""

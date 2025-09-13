@@ -7,10 +7,9 @@ Tests the implementation of the requirement:
 """
 
 import asyncio
-import json
 import os
 import sys
-from typing import Dict, List, Any, Optional
+from typing import Dict, List
 from datetime import datetime, timedelta
 
 # Add project root to Python path

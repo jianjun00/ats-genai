@@ -6,7 +6,6 @@ Tests environment detection and file structure without loading gin configs
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 

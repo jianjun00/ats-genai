@@ -12,10 +12,8 @@ Purpose: Detect when dataset detail page functionality is accidentally:
 - Changed to break frontend expectations
 """
 
-import pytest
 import requests
 import json
-from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass
 from datetime import datetime
 

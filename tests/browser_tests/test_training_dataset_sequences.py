@@ -5,9 +5,8 @@ This test verifies the complete user workflow from dataset selection to sequence
 """
 
 import pytest
-from playwright.async_api import async_playwright, Page, expect
+from playwright.async_api import async_playwright, expect
 import asyncio
-import time
 
 
 @pytest.mark.asyncio

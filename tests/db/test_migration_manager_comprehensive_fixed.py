@@ -7,15 +7,10 @@ Each test gets its own isolated database.
 import pytest
 import asyncio
 import asyncpg
-import os
 import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import patch, mock_open
 from db.migration_manager import MigrationManager
 
-import pytest_asyncio
-from db.test_db_manager import TestDatabaseManager
 
 
 @pytest.mark.unit

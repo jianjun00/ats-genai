@@ -8,10 +8,6 @@ hierarchical positional encoding, scale-specific attention, and fusion mechanism
 
 import pytest
 import torch
-import torch.nn as nn
-import numpy as np
-import math
-from typing import Dict
 
 from src.models.attention.cross_scale_attention import (
     CrossScaleAttention,

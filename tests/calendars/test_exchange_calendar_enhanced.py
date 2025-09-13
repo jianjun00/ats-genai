@@ -1,7 +1,7 @@
 import datetime
 import pytest
 from core.calendars.exchange_calendar import ExchangeCalendar
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 
 class TestExchangeCalendarEnhanced:

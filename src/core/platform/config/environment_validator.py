@@ -58,11 +58,9 @@ ENVIRONMENT_REQUIREMENTS = {
 
 class EnvironmentValidationError(Exception):
     """Raised when environment configuration is invalid."""
-    pass
 
 class NetworkValidationError(Exception):
     """Raised when network configuration is invalid."""
-    pass
 
 def validate_environment_config(environment: str) -> Dict[str, Any]:
     """

@@ -7,8 +7,6 @@ Tests the complete 21-row window visualization pipeline from API to chart displa
 import asyncio
 import pytest
 from playwright.async_api import async_playwright
-import json
-import time
 
 class Test21DataPointsChartRendering:
 

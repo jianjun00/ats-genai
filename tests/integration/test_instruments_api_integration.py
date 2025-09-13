@@ -15,7 +15,6 @@ from unittest.mock import Mock, AsyncMock, patch
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from datetime import date
-import json
 
 from services.web_services.api.instruments_api import instruments_router
 from domains.instruments.services.interfaces.instrument_service_interface import (

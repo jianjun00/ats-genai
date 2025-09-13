@@ -7,8 +7,6 @@ Tests the actual browser behavior of http://localhost:4000/eda
 import asyncio
 import pytest
 from playwright.async_api import async_playwright, Page, expect
-import time
-import json
 
 class TestEDAInterface:
     """End-to-end browser tests for the EDA interface."""

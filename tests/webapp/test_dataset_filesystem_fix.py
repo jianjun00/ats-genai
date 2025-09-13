@@ -5,10 +5,8 @@ and provides appropriate fallbacks or error messages.
 """
 
 import pytest
-import asyncio
 import aiohttp
 import json
-from typing import Dict, List, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -86,7 +84,6 @@ class TestDatasetFilesystemFix:
 
     def test_local_training_files_exist(self):
         """Test that training files exist locally (for comparison)"""
-        import os
         from pathlib import Path
 
         training_dir = Path("training_data_output")

@@ -360,8 +360,6 @@ class TiingoIntradayAdapter:
         Fetches past N days of data, merges with existing monthly files,
         and writes only if data changed (hash-based detection).
         """
-        import hashlib
-        from pathlib import Path
 
         results = {'symbols_processed': [], 'files_written': 0, 'files_skipped': 0}
 

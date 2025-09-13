@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from datetime import date
 from shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPricesUnifier
@@ -7,7 +6,6 @@ from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from core.dao.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
-from src.db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

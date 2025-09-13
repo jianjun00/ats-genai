@@ -7,7 +7,6 @@ including detecting port conflicts and service issues.
 """
 
 import pytest
-import asyncio
 import subprocess
 import time
 import requests
@@ -15,7 +14,6 @@ import json
 import socket
 from pathlib import Path
 import sys
-import tempfile
 import os
 
 # Add src to path
@@ -340,7 +338,6 @@ class TestAnalyticsPlatformIntegration:
         # Test if it can be imported
         try:
             sys.path.insert(0, str(runner_path.parent))
-            import production_backtest_runner
             print(f"✅ Production backtest runner can be imported")
         except ImportError as e:
             pytest.fail(f"❌ Failed to import production backtest runner: {e}")

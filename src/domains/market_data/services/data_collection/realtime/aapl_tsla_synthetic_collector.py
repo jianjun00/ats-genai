@@ -11,7 +11,7 @@ import asyncpg
 import logging
 import os
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List
 
 # Setup logging

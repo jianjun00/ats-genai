@@ -1,9 +1,5 @@
-import pytest
 import datetime
-from shared.utils.environment import EnvironmentType
-from db.test_db_manager import unit_test_db
 from core.dao.vendors.polygon_dao import PolygonDAO
-from shared.utils.environment import Environment
 
 
 def test_stock_splits_polygon_dao(unit_test_db):

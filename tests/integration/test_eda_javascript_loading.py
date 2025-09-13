@@ -4,12 +4,10 @@ Integration tests for EDA JavaScript dataset loading functionality.
 Tests the frontend JavaScript behavior and error handling.
 """
 
-import pytest
 import requests
 import time
 import sys
 import os
-import re
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 

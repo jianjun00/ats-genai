@@ -1,15 +1,10 @@
 import pytest
 import asyncio
-from datetime import datetime, date
-from db.test_db_manager import unit_test_db
+from datetime import date
 from shared.utils.environment import Environment, EnvironmentType
 
 from domains.market_data.services.eod.turbo_price_backfill import (
-    TurboPolygonFetcher,
-    TurboTiingoFetcher,
-    TurboDatabaseInserter,
-    process_polygon_symbols,
-    process_tiingo_symbols
+    TurboDatabaseInserter
 )
 
 

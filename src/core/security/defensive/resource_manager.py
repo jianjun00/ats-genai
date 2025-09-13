@@ -15,7 +15,6 @@ This module ensures system stability under high load and prevents resource exhau
 """
 
 import asyncio
-import contextlib
 import gc
 import logging
 import threading
@@ -44,10 +43,10 @@ except ImportError:
 import time
 import weakref
 from contextlib import contextmanager, asynccontextmanager
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Generator, List, Optional, Union, Callable
+from typing import Any, Dict, Generator, List, Optional, Callable
 
 # Handle AsyncGenerator import for different Python versions
 try:

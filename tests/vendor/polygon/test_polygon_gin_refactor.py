@@ -16,7 +16,7 @@ def test_polygon_adapter_default_config():
     gin.clear_config()
 
     # Import after clearing to avoid cached values
-    from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig, PolygonAdapter
+    from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig
 
     # Test default values (without gin)
     config = PolygonAdapterConfig()
@@ -68,7 +68,7 @@ def test_polygon_adapter_integration():
     gin.clear_config()
 
     # Import modules
-    from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig, PolygonAdapter
+    from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig
 
     # Test adapter uses configuration
     try:

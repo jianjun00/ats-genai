@@ -2,17 +2,14 @@
 Integration test to verify backtests actually generate portfolio files
 """
 
-import os
 import json
 import pytest
-import asyncio
 import tempfile
 from pathlib import Path
-from datetime import date, datetime
+from datetime import date
 import asyncpg
 
-from src.ml.evaluation.sr_backtester import SRBacktester, BacktestMetrics
-from shared.utils.environment import Environment
+from src.ml.evaluation.sr_backtester import SRBacktester
 
 class TestBacktestGeneratesPortfolioFiles:
     """Test that running actual backtests generates portfolio files"""

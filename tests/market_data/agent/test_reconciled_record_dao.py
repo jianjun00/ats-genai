@@ -1,10 +1,7 @@
 import pytest
-import asyncio
-import json
 from datetime import date
 from domains.market_data.services.agent.models import ReconciledRecord
 from domains.market_data.services.agent.reconciled_record_dao import ReconciledRecordDAO
-from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

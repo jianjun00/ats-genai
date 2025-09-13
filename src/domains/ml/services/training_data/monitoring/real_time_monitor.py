@@ -16,7 +16,6 @@ try:
     WEBSOCKETS_AVAILABLE = True
 except ImportError:
     WEBSOCKETS_AVAILABLE = False
-import threading
 from collections import deque
 import logging
 

@@ -10,8 +10,6 @@ Issues to detect:
 
 import pytest
 import tempfile
-import json
-import os
 from pathlib import Path
 from datetime import datetime, date
 from unittest.mock import patch, MagicMock

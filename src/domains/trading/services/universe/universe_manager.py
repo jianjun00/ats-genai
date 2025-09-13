@@ -26,8 +26,6 @@ class UniverseManager:
         return ['TSLA']  # Hardcode TSLA for training data generation
     def initialize(self):
         """Initialize the universe manager."""
-        pass
 
     def cleanup(self):
         """Clean up resources."""
-        pass

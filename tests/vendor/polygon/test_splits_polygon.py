@@ -2,7 +2,6 @@ import pytest
 import asyncpg
 from secmaster import splits_polygon
 
-from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

@@ -10,10 +10,8 @@ Tests end-to-end functionality including:
 
 import pytest
 import asyncio
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import List
-from unittest.mock import Mock, AsyncMock
 
 from domains.market_data.services.interfaces.market_data_service_interface import (
     MarketDataServiceInterface,
@@ -23,7 +21,6 @@ from domains.market_data.services.interfaces.market_data_service_interface impor
     PriceAnalysisResult,
     MarketDataOperationResult
 )
-from domains.market_data.services.config.market_data_service_container import get_market_data_service
 from core.platform.config.environment import Environment, EnvironmentType
 
 
@@ -165,9 +162,7 @@ class TestMarketDataServiceArchitecture:
     def test_service_container_integration(self):
         """Test service container integrates correctly"""
         from domains.market_data.services.config.market_data_service_container import (
-            MarketDataServiceContainer,
-            get_market_data_service_container,
-            get_market_data_service
+            MarketDataServiceContainer
         )
         from unittest.mock import Mock
         

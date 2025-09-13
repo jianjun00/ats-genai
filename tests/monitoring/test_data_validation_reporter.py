@@ -5,9 +5,7 @@ Tests data quality validation, anomaly detection, and Slack reporting.
 """
 
 import pytest
-import asyncio
-import asyncpg
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from unittest.mock import Mock, patch, AsyncMock
 import json
 
@@ -15,7 +13,6 @@ from src.monitoring.data_validation_reporter import (
     DataValidationReporter,
     ValidationIssue,
     ValidationReport,
-    StockInfo,
     run_daily_validation_report
 )
 

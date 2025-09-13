@@ -1,19 +1,10 @@
 import os
-import sys
-import tempfile
-import pytest
 import pandas as pd
 from unittest.mock import patch
-from datetime import date
-import asyncio
-
-import importlib.util
-
-from tests.fixtures.insert_test_daily_prices import insert_test_daily_prices
 
 
-import pytest_asyncio
-from tests.fixtures.setup_test_universe_data import setup_test_universe_data
+
+
 
 
 def test_indicator_runner_df(unit_test_db, setup_test_universe_data):
@@ -51,7 +42,6 @@ def test_indicator_runner_df(unit_test_db, setup_test_universe_data):
     # Parse output as DataFrame (skip header lines)
     import io
     import contextlib
-    import numpy as np
     # Extract the DataFrame part of the output
     df_lines = []
     in_table = False

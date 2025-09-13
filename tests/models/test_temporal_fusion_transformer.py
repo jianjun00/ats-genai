@@ -8,10 +8,6 @@ training tests, and integration tests with sentiment features.
 import pytest
 import torch
 import torch.nn as nn
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
 
 from models.temporal_fusion_transformer import (
     TFTConfig,

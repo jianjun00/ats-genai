@@ -1,9 +1,7 @@
 import pytest
 import asyncio
-import json
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, date
-from aiohttp import ClientResponse, ClientSession
 import aioresponses
 
 from domains.market_data.services.eod.turbo_price_backfill import (
@@ -452,7 +450,6 @@ class TestTurboBackfillIntegration:
 
     def test_data_transformation_accuracy(self):
         """Test that data transformation from API response to database format is accurate."""
-        from domains.market_data.services.eod.turbo_price_backfill import TurboPolygonFetcher
 
         # Test timestamp conversion for Polygon
         sample_item = {

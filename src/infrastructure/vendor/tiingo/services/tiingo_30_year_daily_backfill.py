@@ -15,21 +15,19 @@ import asyncio
 import asyncpg
 import requests
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import time
-import json
 import argparse
 
 # Prometheus metrics support
 try:
-    from prometheus_client import Counter, Gauge, Histogram, push_to_gateway
+    from prometheus_client import Counter, Gauge, Histogram
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
     logging.warning("prometheus_client not installed. Metrics will not be pushed to Prometheus.")
 
 from shared.utils.vendor_api_keys import get_tiingo_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 
 # Configure logging

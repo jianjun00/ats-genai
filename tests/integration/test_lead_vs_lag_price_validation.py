@@ -15,7 +15,7 @@ CRITICAL ISSUE BEING TESTED:
 import pytest
 import pandas as pd
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock
 import numpy as np
 
 from state.universe_state_manager import UniverseStateManager
