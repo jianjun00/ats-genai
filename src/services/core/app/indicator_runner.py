@@ -13,10 +13,10 @@ print('[DEBUG_IMPORT] imported asyncio (again)')
 print('[DEBUG_IMPORT] about to import pathlib')
 print('[DEBUG_IMPORT] imported pathlib')
 print('[DEBUG_IMPORT] about to import signals.indicator_config')
-from signals.indicator_config import IndicatorConfig
+from domains.trading.services.indicators.indicator_config import IndicatorConfig
 print('[DEBUG_IMPORT] imported signals.indicator_config')
 print('[DEBUG_IMPORT] about to import signals.indicator')
-from signals.indicator import EnvelopeTop, EnvelopeBot, PL
+from domains.trading.services.indicators.indicator import EnvelopeTop, EnvelopeBot, PL
 print('[DEBUG_IMPORT] imported signals.indicator')
 print('[DEBUG_IMPORT] about to import datetime/date/timedelta')
 print('[DEBUG_IMPORT] imported datetime/date/timedelta')
@@ -42,7 +42,7 @@ def parse_args():
 
 import gin
 
-from app.runner import Runner
+from services.core.app.runner import Runner
 
 @gin.configurable
 class IndicatorRunner(Runner):

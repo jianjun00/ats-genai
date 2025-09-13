@@ -1,124 +1,91 @@
 version: '3.8'
 
+networks:
+  ats-monitoring:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
 services:
-  # Prometheus
   prometheus:
     image: prom/prometheus:latest
     container_name: ats-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./config/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
-      - /mnt/d/ats-data/prometheus:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
       - '--web.enable-admin-api'
     restart: unless-stopped
+    expose:
+      - 9090
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./grafana/ats_coverage_alerts.yml:/etc/prometheus/ats_coverage_alerts.yml
+      - prometheus_data:/prometheus
     networks:
-      - ats-network
+      - ats-monitoring
 
-  # Grafana
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana-oss:latest
     container_name: ats-grafana
-    ports:
-      - "3001:3000"
-    volumes:
-      - /mnt/d/ats-data/grafana:/var/lib/grafana
-      - ./config/grafana:/etc/grafana/provisioning
+    restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=ats_admin_2024
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
-    restart: unless-stopped
-    networks:
-      - ats-network
-
-  # Grafana Integration Environment
-  grafana-intg:
-    image: grafana/grafana:10.0.0
-    container_name: ats-grafana-intg
+    expose:
+      - 3000
     ports:
-      - "4002:3000"
+      - "3000:3000"
     volumes:
-      - /mnt/d/ats-data/grafana-intg:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
-      - GF_USERS_ALLOW_SIGN_UP=false
-    restart: unless-stopped
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/ats-coverage-dashboard.json:/etc/grafana/provisioning/dashboards/ats-coverage-dashboard.json
     networks:
-      - ats-network
+      - ats-monitoring
+    depends_on:
+      - prometheus
 
-  # AlertManager
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: ats-alertmanager
-    ports:
-      - "9093:9093"
-    volumes:
-      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - /mnt/d/ats-data/alertmanager:/alertmanager
-    restart: unless-stopped
-    networks:
-      - ats-network
-
-  # Node Exporter
   node-exporter:
     image: prom/node-exporter:latest
     container_name: ats-node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - 9100
     ports:
       - "9100:9100"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    restart: unless-stopped
     networks:
-      - ats-network
+      - ats-monitoring
 
-  # Prometheus Metrics for Integration Environment
-  prometheus-metrics-intg:
-    image: dragonflyer762/ats-genai:latest
-    container_name: ats-intg-prometheus-metrics
-    environment:
-      - ENVIRONMENT=intg
-      - DB_HOST=postgres-intg
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=intg_password
-      - DB_NAME=intg_db
-      - ATS_DATA_PATH=/data
-      - ATS_LOGS_PATH=/logs
-      - PYTHONPATH=/workspace/src
-    volumes:
-      - .:/workspace
-      - /mnt/d/ats-data:/data
-      - /mnt/d/ats-logs:/logs
-    working_dir: /workspace
-    command: python3 /workspace/scripts/prometheus_metrics_server.py --environment intg --port 8080
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: ats-alertmanager
     restart: unless-stopped
+    expose:
+      - 9093
     ports:
-      - "4080:8080"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - "9093:9093"
+    volumes:
+      - ./grafana/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
     networks:
-      - ats-network
-
-networks:
-  ats-network:
-    driver: bridge
-    name: ats-network
+      - ats-monitoring

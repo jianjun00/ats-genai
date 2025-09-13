@@ -20,7 +20,9 @@ from datetime import datetime
 # Add src and scripts to path
 sys.path.insert(0, '/workspace/src')
 sys.path.append('/workspace/scripts')
+sys.path.append(str(Path(__file__).parent.parent.parent / "scripts"))
 
+from pathlib import Path
 from api_status_tracker import APIStatusTracker, initialize_global_tracker, get_global_tracker
 import logging
 

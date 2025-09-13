@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from typing import List, Dict, Optional
-from domains.market_data.services.market_data_manager import MarketDataManager
+from domains.market_data.services.core.market_data_manager import MarketDataManager
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 
 class BaseDailyPriceMarketDataManager(MarketDataManager, ABC):
