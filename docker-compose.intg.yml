@@ -53,7 +53,7 @@ services:
       - /mnt/d/ats-backup:/backup
       - /mnt/d/ats-logs:/logs
     working_dir: /workspace
-    command: python3 -m core.analytics.service intg
+    command: python3 src/services/analytics_service.py
     depends_on:
       postgres-intg:
         condition: service_healthy
