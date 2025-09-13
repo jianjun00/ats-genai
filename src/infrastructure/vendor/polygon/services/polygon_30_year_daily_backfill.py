@@ -20,7 +20,7 @@ import time
 import argparse
 
 from shared.utils.vendor_api_keys import get_polygon_api_key
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters, get_vendor_database_connection, get_vendor_table_name
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -62,53 +62,12 @@ class Polygon30YearBackfiller:
         logger.info(f"   Rate limit: {60/self.rate_limiter.delay_seconds:.1f} requests/minute")
 
     async def get_database_connection(self):
-        """Get database connection (Docker-compatible)."""
-        # Auto-detect environment based on available databases
-        env = os.getenv('ENV_TYPE', 'intg').lower()
-
-        if env == 'intg':
-            # Try Docker first, fallback to localhost
-            try:
-                return await asyncpg.connect(
-                    host='ats-intg-postgres',  # INTG PostgreSQL container name
-                    port=5432,                 # Internal Docker port
-                    user='postgres',
-                    password='intg_password',
-                    database='intg_db'
-                )
-            except Exception:
-                # Fallback to localhost for running outside Docker
-                return await asyncpg.connect(
-                    host='localhost',
-                    port=4432,                 # External port for INTG
-                    user='postgres',
-                    password='intg_password',
-                    database='intg_db'
-                )
-        else:
-            # Try Docker first, fallback to localhost
-            try:
-                return await asyncpg.connect(
-                    host='ats-dev-postgres',   # DEV PostgreSQL container name
-                    port=5432,                 # Internal Docker port
-                    user='postgres',
-                    password='dev_password',
-                    database='dev_db'
-                )
-            except Exception:
-                # Fallback to localhost for running outside Docker
-                return await asyncpg.connect(
-                    host='localhost',
-                    port=5432,                 # External port for DEV
-                    user='postgres',
-                    password='dev_password',
-                    database='dev_db'
-                )
+        """Get database connection using shared utility."""
+        return await get_vendor_database_connection()
 
     async def ensure_table_exists(self, conn):
         """Ensure Polygon daily table exists - using existing table structure."""
-        env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_price_polygon' if env == 'intg' else 'dev_daily_price_polygon'
+        table_name = get_vendor_table_name('daily_price', 'polygon')
 
         try:
             # Check if table already exists (it should for intg environment)
@@ -249,8 +208,7 @@ class Polygon30YearBackfiller:
             return 0
 
         # Insert with idempotent UPSERT
-        env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_price_polygon' if env == 'intg' else 'dev_daily_price_polygon'
+        table_name = get_vendor_table_name('daily_price', 'polygon')
 
         try:
             result = await conn.executemany(f"""
