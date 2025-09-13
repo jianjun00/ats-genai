@@ -165,7 +165,7 @@ class TestNewsDataAnalyzer:
         # Verify correct query
         mock_db_connection.fetchval.assert_called_with(
             """
-                SELECT COUNT(*) FROM dev_instruments WHERE active = true
+                SELECT COUNT(*) FROM dev_instrument WHERE active = true
             """
         )
 

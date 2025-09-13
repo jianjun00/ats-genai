@@ -28,7 +28,7 @@ class InstrumentXrefDAO(BaseDAO):
             "table_name": self.table_name,
             "columns": {
                 "id": {"type": "SERIAL", "primary_key": True},
-                "instrument_id": {"type": "INTEGER", "foreign_key": "dev_instruments(id)", "not_null": True},
+                "instrument_id": {"type": "INTEGER", "foreign_key": "dev_instrument(id)", "not_null": True},
                 "vendor_id": {"type": "INTEGER", "foreign_key": "vendors(vendor_id)", "not_null": True},
                 "external_symbol": {"type": "VARCHAR(50)", "not_null": True},
                 "start_date": {"type": "DATE", "not_null": True},
@@ -142,7 +142,7 @@ class InstrumentXrefDAO(BaseDAO):
         query = f"""
         SELECT ix.*, i.symbol, v.vendor_name
         FROM {self.table_name} ix
-        JOIN dev_instruments i ON ix.instrument_id = i.id
+        JOIN dev_instrument i ON ix.instrument_id = i.id
         JOIN vendors v ON ix.vendor_id = v.vendor_id
         ORDER BY i.symbol, ix.start_date
         """
@@ -295,7 +295,7 @@ class InstrumentXrefDAO(BaseDAO):
                 ix.start_date,
                 ix.end_date
             FROM {self.table_name} ix
-            JOIN dev_instruments i ON ix.instrument_id = i.id
+            JOIN dev_instrument i ON ix.instrument_id = i.id
             WHERE ix.vendor_id = %(exchange_vendor_id)s
               AND ix.external_symbol = %(exchange_code)s
               AND ix.start_date <= %(as_of_date)s

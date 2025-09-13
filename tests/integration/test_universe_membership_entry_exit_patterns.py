@@ -41,7 +41,7 @@ class TestUniverseMembershipEntryExitPatterns:
                         SELECT
                             date,
                             close * volume as dollar_volume
-                        FROM intg_daily_prices_polygon
+                        FROM intg_daily_price_polygon
                         WHERE symbol = 'SMCI'
                         AND date BETWEEN %s AND %s
                         ORDER BY date
@@ -98,7 +98,7 @@ class TestUniverseMembershipEntryExitPatterns:
                     SELECT
                         symbol,
                         AVG(close * volume) as avg_volume_2020_q4
-                    FROM intg_daily_prices_polygon
+                    FROM intg_daily_price_polygon
                     WHERE symbol = 'MSTR'
                     AND date BETWEEN '2020-10-01' AND '2020-12-31'
                     GROUP BY symbol
@@ -136,7 +136,7 @@ class TestUniverseMembershipEntryExitPatterns:
                             %s as period,
                             AVG(close * volume) as avg_volume,
                             COUNT(*) as trading_days
-                        FROM intg_daily_prices_polygon
+                        FROM intg_daily_price_polygon
                         WHERE symbol = 'PTON'
                         AND date BETWEEN %s AND %s
                     """, (period_name, start_date, end_date))
@@ -173,7 +173,7 @@ class TestUniverseMembershipEntryExitPatterns:
                         SELECT
                             date,
                             close * volume as dollar_volume
-                        FROM intg_daily_prices_polygon
+                        FROM intg_daily_price_polygon
                         WHERE symbol = 'BYND'
                         AND date BETWEEN '2022-07-01' AND '2022-08-31'
                         ORDER BY date
@@ -236,7 +236,7 @@ class TestUniverseMembershipEntryExitPatterns:
                         AVG(close * volume) as avg_volume,
                         MIN(date) as first_date,
                         MAX(date) as last_date
-                    FROM intg_daily_prices_polygon
+                    FROM intg_daily_price_polygon
                     WHERE symbol = 'ARKB'
                     AND date >= '2024-01-01'
                 """)
@@ -283,7 +283,7 @@ class TestUniverseMembershipEntryExitPatterns:
                         SELECT
                             %s as period,
                             AVG(close * volume) as avg_volume
-                        FROM intg_daily_prices_polygon
+                        FROM intg_daily_price_polygon
                         WHERE symbol = 'NVDA'
                         AND date BETWEEN %s AND %s
                     """, (period_name, start_date, end_date))

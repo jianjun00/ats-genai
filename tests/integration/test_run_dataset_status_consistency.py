@@ -47,13 +47,13 @@ class TestRunDatasetStatusConsistency:
     async def clean_test_data(self, db_connection):
         """Clean up test data before and after tests."""
         # Clean up any existing test data
-        await db_connection.execute("DELETE FROM dev_training_datasets WHERE dataset_name LIKE 'test_%'")
+        await db_connection.execute("DELETE FROM dev_training_dataset WHERE dataset_name LIKE 'test_%'")
         await db_connection.execute("DELETE FROM dev_runs WHERE run_type LIKE 'test_%'")
 
         yield
 
         # Clean up after test
-        await db_connection.execute("DELETE FROM dev_training_datasets WHERE dataset_name LIKE 'test_%'")
+        await db_connection.execute("DELETE FROM dev_training_dataset WHERE dataset_name LIKE 'test_%'")
         await db_connection.execute("DELETE FROM dev_runs WHERE run_type LIKE 'test_%'")
 
     # ============================================================================
@@ -74,7 +74,7 @@ class TestRunDatasetStatusConsistency:
 
         # 2. Create corresponding dataset in 'generating' status (normal flow)
         dataset_id = await db_connection.fetchval("""
-            INSERT INTO dev_training_datasets (dataset_name, run_id, status, total_sequences)
+            INSERT INTO dev_training_dataset (dataset_name, run_id, status, total_sequences)
             VALUES ('test_dataset_failure_sync', $1, 'generating', 100)
             RETURNING id
         """, run_id)
@@ -87,7 +87,7 @@ class TestRunDatasetStatusConsistency:
         # 4. THE BUG: Dataset should be updated but it's not!
         # Check current state (should show the bug)
         dataset_status = await db_connection.fetchval("""
-            SELECT status FROM dev_training_datasets WHERE id = $1
+            SELECT status FROM dev_training_dataset WHERE id = $1
         """, dataset_id)
 
         run_status = await db_connection.fetchval("""
@@ -116,7 +116,7 @@ class TestRunDatasetStatusConsistency:
         """)
 
         dataset_id = await db_connection.fetchval("""
-            INSERT INTO dev_training_datasets (dataset_name, run_id, status, total_sequences)
+            INSERT INTO dev_training_dataset (dataset_name, run_id, status, total_sequences)
             VALUES ('test_dataset_completion_sync', $1, 'generating', 100)
             RETURNING id
         """, run_id)
@@ -128,7 +128,7 @@ class TestRunDatasetStatusConsistency:
 
         # Check if dataset status syncs
         dataset_status = await db_connection.fetchval("""
-            SELECT status FROM dev_training_datasets WHERE id = $1
+            SELECT status FROM dev_training_dataset WHERE id = $1
         """, dataset_id)
 
         # This should pass once we implement sync mechanism
@@ -145,7 +145,7 @@ class TestRunDatasetStatusConsistency:
         """
         # Create orphaned dataset (NULL run_id)
         orphan_dataset_id = await db_connection.fetchval("""
-            INSERT INTO dev_training_datasets (dataset_name, run_id, status, total_sequences)
+            INSERT INTO dev_training_dataset (dataset_name, run_id, status, total_sequences)
             VALUES ('test_orphaned_dataset', NULL, 'generating', 100)
             RETURNING id
         """)
@@ -153,7 +153,7 @@ class TestRunDatasetStatusConsistency:
         # Detect orphaned datasets
         orphaned_datasets = await db_connection.fetch("""
             SELECT id, dataset_name, status
-            FROM dev_training_datasets
+            FROM dev_training_dataset
             WHERE run_id IS NULL AND status = 'generating'
         """)
 
@@ -175,7 +175,7 @@ class TestRunDatasetStatusConsistency:
         orphaned_runs = await db_connection.fetch("""
             SELECT r.id, r.run_type, r.status
             FROM dev_runs r
-            LEFT JOIN dev_training_datasets d ON d.run_id = r.id
+            LEFT JOIN dev_training_dataset d ON d.run_id = r.id
             WHERE r.run_type = 'training_data_generation'
             AND d.id IS NULL
             AND r.id = $1
@@ -203,7 +203,7 @@ class TestRunDatasetStatusConsistency:
         """)
 
         failed_dataset_id = await db_connection.fetchval("""
-            INSERT INTO dev_training_datasets (dataset_name, run_id, status, total_sequences)
+            INSERT INTO dev_training_dataset (dataset_name, run_id, status, total_sequences)
             VALUES ('test_failed_run_generating_dataset', $1, 'generating', 100)
             RETURNING id
         """, failed_run_id)
@@ -216,14 +216,14 @@ class TestRunDatasetStatusConsistency:
         """)
 
         completed_dataset_id = await db_connection.fetchval("""
-            INSERT INTO dev_training_datasets (dataset_name, run_id, status, total_sequences)
+            INSERT INTO dev_training_dataset (dataset_name, run_id, status, total_sequences)
             VALUES ('test_completed_run_generating_dataset', $1, 'generating', 100)
             RETURNING id
         """, completed_run_id)
 
         # Scenario 3: Orphaned dataset
         orphan_dataset_id = await db_connection.fetchval("""
-            INSERT INTO dev_training_datasets (dataset_name, run_id, status, total_sequences)
+            INSERT INTO dev_training_dataset (dataset_name, run_id, status, total_sequences)
             VALUES ('test_orphaned_dataset_check', NULL, 'generating', 100)
             RETURNING id
         """)
@@ -256,7 +256,7 @@ class TestRunDatasetStatusConsistency:
                 d.status as dataset_status,
                 d.dataset_name
             FROM dev_runs r
-            JOIN dev_training_datasets d ON d.run_id = r.id
+            JOIN dev_training_dataset d ON d.run_id = r.id
             WHERE r.status = 'failed'
             AND d.status = 'generating'
             AND r.run_type LIKE '%training_data%'
@@ -281,7 +281,7 @@ class TestRunDatasetStatusConsistency:
                 d.status as dataset_status,
                 d.dataset_name
             FROM dev_runs r
-            JOIN dev_training_datasets d ON d.run_id = r.id
+            JOIN dev_training_dataset d ON d.run_id = r.id
             WHERE r.status = 'completed'
             AND d.status = 'generating'
             AND r.run_type LIKE '%training_data%'
@@ -298,7 +298,7 @@ class TestRunDatasetStatusConsistency:
         # Check 3: Orphaned datasets
         orphaned_datasets = await db_connection.fetch("""
             SELECT id, dataset_name, status
-            FROM dev_training_datasets
+            FROM dev_training_dataset
             WHERE run_id IS NULL
             AND status = 'generating'
         """)
@@ -330,7 +330,7 @@ class TestRunDatasetStatusConsistency:
         """)
 
         dataset_id = await db_connection.fetchval("""
-            INSERT INTO dev_training_datasets (dataset_name, run_id, status, total_sequences)
+            INSERT INTO dev_training_dataset (dataset_name, run_id, status, total_sequences)
             VALUES ('test_race_condition', $1, 'generating', 100)
             RETURNING id
         """, run_id)
@@ -345,7 +345,7 @@ class TestRunDatasetStatusConsistency:
         async def update_dataset_status():
             await asyncio.sleep(0.05)  # Slightly different delay
             await db_connection.execute("""
-                UPDATE dev_training_datasets SET status = 'completed' WHERE id = $1
+                UPDATE dev_training_dataset SET status = 'completed' WHERE id = $1
             """, dataset_id)
 
         # Run concurrently
@@ -359,7 +359,7 @@ class TestRunDatasetStatusConsistency:
             "SELECT status FROM dev_runs WHERE id = $1", run_id
         )
         final_dataset_status = await db_connection.fetchval(
-            "SELECT status FROM dev_training_datasets WHERE id = $1", dataset_id
+            "SELECT status FROM dev_training_dataset WHERE id = $1", dataset_id
         )
 
         # This test will likely reveal inconsistencies
@@ -472,15 +472,15 @@ def _generate_fix_suggestions(inconsistencies: List[Dict[str, Any]]) -> List[str
     for inc in inconsistencies:
         if inc['type'] == 'failed_run_generating_dataset':
             fixes.append(
-                f"UPDATE dev_training_datasets SET status = 'failed' WHERE id = {inc['dataset_id']};"
+                f"UPDATE dev_training_dataset SET status = 'failed' WHERE id = {inc['dataset_id']};"
             )
         elif inc['type'] == 'orphaned_dataset':
             fixes.append(
-                f"UPDATE dev_training_datasets SET status = 'failed' WHERE id = {inc['dataset_id']};"
+                f"UPDATE dev_training_dataset SET status = 'failed' WHERE id = {inc['dataset_id']};"
             )
         elif inc['type'] == 'completed_run_generating_dataset':
             fixes.append(
-                f"UPDATE dev_training_datasets SET status = 'completed' WHERE id = {inc['dataset_id']};"
+                f"UPDATE dev_training_dataset SET status = 'completed' WHERE id = {inc['dataset_id']};"
             )
 
     return fixes

@@ -104,9 +104,9 @@ class TestMigrationDecisionTree:
             cur = conn.cursor()
 
             # Clear all INTG tables
-            cur.execute("DELETE FROM intg_daily_prices;")
-            cur.execute("DELETE FROM intg_fundamentals_comprehensive;")
-            cur.execute("DELETE FROM intg_instruments;")
+            cur.execute("DELETE FROM intg_daily_price;")
+            cur.execute("DELETE FROM intg_fundamental_comprehensive;")
+            cur.execute("DELETE FROM intg_instrument;")
 
             conn.commit()
             cur.close()
@@ -122,14 +122,14 @@ class TestMigrationDecisionTree:
 
             # Add test instrument
             cur.execute("""
-                INSERT INTO intg_instruments (symbol, name, exchange)
+                INSERT INTO intg_instrument (symbol, name, exchange)
                 VALUES ('TEST_MIGRATION', 'Test Migration Stock', 'NASDAQ')
                 ON CONFLICT (symbol) DO NOTHING;
             """)
 
             # Add test price data
             cur.execute("""
-                INSERT INTO intg_daily_prices (symbol, date, vendor, open_price, close_price, volume)
+                INSERT INTO intg_daily_price (symbol, date, vendor, open_price, close_price, volume)
                 VALUES ('TEST_MIGRATION', CURRENT_DATE - 1, 'test_vendor', 100.0, 105.0, 1000000)
                 ON CONFLICT (symbol, date, vendor) DO NOTHING;
             """)
@@ -277,7 +277,7 @@ class TestDatabaseMigrationConsistency:
             # Perform concurrent operations
             for i, cur in enumerate(cursors):
                 cur.execute(f"""
-                    INSERT INTO intg_instruments (symbol, name, exchange)
+                    INSERT INTO intg_instrument (symbol, name, exchange)
                     VALUES ('CONCURRENT_{i}', 'Concurrent Test {i}', 'TEST')
                     ON CONFLICT (symbol) DO NOTHING;
                 """)
@@ -285,13 +285,13 @@ class TestDatabaseMigrationConsistency:
 
             # Verify all inserts succeeded
             cur = cursors[0]
-            cur.execute("SELECT COUNT(*) FROM intg_instruments WHERE symbol LIKE 'CONCURRENT_%';")
+            cur.execute("SELECT COUNT(*) FROM intg_instrument WHERE symbol LIKE 'CONCURRENT_%';")
             count = cur.fetchone()[0]
             assert count == 3, f"Expected 3 concurrent inserts, got {count}"
 
             # Clean up test data
             for cur in cursors:
-                cur.execute("DELETE FROM intg_instruments WHERE symbol LIKE 'CONCURRENT_%';")
+                cur.execute("DELETE FROM intg_instrument WHERE symbol LIKE 'CONCURRENT_%';")
                 cur.connection.commit()
 
         finally:
@@ -384,7 +384,7 @@ class TestContainerRecoveryAndRestart:
 
         test_symbol = f'PERSIST_TEST_{int(time.time())}'
         cur.execute("""
-            INSERT INTO intg_instruments (symbol, name, exchange)
+            INSERT INTO intg_instrument (symbol, name, exchange)
             VALUES (%s, 'Persistence Test', 'TEST');
         """, (test_symbol,))
 
@@ -408,14 +408,14 @@ class TestContainerRecoveryAndRestart:
         })
         cur = conn.cursor()
 
-        cur.execute("SELECT name FROM intg_instruments WHERE symbol = %s;", (test_symbol,))
+        cur.execute("SELECT name FROM intg_instrument WHERE symbol = %s;", (test_symbol,))
         result = cur.fetchone()
 
         assert result is not None, f"Test data with symbol {test_symbol} was lost after container restart"
         assert result[0] == 'Persistence Test'
 
         # Clean up test data
-        cur.execute("DELETE FROM intg_instruments WHERE symbol = %s;", (test_symbol,))
+        cur.execute("DELETE FROM intg_instrument WHERE symbol = %s;", (test_symbol,))
         conn.commit()
         cur.close()
         conn.close()

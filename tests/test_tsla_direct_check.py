@@ -12,7 +12,7 @@ def test_tsla_direct():
     # Test the exact frontend request
     try:
         # This matches what the frontend requests for symbol columns
-        response = requests.get("http://localhost:4000/api/eda/datasets/intg_daily_prices_tiingo/columns/symbol/values?limit=1000", timeout=10)
+        response = requests.get("http://localhost:4000/api/eda/datasets/intg_daily_price_tiingo/columns/symbol/values?limit=1000", timeout=10)
         if response.status_code == 200:
             data = response.json()
             symbols = [v['value'] for v in data.get('values', [])]
@@ -49,7 +49,7 @@ def test_tsla_direct():
     # Additional test: Check if the priority query is working by looking at first 30
     print(f"\n🔍 Checking priority effectiveness...")
     try:
-        response = requests.get("http://localhost:4000/api/eda/datasets/intg_daily_prices_tiingo/columns/symbol/values?limit=30", timeout=10)
+        response = requests.get("http://localhost:4000/api/eda/datasets/intg_daily_price_tiingo/columns/symbol/values?limit=30", timeout=10)
         if response.status_code == 200:
             data = response.json()
             first_30 = [v['value'] for v in data.get('values', [])]

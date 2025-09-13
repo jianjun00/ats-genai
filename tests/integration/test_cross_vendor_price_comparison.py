@@ -101,7 +101,7 @@ class CrossVendorPriceComparator:
             async with pool.acquire() as conn:
                 # Get instrument ID
                 instrument_id = await conn.fetchval(
-                    "SELECT id FROM dev_instruments WHERE symbol = $1", symbol
+                    "SELECT id FROM dev_instrument WHERE symbol = $1", symbol
                 )
 
                 if not instrument_id:

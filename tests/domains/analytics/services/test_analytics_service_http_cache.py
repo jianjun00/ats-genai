@@ -258,7 +258,7 @@ class TestAnalyticsServiceRegressionPrevention(unittest.TestCase):
 
             # Should have common intg tables
             table_names = [d['name'] for d in data]
-            expected_tables = ['intg_instruments', 'intg_daily_prices']
+            expected_tables = ['intg_instrument', 'intg_daily_price']
 
             for expected_table in expected_tables:
                 if expected_table not in table_names:

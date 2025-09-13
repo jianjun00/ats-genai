@@ -63,8 +63,8 @@ class TestEDADatabaseFallbackSystem:
         expected_tables = [
             "dev_instrument_tiingo",
             "dev_instrument_polygon",
-            "dev_daily_prices_polygon",
-            "dev_daily_prices_tiingo",
+            "dev_daily_price_polygon",
+            "dev_daily_price_tiingo",
             "dev_instrument_eodhd"
         ]
 
@@ -105,7 +105,7 @@ class TestEDADatabaseFallbackSystem:
 
     def test_schema_endpoint_with_fallback_for_polygon_prices(self):
         """Test schema endpoint returns fallback schema for Polygon OHLCV data."""
-        dataset_name = "dev_daily_prices_polygon"
+        dataset_name = "dev_daily_price_polygon"
         response = requests.get(f"{self.base_url}/api/v1/datasets/{dataset_name}/schema",
                               timeout=self.timeout)
         assert response.status_code == 200
@@ -172,7 +172,7 @@ class TestEDADatabaseFallbackSystem:
 
     def test_fallback_schema_performance(self):
         """Test that fallback schema returns quickly for all key datasets."""
-        key_datasets = ["dev_instrument_tiingo", "dev_daily_prices_polygon", "dev_instrument_polygon"]
+        key_datasets = ["dev_instrument_tiingo", "dev_daily_price_polygon", "dev_instrument_polygon"]
 
         for dataset_name in key_datasets:
             start_time = time.time()
@@ -222,7 +222,7 @@ def test_fallback_system_regression():
         # Verify fallback data exists in the code
         assert "fallback" in content.lower(), "Service should implement fallback data system"
         assert "dev_instrument_tiingo" in content, "Should have Tiingo fallback data"
-        assert "dev_daily_prices_polygon" in content, "Should have Polygon fallback data"
+        assert "dev_daily_price_polygon" in content, "Should have Polygon fallback data"
         assert "market_cap" in content, "Should have realistic column definitions"
 
         # Verify row counts are realistic (not zero)

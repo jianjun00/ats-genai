@@ -60,7 +60,7 @@ class TestINTGJobMonitoring:
         table_names = [row['table_name'] for row in tables]
 
         # Should have basic tables
-        expected_tables = ['intg_instruments', 'intg_daily_prices', 'intg_fundamentals_comprehensive']
+        expected_tables = ['intg_instrument', 'intg_daily_price', 'intg_fundamental_comprehensive']
         for table in expected_tables:
             assert table in table_names, f"Missing required table: {table}"
 
@@ -69,7 +69,7 @@ class TestINTGJobMonitoring:
     async def test_daily_prices_job_status_empty(self, intg_db_connection):
         """Test daily prices job when no data exists"""
         # Check if table exists but is empty
-        count = await intg_db_connection.fetchval("SELECT COUNT(*) FROM intg_daily_prices")
+        count = await intg_db_connection.fetchval("SELECT COUNT(*) FROM intg_daily_price")
 
         # Should be empty initially
         assert count == 0, "Daily prices table should be empty initially"
@@ -77,7 +77,7 @@ class TestINTGJobMonitoring:
         # Test table structure has required columns
         columns = await intg_db_connection.fetch("""
             SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'intg_daily_prices'
+            WHERE table_name = 'intg_daily_price'
         """)
         column_names = [row['column_name'] for row in columns]
 
@@ -193,7 +193,7 @@ class TestINTGJobMonitoring:
         try:
             # Try to insert data with wrong schema (should fail)
             await intg_db_connection.execute("""
-                INSERT INTO intg_daily_prices (invalid_column) VALUES ('test')
+                INSERT INTO intg_daily_price (invalid_column) VALUES ('test')
             """)
             assert False, "Should have failed due to invalid column"
         except Exception as e:

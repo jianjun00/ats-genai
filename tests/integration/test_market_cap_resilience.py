@@ -63,7 +63,7 @@ class TestMarketCapResilience:
             unreasonable_caps = await conn.fetch("""
                 SELECT i.symbol, mc.market_cap, mc.shares_outstanding, mc.price_used
                 FROM dev_daily_market_cap mc
-                JOIN dev_instruments i ON mc.instrument_id = i.id
+                JOIN dev_instrument i ON mc.instrument_id = i.id
                 WHERE mc.market_cap < 1000000          -- Less than $1M
                    OR mc.market_cap > 10000000000000   -- More than $10T
                 ORDER BY mc.market_cap DESC
@@ -91,7 +91,7 @@ class TestMarketCapResilience:
                 SELECT i.symbol, mc.market_cap, mc.shares_outstanding, mc.price_used,
                        (mc.shares_outstanding * mc.price_used) as expected_market_cap
                 FROM dev_daily_market_cap mc
-                JOIN dev_instruments i ON mc.instrument_id = i.id
+                JOIN dev_instrument i ON mc.instrument_id = i.id
                 WHERE ABS(mc.market_cap - (mc.shares_outstanding * mc.price_used)) > 1000000
                 LIMIT 5
             """)
@@ -135,7 +135,7 @@ class TestMarketCapResilience:
             for threshold, display in thresholds:
                 count = await conn.fetchval("""
                     SELECT COUNT(DISTINCT i.symbol)
-                    FROM dev_instruments i
+                    FROM dev_instrument i
                     JOIN dev_daily_market_cap mc ON i.id = mc.instrument_id
                     WHERE mc.market_cap >= $1
                       AND mc.date >= CURRENT_DATE - INTERVAL '30 days'
@@ -227,7 +227,7 @@ class TestMarketCapResilience:
             orphaned_market_caps = await conn.fetchval("""
                 SELECT COUNT(*) FROM dev_daily_market_cap mc
                 WHERE NOT EXISTS (
-                    SELECT 1 FROM dev_instruments i WHERE i.id = mc.instrument_id
+                    SELECT 1 FROM dev_instrument i WHERE i.id = mc.instrument_id
                 )
             """)
             print(f"  • Orphaned market cap records: {orphaned_market_caps} (should be 0)")
@@ -286,7 +286,7 @@ class TestMarketCapPerformance:
 
             universe_count = await conn.fetchval("""
                 SELECT COUNT(DISTINCT i.symbol)
-                FROM dev_instruments i
+                FROM dev_instrument i
                 JOIN dev_daily_market_cap mc ON i.id = mc.instrument_id
                 WHERE mc.market_cap >= 400000000
                   AND mc.date >= CURRENT_DATE - INTERVAL '30 days'

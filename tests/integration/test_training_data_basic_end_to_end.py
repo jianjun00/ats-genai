@@ -235,7 +235,7 @@ async def test_database_tracking():
             # Check for training datasets
             datasets = await conn.fetch("""
                 SELECT id, dataset_name, symbols, status, created_at
-                FROM intg_training_datasets
+                FROM intg_training_dataset
                 WHERE created_at >= NOW() - INTERVAL '24 hours'
                 ORDER BY created_at DESC
                 LIMIT 5

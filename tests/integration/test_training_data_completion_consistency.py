@@ -85,7 +85,7 @@ class TestTrainingDataCompletionConsistency:
             r.start_time,
             r.end_time,
             r.run_type
-        FROM dev_training_datasets d
+        FROM dev_training_dataset d
         LEFT JOIN dev_runs r ON d.run_id = r.id
         WHERE d.status = 'generating'
         AND (r.status = 'completed' OR r.end_time IS NOT NULL)
@@ -132,7 +132,7 @@ class TestTrainingDataCompletionConsistency:
             metadata_file_path,
             status,
             total_sequences
-        FROM dev_training_datasets
+        FROM dev_training_dataset
         WHERE status = 'completed'
         AND id >= 40  -- Focus on recent datasets
         ORDER BY id DESC
@@ -180,7 +180,7 @@ class TestTrainingDataCompletionConsistency:
             r.end_time,
             r.status as run_status,
             EXTRACT(EPOCH FROM (NOW() - r.start_time))/3600 as hours_elapsed
-        FROM dev_training_datasets d
+        FROM dev_training_dataset d
         LEFT JOIN dev_runs r ON d.run_id = r.id
         WHERE d.status = 'generating'
         AND r.start_time < NOW() - INTERVAL '2 hours'  -- Generating for more than 2 hours
@@ -225,7 +225,7 @@ class TestTrainingDataCompletionConsistency:
             ARRAY_AGG(d.id) as dataset_ids,
             ARRAY_AGG(d.status) as dataset_statuses
         FROM dev_runs r
-        LEFT JOIN dev_training_datasets d ON d.run_id = r.id
+        LEFT JOIN dev_training_dataset d ON d.run_id = r.id
         WHERE r.run_type = 'training_data_generation'
         AND r.start_time > NOW() - INTERVAL '1 day'  -- Recent runs only
         GROUP BY r.id, r.run_type, r.status, r.start_time
@@ -281,7 +281,7 @@ class TestTrainingDataCompletionConsistency:
         # Get file paths from database
         file_paths_query = """
         SELECT features_file_path, labels_file_path, metadata_file_path
-        FROM dev_training_datasets
+        FROM dev_training_dataset
         WHERE id = $1
         """
 
@@ -367,7 +367,7 @@ class TestTrainingDataProcessIntegrity:
         try:
             # 1. Create a test dataset record in 'generating' status
             insert_query = """
-            INSERT INTO dev_training_datasets (
+            INSERT INTO dev_training_dataset (
                 dataset_name, status, total_sequences, symbols,
                 date_range_start, date_range_end, created_by
             ) VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -394,20 +394,20 @@ class TestTrainingDataProcessIntegrity:
                 # In real implementation, file creation and status update should be in same transaction
                 if test_file.exists():
                     await test_db_connection.execute(
-                        "UPDATE dev_training_datasets SET status = 'completed', features_file_path = $1 WHERE id = $2",
+                        "UPDATE dev_training_dataset SET status = 'completed', features_file_path = $1 WHERE id = $2",
                         str(test_file),
                         dataset_id
                     )
                 else:
                     # If file creation failed, mark as failed
                     await test_db_connection.execute(
-                        "UPDATE dev_training_datasets SET status = 'failed' WHERE id = $1",
+                        "UPDATE dev_training_dataset SET status = 'failed' WHERE id = $1",
                         dataset_id
                     )
 
             # 4. Verify consistency
             final_record = await test_db_connection.fetchrow(
-                "SELECT status, features_file_path FROM dev_training_datasets WHERE id = $1",
+                "SELECT status, features_file_path FROM dev_training_dataset WHERE id = $1",
                 dataset_id
             )
 
@@ -420,7 +420,7 @@ class TestTrainingDataProcessIntegrity:
             # Cleanup test data
             try:
                 await test_db_connection.execute(
-                    "DELETE FROM dev_training_datasets WHERE dataset_name = $1",
+                    "DELETE FROM dev_training_dataset WHERE dataset_name = $1",
                     test_dataset_name
                 )
             except Exception as e:
@@ -443,7 +443,7 @@ class TestTrainingDataProcessIntegrity:
             r.end_time,
             r.status as run_status,
             EXTRACT(EPOCH FROM (NOW() - COALESCE(r.end_time, r.start_time)))/3600 as hours_since_last_activity
-        FROM dev_training_datasets d
+        FROM dev_training_dataset d
         LEFT JOIN dev_runs r ON d.run_id = r.id
         WHERE d.status = 'generating'
         AND (

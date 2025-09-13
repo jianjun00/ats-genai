@@ -292,7 +292,7 @@ class TestEDAUnifiedMetadataSystem:
         # Test with very short timeout to force timeout condition
         try:
             response = requests.get(
-                f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/schema",
+                f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema",
                 timeout=0.1  # Very short timeout
             )
             # If it doesn't timeout, that's fine too
@@ -478,7 +478,7 @@ class TestPerformanceIssues:
         # This test documents the known issue with large tables
         BASE_URL = "http://localhost:3000"
 
-        large_tables = ["dev_daily_prices_tiingo", "dev_daily_prices_eodhd"]
+        large_tables = ["dev_daily_price_tiingo", "dev_daily_price_eodhd"]
 
         for table in large_tables:
             try:

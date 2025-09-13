@@ -65,7 +65,7 @@ class TestEDAColumnSelection:
 
     def test_schema_endpoint_polygon_prices(self):
         """Test schema endpoint for Polygon prices with OHLCV columns."""
-        dataset_name = "dev_daily_prices_polygon"
+        dataset_name = "dev_daily_price_polygon"
         response = requests.get(f"{self.base_url}/api/v1/datasets/{dataset_name}/schema", timeout=10)
         assert response.status_code == 200
 

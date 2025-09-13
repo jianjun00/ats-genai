@@ -29,9 +29,9 @@ async def test_symbol_filtering_comprehensive():
             # Select dataset
             print("\n🔧 Step 2: Selecting dataset...")
             dataset_select = page.locator("#dataset-select")
-            await dataset_select.select_option("intg_daily_prices_tiingo")
+            await dataset_select.select_option("intg_daily_price_tiingo")
             await page.wait_for_timeout(8000)
-            print("✅ Dataset 'intg_daily_prices_tiingo' selected")
+            print("✅ Dataset 'intg_daily_price_tiingo' selected")
 
             # Examine why symbol is categorical
             print("\n🔍 Step 3: Examining symbol column classification...")

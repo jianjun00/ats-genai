@@ -153,7 +153,7 @@ class TestSchemaEDAIntegration:
                 datasets = await conn.fetch("""
                     SELECT id, dataset_name, schema_hash, schema_json,
                            feature_metadata, created_at, file_paths
-                    FROM dev_training_datasets
+                    FROM dev_training_dataset
                     WHERE schema_hash IS NOT NULL
                     ORDER BY created_at DESC
                 """)

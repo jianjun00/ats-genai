@@ -72,8 +72,8 @@ class TestDatabaseSchemaValidation:
             "dev_training_dataset table not found. Check migration state or table name."
 
         # Verify it's not the plural form we incorrectly assumed
-        assert 'dev_training_datasets' not in actual_schema, \
-            "Code incorrectly references non-existent 'dev_training_datasets' table"
+        assert 'dev_training_dataset' not in actual_schema, \
+            "Code incorrectly references non-existent 'dev_training_dataset' table"
 
     @pytest.mark.asyncio
 
@@ -377,8 +377,8 @@ class TestContinuousIntegrationChecks:
             code = f.read()
 
         # Should not have hardcoded incorrect table names
-        assert 'dev_training_datasets' not in code, \
-            "Code should not reference incorrect table name 'dev_training_datasets'"
+        assert 'dev_training_dataset' not in code, \
+            "Code should not reference incorrect table name 'dev_training_dataset'"
 
         # Should reference correct table name
         assert 'dev_training_dataset' in code, \

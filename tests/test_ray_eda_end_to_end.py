@@ -51,21 +51,21 @@ class TestRayEDAEndToEnd:
         assert len(large_datasets) >= 2, "Should have at least Tiingo and EODHD daily price datasets"
 
         # Verify expected large dataset is present
-        tiingo_dataset = next((d for d in datasets if d['name'] == 'dev_daily_prices_tiingo'), None)
-        assert tiingo_dataset is not None, "dev_daily_prices_tiingo dataset not found"
+        tiingo_dataset = next((d for d in datasets if d['name'] == 'dev_daily_price_tiingo'), None)
+        assert tiingo_dataset is not None, "dev_daily_price_tiingo dataset not found"
         assert tiingo_dataset['row_count'] > 1000000, "Tiingo dataset should have millions of records"
 
         print(f"✅ Found {len(datasets)} datasets, including large ones requiring Ray")
 
     def test_03_schema_endpoint(self):
         """Test 3: Schema endpoint returns correct column information"""
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/schema")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema")
         assert response.status_code == 200
 
         schema = response.json()
         assert 'table_name' in schema
         assert 'columns' in schema
-        assert schema['table_name'] == 'dev_daily_prices_tiingo'
+        assert schema['table_name'] == 'dev_daily_price_tiingo'
 
         columns = schema['columns']
         assert len(columns) > 0
@@ -83,7 +83,7 @@ class TestRayEDAEndToEnd:
         """Test 4: Column values endpoint uses Ray for large datasets"""
         # Test numeric column
         start_time = time.time()
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/volume/values?limit=10")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/volume/values?limit=10")
         end_time = time.time()
 
         assert response.status_code == 200
@@ -102,7 +102,7 @@ class TestRayEDAEndToEnd:
 
         # Test categorical column
         start_time = time.time()
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/symbol/values?limit=10")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/symbol/values?limit=10")
         end_time = time.time()
 
         assert response.status_code == 200
@@ -120,7 +120,7 @@ class TestRayEDAEndToEnd:
     def test_05_analyze_endpoint_functional(self):
         """Test 5: Analyze endpoint works correctly (currently broken)"""
         payload = {
-            "dataset_name": "dev_daily_prices_tiingo",
+            "dataset_name": "dev_daily_price_tiingo",
             "column": "volume",
             "filters": {}
         }
@@ -166,8 +166,8 @@ class TestRayEDAEndToEnd:
     def test_07_multiple_large_datasets(self):
         """Test 7: Multiple large datasets can be processed"""
         large_datasets = [
-            'dev_daily_prices_tiingo',    # 3.6GB
-            'dev_daily_prices_eodhd',     # 4.4GB
+            'dev_daily_price_tiingo',    # 3.6GB
+            'dev_daily_price_eodhd',     # 4.4GB
         ]
 
         results = []
@@ -216,7 +216,7 @@ class TestRayEDAEndToEnd:
     def test_09_ray_performance_benchmark(self):
         """Test 9: Ray performance meets requirements"""
         # Test on largest available dataset
-        large_dataset = 'dev_daily_prices_eodhd'  # 4.4GB
+        large_dataset = 'dev_daily_price_eodhd'  # 4.4GB
 
         start_time = time.time()
         response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{large_dataset}/columns/high/values?limit=15")
@@ -245,11 +245,11 @@ class TestRayEDAEndToEnd:
         datasets = response.json()
 
         # Step 2: Select large dataset
-        tiingo_dataset = next((d for d in datasets if d['name'] == 'dev_daily_prices_tiingo'), None)
+        tiingo_dataset = next((d for d in datasets if d['name'] == 'dev_daily_price_tiingo'), None)
         assert tiingo_dataset is not None
 
         # Step 3: Get schema
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/schema")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema")
         assert response.status_code == 200
         schema = response.json()
 
@@ -258,7 +258,7 @@ class TestRayEDAEndToEnd:
         assert len(numeric_columns) > 0, "Should have numeric columns"
 
         test_column = numeric_columns[0]['name']  # Use first numeric column
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/{test_column}/values?limit=5")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/{test_column}/values?limit=5")
         assert response.status_code == 200
 
         column_data = response.json()

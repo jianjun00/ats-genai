@@ -36,7 +36,7 @@ class TestRayEDACoverage:
     def test_02_database_connectivity(self):
         """Test: Database connectivity works outside container"""
         result = subprocess.run(
-            ['python3', 'scripts/run_dev.py', 'query', '--query', 'SELECT COUNT(*) FROM dev_daily_prices_tiingo'],
+            ['python3', 'scripts/run_dev.py', 'query', '--query', 'SELECT COUNT(*) FROM dev_daily_price_tiingo'],
             capture_output=True, text=True, timeout=self.TIMEOUT
         )
         assert result.returncode == 0
@@ -57,13 +57,13 @@ class TestRayEDACoverage:
 
     def test_04_schema_endpoint(self):
         """Test: Schema endpoint returns correct structure"""
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/schema", timeout=self.TIMEOUT)
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema", timeout=self.TIMEOUT)
         assert response.status_code == 200
 
         schema = response.json()
         assert 'table_name' in schema
         assert 'columns' in schema
-        assert schema['table_name'] == 'dev_daily_prices_tiingo'
+        assert schema['table_name'] == 'dev_daily_price_tiingo'
 
         columns = schema['columns']
         assert len(columns) > 0
@@ -78,7 +78,7 @@ class TestRayEDACoverage:
         """Test: Column values endpoint performance on large dataset"""
         start_time = time.time()
         response = requests.get(
-            f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/symbol/values?limit=10",
+            f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/symbol/values?limit=10",
             timeout=self.TIMEOUT
         )
         end_time = time.time()
@@ -99,7 +99,7 @@ class TestRayEDACoverage:
     def test_06_numeric_column_analysis(self):
         """Test: Numeric column values work correctly"""
         response = requests.get(
-            f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/volume/values?limit=5",
+            f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/volume/values?limit=5",
             timeout=self.TIMEOUT
         )
         assert response.status_code == 200
@@ -111,7 +111,7 @@ class TestRayEDACoverage:
     def test_07_categorical_column_analysis(self):
         """Test: Categorical column values work correctly"""
         response = requests.get(
-            f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/symbol/values?limit=5",
+            f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/symbol/values?limit=5",
             timeout=self.TIMEOUT
         )
         assert response.status_code == 200
@@ -122,7 +122,7 @@ class TestRayEDACoverage:
     def test_08_analyze_endpoint_exists(self):
         """Test: Analyze endpoint exists and responds (may have errors)"""
         payload = {
-            "dataset_name": "dev_daily_prices_tiingo",
+            "dataset_name": "dev_daily_price_tiingo",
             "column": "symbol",
             "filters": {}
         }
@@ -141,7 +141,7 @@ class TestRayEDACoverage:
 
     def test_09_multiple_dataset_support(self):
         """Test: System can handle multiple large datasets"""
-        datasets = ['dev_daily_prices_tiingo', 'dev_daily_prices_eodhd']
+        datasets = ['dev_daily_price_tiingo', 'dev_daily_price_eodhd']
 
         for dataset in datasets:
             response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{dataset}/schema", timeout=self.TIMEOUT)
@@ -171,7 +171,7 @@ class TestRayEDACoverage:
 
         # Test invalid column
         response = requests.get(
-            f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/nonexistent/values",
+            f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/nonexistent/values",
             timeout=self.TIMEOUT
         )
         assert response.status_code in [404, 500]

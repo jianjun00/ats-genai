@@ -27,7 +27,7 @@ def test_symbol_limit_fix():
         return
 
     # Test the symbol values API with increased limit
-    symbol_api = f"{base_url}/api/eda/datasets/intg_daily_prices_tiingo/columns/symbol/values"
+    symbol_api = f"{base_url}/api/eda/datasets/intg_daily_price_tiingo/columns/symbol/values"
 
     # Test with small limit (old behavior)
     try:

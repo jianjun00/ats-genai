@@ -80,28 +80,28 @@ class TestEnvironmentAwareAPIs:
             # Test DEV environment
             with patch('src.api.training_dataset_simple_api.Environment') as mock_env_class:
                 mock_env = MagicMock()
-                mock_env.get_table_name.return_value = 'dev_training_datasets'
+                mock_env.get_table_name.return_value = 'dev_training_dataset'
                 mock_env_class.return_value = mock_env
 
                 await list_training_datasets()
 
                 # Verify correct table name was used in query
                 query_call = mock_conn.fetch.call_args[0][0]
-                assert 'dev_training_datasets' in query_call
-                assert 'intg_training_datasets' not in query_call
+                assert 'dev_training_dataset' in query_call
+                assert 'intg_training_dataset' not in query_call
 
             # Test INTG environment
             with patch('src.api.training_dataset_simple_api.Environment') as mock_env_class:
                 mock_env = MagicMock()
-                mock_env.get_table_name.return_value = 'intg_training_datasets'
+                mock_env.get_table_name.return_value = 'intg_training_dataset'
                 mock_env_class.return_value = mock_env
 
                 await list_training_datasets()
 
                 # Verify correct table name was used in query
                 query_call = mock_conn.fetch.call_args[0][0]
-                assert 'intg_training_datasets' in query_call
-                assert 'dev_training_datasets' not in query_call
+                assert 'intg_training_dataset' in query_call
+                assert 'dev_training_dataset' not in query_call
 
     def test_training_datasets_api_endpoint_responds_in_both_environments(self):
         """Integration test: API endpoint works in both environments"""
@@ -154,8 +154,8 @@ class TestEnvironmentAwareAPIs:
             'dev_password',
             'localhost:3432',
             'localhost:4432',
-            'dev_training_datasets',  # Should use env.get_table_name()
-            'intg_training_datasets'  # Should use env.get_table_name()
+            'dev_training_dataset',  # Should use env.get_table_name()
+            'intg_training_dataset'  # Should use env.get_table_name()
         ]
 
         for api_file in api_files:

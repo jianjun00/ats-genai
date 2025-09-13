@@ -375,7 +375,7 @@ class TestTrainingSchemaDAO:
         dao = TrainingSchemaDAO(mock_environment)
 
         assert dao.environment == mock_environment
-        assert dao.datasets_table == 'dev_training_datasets'
+        assert dao.datasets_table == 'dev_training_dataset'
         assert dao.registry_table == 'dev_training_schema_registry'
 
     @pytest.mark.asyncio

@@ -93,8 +93,8 @@ from core.config.settings import get_settings
                         } else {
                             // Fallback to common financial tables
                             tables = [
-                                'dev_daily_prices', 'dev_training_datasets', 'dev_instruments',
-                                'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd'
+                                'dev_daily_price', 'dev_training_dataset', 'dev_instrument',
+                                'dev_daily_price_polygon', 'dev_daily_price_tiingo', 'dev_daily_price_eodhd'
                             ];
                         }
 

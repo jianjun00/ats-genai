@@ -374,7 +374,7 @@ class AccuracyValidator:
                     SELECT
                         close_price as current_price,
                         LAG(close_price, 1) OVER (ORDER BY timestamp DESC) as previous_price
-                    FROM dev_daily_prices_polygon
+                    FROM dev_daily_price_polygon
                     WHERE symbol = $1
                         AND timestamp >= NOW() - INTERVAL '2 days'
                     ORDER BY timestamp DESC

@@ -212,7 +212,7 @@ class QualityScanTool:
         ),
         actual_dates AS (
             SELECT DISTINCT date_trunc('day', timestamp)::date as actual_date
-            FROM intg_daily_prices 
+            FROM intg_daily_price 
             WHERE timestamp >= $1::date AND timestamp <= $2::date
             {symbol_filter}
         )
@@ -285,7 +285,7 @@ class QualityScanTool:
                date_trunc('day', timestamp)::date as price_date,
                timestamp,
                CURRENT_DATE - date_trunc('day', timestamp)::date as days_old
-        FROM intg_daily_prices 
+        FROM intg_daily_price 
         WHERE CURRENT_DATE - date_trunc('day', timestamp)::date > 30  -- More than 30 days old
         {symbol_filter}
         ORDER BY days_old DESC
@@ -353,7 +353,7 @@ class QualityScanTool:
         SELECT symbol, 
                date_trunc('day', timestamp)::date as price_date, 
                COUNT(*) as duplicate_count
-        FROM intg_daily_prices 
+        FROM intg_daily_price 
         WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'
         {symbol_filter}
         GROUP BY symbol, date_trunc('day', timestamp)::date
@@ -417,7 +417,7 @@ class QualityScanTool:
                date_trunc('day', timestamp)::date as price_date,
                open_price, high_price, low_price, close_price, volume,
                LAG(close_price) OVER (PARTITION BY symbol ORDER BY timestamp) as prev_close
-        FROM intg_daily_prices 
+        FROM intg_daily_price 
         WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'
         {symbol_filter}
         AND (

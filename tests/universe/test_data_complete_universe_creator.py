@@ -346,7 +346,7 @@ class TestDataCompleteUniverseCreator:
     async def test_get_instrument_id_success(self):
         """Test instrument ID lookup."""
         mock_env = MagicMock()
-        mock_env.get_table_name.return_value = "dev_instruments"
+        mock_env.get_table_name.return_value = "dev_instrument"
 
         creator = DataCompleteUniverseCreator(env=mock_env)
 
@@ -362,7 +362,7 @@ class TestDataCompleteUniverseCreator:
     async def test_get_instrument_id_not_found(self):
         """Test instrument ID lookup when not found."""
         mock_env = MagicMock()
-        mock_env.get_table_name.return_value = "dev_instruments"
+        mock_env.get_table_name.return_value = "dev_instrument"
 
         creator = DataCompleteUniverseCreator(env=mock_env)
 

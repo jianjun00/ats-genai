@@ -97,28 +97,28 @@ class SchemaCompatibilityValidator:
         vendor_tables = [
             VendorTableExpected(
                 vendor="polygon",
-                table_name="dev_daily_prices_polygon",
+                table_name="dev_daily_price_polygon",
                 required_columns=["id", "instrument_id", "date", "close", "volume"],
                 optional_columns=["open_price", "high_price", "low_price", "vwap", "transactions",
                                 "dollar_volume", "created_at", "updated_at"]
             ),
             VendorTableExpected(
                 vendor="tiingo",
-                table_name="dev_daily_prices_tiingo",
+                table_name="dev_daily_price_tiingo",
                 required_columns=["id", "instrument_id", "date", "close", "volume"],
                 optional_columns=["open_price", "high_price", "low_price", "adj_close",
                                 "dollar_volume", "created_at", "updated_at"]
             ),
             VendorTableExpected(
                 vendor="alpha_vantage",
-                table_name="dev_daily_prices_alphavantage",
+                table_name="dev_daily_price_alphavantage",
                 required_columns=["id", "instrument_id", "date", "close", "volume"],
                 optional_columns=["open_price", "high_price", "low_price", "adj_close",
                                 "dollar_volume", "created_at", "updated_at"]
             ),
             VendorTableExpected(
                 vendor="fmp",
-                table_name="dev_daily_prices_fmp",
+                table_name="dev_daily_price_fmp",
                 required_columns=["id", "instrument_id", "date", "close", "volume"],
                 optional_columns=["open_price", "high_price", "low_price", "adj_close",
                                 "dollar_volume", "created_at", "updated_at"]
@@ -340,10 +340,10 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         critical_columns = ['id', 'instrument_id', 'date', 'close', 'volume']
 
         vendor_tables = [
-            'dev_daily_prices_polygon',
-            'dev_daily_prices_tiingo',
-            'dev_daily_prices_alphavantage',
-            'dev_daily_prices_fmp'
+            'dev_daily_price_polygon',
+            'dev_daily_price_tiingo',
+            'dev_daily_price_alphavantage',
+            'dev_daily_price_fmp'
         ]
 
         schemas = {}
@@ -390,17 +390,17 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         script_tests = [
             {
                 'vendor': 'polygon',
-                'table': 'dev_daily_prices_polygon',
+                'table': 'dev_daily_price_polygon',
                 'expected_columns': ['date', 'instrument_id', 'open_price', 'high_price', 'low_price', 'close', 'volume']
             },
             {
                 'vendor': 'tiingo',
-                'table': 'dev_daily_prices_tiingo',
+                'table': 'dev_daily_price_tiingo',
                 'expected_columns': ['date', 'instrument_id', 'open_price', 'high_price', 'low_price', 'close', 'adj_close', 'volume']
             },
             {
                 'vendor': 'fmp',
-                'table': 'dev_daily_prices_fmp',
+                'table': 'dev_daily_price_fmp',
                 'expected_columns': ['date', 'instrument_id', 'open_price', 'high_price', 'low_price', 'close', 'adj_close', 'volume']
             }
         ]
@@ -410,13 +410,13 @@ class TestSchemaCompatibilityAndDeploymentIssues:
 
         # Simulate the bad script that tried to insert adj_close into Polygon table
         bad_polygon_script_content = '''
-        INSERT INTO dev_daily_prices_polygon
+        INSERT INTO dev_daily_price_polygon
         (date, instrument_id, open_price, high_price, low_price, close, adj_close, volume)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         '''
 
         # Test this against actual Polygon table schema
-        polygon_schema = await script_validator.schema_validator.get_table_schema('dev_daily_prices_polygon')
+        polygon_schema = await script_validator.schema_validator.get_table_schema('dev_daily_price_polygon')
 
         if polygon_schema:
             script_columns = ['date', 'instrument_id', 'open_price', 'high_price', 'low_price', 'close', 'adj_close', 'volume']
@@ -446,10 +446,10 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         print("\n🔍 Testing foreign key data type compatibility...")
 
         vendor_tables = [
-            'dev_daily_prices_polygon',
-            'dev_daily_prices_tiingo',
-            'dev_daily_prices_alphavantage',
-            'dev_daily_prices_fmp'
+            'dev_daily_price_polygon',
+            'dev_daily_price_tiingo',
+            'dev_daily_price_alphavantage',
+            'dev_daily_price_fmp'
         ]
 
         key_columns = ['instrument_id', 'date']
@@ -504,10 +504,10 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         # but application code doesn't get updated
 
         vendor_tables = [
-            'dev_daily_prices_polygon',
-            'dev_daily_prices_tiingo',
-            'dev_daily_prices_alphavantage',
-            'dev_daily_prices_fmp'
+            'dev_daily_price_polygon',
+            'dev_daily_price_tiingo',
+            'dev_daily_price_alphavantage',
+            'dev_daily_price_fmp'
         ]
 
         required_for_business_logic = [
@@ -558,8 +558,8 @@ class TestSchemaCompatibilityAndDeploymentIssues:
         checklist_results['all_tables_exist'] = len(schema_results['missing_tables']) == 0
 
         # 3. Check foreign key constraints exist
-        vendor_tables = ['dev_daily_prices_polygon', 'dev_daily_prices_tiingo',
-                        'dev_daily_prices_alphavantage', 'dev_daily_prices_fmp']
+        vendor_tables = ['dev_daily_price_polygon', 'dev_daily_price_tiingo',
+                        'dev_daily_price_alphavantage', 'dev_daily_price_fmp']
 
         fk_issues = []
         for table_name in vendor_tables:

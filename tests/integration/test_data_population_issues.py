@@ -51,7 +51,7 @@ class TestDataPopulationIssues:
         # Test that we can detect and handle constraint issues
         with pytest.raises(asyncpg.exceptions.PostgresError) as exc_info:
             await mock_conn.execute("""
-                INSERT INTO dev_instruments (symbol, name, exchange, is_active)
+                INSERT INTO dev_instrument (symbol, name, exchange, is_active)
                 VALUES ($1, $2, 'NYSE', true)
                 ON CONFLICT (symbol) DO UPDATE SET
                 name = EXCLUDED.name
@@ -68,12 +68,12 @@ class TestDataPopulationIssues:
 
         # Strategy: Check if exists first, then simple INSERT
         exists = await mock_conn.fetchval(
-            "SELECT id FROM dev_instruments WHERE symbol = $1", "AAPL"
+            "SELECT id FROM dev_instrument WHERE symbol = $1", "AAPL"
         )
 
         if not exists:
             instrument_id = await mock_conn.fetchval("""
-                INSERT INTO dev_instruments (symbol, name, exchange, is_active)
+                INSERT INTO dev_instrument (symbol, name, exchange, is_active)
                 VALUES ($1, $2, 'NYSE', true)
                 RETURNING id
             """, "AAPL", "Apple Inc.")
@@ -90,14 +90,14 @@ class TestDataPopulationIssues:
 
         # Test wrong column name (adj_close)
         mock_conn.executemany.side_effect = asyncpg.exceptions.UndefinedColumnError(
-            'column "adj_close" of relation "dev_daily_prices_tiingo" does not exist'
+            'column "adj_close" of relation "dev_daily_price_tiingo" does not exist'
         )
 
         price_records = [(date.today(), 1, 100.0, 105.0, 99.0, 102.0, 101.5, 1000000)]
 
         with pytest.raises(asyncpg.exceptions.UndefinedColumnError) as exc_info:
             await mock_conn.executemany("""
-                INSERT INTO dev_daily_prices_tiingo
+                INSERT INTO dev_daily_price_tiingo
                 (date, instrument_id, open, high, low, close, adj_close, volume)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             """, price_records)
@@ -115,7 +115,7 @@ class TestDataPopulationIssues:
 
         # Test correct column name (adjclose)
         await mock_conn.executemany("""
-            INSERT INTO dev_daily_prices_tiingo
+            INSERT INTO dev_daily_price_tiingo
             (date, instrument_id, open, high, low, close, adjclose, volume)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         """, price_records)
@@ -360,7 +360,7 @@ class TestDataPopulationIssues:
 
             for symbol in symbols:
                 instrument_id = await mock_conn.fetchval(
-                    "SELECT id FROM dev_instruments WHERE symbol = $1", symbol
+                    "SELECT id FROM dev_instrument WHERE symbol = $1", symbol
                 )
                 if instrument_id:
                     valid_instruments.append((symbol, instrument_id))
@@ -394,12 +394,12 @@ class TestDataPopulationIssues:
                 instrument_records.append((symbol, name or f"{symbol} Corporation", "NYSE", True))
 
             await mock_conn.executemany("""
-                INSERT INTO dev_instruments (symbol, name, exchange, is_active)
+                INSERT INTO dev_instrument (symbol, name, exchange, is_active)
                 VALUES ($1, $2, $3, $4)
             """, instrument_records)
 
             # Verify count
-            final_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+            final_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
             return final_count
 
         test_data = [("TEST1", "Test Corp 1"), ("TEST2", None), ("TEST3", "Test Corp 3")]

@@ -183,7 +183,7 @@ def test_database_to_eda_consistency():
                 # Get training datasets from database directly
                 cursor.execute("""
                     SELECT id, dataset_name, total_sequences, symbols, created_at
-                    FROM dev_training_datasets
+                    FROM dev_training_dataset
                     ORDER BY created_at DESC
                     LIMIT 5
                 """)

@@ -237,16 +237,16 @@ class TestDatabaseSchemaRegression:
             pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
             async with pool.acquire() as conn:
-                # Check dev_daily_prices_polygon schema
+                # Check dev_daily_price_polygon schema
                 polygon_columns = await conn.fetch("""
                     SELECT column_name, data_type, is_nullable
                     FROM information_schema.columns
-                    WHERE table_name = 'dev_daily_prices_polygon'
+                    WHERE table_name = 'dev_daily_price_polygon'
                     ORDER BY ordinal_position
                 """)
 
                 if not polygon_columns:
-                    pytest.skip("dev_daily_prices_polygon table not found")
+                    pytest.skip("dev_daily_price_polygon table not found")
 
                 column_names = [col['column_name'] for col in polygon_columns]
 
@@ -257,7 +257,7 @@ class TestDatabaseSchemaRegression:
                 ]
 
                 for col in critical_columns:
-                    assert col in column_names, f"Critical column {col} missing from dev_daily_prices_polygon"
+                    assert col in column_names, f"Critical column {col} missing from dev_daily_price_polygon"
 
                 # Check for problematic column name variations that caused issues
                 problematic_variations = [
@@ -269,7 +269,7 @@ class TestDatabaseSchemaRegression:
                     if prob_col in column_names:
                         print(f"⚠️ Found potentially problematic column: {prob_col}")
 
-                print(f"✅ dev_daily_prices_polygon has {len(column_names)} columns with all critical fields")
+                print(f"✅ dev_daily_price_polygon has {len(column_names)} columns with all critical fields")
 
             await pool.close()
 
@@ -289,7 +289,7 @@ class TestDatabaseSchemaRegression:
 
             async with pool.acquire() as conn:
                 # Get schemas for all instrument tables
-                tables = ['dev_instrument_polygon', 'dev_instrument_tiingo', 'dev_instrument_eodhd', 'dev_instruments']
+                tables = ['dev_instrument_polygon', 'dev_instrument_tiingo', 'dev_instrument_eodhd', 'dev_instrument']
 
                 table_schemas = {}
                 for table in tables:
@@ -393,7 +393,7 @@ class TestEODHDPopulationRegression:
                     symbol = symbol_record['symbol']
 
                     unified_record = await conn.fetchrow("""
-                        SELECT * FROM dev_instruments WHERE symbol = $1
+                        SELECT * FROM dev_instrument WHERE symbol = $1
                     """, symbol)
 
                     if unified_record:
@@ -428,13 +428,13 @@ class TestReferentialIntegrityRegression:
             async with pool.acquire() as conn:
                 # Check for orphaned price records (no corresponding instrument)
                 orphaned_prices = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_daily_prices_polygon p
+                    SELECT COUNT(*) FROM dev_daily_price_polygon p
                     WHERE NOT EXISTS (
-                        SELECT 1 FROM dev_instruments i WHERE i.id = p.instrument_id
+                        SELECT 1 FROM dev_instrument i WHERE i.id = p.instrument_id
                     )
                 """)
 
-                total_price_records = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_prices_polygon")
+                total_price_records = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
 
                 if total_price_records == 0:
                     pytest.skip("No price records to test")
@@ -452,8 +452,8 @@ class TestReferentialIntegrityRegression:
                     # Check if symbol has both instrument and price data
                     combined_data = await conn.fetchrow("""
                         SELECT i.symbol, COUNT(p.id) as price_count
-                        FROM dev_instruments i
-                        LEFT JOIN dev_daily_prices_polygon p ON p.instrument_id = i.id
+                        FROM dev_instrument i
+                        LEFT JOIN dev_daily_price_polygon p ON p.instrument_id = i.id
                         WHERE i.symbol = $1
                         GROUP BY i.symbol
                     """, symbol)
@@ -631,16 +631,16 @@ class TestSystemHealthRegression:
 
             async with pool.acquire() as conn:
                 # Instrument quality metrics
-                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
-                active_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments WHERE active = true")
+                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
+                active_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument WHERE active = true")
 
                 if total_instruments > 0:
                     quality_metrics['instrument_active_ratio'] = active_instruments / total_instruments
 
                 # Price data quality
-                total_prices = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_prices_polygon")
+                total_prices = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
                 valid_prices = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_daily_prices_polygon
+                    SELECT COUNT(*) FROM dev_daily_price_polygon
                     WHERE close > 0 AND volume >= 0
                 """)
 
@@ -649,8 +649,8 @@ class TestSystemHealthRegression:
 
                 # Referential integrity
                 prices_with_instruments = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_daily_prices_polygon p
-                    WHERE EXISTS (SELECT 1 FROM dev_instruments i WHERE i.id = p.instrument_id)
+                    SELECT COUNT(*) FROM dev_daily_price_polygon p
+                    WHERE EXISTS (SELECT 1 FROM dev_instrument i WHERE i.id = p.instrument_id)
                 """)
 
                 if total_prices > 0:

@@ -45,7 +45,7 @@ class Tiingo30YearBackfiller:
     - Idempotent UPSERT operations
     - Rate limiting (1000 requests/hour for paid Tiingo)
     - Resume capability with existing data detection
-    - Uses dev_instruments table for symbol list
+    - Uses dev_instrument table for symbol list
     """
 
     def __init__(self, api_key: str = None):
@@ -242,7 +242,7 @@ class Tiingo30YearBackfiller:
 
         # Insert with idempotent UPSERT (using existing Tiingo table schema)
         env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_prices_tiingo' if env == 'intg' else 'dev_daily_prices_tiingo'
+        table_name = 'intg_daily_price_tiingo' if env == 'intg' else 'dev_daily_price_tiingo'
 
         try:
             result = await conn.executemany(f"""
@@ -270,7 +270,7 @@ class Tiingo30YearBackfiller:
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
         env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_prices_tiingo' if env == 'intg' else 'dev_daily_prices_tiingo'
+        table_name = 'intg_daily_price_tiingo' if env == 'intg' else 'dev_daily_price_tiingo'
 
         count = await conn.fetchval(f"""
             SELECT COUNT(*) FROM {table_name}

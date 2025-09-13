@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
 Unit tests explaining why instrument tables have limited numeric columns for EDA analysis.
-This addresses the question: "why only one column is show for dev_instruments?"
+This addresses the question: "why only one column is show for dev_instrument?"
 """
 
 def test_instrument_tables_have_limited_numeric_columns():
     """
     Explain why instrument tables only show 1 numeric column for analysis.
 
-    EXPLANATION: Instrument tables (dev_instruments, dev_instrument_tiingo, dev_instrument_polygon)
+    EXPLANATION: Instrument tables (dev_instrument, dev_instrument_tiingo, dev_instrument_polygon)
     contain metadata about financial instruments (symbol, name, exchange, sector, etc.) which are
     mostly text fields. They don't contain financial metrics like prices or volumes.
 
-    Financial metrics are stored in separate price tables (dev_daily_prices_*) which have
+    Financial metrics are stored in separate price tables (dev_daily_price_*) which have
     multiple numeric columns suitable for histogram analysis.
     """
     print("🧪 Testing instrument table column availability...")
 
     # Simulate the filtering logic used in the EDA tool
-    dev_instruments_schema = {
+    dev_instrument_schema = {
         "columns": [
             {"column_name": "id", "data_type": "integer", "is_nullable": "NO"},
             {"column_name": "symbol", "data_type": "text", "is_nullable": "YES"},
@@ -33,16 +33,16 @@ def test_instrument_tables_have_limited_numeric_columns():
 
     # Apply numeric filtering
     numeric_columns = []
-    for col in dev_instruments_schema["columns"]:
+    for col in dev_instrument_schema["columns"]:
         data_type = col["data_type"].lower()
         if any(t in data_type for t in ["numeric", "integer", "double", "bigint", "smallint", "real", "decimal", "float"]):
             numeric_columns.append(col["column_name"])
 
     # Verify only id column is numeric
-    assert len(numeric_columns) == 1, f"dev_instruments should have 1 numeric column, found {len(numeric_columns)}"
+    assert len(numeric_columns) == 1, f"dev_instrument should have 1 numeric column, found {len(numeric_columns)}"
     assert numeric_columns[0] == "id", f"The numeric column should be 'id', found {numeric_columns[0]}"
 
-    print(f"   ✅ dev_instruments has {len(numeric_columns)} numeric column for analysis: {numeric_columns}")
+    print(f"   ✅ dev_instrument has {len(numeric_columns)} numeric column for analysis: {numeric_columns}")
     print("   📝 This is expected - instrument tables contain metadata, not financial metrics")
 
 def test_price_tables_have_multiple_numeric_columns():
@@ -92,13 +92,13 @@ def test_eda_dataset_organization_explanation():
     # Simulate the dataset organization with updated display names
     datasets = [
         {
-            'name': 'dev_daily_prices_polygon',
+            'name': 'dev_daily_price_polygon',
             'display_name': '📊 Polygon Daily Prices 30 Year (Best for Analysis)',
             'data_type': 'prices',
             'numeric_columns': 5
         },
         {
-            'name': 'dev_instruments',
+            'name': 'dev_instrument',
             'display_name': 'All Instruments (Consolidated) - Metadata Only',
             'data_type': 'instruments',
             'numeric_columns': 1
@@ -128,21 +128,21 @@ def test_eda_dataset_organization_explanation():
 
 def test_why_only_one_column_shows_explanation():
     """
-    Direct answer to the user question: "why only one column is show for dev_instruments?"
+    Direct answer to the user question: "why only one column is show for dev_instrument?"
     """
-    print("🧪 Answering: Why only one column shows for dev_instruments?")
+    print("🧪 Answering: Why only one column shows for dev_instrument?")
 
     explanation = """
-    ANSWER TO: "why only one column is show for dev_instruments?"
+    ANSWER TO: "why only one column is show for dev_instrument?"
 
-    1. dev_instruments is a METADATA table containing information ABOUT financial instruments
+    1. dev_instrument is a METADATA table containing information ABOUT financial instruments
        - symbol, name, exchange, sector, type, etc. (mostly text fields)
        - Only has 1 numeric column: 'id' (primary key)
 
     2. FINANCIAL METRICS (prices, volumes, market data) are stored in separate PRICE tables:
-       - dev_daily_prices_polygon (666K+ records, 5 numeric columns)
-       - dev_daily_prices_tiingo (6.5M+ records, 5 numeric columns)
-       - dev_daily_prices_eodhd (727K+ records, 5 numeric columns)
+       - dev_daily_price_polygon (666K+ records, 5 numeric columns)
+       - dev_daily_price_tiingo (6.5M+ records, 5 numeric columns)
+       - dev_daily_price_eodhd (727K+ records, 5 numeric columns)
 
     3. For HISTOGRAM ANALYSIS, use PRICE tables which have multiple numeric columns:
        - open, high, low, close (price data)
@@ -160,7 +160,7 @@ def test_why_only_one_column_shows_explanation():
     instrument_numeric_columns = 1  # Only 'id' field
     price_numeric_columns = 5       # open, high, low, close, volume
 
-    assert instrument_numeric_columns == 1, "dev_instruments should have 1 numeric column (id)"
+    assert instrument_numeric_columns == 1, "dev_instrument should have 1 numeric column (id)"
     assert price_numeric_columns == 5, "Price tables should have 5 numeric columns (OHLCV)"
 
     print("   ✅ Explanation is technically accurate")
@@ -204,7 +204,7 @@ def run_column_availability_explanation_tests():
         return False
     else:
         print(f"\n🎉 ALL EXPLANATION TESTS PASSED!")
-        print(f"✅ Question answered: 'why only one column is show for dev_instruments?'")
+        print(f"✅ Question answered: 'why only one column is show for dev_instrument?'")
         print(f"✅ Users are guided to price datasets for numeric analysis")
         print(f"✅ Dataset organization clearly explains data types and usage")
         return True

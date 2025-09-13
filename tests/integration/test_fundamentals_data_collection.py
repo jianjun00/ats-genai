@@ -216,7 +216,7 @@ class TestDatabaseSchema:
                 exists = await conn.fetchval("""
                     SELECT EXISTS (
                         SELECT FROM information_schema.tables
-                        WHERE table_name = 'dev_fundamentals_polygon'
+                        WHERE table_name = 'dev_fundamental_polygon'
                     )
                 """)
                 assert exists, "Fundamentals table should exist"
@@ -225,7 +225,7 @@ class TestDatabaseSchema:
                 columns = await conn.fetch("""
                     SELECT column_name, data_type
                     FROM information_schema.columns
-                    WHERE table_name = 'dev_fundamentals_polygon'
+                    WHERE table_name = 'dev_fundamental_polygon'
                 """)
 
                 column_names = [col['column_name'] for col in columns]
@@ -264,7 +264,7 @@ class TestDatabaseSchema:
             # Retrieve and verify
             async with pool.acquire() as conn:
                 record = await conn.fetchrow("""
-                    SELECT * FROM dev_fundamentals_polygon
+                    SELECT * FROM dev_fundamental_polygon
                     WHERE symbol = $1 AND fiscal_year = $2 AND timeframe = $3
                 """, 'AAPL', '2024', 'annual')
 
@@ -302,7 +302,7 @@ class TestDatabaseSchema:
             # Verify only one record exists
             async with pool.acquire() as conn:
                 count = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_fundamentals_polygon
+                    SELECT COUNT(*) FROM dev_fundamental_polygon
                     WHERE symbol = $1 AND fiscal_year = $2 AND timeframe = $3
                 """, 'AAPL', '2024', 'annual')
 
@@ -481,7 +481,7 @@ class TestEndToEndIntegration:
                     # Test data retrieval
                     async with pool.acquire() as conn:
                         retrieved = await conn.fetchrow("""
-                            SELECT * FROM dev_fundamentals_polygon
+                            SELECT * FROM dev_fundamental_polygon
                             WHERE symbol = $1
                             ORDER BY created_at DESC LIMIT 1
                         """, test_symbol)

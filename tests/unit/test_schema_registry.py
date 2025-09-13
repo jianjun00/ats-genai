@@ -87,8 +87,8 @@ class TestSchemaRegistry:
         assert "instrument_xref" in entities
 
         tables = registry.list_tables()
-        assert "dev_instruments" in tables
-        assert "dev_daily_prices_polygon" in tables
+        assert "dev_instrument" in tables
+        assert "dev_daily_price_polygon" in tables
         assert "instrument_xrefs" in tables
 
     def test_schema_registration(self):
@@ -324,20 +324,20 @@ class TestSchemaRegistryFieldDetails:
         registry = schema_registry  # Use global registry
 
         # Test instrument schema fields
-        symbol_field = registry.get_field_definition("dev_instruments", "symbol")
+        symbol_field = registry.get_field_definition("dev_instrument", "symbol")
         assert symbol_field is not None
         assert symbol_field.name == "symbol"
         assert symbol_field.semantics == FieldSemantics.SEARCHABLE_STRING
         assert symbol_field.eda_priority == 10
 
-        exchange_field = registry.get_field_definition("dev_instruments", "exchange")
+        exchange_field = registry.get_field_definition("dev_instrument", "exchange")
         assert exchange_field is not None
         assert exchange_field.semantics == FieldSemantics.CATEGORICAL
         assert exchange_field.enum_values is not None
         assert "NYSE" in exchange_field.enum_values
 
         # Test nonexistent field
-        nonexistent = registry.get_field_definition("dev_instruments", "nonexistent")
+        nonexistent = registry.get_field_definition("dev_instrument", "nonexistent")
         assert nonexistent is None
 
         # Test nonexistent table
@@ -349,19 +349,19 @@ class TestSchemaRegistryFieldDetails:
         registry = schema_registry
 
         # Test searchable field
-        assert registry.is_field_searchable("dev_instruments", "symbol") == True
-        assert registry.is_field_searchable("dev_instruments", "exchange") == False
+        assert registry.is_field_searchable("dev_instrument", "symbol") == True
+        assert registry.is_field_searchable("dev_instrument", "exchange") == False
 
         # Test categorical field
-        assert registry.is_field_categorical("dev_instruments", "exchange") == True
-        assert registry.is_field_categorical("dev_instruments", "symbol") == False
+        assert registry.is_field_categorical("dev_instrument", "exchange") == True
+        assert registry.is_field_categorical("dev_instrument", "symbol") == False
 
         # Test numeric range field
-        assert registry.is_field_numeric_range("dev_daily_prices_polygon", "close") == True
-        assert registry.is_field_numeric_range("dev_instruments", "symbol") == False
+        assert registry.is_field_numeric_range("dev_daily_price_polygon", "close") == True
+        assert registry.is_field_numeric_range("dev_instrument", "symbol") == False
 
         # Test nonexistent fields
-        assert registry.is_field_searchable("dev_instruments", "nonexistent") == False
+        assert registry.is_field_searchable("dev_instrument", "nonexistent") == False
         assert registry.is_field_categorical("nonexistent", "symbol") == False
 
     def test_get_enum_values(self):
@@ -369,18 +369,18 @@ class TestSchemaRegistryFieldDetails:
         registry = schema_registry
 
         # Test field with enum values
-        exchange_values = registry.get_enum_values("dev_instruments", "exchange")
+        exchange_values = registry.get_enum_values("dev_instrument", "exchange")
         assert exchange_values is not None
         assert isinstance(exchange_values, list)
         assert "NYSE" in exchange_values
         assert "NASDAQ" in exchange_values
 
         # Test field without enum values
-        symbol_values = registry.get_enum_values("dev_instruments", "symbol")
+        symbol_values = registry.get_enum_values("dev_instrument", "symbol")
         assert symbol_values is None
 
         # Test nonexistent field
-        nonexistent_values = registry.get_enum_values("dev_instruments", "nonexistent")
+        nonexistent_values = registry.get_enum_values("dev_instrument", "nonexistent")
         assert nonexistent_values is None
 
 
@@ -392,31 +392,31 @@ class TestSchemaRegistryValidation:
         registry = schema_registry
 
         # Test valid enum values
-        assert registry.validate_field_value("dev_instruments", "exchange", "NYSE") == True
-        assert registry.validate_field_value("dev_instruments", "exchange", "NASDAQ") == True
+        assert registry.validate_field_value("dev_instrument", "exchange", "NYSE") == True
+        assert registry.validate_field_value("dev_instrument", "exchange", "NASDAQ") == True
 
         # Test invalid enum values
-        assert registry.validate_field_value("dev_instruments", "exchange", "INVALID") == False
-        assert registry.validate_field_value("dev_instruments", "exchange", "nyse") == False  # Case sensitive
+        assert registry.validate_field_value("dev_instrument", "exchange", "INVALID") == False
+        assert registry.validate_field_value("dev_instrument", "exchange", "nyse") == False  # Case sensitive
 
         # Test None for nullable enum
-        exchange_field = registry.get_field_definition("dev_instruments", "exchange")
+        exchange_field = registry.get_field_definition("dev_instrument", "exchange")
         if exchange_field and exchange_field.nullable:
-            assert registry.validate_field_value("dev_instruments", "exchange", None) == True
+            assert registry.validate_field_value("dev_instrument", "exchange", None) == True
 
     def test_validate_field_value_string_length(self):
         """Test string length validation."""
         registry = schema_registry
 
         # Test symbol field with max_length
-        symbol_field = registry.get_field_definition("dev_instruments", "symbol")
+        symbol_field = registry.get_field_definition("dev_instrument", "symbol")
         if symbol_field and symbol_field.max_length:
             # Valid length
-            assert registry.validate_field_value("dev_instruments", "symbol", "AAPL") == True
+            assert registry.validate_field_value("dev_instrument", "symbol", "AAPL") == True
 
             # Too long
             long_symbol = "A" * (symbol_field.max_length + 1)
-            assert registry.validate_field_value("dev_instruments", "symbol", long_symbol) == False
+            assert registry.validate_field_value("dev_instrument", "symbol", long_symbol) == False
 
     def test_validate_field_value_numeric_range(self):
         """Test numeric range validation."""
@@ -490,7 +490,7 @@ class TestSchemaRegistryValidation:
         registry = schema_registry
 
         # Should return True for unknown fields (no validation)
-        assert registry.validate_field_value("dev_instruments", "unknown_field", "any_value") == True
+        assert registry.validate_field_value("dev_instrument", "unknown_field", "any_value") == True
         assert registry.validate_field_value("unknown_table", "any_field", "any_value") == True
 
 
@@ -548,7 +548,7 @@ class TestSchemaRegistrySummary:
         tables = registry.list_tables()
         assert isinstance(tables, list)
         assert len(tables) > 0
-        assert "dev_instruments" in tables
+        assert "dev_instrument" in tables
 
         # Should have at least as many tables as entities (due to table mapping)
         assert len(tables) >= len(entities)
@@ -562,16 +562,16 @@ class TestGlobalRegistryFunctions:
         from schema.registry import get_field_definition, is_table_typed, get_table_entity_name
 
         # Test get_field_definition
-        field_def = get_field_definition("dev_instruments", "symbol")
+        field_def = get_field_definition("dev_instrument", "symbol")
         assert field_def is not None
         assert field_def.name == "symbol"
 
         # Test is_table_typed
-        assert is_table_typed("dev_instruments") == True
+        assert is_table_typed("dev_instrument") == True
         assert is_table_typed("nonexistent_table") == False
 
         # Test get_table_entity_name
-        entity_name = get_table_entity_name("dev_instruments")
+        entity_name = get_table_entity_name("dev_instrument")
         assert entity_name == "instrument"
 
         unknown_entity = get_table_entity_name("nonexistent_table")

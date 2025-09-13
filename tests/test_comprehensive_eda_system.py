@@ -45,7 +45,7 @@ class TestEDASystemComprehensive:
     def test_02_ray_engine_initialization(self):
         """Test Ray distributed computing engine is working"""
         # Test that large datasets trigger Ray usage
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/volume/values?limit=3")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/volume/values?limit=3")
         assert response.status_code == 200
 
         data = response.json()
@@ -55,7 +55,7 @@ class TestEDASystemComprehensive:
     def test_03_database_connectivity(self):
         """Test database connections are working across all endpoints"""
         # Test schema endpoint
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/schema")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema")
         assert response.status_code == 200
 
         schema = response.json()
@@ -76,8 +76,8 @@ class TestEDASystemComprehensive:
 
         # Check for required large datasets
         dataset_names = [d['name'] for d in datasets]
-        assert 'dev_daily_prices_tiingo' in dataset_names
-        assert 'dev_daily_prices_eodhd' in dataset_names
+        assert 'dev_daily_price_tiingo' in dataset_names
+        assert 'dev_daily_price_eodhd' in dataset_names
 
         # Verify data structure
         sample_dataset = datasets[0]
@@ -87,7 +87,7 @@ class TestEDASystemComprehensive:
 
     def test_05_schema_api_accuracy(self):
         """Test schema API returns accurate column information"""
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/schema")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema")
         assert response.status_code == 200
 
         schema = response.json()
@@ -109,7 +109,7 @@ class TestEDASystemComprehensive:
     def test_06_column_values_ray_integration(self):
         """Test column values API integrates properly with Ray"""
         # Test numeric column
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/close/values?limit=5")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/close/values?limit=5")
         assert response.status_code == 200
 
         data = response.json()
@@ -118,7 +118,7 @@ class TestEDASystemComprehensive:
         assert 'min_value' in data or 'distinct_count' in data, "Should have numeric statistics"
 
         # Test categorical column
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/symbol/values?limit=5")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/symbol/values?limit=5")
         assert response.status_code == 200
 
         data = response.json()
@@ -129,7 +129,7 @@ class TestEDASystemComprehensive:
     def test_07_analyze_api_functionality(self):
         """Test analyze API for column distributions"""
         payload = {
-            "dataset_name": "dev_daily_prices_tiingo",
+            "dataset_name": "dev_daily_price_tiingo",
             "column": "volume",
             "filters": {}
         }
@@ -154,7 +154,7 @@ class TestEDASystemComprehensive:
         """Test Ray meets performance requirements for massive datasets"""
         # Test on 4.4GB dataset
         start_time = time.time()
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_eodhd/columns/high/values?limit=10", timeout=5)
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_eodhd/columns/high/values?limit=10", timeout=5)
         end_time = time.time()
 
         assert response.status_code == 200, "Query should succeed"
@@ -179,7 +179,7 @@ class TestEDASystemComprehensive:
             except:
                 return time.time() - start, False, 0
 
-        datasets = ['dev_daily_prices_tiingo', 'dev_daily_prices_eodhd', 'dev_financial_events']
+        datasets = ['dev_daily_price_tiingo', 'dev_daily_price_eodhd', 'dev_financial_events']
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             results = list(executor.map(make_request, datasets))
@@ -231,11 +231,11 @@ class TestEDASystemComprehensive:
         datasets = response.json()
 
         # 2. Select a large dataset
-        tiingo_dataset = next((d for d in datasets if d['name'] == 'dev_daily_prices_tiingo'), None)
+        tiingo_dataset = next((d for d in datasets if d['name'] == 'dev_daily_price_tiingo'), None)
         assert tiingo_dataset is not None, "Tiingo dataset should be available"
 
         # 3. Get schema (for column distribution setup)
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/schema")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema")
         assert response.status_code == 200
         schema = response.json()
 
@@ -244,7 +244,7 @@ class TestEDASystemComprehensive:
         successful_filters = 0
 
         for col in columns:
-            response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/{col['name']}/values?limit=5")
+            response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/{col['name']}/values?limit=5")
             if response.status_code == 200:
                 data = response.json()
                 if 'error' not in data:
@@ -265,7 +265,7 @@ class TestEDASystemComprehensive:
         assert 'error' in data, "Should return error message for non-existent table"
 
         # Test non-existent column
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/fake_column/values")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/fake_column/values")
         assert response.status_code == 200
         data = response.json()
         # Should handle gracefully (either error message or empty result)
@@ -311,24 +311,24 @@ class TestEDASystemComprehensive:
         handler = MockHandler()
 
         # Large datasets should use Ray
-        assert handler.should_use_ray_for_table('dev_daily_prices_tiingo') == True
-        assert handler.should_use_ray_for_table('dev_daily_prices_eodhd') == True
+        assert handler.should_use_ray_for_table('dev_daily_price_tiingo') == True
+        assert handler.should_use_ray_for_table('dev_daily_price_eodhd') == True
         assert handler.should_use_ray_for_table('dev_financial_events') == True
 
         # Small datasets should not use Ray
-        assert handler.should_use_ray_for_table('dev_instruments') == False
+        assert handler.should_use_ray_for_table('dev_instrument') == False
         assert handler.should_use_ray_for_table('small_table') == False
 
     def test_15_data_type_detection(self):
         """Test data type detection works correctly"""
         # Test numeric column
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/close/values?limit=3")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/close/values?limit=3")
         assert response.status_code == 200
         data = response.json()
         assert data.get('data_type') == 'numeric'
 
         # Test categorical column
-        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_prices_tiingo/columns/symbol/values?limit=3")
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/columns/symbol/values?limit=3")
         assert response.status_code == 200
         data = response.json()
         assert data.get('data_type') == 'categorical'

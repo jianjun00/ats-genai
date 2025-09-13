@@ -55,12 +55,12 @@ class TestSequenceCountValidationPipeline:
     async def clean_test_data(self, db_connection):
         """Clean test data before and after."""
         await db_connection.execute("""
-            DELETE FROM dev_training_datasets
+            DELETE FROM dev_training_dataset
             WHERE dataset_name LIKE 'test_sequence_count_%'
         """)
         yield
         await db_connection.execute("""
-            DELETE FROM dev_training_datasets
+            DELETE FROM dev_training_dataset
             WHERE dataset_name LIKE 'test_sequence_count_%'
         """)
 
@@ -141,7 +141,7 @@ class TestSequenceCountValidationPipeline:
         """Create dataset record in database and return dataset_id."""
 
         await db_connection.execute("""
-            INSERT INTO dev_training_datasets (
+            INSERT INTO dev_training_dataset (
                 dataset_name, run_id, symbols, total_sequences,
                 sequence_length, feature_count, creation_timestamp,
                 status, data_quality_score
@@ -149,7 +149,7 @@ class TestSequenceCountValidationPipeline:
         """, dataset_name, run_id, symbols, total_sequences, datetime.now())
 
         dataset_id = await db_connection.fetchval("""
-            SELECT id FROM dev_training_datasets
+            SELECT id FROM dev_training_dataset
             WHERE dataset_name = $1
         """, dataset_name)
 
@@ -188,7 +188,7 @@ class TestSequenceCountValidationPipeline:
 
         # Step 3: Verify database has correct count
         db_sequence_count = await db_connection.fetchval("""
-            SELECT total_sequences FROM dev_training_datasets WHERE id = $1
+            SELECT total_sequences FROM dev_training_dataset WHERE id = $1
         """, dataset_id)
         assert db_sequence_count == expected_total, (
             f"Database sequence count mismatch: {db_sequence_count} != {expected_total}"

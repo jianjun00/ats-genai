@@ -26,7 +26,7 @@ class TestEDAFilteringIntegration:
 
     def test_column_values_endpoint_categorical(self):
         """Test column values endpoint for categorical columns."""
-        dataset_name = "dev_instruments"
+        dataset_name = "dev_instrument"
         column_name = "symbol"
 
         response = requests.get(
@@ -58,7 +58,7 @@ class TestEDAFilteringIntegration:
 
     def test_column_values_endpoint_numeric(self):
         """Test column values endpoint for numeric columns."""
-        dataset_name = "dev_daily_prices"
+        dataset_name = "dev_daily_price"
         column_name = "price"
 
         response = requests.get(
@@ -84,7 +84,7 @@ class TestEDAFilteringIntegration:
 
     def test_column_values_endpoint_with_different_limits(self):
         """Test column values endpoint with different limit parameters."""
-        dataset_name = "dev_instruments"
+        dataset_name = "dev_instrument"
         column_name = "exchange"
 
         # Test with small limit
@@ -109,7 +109,7 @@ class TestEDAFilteringIntegration:
 
     def test_filtered_data_endpoint_no_filters(self):
         """Test filtered data endpoint without any filters."""
-        dataset_name = "dev_instruments"
+        dataset_name = "dev_instrument"
 
         payload = {
             "filters": {},
@@ -153,7 +153,7 @@ class TestEDAFilteringIntegration:
 
     def test_filtered_data_endpoint_categorical_filter(self):
         """Test filtered data endpoint with categorical filter."""
-        dataset_name = "dev_instruments"
+        dataset_name = "dev_instrument"
 
         payload = {
             "filters": {
@@ -187,7 +187,7 @@ class TestEDAFilteringIntegration:
 
     def test_filtered_data_endpoint_numeric_filter(self):
         """Test filtered data endpoint with numeric range filter."""
-        dataset_name = "dev_daily_prices"
+        dataset_name = "dev_daily_price"
 
         payload = {
             "filters": {
@@ -219,7 +219,7 @@ class TestEDAFilteringIntegration:
 
     def test_filtered_data_endpoint_mixed_filters(self):
         """Test filtered data endpoint with both categorical and numeric filters."""
-        dataset_name = "dev_daily_prices"
+        dataset_name = "dev_daily_price"
 
         payload = {
             "filters": {
@@ -253,7 +253,7 @@ class TestEDAFilteringIntegration:
 
     def test_filtered_data_endpoint_pagination(self):
         """Test filtered data endpoint pagination functionality."""
-        dataset_name = "dev_instruments"
+        dataset_name = "dev_instrument"
 
         # Test first page
         payload1 = {
@@ -338,7 +338,7 @@ class TestEDAFilteringIntegration:
 
     def test_filtering_workflow_integration(self):
         """Test the complete filtering workflow."""
-        dataset_name = "dev_instruments"
+        dataset_name = "dev_instrument"
 
         # Step 1: Get available datasets
         datasets_response = requests.get(f"{self.base_url}/api/eda/datasets", timeout=10)

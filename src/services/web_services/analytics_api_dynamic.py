@@ -805,8 +805,8 @@ class DynamicAnalyticsEngine:
                 # Get top symbols by data coverage in the 2022-2025 period
                 rows = await conn.fetch("""
                     SELECT i.symbol, COUNT(*) as record_count
-                    FROM dev_daily_prices dp
-                    JOIN dev_instruments i ON dp.instrument_id = i.id
+                    FROM dev_daily_price dp
+                    JOIN dev_instrument i ON dp.instrument_id = i.id
                     WHERE dp.date >= '2022-01-01'
                       AND dp.date <= '2025-08-19'
                       AND dp.close > 0
@@ -842,7 +842,7 @@ class DynamicAnalyticsEngine:
                 placeholders = ','.join([f'${i+1}' for i in range(len(symbols))])
                 rows = await conn.fetch(f"""
                     SELECT symbol, sector
-                    FROM dev_instruments
+                    FROM dev_instrument
                     WHERE symbol = ANY($1::text[])
                       AND sector IS NOT NULL
                 """, symbols)
@@ -928,8 +928,8 @@ class DynamicAnalyticsEngine:
                 # Get symbols that exist in our database with recent data
                 rows = await conn.fetch("""
                     SELECT DISTINCT i.symbol
-                    FROM dev_instruments i
-                    JOIN dev_daily_prices dp ON i.id = dp.instrument_id
+                    FROM dev_instrument i
+                    JOIN dev_daily_price dp ON i.id = dp.instrument_id
                     WHERE i.symbol = ANY($1)
                       AND dp.date >= CURRENT_DATE - INTERVAL '30 days'
                       AND dp.close > 0
@@ -975,8 +975,8 @@ class DynamicAnalyticsEngine:
                         # Get price data for this symbol and date
                         rows = await conn.fetch("""
                             SELECT dp.date, dp.close, dp.volume, dp.open, dp.high, dp.low
-                            FROM dev_daily_prices dp
-                            JOIN dev_instruments i ON dp.instrument_id = i.id
+                            FROM dev_daily_price dp
+                            JOIN dev_instrument i ON dp.instrument_id = i.id
                             WHERE i.symbol = $1
                               AND dp.date = $2
                               AND dp.close > 0

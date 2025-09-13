@@ -50,7 +50,7 @@ class TestDatabaseSchemaCompatibility:
                 'unique_constraints': ['symbol'],
                 'primary_key': ['id']
             },
-            'dev_daily_prices_tiingo': {
+            'dev_daily_price_tiingo': {
                 'required_columns': [
                     'date', 'symbol', 'open', 'high', 'low', 'close',
                     'adjclose', 'volume', 'status_id', 'instrument_id'  # Note: adjclose not adj_close
@@ -58,7 +58,7 @@ class TestDatabaseSchemaCompatibility:
                 'unique_constraints': [('date', 'instrument_id')],
                 'primary_key': [('date', 'instrument_id')]
             },
-            'dev_daily_prices_polygon': {
+            'dev_daily_price_polygon': {
                 'required_columns': [
                     'id', 'date', 'symbol', 'open', 'high', 'low', 'close',
                     'volume', 'market_cap', 'instrument_id',
@@ -67,7 +67,7 @@ class TestDatabaseSchemaCompatibility:
                 'unique_constraints': [('date', 'instrument_id')],
                 'primary_key': ['id']
             },
-            'dev_instruments': {
+            'dev_instrument': {
                 'required_columns': [
                     'id', 'symbol', 'name', 'exchange', 'type', 'currency',
                     'figi', 'isin', 'cusip', 'composite_figi', 'active',
@@ -82,7 +82,7 @@ class TestDatabaseSchemaCompatibility:
     @pytest.mark.asyncio
     async def test_tiingo_daily_prices_table_schema(self, db_connection, expected_table_schemas):
         """Test that Tiingo daily prices table has correct schema"""
-        table_name = 'dev_daily_prices_tiingo'
+        table_name = 'dev_daily_price_tiingo'
 
         # Get actual table schema
         columns = await db_connection.fetch("""
@@ -109,7 +109,7 @@ class TestDatabaseSchemaCompatibility:
     @pytest.mark.asyncio
     async def test_polygon_daily_prices_table_schema(self, db_connection, expected_table_schemas):
         """Test that Polygon daily prices table has correct schema"""
-        table_name = 'dev_daily_prices_polygon'
+        table_name = 'dev_daily_price_polygon'
 
         # Get actual table schema
         columns = await db_connection.fetch("""
@@ -135,7 +135,7 @@ class TestDatabaseSchemaCompatibility:
     @pytest.mark.asyncio
     async def test_instruments_table_schema(self, db_connection, expected_table_schemas):
         """Test that main instruments table has correct schema"""
-        table_name = 'dev_instruments'
+        table_name = 'dev_instrument'
 
         # Check if table exists
         table_exists = await db_connection.fetchval("""
@@ -167,9 +167,9 @@ class TestDatabaseSchemaCompatibility:
         """Test that tables have proper primary key constraints"""
         tables_with_pks = [
             ('dev_instrument_tiingo', 'id'),
-            ('dev_daily_prices_tiingo', ['date', 'instrument_id']),  # Composite PK
-            ('dev_daily_prices_polygon', 'id'),
-            ('dev_instruments', 'id')
+            ('dev_daily_price_tiingo', ['date', 'instrument_id']),  # Composite PK
+            ('dev_daily_price_polygon', 'id'),
+            ('dev_instrument', 'id')
         ]
 
         for table_name, expected_pk in tables_with_pks:
@@ -197,8 +197,8 @@ class TestDatabaseSchemaCompatibility:
         """Test that tables have proper foreign key relationships"""
         # Test that daily prices tables reference instruments table
         tables_with_fks = [
-            ('dev_daily_prices_tiingo', 'instrument_id', 'dev_instruments', 'id'),
-            ('dev_daily_prices_polygon', 'instrument_id', 'dev_instruments', 'id')
+            ('dev_daily_price_tiingo', 'instrument_id', 'dev_instrument', 'id'),
+            ('dev_daily_price_polygon', 'instrument_id', 'dev_instrument', 'id')
         ]
 
         for table_name, fk_column, ref_table, ref_column in tables_with_fks:
@@ -245,7 +245,7 @@ class TestDatabaseSchemaCompatibility:
                 ]
 
                 # Check INSERT statement uses correct columns
-                if 'INSERT INTO dev_daily_prices_tiingo' in content:
+                if 'INSERT INTO dev_daily_price_tiingo' in content:
                     for col in expected_columns:
                         assert col in content, f"Script should reference column '{col}'"
 
@@ -262,7 +262,7 @@ class TestDatabaseSchemaCompatibility:
                     content = f.read()
 
                     # Should use correct Polygon table columns
-                    if 'INSERT INTO dev_daily_prices_polygon' in content:
+                    if 'INSERT INTO dev_daily_price_polygon' in content:
                         expected_columns = ['date', 'symbol', 'open', 'high', 'low', 'close', 'volume']
                         for col in expected_columns:
                             assert col in content, f"Polygon script should reference column '{col}'"
@@ -285,9 +285,9 @@ class TestDatabaseSchemaCompatibility:
         # Should have the core tables we depend on
         required_tables = [
             'dev_instrument_tiingo',
-            'dev_daily_prices_tiingo',
-            'dev_daily_prices_polygon',
-            'dev_instruments'
+            'dev_daily_price_tiingo',
+            'dev_daily_price_polygon',
+            'dev_instrument'
         ]
 
         missing_tables = set(required_tables) - set(table_names)
@@ -299,12 +299,12 @@ class TestDatabaseSchemaCompatibility:
         """Test that column data types are compatible with our usage"""
         # Check critical data types
         type_checks = [
-            ('dev_daily_prices_tiingo', 'date', 'date'),
-            ('dev_daily_prices_tiingo', 'open', 'double precision'),
-            ('dev_daily_prices_tiingo', 'volume', 'bigint'),
-            ('dev_daily_prices_polygon', 'date', 'date'),
-            ('dev_daily_prices_polygon', 'volume', 'bigint'),
-            ('dev_instruments', 'active', 'boolean')
+            ('dev_daily_price_tiingo', 'date', 'date'),
+            ('dev_daily_price_tiingo', 'open', 'double precision'),
+            ('dev_daily_price_tiingo', 'volume', 'bigint'),
+            ('dev_daily_price_polygon', 'date', 'date'),
+            ('dev_daily_price_polygon', 'volume', 'bigint'),
+            ('dev_instrument', 'active', 'boolean')
         ]
 
         for table_name, column_name, expected_type in type_checks:
@@ -366,7 +366,7 @@ class TestDatabaseSchemaCompatibility:
         # Test INSERT works with explicit column names (most robust)
         try:
             await db_connection.execute("""
-                INSERT INTO dev_daily_prices_tiingo
+                INSERT INTO dev_daily_price_tiingo
                 (date, symbol, open, high, low, close, adjclose, volume, status_id, instrument_id)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             """,
@@ -377,7 +377,7 @@ class TestDatabaseSchemaCompatibility:
 
             # Cleanup test data
             await db_connection.execute(
-                "DELETE FROM dev_daily_prices_tiingo WHERE symbol = 'TEST_SCHEMA'"
+                "DELETE FROM dev_daily_price_tiingo WHERE symbol = 'TEST_SCHEMA'"
             )
 
         except Exception as e:

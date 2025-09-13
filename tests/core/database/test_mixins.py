@@ -144,12 +144,12 @@ class TestDatabaseMixin:
     def test_get_table_name(self, mock_get_settings):
         """Test table name prefixing."""
         mock_settings = Mock()
-        mock_settings.get_table_name.return_value = 'dev_instruments'
+        mock_settings.get_table_name.return_value = 'dev_instrument'
         mock_get_settings.return_value = mock_settings
 
         result = self.mixin.get_table_name('instruments')
 
-        assert result == 'dev_instruments'
+        assert result == 'dev_instrument'
         mock_settings.get_table_name.assert_called_once_with('instruments')
 
 

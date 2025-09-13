@@ -52,12 +52,12 @@ class TestArrayRecordReadingCompatibility:
     async def clean_test_data(self, db_connection):
         """Clean test data before and after."""
         await db_connection.execute("""
-            DELETE FROM dev_training_datasets
+            DELETE FROM dev_training_dataset
             WHERE dataset_name LIKE 'test_arrayrecord_%'
         """)
         yield
         await db_connection.execute("""
-            DELETE FROM dev_training_datasets
+            DELETE FROM dev_training_dataset
             WHERE dataset_name LIKE 'test_arrayrecord_%'
         """)
 
@@ -110,7 +110,7 @@ class TestArrayRecordReadingCompatibility:
                                 run_id: int, symbols: list, total_sequences: int):
         """Create test dataset in database."""
         await db_connection.execute("""
-            INSERT INTO dev_training_datasets (
+            INSERT INTO dev_training_dataset (
                 dataset_name, run_id, symbols, total_sequences,
                 sequence_length, feature_count, creation_timestamp,
                 status
@@ -118,7 +118,7 @@ class TestArrayRecordReadingCompatibility:
         """, dataset_name, run_id, symbols, total_sequences, datetime.now())
 
         return await db_connection.fetchval("""
-            SELECT id FROM dev_training_datasets
+            SELECT id FROM dev_training_dataset
             WHERE dataset_name = $1
         """, dataset_name)
 

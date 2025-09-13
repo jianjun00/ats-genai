@@ -33,10 +33,10 @@ class TestTypeSystemTransformation:
         # Test tables
         tables = schema_registry.list_tables()
         expected_tables = [
-            "dev_instruments",
-            "dev_daily_prices_polygon",
-            "dev_daily_prices_tiingo",
-            "dev_daily_prices_eodhd",
+            "dev_instrument",
+            "dev_daily_price_polygon",
+            "dev_daily_price_tiingo",
+            "dev_daily_price_eodhd",
             "instrument_xrefs"
         ]
 
@@ -111,7 +111,7 @@ class TestTypeSystemTransformation:
         """Test that EDA priority ordering works correctly."""
 
         # Test instrument priorities
-        instrument_priorities = schema_registry.get_eda_priority_fields("dev_instruments", limit=6)
+        instrument_priorities = schema_registry.get_eda_priority_fields("dev_instrument", limit=6)
 
         # Should be ordered by priority: symbol(10), exchange(9), active(8), name(8)...
         assert instrument_priorities[0] == "symbol"  # Highest priority
@@ -119,7 +119,7 @@ class TestTypeSystemTransformation:
         assert "id" not in instrument_priorities  # Readonly excluded
 
         # Test price data priorities
-        price_priorities = schema_registry.get_eda_priority_fields("dev_daily_prices_polygon", limit=6)
+        price_priorities = schema_registry.get_eda_priority_fields("dev_daily_price_polygon", limit=6)
 
         # Symbol and date should be high priority
         assert "symbol" in price_priorities[:2]
@@ -132,7 +132,7 @@ class TestTypeSystemTransformation:
         """Test that enum values are consistent and comprehensive."""
 
         # Test exchange values
-        exchange_values = schema_registry.get_enum_values("dev_instruments", "exchange")
+        exchange_values = schema_registry.get_enum_values("dev_instrument", "exchange")
 
         assert exchange_values is not None
         assert len(exchange_values) >= 10  # Should have major exchanges
@@ -142,7 +142,7 @@ class TestTypeSystemTransformation:
             assert exchange in exchange_values
 
         # Test instrument type values
-        type_values = schema_registry.get_enum_values("dev_instruments", "type")
+        type_values = schema_registry.get_enum_values("dev_instrument", "type")
 
         assert type_values is not None
         assert len(type_values) >= 8  # Should have major instrument types
@@ -157,17 +157,17 @@ class TestTypeSystemTransformation:
         """Test field validation using type definitions."""
 
         # Test enum validation
-        assert schema_registry.validate_field_value("dev_instruments", "exchange", "NYSE") == True
-        assert schema_registry.validate_field_value("dev_instruments", "exchange", "NASDAQ") == True
-        assert schema_registry.validate_field_value("dev_instruments", "exchange", "InvalidExchange") == False
+        assert schema_registry.validate_field_value("dev_instrument", "exchange", "NYSE") == True
+        assert schema_registry.validate_field_value("dev_instrument", "exchange", "NASDAQ") == True
+        assert schema_registry.validate_field_value("dev_instrument", "exchange", "InvalidExchange") == False
 
         # Test type validation
-        assert schema_registry.validate_field_value("dev_instruments", "type", "STOCK") == True
-        assert schema_registry.validate_field_value("dev_instruments", "type", "ETF") == True
-        assert schema_registry.validate_field_value("dev_instruments", "type", "InvalidType") == False
+        assert schema_registry.validate_field_value("dev_instrument", "type", "STOCK") == True
+        assert schema_registry.validate_field_value("dev_instrument", "type", "ETF") == True
+        assert schema_registry.validate_field_value("dev_instrument", "type", "InvalidType") == False
 
         # Test unknown field validation (should pass)
-        assert schema_registry.validate_field_value("dev_instruments", "unknown_field", "any_value") == True
+        assert schema_registry.validate_field_value("dev_instrument", "unknown_field", "any_value") == True
         assert schema_registry.validate_field_value("unknown_table", "any_field", "any_value") == True
 
         print("✅ Validation capabilities work correctly")
@@ -176,20 +176,20 @@ class TestTypeSystemTransformation:
         """Test comprehensive field querying."""
 
         # Test searchable fields
-        searchable = schema_registry.get_table_searchable_fields("dev_instruments")
+        searchable = schema_registry.get_table_searchable_fields("dev_instrument")
         assert "symbol" in searchable
         assert "name" in searchable
         assert "exchange" not in searchable  # Categorical, not searchable
 
         # Test categorical fields
-        categorical = schema_registry.get_table_categorical_fields("dev_instruments")
+        categorical = schema_registry.get_table_categorical_fields("dev_instrument")
         assert "exchange" in categorical
         assert "type" in categorical
         assert "currency" in categorical
         assert "symbol" not in categorical  # Searchable, not just categorical
 
         # Test numeric fields
-        numeric = schema_registry.get_table_numeric_fields("dev_daily_prices_polygon")
+        numeric = schema_registry.get_table_numeric_fields("dev_daily_price_polygon")
         price_fields = ["open", "high", "low", "close", "volume"]
         for field in price_fields:
             assert field in numeric
@@ -209,29 +209,29 @@ class TestTypeSystemUIGeneration:
 
         mappings = {
             # Instrument fields
-            ("dev_instruments", "symbol"): {
+            ("dev_instrument", "symbol"): {
                 "expected_ui": "text_input_with_autocomplete",
                 "semantics": FieldSemantics.SEARCHABLE_STRING,
                 "features": ["partial_search", "autocomplete"]
             },
-            ("dev_instruments", "exchange"): {
+            ("dev_instrument", "exchange"): {
                 "expected_ui": "dropdown_or_checkboxes",
                 "semantics": FieldSemantics.CATEGORICAL,
                 "features": ["predefined_options", "no_db_query"]
             },
-            ("dev_instruments", "active"): {
+            ("dev_instrument", "active"): {
                 "expected_ui": "tri_state_checkbox",
                 "semantics": FieldSemantics.BOOLEAN,
                 "features": ["true_false_either"]
             },
 
             # Price fields
-            ("dev_daily_prices_polygon", "close"): {
+            ("dev_daily_price_polygon", "close"): {
                 "expected_ui": "range_slider_with_currency",
                 "semantics": FieldSemantics.NUMERIC_RANGE,
                 "features": ["min_max_range", "currency_format"]
             },
-            ("dev_daily_prices_polygon", "date"): {
+            ("dev_daily_price_polygon", "date"): {
                 "expected_ui": "date_range_picker",
                 "semantics": FieldSemantics.DATE_RANGE,
                 "features": ["date_range_selection"]
@@ -250,9 +250,9 @@ class TestTypeSystemUIGeneration:
 
         # Test enum fields don't require database queries
         enum_fields = [
-            ("dev_instruments", "exchange"),
-            ("dev_instruments", "type"),
-            ("dev_instruments", "currency")
+            ("dev_instrument", "exchange"),
+            ("dev_instrument", "type"),
+            ("dev_instrument", "currency")
         ]
 
         for table, field in enum_fields:
@@ -261,7 +261,7 @@ class TestTypeSystemUIGeneration:
             assert len(enum_values) > 0, f"Empty enum values for {table}.{field}"
 
         # Test priority-based field limiting
-        priority_fields = schema_registry.get_eda_priority_fields("dev_instruments", limit=4)
+        priority_fields = schema_registry.get_eda_priority_fields("dev_instrument", limit=4)
         assert len(priority_fields) == 4, "Priority limiting not working"
 
         # Test filterable field filtering
@@ -280,9 +280,9 @@ class TestTypeSystemUIGeneration:
 
         # All price tables should have similar field semantics
         price_tables = [
-            "dev_daily_prices_polygon",
-            "dev_daily_prices_tiingo",
-            "dev_daily_prices_eodhd"
+            "dev_daily_price_polygon",
+            "dev_daily_price_tiingo",
+            "dev_daily_price_eodhd"
         ]
 
         for table in price_tables:
@@ -319,11 +319,11 @@ class TestTypeSystemIntegrationBenefits:
 
         # After type system: semantic-driven handling
         test_cases = [
-            ("dev_instruments", "symbol", "should generate text search"),
-            ("dev_instruments", "exchange", "should generate dropdown with predefined options"),
-            ("dev_daily_prices_polygon", "close", "should generate range slider"),
-            ("dev_daily_prices_polygon", "date", "should generate date picker"),
-            ("dev_instruments", "active", "should generate boolean checkbox")
+            ("dev_instrument", "symbol", "should generate text search"),
+            ("dev_instrument", "exchange", "should generate dropdown with predefined options"),
+            ("dev_daily_price_polygon", "close", "should generate range slider"),
+            ("dev_daily_price_polygon", "date", "should generate date picker"),
+            ("dev_instrument", "active", "should generate boolean checkbox")
         ]
 
         for table, field, expected_behavior in test_cases:
@@ -370,7 +370,7 @@ class TestTypeSystemIntegrationBenefits:
             assert len(entity_info["description"]) > 0
 
         # Field definitions include documentation
-        symbol_field = schema_registry.get_field_definition("dev_instruments", "symbol")
+        symbol_field = schema_registry.get_field_definition("dev_instrument", "symbol")
         assert symbol_field.description != ""
         assert symbol_field.ui_help_text != ""
 
@@ -380,14 +380,14 @@ class TestTypeSystemIntegrationBenefits:
         """Test that the complete transformation is achieved."""
 
         transformation_checklist = {
-            "symbol_searchable": schema_registry.is_field_searchable("dev_instruments", "symbol"),
-            "exchange_categorical": schema_registry.is_field_categorical("dev_instruments", "exchange"),
-            "exchange_predefined": schema_registry.get_enum_values("dev_instruments", "exchange") is not None,
-            "prices_numeric": schema_registry.is_field_numeric_range("dev_daily_prices_polygon", "close"),
+            "symbol_searchable": schema_registry.is_field_searchable("dev_instrument", "symbol"),
+            "exchange_categorical": schema_registry.is_field_categorical("dev_instrument", "exchange"),
+            "exchange_predefined": schema_registry.get_enum_values("dev_instrument", "exchange") is not None,
+            "prices_numeric": schema_registry.is_field_numeric_range("dev_daily_price_polygon", "close"),
             "dates_rangeable": schema_registry.get_date_fields("daily_price") != [],
             "booleans_handled": schema_registry.get_boolean_fields("instrument") != [],
-            "priorities_set": len(schema_registry.get_eda_priority_fields("dev_instruments", 4)) == 4,
-            "validation_enabled": schema_registry.validate_field_value("dev_instruments", "exchange", "NYSE")
+            "priorities_set": len(schema_registry.get_eda_priority_fields("dev_instrument", 4)) == 4,
+            "validation_enabled": schema_registry.validate_field_value("dev_instrument", "exchange", "NYSE")
         }
 
         for check_name, check_result in transformation_checklist.items():

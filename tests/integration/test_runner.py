@@ -63,7 +63,7 @@ def test_eda_unified_system():
     # Test 3: Schema API (tests job_manager scope fix)
     print("\n3️⃣ **Testing Schema API (Job Manager Scope Fix)**")
     try:
-        response = requests.get(f"{base_url}/api/eda/datasets/dev_daily_prices_tiingo/schema", timeout=10)
+        response = requests.get(f"{base_url}/api/eda/datasets/dev_daily_price_tiingo/schema", timeout=10)
         if response.status_code == 200:
             schema = response.json()
             if 'columns' in schema:
@@ -83,7 +83,7 @@ def test_eda_unified_system():
     # Test 4: Timeseries API (tests routing fix)
     print("\n4️⃣ **Testing Timeseries API (GET Routing Fix)**")
     try:
-        response = requests.get(f"{base_url}/api/eda/datasets/dev_daily_prices_tiingo/timeseries/close/date", timeout=10)
+        response = requests.get(f"{base_url}/api/eda/datasets/dev_daily_price_tiingo/timeseries/close/date", timeout=10)
         if response.status_code == 200:
             data = response.json()
             if 'data' in data and len(data.get('data', [])) > 0:
@@ -102,7 +102,7 @@ def test_eda_unified_system():
     try:
         payload = {"filters": {}, "page": 1, "page_size": 5}
         response = requests.post(
-            f"{base_url}/api/eda/datasets/dev_daily_prices_tiingo/data",
+            f"{base_url}/api/eda/datasets/dev_daily_price_tiingo/data",
             json=payload,
             timeout=15
         )

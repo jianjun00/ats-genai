@@ -214,8 +214,8 @@ class TestHardcodedValues:
     def test_hardcoded_table_names(self):
         """Test hardcoded database table references"""
         expected_tables = [
-            "dev_instruments",
-            "dev_daily_prices",
+            "dev_instrument",
+            "dev_daily_price",
             "backtest_runs",
             "portfolio_metrics"
         ]

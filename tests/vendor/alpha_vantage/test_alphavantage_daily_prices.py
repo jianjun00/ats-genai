@@ -23,12 +23,12 @@ class TestAlphaVantageDailyPrices:
         """Test that Alpha Vantage DAO can be initialized"""
         # Mock environment
         env = MagicMock()
-        env.get_table_name.return_value = 'dev_daily_prices_alphavantage'
+        env.get_table_name.return_value = 'dev_daily_price_alphavantage'
         env.get_database_url.return_value = 'postgresql://test:test@localhost/test'
 
         dao = DailyPricesAlphaVantageDAO(env)
 
-        assert dao.table_name == 'dev_daily_prices_alphavantage'
+        assert dao.table_name == 'dev_daily_price_alphavantage'
         assert dao.db_url == 'postgresql://test:test@localhost/test'
 
     def test_api_key_handling(self):

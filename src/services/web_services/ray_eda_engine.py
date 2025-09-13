@@ -668,7 +668,7 @@ if __name__ == "__main__":
         ]
 
         print("Testing Ray EDA on large dataset...")
-        async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns):
+        async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns):
             print(f"Column: {result['column']}")
             print(f"Cached: {result['cached']}")
             print(f"Sample size: {result['result'].sample_size}")

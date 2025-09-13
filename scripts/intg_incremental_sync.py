@@ -158,9 +158,9 @@ def create_sync_tracking_tables():
 
     # Initialize checkpoint records for core tables
     core_tables = [
-        'dev_instruments',
-        'dev_daily_prices',
-        'dev_fundamentals_comprehensive',
+        'dev_instrument',
+        'dev_daily_price',
+        'dev_fundamental_comprehensive',
         'dev_tiingo_daily_prices',
         'dev_polygon_daily_prices',
         'dev_fmp_daily_prices'
@@ -179,16 +179,16 @@ def create_sync_tracking_tables():
 def get_table_sync_strategy() -> dict:
     """Define sync strategies for different table types."""
     return {
-        'dev_instruments': {
-            'target_table': 'intg_instruments',
+        'dev_instrument': {
+            'target_table': 'intg_instrument',
             'sync_method': 'upsert',
             'timestamp_column': 'updated_at',
             'unique_columns': ['symbol'],
             'conflict_resolution': 'dev_wins',
             'change_detection': 'timestamp'
         },
-        'dev_daily_prices': {
-            'target_table': 'intg_daily_prices',
+        'dev_daily_price': {
+            'target_table': 'intg_daily_price',
             'sync_method': 'append_only',
             'timestamp_column': 'created_at',
             'unique_columns': ['symbol', 'date'],
@@ -196,8 +196,8 @@ def get_table_sync_strategy() -> dict:
             'change_detection': 'timestamp',
             'vendor_field': 'dev_migration'
         },
-        'dev_fundamentals_comprehensive': {
-            'target_table': 'intg_fundamentals_comprehensive',
+        'dev_fundamental_comprehensive': {
+            'target_table': 'intg_fundamental_comprehensive',
             'sync_method': 'upsert',
             'timestamp_column': 'updated_at',
             'unique_columns': ['symbol', 'date', 'fiscal_period'],
@@ -205,7 +205,7 @@ def get_table_sync_strategy() -> dict:
             'change_detection': 'timestamp'
         },
         'dev_tiingo_daily_prices': {
-            'target_table': 'intg_daily_prices',
+            'target_table': 'intg_daily_price',
             'sync_method': 'append_only',
             'timestamp_column': 'created_at',
             'unique_columns': ['symbol', 'date'],
@@ -214,7 +214,7 @@ def get_table_sync_strategy() -> dict:
             'vendor_field': 'tiingo'
         },
         'dev_polygon_daily_prices': {
-            'target_table': 'intg_daily_prices',
+            'target_table': 'intg_daily_price',
             'sync_method': 'append_only',
             'timestamp_column': 'created_at',
             'unique_columns': ['symbol', 'date'],
@@ -223,7 +223,7 @@ def get_table_sync_strategy() -> dict:
             'vendor_field': 'polygon'
         },
         'dev_fmp_daily_prices': {
-            'target_table': 'intg_daily_prices',
+            'target_table': 'intg_daily_price',
             'sync_method': 'append_only',
             'timestamp_column': 'created_at',
             'unique_columns': ['symbol', 'date'],

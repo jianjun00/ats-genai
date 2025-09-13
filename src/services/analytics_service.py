@@ -2540,8 +2540,8 @@ class UnifiedAnalyticsService:
                         } else {
                             // Default to common financial tables
                             tables = [
-                                'dev_daily_prices', 'dev_training_datasets', 'dev_instruments',
-                                'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd'
+                                'dev_daily_price', 'dev_training_dataset', 'dev_instrument',
+                                'dev_daily_price_polygon', 'dev_daily_price_tiingo', 'dev_daily_price_eodhd'
                             ];
                         }
 
@@ -7175,7 +7175,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     ),
                     actual_dates AS (
                         SELECT DISTINCT date as actual_date
-                        FROM intg_daily_prices 
+                        FROM intg_daily_price 
                         WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     )
                     SELECT rd.expected_date

@@ -122,9 +122,9 @@ class TestDatabaseSchemaIssues:
 
             # Test queries that were failing in logs
             test_queries = [
-                "SELECT COUNT(*) as count FROM dev_instruments_tiingo",
-                "SELECT COUNT(*) as count FROM dev_instruments_polygon",
-                "SELECT COUNT(*) as count FROM dev_instruments_eodhd"
+                "SELECT COUNT(*) as count FROM dev_instrument_tiingo",
+                "SELECT COUNT(*) as count FROM dev_instrument_polygon",
+                "SELECT COUNT(*) as count FROM dev_instrument_eodhd"
             ]
 
             for query in test_queries:

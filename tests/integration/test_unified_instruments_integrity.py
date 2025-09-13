@@ -185,22 +185,22 @@ class TestDataIntegrityValidation:
             async with pool.acquire() as conn:
                 # Check for price records without corresponding instruments
                 orphaned_prices = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_daily_prices_polygon p
+                    SELECT COUNT(*) FROM dev_daily_price_polygon p
                     WHERE NOT EXISTS (
-                        SELECT 1 FROM dev_instruments i WHERE i.id = p.instrument_id
+                        SELECT 1 FROM dev_instrument i WHERE i.id = p.instrument_id
                     )
                 """)
 
                 # Check for instruments without any price data
                 instruments_without_prices = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_instruments i
+                    SELECT COUNT(*) FROM dev_instrument i
                     WHERE NOT EXISTS (
-                        SELECT 1 FROM dev_daily_prices_polygon p WHERE p.instrument_id = i.id
+                        SELECT 1 FROM dev_daily_price_polygon p WHERE p.instrument_id = i.id
                     )
                 """)
 
-                total_price_records = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_prices_polygon")
-                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+                total_price_records = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
+                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
                 # Calculate integrity percentages
                 price_integrity = ((total_price_records - orphaned_prices) / total_price_records * 100) if total_price_records > 0 else 0
@@ -309,7 +309,7 @@ class TestDataIntegrityValidation:
                 polygon_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_polygon WHERE active = true")
                 tiingo_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_tiingo WHERE active = true")
                 eodhd_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_eodhd")
-                unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+                unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
                 # Get unique symbol counts
                 unique_symbols = await conn.fetchval("""
@@ -352,7 +352,7 @@ class TestDataQualityMetrics:
             pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
             async with pool.acquire() as conn:
-                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
                 if total_instruments == 0:
                     pytest.skip("No instruments in unified table to test")
@@ -363,7 +363,7 @@ class TestDataQualityMetrics:
                 key_fields = ['name', 'exchange', 'type', 'currency']
                 for field in key_fields:
                     non_null_count = await conn.fetchval(f"""
-                        SELECT COUNT(*) FROM dev_instruments
+                        SELECT COUNT(*) FROM dev_instrument
                         WHERE {field} IS NOT NULL AND {field} != ''
                     """)
 
@@ -399,26 +399,26 @@ class TestDataQualityMetrics:
 
                 recent_price_symbols = await conn.fetchval("""
                     SELECT COUNT(DISTINCT instrument_id)
-                    FROM dev_daily_prices_polygon
+                    FROM dev_daily_price_polygon
                     WHERE date >= $1
                 """, recent_cutoff)
 
                 total_active_instruments = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_instruments WHERE active = true
+                    SELECT COUNT(*) FROM dev_instrument WHERE active = true
                 """)
 
                 recent_coverage = recent_price_symbols / total_active_instruments if total_active_instruments > 0 else 0
 
                 # Test for data quality issues
                 zero_volume_ratio = await conn.fetchval("""
-                    SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_prices_polygon WHERE volume IS NOT NULL)
-                    FROM dev_daily_prices_polygon
+                    SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_price_polygon WHERE volume IS NOT NULL)
+                    FROM dev_daily_price_polygon
                     WHERE volume = 0
                 """) or 0
 
                 missing_prices_ratio = await conn.fetchval("""
-                    SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_prices_polygon)
-                    FROM dev_daily_prices_polygon
+                    SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_price_polygon)
+                    FROM dev_daily_price_polygon
                     WHERE close IS NULL OR close <= 0
                 """) or 0
 
@@ -497,7 +497,7 @@ class TestSystemPerformance:
                 start_time = datetime.now()
 
                 result = await conn.fetchrow("""
-                    SELECT * FROM dev_instruments
+                    SELECT * FROM dev_instrument
                     WHERE symbol = 'AAPL'
                 """)
 
@@ -509,8 +509,8 @@ class TestSystemPerformance:
 
                 result = await conn.fetchrow("""
                     SELECT symbol, COUNT(*) as record_count, AVG(close) as avg_price
-                    FROM dev_daily_prices_polygon p
-                    JOIN dev_instruments i ON i.id = p.instrument_id
+                    FROM dev_daily_price_polygon p
+                    JOIN dev_instrument i ON i.id = p.instrument_id
                     WHERE p.date >= $1
                     GROUP BY symbol
                     LIMIT 1
@@ -543,7 +543,7 @@ class TestSystemPerformance:
                 indexes = await conn.fetch("""
                     SELECT tablename, indexname, indexdef
                     FROM pg_indexes
-                    WHERE tablename IN ('dev_instruments', 'dev_daily_prices_polygon', 'dev_news_polygon')
+                    WHERE tablename IN ('dev_instrument', 'dev_daily_price_polygon', 'dev_news_polygon')
                     ORDER BY tablename, indexname
                 """)
 
@@ -551,8 +551,8 @@ class TestSystemPerformance:
 
                 # Critical indexes should exist
                 critical_indexes = [
-                    'dev_instruments_pkey',  # Primary key
-                    'dev_daily_prices_polygon_pkey',  # Primary key
+                    'dev_instrument_pkey',  # Primary key
+                    'dev_daily_price_polygon_pkey',  # Primary key
                 ]
 
                 for critical_index in critical_indexes:
@@ -597,19 +597,19 @@ class TestEndToEndDataFlow:
                 assert total_vendor_instruments > 0, "No vendor instrument data found"
 
                 # Step 2: Verify unified instruments exist
-                unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+                unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
                 assert unified_count > 0, "No unified instruments found"
 
                 # Step 3: Verify price data integration
-                price_count = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_prices_polygon")
+                price_count = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
                 assert price_count > 0, "No price data found"
 
                 # Step 4: Test data accessibility via typical queries
                 # Query: Get recent prices for active instruments
                 recent_data = await conn.fetch("""
                     SELECT i.symbol, i.name, p.date, p.close, p.volume
-                    FROM dev_instruments i
-                    JOIN dev_daily_prices_polygon p ON p.instrument_id = i.id
+                    FROM dev_instrument i
+                    JOIN dev_daily_price_polygon p ON p.instrument_id = i.id
                     WHERE i.active = true
                       AND p.date >= $1
                       AND p.close > 0

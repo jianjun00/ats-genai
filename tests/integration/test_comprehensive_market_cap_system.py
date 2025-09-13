@@ -417,7 +417,7 @@ class TestMarketCapCalculationAccuracy:
 
                     # Get instrument ID
                     instrument_id = await conn.fetchval(
-                        "SELECT id FROM dev_instruments WHERE symbol = $1", symbol
+                        "SELECT id FROM dev_instrument WHERE symbol = $1", symbol
                     )
 
                     if not instrument_id:
@@ -588,7 +588,7 @@ class TestMarketCapSystemPerformance:
             async with pool.acquire() as conn:
                 # Get sample instruments for testing
                 test_instruments = await conn.fetch("""
-                    SELECT id, symbol FROM dev_instruments
+                    SELECT id, symbol FROM dev_instrument
                     WHERE symbol ~ '^[A-Z]{1,4}$'
                     ORDER BY symbol
                     LIMIT 50
@@ -700,7 +700,7 @@ class TestMarketCapSystemPerformance:
         try:
             async with pool.acquire() as conn:
                 test_instruments = await conn.fetch("""
-                    SELECT id, symbol FROM dev_instruments
+                    SELECT id, symbol FROM dev_instrument
                     WHERE symbol ~ '^[A-Z]{1,4}$'
                     ORDER BY symbol
                     LIMIT 20
@@ -800,7 +800,7 @@ class TestMarketCapDataQuality:
 
                     # Get symbol for reporting
                     symbol = await conn.fetchval(
-                        "SELECT symbol FROM dev_instruments WHERE id = $1", instrument_id
+                        "SELECT symbol FROM dev_instrument WHERE id = $1", instrument_id
                     )
 
                     # Calculate coefficient of variation (stddev / mean)
@@ -862,9 +862,9 @@ class TestMarketCapDataQuality:
                         i.symbol,
                         mc.market_cap,
                         AVG(p.volume * p.close) as avg_dollar_volume
-                    FROM dev_instruments i
+                    FROM dev_instrument i
                     JOIN dev_daily_market_cap mc ON i.id = mc.instrument_id
-                    LEFT JOIN dev_daily_prices_polygon p ON i.id = p.instrument_id
+                    LEFT JOIN dev_daily_price_polygon p ON i.id = p.instrument_id
                         AND p.date >= CURRENT_DATE - INTERVAL '30 days'
                     WHERE mc.market_cap > 400000000  -- > $400M market cap
                     GROUP BY i.symbol, mc.market_cap

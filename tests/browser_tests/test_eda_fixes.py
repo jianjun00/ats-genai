@@ -14,7 +14,7 @@ def test_symbol_filtering_pagination():
     try:
         # Test TSLA symbol filter
         response = requests.post(
-            "http://localhost:4000/api/eda/datasets/intg_daily_prices_tiingo/data",
+            "http://localhost:4000/api/eda/datasets/intg_daily_price_tiingo/data",
             json={
                 "filters": {"symbol": {"type": "values", "values": ["TSLA"]}},
                 "page": 1,

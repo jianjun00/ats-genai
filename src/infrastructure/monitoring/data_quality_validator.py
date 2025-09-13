@@ -559,7 +559,7 @@ class DataQualityValidator:
 
     async def _get_instrument_id(self, conn, symbol: str) -> Optional[int]:
         """Get instrument ID for symbol"""
-        return await conn.fetchval("SELECT id FROM dev_instruments WHERE symbol = $1", symbol)
+        return await conn.fetchval("SELECT id FROM dev_instrument WHERE symbol = $1", symbol)
 
     async def run_comprehensive_validation(self, symbols: List[str], days_back: int = 30) -> DataQualityReport:
         """Run comprehensive data quality validation"""

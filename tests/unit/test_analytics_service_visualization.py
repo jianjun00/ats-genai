@@ -47,7 +47,7 @@ class TestAnalyticsServiceVisualization(unittest.TestCase):
             self.assertTrue(len(query_calls) > 0, "Should have executed at least one query")
 
             query = query_calls[0][0][0]  # First call, first argument
-            self.assertIn("dev_training_datasets", query, "Should use plural table name")
+            self.assertIn("dev_training_dataset", query, "Should use plural table name")
             self.assertNotIn("dev_training_dataset FROM dev_training_dataset", query, "Should not use singular table")
 
     def test_postgresql_array_parsing(self):

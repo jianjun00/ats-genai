@@ -276,7 +276,7 @@ class TrainingDataEndToEndTest:
                 # VERIFICATION: Training dataset registration
                 recent_datasets = await conn.fetch("""
                     SELECT id, dataset_name, symbols, status, total_sequences, feature_count, file_size_mb
-                    FROM intg_training_datasets
+                    FROM intg_training_dataset
                     WHERE created_at >= NOW() - INTERVAL '1 hour'
                     ORDER BY created_at DESC
                     LIMIT 3

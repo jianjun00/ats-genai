@@ -248,7 +248,7 @@ class TestUniverseAnalyticsComprehensive:
                         dp.symbol,
                         AVG(dp.close * dp.volume) as avg_dollar_volume,
                         COUNT(*) as trading_days
-                    FROM intg_daily_prices_polygon dp
+                    FROM intg_daily_price_polygon dp
                     INNER JOIN intg_universe_membership um ON dp.symbol = um.symbol
                     WHERE um.universe_id = 2 AND um.end_at IS NULL
                     AND dp.date >= '2024-08-01' AND dp.date <= '2024-09-03'
@@ -324,7 +324,7 @@ class TestUniverseAnalyticsComprehensive:
             cursor.execute("""
                 SELECT COUNT(*) as orphaned_count
                 FROM intg_universe_membership um
-                LEFT JOIN intg_instruments i ON um.instrument_id = i.id
+                LEFT JOIN intg_instrument i ON um.instrument_id = i.id
                 WHERE um.universe_id = 2 AND i.id IS NULL
             """)
 

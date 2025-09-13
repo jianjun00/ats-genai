@@ -164,7 +164,7 @@ class TestTypeAwareIntelligentFilters:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
 
-        filters = await self.service.get_intelligent_filters("dev_instruments")
+        filters = await self.service.get_intelligent_filters("dev_instrument")
 
         # Should generate multiple intelligent filters
         assert len(filters) > 0
@@ -211,7 +211,7 @@ class TestTypeAwareIntelligentFilters:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
 
-        filters = await self.service.get_intelligent_filters("dev_daily_prices_polygon")
+        filters = await self.service.get_intelligent_filters("dev_daily_price_polygon")
 
         assert len(filters) > 0
 
@@ -265,7 +265,7 @@ class TestTypeAwareIntelligentFilters:
 
         self.mock_db.clear_log()
 
-        filters = await self.service.get_intelligent_filters("dev_instruments")
+        filters = await self.service.get_intelligent_filters("dev_instrument")
 
         # Find exchange filter (should use predefined enum values)
         exchange_filters = [f for f in filters if f["field"] == "exchange"]
@@ -303,7 +303,7 @@ class TestTypeAwareColumnAnalysis:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
 
-        analysis = await self.service.analyze_column_intelligent("dev_instruments", "symbol")
+        analysis = await self.service.analyze_column_intelligent("dev_instrument", "symbol")
 
         # Should use type-aware analysis
         assert analysis["column"] == "symbol"
@@ -322,7 +322,7 @@ class TestTypeAwareColumnAnalysis:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
 
-        analysis = await self.service.analyze_column_intelligent("dev_instruments", "exchange")
+        analysis = await self.service.analyze_column_intelligent("dev_instrument", "exchange")
 
         # Should use type-aware analysis
         assert analysis["column"] == "exchange"
@@ -342,7 +342,7 @@ class TestTypeAwareColumnAnalysis:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
 
-        analysis = await self.service.analyze_column_intelligent("dev_daily_prices_polygon", "close")
+        analysis = await self.service.analyze_column_intelligent("dev_daily_price_polygon", "close")
 
         # Should use type-aware analysis
         assert analysis["column"] == "close"
@@ -369,7 +369,7 @@ class TestTypeAwareColumnAnalysis:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
 
-        analysis = await self.service.analyze_column_intelligent("dev_daily_prices_polygon", "date")
+        analysis = await self.service.analyze_column_intelligent("dev_daily_price_polygon", "date")
 
         # Should use type-aware analysis
         assert analysis["column"] == "date"
@@ -387,7 +387,7 @@ class TestTypeAwareColumnAnalysis:
             print("⏭️  Skipping service test - TypeAwareAnalyticsService not available")
             return
 
-        analysis = await self.service.analyze_column_intelligent("dev_instruments", "active")
+        analysis = await self.service.analyze_column_intelligent("dev_instrument", "active")
 
         # Should use type-aware analysis
         assert analysis["column"] == "active"
@@ -406,7 +406,7 @@ class TestTypeAwareColumnAnalysis:
             return
 
         # Test column not in type system
-        analysis = await self.service.analyze_column_intelligent("dev_instruments", "unknown_column")
+        analysis = await self.service.analyze_column_intelligent("dev_instrument", "unknown_column")
 
         # Should fall back to legacy analysis
         assert analysis["analysis_type"] == "legacy"
@@ -433,9 +433,9 @@ class TestTypeAwareQueryOptimization:
         self.mock_db.clear_log()
 
         # Generate filter for exchange field (enum)
-        exchange_field = schema_registry.get_field_definition("dev_instruments", "exchange")
+        exchange_field = schema_registry.get_field_definition("dev_instrument", "exchange")
         filter_config = await self.service._generate_typed_filter(
-            "dev_instruments", "exchange", exchange_field
+            "dev_instrument", "exchange", exchange_field
         )
 
         # Should use predefined enum values, no DB queries
@@ -458,9 +458,9 @@ class TestTypeAwareQueryOptimization:
         self.mock_db.clear_log()
 
         # Generate filter for symbol field (searchable string)
-        symbol_field = schema_registry.get_field_definition("dev_instruments", "symbol")
+        symbol_field = schema_registry.get_field_definition("dev_instrument", "symbol")
         filter_config = await self.service._generate_typed_filter(
-            "dev_instruments", "symbol", symbol_field
+            "dev_instrument", "symbol", symbol_field
         )
 
         # Should generate text search with autocomplete
@@ -488,9 +488,9 @@ class TestTypeAwareQueryOptimization:
         self.mock_db.clear_log()
 
         # Generate filter for close field (numeric range)
-        close_field = schema_registry.get_field_definition("dev_daily_prices_polygon", "close")
+        close_field = schema_registry.get_field_definition("dev_daily_price_polygon", "close")
         filter_config = await self.service._generate_typed_filter(
-            "dev_daily_prices_polygon", "close", close_field
+            "dev_daily_price_polygon", "close", close_field
         )
 
         # Should generate numeric range slider
@@ -518,12 +518,12 @@ class TestTypeSystemIntegrationBehavior:
         """Test complete flow from schema to UI filter generation."""
 
         # Test schema registry integration
-        schema = schema_registry.get_table_schema("dev_instruments")
+        schema = schema_registry.get_table_schema("dev_instrument")
         assert schema.entity_name == "instrument"
 
         # Test field queries
-        searchable_fields = schema_registry.get_table_searchable_fields("dev_instruments")
-        categorical_fields = schema_registry.get_table_categorical_fields("dev_instruments")
+        searchable_fields = schema_registry.get_table_searchable_fields("dev_instrument")
+        categorical_fields = schema_registry.get_table_categorical_fields("dev_instrument")
 
         assert "symbol" in searchable_fields
         assert "name" in searchable_fields
@@ -531,7 +531,7 @@ class TestTypeSystemIntegrationBehavior:
         assert "type" in categorical_fields
 
         # Test priority ordering
-        priority_fields = schema_registry.get_eda_priority_fields("dev_instruments", limit=4)
+        priority_fields = schema_registry.get_eda_priority_fields("dev_instrument", limit=4)
 
         # Should be ordered by priority
         assert len(priority_fields) == 4
@@ -544,16 +544,16 @@ class TestTypeSystemIntegrationBehavior:
         """Test validation using type system."""
 
         # Test enum validation
-        assert schema_registry.validate_field_value("dev_instruments", "exchange", "NYSE") == True
-        assert schema_registry.validate_field_value("dev_instruments", "exchange", "INVALID") == False
+        assert schema_registry.validate_field_value("dev_instrument", "exchange", "NYSE") == True
+        assert schema_registry.validate_field_value("dev_instrument", "exchange", "INVALID") == False
 
         # Test field type detection
-        assert schema_registry.is_field_searchable("dev_instruments", "symbol") == True
-        assert schema_registry.is_field_categorical("dev_instruments", "exchange") == True
-        assert schema_registry.is_field_numeric_range("dev_daily_prices_polygon", "close") == True
+        assert schema_registry.is_field_searchable("dev_instrument", "symbol") == True
+        assert schema_registry.is_field_categorical("dev_instrument", "exchange") == True
+        assert schema_registry.is_field_numeric_range("dev_daily_price_polygon", "close") == True
 
         # Test enum value retrieval
-        exchange_values = schema_registry.get_enum_values("dev_instruments", "exchange")
+        exchange_values = schema_registry.get_enum_values("dev_instrument", "exchange")
         assert exchange_values is not None
         assert "NYSE" in exchange_values
         assert "NASDAQ" in exchange_values
@@ -572,7 +572,7 @@ class TestTypeSystemIntegrationBehavior:
 
         # Test typed approach
         mock_db.clear_log()
-        typed_filters = await service.get_intelligent_filters("dev_instruments")
+        typed_filters = await service.get_intelligent_filters("dev_instrument")
         typed_db_calls = mock_db.get_call_count()
 
         # Test legacy approach

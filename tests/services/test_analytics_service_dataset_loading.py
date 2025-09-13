@@ -59,8 +59,8 @@ class TestTablePrefixEnvironmentDetection(TestAnalyticsServiceDatasetLoading):
 
         # Mock database response for dev tables
         self.mock_cursor.fetchall.return_value = [
-            {'tablename': 'dev_instruments', 'size': '1 MB', 'schemaname': 'public'},
-            {'tablename': 'dev_daily_prices', 'size': '100 MB', 'schemaname': 'public'}
+            {'tablename': 'dev_instrument', 'size': '1 MB', 'schemaname': 'public'},
+            {'tablename': 'dev_daily_price', 'size': '100 MB', 'schemaname': 'public'}
         ]
         self.mock_cursor.fetchone.return_value = {'count': 1000}
 
@@ -80,7 +80,7 @@ class TestTablePrefixEnvironmentDetection(TestAnalyticsServiceDatasetLoading):
 
         # Verify datasets were returned
         self.assertEqual(len(datasets), 2)
-        self.assertEqual(datasets[0]['name'], 'dev_instruments')
+        self.assertEqual(datasets[0]['name'], 'dev_instrument')
 
     @patch('services.analytics_service.get_raw_connection')
     def test_intg_environment_uses_intg_prefix(self, mock_get_connection):
@@ -91,8 +91,8 @@ class TestTablePrefixEnvironmentDetection(TestAnalyticsServiceDatasetLoading):
 
         # Mock database response for intg tables
         self.mock_cursor.fetchall.return_value = [
-            {'tablename': 'intg_instruments', 'size': '2 MB', 'schemaname': 'public'},
-            {'tablename': 'intg_daily_prices', 'size': '200 MB', 'schemaname': 'public'},
+            {'tablename': 'intg_instrument', 'size': '2 MB', 'schemaname': 'public'},
+            {'tablename': 'intg_daily_price', 'size': '200 MB', 'schemaname': 'public'},
             {'tablename': 'intg_comprehensive_backtest_runs', 'size': '50 KB', 'schemaname': 'public'}
         ]
         self.mock_cursor.fetchone.return_value = {'count': 5000}
@@ -108,8 +108,8 @@ class TestTablePrefixEnvironmentDetection(TestAnalyticsServiceDatasetLoading):
 
         # Verify datasets were returned
         self.assertEqual(len(datasets), 3)
-        self.assertEqual(datasets[0]['name'], 'intg_instruments')
-        self.assertEqual(datasets[1]['name'], 'intg_daily_prices')
+        self.assertEqual(datasets[0]['name'], 'intg_instrument')
+        self.assertEqual(datasets[1]['name'], 'intg_daily_price')
         self.assertEqual(datasets[2]['name'], 'intg_comprehensive_backtest_runs')
 
     @patch('services.analytics_service.get_raw_connection')
@@ -387,13 +387,13 @@ class TestIntegrationScenarios(TestAnalyticsServiceDatasetLoading):
         # Scenario 1: Start with dev environment (has dev_ tables)
         os.environ['ENVIRONMENT'] = 'dev'
         self.mock_cursor.fetchall.return_value = [
-            {'tablename': 'dev_instruments', 'size': '1 MB', 'schemaname': 'public'}
+            {'tablename': 'dev_instrument', 'size': '1 MB', 'schemaname': 'public'}
         ]
         self.mock_cursor.fetchone.return_value = {'count': 1000}
 
         dev_datasets = job_manager.get_datasets()
         self.assertEqual(len(dev_datasets), 1)
-        self.assertEqual(dev_datasets[0]['name'], 'dev_instruments')
+        self.assertEqual(dev_datasets[0]['name'], 'dev_instrument')
 
         # Reset mock calls
         self.mock_cursor.execute.reset_mock()
@@ -401,8 +401,8 @@ class TestIntegrationScenarios(TestAnalyticsServiceDatasetLoading):
         # Scenario 2: Switch to intg environment (has intg_ tables)
         os.environ['ENVIRONMENT'] = 'intg'
         self.mock_cursor.fetchall.return_value = [
-            {'tablename': 'intg_instruments', 'size': '2 MB', 'schemaname': 'public'},
-            {'tablename': 'intg_daily_prices', 'size': '200 MB', 'schemaname': 'public'}
+            {'tablename': 'intg_instrument', 'size': '2 MB', 'schemaname': 'public'},
+            {'tablename': 'intg_daily_price', 'size': '200 MB', 'schemaname': 'public'}
         ]
         self.mock_cursor.fetchone.return_value = {'count': 5000}
 
@@ -413,8 +413,8 @@ class TestIntegrationScenarios(TestAnalyticsServiceDatasetLoading):
 
         intg_datasets = job_manager.get_datasets()
         self.assertEqual(len(intg_datasets), 2)
-        self.assertEqual(intg_datasets[0]['name'], 'intg_instruments')
-        self.assertEqual(intg_datasets[1]['name'], 'intg_daily_prices')
+        self.assertEqual(intg_datasets[0]['name'], 'intg_instrument')
+        self.assertEqual(intg_datasets[1]['name'], 'intg_daily_price')
 
         # Verify different prefixes were used
         table_query_params = [call[0][1] for call in self.mock_cursor.execute.call_args_list

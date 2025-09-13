@@ -313,7 +313,7 @@ class TestCombinedInstrumentPopulation:
     def test_database_schema_requirements(self):
         """Test that database schema meets requirements"""
 
-        # Expected table schema for dev_instruments_combined
+        # Expected table schema for dev_instrument_combined
         expected_schema = {
             'id': 'SERIAL PRIMARY KEY',
             'symbol': 'VARCHAR(20) UNIQUE NOT NULL',

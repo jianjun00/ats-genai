@@ -39,8 +39,8 @@ async def test_market_cap_calculation_accuracy():
                     p.close as our_price,
                     mc.date
                 FROM dev_daily_market_cap mc
-                JOIN dev_instruments i ON mc.instrument_id = i.id
-                JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                JOIN dev_instrument i ON mc.instrument_id = i.id
+                JOIN dev_daily_price_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
                 WHERE mc.date = (SELECT MAX(date) FROM dev_daily_market_cap)
                   AND i.symbol IN ('AAPL', 'MSFT', 'GOOGL', 'NVDA', 'AMZN', 'META', 'TSLA')
                 ORDER BY mc.market_cap DESC
@@ -108,7 +108,7 @@ async def test_market_cap_universe_coverage():
             # Check total instruments with price data
             price_coverage = await conn.fetchval("""
                 SELECT COUNT(DISTINCT instrument_id)
-                FROM dev_daily_prices_polygon
+                FROM dev_daily_price_polygon
                 WHERE date >= $1
             """, date.today() - timedelta(days=7))
 
@@ -126,7 +126,7 @@ async def test_market_cap_universe_coverage():
                         AVG(mc.market_cap) as avg_market_cap,
                         AVG(p.volume * p.close) as avg_dollar_volume
                     FROM dev_daily_market_cap mc
-                    JOIN dev_daily_prices_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
+                    JOIN dev_daily_price_polygon p ON mc.instrument_id = p.instrument_id AND mc.date = p.date
                     WHERE p.date >= $1
                     GROUP BY mc.instrument_id
                     HAVING COUNT(*) >= 5  -- At least 5 days of data
@@ -208,8 +208,8 @@ async def test_price_data_consistency():
                     i.symbol,
                     p.close,
                     p.date
-                FROM dev_daily_prices_polygon p
-                JOIN dev_instruments i ON p.instrument_id = i.id
+                FROM dev_daily_price_polygon p
+                JOIN dev_instrument i ON p.instrument_id = i.id
                 WHERE p.date >= $1
                   AND i.symbol IN ('AAPL', 'MSFT', 'GOOGL', 'NVDA', 'AMZN', 'META', 'TSLA')
                   AND (p.close < 10 OR p.close > 10000)  -- Outside reasonable range
@@ -230,8 +230,8 @@ async def test_price_data_consistency():
                         LAG(p.close) OVER (PARTITION BY i.symbol ORDER BY p.date) as prev_close,
                         ABS(p.close - LAG(p.close) OVER (PARTITION BY i.symbol ORDER BY p.date)) /
                         LAG(p.close) OVER (PARTITION BY i.symbol ORDER BY p.date) as daily_change
-                    FROM dev_daily_prices_polygon p
-                    JOIN dev_instruments i ON p.instrument_id = i.id
+                    FROM dev_daily_price_polygon p
+                    JOIN dev_instrument i ON p.instrument_id = i.id
                     WHERE p.date >= $1
                       AND i.symbol IN ('AAPL', 'MSFT', 'GOOGL')
                 )
@@ -273,7 +273,7 @@ async def test_shares_outstanding_reasonableness():
                     mc.shares_outstanding,
                     mc.market_cap/1000000000 as market_cap_billions
                 FROM dev_daily_market_cap mc
-                JOIN dev_instruments i ON mc.instrument_id = i.id
+                JOIN dev_instrument i ON mc.instrument_id = i.id
                 WHERE mc.date = (SELECT MAX(date) FROM dev_daily_market_cap)
                   AND i.symbol IN ('AAPL', 'MSFT', 'GOOGL', 'NVDA')
             """)

@@ -258,7 +258,7 @@ class TestEDAFilteringLogic:
             "filters_applied": {
                 "symbol": {"type": "values", "values": ["AAPL", "GOOGL"]}
             },
-            "table_name": "dev_instruments"
+            "table_name": "dev_instrument"
         }
 
         # Validate response structure

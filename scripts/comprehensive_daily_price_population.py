@@ -63,7 +63,7 @@ class DataCoverageAnalyzer:
                     WHEN end_date IS NULL THEN CURRENT_DATE
                     ELSE end_date
                 END as effective_end_date
-            FROM dev_instruments
+            FROM dev_instrument
             WHERE start_date IS NOT NULL
             ORDER BY symbol
             """
@@ -88,7 +88,7 @@ class DataCoverageAnalyzer:
     async def _analyze_vendor_coverage(self, conn, vendor: str, instruments) -> Dict[str, any]:
         """Analyze coverage for a specific vendor."""
 
-        table_name = f"dev_daily_prices_{vendor}"
+        table_name = f"dev_daily_price_{vendor}"
 
         # Get current data coverage
         coverage_query = f"""
@@ -109,7 +109,7 @@ class DataCoverageAnalyzer:
                 WHEN MAX(p.date) < CURRENT_DATE - INTERVAL '7 days' THEN 'MISSING_RECENT_DATA'
                 ELSE 'GOOD_COVERAGE'
             END as coverage_status
-        FROM dev_instruments i
+        FROM dev_instrument i
         LEFT JOIN {table_name} p ON i.id = p.instrument_id
         WHERE i.start_date IS NOT NULL
         GROUP BY i.id, i.symbol, i.start_date, i.end_date
@@ -204,8 +204,8 @@ class DailyPricePopulator:
                     ELSE i.end_date
                 END as effective_end_date,
                 COALESCE(MAX(p.date), i.start_date - INTERVAL '1 day') as last_data_date
-            FROM dev_instruments i
-            LEFT JOIN dev_daily_prices_{vendor} p ON i.id = p.instrument_id
+            FROM dev_instrument i
+            LEFT JOIN dev_daily_price_{vendor} p ON i.id = p.instrument_id
             WHERE i.start_date IS NOT NULL {symbol_filter}
             GROUP BY i.id, i.symbol, i.exchange, i.start_date, i.end_date
             HAVING COALESCE(MAX(p.date), i.start_date - INTERVAL '1 day') < CURRENT_DATE - INTERVAL '7 days'

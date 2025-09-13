@@ -281,7 +281,7 @@ class ExchangeService:
         """
         try:
             # For now, query directly - in full implementation this would use InstrumentDAO
-            query = "SELECT * FROM dev_instruments WHERE symbol = %(symbol)s AND is_active = true"
+            query = "SELECT * FROM dev_instrument WHERE symbol = %(symbol)s AND is_active = true"
             results = self.exchange_dao.execute_query(query, {"symbol": symbol})
             return results[0] if results else None
 

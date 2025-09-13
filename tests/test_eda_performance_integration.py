@@ -117,7 +117,7 @@ class TestEDAPerformanceIntegration:
         """Test column values endpoint with performance optimizations."""
         # Test with small limit for fast response
         response = requests.get(
-            f"{self.base_url}/api/eda/datasets/dev_instruments/columns/symbol/values?limit=5",
+            f"{self.base_url}/api/eda/datasets/dev_instrument/columns/symbol/values?limit=5",
             timeout=8
         )
         assert response.status_code == 200
@@ -140,7 +140,7 @@ class TestEDAPerformanceIntegration:
 
         start_time = time.time()
         response = requests.post(
-            f"{self.base_url}/api/eda/datasets/dev_instruments/data",
+            f"{self.base_url}/api/eda/datasets/dev_instrument/data",
             headers={"Content-Type": "application/json"},
             json=payload,
             timeout=8

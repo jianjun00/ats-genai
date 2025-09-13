@@ -381,7 +381,7 @@ class BackfillOrchestratorTool:
         """Insert price data into database"""
         
         insert_query = """
-        INSERT INTO intg_daily_prices (
+        INSERT INTO intg_daily_price (
             symbol, timestamp, open_price, high_price, low_price, close_price, volume
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (symbol, timestamp) DO UPDATE SET

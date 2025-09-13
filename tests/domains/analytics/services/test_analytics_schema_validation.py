@@ -2,7 +2,7 @@
 Database Schema Validation Tests for Analytics Service
 
 These tests prevent the schema-related issues that caused the analytics service failures:
-1. Wrong table names (dev_training_datasets vs dev_training_dataset)
+1. Wrong table names (dev_training_dataset vs dev_training_dataset)
 2. Wrong column names (job_type vs run_type, started_at vs start_time, etc.)
 3. Missing timestamp columns (created_at vs collected_at)
 4. SQL syntax errors in UNION queries
@@ -73,7 +73,7 @@ class TestDatabaseSchemaValidation:
     @pytest.mark.asyncio
 
     async def test_dev_training_dataset_table_schema(self, db_connection):
-        """Test dev_training_dataset table schema (not dev_training_datasets)."""
+        """Test dev_training_dataset table schema (not dev_training_dataset)."""
         # Verify correct table name exists
         table_exists = await db_connection.fetchval(
             "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_training_dataset')"
@@ -82,9 +82,9 @@ class TestDatabaseSchemaValidation:
 
         # Verify wrong table name doesn't exist
         wrong_table = await db_connection.fetchval(
-            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_training_datasets')"
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_training_dataset')"
         )
-        assert not wrong_table, "Table 'dev_training_datasets' (plural) should not exist"
+        assert not wrong_table, "Table 'dev_training_dataset' (plural) should not exist"
 
         # Get actual column names
         columns = await db_connection.fetch(
@@ -368,7 +368,7 @@ class TestAnalyticsServiceQueries:
                     file_size_mb,
                     status,
                     creation_timestamp as created_at
-                FROM dev_training_dataset    -- NOT dev_training_datasets
+                FROM dev_training_dataset    -- NOT dev_training_dataset
                 ORDER BY creation_timestamp DESC
                 LIMIT $1 OFFSET $2
             """,

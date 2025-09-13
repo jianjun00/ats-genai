@@ -262,7 +262,7 @@ class DualWriteTimeSeriesManager:
                 await conn.execute(f"""
                     CREATE TABLE IF NOT EXISTS {table_name} (
                         id SERIAL PRIMARY KEY,
-                        instrument_id INTEGER NOT NULL REFERENCES dev_instruments(id),
+                        instrument_id INTEGER NOT NULL REFERENCES dev_instrument(id),
                         timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL,
                         open_price NUMERIC(10, 4),
                         high_price NUMERIC(10, 4),

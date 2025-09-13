@@ -265,8 +265,8 @@ class TestDataQualityValidation:
             # Check for obviously invalid price data
             invalid_prices = await conn.fetch("""
                 SELECT DISTINCT instrument_id, symbol, close, date, 'polygon' as source
-                FROM dev_daily_prices_polygon p
-                JOIN dev_instruments i ON p.instrument_id = i.id
+                FROM dev_daily_price_polygon p
+                JOIN dev_instrument i ON p.instrument_id = i.id
                 WHERE close <= 0 OR close > 10000  -- Suspiciously high/low prices
                 ORDER BY close DESC
                 LIMIT 10
@@ -280,8 +280,8 @@ class TestDataQualityValidation:
             # Check for missing recent price data
             missing_recent = await conn.fetchval("""
                 SELECT COUNT(DISTINCT i.id)
-                FROM dev_instruments i
-                LEFT JOIN dev_daily_prices_polygon p ON i.id = p.instrument_id
+                FROM dev_instrument i
+                LEFT JOIN dev_daily_price_polygon p ON i.id = p.instrument_id
                     AND p.date >= CURRENT_DATE - INTERVAL '30 days'
                 WHERE p.instrument_id IS NULL
                   AND i.symbol ~ '^[A-Z]{1,5}$'  -- Regular stock symbols
@@ -376,7 +376,7 @@ class TestSystemResilience:
             # Should still be able to run universe queries
             universe_count = await conn.fetchval("""
                 SELECT COUNT(DISTINCT i.symbol)
-                FROM dev_instruments i
+                FROM dev_instrument i
                 JOIN dev_daily_market_cap mc ON i.id = mc.instrument_id
                 WHERE mc.market_cap >= 400000000
             """)

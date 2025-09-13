@@ -70,7 +70,7 @@ async def run_database_connectivity_tests():
             print(f"✅ Database connected: {version[:50]}...")
 
             # Test key table existence
-            tables = ['dev_instruments', 'dev_daily_prices_polygon', 'dev_instrument_polygon',
+            tables = ['dev_instrument', 'dev_daily_price_polygon', 'dev_instrument_polygon',
                      'dev_instrument_tiingo', 'dev_instrument_eodhd']
 
             for table in tables:
@@ -108,13 +108,13 @@ async def run_data_integrity_tests():
         async with pool.acquire() as conn:
             # Test 1: Referential integrity
             orphaned_prices = await conn.fetchval("""
-                SELECT COUNT(*) FROM dev_daily_prices_polygon p
+                SELECT COUNT(*) FROM dev_daily_price_polygon p
                 WHERE NOT EXISTS (
-                    SELECT 1 FROM dev_instruments i WHERE i.id = p.instrument_id
+                    SELECT 1 FROM dev_instrument i WHERE i.id = p.instrument_id
                 )
             """)
 
-            total_prices = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_prices_polygon")
+            total_prices = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
 
             if total_prices > 0:
                 integrity_pct = ((total_prices - orphaned_prices) / total_prices) * 100
@@ -155,7 +155,7 @@ async def run_data_integrity_tests():
                 print("⚠️ No EODHD instruments found")
 
             # Test 4: Unified instrument coverage
-            unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+            unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
             if unified_count > 0:
                 print(f"✅ Unified Instruments: {unified_count:,}")
             else:
@@ -270,11 +270,11 @@ async def run_system_health_summary():
             # Get comprehensive metrics (handle missing 'active' columns gracefully)
             metrics = await conn.fetchrow("""
                 SELECT
-                    (SELECT COUNT(*) FROM dev_instruments) as unified_instruments,
-                    (SELECT COUNT(*) FROM dev_instruments
+                    (SELECT COUNT(*) FROM dev_instrument) as unified_instruments,
+                    (SELECT COUNT(*) FROM dev_instrument
                      WHERE CASE WHEN EXISTS (
                         SELECT column_name FROM information_schema.columns
-                        WHERE table_name = 'dev_instruments' AND column_name = 'active'
+                        WHERE table_name = 'dev_instrument' AND column_name = 'active'
                      ) THEN active = true ELSE true END) as active_instruments,
                     (SELECT COUNT(*) FROM dev_instrument_polygon
                      WHERE CASE WHEN EXISTS (
@@ -283,7 +283,7 @@ async def run_system_health_summary():
                      ) THEN active = true ELSE true END) as polygon_instruments,
                     (SELECT COUNT(*) FROM dev_instrument_tiingo) as tiingo_instruments,
                     (SELECT COUNT(*) FROM dev_instrument_eodhd) as eodhd_instruments,
-                    (SELECT COUNT(*) FROM dev_daily_prices_polygon) as price_records
+                    (SELECT COUNT(*) FROM dev_daily_price_polygon) as price_records
             """)
 
             print(f"📈 Unified Instruments: {metrics['unified_instruments']:,}")

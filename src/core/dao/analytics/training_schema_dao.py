@@ -65,11 +65,11 @@ class TrainingSchemaDAO:
 
         # Determine table prefixes based on environment
         if environment.env_type.value == 'intg':
-            self.datasets_table = 'intg_training_datasets'
+            self.datasets_table = 'intg_training_dataset'
             self.registry_table = 'intg_training_schema_registry'
             self.analytics_view = 'intg_schema_usage_analytics'
         else:
-            self.datasets_table = 'dev_training_datasets'
+            self.datasets_table = 'dev_training_dataset'
             self.registry_table = 'dev_training_schema_registry'
             self.analytics_view = 'dev_schema_usage_analytics'
 

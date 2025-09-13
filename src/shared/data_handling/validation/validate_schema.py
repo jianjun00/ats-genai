@@ -219,7 +219,7 @@ class SchemaValidator:
             lines = content.split('\n')
 
         anti_patterns = {
-            'dev_training_datasets': 'Should be "dev_training_dataset" (singular)',
+            'dev_training_dataset': 'Should be "dev_training_dataset" (singular)',
             'created_at': 'Should be "creation_timestamp"',
             'file_size_bytes': 'Should be "file_size_mb"',
         }

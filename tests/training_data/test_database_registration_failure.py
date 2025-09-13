@@ -233,7 +233,7 @@ class TestTrainingDataQuality:
             # Get datasets with actual data (total_sequences > 0)
             cursor.execute("""
                 SELECT id, dataset_name, symbols, total_sequences, created_at
-                FROM intg_training_datasets
+                FROM intg_training_dataset
                 WHERE total_sequences > 1
                 ORDER BY created_at DESC
                 LIMIT 5
@@ -244,7 +244,7 @@ class TestTrainingDataQuality:
             # Get all recent datasets for comparison
             cursor.execute("""
                 SELECT id, dataset_name, symbols, total_sequences, created_at
-                FROM intg_training_datasets
+                FROM intg_training_dataset
                 ORDER BY created_at DESC
                 LIMIT 10
             """)
@@ -295,7 +295,7 @@ class TestTrainingDataQuality:
             # Get the latest TSLA dataset
             cursor.execute("""
                 SELECT id, dataset_name, symbols, total_sequences, feature_count, created_at
-                FROM intg_training_datasets
+                FROM intg_training_dataset
                 WHERE symbols @> '{TSLA}'
                 ORDER BY created_at DESC
                 LIMIT 1

@@ -56,12 +56,12 @@ class TestMultiRunTrainingDatasetPathResolution:
         """Clean test data before and after."""
         # Clean datasets
         await db_connection.execute("""
-            DELETE FROM dev_training_datasets
+            DELETE FROM dev_training_dataset
             WHERE dataset_name LIKE 'test_multi_run_%'
         """)
         yield
         await db_connection.execute("""
-            DELETE FROM dev_training_datasets
+            DELETE FROM dev_training_dataset
             WHERE dataset_name LIKE 'test_multi_run_%'
         """)
 
@@ -109,7 +109,7 @@ class TestMultiRunTrainingDatasetPathResolution:
                                 run_id: int, symbols: list, total_sequences: int):
         """Create test dataset in database."""
         await db_connection.execute("""
-            INSERT INTO dev_training_datasets (
+            INSERT INTO dev_training_dataset (
                 dataset_name, run_id, symbols, total_sequences,
                 sequence_length, feature_count, creation_timestamp,
                 status
@@ -144,7 +144,7 @@ class TestMultiRunTrainingDatasetPathResolution:
             symbols=["AAPL"], total_sequences=250  # 50 sequences * 5 timeframes
         )
         dataset_60_id = await db_connection.fetchval("""
-            SELECT id FROM dev_training_datasets
+            SELECT id FROM dev_training_dataset
             WHERE dataset_name = 'test_multi_run_dataset_60'
         """)
 
@@ -153,7 +153,7 @@ class TestMultiRunTrainingDatasetPathResolution:
             symbols=["AAPL", "TSLA"], total_sequences=2000  # 200 sequences * 5 timeframes * 2 symbols
         )
         dataset_76_id = await db_connection.fetchval("""
-            SELECT id FROM dev_training_datasets
+            SELECT id FROM dev_training_dataset
             WHERE dataset_name = 'test_multi_run_dataset_76'
         """)
 
@@ -229,7 +229,7 @@ class TestMultiRunTrainingDatasetPathResolution:
         )
 
         dataset_id = await db_connection.fetchval("""
-            SELECT id FROM dev_training_datasets
+            SELECT id FROM dev_training_dataset
             WHERE dataset_name = 'test_sequence_count_validation'
         """)
 
@@ -269,13 +269,13 @@ class TestMultiRunTrainingDatasetPathResolution:
         )
 
         dataset_id = await db_connection.fetchval("""
-            SELECT id FROM dev_training_datasets
+            SELECT id FROM dev_training_dataset
             WHERE dataset_name = 'test_db_filesystem_linkage'
         """)
 
         # Verify database has correct run_id
         db_run_id = await db_connection.fetchval("""
-            SELECT run_id FROM dev_training_datasets WHERE id = $1
+            SELECT run_id FROM dev_training_dataset WHERE id = $1
         """, dataset_id)
         assert db_run_id == run_id, f"Database run_id mismatch: {db_run_id} != {run_id}"
 
@@ -327,7 +327,7 @@ class TestMultiRunTrainingDatasetPathResolution:
         )
 
         dataset_id = await db_connection.fetchval("""
-            SELECT id FROM dev_training_datasets
+            SELECT id FROM dev_training_dataset
             WHERE dataset_name = 'test_wrong_run_detection'
         """)
 

@@ -90,9 +90,9 @@ def test_database_operations(tracer):
     with tracer.start_as_current_span("database_query") as span:
         span.set_attribute("db.system", "postgresql")
         span.set_attribute("db.name", "ats_dev")
-        span.set_attribute("db.statement", "SELECT * FROM dev_instruments WHERE symbol = ?")
+        span.set_attribute("db.statement", "SELECT * FROM dev_instrument WHERE symbol = ?")
         span.set_attribute("db.operation", "select")
-        span.set_attribute("db.table", "dev_instruments")
+        span.set_attribute("db.table", "dev_instrument")
 
         time.sleep(0.3)  # Simulate query execution
         span.set_attribute("db.rows_affected", 150)

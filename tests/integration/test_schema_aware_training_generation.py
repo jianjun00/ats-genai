@@ -28,7 +28,7 @@ from domains.ml.repositories.training_schema_dao import TrainingSchemaDAO
 def mock_environment():
     """Mock environment configuration."""
     env = MagicMock()
-    env.get_table_name.return_value = "dev_instruments"
+    env.get_table_name.return_value = "dev_instrument"
     env.env_type.value = 'dev'
     return env
 

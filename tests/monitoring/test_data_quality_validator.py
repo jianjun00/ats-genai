@@ -387,7 +387,7 @@ class TestUtilityMethods:
 
         assert instrument_id == 123
         mock_conn.fetchval.assert_called_once_with(
-            "SELECT id FROM dev_instruments WHERE symbol = $1",
+            "SELECT id FROM dev_instrument WHERE symbol = $1",
             "AAPL"
         )
 

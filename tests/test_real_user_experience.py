@@ -242,13 +242,13 @@ class RealUserExperienceTest:
                 return False
 
             # Test schema API
-            response = requests.get(f"{self.base_url}/api/eda/datasets/dev_daily_prices_tiingo/schema", timeout=10)
+            response = requests.get(f"{self.base_url}/api/eda/datasets/dev_daily_price_tiingo/schema", timeout=10)
             if response.status_code != 200:
                 print(f"❌ Schema API failed: {response.status_code}")
                 return False
 
             # Test column values API (this should work with Ray)
-            response = requests.get(f"{self.base_url}/api/eda/datasets/dev_daily_prices_tiingo/columns/symbol/values?limit=5", timeout=10)
+            response = requests.get(f"{self.base_url}/api/eda/datasets/dev_daily_price_tiingo/columns/symbol/values?limit=5", timeout=10)
             if response.status_code != 200:
                 print(f"❌ Column values API failed: {response.status_code}")
                 return False
@@ -259,7 +259,7 @@ class RealUserExperienceTest:
                 return False
 
             # Test analyze API (this might be broken)
-            payload = {"dataset_name": "dev_daily_prices_tiingo", "column": "volume", "filters": {}}
+            payload = {"dataset_name": "dev_daily_price_tiingo", "column": "volume", "filters": {}}
             response = requests.post(f"{self.base_url}/api/eda/analyze", json=payload, timeout=10)
 
             if response.status_code != 200:
@@ -297,9 +297,9 @@ class RealUserExperienceTest:
             # Test multiple concurrent requests
             urls = [
                 f"{self.base_url}/api/eda/datasets",
-                f"{self.base_url}/api/eda/datasets/dev_daily_prices_tiingo/schema",
-                f"{self.base_url}/api/eda/datasets/dev_daily_prices_tiingo/columns/volume/values?limit=3",
-                f"{self.base_url}/api/eda/datasets/dev_daily_prices_eodhd/columns/high/values?limit=3",
+                f"{self.base_url}/api/eda/datasets/dev_daily_price_tiingo/schema",
+                f"{self.base_url}/api/eda/datasets/dev_daily_price_tiingo/columns/volume/values?limit=3",
+                f"{self.base_url}/api/eda/datasets/dev_daily_price_eodhd/columns/high/values?limit=3",
             ] * 3  # 12 total requests
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:

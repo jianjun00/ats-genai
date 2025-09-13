@@ -74,7 +74,7 @@ class TestSupportResistanceProcessor:
         """Create mock processor for testing"""
         with patch('events.processors.support_resistance_processor.Environment') as mock_env:
             mock_env.return_value.database.create_pool_with_retry.return_value = mock_db_pool
-            mock_env.return_value.get_table_name.return_value = 'dev_instruments'
+            mock_env.return_value.get_table_name.return_value = 'dev_instrument'
 
             processor = SupportResistanceProcessor(processor_config)
             processor.db_pool = mock_db_pool
@@ -112,7 +112,7 @@ class TestSupportResistanceProcessor:
         """Test processor initialization"""
         with patch('events.processors.support_resistance_processor.Environment') as mock_env:
             mock_env.return_value.database.create_pool_with_retry.return_value = mock_db_pool
-            mock_env.return_value.get_table_name.return_value = 'dev_instruments'
+            mock_env.return_value.get_table_name.return_value = 'dev_instrument'
 
             processor = SupportResistanceProcessor(processor_config)
             await processor.initialize()

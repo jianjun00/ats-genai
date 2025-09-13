@@ -211,7 +211,7 @@ class TestMarketCapPopulation:
             result = await mock_conn.fetch("""
                 SELECT ip.symbol, ip.name, i.id as instrument_id
                 FROM dev_instrument_polygon ip
-                LEFT JOIN dev_instruments i ON ip.symbol = i.symbol
+                LEFT JOIN dev_instrument i ON ip.symbol = i.symbol
                 WHERE ip.active = true
                 AND ip.type = 'CS'
                 AND ip.symbol IS NOT NULL
@@ -399,13 +399,13 @@ class TestMarketCapPopulation:
 
                 # Check if instrument exists
                 exists = await mock_conn.fetchval(
-                    "SELECT id FROM dev_instruments WHERE symbol = $1", symbol
+                    "SELECT id FROM dev_instrument WHERE symbol = $1", symbol
                 )
 
                 if not exists:
                     # Create new instrument
                     result = await mock_conn.fetchval("""
-                        INSERT INTO dev_instruments (symbol, name, exchange, is_active)
+                        INSERT INTO dev_instrument (symbol, name, exchange, is_active)
                         VALUES ($1, $2, 'NYSE', true)
                         RETURNING id
                     """, symbol, name)
@@ -510,7 +510,7 @@ class TestMarketCapPopulation:
 
                 # Create synthetic instrument
                 instrument_id = await mock_conn.fetchval("""
-                    INSERT INTO dev_instruments (symbol, name, exchange, is_active)
+                    INSERT INTO dev_instrument (symbol, name, exchange, is_active)
                     VALUES ($1, $2, 'SYNTHETIC', true)
                     RETURNING id
                 """, synthetic_symbol, f"Synthetic Corp {i}")
@@ -566,7 +566,7 @@ class TestMarketCapPopulation:
 
             # Test mapping query
             instrument_mapping = await mock_conn.fetch("""
-                SELECT id, symbol FROM dev_instruments
+                SELECT id, symbol FROM dev_instrument
                 WHERE symbol = ANY($1)
             """, test_symbols)
 
@@ -593,7 +593,7 @@ class TestMarketCapPopulation:
             mock_conn.fetchval.side_effect = [10000, 10029]  # market_cap count, instruments count
 
             final_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_daily_market_cap")
-            instrument_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+            instrument_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
             assert final_count == 10000
             assert instrument_count == 10029
@@ -603,7 +603,7 @@ class TestMarketCapPopulation:
             mock_conn.fetchval.side_effect = [9500, 9800]  # Below target
 
             final_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_daily_market_cap")
-            instrument_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_instruments")
+            instrument_count = await mock_conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
             assert final_count == 9500
             assert final_count < 10000  # Target not achieved
@@ -662,7 +662,7 @@ class TestMarketCapPopulation:
 
             try:
                 result = await mock_conn.fetchval(
-                    "INSERT INTO dev_instruments (symbol, name, exchange, is_active) VALUES ($1, $2, 'NYSE', true) RETURNING id",
+                    "INSERT INTO dev_instrument (symbol, name, exchange, is_active) VALUES ($1, $2, 'NYSE', true) RETURNING id",
                     "TEST", "Test Corp"
                 )
                 assert False, "Should have raised exception"

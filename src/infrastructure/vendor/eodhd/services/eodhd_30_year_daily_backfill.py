@@ -45,7 +45,7 @@ class EODHD30YearBackfiller:
     - Idempotent UPSERT operations
     - Rate limiting (20 requests/minute for free tier)
     - Resume capability with existing data detection
-    - Uses dev_instruments table for symbol list
+    - Uses dev_instrument table for symbol list
     """
 
     def __init__(self, api_key: str = None):
@@ -153,7 +153,7 @@ class EODHD30YearBackfiller:
     async def ensure_table_exists(self, conn):
         """Ensure EODHD table exists."""
         env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_prices_eodhd' if env == 'intg' else 'dev_daily_prices_eodhd'
+        table_name = 'intg_daily_price_eodhd' if env == 'intg' else 'dev_daily_price_eodhd'
 
         try:
             await conn.execute(f"""
@@ -284,7 +284,7 @@ class EODHD30YearBackfiller:
         try:
             # Insert with idempotent UPSERT
             env = os.getenv('ENV_TYPE', 'intg').lower()
-            table_name = 'intg_daily_prices_eodhd' if env == 'intg' else 'dev_daily_prices_eodhd'
+            table_name = 'intg_daily_price_eodhd' if env == 'intg' else 'dev_daily_price_eodhd'
 
             result = await conn.executemany(f"""
                 INSERT INTO {table_name}
@@ -312,7 +312,7 @@ class EODHD30YearBackfiller:
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
         env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_prices_eodhd' if env == 'intg' else 'dev_daily_prices_eodhd'
+        table_name = 'intg_daily_price_eodhd' if env == 'intg' else 'dev_daily_price_eodhd'
 
         count = await conn.fetchval(f"""
             SELECT COUNT(*) FROM {table_name}

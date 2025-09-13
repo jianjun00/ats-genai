@@ -252,8 +252,8 @@ class TestEDARegressionSuite:
         expected_dataset_names = [
             "dev_instrument_tiingo",
             "dev_instrument_polygon",
-            "dev_daily_prices_polygon",
-            "dev_daily_prices_tiingo",
+            "dev_daily_price_polygon",
+            "dev_daily_price_tiingo",
             "dev_instrument_eodhd"
         ]
 

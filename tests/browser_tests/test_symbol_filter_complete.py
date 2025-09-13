@@ -43,7 +43,7 @@ async def test_symbol_filter_complete():
 
             # Select dataset
             dataset_select = page.locator("#dataset-select")
-            await dataset_select.select_option("intg_daily_prices_tiingo")
+            await dataset_select.select_option("intg_daily_price_tiingo")
             print("✅ Dataset selected")
             await page.wait_for_timeout(8000)
 

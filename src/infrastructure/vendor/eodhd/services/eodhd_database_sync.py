@@ -79,8 +79,8 @@ class VendorDatabaseSync:
         start_time = time.time()
 
         # Table names based on vendor
-        source_table = f"dev_daily_prices_{vendor}"
-        target_table = f"intg_daily_prices_{vendor}"
+        source_table = f"dev_daily_price_{vendor}"
+        target_table = f"intg_daily_price_{vendor}"
 
         # Connect to both databases
         source_conn = await asyncpg.connect(**self.source_config)
@@ -98,7 +98,7 @@ class VendorDatabaseSync:
             # Check for orphaned records
             orphaned_count = await source_conn.fetchval(f"""
                 SELECT COUNT(*) FROM {source_table}
-                WHERE instrument_id NOT IN (SELECT id FROM dev_instruments)
+                WHERE instrument_id NOT IN (SELECT id FROM dev_instrument)
             """)
 
             logger.info(f"⚠️  Orphaned records (will be skipped): {orphaned_count:,}")
@@ -117,7 +117,7 @@ class VendorDatabaseSync:
                     batch_data = await source_conn.fetch(f"""
                         SELECT date, symbol, open, high, low, close, adjusted_close, volume, instrument_id
                         FROM {source_table}
-                        WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                        WHERE instrument_id IN (SELECT id FROM dev_instrument)
                         ORDER BY date, instrument_id
                         LIMIT $1 OFFSET $2
                     """, self.batch_size, offset)
@@ -125,7 +125,7 @@ class VendorDatabaseSync:
                     batch_data = await source_conn.fetch(f"""
                         SELECT date, symbol, open, high, low, close, volume, market_cap, instrument_id
                         FROM {source_table}
-                        WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                        WHERE instrument_id IN (SELECT id FROM dev_instrument)
                         ORDER BY date, instrument_id
                         LIMIT $1 OFFSET $2
                     """, self.batch_size, offset)
@@ -133,7 +133,7 @@ class VendorDatabaseSync:
                     batch_data = await source_conn.fetch(f"""
                         SELECT date, symbol, open, high, low, close, volume, instrument_id
                         FROM {source_table}
-                        WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                        WHERE instrument_id IN (SELECT id FROM dev_instrument)
                         ORDER BY date, instrument_id
                         LIMIT $1 OFFSET $2
                     """, self.batch_size, offset)
@@ -197,7 +197,7 @@ class VendorDatabaseSync:
             # Calculate unique symbols processed
             symbols_query = f"""
                 SELECT COUNT(DISTINCT symbol) FROM {source_table}
-                WHERE instrument_id IN (SELECT id FROM dev_instruments)
+                WHERE instrument_id IN (SELECT id FROM dev_instrument)
             """
             unique_symbols = await source_conn.fetchval(symbols_query)
 

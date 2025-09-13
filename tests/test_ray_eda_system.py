@@ -108,7 +108,7 @@ class TestDataPartitioning:
         coordinator = EDACoordinator.remote(connection_params)
 
         import ray
-        partitions = ray.get(coordinator.get_smart_partitions.remote('dev_daily_prices_tiingo'))
+        partitions = ray.get(coordinator.get_smart_partitions.remote('dev_daily_price_tiingo'))
 
         # Verify time-based partitions for price data
         assert len(partitions) == 4, f"Expected 4 time partitions, got {len(partitions)}"
@@ -163,7 +163,7 @@ class TestDistributedColumnAnalysis:
 
         start_time = time.time()
 
-        async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns, max_columns=1):
+        async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns, max_columns=1):
             analysis_time = time.time() - start_time
 
             # Performance requirement: < 30 seconds for 3.6GB dataset
@@ -187,7 +187,7 @@ class TestDistributedColumnAnalysis:
         service = get_ray_eda_service()
         columns = [{'column_name': 'symbol', 'data_type': 'text'}]
 
-        async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns, max_columns=1):
+        async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns, max_columns=1):
             ray_result = result['result']
 
             # Verify categorical analysis
@@ -220,7 +220,7 @@ class TestDistributedColumnAnalysis:
         start_time = time.time()
         results = []
 
-        async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns, max_columns=3):
+        async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns, max_columns=3):
             results.append(result)
 
         parallel_time = time.time() - start_time
@@ -247,13 +247,13 @@ class TestHTTPAPIIntegration:
         handler = AnalyticsHandler()
 
         # Large tables should use Ray
-        assert handler.should_use_ray_for_table('dev_daily_prices_tiingo') == True
-        assert handler.should_use_ray_for_table('dev_daily_prices_eodhd') == True
+        assert handler.should_use_ray_for_table('dev_daily_price_tiingo') == True
+        assert handler.should_use_ray_for_table('dev_daily_price_eodhd') == True
         assert handler.should_use_ray_for_table('dev_financial_events') == True
 
         # Small tables should not use Ray
         assert handler.should_use_ray_for_table('small_table') == False
-        assert handler.should_use_ray_for_table('dev_instruments') == False
+        assert handler.should_use_ray_for_table('dev_instrument') == False
 
     def test_column_values_endpoint_ray_integration(self):
         """Test column values endpoint uses Ray for large tables"""
@@ -264,7 +264,7 @@ class TestHTTPAPIIntegration:
 
         # Test Ray integration for numeric column
         result = asyncio.run(
-            handler.get_column_values_with_ray('dev_daily_prices_tiingo', 'close', 10)
+            handler.get_column_values_with_ray('dev_daily_price_tiingo', 'close', 10)
         )
 
         # Should return numeric data structure
@@ -283,7 +283,7 @@ class TestHTTPAPIIntegration:
         handler = AnalyticsHandler()
 
         # Test large table detection
-        assert handler.should_use_ray_for_table('dev_daily_prices_tiingo') == True
+        assert handler.should_use_ray_for_table('dev_daily_price_tiingo') == True
 
         # Test small table bypass
         assert handler.should_use_ray_for_table('small_test_table') == False
@@ -345,7 +345,7 @@ class TestErrorHandlingAndRobustness:
 
         try:
             async with asyncio.timeout(5):  # 5 second timeout
-                async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns):
+                async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns):
                     break
         except asyncio.TimeoutError:
             # Timeout is acceptable for massive datasets
@@ -370,7 +370,7 @@ class TestPerformanceBenchmarks:
 
         start_time = time.time()
 
-        async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns, max_columns=1):
+        async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns, max_columns=1):
             ray_time = time.time() - start_time
 
             # Performance regression test
@@ -407,7 +407,7 @@ class TestDataAccuracyAndConsistency:
         service = get_ray_eda_service()
         columns = [{'column_name': 'close', 'data_type': 'double precision'}]
 
-        async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns, max_columns=1):
+        async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns, max_columns=1):
             ray_result = result['result']
 
             if not ray_result.statistics.get('error') and ray_result.sample_size > 0:
@@ -428,7 +428,7 @@ class TestDataAccuracyAndConsistency:
         service = get_ray_eda_service()
         columns = [{'column_name': 'close', 'data_type': 'double precision'}]
 
-        async for result in service.analyze_dataset_columns('dev_daily_prices_tiingo', columns, max_columns=1):
+        async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns, max_columns=1):
             ray_result = result['result']
 
             if not ray_result.statistics.get('error') and ray_result.statistics.get('count', 0) > 0:
@@ -455,7 +455,7 @@ def ray_service():
 def large_dataset():
     """Fixture defining large dataset for performance tests"""
     return {
-        'table_name': 'dev_daily_prices_tiingo',
+        'table_name': 'dev_daily_price_tiingo',
         'size_gb': 3.6,
         'estimated_rows': 50000000,
         'columns': [
