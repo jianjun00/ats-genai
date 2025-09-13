@@ -1,0 +1,69 @@
+{
+  "monitoring": {
+    "cycle_interval_seconds": 300,
+    "stall_threshold_minutes": 60,
+    "max_concurrent_workflows": 10,
+    "health_check_interval_seconds": 60,
+    "cleanup_old_workflows_days": 30
+  },
+  "issue_thresholds": {
+    "extreme_volume_multiplier": 50.0,
+    "extreme_price_change_percent": 20.0,
+    "data_staleness_hours": 24,
+    "max_missing_consecutive_days": 3,
+    "quality_score_critical_threshold": 50,
+    "quality_score_warning_threshold": 75
+  },
+  "action_thresholds": {
+    "auto_resolve_confidence_threshold": 0.85,
+    "escalation_confidence_threshold": 0.3,
+    "backfill_auto_trigger_threshold": 5,
+    "cross_validation_vendor_count": 2,
+    "max_retry_attempts": 3
+  },
+  "vendor_config": {
+    "primary_vendors": [
+      "polygon",
+      "tiingo",
+      "eodhd"
+    ],
+    "secondary_vendors": [
+      "eodhd",
+      "tiingo"
+    ],
+    "vendor_priorities": {
+      "polygon": 1,
+      "tiingo": 2,
+      "eodhd": 3
+    },
+    "rate_limits": {
+      "polygon": {
+        "requests_per_minute": 5,
+        "requests_per_day": 100
+      },
+      "tiingo": {
+        "requests_per_minute": 10,
+        "requests_per_day": 500
+      },
+      "eodhd": {
+        "requests_per_minute": 20,
+        "requests_per_day": 1000
+      }
+    }
+  },
+  "notifications": {
+    "enable_email_notifications": false,
+    "enable_slack_notifications": false,
+    "email_recipients": [],
+    "slack_webhook_url": null,
+    "notification_severity_threshold": "high",
+    "max_notifications_per_hour": 10
+  },
+  "enable_autonomous_mode": true,
+  "enable_learning_mode": true,
+  "enable_reflection": true,
+  "log_level": "INFO",
+  "max_memory_mb": 1024,
+  "max_cpu_percent": 50.0,
+  "enable_metrics_collection": true
+}
