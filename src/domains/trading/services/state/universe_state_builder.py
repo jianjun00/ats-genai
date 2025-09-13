@@ -140,7 +140,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                             return float(value)
                         except (ValueError, TypeError):
                             return default
-                
+
                 # Use None for missing OHLC fields; mark interval as 'missing' if all are None
                 open_ = safe_scalar_conversion(ohlc.get('open')) if ohlc.get('open') is not None else None
                 high_ = safe_scalar_conversion(ohlc.get('high')) if ohlc.get('high') is not None else None

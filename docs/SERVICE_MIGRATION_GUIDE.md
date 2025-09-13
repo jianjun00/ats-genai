@@ -7,7 +7,7 @@ Complete guide for migrating from DAO-based to service-based architecture using 
 This migration system provides comprehensive automation for transforming your ATS platform from DAO-based to service-based architecture. It includes:
 
 - **Code Migration**: AST-based transformation of DAO patterns to service interfaces
-- **Database Migration**: Schema updates for service-specific requirements  
+- **Database Migration**: Schema updates for service-specific requirements
 - **Configuration Migration**: Environment and deployment configuration transformation
 - **Test Migration**: Test suite transformation with service-specific patterns
 - **Orchestration**: Coordinated execution with rollback capabilities

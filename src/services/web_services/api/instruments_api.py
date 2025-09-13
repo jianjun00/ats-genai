@@ -169,12 +169,12 @@ async def create_instrument(
     try:
         dto = request_to_dto(request)
         result = await service.create_instrument(dto)
-        
+
         if not result.success:
             raise HTTPException(status_code=400, detail=result.error_message)
-        
+
         return operation_result_to_response(result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -191,9 +191,9 @@ async def get_instrument(
         dto = await service.get_instrument_by_id(instrument_id)
         if not dto:
             raise HTTPException(status_code=404, detail="Instrument not found")
-        
+
         return dto_to_response(dto)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -222,15 +222,15 @@ async def list_instruments(
             limit=limit,
             offset=offset
         )
-        
+
         dtos = await service.list_instruments(criteria)
         responses = [dto_to_response(dto) for dto in dtos]
-        
+
         return InstrumentListResponse(
             instruments=responses,
             total_count=len(responses)  # TODO: Implement proper total count
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing instruments: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -246,9 +246,9 @@ async def get_instrument_by_symbol(
         dto = await service.get_instrument_by_symbol(symbol, vendor_name)
         if not dto:
             raise HTTPException(status_code=404, detail=f"Instrument not found for symbol {symbol}")
-        
+
         return dto_to_response(dto)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -264,12 +264,12 @@ async def create_cross_reference(
     try:
         dto = xref_request_to_dto(request)
         result = await service.create_cross_reference(dto)
-        
+
         if not result.success:
             raise HTTPException(status_code=400, detail=result.error_message)
-        
+
         return operation_result_to_response(result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -285,7 +285,7 @@ async def get_cross_references(
     try:
         dtos = await service.get_cross_references(instrument_id)
         return [xref_dto_to_response(dto) for dto in dtos]
-        
+
     except Exception as e:
         logger.error(f"Error retrieving cross-references for instrument {instrument_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -301,13 +301,13 @@ async def get_unified_instrument(
         dto = await service.get_unified_instrument(identifier, identifier_type)
         if not dto:
             raise HTTPException(status_code=404, detail=f"Instrument not found for {identifier_type} {identifier}")
-        
+
         return UnifiedInstrumentResponse(
             instrument=dto_to_response(dto.instrument),
             cross_references=[xref_dto_to_response(xref) for xref in dto.cross_references],
             vendor_data=dto.vendor_data
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -326,12 +326,12 @@ async def resolve_vendor_symbol(
         dto = await service.resolve_instrument_by_vendor_symbol(vendor_symbol, vendor_name, as_of_date)
         if not dto:
             raise HTTPException(
-                status_code=404, 
+                status_code=404,
                 detail=f"Instrument not found for vendor symbol {vendor_name}:{vendor_symbol}"
             )
-        
+
         return dto_to_response(dto)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -347,7 +347,7 @@ async def get_all_symbols(
     try:
         symbols = await service.get_all_symbols(vendor_name)
         return symbols
-        
+
     except Exception as e:
         logger.error(f"Error retrieving all symbols for vendor {vendor_name}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -360,7 +360,7 @@ async def get_instrument_count(
     try:
         count = await service.get_instrument_count()
         return count
-        
+
     except Exception as e:
         logger.error(f"Error getting instrument count: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -375,7 +375,7 @@ async def validate_symbol(
     try:
         is_valid = await service.validate_symbol(symbol, vendor_name)
         return is_valid
-        
+
     except Exception as e:
         logger.error(f"Error validating symbol {symbol}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -389,9 +389,9 @@ async def create_instruments_batch(
     try:
         dtos = [request_to_dto(req) for req in requests]
         result = await service.create_instruments_batch(dtos)
-        
+
         return operation_result_to_response(result)
-        
+
     except Exception as e:
         logger.error(f"Error in batch instrument creation: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -404,17 +404,17 @@ async def health_check(
     """Comprehensive health check endpoint"""
     try:
         from src.infrastructure.service_discovery import get_health_manager
-        
+
         health_manager = get_health_manager()
         overall_health = await health_manager.perform_all_checks()
-        
+
         # Add service-specific health info
         health_response = overall_health.to_dict()
         health_response["service"] = "instruments-api"
         health_response["version"] = "1.0.0"
-        
+
         return health_response
-        
+
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         return {
@@ -441,7 +441,7 @@ async def get_service_info():
         },
         "capabilities": [
             "vendor_instruments",
-            "instrument_xrefs", 
+            "instrument_xrefs",
             "unified_instruments",
             "symbol_resolution",
             "batch_operations"

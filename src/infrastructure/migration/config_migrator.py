@@ -43,7 +43,7 @@ class ServiceConfig:
 
 class ConfigMigrator:
     """Manages configuration migration for service architecture transformation."""
-    
+
     def __init__(
         self,
         source_config_dir: str = "config",
@@ -53,18 +53,18 @@ class ConfigMigrator:
         self.source_config_dir = Path(source_config_dir)
         self.target_config_dir = Path(target_config_dir)
         self.backup_dir = Path(backup_dir)
-        
+
         # Service configuration templates
         self.service_config_templates = self._initialize_service_templates()
-        
+
         # Environment mappings
         self.environment_mappings = {
             'dev': 'development',
-            'staging': 'staging', 
+            'staging': 'staging',
             'prod': 'production',
             'test': 'testing'
         }
-    
+
     def migrate_all_configurations(
         self,
         target_services: Optional[List[str]] = None,
@@ -72,44 +72,44 @@ class ConfigMigrator:
     ) -> List[ConfigMigrationResult]:
         """Migrate all configuration files to service-based architecture."""
         logger.info("Starting comprehensive configuration migration")
-        
+
         results = []
-        
+
         # Create directories
         self._ensure_directories()
-        
+
         # Create backup if requested
         if create_backup:
             self._create_configuration_backup()
-        
+
         # Migrate each service configuration
         services_to_migrate = target_services or list(self.service_config_templates.keys())
-        
+
         for service_name in services_to_migrate:
             logger.info(f"Migrating configuration for service: {service_name}")
-            
+
             try:
                 # Generate service configuration
                 service_config = self._generate_service_config(service_name)
-                
+
                 # Create service config files
                 service_results = self._create_service_config_files(service_name, service_config)
                 results.extend(service_results)
-                
+
                 # Create environment-specific configs
                 env_results = self._create_environment_configs(service_name, service_config)
                 results.extend(env_results)
-                
+
                 # Create Docker compose configuration
                 docker_result = self._create_docker_config(service_name, service_config)
                 results.append(docker_result)
-                
-                # Create Kubernetes configuration  
+
+                # Create Kubernetes configuration
                 k8s_result = self._create_kubernetes_config(service_name, service_config)
                 results.append(k8s_result)
-                
+
                 logger.info(f"Successfully migrated configuration for {service_name}")
-                
+
             except Exception as e:
                 logger.error(f"Failed to migrate configuration for {service_name}: {e}")
                 results.append(ConfigMigrationResult(
@@ -120,76 +120,76 @@ class ConfigMigrator:
                     backup_path=None,
                     error_message=str(e)
                 ))
-        
+
         # Create global service discovery configuration
         discovery_result = self._create_service_discovery_config(services_to_migrate)
         results.append(discovery_result)
-        
+
         # Create API gateway configuration
         gateway_result = self._create_api_gateway_config(services_to_migrate)
         results.append(gateway_result)
-        
+
         # Create monitoring configuration
         monitoring_result = self._create_monitoring_config(services_to_migrate)
         results.append(monitoring_result)
-        
+
         logger.info(f"Configuration migration completed. {len(results)} files processed")
         return results
-    
+
     def migrate_environment_variables(
-        self, 
+        self,
         source_env_file: str = ".env",
         target_services: Optional[List[str]] = None
     ) -> List[ConfigMigrationResult]:
         """Migrate environment variables to service-specific configurations."""
         logger.info("Migrating environment variables to service configs")
-        
+
         results = []
-        
+
         # Load source environment variables
         env_vars = self._load_environment_file(source_env_file)
         if not env_vars:
             logger.warning(f"No environment variables found in {source_env_file}")
             return results
-        
+
         # Categorize environment variables by service
         service_env_vars = self._categorize_environment_variables(env_vars)
-        
+
         # Create service-specific environment files
         services_to_process = target_services or service_env_vars.keys()
-        
+
         for service_name in services_to_process:
             service_vars = service_env_vars.get(service_name, {})
-            
+
             if not service_vars:
                 logger.info(f"No environment variables found for service: {service_name}")
                 continue
-            
+
             try:
                 # Create service environment file
                 env_file_path = self.target_config_dir / service_name / f"{service_name}.env"
                 env_file_path.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 with open(env_file_path, 'w') as f:
                     f.write(f"# Environment variables for {service_name} service\n")
                     f.write(f"# Generated on {datetime.now().isoformat()}\n\n")
-                    
+
                     for key, value in service_vars.items():
                         f.write(f"{key}={value}\n")
-                
+
                 # Create environment-specific variants
                 for env_name in self.environment_mappings.keys():
                     env_specific_path = self.target_config_dir / service_name / f"{service_name}.{env_name}.env"
-                    
+
                     with open(env_specific_path, 'w') as f:
                         f.write(f"# {env_name.upper()} environment variables for {service_name} service\n")
                         f.write(f"# Generated on {datetime.now().isoformat()}\n\n")
-                        
+
                         for key, value in service_vars.items():
                             # Modify values for specific environments if needed
                             env_value = self._adapt_value_for_environment(key, value, env_name)
                             f.write(f"{key}={env_value}\n")
-                
+
                 results.append(ConfigMigrationResult(
                     config_file=str(env_file_path),
                     migration_type="environment_variables",
@@ -198,26 +198,26 @@ class ConfigMigrator:
                     backup_path=None,
                     error_message=None
                 ))
-                
+
                 logger.info(f"Created environment config for {service_name} with {len(service_vars)} variables")
-                
+
             except Exception as e:
                 logger.error(f"Failed to create environment config for {service_name}: {e}")
                 results.append(ConfigMigrationResult(
                     config_file=f"{service_name}.env",
-                    migration_type="environment_variables", 
+                    migration_type="environment_variables",
                     status="failed",
                     changes=[],
                     backup_path=None,
                     error_message=str(e)
                 ))
-        
+
         return results
-    
+
     def validate_migrated_configs(self) -> Dict[str, Any]:
         """Validate all migrated configuration files."""
         logger.info("Validating migrated configuration files")
-        
+
         validation_results = {
             'service_configs': [],
             'environment_configs': [],
@@ -225,25 +225,25 @@ class ConfigMigrator:
             'overall_status': 'unknown',
             'issues_found': []
         }
-        
+
         # Validate service configurations
         for service_dir in self.target_config_dir.iterdir():
             if service_dir.is_dir():
                 service_name = service_dir.name
                 service_validation = self._validate_service_config(service_name)
                 validation_results['service_configs'].append(service_validation)
-                
+
                 if service_validation['status'] != 'valid':
                     validation_results['issues_found'].extend(service_validation['issues'])
-        
+
         # Validate environment configurations
         env_validation = self._validate_environment_configs()
         validation_results['environment_configs'] = env_validation
-        
+
         # Validate deployment configurations
         deployment_validation = self._validate_deployment_configs()
         validation_results['deployment_configs'] = deployment_validation
-        
+
         # Determine overall status
         if not validation_results['issues_found']:
             validation_results['overall_status'] = 'valid'
@@ -251,26 +251,26 @@ class ConfigMigrator:
             validation_results['overall_status'] = 'warning'
         else:
             validation_results['overall_status'] = 'invalid'
-        
+
         logger.info(f"Configuration validation completed: {validation_results['overall_status']}")
         return validation_results
-    
+
     def generate_migration_report(
-        self, 
+        self,
         migration_results: List[ConfigMigrationResult]
     ) -> Dict[str, Any]:
         """Generate comprehensive migration report."""
         successful_migrations = [r for r in migration_results if r.status == 'success']
         failed_migrations = [r for r in migration_results if r.status == 'failed']
         skipped_migrations = [r for r in migration_results if r.status == 'skipped']
-        
+
         migration_by_type = {}
         for result in migration_results:
             migration_type = result.migration_type
             if migration_type not in migration_by_type:
                 migration_by_type[migration_type] = {'success': 0, 'failed': 0, 'skipped': 0}
             migration_by_type[migration_type][result.status] += 1
-        
+
         report = {
             'summary': {
                 'total_migrations': len(migration_results),
@@ -290,11 +290,11 @@ class ConfigMigrator:
             'backup_locations': list(set(r.backup_path for r in migration_results if r.backup_path)),
             'timestamp': datetime.now().isoformat()
         }
-        
+
         return report
-    
+
     # Private helper methods
-    
+
     def _initialize_service_templates(self) -> Dict[str, ServiceConfig]:
         """Initialize service configuration templates."""
         return {
@@ -431,7 +431,7 @@ class ConfigMigrator:
                 }
             )
         }
-    
+
     def _ensure_directories(self):
         """Ensure all required directories exist."""
         directories_to_create = [
@@ -441,40 +441,40 @@ class ConfigMigrator:
             self.target_config_dir / "kubernetes",
             self.target_config_dir / "monitoring"
         ]
-        
+
         for directory in directories_to_create:
             directory.mkdir(parents=True, exist_ok=True)
             logger.debug(f"Created directory: {directory}")
-    
+
     def _create_configuration_backup(self):
         """Create backup of existing configuration files."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = self.backup_dir / f"config_backup_{timestamp}"
-        
+
         if self.source_config_dir.exists():
             shutil.copytree(self.source_config_dir, backup_path)
             logger.info(f"Created configuration backup at: {backup_path}")
         else:
             logger.warning(f"Source config directory not found: {self.source_config_dir}")
-    
+
     def _generate_service_config(self, service_name: str) -> ServiceConfig:
         """Generate service configuration from template."""
         template = self.service_config_templates.get(service_name)
         if not template:
             raise ValueError(f"No configuration template found for service: {service_name}")
-        
+
         return template
-    
+
     def _create_service_config_files(
-        self, 
-        service_name: str, 
+        self,
+        service_name: str,
         service_config: ServiceConfig
     ) -> List[ConfigMigrationResult]:
         """Create service-specific configuration files."""
         results = []
         service_dir = self.target_config_dir / service_name
         service_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create main service configuration (YAML)
         config_file = service_dir / f"{service_name}_config.yaml"
         config_data = {
@@ -487,11 +487,11 @@ class ConfigMigrator:
             'cache': service_config.cache_config,
             'api': service_config.api_config
         }
-        
+
         try:
             with open(config_file, 'w') as f:
                 yaml.dump(config_data, f, default_flow_style=False, indent=2)
-            
+
             results.append(ConfigMigrationResult(
                 config_file=str(config_file),
                 migration_type="service_yaml_config",
@@ -500,7 +500,7 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=None
             ))
-            
+
         except Exception as e:
             results.append(ConfigMigrationResult(
                 config_file=str(config_file),
@@ -510,22 +510,22 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=str(e)
             ))
-        
+
         return results
-    
+
     def _create_environment_configs(
-        self, 
-        service_name: str, 
+        self,
+        service_name: str,
         service_config: ServiceConfig
     ) -> List[ConfigMigrationResult]:
         """Create environment-specific configuration files."""
         results = []
         service_dir = self.target_config_dir / service_name
-        
+
         for env_name, env_full_name in self.environment_mappings.items():
             try:
                 env_config_file = service_dir / f"{service_name}.{env_name}.yaml"
-                
+
                 env_config = {
                     'environment': env_full_name,
                     'service': {
@@ -533,16 +533,16 @@ class ConfigMigrator:
                         'replicas': 1 if env_name == 'dev' else 2 if env_name == 'staging' else 3
                     },
                     'environment_variables': self._adapt_env_vars_for_environment(
-                        service_config.environment_variables, 
+                        service_config.environment_variables,
                         env_name
                     ),
                     'resources': self._get_resource_config_for_environment(env_name),
                     'monitoring': self._get_monitoring_config_for_environment(env_name)
                 }
-                
+
                 with open(env_config_file, 'w') as f:
                     yaml.dump(env_config, f, default_flow_style=False, indent=2)
-                
+
                 results.append(ConfigMigrationResult(
                     config_file=str(env_config_file),
                     migration_type="environment_config",
@@ -551,7 +551,7 @@ class ConfigMigrator:
                     backup_path=None,
                     error_message=None
                 ))
-                
+
             except Exception as e:
                 results.append(ConfigMigrationResult(
                     config_file=f"{service_name}.{env_name}.yaml",
@@ -561,18 +561,18 @@ class ConfigMigrator:
                     backup_path=None,
                     error_message=str(e)
                 ))
-        
+
         return results
-    
+
     def _create_docker_config(
-        self, 
-        service_name: str, 
+        self,
+        service_name: str,
         service_config: ServiceConfig
     ) -> ConfigMigrationResult:
         """Create Docker configuration for service."""
         docker_dir = self.target_config_dir / "docker"
         docker_compose_file = docker_dir / f"docker-compose.{service_name}.yml"
-        
+
         try:
             docker_config = {
                 'version': '3.8',
@@ -606,10 +606,10 @@ class ConfigMigrator:
                     }
                 }
             }
-            
+
             with open(docker_compose_file, 'w') as f:
                 yaml.dump(docker_config, f, default_flow_style=False, indent=2)
-            
+
             return ConfigMigrationResult(
                 config_file=str(docker_compose_file),
                 migration_type="docker_config",
@@ -618,7 +618,7 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=None
             )
-            
+
         except Exception as e:
             return ConfigMigrationResult(
                 config_file=str(docker_compose_file),
@@ -628,16 +628,16 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=str(e)
             )
-    
+
     def _create_kubernetes_config(
-        self, 
-        service_name: str, 
+        self,
+        service_name: str,
         service_config: ServiceConfig
     ) -> ConfigMigrationResult:
         """Create Kubernetes configuration for service."""
         k8s_dir = self.target_config_dir / "kubernetes"
         k8s_file = k8s_dir / f"{service_name}-deployment.yaml"
-        
+
         try:
             k8s_config = {
                 'apiVersion': 'apps/v1',
@@ -673,7 +673,7 @@ class ConfigMigrator:
                                         }
                                     ],
                                     'env': [
-                                        {'name': k, 'value': str(v)} 
+                                        {'name': k, 'value': str(v)}
                                         for k, v in service_config.environment_variables.items()
                                     ],
                                     'livenessProbe': {
@@ -690,10 +690,10 @@ class ConfigMigrator:
                     }
                 }
             }
-            
+
             with open(k8s_file, 'w') as f:
                 yaml.dump(k8s_config, f, default_flow_style=False, indent=2)
-            
+
             return ConfigMigrationResult(
                 config_file=str(k8s_file),
                 migration_type="kubernetes_config",
@@ -702,7 +702,7 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=None
             )
-            
+
         except Exception as e:
             return ConfigMigrationResult(
                 config_file=str(k8s_file),
@@ -712,14 +712,14 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=str(e)
             )
-    
+
     def _create_service_discovery_config(
-        self, 
+        self,
         services: List[str]
     ) -> ConfigMigrationResult:
         """Create service discovery configuration."""
         discovery_file = self.target_config_dir / "service_discovery.yaml"
-        
+
         try:
             service_endpoints = {}
             for service_name in services:
@@ -731,7 +731,7 @@ class ConfigMigrator:
                         'health_check': template.health_check_config['endpoint'],
                         'type': template.service_type
                     }
-            
+
             discovery_config = {
                 'service_discovery': {
                     'strategy': 'dns',
@@ -740,10 +740,10 @@ class ConfigMigrator:
                     'failure_threshold': 3
                 }
             }
-            
+
             with open(discovery_file, 'w') as f:
                 yaml.dump(discovery_config, f, default_flow_style=False, indent=2)
-            
+
             return ConfigMigrationResult(
                 config_file=str(discovery_file),
                 migration_type="service_discovery_config",
@@ -752,7 +752,7 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=None
             )
-            
+
         except Exception as e:
             return ConfigMigrationResult(
                 config_file=str(discovery_file),
@@ -762,14 +762,14 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=str(e)
             )
-    
+
     def _create_api_gateway_config(
-        self, 
+        self,
         services: List[str]
     ) -> ConfigMigrationResult:
         """Create API gateway configuration."""
         gateway_file = self.target_config_dir / "api_gateway.yaml"
-        
+
         try:
             routes = []
             for service_name in services:
@@ -781,7 +781,7 @@ class ConfigMigrator:
                         'methods': ['GET', 'POST', 'PUT', 'DELETE'],
                         'rate_limiting': template.api_config.get('rate_limiting', {})
                     })
-            
+
             gateway_config = {
                 'api_gateway': {
                     'listen_port': 8080,
@@ -799,10 +799,10 @@ class ConfigMigrator:
                     ]
                 }
             }
-            
+
             with open(gateway_file, 'w') as f:
                 yaml.dump(gateway_config, f, default_flow_style=False, indent=2)
-            
+
             return ConfigMigrationResult(
                 config_file=str(gateway_file),
                 migration_type="api_gateway_config",
@@ -811,7 +811,7 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=None
             )
-            
+
         except Exception as e:
             return ConfigMigrationResult(
                 config_file=str(gateway_file),
@@ -821,14 +821,14 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=str(e)
             )
-    
+
     def _create_monitoring_config(
-        self, 
+        self,
         services: List[str]
     ) -> ConfigMigrationResult:
         """Create monitoring configuration."""
         monitoring_file = self.target_config_dir / "monitoring" / "prometheus.yaml"
-        
+
         try:
             scrape_configs = []
             for service_name in services:
@@ -846,7 +846,7 @@ class ConfigMigrator:
                         'scrape_interval': '30s',
                         'metrics_path': '/metrics'
                     })
-            
+
             monitoring_config = {
                 'global': {
                     'scrape_interval': '15s',
@@ -854,10 +854,10 @@ class ConfigMigrator:
                 },
                 'scrape_configs': scrape_configs
             }
-            
+
             with open(monitoring_file, 'w') as f:
                 yaml.dump(monitoring_config, f, default_flow_style=False, indent=2)
-            
+
             return ConfigMigrationResult(
                 config_file=str(monitoring_file),
                 migration_type="monitoring_config",
@@ -866,7 +866,7 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=None
             )
-            
+
         except Exception as e:
             return ConfigMigrationResult(
                 config_file=str(monitoring_file),
@@ -876,16 +876,16 @@ class ConfigMigrator:
                 backup_path=None,
                 error_message=str(e)
             )
-    
+
     def _load_environment_file(self, env_file: str) -> Dict[str, str]:
         """Load environment variables from file."""
         env_vars = {}
         env_path = Path(env_file)
-        
+
         if not env_path.exists():
             logger.warning(f"Environment file not found: {env_file}")
             return env_vars
-        
+
         try:
             with open(env_path, 'r') as f:
                 for line in f:
@@ -893,20 +893,20 @@ class ConfigMigrator:
                     if line and not line.startswith('#') and '=' in line:
                         key, value = line.split('=', 1)
                         env_vars[key.strip()] = value.strip().strip('"').strip("'")
-        
+
         except Exception as e:
             logger.error(f"Failed to load environment file {env_file}: {e}")
-        
+
         return env_vars
-    
+
     def _categorize_environment_variables(
-        self, 
+        self,
         env_vars: Dict[str, str]
     ) -> Dict[str, Dict[str, str]]:
         """Categorize environment variables by service."""
         service_env_vars = {service: {} for service in self.service_config_templates.keys()}
         service_env_vars['shared'] = {}
-        
+
         # Define service-specific prefixes
         service_prefixes = {
             'instruments': ['INSTRUMENT_', 'VENDOR_'],
@@ -914,13 +914,13 @@ class ConfigMigrator:
             'analytics': ['ANALYTICS_', 'MODEL_', 'ML_'],
             'user_management': ['USER_', 'AUTH_', 'JWT_', 'SESSION_']
         }
-        
+
         # Common variables that all services need
         shared_vars = [
-            'DATABASE_URL', 'REDIS_URL', 'LOG_LEVEL', 
+            'DATABASE_URL', 'REDIS_URL', 'LOG_LEVEL',
             'ENVIRONMENT', 'DEBUG', 'SECRET_KEY'
         ]
-        
+
         for key, value in env_vars.items():
             # Check if it's a shared variable
             if key in shared_vars:
@@ -929,7 +929,7 @@ class ConfigMigrator:
                 for service in self.service_config_templates.keys():
                     service_env_vars[service][key] = value
                 continue
-            
+
             # Check service-specific prefixes
             assigned = False
             for service, prefixes in service_prefixes.items():
@@ -937,17 +937,17 @@ class ConfigMigrator:
                     service_env_vars[service][key] = value
                     assigned = True
                     break
-            
+
             # If not assigned to specific service, add to shared
             if not assigned:
                 service_env_vars['shared'][key] = value
-        
+
         return service_env_vars
-    
+
     def _adapt_value_for_environment(
-        self, 
-        key: str, 
-        value: str, 
+        self,
+        key: str,
+        value: str,
         environment: str
     ) -> str:
         """Adapt environment variable value for specific environment."""
@@ -960,7 +960,7 @@ class ConfigMigrator:
                     return value.replace('dev_db', 'staging_db')
                 elif environment == 'prod':
                     return value.replace('dev_db', 'production_db')
-        
+
         # Log levels - more verbose in dev, less in production
         if key == 'LOG_LEVEL':
             if environment == 'dev':
@@ -969,24 +969,24 @@ class ConfigMigrator:
                 return 'INFO'
             elif environment == 'prod':
                 return 'WARNING'
-        
+
         # Cache TTL - shorter in dev for testing
         if key.endswith('_TTL_SECONDS'):
             if environment == 'dev':
                 return str(int(value) // 4)  # Shorter TTL for dev
             elif environment == 'prod':
                 return str(int(value) * 2)   # Longer TTL for prod
-        
+
         return value
-    
+
     def _adapt_env_vars_for_environment(
-        self, 
-        env_vars: Dict[str, Any], 
+        self,
+        env_vars: Dict[str, Any],
         environment: str
     ) -> Dict[str, Any]:
         """Adapt all environment variables for specific environment."""
         adapted_vars = {}
-        
+
         for key, value in env_vars.items():
             if isinstance(value, str) and '${' in value:
                 # Keep template variables as-is
@@ -995,13 +995,13 @@ class ConfigMigrator:
                 adapted_vars[key] = self._adapt_value_for_environment(
                     key, str(value), environment
                 )
-        
+
         # Add environment-specific variables
         adapted_vars['ENVIRONMENT'] = environment
         adapted_vars['SERVICE_ENVIRONMENT'] = environment
-        
+
         return adapted_vars
-    
+
     def _get_resource_config_for_environment(self, environment: str) -> Dict[str, Any]:
         """Get resource configuration for specific environment."""
         resource_configs = {
@@ -1036,9 +1036,9 @@ class ConfigMigrator:
                 }
             }
         }
-        
+
         return resource_configs.get(environment, resource_configs['dev'])
-    
+
     def _get_monitoring_config_for_environment(self, environment: str) -> Dict[str, Any]:
         """Get monitoring configuration for specific environment."""
         if environment == 'prod':
@@ -1069,7 +1069,7 @@ class ConfigMigrator:
                 'tracing_enabled': False,
                 'log_level': 'DEBUG'
             }
-    
+
     def _validate_service_config(self, service_name: str) -> Dict[str, Any]:
         """Validate service configuration files."""
         service_dir = self.target_config_dir / service_name
@@ -1078,24 +1078,24 @@ class ConfigMigrator:
             'status': 'unknown',
             'issues': []
         }
-        
+
         # Check if service directory exists
         if not service_dir.exists():
             validation_result['issues'].append(f"Service directory not found: {service_dir}")
             validation_result['status'] = 'invalid'
             return validation_result
-        
+
         # Check required files
         required_files = [
             f"{service_name}_config.yaml",
             f"{service_name}.env"
         ]
-        
+
         for required_file in required_files:
             file_path = service_dir / required_file
             if not file_path.exists():
                 validation_result['issues'].append(f"Required file missing: {required_file}")
-        
+
         # Validate YAML syntax
         config_file = service_dir / f"{service_name}_config.yaml"
         if config_file.exists():
@@ -1104,31 +1104,31 @@ class ConfigMigrator:
                     yaml.safe_load(f)
             except yaml.YAMLError as e:
                 validation_result['issues'].append(f"Invalid YAML syntax in {config_file.name}: {e}")
-        
+
         # Set overall status
         if not validation_result['issues']:
             validation_result['status'] = 'valid'
         else:
             validation_result['status'] = 'invalid'
-        
+
         return validation_result
-    
+
     def _validate_environment_configs(self) -> List[Dict[str, Any]]:
         """Validate environment-specific configurations."""
         validation_results = []
-        
+
         for env_name in self.environment_mappings.keys():
             env_validation = {
                 'environment': env_name,
                 'status': 'valid',
                 'issues': []
             }
-            
+
             # Check each service has environment config
             for service_name in self.service_config_templates.keys():
                 service_dir = self.target_config_dir / service_name
                 env_file = service_dir / f"{service_name}.{env_name}.yaml"
-                
+
                 if not env_file.exists():
                     env_validation['issues'].append(
                         f"Missing {env_name} config for {service_name}"
@@ -1142,18 +1142,18 @@ class ConfigMigrator:
                         env_validation['issues'].append(
                             f"Invalid YAML in {env_file.name}: {e}"
                         )
-            
+
             if env_validation['issues']:
                 env_validation['status'] = 'invalid'
-            
+
             validation_results.append(env_validation)
-        
+
         return validation_results
-    
+
     def _validate_deployment_configs(self) -> List[Dict[str, Any]]:
         """Validate deployment configurations."""
         validation_results = []
-        
+
         # Validate Docker configs
         docker_dir = self.target_config_dir / "docker"
         if docker_dir.exists():
@@ -1164,16 +1164,16 @@ class ConfigMigrator:
                     'status': 'valid',
                     'issues': []
                 }
-                
+
                 try:
                     with open(docker_file, 'r') as f:
                         yaml.safe_load(f)
                 except yaml.YAMLError as e:
                     docker_validation['issues'].append(f"Invalid YAML syntax: {e}")
                     docker_validation['status'] = 'invalid'
-                
+
                 validation_results.append(docker_validation)
-        
+
         # Validate Kubernetes configs
         k8s_dir = self.target_config_dir / "kubernetes"
         if k8s_dir.exists():
@@ -1184,14 +1184,14 @@ class ConfigMigrator:
                     'status': 'valid',
                     'issues': []
                 }
-                
+
                 try:
                     with open(k8s_file, 'r') as f:
                         yaml.safe_load(f)
                 except yaml.YAMLError as e:
                     k8s_validation['issues'].append(f"Invalid YAML syntax: {e}")
                     k8s_validation['status'] = 'invalid'
-                
+
                 validation_results.append(k8s_validation)
-        
+
         return validation_results

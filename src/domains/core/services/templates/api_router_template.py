@@ -24,7 +24,7 @@ from domains.{DOMAIN.lower()}.services.interfaces.{DOMAIN.lower()}_service_inter
     {DOMAIN}BulkOperationResult
 )
 
-# Import service container for dependency injection  
+# Import service container for dependency injection
 from domains.{DOMAIN.lower()}.services.config.service_container import get_{DOMAIN.lower()}_service
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 class {DOMAIN}Request(BaseModel):
     """
     HTTP request model for creating/updating {DOMAIN.lower()} entities.
-    
+
     Note: This is separate from service DTOs to maintain proper layer separation.
     HTTP models handle serialization, validation, and API documentation.
     Service DTOs handle business logic and data consistency.
@@ -56,10 +56,10 @@ class {DOMAIN}Request(BaseModel):
     # symbol: str = Field(..., min_length=1, max_length=10, description="Entity symbol")
     # name: Optional[str] = Field(None, max_length=255, description="Entity name")
     # description: Optional[str] = Field(None, max_length=1000, description="Entity description")
-    
+
     # Common fields
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -79,11 +79,11 @@ class {DOMAIN}Response(BaseModel):
     # symbol: str = Field(..., description="Entity symbol")
     # name: Optional[str] = Field(None, description="Entity name")
     # description: Optional[str] = Field(None, description="Entity description")
-    
+
     # Common response fields
     created_at: Optional[datetime] = Field(None, description="Creation timestamp")
     updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -105,7 +105,7 @@ class {DOMAIN}SearchRequest(BaseModel):
     date_to: Optional[date] = Field(None, description="End date filter")
     limit: Optional[int] = Field(100, ge=1, le=1000, description="Maximum results")
     offset: Optional[int] = Field(0, ge=0, description="Results offset")
-    
+
     # TODO: Add domain-specific search fields
     # symbols: Optional[List[str]] = Field(None, description="Filter by symbols")
     # categories: Optional[List[str]] = Field(None, description="Filter by categories")
@@ -150,7 +150,7 @@ class BulkOperationResponse(BaseModel):
 async def get_service() -> {DOMAIN}ServiceInterface:
     """
     Dependency injection for {DOMAIN} service.
-    
+
     This function provides the service instance to API endpoints.
     It uses the service container for proper dependency management.
     """
@@ -219,7 +219,7 @@ def bulk_result_to_response(result: {DOMAIN}BulkOperationResult) -> BulkOperatio
     for failed_item in result.failed_items:
         if failed_item.error_message:
             errors.append(failed_item.error_message)
-    
+
     return BulkOperationResponse(
         overall_success=result.overall_success,
         total_items=result.total_items,
@@ -234,8 +234,8 @@ def bulk_result_to_response(result: {DOMAIN}BulkOperationResult) -> BulkOperatio
 # CORE CRUD ENDPOINTS
 # ========================================================================================
 
-@{DOMAIN.lower()}_router.post("/", 
-                             response_model=OperationResponse, 
+@{DOMAIN.lower()}_router.post("/",
+                             response_model=OperationResponse,
                              status_code=status.HTTP_201_CREATED,
                              summary="Create {DOMAIN} Entity",
                              description="Create a new {DOMAIN.lower()} entity with validation")
@@ -247,15 +247,15 @@ async def create_{DOMAIN.lower()}(
     try:
         dto = request_to_dto(request)
         result = await service.create_{DOMAIN.lower()}(dto)
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=result.error_message
             )
-        
+
         return operation_result_to_response(result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -266,7 +266,7 @@ async def create_{DOMAIN.lower()}(
         )
 
 
-@{DOMAIN.lower()}_router.get("/{entity_id}", 
+@{DOMAIN.lower()}_router.get("/{entity_id}",
                             response_model={DOMAIN}Response,
                             summary="Get {DOMAIN} by ID",
                             description="Retrieve a {DOMAIN.lower()} entity by its ID")
@@ -277,15 +277,15 @@ async def get_{DOMAIN.lower()}_by_id(
     """Get {DOMAIN.lower()} entity by ID"""
     try:
         dto = await service.get_{DOMAIN.lower()}_by_id(entity_id)
-        
+
         if not dto:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"{DOMAIN} entity {entity_id} not found"
             )
-        
+
         return dto_to_response(dto)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -296,7 +296,7 @@ async def get_{DOMAIN.lower()}_by_id(
         )
 
 
-@{DOMAIN.lower()}_router.put("/{entity_id}", 
+@{DOMAIN.lower()}_router.put("/{entity_id}",
                             response_model=OperationResponse,
                             summary="Update {DOMAIN} Entity",
                             description="Update an existing {DOMAIN.lower()} entity")
@@ -309,9 +309,9 @@ async def update_{DOMAIN.lower()}(
     try:
         dto = request_to_dto(request)
         dto.id = entity_id  # Ensure ID matches path parameter
-        
+
         result = await service.update_{DOMAIN.lower()}(dto)
-        
+
         if not result.success:
             if "not found" in result.error_message.lower():
                 raise HTTPException(
@@ -323,9 +323,9 @@ async def update_{DOMAIN.lower()}(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=result.error_message
                 )
-        
+
         return operation_result_to_response(result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -336,7 +336,7 @@ async def update_{DOMAIN.lower()}(
         )
 
 
-@{DOMAIN.lower()}_router.delete("/{entity_id}", 
+@{DOMAIN.lower()}_router.delete("/{entity_id}",
                                response_model=OperationResponse,
                                summary="Delete {DOMAIN} Entity",
                                description="Delete a {DOMAIN.lower()} entity")
@@ -347,7 +347,7 @@ async def delete_{DOMAIN.lower()}(
     """Delete {DOMAIN.lower()} entity"""
     try:
         result = await service.delete_{DOMAIN.lower()}(entity_id)
-        
+
         if not result.success:
             if "not found" in result.error_message.lower():
                 raise HTTPException(
@@ -359,9 +359,9 @@ async def delete_{DOMAIN.lower()}(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=result.error_message
                 )
-        
+
         return operation_result_to_response(result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -376,7 +376,7 @@ async def delete_{DOMAIN.lower()}(
 # SEARCH AND LISTING ENDPOINTS
 # ========================================================================================
 
-@{DOMAIN.lower()}_router.get("/", 
+@{DOMAIN.lower()}_router.get("/",
                             response_model={DOMAIN}ListResponse,
                             summary="List {DOMAIN} Entities",
                             description="List {DOMAIN.lower()} entities with optional filtering")
@@ -400,25 +400,25 @@ async def list_{DOMAIN.lower()}s(
             # TODO: Add domain-specific parameters
             # symbols=symbols,
         )
-        
+
         criteria = search_request_to_criteria(search_request)
-        
+
         # Get entities and total count
         entities = await service.list_{DOMAIN.lower()}s(criteria)
         total_count = await service.count_{DOMAIN.lower()}s(criteria)
-        
+
         # Convert to response format
         items = [dto_to_response(dto) for dto in entities]
         has_more = offset + len(items) < total_count
         next_offset = offset + len(items) if has_more else None
-        
+
         return {DOMAIN}ListResponse(
             items=items,
             total_count=total_count,
             has_more=has_more,
             next_offset=next_offset
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing {DOMAIN.lower()}s: {e}", exc_info=True)
         raise HTTPException(
@@ -427,7 +427,7 @@ async def list_{DOMAIN.lower()}s(
         )
 
 
-@{DOMAIN.lower()}_router.get("/search", 
+@{DOMAIN.lower()}_router.get("/search",
                             response_model={DOMAIN}ListResponse,
                             summary="Search {DOMAIN} Entities",
                             description="Full-text search across {DOMAIN.lower()} entities")
@@ -441,19 +441,19 @@ async def search_{DOMAIN.lower()}s(
     try:
         criteria = {DOMAIN}SearchCriteria(limit=limit, offset=offset)
         entities = await service.search_{DOMAIN.lower()}s(q, criteria)
-        
+
         # For search, we don't have exact total count easily available
         # So we estimate based on returned results
         items = [dto_to_response(dto) for dto in entities]
         has_more = len(items) >= limit  # Simple heuristic
-        
+
         return {DOMAIN}ListResponse(
             items=items,
             total_count=len(items),  # Approximate for search
             has_more=has_more,
             next_offset=offset + len(items) if has_more else None
         )
-        
+
     except Exception as e:
         logger.error(f"Error searching {DOMAIN.lower()}s with query '{q}': {e}", exc_info=True)
         raise HTTPException(
@@ -462,7 +462,7 @@ async def search_{DOMAIN.lower()}s(
         )
 
 
-@{DOMAIN.lower()}_router.get("/count", 
+@{DOMAIN.lower()}_router.get("/count",
                             response_model=int,
                             summary="Count {DOMAIN} Entities",
                             description="Get total count of {DOMAIN.lower()} entities")
@@ -477,10 +477,10 @@ async def count_{DOMAIN.lower()}s(
             date_from=date_from,
             date_to=date_to
         ) if date_from or date_to else None
-        
+
         count = await service.count_{DOMAIN.lower()}s(criteria)
         return count
-        
+
     except Exception as e:
         logger.error(f"Error counting {DOMAIN.lower()}s: {e}", exc_info=True)
         raise HTTPException(
@@ -493,7 +493,7 @@ async def count_{DOMAIN.lower()}s(
 # BATCH OPERATIONS ENDPOINTS
 # ========================================================================================
 
-@{DOMAIN.lower()}_router.post("/batch", 
+@{DOMAIN.lower()}_router.post("/batch",
                              response_model=BulkOperationResponse,
                              status_code=status.HTTP_201_CREATED,
                              summary="Batch Create {DOMAIN} Entities",
@@ -509,18 +509,18 @@ async def create_{DOMAIN.lower()}s_batch(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Request body cannot be empty"
             )
-        
+
         if len(requests) > 1000:  # Reasonable batch size limit
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Batch size cannot exceed 1000 items"
             )
-        
+
         dtos = [request_to_dto(req) for req in requests]
         result = await service.create_{DOMAIN.lower()}s_batch(dtos)
-        
+
         return bulk_result_to_response(result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -531,7 +531,7 @@ async def create_{DOMAIN.lower()}s_batch(
         )
 
 
-@{DOMAIN.lower()}_router.put("/batch", 
+@{DOMAIN.lower()}_router.put("/batch",
                             response_model=BulkOperationResponse,
                             summary="Batch Update {DOMAIN} Entities",
                             description="Update multiple {DOMAIN.lower()} entities in batch")
@@ -546,9 +546,9 @@ async def update_{DOMAIN.lower()}s_batch(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Request body cannot be empty"
             )
-        
+
         dtos = [request_to_dto(req) for req in requests]
-        
+
         # Validate that all DTOs have IDs for updates
         missing_ids = [i for i, dto in enumerate(dtos) if not dto.id]
         if missing_ids:
@@ -556,11 +556,11 @@ async def update_{DOMAIN.lower()}s_batch(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Missing IDs for update at indices: {missing_ids}"
             )
-        
+
         result = await service.update_{DOMAIN.lower()}s_batch(dtos)
-        
+
         return bulk_result_to_response(result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -575,7 +575,7 @@ async def update_{DOMAIN.lower()}s_batch(
 # UTILITY ENDPOINTS
 # ========================================================================================
 
-@{DOMAIN.lower()}_router.post("/validate", 
+@{DOMAIN.lower()}_router.post("/validate",
                              response_model=OperationResponse,
                              summary="Validate {DOMAIN} Data",
                              description="Validate {DOMAIN.lower()} data without persisting")
@@ -587,9 +587,9 @@ async def validate_{DOMAIN.lower()}_data(
     try:
         dto = request_to_dto(request)
         result = await service.validate_{DOMAIN.lower()}_data(dto)
-        
+
         return operation_result_to_response(result)
-        
+
     except Exception as e:
         logger.error(f"Error validating {DOMAIN.lower()} data: {e}", exc_info=True)
         raise HTTPException(
@@ -598,7 +598,7 @@ async def validate_{DOMAIN.lower()}_data(
         )
 
 
-@{DOMAIN.lower()}_router.get("/metadata", 
+@{DOMAIN.lower()}_router.get("/metadata",
                             response_model=Dict[str, Any],
                             summary="Get Service Metadata",
                             description="Get metadata about the {DOMAIN.lower()} service")
@@ -609,7 +609,7 @@ async def get_metadata(
     try:
         metadata = await service.get_{DOMAIN.lower()}_metadata()
         return metadata
-        
+
     except Exception as e:
         logger.error(f"Error getting {DOMAIN.lower()} metadata: {e}", exc_info=True)
         raise HTTPException(
@@ -618,7 +618,7 @@ async def get_metadata(
         )
 
 
-@{DOMAIN.lower()}_router.get("/health", 
+@{DOMAIN.lower()}_router.get("/health",
                             response_model=Dict[str, Any],
                             summary="Health Check",
                             description="Perform health check on {DOMAIN.lower()} service")
@@ -628,7 +628,7 @@ async def health_check(
     """Service health check"""
     try:
         health = await service.health_check()
-        
+
         # Return appropriate HTTP status based on health
         if health.get('status') == 'unhealthy':
             raise HTTPException(
@@ -640,9 +640,9 @@ async def health_check(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=health
             )
-        
+
         return health
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -666,7 +666,7 @@ async def health_check(
 #     """Get OHLCV data for symbol"""
 #     pass
 
-# For Analytics Service:  
+# For Analytics Service:
 # @{DOMAIN.lower()}_router.post("/{symbol}/indicators")
 # async def calculate_indicators(symbol: str, indicators: List[str]):
 #     """Calculate technical indicators"""

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Simple Analytics Service - Lightweight service for Data Quality Agent Dashboard
-Minimal dependencies for production deployment demonstration
+Data Quality Analytics Service - Production service for Data Quality Agent Dashboard
+Enterprise-grade analytics service with comprehensive monitoring capabilities
 """
 
 import asyncio

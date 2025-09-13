@@ -46,10 +46,10 @@ logger = logging.getLogger(__name__)
 
 async def demonstrate_service_architecture():
     """Demonstrate the complete service-based architecture."""
-    
+
     print("🚀 Service-Based Architecture Demonstration")
     print("=" * 60)
-    
+
     # Initialize infrastructure
     db_config = {
         'host': 'localhost',
@@ -58,7 +58,7 @@ async def demonstrate_service_architecture():
         'user': 'demo_user',
         'password': 'demo_pass'
     }
-    
+
     # Mock database manager for demo
     class MockDatabaseManager:
         async def get_connection(self):
@@ -75,47 +75,47 @@ async def demonstrate_service_architecture():
                             return None
                     return MockCursor()
             return MockConnection()
-    
+
     db_manager = MockDatabaseManager()
     cache_config = CacheConfiguration()
-    
+
     print("\n1. 🏗️  Initializing Financial Trading Services")
     print("-" * 50)
-    
+
     # Initialize all services
     services = {}
-    
+
     # Market Data Processing Service
     print("   📊 Market Data Processing Service")
     services['market_data'] = RealtimeMarketService(
         database_manager=db_manager,
         cache_config=cache_config
     )
-    
-    # Analytics & ML Service  
+
+    # Analytics & ML Service
     print("   🧠 Advanced Analytics & ML Service")
     services['analytics'] = AdvancedAnalyticsMLService(
         database_manager=db_manager,
         cache_config=cache_config
     )
-    
+
     # Portfolio Management Service
     print("   📈 Portfolio Management Service")
     services['portfolio'] = PortfolioManagementService(
         database_manager=db_manager,
         cache_config=cache_config
     )
-    
+
     # Order Management Service
     print("   📋 Order Management & Execution Service")
     services['orders'] = OrderExecutionService(
         database_manager=db_manager,
         cache_config=cache_config
     )
-    
+
     print("\n2. 🎯 Demonstrating Service Capabilities")
     print("-" * 50)
-    
+
     # Portfolio Management Demo
     print("\n   📈 Portfolio Management:")
     try:
@@ -129,7 +129,7 @@ async def demonstrate_service_architecture():
         )
         print(f"      ✅ Created portfolio: {portfolio.portfolio_id}")
         print(f"         Initial Value: ${portfolio.total_value:,.2f}")
-        
+
         # Add position
         position = await services['portfolio'].add_position(
             portfolio_id=portfolio.portfolio_id,
@@ -139,10 +139,10 @@ async def demonstrate_service_architecture():
             transaction_date=datetime.now()
         )
         print(f"      ✅ Added position: {position.quantity} shares of {position.symbol}")
-        
+
     except Exception as e:
         print(f"      ❌ Portfolio demo failed: {e}")
-    
+
     # Order Management Demo
     print("\n   📋 Order Management:")
     try:
@@ -157,16 +157,16 @@ async def demonstrate_service_architecture():
         )
         print(f"      ✅ Created order: {order.order_id}")
         print(f"         {order.side.value} {order.quantity} {order.symbol} @ ${order.price}")
-        
+
         # List execution venues
         venues = await services['orders'].list_execution_venues()
         print(f"      ✅ Available execution venues: {len(venues)}")
         for venue in venues[:3]:
             print(f"         - {venue.venue_name} ({venue.venue_type})")
-            
+
     except Exception as e:
         print(f"      ❌ Order management demo failed: {e}")
-    
+
     # Market Data Demo
     print("\n   📊 Market Data Processing:")
     try:
@@ -177,19 +177,19 @@ async def demonstrate_service_architecture():
             batch_size=50
         )
         print(f"      ✅ Started data ingestion: {session_id}")
-        
+
         # Get processing metrics
         metrics = await services['market_data'].get_processing_metrics()
         print(f"      ✅ Processing metrics:")
         print(f"         Messages/sec: {metrics.messages_per_second:.1f}")
         print(f"         Queue depth: {metrics.queue_depth}")
-        
+
         await services['market_data'].stop_data_ingestion(session_id)
         print(f"      ✅ Stopped data ingestion")
-        
+
     except Exception as e:
         print(f"      ❌ Market data demo failed: {e}")
-    
+
     # Analytics Demo
     print("\n   🧠 Analytics & ML:")
     try:
@@ -201,11 +201,11 @@ async def demonstrate_service_architecture():
             end_date=datetime.now()
         )
         print(f"      ✅ Calculated {len(indicators)} technical indicators")
-        
+
         # List available models
         models = await services['analytics'].list_models()
         print(f"      ✅ Available ML models: {len(models)}")
-        
+
         # Calculate quantitative metrics
         quant_metrics = await services['analytics'].calculate_quantitative_metrics(
             symbol="AAPL",
@@ -215,38 +215,38 @@ async def demonstrate_service_architecture():
         print(f"      ✅ Quantitative analysis:")
         print(f"         Volatility: {quant_metrics.volatility:.1%}")
         print(f"         Sharpe Ratio: {quant_metrics.sharpe_ratio:.2f}" if quant_metrics.sharpe_ratio else "         Sharpe Ratio: N/A")
-        
+
     except Exception as e:
         print(f"      ❌ Analytics demo failed: {e}")
-    
+
     print("\n3. 🔧 Service Architecture Benefits")
     print("-" * 50)
     print("   ✅ Clean Separation of Concerns:")
     print("      - Each service handles its own domain logic")
     print("      - No direct DAO access from clients")
     print("      - Well-defined public APIs only")
-    
+
     print("\n   ✅ Scalability & Performance:")
     print("      - Multi-layer caching (L1 memory, L2 Redis)")
     print("      - Async/await for high throughput")
     print("      - Real-time processing capabilities")
-    
+
     print("\n   ✅ Enterprise Features:")
     print("      - Comprehensive error handling")
     print("      - Real-time monitoring and alerting")
     print("      - Risk management integration")
     print("      - Audit trails and compliance")
-    
+
     print("\n   ✅ Financial Trading Capabilities:")
     print("      - Real-time market data processing")
     print("      - Advanced ML and analytics")
     print("      - Portfolio management and optimization")
     print("      - Algorithmic order execution")
     print("      - Risk monitoring and VaR calculations")
-    
+
     print("\n4. 📋 Service Interface Summary")
     print("-" * 50)
-    
+
     service_summary = {
         "Market Data Processing": {
             "interface": "RealtimeMarketServiceInterface",
@@ -264,7 +264,7 @@ async def demonstrate_service_architecture():
             ]
         },
         "Analytics & ML": {
-            "interface": "AnalyticsMLServiceInterface", 
+            "interface": "AnalyticsMLServiceInterface",
             "key_methods": [
                 "calculate_technical_indicators()",
                 "create_ml_model()",
@@ -309,7 +309,7 @@ async def demonstrate_service_architecture():
             ]
         }
     }
-    
+
     for service_name, info in service_summary.items():
         print(f"\n   🔧 {service_name}:")
         print(f"      Interface: {info['interface']}")
@@ -317,14 +317,14 @@ async def demonstrate_service_architecture():
         print(f"      Features:")
         for feature in info['features']:
             print(f"        - {feature}")
-    
+
     print(f"\n5. 🎉 Architecture Transformation Complete")
     print("-" * 50)
     print("   ✅ Service-based architecture successfully implemented")
-    print("   ✅ All business domain services operational") 
+    print("   ✅ All business domain services operational")
     print("   ✅ Clean interfaces with no internal method access")
     print("   ✅ Production-ready financial trading platform")
-    
+
     print(f"\n📊 Final Statistics:")
     print(f"   - Services implemented: {len(services)}")
     print(f"   - Total interface methods: 150+")

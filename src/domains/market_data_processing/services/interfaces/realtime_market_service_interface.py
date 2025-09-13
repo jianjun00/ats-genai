@@ -207,13 +207,13 @@ class DataEnrichment:
 class RealtimeMarketServiceInterface(ABC):
     """
     Real-time Market Data Processing Service Interface
-    
+
     Provides high-performance market data ingestion, processing, validation,
     enrichment, and distribution capabilities for financial trading systems.
     """
-    
+
     # Data Ingestion
-    
+
     @abstractmethod
     async def start_data_ingestion(
         self,
@@ -223,99 +223,99 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> str:
         """
         Start real-time data ingestion from multiple sources.
-        
+
         Args:
             sources: List of data source identifiers
             buffer_size: Internal buffer size for messages
             batch_size: Batch size for processing
-            
+
         Returns:
             Ingestion session ID
         """
         pass
-    
+
     @abstractmethod
     async def stop_data_ingestion(self, session_id: str) -> bool:
         """
         Stop data ingestion session.
-        
+
         Args:
             session_id: Ingestion session identifier
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def ingest_message(self, message: MarketDataMessage) -> bool:
         """
         Ingest individual market data message.
-        
+
         Args:
             message: Market data message to ingest
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def ingest_batch(self, messages: List[MarketDataMessage]) -> Dict[str, bool]:
         """
         Ingest batch of market data messages.
-        
+
         Args:
             messages: List of messages to ingest
-            
+
         Returns:
             Success status for each message by message_id
         """
         pass
-    
+
     # Data Processing & Validation
-    
+
     @abstractmethod
     async def add_validation_rule(self, rule: DataValidationRule) -> bool:
         """
         Add data validation rule.
-        
+
         Args:
             rule: Validation rule configuration
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def validate_message(self, message: MarketDataMessage) -> List[ValidationResult]:
         """
         Validate market data message.
-        
+
         Args:
             message: Message to validate
-            
+
         Returns:
             Validation results for all applicable rules
         """
         pass
-    
+
     @abstractmethod
     async def process_message(self, message: MarketDataMessage) -> MarketDataMessage:
         """
         Process and enrich market data message.
-        
+
         Args:
             message: Raw message to process
-            
+
         Returns:
             Processed and enriched message
         """
         pass
-    
+
     # Real-time Aggregation
-    
+
     @abstractmethod
     async def start_minute_bar_aggregation(
         self,
@@ -324,29 +324,29 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> str:
         """
         Start real-time minute bar aggregation.
-        
+
         Args:
             symbols: Symbols to aggregate
             output_callback: Callback for completed bars
-            
+
         Returns:
             Aggregation session ID
         """
         pass
-    
+
     @abstractmethod
     async def get_current_minute_bar(self, symbol: str) -> Optional[MinuteBar]:
         """
         Get current (in-progress) minute bar for symbol.
-        
+
         Args:
             symbol: Symbol to get bar for
-            
+
         Returns:
             Current minute bar or None
         """
         pass
-    
+
     @abstractmethod
     async def get_completed_minute_bars(
         self,
@@ -356,19 +356,19 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> List[MinuteBar]:
         """
         Get completed minute bars for time range.
-        
+
         Args:
             symbol: Symbol to get bars for
             start_time: Start of time range
             end_time: End of time range
-            
+
         Returns:
             List of completed minute bars
         """
         pass
-    
+
     # Data Distribution & Subscriptions
-    
+
     @abstractmethod
     async def subscribe(
         self,
@@ -379,43 +379,43 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> str:
         """
         Subscribe to real-time market data.
-        
+
         Args:
             symbols: Symbols to subscribe to
             data_types: Types of data to receive
             callback: Function to call with new messages
             filters: Optional message filters
-            
+
         Returns:
             Subscription ID
         """
         pass
-    
+
     @abstractmethod
     async def unsubscribe(self, subscription_id: str) -> bool:
         """
         Unsubscribe from market data.
-        
+
         Args:
             subscription_id: Subscription to cancel
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def get_active_subscriptions(self) -> List[DataSubscription]:
         """
         Get all active data subscriptions.
-        
+
         Returns:
             List of active subscriptions
         """
         pass
-    
+
     # Data Quality & Monitoring
-    
+
     @abstractmethod
     async def assess_data_quality(
         self,
@@ -425,27 +425,27 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Assess data quality for symbol and type.
-        
+
         Args:
             symbol: Symbol to assess
             data_type: Type of data to assess
             time_window: Time window for assessment
-            
+
         Returns:
             Data quality metrics and assessment
         """
         pass
-    
+
     @abstractmethod
     async def get_processing_metrics(self) -> ProcessingMetrics:
         """
         Get real-time processing performance metrics.
-        
+
         Returns:
             Current processing metrics
         """
         pass
-    
+
     @abstractmethod
     async def get_latency_percentiles(
         self,
@@ -453,43 +453,43 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> Dict[str, float]:
         """
         Get processing latency percentiles.
-        
+
         Args:
             time_window: Time window for calculation
-            
+
         Returns:
             Latency percentiles (p50, p90, p95, p99)
         """
         pass
-    
+
     # Market Data Queries
-    
+
     @abstractmethod
     async def get_latest_trade(self, symbol: str) -> Optional[TradeMessage]:
         """
         Get latest trade for symbol.
-        
+
         Args:
             symbol: Symbol to get trade for
-            
+
         Returns:
             Latest trade message or None
         """
         pass
-    
+
     @abstractmethod
     async def get_latest_quote(self, symbol: str) -> Optional[QuoteMessage]:
         """
         Get latest quote for symbol.
-        
+
         Args:
             symbol: Symbol to get quote for
-            
+
         Returns:
             Latest quote message or None
         """
         pass
-    
+
     @abstractmethod
     async def get_order_book(
         self,
@@ -498,16 +498,16 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> Optional[Level2Message]:
         """
         Get current order book for symbol.
-        
+
         Args:
             symbol: Symbol to get order book for
             depth: Number of price levels to return
-            
+
         Returns:
             Current order book or None
         """
         pass
-    
+
     @abstractmethod
     async def get_trade_history(
         self,
@@ -518,20 +518,20 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> List[TradeMessage]:
         """
         Get historical trades for symbol.
-        
+
         Args:
             symbol: Symbol to get trades for
             start_time: Start of time range
             end_time: End of time range
             limit: Maximum number of trades to return
-            
+
         Returns:
             List of historical trades
         """
         pass
-    
+
     # Data Recovery & Replay
-    
+
     @abstractmethod
     async def start_data_replay(
         self,
@@ -543,34 +543,34 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> str:
         """
         Start historical data replay.
-        
+
         Args:
             symbols: Symbols to replay
             start_time: Replay start time
             end_time: Replay end time
             speed_multiplier: Replay speed (1.0 = real-time)
             callback: Optional callback for each message
-            
+
         Returns:
             Replay session ID
         """
         pass
-    
+
     @abstractmethod
     async def stop_data_replay(self, session_id: str) -> bool:
         """
         Stop data replay session.
-        
+
         Args:
             session_id: Replay session to stop
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     # Configuration & Administration
-    
+
     @abstractmethod
     async def configure_source(
         self,
@@ -581,46 +581,46 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> bool:
         """
         Configure market data source.
-        
+
         Args:
             source_id: Source identifier
             connection_params: Connection configuration
             data_mappings: Field mappings from source to internal format
             quality_thresholds: Data quality thresholds
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def get_source_status(self, source_id: str) -> Dict[str, Any]:
         """
         Get market data source status.
-        
+
         Args:
             source_id: Source to check
-            
+
         Returns:
             Source status and metrics
         """
         pass
-    
+
     @abstractmethod
     async def configure_enrichment(self, enrichment: DataEnrichment) -> bool:
         """
         Configure data enrichment.
-        
+
         Args:
             enrichment: Enrichment configuration
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     # Stream Processing
-    
+
     @abstractmethod
     async def create_data_stream(
         self,
@@ -631,18 +631,18 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> str:
         """
         Create processed data stream.
-        
+
         Args:
             stream_name: Name for the stream
             symbols: Symbols to include
             data_types: Data types to include
             processing_pipeline: Processing steps to apply
-            
+
         Returns:
             Stream ID
         """
         pass
-    
+
     @abstractmethod
     async def get_stream_data(
         self,
@@ -651,16 +651,16 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> AsyncIterator[MarketDataMessage]:
         """
         Get data from processed stream.
-        
+
         Args:
             stream_id: Stream to read from
             max_messages: Maximum messages to return
-            
+
         Yields:
             Processed market data messages
         """
         pass
-    
+
     @abstractmethod
     async def get_processing_pipeline_status(
         self,
@@ -668,10 +668,10 @@ class RealtimeMarketServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Get processing pipeline status.
-        
+
         Args:
             stream_id: Stream to check
-            
+
         Returns:
             Pipeline status and performance metrics
         """

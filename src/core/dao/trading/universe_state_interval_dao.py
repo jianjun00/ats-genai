@@ -84,7 +84,7 @@ class UniverseStateIntervalDAO:
             ))
         # Import at runtime to avoid circular dependency
         from domains.trading.services.state.universe_state import UniverseStateInterval
-        
+
         return UniverseStateInterval(
             universe_id=row.get('universe_id'),
             duration=duration,

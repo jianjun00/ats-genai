@@ -24,7 +24,7 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 
 ### **🚫 NO MOCK/SYNTHETIC DATA IN NON-TEST CODE**
 - **❌ NEVER use mock data, fake data, synthetic data, demo data** outside of unit tests
-- **❌ NEVER create fallbacks to demo data** when real data is unavailable  
+- **❌ NEVER create fallbacks to demo data** when real data is unavailable
 - **✅ Demo data ONLY in unit tests** - isolated, controlled test scenarios
 - **✅ Fail fast and clearly** when real data/database is unavailable
 
@@ -53,7 +53,7 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 ```bash
 # Environment-Specific Service Management
 docker-compose -f docker-compose.dev.yml up -d      # Dev environment
-docker-compose -f docker-compose.intg.yml up -d     # Integration environment  
+docker-compose -f docker-compose.intg.yml up -d     # Integration environment
 docker-compose -f docker-compose.monitoring.yml up -d # Monitoring stack
 
 # Service Status & Health
@@ -117,7 +117,7 @@ PYTHONPATH=/workspace/src
 **Data Structure:**
 ```
 /mnt/d/ats-data/
-├── minute-bars/firstrate/  # Raw OHLCV INPUT (parquet files)  
+├── minute-bars/firstrate/  # Raw OHLCV INPUT (parquet files)
 ├── training-data/          # ML-ready OUTPUT (arrayrecord)
 ├── checkpoints/            # API rate limiting
 └── temp/                   # Temporary processing
@@ -126,7 +126,7 @@ PYTHONPATH=/workspace/src
 ### **🚨 Critical Service Fixes (2025-09-12)**
 
 **✅ RESOLVED: Analytics Service Command Path**
-- **Issue**: `src/analytics/unified_analytics_service.py` (non-existent file)  
+- **Issue**: `src/analytics/unified_analytics_service.py` (non-existent file)
 - **Fixed**: `src/services/analytics_service.py` (correct path)
 - **Result**: Analytics service fully operational at http://localhost:4000
 
@@ -149,14 +149,14 @@ docker-compose -f docker-compose.intg.yml down      # Stop integration
 
 # DEBUG Service Issues
 docker logs ats-intg-analytics --tail 20            # Check analytics logs
-docker exec ats-intg-postgres pg_isready -U postgres # Test DB connectivity  
+docker exec ats-intg-postgres pg_isready -U postgres # Test DB connectivity
 docker inspect ats-intg-analytics | grep NetworkMode # Verify network
 ```
 
 ### **🚨 Common Issues & Debug**
 
 **Connection Issues:**
-- Check network: `docker inspect <container> | grep NetworkMode` 
+- Check network: `docker inspect <container> | grep NetworkMode`
 - Test connectivity: `curl -f http://localhost:<port>/health`
 - Check logs: `docker logs <container> --tail 20`
 

@@ -33,11 +33,11 @@ logger = logging.getLogger(__name__)
 class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
     """
     Advanced Analytics and ML Service Implementation
-    
+
     Provides comprehensive financial analytics, machine learning, and quantitative
     analysis capabilities for trading systems.
     """
-    
+
     def __init__(
         self,
         database_manager: DatabaseManager,
@@ -47,16 +47,16 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         self.db = database_manager
         self.cache = MultiLayerCache(cache_config or CacheConfiguration())
         self.executor = ThreadPoolExecutor(max_workers=processing_threads)
-        
+
         # Model storage
         self.trained_models: Dict[str, Any] = {}
         self.model_configs: Dict[str, MLModelConfig] = {}
         self.model_metrics: Dict[str, MLModelMetrics] = {}
-        
+
         # Analytics sessions
         self.analytics_sessions: Dict[str, Dict[str, Any]] = {}
         self.anomaly_sessions: Dict[str, Dict[str, Any]] = {}
-        
+
         # Performance tracking
         self.analytics_metrics = {
             'calculations_performed': 0,
@@ -64,9 +64,9 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
             'predictions_made': 0,
             'cache_hit_rate': 0.0
         }
-    
+
     # Technical Analysis Implementation
-    
+
     async def calculate_technical_indicators(
         self,
         symbol: str,
@@ -81,20 +81,20 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
             price_data = await self._get_price_data(symbol, start_date, end_date, timeframe)
             if price_data.empty:
                 return []
-            
+
             results = []
             for indicator_name in indicators:
                 indicator_results = await self._calculate_indicator(
                     symbol, indicator_name, price_data, timeframe
                 )
                 results.extend(indicator_results)
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"Error calculating technical indicators for {symbol}: {e}")
             return []
-    
+
     async def identify_chart_patterns(
         self,
         symbol: str,
@@ -106,11 +106,11 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             end_date = datetime.now()
             start_date = end_date - lookback_period
-            
+
             price_data = await self._get_price_data(symbol, start_date, end_date, "1D")
             if len(price_data) < 20:  # Need minimum data for pattern recognition
                 return []
-            
+
             results = []
             for pattern in patterns:
                 pattern_results = await self._identify_pattern(
@@ -118,13 +118,13 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 )
                 if pattern_results:
                     results.append(pattern_results)
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"Error identifying chart patterns for {symbol}: {e}")
             return []
-    
+
     async def calculate_support_resistance(
         self,
         symbol: str,
@@ -135,24 +135,24 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             end_date = datetime.now()
             start_date = end_date - lookback_period
-            
+
             price_data = await self._get_price_data(symbol, start_date, end_date, "1D")
             if price_data.empty:
                 return {"support": [], "resistance": []}
-            
+
             if method == "pivot_points":
                 return await self._calculate_pivot_points(price_data)
             elif method == "clustering":
                 return await self._calculate_clustering_levels(price_data)
             else:
                 return {"support": [], "resistance": []}
-                
+
         except Exception as e:
             logger.error(f"Error calculating support/resistance for {symbol}: {e}")
             return {"support": [], "resistance": []}
-    
+
     # ML Model Implementation
-    
+
     async def create_ml_model(
         self,
         config: MLModelConfig,
@@ -162,20 +162,20 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             model_id = config.model_id
             self.model_configs[model_id] = config
-            
+
             # Initialize model based on type and algorithm
             model = await self._initialize_model(config)
-            
+
             # Train the model
             metrics = await self.train_model(model_id, training_data)
-            
+
             logger.info(f"Created and trained model {model_id}")
             return model_id
-            
+
         except Exception as e:
             logger.error(f"Error creating ML model: {e}")
             raise
-    
+
     async def train_model(
         self,
         model_id: str,
@@ -185,28 +185,28 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         """Train ML model with provided data."""
         try:
             config = self.model_configs[model_id]
-            
+
             # Prepare training data
             X = np.array(training_data['features'])
             y = np.array(training_data['targets'])
-            
+
             # Split data
             split_idx = int(len(X) * (1 - validation_split))
             X_train, X_val = X[:split_idx], X[split_idx:]
             y_train, y_val = y[:split_idx], y[split_idx:]
-            
+
             # Train model
             start_time = time.time()
             model = await self._train_model_impl(config, X_train, y_train)
             training_time = time.time() - start_time
-            
+
             # Validate model
             val_metrics = await self._evaluate_model_impl(model, X_val, y_val)
             train_metrics = await self._evaluate_model_impl(model, X_train, y_train)
-            
+
             # Store model and metrics
             self.trained_models[model_id] = model
-            
+
             metrics = MLModelMetrics(
                 model_id=model_id,
                 evaluation_timestamp=datetime.now(),
@@ -217,17 +217,17 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 model_size_mb=self._get_model_size(model),
                 inference_time_ms=await self._measure_inference_time(model, X_val[:1])
             )
-            
+
             self.model_metrics[model_id] = metrics
             self.analytics_metrics['models_trained'] += 1
-            
+
             logger.info(f"Trained model {model_id} in {training_time:.2f}s")
             return metrics
-            
+
         except Exception as e:
             logger.error(f"Error training model {model_id}: {e}")
             raise
-    
+
     async def predict(
         self,
         model_id: str,
@@ -238,21 +238,21 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             if model_id not in self.trained_models:
                 raise ValueError(f"Model {model_id} not found or not trained")
-            
+
             model = self.trained_models[model_id]
             config = self.model_configs[model_id]
-            
+
             # Prepare input features
             features = np.array(input_data['features']).reshape(1, -1)
-            
+
             # Make prediction
             start_time = time.time()
             prediction_value = model.predict(features)[0]
             inference_time = (time.time() - start_time) * 1000
-            
+
             # Calculate confidence/uncertainty if supported
             confidence = await self._calculate_prediction_confidence(model, features)
-            
+
             prediction = Prediction(
                 prediction_id=f"pred_{int(time.time())}_{model_id}",
                 model_id=model_id,
@@ -265,14 +265,14 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 features_used=input_data['features'],
                 explanation=None  # Could implement SHAP or LIME explanations
             )
-            
+
             self.analytics_metrics['predictions_made'] += 1
             return prediction
-            
+
         except Exception as e:
             logger.error(f"Error making prediction with model {model_id}: {e}")
             raise
-    
+
     async def batch_predict(
         self,
         model_id: str,
@@ -282,7 +282,7 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         """Generate batch predictions for multiple symbols."""
         try:
             predictions = []
-            
+
             for symbol in symbols:
                 # Get latest features for symbol
                 features = await self._get_latest_features(symbol)
@@ -293,13 +293,13 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                     }
                     pred = await self.predict(model_id, input_data, prediction_horizon)
                     predictions.append(pred)
-            
+
             return predictions
-            
+
         except Exception as e:
             logger.error(f"Error in batch prediction: {e}")
             return []
-    
+
     async def evaluate_model(
         self,
         model_id: str,
@@ -309,27 +309,27 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             if model_id not in self.trained_models:
                 raise ValueError(f"Model {model_id} not found")
-            
+
             model = self.trained_models[model_id]
-            
+
             X_test = np.array(test_data['features'])
             y_test = np.array(test_data['targets'])
-            
+
             test_metrics = await self._evaluate_model_impl(model, X_test, y_test)
-            
+
             # Update stored metrics
             if model_id in self.model_metrics:
                 self.model_metrics[model_id].test_metrics = test_metrics
                 self.model_metrics[model_id].evaluation_timestamp = datetime.now()
-            
+
             return self.model_metrics[model_id]
-            
+
         except Exception as e:
             logger.error(f"Error evaluating model {model_id}: {e}")
             raise
-    
+
     # Feature Engineering Implementation
-    
+
     async def engineer_features(
         self,
         symbol: str,
@@ -341,14 +341,14 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             end_date = datetime.now()
             start_date = end_date - lookback_period
-            
+
             # Get base data
             price_data = await self._get_price_data(symbol, start_date, end_date, target_timeframe)
             volume_data = await self._get_volume_data(symbol, start_date, end_date, target_timeframe)
-            
+
             features = {}
             feature_metadata = {}
-            
+
             for feature_type in feature_types:
                 if feature_type == "technical":
                     tech_features = await self._engineer_technical_features(price_data)
@@ -362,10 +362,10 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 elif feature_type == "sentiment":
                     sent_features = await self._engineer_sentiment_features(symbol, start_date, end_date)
                     features.update(sent_features)
-            
+
             # Calculate quality score
             quality_score = self._calculate_feature_quality(features)
-            
+
             feature_set = FeatureSet(
                 feature_set_id=f"features_{symbol}_{int(time.time())}",
                 symbol=symbol,
@@ -375,13 +375,13 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 quality_score=quality_score,
                 timeframe=target_timeframe
             )
-            
+
             return feature_set
-            
+
         except Exception as e:
             logger.error(f"Error engineering features for {symbol}: {e}")
             raise
-    
+
     async def select_features(
         self,
         feature_set_id: str,
@@ -393,10 +393,10 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             # This is a simplified implementation
             # In production, you'd implement various feature selection methods
-            
+
             # Get feature set from cache or database
             feature_data = await self._get_feature_set_data(feature_set_id)
-            
+
             if selection_method == "mutual_info":
                 selected = await self._mutual_info_selection(feature_data, target_variable, max_features)
             elif selection_method == "correlation":
@@ -404,13 +404,13 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
             else:
                 # Default: select all features
                 selected = list(feature_data['features'].keys())
-            
+
             return selected[:max_features] if max_features else selected
-            
+
         except Exception as e:
             logger.error(f"Error selecting features: {e}")
             return []
-    
+
     async def feature_importance_analysis(
         self,
         model_id: str,
@@ -420,18 +420,18 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             if model_id not in self.trained_models:
                 raise ValueError(f"Model {model_id} not found")
-            
+
             if model_id in self.model_metrics:
                 return self.model_metrics[model_id].feature_importance
-            
+
             return {}
-            
+
         except Exception as e:
             logger.error(f"Error analyzing feature importance: {e}")
             return {}
-    
+
     # Quantitative Analysis Implementation
-    
+
     async def calculate_quantitative_metrics(
         self,
         symbol: str,
@@ -443,12 +443,12 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         try:
             # Get price data
             returns = await self._get_returns_data(symbol, start_date, end_date)
-            
+
             if benchmark_symbol:
                 benchmark_returns = await self._get_returns_data(benchmark_symbol, start_date, end_date)
             else:
                 benchmark_returns = None
-            
+
             # Calculate metrics
             metrics = QuantitativeMetrics(
                 symbol=symbol,
@@ -467,13 +467,13 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 alpha=self._calculate_alpha(returns, benchmark_returns) if benchmark_returns is not None else None,
                 information_ratio=self._calculate_information_ratio(returns, benchmark_returns) if benchmark_returns is not None else None
             )
-            
+
             return metrics
-            
+
         except Exception as e:
             logger.error(f"Error calculating quantitative metrics for {symbol}: {e}")
             raise
-    
+
     async def correlation_analysis(
         self,
         symbols: List[str],
@@ -488,13 +488,13 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
             for symbol in symbols:
                 returns = await self._get_returns_data(symbol, start_date, end_date)
                 all_returns[symbol] = returns
-            
+
             # Create DataFrame
             returns_df = pd.DataFrame(all_returns).dropna()
-            
+
             # Calculate correlation matrix
             corr_matrix = returns_df.corr()
-            
+
             # Rolling correlations if requested
             rolling_correlations = {}
             if rolling_window:
@@ -507,10 +507,10 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                             {"date": date.strftime("%Y-%m-%d"), "correlation": float(corr)}
                             for date, corr in rolling_corr.dropna().items()
                         ]
-            
+
             # Identify correlation clusters
             clusters = self._identify_correlation_clusters(corr_matrix)
-            
+
             analysis = CorrelationAnalysis(
                 analysis_id=f"corr_{int(time.time())}",
                 symbols=symbols,
@@ -520,15 +520,15 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 correlation_clusters=clusters,
                 stability_metrics=self._calculate_correlation_stability(corr_matrix)
             )
-            
+
             return analysis
-            
+
         except Exception as e:
             logger.error(f"Error in correlation analysis: {e}")
             raise
-    
+
     # Backtesting Implementation
-    
+
     async def run_backtest(
         self,
         config: BacktestConfig,
@@ -540,18 +540,18 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
             price_data = await self._get_price_data(
                 config.symbol, config.start_date, config.end_date, "1D"
             )
-            
+
             # Initialize backtest
             portfolio_value = float(config.initial_capital)
             position = 0
             trades = []
             equity_curve = []
-            
+
             # Run backtest simulation
             for i, (date, row) in enumerate(price_data.iterrows()):
                 # Apply strategy logic
                 signal = await self._apply_strategy_logic(strategy_logic, price_data.iloc[:i+1])
-                
+
                 # Execute trades based on signal
                 if signal == "BUY" and position <= 0:
                     shares = portfolio_value / row['close']
@@ -568,23 +568,23 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                     portfolio_value = position * row['close']
                     trades.append({
                         "date": date.strftime("%Y-%m-%d"),
-                        "action": "SELL", 
+                        "action": "SELL",
                         "price": float(row['close']),
                         "shares": position,
                         "commission": float(config.commission_rate) * position * float(row['close'])
                     })
                     position = 0
-                
+
                 # Record equity
                 current_value = portfolio_value if position == 0 else position * row['close']
                 equity_curve.append({
                     "date": date.strftime("%Y-%m-%d"),
                     "value": current_value
                 })
-            
+
             # Calculate performance metrics
             performance_metrics = self._calculate_backtest_metrics(equity_curve, trades, config)
-            
+
             result = BacktestResult(
                 backtest_id=config.backtest_id,
                 strategy_name=config.strategy_name,
@@ -597,40 +597,40 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 benchmark_comparison=None,  # Could implement benchmark comparison
                 execution_time=0.0  # Placeholder
             )
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error running backtest: {e}")
             raise
-    
+
     # Helper methods (simplified implementations)
-    
+
     async def _get_price_data(self, symbol: str, start_date: datetime, end_date: datetime, timeframe: str) -> pd.DataFrame:
         """Get price data from database."""
         query = """
         SELECT date, open, high, low, close, volume
-        FROM minute_bars 
+        FROM minute_bars
         WHERE symbol = %s AND date >= %s AND date <= %s
         ORDER BY date
         """
-        
+
         async with self.db.get_connection() as conn:
             cursor = await conn.execute(query, (symbol, start_date, end_date))
             rows = await cursor.fetchall()
-            
+
             if not rows:
                 return pd.DataFrame()
-            
+
             df = pd.DataFrame(rows, columns=['date', 'open', 'high', 'low', 'close', 'volume'])
             df['date'] = pd.to_datetime(df['date'])
             df.set_index('date', inplace=True)
             return df
-    
+
     async def _calculate_indicator(self, symbol: str, indicator_name: str, price_data: pd.DataFrame, timeframe: str) -> List[TechnicalIndicator]:
         """Calculate specific technical indicator."""
         results = []
-        
+
         if indicator_name == "SMA_20":
             values = price_data['close'].rolling(20).mean()
             for date, value in values.dropna().items():
@@ -652,7 +652,7 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                     signal = SignalType.SELL
                 elif value < 30:
                     signal = SignalType.BUY
-                
+
                 results.append(TechnicalIndicator(
                     indicator_name="RSI_14",
                     symbol=symbol,
@@ -663,9 +663,9 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                     parameters={"period": 14},
                     timeframe=timeframe
                 ))
-        
+
         return results
-    
+
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate RSI indicator."""
         delta = prices.diff()
@@ -674,23 +674,23 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         return rsi
-    
+
     def _calculate_sharpe_ratio(self, returns: pd.Series) -> Optional[float]:
         """Calculate Sharpe ratio."""
         if len(returns) == 0 or returns.std() == 0:
             return None
         return float(returns.mean() / returns.std() * np.sqrt(252))
-    
+
     def _calculate_max_drawdown(self, returns: pd.Series) -> Optional[float]:
         """Calculate maximum drawdown."""
         if len(returns) == 0:
             return None
-        
+
         cumulative = (1 + returns).cumprod()
         running_max = cumulative.expanding().max()
         drawdown = (cumulative - running_max) / running_max
         return float(drawdown.min())
-    
+
     async def _initialize_model(self, config: MLModelConfig):
         """Initialize ML model based on configuration."""
         # Simplified model initialization
@@ -702,17 +702,17 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
             return LinearRegression()
         else:
             raise ValueError(f"Unsupported algorithm: {config.algorithm}")
-    
+
     # Placeholder implementations for remaining methods
     async def walk_forward_analysis(self, strategy_name: str, symbol: str, start_date: datetime, end_date: datetime, train_period: timedelta, test_period: timedelta, step_size: timedelta) -> Dict[str, Any]:
         return {}
-    
+
     async def monte_carlo_simulation(self, strategy_name: str, symbol: str, num_simulations: int, simulation_period: timedelta, confidence_levels: List[float] = [0.95, 0.99]) -> Dict[str, Any]:
         return {}
-    
+
     async def regime_detection(self, symbol: str, lookback_period: timedelta, method: str = "hidden_markov") -> Dict[str, Any]:
         return {}
-    
+
     async def analyze_sentiment(self, symbol: str, sources: List[str], lookback_period: timedelta) -> SentimentAnalysis:
         return SentimentAnalysis(
             analysis_id=f"sent_{int(time.time())}",
@@ -725,16 +725,16 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
             news_volume=0,
             social_volume=0
         )
-    
+
     async def sentiment_impact_analysis(self, symbol: str, sentiment_threshold: float, price_window: timedelta) -> Dict[str, Any]:
         return {}
-    
+
     async def detect_anomalies(self, symbol: str, detection_methods: List[str], lookback_period: timedelta, sensitivity: float = 0.05) -> List[AnomalyDetection]:
         return []
-    
+
     async def real_time_anomaly_monitoring(self, symbols: List[str], callback: Callable[[AnomalyDetection], None]) -> str:
         return f"anomaly_session_{int(time.time())}"
-    
+
     async def get_model_status(self, model_id: str) -> Dict[str, Any]:
         if model_id in self.model_configs:
             return {
@@ -744,17 +744,17 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 "metrics": asdict(self.model_metrics[model_id]) if model_id in self.model_metrics else None
             }
         return {}
-    
+
     async def list_models(self, model_type: Optional[MLModelType] = None, status: Optional[ModelStatus] = None) -> List[Dict[str, Any]]:
         models = []
         for model_id, config in self.model_configs.items():
             if model_type and config.model_type != model_type:
                 continue
-            
+
             model_status = ModelStatus.TRAINED if model_id in self.trained_models else ModelStatus.TRAINING
             if status and model_status != status:
                 continue
-            
+
             models.append({
                 "model_id": model_id,
                 "model_name": config.model_name,
@@ -762,34 +762,34 @@ class AdvancedAnalyticsMLService(AnalyticsMLServiceInterface):
                 "status": model_status.value,
                 "created_at": config.created_at.isoformat()
             })
-        
+
         return models
-    
+
     async def deploy_model(self, model_id: str, deployment_config: Dict[str, Any]) -> bool:
         return model_id in self.trained_models
-    
+
     async def retire_model(self, model_id: str) -> bool:
         if model_id in self.trained_models:
             del self.trained_models[model_id]
         return True
-    
+
     async def optimize_portfolio_allocation(self, symbols: List[str], objective: str, constraints: Dict[str, Any], lookback_period: timedelta) -> Dict[str, float]:
         return {}
-    
+
     async def risk_attribution_analysis(self, portfolio_allocation: Dict[str, float], start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         return {}
-    
+
     async def start_real_time_analytics(self, symbols: List[str], analytics_types: List[AnalyticsType], update_frequency: timedelta, callback: Callable[[AnalyticsResult], None]) -> str:
         return f"analytics_session_{int(time.time())}"
-    
+
     async def stop_real_time_analytics(self, session_id: str) -> bool:
         return True
-    
+
     async def export_analytics_results(self, analysis_ids: List[str], format: str = "json", include_metadata: bool = True) -> bytes:
         return b"{}"
-    
+
     async def get_feature_streaming_endpoint(self, feature_types: List[str], symbols: List[str]) -> AsyncIterator[FeatureSet]:
         for _ in range(0):  # Placeholder async generator
             yield
-    
+
     # Additional helper methods would be implemented here...

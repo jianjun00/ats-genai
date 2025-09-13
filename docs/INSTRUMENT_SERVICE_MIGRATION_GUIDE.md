@@ -24,22 +24,22 @@ from core.platform.config.environment import Environment
 
 async def create_instrument_old_way(symbol, name, exchange):
     env = Environment(None, EnvironmentType.DEV)
-    
+
     # Business logic scattered in client code
     if not symbol:
         raise ValueError("Symbol is required")
-    
+
     # Multiple DAO instantiations and manual dependency management
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
     vendors_dao = VendorsDAO(env)
-    
+
     try:
         # Manual duplicate checking
         existing = await instruments_dao.get_instrument_by_symbol(symbol)
         if existing:
             raise ValueError(f"Instrument {symbol} already exists")
-        
+
         # Create instrument
         instrument_id = await instruments_dao.create_instrument(
             symbol=symbol,
@@ -48,7 +48,7 @@ async def create_instrument_old_way(symbol, name, exchange):
             type_="stock",  # Hardcoded business rule
             currency="USD"  # Another hardcoded business rule
         )
-        
+
         # Manual cross-reference creation
         ticker_vendor = await vendors_dao.get_vendor_by_name("ticker")
         if ticker_vendor:
@@ -60,9 +60,9 @@ async def create_instrument_old_way(symbol, name, exchange):
                 start_at=date.today(),
                 end_at=None
             )
-        
+
         return instrument_id
-        
+
     except Exception as e:
         # Poor error handling
         print(f"Error: {e}")
@@ -78,21 +78,21 @@ from domains.instruments.services.interfaces.instrument_service_interface import
 async def create_instrument_new_way(symbol, name, exchange):
     # Get service via dependency injection
     service = await get_instrument_service()
-    
+
     # Create DTO with clean data structure
     instrument = InstrumentDTO(
         symbol=symbol,
         name=name,
         exchange=exchange
     )
-    
+
     # Single service call handles all business logic
     result = await service.create_instrument(instrument)
-    
+
     # Structured error handling
     if not result.success:
         raise ValueError(result.error_message)
-    
+
     return result.instrument_id
 ```
 
@@ -113,41 +113,41 @@ async def lookup_instrument_with_xrefs_old_way(symbol, vendor_name="ticker"):
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
     vendors_dao = VendorsDAO(env)
-    
+
     try:
         # Manual vendor ID lookup
         vendor = await vendors_dao.get_vendor_by_name(vendor_name)
         if not vendor:
             return None
-        
+
         # Manual instrument resolution via xref
         instrument_id = await xrefs_dao.resolve_instrument_id(
             symbol, vendor['id']
         )
-        
+
         if not instrument_id:
             # Fallback to direct lookup
             instrument_record = await instruments_dao.get_instrument_by_symbol(symbol)
             if not instrument_record:
                 return None
             instrument_id = instrument_record['id']
-        
+
         # Get instrument details
         instrument = await instruments_dao.get_instrument(instrument_id)
         if not instrument:
             return None
-        
+
         # Get all cross-references
         xrefs = await xrefs_dao.list_xrefs_for_instrument(instrument_id)
-        
+
         # Manual data transformation
         result = {
             'instrument': dict(instrument),
             'cross_references': [dict(xref) for xref in xrefs]
         }
-        
+
         return result
-        
+
     except Exception as e:
         print(f"Error: {e}")
         return None
@@ -158,13 +158,13 @@ async def lookup_instrument_with_xrefs_old_way(symbol, vendor_name="ticker"):
 # New code - single service call with unified response
 async def lookup_instrument_with_xrefs_new_way(symbol, vendor_name="ticker"):
     service = await get_instrument_service()
-    
+
     # Single service call handles all complexity
     unified_instrument = await service.get_unified_instrument(symbol, "symbol")
-    
+
     if not unified_instrument:
         return None
-    
+
     # Clean, structured response
     return {
         'instrument': unified_instrument.instrument,
@@ -189,15 +189,15 @@ async def populate_instruments_old_way(instruments_data):
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
     vendors_dao = VendorsDAO(env)
-    
+
     created_count = 0
     error_count = 0
-    
+
     # Manual vendor ID lookup
     ticker_vendor = await vendors_dao.get_vendor_by_name("ticker")
     if not ticker_vendor:
         return {"error": "Ticker vendor not found"}
-    
+
     # Manual processing of each instrument
     for data in instruments_data:
         try:
@@ -206,7 +206,7 @@ async def populate_instruments_old_way(instruments_data):
             if existing:
                 error_count += 1
                 continue
-            
+
             # Create instrument
             instrument_id = await instruments_dao.create_instrument(
                 symbol=data['symbol'],
@@ -215,7 +215,7 @@ async def populate_instruments_old_way(instruments_data):
                 type_=data.get('type'),
                 currency=data.get('currency')
             )
-            
+
             # Create cross-reference
             await xrefs_dao.create_xref(
                 instrument_id=instrument_id,
@@ -224,13 +224,13 @@ async def populate_instruments_old_way(instruments_data):
                 start_at=data.get('list_date'),
                 end_at=data.get('delist_date')
             )
-            
+
             created_count += 1
-            
+
         except Exception as e:
             error_count += 1
             print(f"Error processing {data.get('symbol')}: {e}")
-    
+
     return {
         "created": created_count,
         "errors": error_count
@@ -242,7 +242,7 @@ async def populate_instruments_old_way(instruments_data):
 # New code - clean batch processing with proper transaction handling
 async def populate_instruments_new_way(instruments_data):
     service = await get_instrument_service()
-    
+
     # Convert to DTOs
     instruments = [
         InstrumentDTO(
@@ -256,10 +256,10 @@ async def populate_instruments_new_way(instruments_data):
         )
         for data in instruments_data
     ]
-    
+
     # Single service call handles batch processing
     result = await service.create_instruments_batch(instruments)
-    
+
     return {
         "success": result.success,
         "created": result.created_count,
@@ -288,15 +288,15 @@ async def get_instrument_old(symbol: str):
     try:
         env = Environment(None, EnvironmentType.DEV)
         dao = InstrumentsDAO(env)
-        
+
         # Business logic in API layer
         if not symbol:
             return {"error": "Symbol required"}
-        
+
         instrument = await dao.get_instrument_by_symbol(symbol)
         if not instrument:
             return {"error": "Not found"}
-        
+
         # Manual data transformation in API
         return {
             "id": instrument['id'],
@@ -304,7 +304,7 @@ async def get_instrument_old(symbol: str):
             "name": instrument.get('name'),
             "exchange": instrument.get('exchange')
         }
-        
+
     except Exception as e:
         return {"error": str(e)}
 ```
@@ -325,10 +325,10 @@ async def get_instrument_new(
 ):
     # Clean service call
     instrument = await service.get_instrument_by_symbol(symbol)
-    
+
     if not instrument:
         raise HTTPException(status_code=404, detail="Instrument not found")
-    
+
     # DTO automatically provides clean structure
     return instrument
 ```
@@ -353,7 +353,7 @@ async def get_instrument_new(
 
 ### Phase 3: Migrate Client Code
 1. **Start with new features** - Use services from day one
-2. **Migrate APIs first** - High impact, visible improvements  
+2. **Migrate APIs first** - High impact, visible improvements
 3. **Migrate utilities and scripts** - Lower risk, good practice
 4. **Update tests** - Mock services instead of DAOs
 
@@ -373,7 +373,7 @@ def mock_dao():
 
 async def test_service_business_logic(mock_dao):
     service = InstrumentServiceImpl(instruments_dao=mock_dao, ...)
-    
+
     # Test business logic without database
     result = await service.create_instrument(test_dto)
     assert result.success is True
@@ -385,7 +385,7 @@ async def test_service_business_logic(mock_dao):
 @patch('api.get_instrument_service')
 async def test_api_endpoint(mock_service):
     mock_service.return_value.get_instrument_by_symbol.return_value = test_dto
-    
+
     # Test HTTP layer without business logic
     response = client.get("/instruments/AAPL")
     assert response.status_code == 200

@@ -11,7 +11,7 @@ from .performance_profiler import (
     PerformanceProfiler,
     PerformanceOptimizer,
     SyncProfileContext,
-    
+
     # Global profiler access
     get_performance_profiler,
     profile_performance
@@ -20,7 +20,7 @@ from .performance_profiler import (
 __all__ = [
     # Performance profiling
     'PerformanceMetrics',
-    'ProfileResult', 
+    'ProfileResult',
     'PerformanceProfiler',
     'PerformanceOptimizer',
     'SyncProfileContext',

@@ -265,7 +265,7 @@ class ExecutionVenue:
 class OrderExecutionServiceInterface(ABC):
     """
     Order Management and Execution Service Interface
-    
+
     Provides comprehensive order lifecycle management and execution capabilities:
     - Order creation, modification, and cancellation
     - Real-time order status tracking and execution reports
@@ -275,9 +275,9 @@ class OrderExecutionServiceInterface(ABC):
     - Execution analytics and performance measurement
     - Order book management and market data integration
     """
-    
+
     # Order Lifecycle Management
-    
+
     @abstractmethod
     async def create_order(
         self,
@@ -297,7 +297,7 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Order:
         """
         Create new order.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Security symbol
@@ -312,12 +312,12 @@ class OrderExecutionServiceInterface(ABC):
             algorithm_parameters: Algorithm configuration
             routing_destination: Preferred execution venue
             metadata: Additional order metadata
-            
+
         Returns:
             Created order
         """
         pass
-    
+
     @abstractmethod
     async def modify_order(
         self,
@@ -329,33 +329,33 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Order:
         """
         Modify existing order.
-        
+
         Args:
             order_id: Order identifier
             quantity: New order quantity
             price: New limit price
             stop_price: New stop price
             time_in_force: New time in force
-            
+
         Returns:
             Modified order
         """
         pass
-    
+
     @abstractmethod
     async def cancel_order(self, order_id: str, reason: Optional[str] = None) -> bool:
         """
         Cancel order.
-        
+
         Args:
             order_id: Order identifier
             reason: Cancellation reason
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def cancel_all_orders(
         self,
@@ -365,30 +365,30 @@ class OrderExecutionServiceInterface(ABC):
     ) -> List[str]:
         """
         Cancel multiple orders.
-        
+
         Args:
             portfolio_id: Cancel orders for specific portfolio
             symbol: Cancel orders for specific symbol
             side: Cancel orders for specific side
-            
+
         Returns:
             List of cancelled order IDs
         """
         pass
-    
+
     @abstractmethod
     async def get_order(self, order_id: str) -> Optional[Order]:
         """
         Get order by ID.
-        
+
         Args:
             order_id: Order identifier
-            
+
         Returns:
             Order if found
         """
         pass
-    
+
     @abstractmethod
     async def list_orders(
         self,
@@ -401,7 +401,7 @@ class OrderExecutionServiceInterface(ABC):
     ) -> List[Order]:
         """
         List orders with optional filters.
-        
+
         Args:
             portfolio_id: Filter by portfolio
             symbol: Filter by symbol
@@ -409,27 +409,27 @@ class OrderExecutionServiceInterface(ABC):
             start_date: Filter from date
             end_date: Filter to date
             limit: Maximum number of orders
-            
+
         Returns:
             List of orders
         """
         pass
-    
+
     # Order Execution
-    
+
     @abstractmethod
     async def submit_for_execution(self, order_id: str) -> bool:
         """
         Submit order for execution.
-        
+
         Args:
             order_id: Order identifier
-            
+
         Returns:
             Submission success status
         """
         pass
-    
+
     @abstractmethod
     async def execute_algorithmic_order(
         self,
@@ -437,15 +437,15 @@ class OrderExecutionServiceInterface(ABC):
     ) -> str:
         """
         Execute order using algorithmic strategy.
-        
+
         Args:
             config: Algorithmic execution configuration
-            
+
         Returns:
             Execution session ID
         """
         pass
-    
+
     @abstractmethod
     async def get_execution_progress(
         self,
@@ -453,15 +453,15 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Get algorithmic execution progress.
-        
+
         Args:
             order_id: Order identifier
-            
+
         Returns:
             Execution progress information
         """
         pass
-    
+
     @abstractmethod
     async def pause_algorithmic_execution(
         self,
@@ -469,15 +469,15 @@ class OrderExecutionServiceInterface(ABC):
     ) -> bool:
         """
         Pause algorithmic order execution.
-        
+
         Args:
             order_id: Order identifier
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def resume_algorithmic_execution(
         self,
@@ -485,17 +485,17 @@ class OrderExecutionServiceInterface(ABC):
     ) -> bool:
         """
         Resume algorithmic order execution.
-        
+
         Args:
             order_id: Order identifier
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     # Execution Reporting
-    
+
     @abstractmethod
     async def get_executions(
         self,
@@ -507,19 +507,19 @@ class OrderExecutionServiceInterface(ABC):
     ) -> List[Execution]:
         """
         Get execution records.
-        
+
         Args:
             order_id: Filter by order ID
             portfolio_id: Filter by portfolio
             symbol: Filter by symbol
             start_date: Filter from date
             end_date: Filter to date
-            
+
         Returns:
             List of executions
         """
         pass
-    
+
     @abstractmethod
     async def subscribe_execution_reports(
         self,
@@ -529,32 +529,32 @@ class OrderExecutionServiceInterface(ABC):
     ) -> str:
         """
         Subscribe to real-time execution reports.
-        
+
         Args:
             callback: Function to call with execution reports
             portfolio_id: Filter by portfolio
             symbol: Filter by symbol
-            
+
         Returns:
             Subscription ID
         """
         pass
-    
+
     @abstractmethod
     async def unsubscribe_execution_reports(self, subscription_id: str) -> bool:
         """
         Unsubscribe from execution reports.
-        
+
         Args:
             subscription_id: Subscription identifier
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     # Risk Management
-    
+
     @abstractmethod
     async def pre_trade_risk_check(
         self,
@@ -563,16 +563,16 @@ class OrderExecutionServiceInterface(ABC):
     ) -> RiskCheck:
         """
         Perform pre-trade risk check.
-        
+
         Args:
             order: Order to check
             risk_rules: Specific risk rules to apply
-            
+
         Returns:
             Risk check result
         """
         pass
-    
+
     @abstractmethod
     async def real_time_risk_monitoring(
         self,
@@ -582,17 +582,17 @@ class OrderExecutionServiceInterface(ABC):
     ) -> str:
         """
         Start real-time risk monitoring.
-        
+
         Args:
             portfolio_id: Portfolio to monitor
             risk_limits: Risk limits configuration
             callback: Function to call when limits breached
-            
+
         Returns:
             Monitoring session ID
         """
         pass
-    
+
     @abstractmethod
     async def calculate_position_risk(
         self,
@@ -603,20 +603,20 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Calculate risk impact of additional position.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             symbol: Security symbol
             additional_quantity: Additional quantity to analyze
             price: Expected execution price
-            
+
         Returns:
             Risk impact analysis
         """
         pass
-    
+
     # Smart Order Routing
-    
+
     @abstractmethod
     async def configure_routing_rules(
         self,
@@ -625,16 +625,16 @@ class OrderExecutionServiceInterface(ABC):
     ) -> bool:
         """
         Configure smart order routing rules.
-        
+
         Args:
             symbol: Symbol to configure routing for
             routing_rules: List of routing configurations
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def get_best_execution_venue(
         self,
@@ -645,18 +645,18 @@ class OrderExecutionServiceInterface(ABC):
     ) -> str:
         """
         Determine best execution venue for order.
-        
+
         Args:
             symbol: Security symbol
             side: Order side
             quantity: Order quantity
             order_type: Order type
-            
+
         Returns:
             Recommended venue ID
         """
         pass
-    
+
     @abstractmethod
     async def get_venue_analytics(
         self,
@@ -667,18 +667,18 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Get execution venue analytics.
-        
+
         Args:
             venue_id: Venue identifier
             symbol: Filter by symbol
             start_date: Analytics from date
             end_date: Analytics to date
-            
+
         Returns:
             Venue performance analytics
         """
         pass
-    
+
     @abstractmethod
     async def list_execution_venues(
         self,
@@ -687,18 +687,18 @@ class OrderExecutionServiceInterface(ABC):
     ) -> List[ExecutionVenue]:
         """
         List available execution venues.
-        
+
         Args:
             active_only: Only return active venues
             symbol: Filter by supported symbol
-            
+
         Returns:
             List of execution venues
         """
         pass
-    
+
     # Market Data Integration
-    
+
     @abstractmethod
     async def get_order_book(
         self,
@@ -708,17 +708,17 @@ class OrderExecutionServiceInterface(ABC):
     ) -> OrderBook:
         """
         Get current order book.
-        
+
         Args:
             symbol: Security symbol
             depth: Order book depth
             venue: Specific venue (if None, consolidated book)
-            
+
         Returns:
             Order book snapshot
         """
         pass
-    
+
     @abstractmethod
     async def subscribe_order_book_updates(
         self,
@@ -728,17 +728,17 @@ class OrderExecutionServiceInterface(ABC):
     ) -> str:
         """
         Subscribe to order book updates.
-        
+
         Args:
             symbol: Security symbol
             callback: Function to call with updates
             venue: Specific venue to subscribe to
-            
+
         Returns:
             Subscription ID
         """
         pass
-    
+
     @abstractmethod
     async def get_market_impact_estimate(
         self,
@@ -748,19 +748,19 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Decimal]:
         """
         Estimate market impact of order.
-        
+
         Args:
             symbol: Security symbol
             side: Order side
             quantity: Order quantity
-            
+
         Returns:
             Market impact estimates
         """
         pass
-    
+
     # Execution Analytics
-    
+
     @abstractmethod
     async def calculate_execution_analytics(
         self,
@@ -769,16 +769,16 @@ class OrderExecutionServiceInterface(ABC):
     ) -> ExecutionAnalytics:
         """
         Calculate execution performance analytics.
-        
+
         Args:
             order_id: Order identifier
             benchmark_method: Benchmark calculation method
-            
+
         Returns:
             Execution analytics
         """
         pass
-    
+
     @abstractmethod
     async def generate_execution_report(
         self,
@@ -789,18 +789,18 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Generate comprehensive execution report.
-        
+
         Args:
             portfolio_id: Portfolio identifier
             start_date: Report start date
             end_date: Report end date
             include_analytics: Include execution analytics
-            
+
         Returns:
             Execution report data
         """
         pass
-    
+
     @abstractmethod
     async def benchmark_execution_performance(
         self,
@@ -810,19 +810,19 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Benchmark execution performance.
-        
+
         Args:
             orders: List of order IDs to benchmark
             benchmark_type: Benchmark type (vwap, twap, arrival_price)
             time_window: Time window for benchmark calculation
-            
+
         Returns:
             Benchmark analysis results
         """
         pass
-    
+
     # Configuration & Administration
-    
+
     @abstractmethod
     async def configure_execution_algorithm(
         self,
@@ -831,16 +831,16 @@ class OrderExecutionServiceInterface(ABC):
     ) -> bool:
         """
         Configure execution algorithm parameters.
-        
+
         Args:
             algorithm: Execution algorithm
             default_parameters: Default algorithm parameters
-            
+
         Returns:
             Success status
         """
         pass
-    
+
     @abstractmethod
     async def get_algorithm_performance(
         self,
@@ -850,27 +850,27 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Get algorithm performance metrics.
-        
+
         Args:
             algorithm: Execution algorithm
             start_date: Analysis start date
             end_date: Analysis end date
-            
+
         Returns:
             Algorithm performance metrics
         """
         pass
-    
+
     @abstractmethod
     async def get_system_status(self) -> Dict[str, Any]:
         """
         Get order management system status.
-        
+
         Returns:
             System status information
         """
         pass
-    
+
     @abstractmethod
     async def get_execution_statistics(
         self,
@@ -881,20 +881,20 @@ class OrderExecutionServiceInterface(ABC):
     ) -> Dict[str, Any]:
         """
         Get execution statistics.
-        
+
         Args:
             start_date: Statistics start date
             end_date: Statistics end date
             portfolio_id: Filter by portfolio
             symbol: Filter by symbol
-            
+
         Returns:
             Execution statistics
         """
         pass
-    
+
     # Streaming Interfaces
-    
+
     @abstractmethod
     async def get_order_stream(
         self,
@@ -903,16 +903,16 @@ class OrderExecutionServiceInterface(ABC):
     ) -> AsyncIterator[Order]:
         """
         Get streaming order updates.
-        
+
         Args:
             portfolio_id: Filter by portfolio
             symbol: Filter by symbol
-            
+
         Yields:
             Order updates
         """
         pass
-    
+
     @abstractmethod
     async def get_execution_stream(
         self,
@@ -921,11 +921,11 @@ class OrderExecutionServiceInterface(ABC):
     ) -> AsyncIterator[Execution]:
         """
         Get streaming execution updates.
-        
+
         Args:
             portfolio_id: Filter by portfolio
             symbol: Filter by symbol
-            
+
         Yields:
             Execution updates
         """

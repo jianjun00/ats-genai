@@ -72,7 +72,7 @@ __all__ = [
     'round_robin_balancer',
     'random_balancer',
     'least_connections_balancer',
-    
+
     # Health Checks
     'HealthCheck',
     'HealthCheckResult',
@@ -85,7 +85,7 @@ __all__ = [
     'SystemResourceHealthCheck',
     'CustomHealthCheck',
     'get_health_manager',
-    
+
     # Service Client
     'ServiceClient',
     'CircuitBreaker',
