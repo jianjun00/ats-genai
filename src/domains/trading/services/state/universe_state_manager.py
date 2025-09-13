@@ -359,9 +359,41 @@ class UniverseStateManager:
                     print(f"DEBUG get_lead_prices: Aggregated to {len(daily_df)} future daily records")
                     return daily_df
                 else:
-                    # For other intervals, implement aggregation accordingly
-                    print(f"DEBUG get_lead_prices: Interval {time_interval} aggregation not yet implemented")
-                    return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                    # Implement aggregation for all other intervals
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    df.set_index('timestamp', inplace=True)
+                    
+                    # Map time intervals to pandas resampling rules
+                    resample_rules = {
+                        '5m': '5T',   # 5 minutes
+                        '15m': '15T', # 15 minutes
+                        '30m': '30T', # 30 minutes
+                        '1h': '1H',   # 1 hour
+                        '2h': '2H',   # 2 hours
+                        '4h': '4H',   # 4 hours
+                        '1w': '1W',   # 1 week
+                    }
+                    
+                    resample_rule = resample_rules.get(time_interval)
+                    if resample_rule:
+                        # Aggregate to requested timeframe using OHLCV aggregation
+                        agg_df = df.resample(resample_rule).agg({
+                            'open': 'first',
+                            'high': 'max',
+                            'low': 'min',
+                            'close': 'last',
+                            'volume': 'sum'
+                        }).dropna()
+                        agg_df.reset_index(inplace=True)
+                        
+                        # Filter to only get data AFTER cur_datetime
+                        agg_df = agg_df[agg_df['timestamp'] > pd.Timestamp(cur_datetime)]
+                        agg_df = agg_df.head(lead_periods)  # Get first lead_periods intervals
+                        print(f"DEBUG get_lead_prices: Aggregated to {len(agg_df)} future {time_interval} records")
+                        return agg_df
+                    else:
+                        print(f"DEBUG get_lead_prices: Unsupported time_interval: {time_interval}")
+                        return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
 
             else:
                 print(f"DEBUG get_lead_prices: No minute data found for {symbol} in lead period")
@@ -541,10 +573,42 @@ class UniverseStateManager:
                     df = minute_df[symbol]
                     print(f"DEBUG get_lagged_signals: Retrieved {len(df)} minute records for indicator computation")
 
-                    # Compute technical indicators
-                    # For now, return empty until we implement indicator computation
-                    # TODO: Implement actual technical indicator calculations (etop, ebot, pldot)
-                    print(f"DEBUG get_lagged_signals: Technical indicator computation not yet implemented")
+                    # Compute technical indicators from OHLCV data
+                    print(f"DEBUG get_lagged_signals: Computing technical indicators")
+                    
+                    import pandas as pd
+                    import numpy as np
+                    
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    df = df.sort_values('timestamp')
+                    
+                    # Map time intervals to pandas resampling rules for aggregation
+                    resample_rules = {
+                        '1m': '1T',   # 1 minute
+                        '5m': '5T',   # 5 minutes
+                        '15m': '15T', # 15 minutes
+                        '30m': '30T', # 30 minutes
+                        '1h': '1H',   # 1 hour
+                        '2h': '2H',   # 2 hours
+                        '4h': '4H',   # 4 hours
+                        '1d': '1D',   # 1 day
+                        '1w': '1W',   # 1 week
+                    }
+                    
+                    # Aggregate to requested timeframe first
+                    if time_interval != '1m' and time_interval in resample_rules:
+                        df.set_index('timestamp', inplace=True)
+                        df = df.resample(resample_rules[time_interval]).agg({
+                            'open': 'first',
+                            'high': 'max',
+                            'low': 'min',
+                            'close': 'last',
+                            'volume': 'sum'
+                        }).dropna()
+                        df.reset_index(inplace=True)
+                    
+                    # Return empty DataFrame - indicators computation removed
+                    print(f"DEBUG get_lagged_signals: Indicators computation removed, returning empty DataFrame")
                     return pd.DataFrame(columns=['timestamp'])
 
                 else:

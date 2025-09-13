@@ -24,7 +24,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from ml.training_data.callbacks.training_data_callback import (
+from domains.ml.services.training_data.callbacks.training_data_callback import (
     DateBasedTrainingDataCallback,
     ParallelSequenceGenerator
 )
