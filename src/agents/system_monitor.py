@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
-import aiofiles
+import json
 
 @dataclass
 class SystemMetrics:
@@ -191,8 +191,8 @@ class SystemHealthMonitor:
         
         # Store to file
         try:
-            async with aiofiles.open(self.metrics_file, 'a') as f:
-                await f.write(json.dumps(asdict(metrics)) + '\n')
+            with open(self.metrics_file, 'a') as f:
+                f.write(json.dumps(asdict(metrics)) + '\n')
         except Exception as e:
             self.logger.error(f"Failed to store metrics: {e}")
     
@@ -212,7 +212,7 @@ class SystemHealthMonitor:
         
         # Trigger alert manager evaluation
         try:
-            from .alert_manager import get_alert_manager
+            from agents.alert_manager import get_alert_manager
             alert_manager = get_alert_manager(self.agent_id)
             await alert_manager.evaluate_alert_rules(alert_data, "system_monitor")
         except Exception as e:
@@ -299,8 +299,8 @@ class SystemHealthMonitor:
         
         # Store alert to file
         try:
-            async with aiofiles.open(self.alerts_file, 'a') as f:
-                await f.write(json.dumps(asdict(alert)) + '\n')
+            with open(self.alerts_file, 'a') as f:
+                f.write(json.dumps(asdict(alert)) + '\n')
         except Exception as e:
             self.logger.error(f"Failed to store alert: {e}")
     

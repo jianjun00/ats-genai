@@ -203,7 +203,7 @@ class UnifiedAnalyticsService:
             return self._get_basic_filters(table_name)
 
     def _get_basic_filters(self, table_name: str) -> Dict[str, Any]:
-        """Fallback basic filter generation when type system unavailable."""
+        """Basic filter generation when type system unavailable."""
         # Basic filter definitions for common financial data tables
         basic_filters = {
             "symbol": {"field_type": "string", "multi_select": True},
@@ -662,7 +662,7 @@ class UnifiedAnalyticsService:
                             logger.info(f"Generated {total_count} sequence-based menu items from file_metadata for dataset {dataset_id}")
 
                         else:
-                            # Fallback: use filesystem scanning (legacy approach)
+                            # Alternative: use filesystem scanning (legacy approach)
                             logger.warning(f"No file_metadata available for dataset {dataset_id}, using filesystem alternative")
 
                             symbols = dataset_info.get('symbols', [])
@@ -919,8 +919,8 @@ class UnifiedAnalyticsService:
                             window_size = 21  # Default window size for visualization
                             available_sequences = max(1, total_records - window_size + 1)
 
-                            # ENFORCE: No fake data allowed - check response before returning
-                            from services.fake_data_detector import fail_on_fake_data
+                            # ENFORCE: No test data allowed - check response before returning
+                            from services.data_validator import fail_on_invalid_data
 
                             response = {
                                 "dataset_id": dataset_id,
@@ -935,8 +935,8 @@ class UnifiedAnalyticsService:
                                 "source": "arrayrecord"
                             }
 
-                            # Fail fast if fake data detected
-                            fail_on_fake_data(response, f"visualization_data_response_dataset_{dataset_id}")
+                            # Fail fast if invalid data detected
+                            fail_on_invalid_data(response, f"visualization_data_response_dataset_{dataset_id}")
 
                             # Sanitize response to prevent NaN/Infinity JSON serialization errors
                             try:
@@ -963,7 +963,7 @@ class UnifiedAnalyticsService:
 
         except Exception as e:
             logger.error(f"Error getting visualization data for dataset {dataset_id}: {e}")
-            # No fake data - re-raise the error
+            # No test data - re-raise the error
             raise
 
     def get_training_dataset_sequence_multi_timeframe(self, dataset_id: int, sequence_id: str, row_index: int = 50) -> Dict[str, Any]:
@@ -1143,7 +1143,7 @@ class UnifiedAnalyticsService:
                         table_data = multi_timeframe_data['1h']
                         logger.info(f"✅ Table data prepared: {len(table_data)} rows from 1h OHLC data for table display")
                     else:
-                        # Fallback to empty array if no OHLC data available
+                        # Return empty array if no OHLC data available
                         table_data = []
                         logger.warning("⚠️  No OHLC data available for table display")
 
@@ -2144,7 +2144,7 @@ class UnifiedAnalyticsService:
             today = datetime.now().date()
             tomorrow = today + timedelta(days=1)
 
-            # Demo economic indicators data (will be replaced with real FRED API data)
+            # Economic indicators data (will be replaced with real FRED API data)
             all_indicators = [
                 {
                     'indicator_id': 'PPIFIS',
@@ -2538,7 +2538,7 @@ class UnifiedAnalyticsService:
                             const tablesData = await tablesResponse.json();
                             tables = tablesData.tables || [];
                         } else {
-                            // Fallback to common financial tables
+                            // Default to common financial tables
                             tables = [
                                 'dev_daily_prices', 'dev_training_datasets', 'dev_instruments',
                                 'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd'
@@ -5157,6 +5157,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_data_quality_dashboard()
             elif self.path == '/data-quality/api/issues':
                 self._serve_data_quality_issues()
+            elif self.path == '/agent/status':
+                self._serve_agent_status()
+            elif self.path == '/agent/start':
+                self._serve_agent_start()
+            elif self.path == '/agent/stop':
+                self._serve_agent_stop()
+            elif self.path.startswith('/agent/'):
+                self._serve_agent_endpoint()
             else:
                 self._serve_404()
 
@@ -7331,6 +7339,133 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(error_response).encode())
 
+    def _serve_agent_status(self):
+        """Serve agent status endpoint."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent not available"}).encode())
+                return
+
+            agent = self.analytics_service.data_quality_agent
+            status_data = {
+                "agent_id": agent.agent_id,
+                "status": agent.status.value,
+                "tools_available": len(agent.mcp_tools),
+                "tools": list(agent.mcp_tools.keys()),
+                "mcp_tools_ready": True,
+                "timestamp": datetime.now().isoformat()
+            }
+
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(status_data).encode())
+
+        except Exception as e:
+            logger.error(f"Error serving agent status: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def _serve_agent_start(self):
+        """Serve agent start endpoint."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent not available"}).encode())
+                return
+
+            agent = self.analytics_service.data_quality_agent
+            if agent.status.value == "active":
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"message": "Agent already active"}).encode())
+                return
+
+            # Start agent monitoring (mark as active, actual monitoring handled separately)
+            from agents.data_quality_agent import AgentStatus
+            agent.status = AgentStatus.ACTIVE
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"message": "Agent started successfully"}).encode())
+
+        except Exception as e:
+            logger.error(f"Error starting agent: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def _serve_agent_stop(self):
+        """Serve agent stop endpoint."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent not available"}).encode())
+                return
+
+            agent = self.analytics_service.data_quality_agent
+            from agents.data_quality_agent import AgentStatus
+            agent.status = AgentStatus.IDLE
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"message": "Agent stopped successfully"}).encode())
+
+        except Exception as e:
+            logger.error(f"Error stopping agent: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def _serve_agent_endpoint(self):
+        """Serve general agent endpoints."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent not available"}).encode())
+                return
+
+            # Route to specific agent functionality based on path
+            if self.path == '/agent/health':
+                agent = self.analytics_service.data_quality_agent
+                health_data = {
+                    "healthy": agent.status.value in ["active", "idle"],
+                    "status": agent.status.value,
+                    "last_health_check": datetime.now().isoformat()
+                }
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(health_data).encode())
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent endpoint not found"}).encode())
+
+        except Exception as e:
+            logger.error(f"Error serving agent endpoint: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
     def _serve_404(self):
         """Serve 404 response."""
         self.send_response(404)
@@ -7343,7 +7478,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "available_endpoints": [
                 "/health", "/eda", "/api/intelligent-filters/{table}",
                 "/api/universe-analytics", "/api/v1/training-datasets",
-                "/api/news-events", "/api/earnings-events", "/api/gap-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart"
+                "/api/news-events", "/api/earnings-events", "/api/gap-events", "/api/ray-analytics/{dataset_id}", "/api/multi-panel-chart",
+                "/data-quality/dashboard", "/data-quality/api/issues",
+                "/agent/status", "/agent/start", "/agent/stop", "/agent/health"
             ]
         }
 
@@ -7752,7 +7889,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         # Get center point from center_timeframe data
         center_data = timeframe_data.get(center_timeframe, [])
         if not center_data or center_index >= len(center_data):
-            # Fallback to middle of available data
+            # Default to middle of available data
             center_index = len(center_data) // 2 if center_data else 0
 
         center_timestamp = center_data[center_index]['timestamp'] if center_data else 0

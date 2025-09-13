@@ -139,7 +139,7 @@ class AgentLogger:
         log_method(entry.message)
         
         # Log structured data to JSON handler
-        json_handler = [h for h in self.logger.handlers if 'structured' in str(h.baseFilename)]
+        json_handler = [h for h in self.logger.handlers if hasattr(h, 'baseFilename') and 'structured' in str(h.baseFilename)]
         if json_handler:
             json_handler[0].emit(
                 logging.LogRecord(

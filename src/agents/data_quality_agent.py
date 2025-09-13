@@ -14,14 +14,14 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import json
 
-from ..mcp_tools.quality_scan_tool import QualityScanTool, QualityIssue
-from ..mcp_tools.backfill_orchestrator_tool import BackfillOrchestratorTool
-from .workflow_state_manager import WorkflowStateManager, WorkflowState
-from .agent_metrics_collector import AgentMetricsCollector
-from .agent_config import get_config_manager, AgentConfig
-from .agent_logger import get_agent_logger, AgentLogger
-from .system_monitor import get_system_monitor, SystemHealthMonitor
-from .alert_manager import get_alert_manager, AlertManager
+from mcp_tools.quality_scan_tool import QualityScanTool, QualityIssue
+from mcp_tools.backfill_orchestrator_tool import BackfillOrchestratorTool
+from agents.workflow_state_manager import WorkflowStateManager, WorkflowState
+from agents.agent_metrics_collector import AgentMetricsCollector
+from agents.agent_config import get_config_manager, AgentConfig
+from agents.agent_logger import get_agent_logger, AgentLogger
+from agents.system_monitor import get_system_monitor, SystemHealthMonitor
+from agents.alert_manager import get_alert_manager, AlertManager
 
 logger = logging.getLogger(__name__)
 
