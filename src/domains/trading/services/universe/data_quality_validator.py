@@ -167,9 +167,9 @@ class DataQualityValidator:
         ),
         data_dates AS (
             SELECT DISTINCT date FROM (
-                SELECT date FROM {self.env.get_table_name('daily_prices_polygon')} WHERE symbol = $1
+                SELECT date FROM {self.env.get_table_name('daily_price_polygon')} WHERE symbol = $1
                 UNION
-                SELECT date FROM {self.env.get_table_name('daily_prices_tiingo')} WHERE symbol = $1
+                SELECT date FROM {self.env.get_table_name('daily_price_tiingo')} WHERE symbol = $1
                 UNION
                 SELECT date FROM {self.env.get_table_name('daily_prices')} WHERE symbol = $1
             ) all_daily_data
@@ -249,9 +249,9 @@ class DataQualityValidator:
             SELECT date, close,
                    LAG(close) OVER (ORDER BY date) as prev_close
             FROM (
-                SELECT date, close FROM {self.env.get_table_name('daily_prices_polygon')} WHERE symbol = $1
+                SELECT date, close FROM {self.env.get_table_name('daily_price_polygon')} WHERE symbol = $1
                 UNION
-                SELECT date, close FROM {self.env.get_table_name('daily_prices_tiingo')} WHERE symbol = $1
+                SELECT date, close FROM {self.env.get_table_name('daily_price_tiingo')} WHERE symbol = $1
                 UNION
                 SELECT date, close FROM {self.env.get_table_name('daily_prices')} WHERE symbol = $1
             ) all_data
@@ -338,9 +338,9 @@ class DataQualityValidator:
         WITH daily_volumes AS (
             SELECT date, volume
             FROM (
-                SELECT date, volume FROM {self.env.get_table_name('daily_prices_polygon')} WHERE symbol = $1
+                SELECT date, volume FROM {self.env.get_table_name('daily_price_polygon')} WHERE symbol = $1
                 UNION
-                SELECT date, volume FROM {self.env.get_table_name('daily_prices_tiingo')} WHERE symbol = $1
+                SELECT date, volume FROM {self.env.get_table_name('daily_price_tiingo')} WHERE symbol = $1
                 UNION
                 SELECT date, volume FROM {self.env.get_table_name('daily_prices')} WHERE symbol = $1
             ) all_data
@@ -628,10 +628,10 @@ class DataQualityValidator:
             SELECT date, open, high, low, close, volume
             FROM (
                 SELECT date, open, high, low, close, volume
-                FROM {self.env.get_table_name('daily_prices_polygon')} WHERE symbol = $1
+                FROM {self.env.get_table_name('daily_price_polygon')} WHERE symbol = $1
                 UNION
                 SELECT date, open, high, low, close, volume
-                FROM {self.env.get_table_name('daily_prices_tiingo')} WHERE symbol = $1
+                FROM {self.env.get_table_name('daily_price_tiingo')} WHERE symbol = $1
             ) combined_daily
             WHERE date >= $2
         )

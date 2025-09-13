@@ -147,9 +147,9 @@ class DailyValidationEngine:
                     COUNT(DISTINCT p.date) + COUNT(DISTINCT t.date) + COUNT(DISTINCT f.date) as data_days,
                     AVG(COALESCE(p.volume, t.volume, f.volume, 0)) as avg_volume
                 FROM realtime_symbols rs
-                LEFT JOIN dev_daily_prices_polygon p ON rs.symbol = p.symbol
+                LEFT JOIN dev_daily_price_polygon p ON rs.symbol = p.symbol
                     AND p.date >= $1 - INTERVAL '30 days'
-                LEFT JOIN dev_daily_prices_tiingo t ON rs.symbol = t.symbol
+                LEFT JOIN dev_daily_price_tiingo t ON rs.symbol = t.symbol
                     AND t.date >= $1 - INTERVAL '30 days'
                 LEFT JOIN dev_daily_prices_fmp f ON rs.symbol = f.symbol
                     AND f.date >= $1 - INTERVAL '30 days'

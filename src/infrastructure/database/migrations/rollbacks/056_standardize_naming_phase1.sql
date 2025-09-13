@@ -87,13 +87,13 @@ BEGIN
         RAISE NOTICE 'Created backup: %_daily_prices_backup_20250905', env_prefix;
     END IF;
     
-    -- Create backup for daily_prices_tiingo table if it exists
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = env_prefix || '_daily_prices_tiingo') THEN
+    -- Create backup for daily_price_tiingo table if it exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = env_prefix || '_daily_price_tiingo') THEN
         sql_cmd := format('CREATE TABLE %I AS SELECT * FROM %I', 
-                         env_prefix || '_daily_prices_tiingo_backup_20250905',
-                         env_prefix || '_daily_prices_tiingo');
+                         env_prefix || '_daily_price_tiingo_backup_20250905',
+                         env_prefix || '_daily_price_tiingo');
         EXECUTE sql_cmd;
-        RAISE NOTICE 'Created backup: %_daily_prices_tiingo_backup_20250905', env_prefix;
+        RAISE NOTICE 'Created backup: %_daily_price_tiingo_backup_20250905', env_prefix;
     END IF;
 END
 $$;
@@ -110,12 +110,12 @@ BEGIN
     
     -- Rename adjclose to adjusted_close in tiingo table if column exists
     IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = env_prefix || '_daily_prices_tiingo' 
+               WHERE table_name = env_prefix || '_daily_price_tiingo' 
                AND column_name = 'adjclose') THEN
         sql_cmd := format('ALTER TABLE %I RENAME COLUMN adjclose TO adjusted_close', 
-                         env_prefix || '_daily_prices_tiingo');
+                         env_prefix || '_daily_price_tiingo');
         EXECUTE sql_cmd;
-        RAISE NOTICE 'Renamed adjclose to adjusted_close in %_daily_prices_tiingo', env_prefix;
+        RAISE NOTICE 'Renamed adjclose to adjusted_close in %_daily_price_tiingo', env_prefix;
     END IF;
     
     -- Rename adjusted_price to adjusted_close in main table if column exists
@@ -253,9 +253,9 @@ BEGIN
         END LOOP;
     END IF;
     
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = env_prefix || '_daily_prices_tiingo') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = env_prefix || '_daily_price_tiingo') THEN
         sql_cmd := format('SELECT ''%s'' as table_name, COUNT(*) as row_count, COUNT(adjusted_close) as adjusted_close_count FROM %I',
-                         env_prefix || '_daily_prices_tiingo', env_prefix || '_daily_prices_tiingo');
+                         env_prefix || '_daily_price_tiingo', env_prefix || '_daily_price_tiingo');
         FOR result_row IN EXECUTE sql_cmd LOOP
             RAISE NOTICE 'Validation: % - % rows, % adjusted_close values', 
                         result_row.table_name, result_row.row_count, result_row.adjusted_close_count;
@@ -290,12 +290,12 @@ BEGIN
         jsonb_build_object(
             'backup_tables', jsonb_build_array(
                 env_prefix || '_daily_prices_backup_20250905',
-                env_prefix || '_daily_prices_tiingo_backup_20250905', 
+                env_prefix || '_daily_price_tiingo_backup_20250905', 
                 env_prefix || '_reconciled_records_backup_20250905'
             ),
             'column_changes', jsonb_build_array(
                 jsonb_build_object('table', env_prefix || '_daily_prices', 'column', 'adjusted_price', 'renamed_to', 'adjusted_close'),
-                jsonb_build_object('table', env_prefix || '_daily_prices_tiingo', 'column', 'adjclose', 'renamed_to', 'adjusted_close'),
+                jsonb_build_object('table', env_prefix || '_daily_price_tiingo', 'column', 'adjclose', 'renamed_to', 'adjusted_close'),
                 jsonb_build_object('table', env_prefix || '_reconciled_records', 'column', 'instrument_id', 'type_change', 'text->integer')
             )
         ),
@@ -311,7 +311,7 @@ $$;
 \echo 'Migration 056 Phase 1 completed successfully! ✅'
 \echo 'Backup tables created for rollback if needed:'
 \echo '  - dev_daily_prices_backup_20250905'
-\echo '  - dev_daily_prices_tiingo_backup_20250905' 
+\echo '  - dev_daily_price_tiingo_backup_20250905' 
 \echo '  - dev_reconciled_records_backup_20250905'
 
 COMMIT;
@@ -335,7 +335,7 @@ BEGIN
         SELECT table_name, column_name, data_type, is_nullable
         FROM information_schema.columns 
         WHERE table_name LIKE env_prefix || '_%'
-        AND table_name IN (env_prefix || '_daily_prices', env_prefix || '_daily_prices_tiingo', env_prefix || '_reconciled_records')
+        AND table_name IN (env_prefix || '_daily_prices', env_prefix || '_daily_price_tiingo', env_prefix || '_reconciled_records')
         AND column_name IN ('adjusted_close', 'instrument_id', 'created_at', 'updated_at')
         ORDER BY table_name, column_name
     LOOP

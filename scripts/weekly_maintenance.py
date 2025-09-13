@@ -306,9 +306,9 @@ class WeeklyMaintenance:
                 # Update table statistics
                 tables_to_analyze = [
                     'intg_instruments',
-                    'intg_daily_prices_tiingo',
-                    'intg_daily_prices_polygon',
-                    'intg_daily_prices_eodhd'
+                    'intg_daily_price_tiingo',
+                    'intg_daily_price_polygon',
+                    'intg_daily_price_eodhd'
                 ]
 
                 for table in tables_to_analyze:

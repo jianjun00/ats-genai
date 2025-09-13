@@ -140,26 +140,26 @@ CREATE INDEX IF NOT EXISTS idx_dev_instruments_eodhd_vendor ON dev_instruments_e
 DO $$
 BEGIN
     -- Fix daily prices tables to include created_at if missing
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'dev_daily_prices_eodhd') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'dev_daily_price_eodhd') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                      WHERE table_name = 'dev_daily_prices_eodhd' AND column_name = 'created_at') THEN
-            ALTER TABLE dev_daily_prices_eodhd 
+                      WHERE table_name = 'dev_daily_price_eodhd' AND column_name = 'created_at') THEN
+            ALTER TABLE dev_daily_price_eodhd 
             ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
         END IF;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'dev_daily_prices_polygon') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'dev_daily_price_polygon') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                      WHERE table_name = 'dev_daily_prices_polygon' AND column_name = 'created_at') THEN
-            ALTER TABLE dev_daily_prices_polygon 
+                      WHERE table_name = 'dev_daily_price_polygon' AND column_name = 'created_at') THEN
+            ALTER TABLE dev_daily_price_polygon 
             ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
         END IF;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'dev_daily_prices_tiingo') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'dev_daily_price_tiingo') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                      WHERE table_name = 'dev_daily_prices_tiingo' AND column_name = 'created_at') THEN
-            ALTER TABLE dev_daily_prices_tiingo 
+                      WHERE table_name = 'dev_daily_price_tiingo' AND column_name = 'created_at') THEN
+            ALTER TABLE dev_daily_price_tiingo 
             ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
         END IF;
     END IF;

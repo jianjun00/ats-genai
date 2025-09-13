@@ -263,13 +263,13 @@ class SRBacktester:
         queries = [
             f"""
             SELECT date, open, high, low, close, volume
-            FROM {self.env.get_table_name('daily_prices_polygon')}
+            FROM {self.env.get_table_name('daily_price_polygon')}
             WHERE symbol = $1 AND date >= $2 AND date <= $3
             ORDER BY date
             """,
             f"""
             SELECT date, open, high, low, close, volume
-            FROM {self.env.get_table_name('daily_prices_tiingo')}
+            FROM {self.env.get_table_name('daily_price_tiingo')}
             WHERE symbol = $1 AND date >= $2 AND date <= $3
             ORDER BY date
             """,

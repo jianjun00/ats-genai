@@ -34,13 +34,13 @@ VALUES ('059_standardize_naming_integration', 'phase1', 'Integration environment
 \echo 'Step 1.1: Creating backup tables for integration environment...'
 
 -- Create backup tables for integration environment
-CREATE TABLE intg_daily_prices_tiingo_backup_20250905 AS 
-SELECT * FROM intg_daily_prices_tiingo;
+CREATE TABLE intg_daily_price_tiingo_backup_20250905 AS 
+SELECT * FROM intg_daily_price_tiingo;
 
 \echo 'Step 1.1: Renaming adjusted close columns in integration environment...'
 
 -- Rename adjclose to adjusted_close in integration tiingo table
-ALTER TABLE intg_daily_prices_tiingo 
+ALTER TABLE intg_daily_price_tiingo 
 RENAME COLUMN adjclose TO adjusted_close;
 
 \echo 'Step 1.1: Integration adjusted close columns standardized ✅'
@@ -93,19 +93,19 @@ DROP FUNCTION standardize_intg_timestamp_columns();
 
 -- Validate adjusted_close column rename in integration
 SELECT 
-    'intg_daily_prices_tiingo' as table_name,
+    'intg_daily_price_tiingo' as table_name,
     COUNT(*) as row_count,
     COUNT(adjusted_close) as adjusted_close_count
-FROM intg_daily_prices_tiingo;
+FROM intg_daily_price_tiingo;
 
 -- Store rollback information
 UPDATE intg_migration_log 
 SET rollback_info = jsonb_build_object(
     'backup_tables', jsonb_build_array(
-        'intg_daily_prices_tiingo_backup_20250905'
+        'intg_daily_price_tiingo_backup_20250905'
     ),
     'column_changes', jsonb_build_array(
-        jsonb_build_object('table', 'intg_daily_prices_tiingo', 'column', 'adjclose', 'renamed_to', 'adjusted_close')
+        jsonb_build_object('table', 'intg_daily_price_tiingo', 'column', 'adjclose', 'renamed_to', 'adjusted_close')
     )
 )
 WHERE migration_name = '059_standardize_naming_integration' AND phase = 'phase1';
@@ -117,7 +117,7 @@ WHERE migration_name = '059_standardize_naming_integration' AND phase = 'phase1'
 
 \echo 'Migration 059 Integration completed successfully! ✅'
 \echo 'Backup table created for rollback if needed:'
-\echo '  - intg_daily_prices_tiingo_backup_20250905'
+\echo '  - intg_daily_price_tiingo_backup_20250905'
 
 COMMIT;
 
@@ -134,7 +134,7 @@ SELECT
     data_type,
     is_nullable
 FROM information_schema.columns 
-WHERE table_name = 'intg_daily_prices_tiingo'
+WHERE table_name = 'intg_daily_price_tiingo'
 AND column_name IN ('adjusted_close', 'created_at', 'updated_at')
 ORDER BY table_name, column_name;
 

@@ -177,7 +177,7 @@ python3 scripts/daily_prices_quality_metrics.py --days 30 --environment intg --p
 
 1. **Check Data Pipeline**:
    ```bash
-   python3 scripts/run_intg.py query --query "SELECT MAX(date), COUNT(*) FROM intg_daily_prices_polygon"
+   python3 scripts/run_intg.py query --query "SELECT MAX(date), COUNT(*) FROM intg_daily_price_polygon"
    ```
 
 2. **Verify API Keys**:
@@ -195,7 +195,7 @@ python3 scripts/daily_prices_quality_metrics.py --days 30 --environment intg --p
 1. **Query Bad Records**:
    ```sql
    SELECT symbol, date, open, high, low, close, volume
-   FROM intg_daily_prices_polygon
+   FROM intg_daily_price_polygon
    WHERE high < low OR open <= 0
    ORDER BY date DESC LIMIT 10;
    ```
@@ -210,7 +210,7 @@ python3 scripts/daily_prices_quality_metrics.py --days 30 --environment intg --p
 
 - **Script**: `/scripts/daily_prices_quality_metrics.py`
 - **Metrics**: Prometheus metrics pushed to localhost:9091
-- **Database**: `intg_daily_prices_polygon/tiingo/eodhd` tables
+- **Database**: `intg_daily_price_polygon/tiingo/eodhd` tables
 - **Operations**: [ATS Operations Guide](OPERATIONS.md)
 
 ## 💡 Best Practices

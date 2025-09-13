@@ -108,7 +108,7 @@ INSERT INTO status_code (code, description) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- Tiingo daily prices
-CREATE TABLE IF NOT EXISTS daily_prices_tiingo (
+CREATE TABLE IF NOT EXISTS daily_price_tiingo (
     date DATE NOT NULL,
     symbol TEXT NOT NULL,
     open DOUBLE PRECISION,
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS daily_prices_tiingo (
 );
 
 -- Polygon daily prices
-CREATE TABLE IF NOT EXISTS daily_prices_polygon (
+CREATE TABLE IF NOT EXISTS daily_price_polygon (
     date DATE NOT NULL,
     symbol TEXT NOT NULL,
     open DOUBLE PRECISION,

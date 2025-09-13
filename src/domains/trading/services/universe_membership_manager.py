@@ -26,7 +26,7 @@ class UniverseMembershipManager:
         self.universe_table = f"{environment}_universe"
         self.membership_table = f"{environment}_universe_membership"
         self.instruments_table = f"{environment}_instruments"
-        self.daily_prices_table = f"{environment}_daily_prices_polygon"
+        self.daily_prices_table = f"{environment}_daily_price_polygon"
 
         # Volume qualification threshold ($100M)
         self.volume_threshold = 100_000_000

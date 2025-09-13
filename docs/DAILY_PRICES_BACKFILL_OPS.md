@@ -16,9 +16,9 @@ This document provides comprehensive operational procedures for daily price data
 
 | Vendor | DEV Table | INTG Table | PROD Table | Schema |
 |--------|-----------|------------|------------|---------|
-| **EODHD** | `dev_daily_prices_eodhd` | `intg_daily_prices_eodhd` | `prod_daily_prices_eodhd` | `(date, symbol, open, high, low, close, adjusted_close, volume, instrument_id)` |
-| **Tiingo** | `dev_daily_prices_tiingo` | `intg_daily_prices_tiingo` | `prod_daily_prices_tiingo` | `(date, symbol, open, high, low, close, volume, instrument_id)` |
-| **Polygon** | `dev_daily_prices_polygon` | `intg_daily_prices_polygon` | `prod_daily_prices_polygon` | `(date, symbol, open, high, low, close, volume, market_cap, instrument_id)` |
+| **EODHD** | `dev_daily_price_eodhd` | `intg_daily_price_eodhd` | `prod_daily_price_eodhd` | `(date, symbol, open, high, low, close, adjusted_close, volume, instrument_id)` |
+| **Tiingo** | `dev_daily_price_tiingo` | `intg_daily_price_tiingo` | `prod_daily_price_tiingo` | `(date, symbol, open, high, low, close, volume, instrument_id)` |
+| **Polygon** | `dev_daily_price_polygon` | `intg_daily_price_polygon` | `prod_daily_price_polygon` | `(date, symbol, open, high, low, close, volume, market_cap, instrument_id)` |
 
 ### **Table Constraints**
 
@@ -37,29 +37,29 @@ All tables have:
 -- EODHD Status
 SELECT 'EODHD DEV' as source, COUNT(*) as total_records,
        MAX(date) as latest_date, MIN(date) as earliest_date
-FROM dev_daily_prices_eodhd;
+FROM dev_daily_price_eodhd;
 
 SELECT 'EODHD INTG' as source, COUNT(*) as total_records,
        MAX(date) as latest_date, MIN(date) as earliest_date
-FROM intg_daily_prices_eodhd;
+FROM intg_daily_price_eodhd;
 
 -- Tiingo Status
 SELECT 'TIINGO DEV' as source, COUNT(*) as total_records,
        MAX(date) as latest_date, MIN(date) as earliest_date
-FROM dev_daily_prices_tiingo;
+FROM dev_daily_price_tiingo;
 
 SELECT 'TIINGO INTG' as source, COUNT(*) as total_records,
        MAX(date) as latest_date, MIN(date) as earliest_date
-FROM intg_daily_prices_tiingo;
+FROM intg_daily_price_tiingo;
 
 -- Polygon Status
 SELECT 'POLYGON DEV' as source, COUNT(*) as total_records,
        MAX(date) as latest_date, MIN(date) as earliest_date
-FROM dev_daily_prices_polygon;
+FROM dev_daily_price_polygon;
 
 SELECT 'POLYGON INTG' as source, COUNT(*) as total_records,
        MAX(date) as latest_date, MIN(date) as earliest_date
-FROM intg_daily_prices_polygon;
+FROM intg_daily_price_polygon;
 ```
 
 ### **Check Recent Data (Past 30 Days)**
@@ -67,15 +67,15 @@ FROM intg_daily_prices_polygon;
 ```sql
 -- Recent data for all vendors
 SELECT 'EODHD' as vendor, COUNT(*) as recent_count
-FROM intg_daily_prices_eodhd
+FROM intg_daily_price_eodhd
 WHERE date >= CURRENT_DATE - INTERVAL '30 days'
 UNION ALL
 SELECT 'TIINGO' as vendor, COUNT(*) as recent_count
-FROM intg_daily_prices_tiingo
+FROM intg_daily_price_tiingo
 WHERE date >= CURRENT_DATE - INTERVAL '30 days'
 UNION ALL
 SELECT 'POLYGON' as vendor, COUNT(*) as recent_count
-FROM intg_daily_prices_polygon
+FROM intg_daily_price_polygon
 WHERE date >= CURRENT_DATE - INTERVAL '30 days';
 ```
 
@@ -92,7 +92,7 @@ WITH date_series AS (
 ),
 existing_dates AS (
   SELECT DISTINCT date
-  FROM intg_daily_prices_eodhd
+  FROM intg_daily_price_eodhd
   WHERE date >= CURRENT_DATE - INTERVAL '30 days'
 )
 SELECT ds.date as missing_date
@@ -305,11 +305,11 @@ sudo systemctl status ats-daily-sync.timer
 
        # Check yesterday's data
        result = await conn.fetch('''
-           SELECT 'EODHD' as vendor, COUNT(*) as count FROM intg_daily_prices_eodhd WHERE date = CURRENT_DATE - 1
+           SELECT 'EODHD' as vendor, COUNT(*) as count FROM intg_daily_price_eodhd WHERE date = CURRENT_DATE - 1
            UNION ALL
-           SELECT 'TIINGO' as vendor, COUNT(*) as count FROM intg_daily_prices_tiingo WHERE date = CURRENT_DATE - 1
+           SELECT 'TIINGO' as vendor, COUNT(*) as count FROM intg_daily_price_tiingo WHERE date = CURRENT_DATE - 1
            UNION ALL
-           SELECT 'POLYGON' as vendor, COUNT(*) as count FROM intg_daily_prices_polygon WHERE date = CURRENT_DATE - 1
+           SELECT 'POLYGON' as vendor, COUNT(*) as count FROM intg_daily_price_polygon WHERE date = CURRENT_DATE - 1
        ''')
 
        for row in result:
@@ -377,9 +377,9 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 
 # Vacuum analyze tables
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
-VACUUM ANALYZE intg_daily_prices_eodhd;
-VACUUM ANALYZE intg_daily_prices_tiingo;
-VACUUM ANALYZE intg_daily_prices_polygon;
+VACUUM ANALYZE intg_daily_price_eodhd;
+VACUUM ANALYZE intg_daily_price_tiingo;
+VACUUM ANALYZE intg_daily_price_polygon;
 "
 ```
 
@@ -429,11 +429,11 @@ PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SE
 
 # Check recent sync activity
 PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
-SELECT 'EODHD' as vendor, MAX(created_at) as last_update FROM intg_daily_prices_eodhd
+SELECT 'EODHD' as vendor, MAX(created_at) as last_update FROM intg_daily_price_eodhd
 UNION ALL
-SELECT 'TIINGO' as vendor, MAX(created_at) as last_update FROM intg_daily_prices_tiingo
+SELECT 'TIINGO' as vendor, MAX(created_at) as last_update FROM intg_daily_price_tiingo
 UNION ALL
-SELECT 'POLYGON' as vendor, MAX(created_at) as last_update FROM intg_daily_prices_polygon;
+SELECT 'POLYGON' as vendor, MAX(created_at) as last_update FROM intg_daily_price_polygon;
 "
 ```
 
@@ -527,13 +527,13 @@ SET shared_buffers = '2GB';
 
 -- Create optimal indexes
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_eodhd_symbol_date
-ON intg_daily_prices_eodhd (symbol, date DESC);
+ON intg_daily_price_eodhd (symbol, date DESC);
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tiingo_symbol_date
-ON intg_daily_prices_tiingo (symbol, date DESC);
+ON intg_daily_price_tiingo (symbol, date DESC);
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_polygon_symbol_date
-ON intg_daily_prices_polygon (symbol, date DESC);
+ON intg_daily_price_polygon (symbol, date DESC);
 ```
 
 ### **Batch Size Optimization**

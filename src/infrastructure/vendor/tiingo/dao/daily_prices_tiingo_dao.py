@@ -5,7 +5,7 @@ import logging
 class DailyPricesTiingoDAO:
     def __init__(self, env: Environment):
         self.env = env
-        self.table_name = self.env.get_table_name('daily_prices_tiingo')
+        self.table_name = self.env.get_table_name('daily_price_tiingo')
         self.db_url = self.env.get_database_url()
         self.logger = logging.getLogger(__name__)
 

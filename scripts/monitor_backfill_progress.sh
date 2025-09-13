@@ -55,11 +55,11 @@ SELECT
     TO_CHAR(MIN(date), 'YYYY-MM-DD') as earliest,
     TO_CHAR(MAX(date), 'YYYY-MM-DD') as latest
 FROM (
-    SELECT 'tiingo' as source, instrument_id, date FROM dev_daily_prices_tiingo
+    SELECT 'tiingo' as source, instrument_id, date FROM dev_daily_price_tiingo
     UNION ALL
-    SELECT 'polygon' as source, instrument_id, date FROM dev_daily_prices_polygon
+    SELECT 'polygon' as source, instrument_id, date FROM dev_daily_price_polygon
     UNION ALL
-    SELECT 'eodhd' as source, instrument_id, date FROM dev_daily_prices_eodhd
+    SELECT 'eodhd' as source, instrument_id, date FROM dev_daily_price_eodhd
 ) combined
 GROUP BY source
 ORDER BY source;

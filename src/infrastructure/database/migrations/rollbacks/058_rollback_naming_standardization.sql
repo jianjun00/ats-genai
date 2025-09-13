@@ -109,7 +109,7 @@ $$;
 ALTER TABLE dev_daily_prices 
 RENAME COLUMN adjusted_close TO adjusted_price;
 
-ALTER TABLE dev_daily_prices_tiingo 
+ALTER TABLE dev_daily_price_tiingo 
 RENAME COLUMN adjusted_close TO adjclose;
 
 \echo 'Adjusted close columns rolled back ✅'
@@ -122,7 +122,7 @@ RENAME COLUMN adjusted_close TO adjclose;
 \echo '   2. Foreign keys: Revert instrument_id data types if needed'
 \echo '   3. Check backup tables for data recovery:'
 \echo '      - dev_daily_prices_backup_20250905'
-\echo '      - dev_daily_prices_tiingo_backup_20250905'
+\echo '      - dev_daily_price_tiingo_backup_20250905'
 \echo '      - All minute bar backup tables'
 
 -- =====================================================
@@ -138,7 +138,7 @@ SELECT
     column_name
 FROM information_schema.columns 
 WHERE (table_name = 'dev_daily_prices' AND column_name = 'adjusted_price')
-   OR (table_name = 'dev_daily_prices_tiingo' AND column_name = 'adjclose')
+   OR (table_name = 'dev_daily_price_tiingo' AND column_name = 'adjclose')
    OR (table_name = 'dev_news_polygon' AND column_name = 'polygon_id')
    OR (table_name = 'dev_news_tiingo' AND column_name = 'tiingo_id')
 ORDER BY table_name, column_name;
@@ -158,7 +158,7 @@ WHERE migration_name IN ('056_standardize_naming', '057_standardize_naming');
 \echo ''
 \echo '📋 Summary of rollback actions:'
 \echo '   - adjusted_close -> adjusted_price (dev_daily_prices)'
-\echo '   - adjusted_close -> adjclose (dev_daily_prices_tiingo)'
+\echo '   - adjusted_close -> adjclose (dev_daily_price_tiingo)'
 \echo '   - open/high/low/close -> open_price/high_price/low_price/close_price (minute tables)'
 \echo '   - vendor_id -> polygon_id/tiingo_id (news tables)'
 \echo ''

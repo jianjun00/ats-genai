@@ -569,7 +569,7 @@ async def example_consolidated_database_usage():
     
     try:
         # Daily prices repository (replaces DailyPriceDAO, etc.)
-        prices_repo = RepositoryFactory.get_vendor_data_repository('daily_prices_polygon')
+        prices_repo = RepositoryFactory.get_vendor_data_repository('daily_price_polygon')
         
         # Find prices for symbol and date range
         prices = await prices_repo.find_by_symbol_and_date_range(

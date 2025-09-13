@@ -415,9 +415,9 @@ python scripts/run_metadata_cli.py export --run-id 42 --output audit.json
 
 ### Phase 1: Core Financial Data
 1. **Daily Prices Tables**
-   - `dev_daily_prices_polygon` (666K records, 849 symbols)
-   - `dev_daily_prices_tiingo_30year` (6.56M records, 2,355 symbols)
-   - `dev_daily_prices_eodhd_30year` (728K records, 268 symbols)
+   - `dev_daily_price_polygon` (666K records, 849 symbols)
+   - `dev_daily_price_tiingo_30year` (6.56M records, 2,355 symbols)
+   - `dev_daily_price_eodhd_30year` (728K records, 268 symbols)
 
 2. **Instrument Tables**
    - `dev_instruments_polygon` (11,598 active instruments)

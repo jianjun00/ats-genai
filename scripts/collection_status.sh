@@ -78,9 +78,9 @@ if command -v psql >/dev/null 2>&1; then
         'Tiingo 30Y: ' || COALESCE(t.cnt, 0) || ' records, ' || COALESCE(t.symbols, 0) || ' symbols' as tiingo_30y,
         'EODHD 30Y: ' || COALESCE(e.cnt, 0) || ' records, ' || COALESCE(e.symbols, 0) || ' symbols' as eodhd_30y
     FROM
-        (SELECT COUNT(*) as cnt, COUNT(DISTINCT symbol) as symbols FROM dev_daily_prices_polygon) p
-        FULL OUTER JOIN (SELECT COUNT(*) as cnt, COUNT(DISTINCT symbol) as symbols FROM dev_daily_prices_tiingo_30year) t ON true
-        FULL OUTER JOIN (SELECT COUNT(*) as cnt, COUNT(DISTINCT symbol) as symbols FROM dev_daily_prices_eodhd_30year) e ON true
+        (SELECT COUNT(*) as cnt, COUNT(DISTINCT symbol) as symbols FROM dev_daily_price_polygon) p
+        FULL OUTER JOIN (SELECT COUNT(*) as cnt, COUNT(DISTINCT symbol) as symbols FROM dev_daily_price_tiingo_30year) t ON true
+        FULL OUTER JOIN (SELECT COUNT(*) as cnt, COUNT(DISTINCT symbol) as symbols FROM dev_daily_price_eodhd_30year) e ON true
     " 2>/dev/null | grep -v "^$" || echo "   ❌ Could not connect to database"
 
     echo ""

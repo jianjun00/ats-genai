@@ -37,7 +37,7 @@ def regenerate_high_volume_universe():
                         AVG(close) as avg_price,
                         MIN(date) as earliest_date,
                         MAX(date) as latest_date
-                    FROM intg_daily_prices_polygon
+                    FROM intg_daily_price_polygon
                     WHERE date >= '2024-08-01' AND date <= '2024-09-03'  -- Recent period with good data
                     GROUP BY symbol
                     HAVING COUNT(*) >= 20  -- At least 20 trading days
@@ -60,7 +60,7 @@ def regenerate_high_volume_universe():
                         symbol,
                         AVG(close * volume) as avg_dollar_volume_50d,
                         COUNT(*) as trading_days
-                    FROM intg_daily_prices_polygon
+                    FROM intg_daily_price_polygon
                     WHERE date >= '2024-08-01' AND date <= '2024-09-03'
                     GROUP BY symbol
                     HAVING COUNT(*) >= 20 AND AVG(close * volume) >= 100000000

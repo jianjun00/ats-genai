@@ -519,7 +519,7 @@ class MLPipeline:
         """Load training data from database."""
         
         # Use unified database repository
-        prices_repo = RepositoryFactory.get_vendor_data_repository('daily_prices_polygon')
+        prices_repo = RepositoryFactory.get_vendor_data_repository('daily_price_polygon')
         
         all_data = []
         
@@ -544,7 +544,7 @@ class MLPipeline:
     async def _load_validation_data(self, config: TrainingConfig) -> pd.DataFrame:
         """Load validation data from database."""
         
-        prices_repo = RepositoryFactory.get_vendor_data_repository('daily_prices_polygon')
+        prices_repo = RepositoryFactory.get_vendor_data_repository('daily_price_polygon')
         
         all_data = []
         

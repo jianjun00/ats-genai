@@ -160,16 +160,16 @@ class DailyDataRefresh:
             # Get adapter
             if vendor == 'tiingo':
                 adapter = self.tiingo_adapter
-                table_name = 'intg_daily_prices_tiingo'
+                table_name = 'intg_daily_price_tiingo'
             elif vendor == 'polygon':
                 adapter = self.polygon_adapter
-                table_name = 'intg_daily_prices_polygon'
+                table_name = 'intg_daily_price_polygon'
             elif vendor == 'eodhd':
                 if self.eodhd_adapter is None:
                     result.errors.append("EODHD adapter not yet implemented")
                     return result
                 adapter = self.eodhd_adapter
-                table_name = 'intg_daily_prices_eodhd'
+                table_name = 'intg_daily_price_eodhd'
             else:
                 raise ValueError(f"Unknown vendor: {vendor}")
 

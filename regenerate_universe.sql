@@ -13,7 +13,7 @@ WITH comprehensive_volume_analysis AS (
         symbol,
         AVG(close * volume) as avg_dollar_volume_50d,
         COUNT(*) as trading_days
-    FROM intg_daily_prices_polygon 
+    FROM intg_daily_price_polygon 
     WHERE date >= '2024-08-01' AND date <= '2024-09-03'
     GROUP BY symbol
     HAVING COUNT(*) >= 20 AND AVG(close * volume) >= 100000000

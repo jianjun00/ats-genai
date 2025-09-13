@@ -5650,7 +5650,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             response = {
                 "tables": [
                     f"{environment}_daily_prices", f"{environment}_training_datasets", f"{environment}_instruments",
-                    f"{environment}_daily_prices_polygon", f"{environment}_daily_prices_tiingo", f"{environment}_daily_prices_eodhd"
+                    f"{environment}_daily_price_polygon", f"{environment}_daily_price_tiingo", f"{environment}_daily_price_eodhd"
                 ],
                 "error": str(e)
             }
