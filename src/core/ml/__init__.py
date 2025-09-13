@@ -10,3 +10,28 @@ Consolidates ALL ML and analytics code from 191+ files:
 
 TARGET CONSOLIDATION: 30,000+ lines → 8,000 lines (73% reduction)
 """
+
+# Import main classes from pipeline module
+from .pipeline import (
+    MLPipeline,
+    ModelRegistry,
+    FeatureStore,
+    ModelType,
+    PipelineStage,
+    ModelConfig,
+    TrainingConfig,
+    ModelMetrics,
+    FeatureEngineer
+)
+
+__all__ = [
+    'MLPipeline',
+    'ModelRegistry', 
+    'FeatureStore',
+    'ModelType',
+    'PipelineStage',
+    'ModelConfig',
+    'TrainingConfig',
+    'ModelMetrics',
+    'FeatureEngineer'
+]

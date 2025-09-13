@@ -368,6 +368,53 @@ class ModelRegistry:
         safe_write_json(registry_data, self.registry_file)
 
 # =============================================================================
+# FEATURE STORE
+# =============================================================================
+
+class FeatureStore:
+    """
+    Unified feature store for ML pipeline.
+    
+    Manages feature engineering, storage, and retrieval.
+    """
+    
+    def __init__(self, storage_path: str = "/data/features"):
+        self.storage_path = Path(storage_path)
+        ensure_directory_exists(self.storage_path)
+        self.feature_engineer = FeatureEngineer()
+    
+    def create_features(self, 
+                       data: pd.DataFrame,
+                       feature_config: Dict[str, Any]) -> pd.DataFrame:
+        """Create features from raw data."""
+        result = data.copy()
+        
+        # Apply feature engineering based on config
+        if feature_config.get('technical_indicators', True):
+            result = self.feature_engineer.technical_indicators(result)
+        
+        return result
+    
+    def store_features(self, 
+                      features: pd.DataFrame,
+                      feature_set_name: str) -> str:
+        """Store feature set."""
+        feature_file = self.storage_path / f"{feature_set_name}.parquet"
+        features.to_parquet(feature_file)
+        
+        logger.info(f"Stored feature set: {feature_set_name}")
+        return str(feature_file)
+    
+    def load_features(self, feature_set_name: str) -> pd.DataFrame:
+        """Load feature set."""
+        feature_file = self.storage_path / f"{feature_set_name}.parquet"
+        
+        if not feature_file.exists():
+            raise FileNotFoundError(f"Feature set not found: {feature_set_name}")
+        
+        return pd.read_parquet(feature_file)
+
+# =============================================================================
 # UNIFIED ML PIPELINE
 # =============================================================================
 
