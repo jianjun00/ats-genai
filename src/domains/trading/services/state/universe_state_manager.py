@@ -607,69 +607,9 @@ class UniverseStateManager:
                         }).dropna()
                         df.reset_index(inplace=True)
                     
-                    # Calculate basic technical indicators
-                    signals_dict = {'timestamp': df['timestamp'].tolist()}
-                    
-                    # Calculate signals if requested
-                    if signal_names:
-                        for signal_name in signal_names:
-                            try:
-                                if signal_name == 'etop':
-                                    # Envelope top (price above upper band)
-                                    sma_20 = df['close'].rolling(window=20).mean()
-                                    std_20 = df['close'].rolling(window=20).std()
-                                    upper_band = sma_20 + (2 * std_20)
-                                    signals_dict['etop'] = (df['close'] > upper_band).astype(int).tolist()
-                                    
-                                elif signal_name == 'ebot':
-                                    # Envelope bottom (price below lower band)
-                                    sma_20 = df['close'].rolling(window=20).mean()
-                                    std_20 = df['close'].rolling(window=20).std()
-                                    lower_band = sma_20 - (2 * std_20)
-                                    signals_dict['ebot'] = (df['close'] < lower_band).astype(int).tolist()
-                                    
-                                elif signal_name == 'pldot':
-                                    # Price location dot (relative position within range)
-                                    high_20 = df['high'].rolling(window=20).max()
-                                    low_20 = df['low'].rolling(window=20).min()
-                                    pldot = (df['close'] - low_20) / (high_20 - low_20)
-                                    signals_dict['pldot'] = pldot.fillna(0.5).tolist()
-                                    
-                                elif signal_name.startswith('sma_'):
-                                    # Simple Moving Average
-                                    period = int(signal_name.split('_')[1])
-                                    sma = df['close'].rolling(window=period).mean()
-                                    signals_dict[signal_name] = sma.tolist()
-                                    
-                                elif signal_name.startswith('ema_'):
-                                    # Exponential Moving Average
-                                    period = int(signal_name.split('_')[1])
-                                    ema = df['close'].ewm(span=period).mean()
-                                    signals_dict[signal_name] = ema.tolist()
-                                    
-                                elif signal_name.startswith('rsi_'):
-                                    # RSI Calculation
-                                    period = int(signal_name.split('_')[1])
-                                    delta = df['close'].diff()
-                                    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-                                    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-                                    rs = gain / loss
-                                    rsi = 100 - (100 / (1 + rs))
-                                    signals_dict[signal_name] = rsi.fillna(50).tolist()
-                                    
-                            except Exception as e:
-                                print(f"DEBUG get_lagged_signals: Error computing {signal_name}: {e}")
-                                signals_dict[signal_name] = [0.0] * len(df)
-                    
-                    # Convert to DataFrame
-                    indicators_df = pd.DataFrame(signals_dict)
-                    
-                    # Filter to only get historical data (before cur_datetime)
-                    indicators_df = indicators_df[indicators_df['timestamp'] < pd.Timestamp(cur_datetime)]
-                    indicators_df = indicators_df.tail(lag_periods)  # Get last lag_periods records
-                    
-                    print(f"DEBUG get_lagged_signals: Generated {len(indicators_df)} {time_interval} indicator records")
-                    return indicators_df
+                    # Return empty DataFrame - indicators computation removed
+                    print(f"DEBUG get_lagged_signals: Indicators computation removed, returning empty DataFrame")
+                    return pd.DataFrame(columns=['timestamp'])
 
                 else:
                     print(f"DEBUG get_lagged_signals: No OHLCV data available for indicator computation")
