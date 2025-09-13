@@ -1,10 +1,6 @@
-from src.app.runner import Runner
-from shared.utils.environment import Environment, EnvironmentType
+from services.core.app.runner import Runner
+from core.platform.config.environment import Environment, EnvironmentType
 import pytest
-
-import pytest
-from shared.utils.environment import Environment, EnvironmentType
-from src.app.runner import Runner
 
 @pytest.mark.usefixtures('unit_test_db')
 def test_print_iter_events(unit_test_db):

@@ -1,8 +1,10 @@
 import pytest
 import pandas as pd
 from datetime import date
-from app.runner import Runner
-from state.universe_state_manager import UniverseStateManager
+from services.core.app.runner import Runner
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.trading.services.universe_manager import UniverseManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 import asyncpg
 

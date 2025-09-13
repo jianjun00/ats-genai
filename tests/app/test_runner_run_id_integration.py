@@ -14,10 +14,10 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from core.run_context import RunContext
-from core.run_aware_logging import get_current_run_id
-from app.runner import Runner
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.run_context import RunContext, create_run_context
+from core.shared.run_aware_logging import get_current_run_id
+from services.core.app.runner import Runner
+from core.platform.config.environment import Environment, EnvironmentType
 from state.run_aware_universe_state_manager import RunAwareUniverseStateManager
 
 

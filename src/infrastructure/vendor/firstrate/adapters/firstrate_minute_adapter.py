@@ -426,6 +426,10 @@ class FirstRateMinuteAdapter:
                                    names=['timestamp', 'open', 'high', 'low', 'close', 'volume'],
                                    parse_dates=['timestamp'])
 
+                    # Ensure timezone-naive timestamps
+                    if hasattr(df['timestamp'].dtype, 'tz') and df['timestamp'].dtype.tz is not None:
+                        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+
                     # Add metadata columns
                     df['vwap'] = None
                     df['trade_count'] = None
@@ -476,7 +480,12 @@ class FirstRateMinuteAdapter:
         file_path = self.get_monthly_file_path(symbol, year, month, output_path)
         if file_path.exists():
             try:
-                return pd.read_parquet(file_path)
+                df = pd.read_parquet(file_path)
+                # Ensure timezone-naive timestamps for consistency
+                if not df.empty and 'timestamp' in df.columns:
+                    if hasattr(df['timestamp'].dtype, 'tz') and df['timestamp'].dtype.tz is not None:
+                        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+                return df
             except Exception as e:
                 logger.error(f"Error reading {file_path}: {e}")
         return pd.DataFrame()
@@ -486,13 +495,19 @@ class FirstRateMinuteAdapter:
         if df.empty:
             return df
 
-        month_start = pd.Timestamp(year, month, 1)
+        # Ensure timezone-naive timestamps to avoid comparison issues
+        month_start = pd.Timestamp(year, month, 1, tz=None)
         if month == 12:
-            month_end = pd.Timestamp(year + 1, 1, 1)
+            month_end = pd.Timestamp(year + 1, 1, 1, tz=None)
         else:
-            month_end = pd.Timestamp(year, month + 1, 1)
+            month_end = pd.Timestamp(year, month + 1, 1, tz=None)
 
-        mask = (df['timestamp'] >= month_start) & (df['timestamp'] < month_end)
+        # Convert df timestamps to timezone-naive if they're timezone-aware
+        timestamps = df['timestamp']
+        if hasattr(timestamps.dtype, 'tz') and timestamps.dtype.tz is not None:
+            timestamps = timestamps.dt.tz_localize(None)
+
+        mask = (timestamps >= month_start) & (timestamps < month_end)
         return df[mask].copy()
 
     def write_monthly_file(self, symbol: str, year: int, month: int, df: pd.DataFrame, output_path: str = "/mnt/d/ats-data/minute-bars/firstrate") -> bool:
@@ -555,8 +570,19 @@ class FirstRateMinuteAdapter:
                 if existing.empty:
                     merged = month_new
                 else:
-                    combined = pd.concat([existing, month_new], ignore_index=True)
-                    merged = combined.drop_duplicates(subset=['timestamp']).sort_values('timestamp')
+                    try:
+                        # Ensure both DataFrames have consistent timestamp dtypes
+                        if not existing.empty and hasattr(existing['timestamp'].dtype, 'tz') and existing['timestamp'].dtype.tz is not None:
+                            existing['timestamp'] = existing['timestamp'].dt.tz_localize(None)
+                        if not month_new.empty and hasattr(month_new['timestamp'].dtype, 'tz') and month_new['timestamp'].dtype.tz is not None:
+                            month_new['timestamp'] = month_new['timestamp'].dt.tz_localize(None)
+                        
+                        combined = pd.concat([existing, month_new], ignore_index=True)
+                        merged = combined.drop_duplicates(subset=['timestamp']).sort_values('timestamp')
+                    except Exception as merge_error:
+                        logger.error(f"Merge error for {symbol} {year}-{month}: {merge_error}")
+                        # If merge fails, just use new data
+                        merged = month_new
 
                 # Write if changed
                 if self.write_monthly_file(symbol, year, month, merged, output_path):

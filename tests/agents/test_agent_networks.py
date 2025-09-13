@@ -18,8 +18,8 @@ from unittest.mock import patch
 import sys
 sys.path.insert(0, 'src')
 
-from shared.utils.feature_flags import feature_manager
-from agents.agent_networks import (
+from core.platform.config.feature_flags import FeatureManager, feature_manager
+from domains.market_data.services.data_collection.agents.agent_networks import (
     StockAgent, AgentConfig, NetworkConfig, AgentInteractionNetwork,
     GraphAttentionNetwork, PortfolioAgentSystem, create_agent_network,
     create_portfolio_system

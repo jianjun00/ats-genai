@@ -6151,7 +6151,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
     def _serve_data_quality_dashboard(self):
         """Serve data quality dashboard HTML."""
-        dashboard_html = '''
+        dashboard_html = r'''
 <!DOCTYPE html>
 <html>
 <head>
@@ -6699,7 +6699,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 
                 showModal('Agent Configuration', configHtml);
             } catch (error) {
-                showNotification(\`❌ Error loading configuration: \${error.message}\`, 'error');
+                showNotification(`❌ Error loading configuration: ${error.message}`, 'error');
             }
         }
         
@@ -6737,7 +6737,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to update configuration', 'error');
                 }
             } catch (error) {
-                showNotification(\`❌ Error updating configuration: \${error.message}\`, 'error');
+                showNotification(`❌ Error updating configuration: \${error.message}`, 'error');
             }
         }
         
@@ -6754,24 +6754,24 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to reset configuration', 'error');
                 }
             } catch (error) {
-                showNotification(\`❌ Error resetting configuration: \${error.message}\`, 'error');
+                showNotification(`❌ Error resetting configuration: \${error.message}`, 'error');
             }
         }
         
         async function applyEnvironmentConfig(environment) {
             try {
-                const response = await fetch(\`/agent/config/environment/\${environment}\`, { method: 'POST' });
+                const response = await fetch(`/agent/config/environment/\${environment}`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
-                    showNotification(\`✅ Applied \${environment} configuration\`, 'success');
+                    showNotification(`✅ Applied \${environment} configuration`, 'success');
                     document.querySelector('.modal').remove();
                     setTimeout(showConfigDialog, 1000); // Show updated config
                 } else {
-                    showNotification(\`❌ Failed to apply \${environment} configuration\`, 'error');
+                    showNotification(`❌ Failed to apply \${environment} configuration`, 'error');
                 }
             } catch (error) {
-                showNotification(\`❌ Error applying \${environment} configuration: \${error.message}\`, 'error');
+                showNotification(`❌ Error applying \${environment} configuration: \${error.message}`, 'error');
             }
         }
         
@@ -6784,7 +6784,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 const summary = data.alert_summary || {};
                 const channels = data.notification_channels || {};
                 
-                const alertsHtml = \`
+                const alertsHtml = `
                     <h3>🚨 Alert Management</h3>
                     <div style="max-height: 600px; overflow-y: auto;">
                         
@@ -6821,7 +6821,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     };
                                     const severityColor = severityColors[alert.severity] || '#6c757d';
                                     
-                                    return \`
+                                    return `
                                         <div style="border-left: 4px solid \${severityColor}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
                                             <div style="display: flex; justify-content: between; align-items: start;">
                                                 <div style="flex: 1;">
@@ -6834,10 +6834,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                                 </div>
                                                 <div style="display: flex; gap: 5px; margin-left: 15px;">
                                                     \${!alert.acknowledged ? 
-                                                        \`<button onclick="acknowledgeAlert('\${alert.alert_id}')" 
+                                                        `<button onclick="acknowledgeAlert('\${alert.alert_id}')" 
                                                                  style="padding: 4px 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                             ✓ Ack
-                                                         </button>\` : ''
+                                                         </button>` : ''
                                                     }
                                                     <button onclick="resolveAlert('\${alert.alert_id}')" 
                                                             style="padding: 4px 8px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
@@ -6846,7 +6846,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                                 </div>
                                             </div>
                                         </div>
-                                    \`;
+                                    `;
                                 }).join('') : 
                                 '<p style="color: #27ae60; text-align: center; padding: 20px;">✅ No active alerts</p>'
                             }
@@ -6865,7 +6865,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                     <h5>Notification Channels</h5>
                                     \${Object.entries(channels).map(([id, channel]) => 
-                                        \`<p><strong>\${id}:</strong> \${channel.enabled ? '✅' : '❌'} \${channel.type}</p>\`
+                                        `<p><strong>\${id}:</strong> \${channel.enabled ? '✅' : '❌'} \${channel.type}</p>`
                                     ).join('') || '<p>No channels configured</p>'}
                                 </div>
                             </div>
@@ -6887,17 +6887,17 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
-                \`;
+                `;
                 
                 showModal('Alert Management', alertsHtml);
             } catch (error) {
-                showNotification(\`❌ Error loading alerts: \${error.message}\`, 'error');
+                showNotification(`❌ Error loading alerts: \${error.message}`, 'error');
             }
         }
         
         async function acknowledgeAlert(alertId) {
             try {
-                const response = await fetch(\`/agent/alerts/\${alertId}/acknowledge\`, { method: 'POST' });
+                const response = await fetch(`/agent/alerts/\${alertId}/acknowledge`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -6907,13 +6907,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to acknowledge alert', 'error');
                 }
             } catch (error) {
-                showNotification(\`❌ Error acknowledging alert: \${error.message}\`, 'error');
+                showNotification(`❌ Error acknowledging alert: \${error.message}`, 'error');
             }
         }
         
         async function resolveAlert(alertId) {
             try {
-                const response = await fetch(\`/agent/alerts/\${alertId}/resolve\`, { method: 'POST' });
+                const response = await fetch(`/agent/alerts/\${alertId}/resolve`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -6923,7 +6923,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to resolve alert', 'error');
                 }
             } catch (error) {
-                showNotification(\`❌ Error resolving alert: \${error.message}\`, 'error');
+                showNotification(`❌ Error resolving alert: \${error.message}`, 'error');
             }
         }
         
@@ -6936,12 +6936,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 const failed = result.failed_channels;
                 
                 if (successful > 0) {
-                    showNotification(\`✅ \${successful} channels tested successfully (\${failed} failed)\`, 'success');
+                    showNotification(`✅ \${successful} channels tested successfully (\${failed} failed)`, 'success');
                 } else {
-                    showNotification(\`❌ All \${failed} notification channels failed\`, 'error');
+                    showNotification(`❌ All \${failed} notification channels failed`, 'error');
                 }
             } catch (error) {
-                showNotification(\`❌ Error testing notification channels: \${error.message}\`, 'error');
+                showNotification(`❌ Error testing notification channels: \${error.message}`, 'error');
             }
         }
         
@@ -6968,7 +6968,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 
                 const statusColor = statusColors[health.status] || '#6c757d';
                 
-                const healthHtml = \`
+                const healthHtml = `
                     <h3>🩺 System Health Monitor</h3>
                     <div style="max-height: 600px; overflow-y: auto;">
                         
@@ -7000,13 +7000,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>🚨 Active Alerts (\${health.active_alerts?.length || 0})</h4>
                             \${health.active_alerts?.length > 0 ? 
-                                health.active_alerts.map(alert => \`
+                                health.active_alerts.map(alert => `
                                     <div style="border-left: 4px solid \${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'}; 
                                                 padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 0 4px 4px 0;">
                                         <strong>\${alert.component.toUpperCase()}:</strong> \${alert.message}
                                         <br><small>\${new Date(alert.timestamp).toLocaleString()}</small>
                                     </div>
-                                \`).join('') : 
+                                `).join('') : 
                                 '<p style="color: #27ae60;">✅ No active alerts</p>'
                             }
                         </div>
@@ -7026,7 +7026,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>💡 Recommendations</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                \${health.recommendations?.map(rec => \`<p>• \${rec}</p>\`).join('') || '<p>No recommendations available</p>'}
+                                \${health.recommendations?.map(rec => `<p>• \${rec}</p>`).join('') || '<p>No recommendations available</p>'}
                             </div>
                         </div>
                         
@@ -7034,11 +7034,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>🛠️ MCP Tools Available</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                \${agent.tools_available?.map(tool => \`
+                                \${agent.tools_available?.map(tool => `
                                     <span style="display: inline-block; background: #3498db; color: white; padding: 3px 8px; margin: 2px; border-radius: 12px; font-size: 0.8em;">
                                         \${tool}
                                     </span>
-                                \`).join('') || 'No tools available'}
+                                `).join('') || 'No tools available'}
                             </div>
                         </div>
                         
@@ -7046,11 +7046,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
-                \`;
+                `;
                 
                 showModal('System Health Monitor', healthHtml);
             } catch (error) {
-                showNotification(\`❌ Error loading system health: \${error.message}\`, 'error');
+                showNotification(`❌ Error loading system health: \${error.message}`, 'error');
             }
         }
         
