@@ -75,11 +75,11 @@ class InstrumentServiceInterface(ABC):
     @abstractmethod
     async def create_instrument(self, instrument: InstrumentDTO) -> InstrumentOperationResult:
         """Create a new instrument"""
-        
+
     @abstractmethod
     async def get_instrument_by_symbol(self, symbol: str, vendor_name: str = "ticker") -> Optional[InstrumentDTO]:
         """Retrieve instrument by symbol and vendor"""
-        
+
     # ... other operations
 ```
 
@@ -124,17 +124,17 @@ Encapsulates all business logic and coordinates DAO operations:
 class InstrumentServiceImpl(InstrumentServiceInterface):
     def __init__(self, instruments_dao, xrefs_dao, vendors_dao, vendor_daos):
         # Only service implementations access DAOs
-        
+
     async def create_instrument(self, instrument: InstrumentDTO) -> InstrumentOperationResult:
         # Business validation
         if not instrument.symbol:
             return InstrumentOperationResult(success=False, error_message="Symbol is required")
-            
+
         # Check for duplicates
         existing = await self.instruments_dao.get_instrument_by_symbol(instrument.symbol)
         if existing:
             return InstrumentOperationResult(success=False, error_message="Already exists")
-            
+
         # Create with transaction handling
         instrument_id = await self.instruments_dao.create_instrument(...)
         return InstrumentOperationResult(success=True, instrument_id=instrument_id)
@@ -156,14 +156,14 @@ class InstrumentServiceContainer:
         # Initialize DAOs first
         self._daos['instruments_dao'] = InstrumentsDAO(self.environment)
         self._daos['xrefs_dao'] = InstrumentXrefsDAO(self.environment)
-        
+
         # Then initialize services with their dependencies
         self._services['instrument_service'] = InstrumentServiceImpl(
             instruments_dao=self._daos['instruments_dao'],
             xrefs_dao=self._daos['xrefs_dao'],
             # ... other dependencies
         )
-    
+
     def get_instrument_service(self) -> InstrumentServiceInterface:
         return self._services['instrument_service']
 ```
@@ -186,14 +186,14 @@ async def create_instrument(
 ):
     # Convert HTTP model to service DTO
     dto = request_to_dto(request)
-    
+
     # Delegate to service for business logic
     result = await service.create_instrument(dto)
-    
+
     # Handle service result appropriately for HTTP
     if not result.success:
         raise HTTPException(status_code=400, detail=result.error_message)
-    
+
     # Convert service result to HTTP response
     return operation_result_to_response(result)
 ```
@@ -248,10 +248,10 @@ async def test_create_instrument_success(service, mock_instruments_dao):
     # Setup mocks
     mock_instruments_dao.get_instrument_by_symbol.return_value = None
     mock_instruments_dao.create_instrument.return_value = 123
-    
+
     # Test business logic
     result = await service.create_instrument(test_dto)
-    
+
     # Verify business rules enforced
     assert result.success is True
     assert result.instrument_id == 123
@@ -264,10 +264,10 @@ Test HTTP layer with mocked services:
 def test_create_instrument_api(client, mock_service):
     # Setup service mock
     mock_service.create_instrument.return_value = InstrumentOperationResult(success=True)
-    
+
     # Test HTTP endpoint
     response = client.post("/api/v1/instruments/", json=test_data)
-    
+
     # Verify HTTP handling
     assert response.status_code == 201
     assert response.json()["success"] is True
@@ -282,13 +282,13 @@ async def test_complete_instrument_workflow():
     # Use real service container
     container = create_development_container()
     await container.initialize()
-    
+
     service = container.get_instrument_service()
-    
+
     # Test complete workflow
     result = await service.create_instrument(test_dto)
     assert result.success is True
-    
+
     retrieved = await service.get_instrument_by_id(result.instrument_id)
     assert retrieved.symbol == test_dto.symbol
 ```
@@ -297,7 +297,7 @@ async def test_complete_instrument_workflow():
 
 ### Instrument Management
 - `POST /api/v1/instruments/` - Create instrument
-- `GET /api/v1/instruments/{id}` - Get by ID  
+- `GET /api/v1/instruments/{id}` - Get by ID
 - `GET /api/v1/instruments/by-symbol/{symbol}` - Get by symbol
 - `GET /api/v1/instruments/` - List with filtering
 - `POST /api/v1/instruments/batch` - Batch creation
@@ -310,7 +310,7 @@ async def test_complete_instrument_workflow():
 ### Unified Operations
 - `GET /api/v1/instruments/unified/{identifier}` - Unified view
 
-### Utilities  
+### Utilities
 - `GET /api/v1/instruments/symbols/all` - All symbols
 - `GET /api/v1/instruments/count` - Total count
 - `POST /api/v1/instruments/validate-symbol` - Validate symbol
@@ -379,7 +379,7 @@ This instrument service implementation serves as a **reference architecture** fo
 - Minute bar aggregation and timeframe management
 - Real-time data streaming and historical data access
 
-### Analytics Service  
+### Analytics Service
 - `AnalyticsServiceInterface` with calculation operations
 - Technical indicator computation
 - Performance analytics and reporting

@@ -48,7 +48,7 @@ This guide provides comprehensive instructions for deploying the ATS service-bas
 
 # Minimum system resources
 - 8GB RAM
-- 4 CPU cores  
+- 4 CPU cores
 - 20GB free disk space
 ```
 
@@ -130,7 +130,7 @@ networks:
 
 # Service placement
 postgres-services:    172.20.0.10
-redis-services:       172.20.0.11  
+redis-services:       172.20.0.11
 service-registry:     172.20.0.20
 instrument-service:   172.20.0.30
 analytics-service:    172.20.0.31
@@ -262,7 +262,7 @@ resources:
     memory: "256Mi"
     cpu: "250m"
   limits:
-    memory: "512Mi" 
+    memory: "512Mi"
     cpu: "500m"
 ```
 
@@ -332,7 +332,7 @@ production:
   "checks": [
     {
       "name": "database_connectivity",
-      "type": "dependency", 
+      "type": "dependency",
       "status": "healthy",
       "duration_ms": 45.2
     },
@@ -527,7 +527,7 @@ docker exec ats-services-postgres pg_isready -U services_user
 ```bash
 # Environment Variables
 - Database passwords
-- API keys  
+- API keys
 - Redis passwords
 - Service certificates
 
@@ -557,7 +557,7 @@ docker exec ats-services-postgres pg_isready -U services_user
 For deployment issues or questions:
 
 1. Check the logs first: `./deployment/scripts/deploy-services.sh logs`
-2. Verify service health: `./deployment/scripts/deploy-services.sh health`  
+2. Verify service health: `./deployment/scripts/deploy-services.sh health`
 3. Review this guide for common solutions
 4. Check service discovery: `curl http://localhost:8500/services`
 

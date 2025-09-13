@@ -30,7 +30,7 @@ This directory contains comprehensive templates for implementing consistent serv
 Select the domain you want to implement:
 - `MarketData` - OHLCV data, timeframes, aggregations
 - `Analytics` - Technical indicators, performance metrics
-- `Trading` - Orders, positions, portfolio management  
+- `Trading` - Orders, positions, portfolio management
 - `News` - Articles, sentiment analysis, event correlation
 
 ### Step 2: Generate Service Files
@@ -53,7 +53,7 @@ sed "s/{DOMAIN}/$DOMAIN/g" service_container_template.py > ../market_data/servic
 
 ### Step 3: Customize for Your Domain
 1. **Add domain-specific DTOs** in the service interface
-2. **Implement actual DAO operations** in the service implementation  
+2. **Implement actual DAO operations** in the service implementation
 3. **Add custom endpoints** in the API router
 4. **Configure DAO dependencies** in the service container
 
@@ -81,9 +81,9 @@ class OHLCVDataDTO:
 
 # Custom operations for Market Data
 async def get_ohlcv_data(
-    self, 
-    symbol: str, 
-    timeframe: str, 
+    self,
+    symbol: str,
+    timeframe: str,
     date_range: tuple
 ) -> List[OHLCVDataDTO]:
     """Get OHLCV data for symbol and timeframe"""
@@ -102,8 +102,8 @@ class IndicatorResultDTO:
 
 # Custom operations for Analytics
 async def calculate_technical_indicators(
-    self, 
-    symbol: str, 
+    self,
+    symbol: str,
     indicators: List[str],
     timeframe: str = "1d"
 ) -> List[IndicatorResultDTO]:
@@ -142,8 +142,8 @@ class NewsArticleDTO:
 
 # Custom operations for News
 async def get_news_by_symbol(
-    self, 
-    symbol: str, 
+    self,
+    symbol: str,
     date_range: tuple,
     sentiment_filter: Optional[str] = None
 ) -> List[NewsArticleDTO]:
@@ -160,19 +160,19 @@ class TestMarketDataServiceImpl:
         dao = Mock()
         dao.get_ohlcv_data = AsyncMock()
         return dao
-    
+
     @pytest.fixture
     def service(self, mock_market_data_dao):
         return MarketDataServiceImpl(market_data_dao=mock_market_data_dao)
-    
+
     async def test_get_ohlcv_data_success(self, service, mock_market_data_dao):
         # Setup mock
         mock_data = [create_test_ohlcv_record()]
         mock_market_data_dao.get_ohlcv_data.return_value = mock_data
-        
+
         # Execute
         result = await service.get_ohlcv_data("AAPL", "1d", date_range)
-        
+
         # Verify
         assert len(result) == 1
         assert result[0].symbol == "AAPL"
@@ -183,10 +183,10 @@ class TestMarketDataServiceImpl:
 def test_market_data_api_get_ohlcv(client, mock_service):
     # Setup service mock
     mock_service.get_ohlcv_data.return_value = [test_ohlcv_dto]
-    
+
     # Test API endpoint
     response = client.get("/api/v1/market-data/AAPL/ohlcv?timeframe=1d")
-    
+
     # Verify HTTP response
     assert response.status_code == 200
     assert response.json()[0]["symbol"] == "AAPL"
@@ -237,7 +237,7 @@ Each domain adds specialized operations:
 async def get_aggregated_data(symbol: str, timeframes: List[str]) -> AggregatedDataDTO
 async def stream_real_time_data(symbol: str) -> AsyncGenerator[OHLCVDataDTO, None]
 
-# Analytics Domain  
+# Analytics Domain
 async def calculate_portfolio_metrics(portfolio: PortfolioDTO) -> MetricsDTO
 async def backtest_strategy(strategy: StrategyDTO, data: DatasetDTO) -> BacktestResultDTO
 
@@ -286,18 +286,18 @@ system_health = await container.perform_health_check()
 class MarketDataServiceImpl:
     async def get_ohlcv_data(self, symbol: str, timeframe: str):
         cache_key = f"ohlcv:{symbol}:{timeframe}"
-        
+
         # Check cache first
         cached_result = await self._get_cached_result(cache_key)
         if cached_result:
             return cached_result
-        
+
         # Fetch from database
         result = await self._fetch_from_dao(symbol, timeframe)
-        
+
         # Cache for future requests
         await self._set_cached_result(cache_key, result, ttl_seconds=300)
-        
+
         return result
 ```
 
@@ -306,13 +306,13 @@ class MarketDataServiceImpl:
 async def create_market_data_batch(self, data_points: List[OHLCVDataDTO]):
     # Group by symbol and timeframe for efficient processing
     grouped_data = self._group_by_symbol_timeframe(data_points)
-    
+
     results = []
     for (symbol, timeframe), group in grouped_data.items():
         # Use bulk database operations
         batch_result = await self.market_data_dao.bulk_insert(group)
         results.extend(batch_result)
-    
+
     return BulkOperationResult(results)
 ```
 
@@ -329,7 +329,7 @@ async def create_market_data_batch(self, data_points: List[OHLCVDataDTO]):
 - Implement actual DAO integration
 - Add validation rules and business logic
 
-### Phase 3: Implement API Layer (1-2 hours)  
+### Phase 3: Implement API Layer (1-2 hours)
 - Add custom endpoints for domain operations
 - Implement request/response models
 - Add proper error handling

@@ -21,6 +21,32 @@ from shared.utils.database import Database
 
 # All configuration must use real database connections
 
+# Data Quality Models
+class DataQualityIssue(BaseModel):
+    """Data quality issue detected in the system"""
+    id: str
+    symbol: str
+    issue_type: str
+    severity: str
+    description: str
+    detected_at: datetime
+    affected_date: date
+    field: str
+    expected_value: Optional[float]
+    actual_value: Optional[float]
+    vendor_source: str
+    status: str
+
+class DataQualityStats(BaseModel):
+    """Data quality statistics"""
+    total_issues: int
+    critical_issues: int
+    high_issues: int
+    medium_issues: int
+    low_issues: int
+    symbols_affected: int
+    last_updated: datetime
+
 # Pydantic models for dynamic API
 class PortfolioMetrics(BaseModel):
     """Portfolio performance metrics"""
@@ -1019,6 +1045,292 @@ def create_analytics_app() -> FastAPI:
                 }
 
             return stats
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+    # Data Quality Endpoints
+    @app.get("/data-quality/dashboard")
+    async def data_quality_dashboard():
+        """Data quality dashboard HTML"""
+        dashboard_html = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ATS Data Quality Dashboard</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }
+        .header h1 { margin: 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-number { font-size: 1.8em; font-weight: bold; color: #e74c3c; }
+        .stat-label { color: #7f8c8d; margin-top: 5px; }
+        .issues-section { background: white; padding: 20px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .issue-item { border-left: 4px solid #e74c3c; margin: 8px 0; padding: 12px; background: #fff; border-radius: 4px; }
+        .issue-critical { border-left-color: #e74c3c; }
+        .issue-high { border-left-color: #f39c12; }
+        .issue-medium { border-left-color: #f1c40f; }
+        .issue-low { border-left-color: #27ae60; }
+        .issue-title { font-weight: bold; color: #2c3e50; }
+        .issue-meta { color: #7f8c8d; font-size: 0.9em; margin-top: 5px; }
+        .refresh-btn { background: #3498db; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .refresh-btn:hover { background: #2980b9; }
+        .loading { text-align: center; padding: 20px; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 ATS Data Quality Dashboard</h1>
+        <p>Real-time monitoring of data quality issues</p>
+        <button class="refresh-btn" onclick="refreshDashboard()">🔄 Refresh</button>
+    </div>
+
+    <div id="stats" class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number" id="total-issues">-</div>
+            <div class="stat-label">Total Issues</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="critical-issues">-</div>
+            <div class="stat-label">Critical Issues</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="symbols-affected">-</div>
+            <div class="stat-label">Symbols Affected</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="last-updated">-</div>
+            <div class="stat-label">Last Updated</div>
+        </div>
+    </div>
+
+    <div class="issues-section">
+        <h2>🔍 Detected Issues</h2>
+        <div id="issues-list" class="loading">Loading data quality issues...</div>
+    </div>
+
+    <script>
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/data-quality/api/issues');
+                const data = await response.json();
+
+                updateStats(data.issues || []);
+                updateIssuesList(data.issues || []);
+
+            } catch (error) {
+                document.getElementById('issues-list').innerHTML =
+                    `<div style="color: #e74c3c;">❌ Error loading data: ${error.message}</div>`;
+            }
+        }
+
+        function updateStats(issues) {
+            const totalIssues = issues.length;
+            const criticalIssues = issues.filter(i => i.severity === 'critical').length;
+            const uniqueSymbols = [...new Set(issues.map(i => i.symbol))].length;
+
+            document.getElementById('total-issues').textContent = totalIssues;
+            document.getElementById('critical-issues').textContent = criticalIssues;
+            document.getElementById('symbols-affected').textContent = uniqueSymbols;
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateIssuesList(issues) {
+            const container = document.getElementById('issues-list');
+
+            if (issues.length === 0) {
+                container.innerHTML = '<div style="color: #27ae60; text-align: center; padding: 20px;">✅ No data quality issues detected!</div>';
+                return;
+            }
+
+            const issuesHtml = issues.map(issue => `
+                <div class="issue-item issue-${issue.severity}">
+                    <div class="issue-title">${issue.symbol}: ${issue.description}</div>
+                    <div class="issue-meta">
+                        📅 ${issue.affected_date} | 🏷️ ${issue.issue_type} | 📊 ${issue.field} | 📡 ${issue.vendor_source}
+                        ${issue.expected_value !== null ? ` | Expected: ${issue.expected_value} | Actual: ${issue.actual_value}` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = issuesHtml;
+        }
+
+        function refreshDashboard() {
+            document.getElementById('issues-list').innerHTML = '<div class="loading">Refreshing...</div>';
+            loadDashboardData();
+        }
+
+        loadDashboardData();
+        setInterval(loadDashboardData, 30000);
+    </script>
+</body>
+</html>
+        '''
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=dashboard_html)
+
+    @app.get("/data-quality/api/issues", response_model=Dict[str, Any])
+    async def get_data_quality_issues(
+        engine: DynamicAnalyticsEngine = Depends(get_engine)
+    ):
+        """Get actual data quality issues from the database"""
+        try:
+            issues = []
+
+            if engine.pool:
+                async with engine.pool.acquire() as conn:
+                    # Check for missing recent data
+                    rows = await conn.fetch("""
+                        WITH recent_dates AS (
+                            SELECT generate_series(
+                                CURRENT_DATE - INTERVAL '7 days',
+                                CURRENT_DATE,
+                                '1 day'::interval
+                            )::date as expected_date
+                        ),
+                        actual_dates AS (
+                            SELECT DISTINCT date_trunc('day', timestamp)::date as actual_date
+                            FROM intg_daily_prices
+                            WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'
+                        )
+                        SELECT rd.expected_date
+                        FROM recent_dates rd
+                        LEFT JOIN actual_dates ad ON rd.expected_date = ad.actual_date
+                        WHERE ad.actual_date IS NULL
+                        AND EXTRACT(dow FROM rd.expected_date) NOT IN (0, 6)
+                        ORDER BY rd.expected_date;
+                    """)
+
+                    for row in rows:
+                        issues.append({
+                            "id": f"missing_data_{row['expected_date']}",
+                            "symbol": "ALL",
+                            "issue_type": "missing_data",
+                            "severity": "high",
+                            "description": f"No daily prices found for {row['expected_date']}",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['expected_date'].isoformat(),
+                            "field": "all_fields",
+                            "expected_value": None,
+                            "actual_value": None,
+                            "vendor_source": "multiple",
+                            "status": "open"
+                        })
+
+                    # Check for extreme volumes
+                    rows = await conn.fetch("""
+                        SELECT symbol, date_trunc('day', timestamp)::date as price_date,
+                               volume, close_price
+                        FROM intg_daily_prices
+                        WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'
+                        AND volume > 50000000
+                        ORDER BY volume DESC
+                        LIMIT 10;
+                    """)
+
+                    for row in rows:
+                        issues.append({
+                            "id": f"high_volume_{row['symbol']}_{row['price_date']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "extreme_volume",
+                            "severity": "medium",
+                            "description": f"High volume detected: {row['volume']:,} shares",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['price_date'].isoformat(),
+                            "field": "volume",
+                            "expected_value": 10000000,
+                            "actual_value": int(row['volume']),
+                            "vendor_source": "polygon",
+                            "status": "open"
+                        })
+
+                    # Check for potential duplicate records
+                    rows = await conn.fetch("""
+                        SELECT symbol, date_trunc('day', timestamp)::date as price_date, COUNT(*)
+                        FROM intg_daily_prices
+                        WHERE timestamp >= CURRENT_DATE - INTERVAL '7 days'
+                        GROUP BY symbol, date_trunc('day', timestamp)::date
+                        HAVING COUNT(*) > 1
+                        ORDER BY COUNT(*) DESC
+                        LIMIT 5;
+                    """)
+
+                    for row in rows:
+                        issues.append({
+                            "id": f"duplicate_{row['symbol']}_{row['price_date']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "duplicate_records",
+                            "severity": "critical",
+                            "description": f"Found {row['count']} duplicate records",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['price_date'].isoformat(),
+                            "field": "all_fields",
+                            "expected_value": 1,
+                            "actual_value": int(row['count']),
+                            "vendor_source": "multiple",
+                            "status": "open"
+                        })
+
+            return {
+                "issues": issues,
+                "total_count": len(issues),
+                "last_updated": datetime.now().isoformat(),
+                "detection_period_days": 7
+            }
+
+        except Exception as e:
+            logging.error(f"Data quality check failed: {e}")
+            return {
+                "issues": [{
+                    "id": "system_error",
+                    "symbol": "SYSTEM",
+                    "issue_type": "detection_error",
+                    "severity": "critical",
+                    "description": f"Data quality detection failed: {str(e)}",
+                    "detected_at": datetime.now().isoformat(),
+                    "affected_date": date.today().isoformat(),
+                    "field": "system",
+                    "expected_value": None,
+                    "actual_value": None,
+                    "vendor_source": "system",
+                    "status": "open"
+                }],
+                "total_count": 1,
+                "last_updated": datetime.now().isoformat(),
+                "error": str(e)
+            }
+
+    @app.get("/data-quality/api/stats", response_model=DataQualityStats)
+    async def get_data_quality_stats(
+        engine: DynamicAnalyticsEngine = Depends(get_engine)
+    ):
+        """Get data quality statistics"""
+        try:
+            issues_data = await get_data_quality_issues(engine)
+            issues = issues_data["issues"]
+
+            severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+            for issue in issues:
+                severity = issue.get("severity", "unknown")
+                if severity in severity_counts:
+                    severity_counts[severity] += 1
+
+            unique_symbols = set(issue["symbol"] for issue in issues if issue["symbol"] != "SYSTEM")
+
+            return DataQualityStats(
+                total_issues=len(issues),
+                critical_issues=severity_counts["critical"],
+                high_issues=severity_counts["high"],
+                medium_issues=severity_counts["medium"],
+                low_issues=severity_counts["low"],
+                symbols_affected=len(unique_symbols),
+                last_updated=datetime.now()
+            )
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 

@@ -125,9 +125,9 @@ async def health_check():
     try:
         all_services = await registry.get_all_services()
         total_instances = sum(len(instances) for instances in all_services.values())
-        
+
         uptime = (datetime.utcnow() - start_time).total_seconds()
-        
+
         return HealthResponse(
             status="healthy",
             message="Service registry is operational",
@@ -161,14 +161,14 @@ async def register_service(request: ServiceRegistrationRequest):
                 timeout_seconds=request.health_check_timeout
             )
         )
-        
+
         success = await registry.register_service(service_instance)
         if not success:
             raise HTTPException(status_code=400, detail="Failed to register service")
-        
+
         logger.info(f"Registered service: {request.service_name}:{request.instance_id}")
         return {"message": "Service registered successfully", "instance_id": request.instance_id}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -182,10 +182,10 @@ async def deregister_service(service_name: str, instance_id: str):
         success = await registry.deregister_service(service_name, instance_id)
         if not success:
             raise HTTPException(status_code=404, detail="Service instance not found")
-        
+
         logger.info(f"Deregistered service: {service_name}:{instance_id}")
         return {"message": "Service deregistered successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -197,10 +197,10 @@ async def list_all_services():
     """List all registered services."""
     try:
         all_services = await registry.get_all_services()
-        
+
         services_response = {}
         total_instances = 0
-        
+
         for service_name, instances in all_services.items():
             instance_responses = []
             for instance in instances:
@@ -221,15 +221,15 @@ async def list_all_services():
                     registration_time=instance.registration_time.isoformat()
                 ))
                 total_instances += 1
-            
+
             services_response[service_name] = instance_responses
-        
+
         return ServiceListResponse(
             services=services_response,
             total_services=len(all_services),
             total_instances=total_instances
         )
-        
+
     except Exception as e:
         logger.error(f"Error listing services: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list services: {str(e)}")
@@ -239,7 +239,7 @@ async def get_service_instances(service_name: str):
     """Get all instances of a specific service."""
     try:
         instances = await registry.get_service_instances(service_name)
-        
+
         instance_responses = []
         for instance in instances:
             instance_responses.append(ServiceInstanceResponse(
@@ -258,13 +258,13 @@ async def get_service_instances(service_name: str):
                 last_heartbeat=instance.last_heartbeat.isoformat() if instance.last_heartbeat else None,
                 registration_time=instance.registration_time.isoformat()
             ))
-        
+
         return {
             "service_name": service_name,
             "instances": instance_responses,
             "instance_count": len(instance_responses)
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting service instances: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get instances: {str(e)}")
@@ -276,9 +276,9 @@ async def update_heartbeat(service_name: str, instance_id: str):
         success = await registry.heartbeat(service_name, instance_id)
         if not success:
             raise HTTPException(status_code=404, detail="Service instance not found")
-        
+
         return {"message": "Heartbeat updated successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -294,14 +294,14 @@ async def update_service_status(service_name: str, instance_id: str, status: str
             service_status = ServiceStatus(status.lower())
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
-        
+
         success = await registry.update_health_status(service_name, instance_id, service_status)
         if not success:
             raise HTTPException(status_code=404, detail="Service instance not found")
-        
+
         logger.info(f"Updated status for {service_name}:{instance_id} to {status}")
         return {"message": f"Status updated to {status}"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -313,7 +313,7 @@ async def get_metrics():
     """Get service registry metrics."""
     try:
         all_services = await registry.get_all_services()
-        
+
         metrics = {
             "timestamp": datetime.utcnow().isoformat(),
             "uptime_seconds": (datetime.utcnow() - start_time).total_seconds(),
@@ -321,20 +321,20 @@ async def get_metrics():
             "total_instances": sum(len(instances) for instances in all_services.values()),
             "services": {}
         }
-        
+
         for service_name, instances in all_services.items():
             status_counts = {}
             for instance in instances:
                 status = instance.status.value
                 status_counts[status] = status_counts.get(status, 0) + 1
-            
+
             metrics["services"][service_name] = {
                 "instance_count": len(instances),
                 "status_distribution": status_counts
             }
-        
+
         return metrics
-        
+
     except Exception as e:
         logger.error(f"Error getting metrics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}")
@@ -352,9 +352,9 @@ if __name__ == "__main__":
     # Configuration
     host = os.getenv("REGISTRY_HOST", "0.0.0.0")
     port = int(os.getenv("REGISTRY_PORT", "8500"))
-    
+
     logger.info(f"Starting Service Registry on {host}:{port}")
-    
+
     # Run the server
     uvicorn.run(
         app,

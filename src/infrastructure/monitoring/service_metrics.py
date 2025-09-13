@@ -86,7 +86,7 @@ class AlertRule:
 class ServiceMetricsCollector:
     """
     Collects and aggregates service performance metrics.
-    
+
     Features:
     - Real-time metric collection
     - Statistical aggregation (percentiles, averages)
@@ -94,7 +94,7 @@ class ServiceMetricsCollector:
     - Performance benchmarking
     - Alert evaluation
     """
-    
+
     def __init__(self, max_metrics_history: int = 10000):
         self.max_metrics_history = max_metrics_history
         self.metrics: deque = deque(maxlen=max_metrics_history)
@@ -110,53 +110,53 @@ class ServiceMetricsCollector:
         self.health_status: Dict[str, ServiceHealth] = {}
         self.alert_rules: List[AlertRule] = []
         self._active_alerts: Dict[str, datetime] = {}
-        
+
     def add_benchmark(self, benchmark: PerformanceBenchmark):
         """Add performance benchmark for a service operation"""
         key = f"{benchmark.service_name}:{benchmark.operation}"
         self.benchmarks[key] = benchmark
         logger.info(f"Added benchmark for {key}")
-    
+
     def add_alert_rule(self, rule: AlertRule):
         """Add alert rule for monitoring"""
         self.alert_rules.append(rule)
         logger.info(f"Added alert rule: {rule.name}")
-    
+
     def record_metric(self, metric: ServiceMetric):
         """Record a service metric"""
         self.metrics.append(metric)
-        
+
         # Update service statistics
         service_key = metric.service_name
         stats = self.service_stats[service_key]
-        
+
         stats['last_activity'] = metric.timestamp
         stats['operation_counts'][metric.operation] += 1
         stats['total_requests'] += 1
-        
+
         if metric.metric_type == 'latency':
             stats['latencies'][metric.operation].append(metric.value)
             # Keep only recent latencies for memory efficiency
             if len(stats['latencies'][metric.operation]) > 1000:
                 stats['latencies'][metric.operation] = stats['latencies'][metric.operation][-500:]
-                
+
         elif metric.metric_type == 'error_rate' and metric.value > 0:
             stats['error_counts'][metric.operation] += int(metric.value)
             stats['total_errors'] += int(metric.value)
-    
+
     def get_service_stats(self, service_name: str, operation: Optional[str] = None) -> Dict[str, Any]:
         """Get aggregated statistics for a service"""
         if service_name not in self.service_stats:
             return {}
-            
+
         stats = self.service_stats[service_name].copy()
-        
+
         # Calculate latency percentiles
         latency_stats = {}
         for op, latencies in stats['latencies'].items():
             if operation and op != operation:
                 continue
-                
+
             if latencies:
                 sorted_latencies = sorted(latencies)
                 n = len(sorted_latencies)
@@ -169,16 +169,16 @@ class ServiceMetricsCollector:
                     'p95': sorted_latencies[int(n * 0.95)] if n > 1 else 0,
                     'p99': sorted_latencies[int(n * 0.99)] if n > 1 else 0
                 }
-        
+
         # Calculate error rates
         error_rates = {}
         for op, error_count in stats['error_counts'].items():
             if operation and op != operation:
                 continue
-                
+
             total_requests = stats['operation_counts'][op]
             error_rates[op] = (error_count / total_requests) if total_requests > 0 else 0
-        
+
         return {
             'service_name': service_name,
             'total_requests': stats['total_requests'],
@@ -188,50 +188,50 @@ class ServiceMetricsCollector:
             'operation_counts': dict(stats['operation_counts']),
             'latency_stats': latency_stats,
             'error_rates': error_rates,
-            'uptime_status': 'active' if stats['last_activity'] and 
+            'uptime_status': 'active' if stats['last_activity'] and
                            (datetime.utcnow() - stats['last_activity']).seconds < 300 else 'inactive'
         }
-    
+
     def get_benchmark_violations(self, service_name: str, operation: str) -> List[str]:
         """Check for benchmark violations"""
         key = f"{service_name}:{operation}"
         benchmark = self.benchmarks.get(key)
         if not benchmark:
             return []
-            
+
         violations = []
         stats = self.get_service_stats(service_name, operation)
-        
+
         if operation in stats.get('latency_stats', {}):
             latency_stats = stats['latency_stats'][operation]
-            
+
             if latency_stats['p95'] > benchmark.latency_p95_ms:
                 violations.append(f"P95 latency {latency_stats['p95']:.1f}ms exceeds benchmark {benchmark.latency_p95_ms}ms")
-                
+
             if latency_stats['p99'] > benchmark.latency_p99_ms:
                 violations.append(f"P99 latency {latency_stats['p99']:.1f}ms exceeds benchmark {benchmark.latency_p99_ms}ms")
-        
+
         if operation in stats.get('error_rates', {}):
             error_rate = stats['error_rates'][operation]
             if error_rate > benchmark.error_rate_threshold:
                 violations.append(f"Error rate {error_rate*100:.2f}% exceeds benchmark {benchmark.error_rate_threshold*100:.2f}%")
-        
+
         return violations
-    
+
     def evaluate_alerts(self) -> List[Dict[str, Any]]:
         """Evaluate alert rules and return active alerts"""
         active_alerts = []
         current_time = datetime.utcnow()
-        
+
         for rule in self.alert_rules:
             if not rule.enabled:
                 continue
-                
+
             # Get current metric value
             current_value = self._get_current_metric_value(rule.service_name, rule.metric_type)
             if current_value is None:
                 continue
-            
+
             # Check condition
             alert_triggered = False
             if rule.condition == 'greater_than' and current_value > rule.threshold:
@@ -240,14 +240,14 @@ class ServiceMetricsCollector:
                 alert_triggered = True
             elif rule.condition == 'equals' and current_value == rule.threshold:
                 alert_triggered = True
-            
+
             alert_key = f"{rule.name}:{rule.service_name}"
-            
+
             if alert_triggered:
                 # Check if alert should fire based on duration
                 if alert_key not in self._active_alerts:
                     self._active_alerts[alert_key] = current_time
-                
+
                 alert_start_time = self._active_alerts[alert_key]
                 if (current_time - alert_start_time).total_seconds() >= rule.duration_seconds:
                     active_alerts.append({
@@ -264,23 +264,23 @@ class ServiceMetricsCollector:
                 # Clear alert if condition is no longer met
                 if alert_key in self._active_alerts:
                     del self._active_alerts[alert_key]
-        
+
         return active_alerts
-    
+
     def _get_current_metric_value(self, service_name: str, metric_type: str) -> Optional[float]:
         """Get the most recent metric value for a service"""
         # Look for recent metrics (within last 5 minutes)
         cutoff_time = datetime.utcnow() - timedelta(minutes=5)
         recent_metrics = [
             m for m in reversed(self.metrics)
-            if m.service_name == service_name and 
-               m.metric_type == metric_type and 
+            if m.service_name == service_name and
+               m.metric_type == metric_type and
                m.timestamp > cutoff_time
         ]
-        
+
         if not recent_metrics:
             return None
-        
+
         # Return average of recent values
         return sum(m.value for m in recent_metrics) / len(recent_metrics)
 
@@ -292,24 +292,24 @@ class ServiceMetricsCollector:
 class ServicePerformanceMonitor:
     """
     Decorator and context manager for automatic service performance monitoring.
-    
+
     Usage as decorator:
         @monitor_performance('UserService', 'create_user')
         async def create_user(self, user_data):
             # Service implementation
-            
+
     Usage as context manager:
         async with ServicePerformanceMonitor('UserService', 'get_user'):
             # Monitored operation
     """
-    
+
     def __init__(self, service_name: str, operation: str, collector: Optional[ServiceMetricsCollector] = None):
         self.service_name = service_name
         self.operation = operation
         self.collector = collector or get_global_metrics_collector()
         self.start_time = None
         self.end_time = None
-    
+
     def __call__(self, func: Callable):
         """Decorator implementation"""
         if asyncio.iscoroutinefunction(func):
@@ -322,33 +322,33 @@ class ServicePerformanceMonitor:
                 with self:
                     return func(*args, **kwargs)
             return sync_wrapper
-    
+
     def __enter__(self):
         """Synchronous context manager entry"""
         self.start_time = time.time()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Synchronous context manager exit"""
         self._record_metrics(exc_type is not None)
-    
+
     async def __aenter__(self):
         """Asynchronous context manager entry"""
         self.start_time = time.time()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Asynchronous context manager exit"""
         self._record_metrics(exc_type is not None)
-    
+
     def _record_metrics(self, had_error: bool):
         """Record performance metrics"""
         if self.start_time is None:
             return
-            
+
         self.end_time = time.time()
         duration_ms = (self.end_time - self.start_time) * 1000
-        
+
         # Record latency metric
         self.collector.record_metric(ServiceMetric(
             service_name=self.service_name,
@@ -358,7 +358,7 @@ class ServicePerformanceMonitor:
             timestamp=datetime.utcnow(),
             labels={'status': 'error' if had_error else 'success'}
         ))
-        
+
         # Record error metric if applicable
         if had_error:
             self.collector.record_metric(ServiceMetric(
@@ -377,14 +377,14 @@ class ServicePerformanceMonitor:
 class ServiceHealthMonitor:
     """
     Monitors service health status and provides health check capabilities.
-    
+
     Features:
     - Periodic health checks
     - Health status aggregation
     - Dependency health tracking
     - Health history and trends
     """
-    
+
     def __init__(self, check_interval_seconds: int = 30):
         self.check_interval_seconds = check_interval_seconds
         self.health_checks: Dict[str, Callable] = {}
@@ -392,19 +392,19 @@ class ServiceHealthMonitor:
         self.dependency_map: Dict[str, List[str]] = {}
         self._monitoring_task = None
         self._running = False
-    
+
     def register_health_check(self, service_name: str, health_check_func: Callable):
         """Register a health check function for a service"""
         self.health_checks[service_name] = health_check_func
         logger.info(f"Registered health check for service: {service_name}")
-    
+
     def register_dependency(self, service_name: str, dependency_name: str):
         """Register a service dependency"""
         if service_name not in self.dependency_map:
             self.dependency_map[service_name] = []
         self.dependency_map[service_name].append(dependency_name)
         logger.info(f"Registered dependency: {service_name} -> {dependency_name}")
-    
+
     async def check_service_health(self, service_name: str) -> ServiceHealth:
         """Perform health check for a specific service"""
         health_check_func = self.health_checks.get(service_name)
@@ -418,13 +418,13 @@ class ServiceHealthMonitor:
                 uptime_seconds=0,
                 details={'error': 'No health check registered'}
             )
-        
+
         start_time = time.time()
         try:
             # Execute health check
             health_data = await health_check_func() if asyncio.iscoroutinefunction(health_check_func) else health_check_func()
             response_time_ms = (time.time() - start_time) * 1000
-            
+
             # Parse health check response
             if isinstance(health_data, dict):
                 status = health_data.get('status', 'unknown')
@@ -432,7 +432,7 @@ class ServiceHealthMonitor:
             else:
                 status = 'healthy' if health_data else 'unhealthy'
                 details = {'result': health_data}
-            
+
             health = ServiceHealth(
                 service_name=service_name,
                 status=status,
@@ -442,7 +442,7 @@ class ServiceHealthMonitor:
                 uptime_seconds=self._calculate_uptime(service_name),
                 details=details
             )
-            
+
         except Exception as e:
             logger.error(f"Health check failed for {service_name}: {e}")
             health = ServiceHealth(
@@ -454,25 +454,25 @@ class ServiceHealthMonitor:
                 uptime_seconds=0,
                 details={'error': str(e)}
             )
-        
+
         # Store health history
         self.health_history[service_name].append(health)
         # Keep only recent history (last 100 checks)
         if len(self.health_history[service_name]) > 100:
             self.health_history[service_name] = self.health_history[service_name][-50:]
-        
+
         return health
-    
+
     async def get_overall_health(self) -> Dict[str, Any]:
         """Get overall system health status"""
         service_healths = {}
         overall_status = 'healthy'
-        
+
         # Check all registered services
         for service_name in self.health_checks.keys():
             health = await self.check_service_health(service_name)
             service_healths[service_name] = health
-            
+
             # Update overall status based on individual service status
             if health.status in ['error', 'critical']:
                 overall_status = 'critical'
@@ -480,7 +480,7 @@ class ServiceHealthMonitor:
                 overall_status = 'degraded'
             elif health.status == 'degraded' and overall_status == 'healthy':
                 overall_status = 'degraded'
-        
+
         return {
             'overall_status': overall_status,
             'timestamp': datetime.utcnow(),
@@ -492,28 +492,28 @@ class ServiceHealthMonitor:
                 'unhealthy_services': len([h for h in service_healths.values() if h.status in ['unhealthy', 'error', 'critical']])
             }
         }
-    
+
     def _calculate_uptime(self, service_name: str) -> float:
         """Calculate service uptime based on health history"""
         history = self.health_history.get(service_name, [])
         if len(history) < 2:
             return 0.0
-        
+
         # Calculate uptime as percentage of healthy checks in recent history
         recent_checks = history[-20:]  # Last 20 checks
         healthy_checks = len([h for h in recent_checks if h.status == 'healthy'])
-        
+
         return (healthy_checks / len(recent_checks)) * 100 if recent_checks else 0.0
-    
+
     async def start_monitoring(self):
         """Start continuous health monitoring"""
         if self._running:
             return
-        
+
         self._running = True
         self._monitoring_task = asyncio.create_task(self._monitoring_loop())
         logger.info(f"Started health monitoring with {self.check_interval_seconds}s interval")
-    
+
     async def stop_monitoring(self):
         """Stop continuous health monitoring"""
         self._running = False
@@ -524,7 +524,7 @@ class ServiceHealthMonitor:
             except asyncio.CancelledError:
                 pass
         logger.info("Stopped health monitoring")
-    
+
     async def _monitoring_loop(self):
         """Continuous monitoring loop"""
         while self._running:
@@ -532,10 +532,10 @@ class ServiceHealthMonitor:
                 # Check health of all registered services
                 for service_name in self.health_checks.keys():
                     await self.check_service_health(service_name)
-                
+
                 # Wait for next check interval
                 await asyncio.sleep(self.check_interval_seconds)
-                
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -550,37 +550,37 @@ class ServiceHealthMonitor:
 class ResourceMonitor:
     """
     Monitors system resource utilization (CPU, memory, disk, network).
-    
+
     Features:
     - Real-time resource monitoring
-    - Process-specific monitoring  
+    - Process-specific monitoring
     - Resource usage trends
     - Resource-based alerting
     """
-    
+
     def __init__(self, collector: Optional[ServiceMetricsCollector] = None):
         self.collector = collector or get_global_metrics_collector()
         self._monitoring_task = None
         self._running = False
-    
+
     def get_current_resource_usage(self) -> Dict[str, float]:
         """Get current system resource usage"""
         try:
             # CPU usage
             cpu_percent = psutil.cpu_percent(interval=1)
-            
+
             # Memory usage
             memory = psutil.virtual_memory()
             memory_percent = memory.percent
             memory_mb = memory.used / (1024 * 1024)
-            
+
             # Disk usage
             disk = psutil.disk_usage('/')
             disk_percent = disk.percent
-            
+
             # Network I/O
             network = psutil.net_io_counters()
-            
+
             return {
                 'cpu_percent': cpu_percent,
                 'memory_percent': memory_percent,
@@ -590,36 +590,36 @@ class ResourceMonitor:
                 'network_bytes_recv': network.bytes_recv,
                 'timestamp': time.time()
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting resource usage: {e}")
             return {}
-    
+
     def get_process_resource_usage(self, process_name: Optional[str] = None) -> Dict[str, float]:
         """Get resource usage for specific process"""
         try:
             current_process = psutil.Process()
-            
+
             # CPU and memory for current process
             cpu_percent = current_process.cpu_percent()
             memory_info = current_process.memory_info()
             memory_mb = memory_info.rss / (1024 * 1024)
-            
+
             return {
                 'process_cpu_percent': cpu_percent,
                 'process_memory_mb': memory_mb,
                 'process_threads': current_process.num_threads(),
                 'timestamp': time.time()
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting process resource usage: {e}")
             return {}
-    
+
     async def record_resource_metrics(self, service_name: str = "system"):
         """Record current resource metrics"""
         timestamp = datetime.utcnow()
-        
+
         # System resource metrics
         system_resources = self.get_current_resource_usage()
         for metric_name, value in system_resources.items():
@@ -631,7 +631,7 @@ class ResourceMonitor:
                     value=value,
                     timestamp=timestamp
                 ))
-        
+
         # Process resource metrics
         process_resources = self.get_process_resource_usage()
         for metric_name, value in process_resources.items():
@@ -643,14 +643,14 @@ class ResourceMonitor:
                     value=value,
                     timestamp=timestamp
                 ))
-    
+
     async def start_monitoring(self, interval_seconds: int = 60, service_name: str = "system"):
         """Start continuous resource monitoring"""
         if self._running:
             return
-        
+
         self._running = True
-        
+
         async def monitoring_loop():
             while self._running:
                 try:
@@ -661,10 +661,10 @@ class ResourceMonitor:
                 except Exception as e:
                     logger.error(f"Error in resource monitoring: {e}")
                     await asyncio.sleep(5)
-        
+
         self._monitoring_task = asyncio.create_task(monitoring_loop())
         logger.info(f"Started resource monitoring with {interval_seconds}s interval")
-    
+
     async def stop_monitoring(self):
         """Stop continuous resource monitoring"""
         self._running = False
@@ -695,7 +695,7 @@ def get_global_metrics_collector() -> ServiceMetricsCollector:
 def setup_default_benchmarks():
     """Set up default performance benchmarks for common operations"""
     collector = get_global_metrics_collector()
-    
+
     # Default benchmarks for common service operations
     default_benchmarks = [
         PerformanceBenchmark(
@@ -717,17 +717,17 @@ def setup_default_benchmarks():
             error_rate_threshold=0.01
         )
     ]
-    
+
     for benchmark in default_benchmarks:
         collector.add_benchmark(benchmark)
-    
+
     logger.info(f"Set up {len(default_benchmarks)} default benchmarks")
 
 
 def setup_default_alerts():
     """Set up default alert rules"""
     collector = get_global_metrics_collector()
-    
+
     # Default alert rules
     default_alerts = [
         AlertRule(
@@ -758,10 +758,10 @@ def setup_default_alerts():
             severity="error"
         )
     ]
-    
+
     for alert in default_alerts:
         collector.add_alert_rule(alert)
-    
+
     logger.info(f"Set up {len(default_alerts)} default alert rules")
 
 
