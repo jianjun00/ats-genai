@@ -7,11 +7,9 @@ and prevents hardcoded database connections from breaking cross-environment func
 """
 
 import pytest
-import asyncio
 import os
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-import asyncpg
 
 # Test cases that would have caught the training datasets API error
 
@@ -23,8 +21,7 @@ class TestEnvironmentAwareAPIs:
     @pytest.mark.asyncio
     async def test_training_datasets_api_uses_environment_config(self):
         """Test that training datasets API uses environment-specific database config"""
-        from src.ml.training_data.apis.training_dataset_simple_api import get_db_connection, list_training_datasets
-        from shared.utils.environment import Environment
+        from src.ml.training_data.apis.training_dataset_simple_api import get_db_connection
 
         # Test DEV environment
         with patch.dict(os.environ, {
@@ -139,7 +136,6 @@ class TestEnvironmentAwareAPIs:
     @pytest.mark.asyncio
     async def test_no_hardcoded_database_connections_in_apis(self):
         """Test that APIs don't contain hardcoded database connection strings"""
-        import ast
         import os
 
         # Check all API files for hardcoded connection strings

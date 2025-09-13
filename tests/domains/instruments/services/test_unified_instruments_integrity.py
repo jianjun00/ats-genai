@@ -14,12 +14,7 @@ Coverage:
 """
 
 import pytest
-import asyncio
-import asyncpg
-import json
-from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Set
-from unittest.mock import AsyncMock, Mock
+from datetime import datetime, timedelta
 
 class TestUnifiedInstrumentCreation:
     """Test unified instrument population from vendor sources"""

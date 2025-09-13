@@ -2,14 +2,12 @@
 Training Dataset Integration - Connect events to training data pipeline
 """
 
-import os
 import json
 import logging
 import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any, Iterator
 from pathlib import Path
-import struct
 
 from events.proto.events_pb2 import Event, EventType, MessageToDict
 from events.database import EventStorage

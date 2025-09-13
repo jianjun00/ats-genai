@@ -5,7 +5,7 @@ Tests for event feature extraction and event-driven modeling.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 

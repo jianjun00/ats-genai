@@ -10,9 +10,8 @@ Tests end-to-end functionality including:
 
 import pytest
 import asyncio
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from decimal import Decimal
-from typing import List
 
 from domains.analytics.services.interfaces.analytics_service_interface import (
     AnalyticsServiceInterface,
@@ -22,7 +21,6 @@ from domains.analytics.services.interfaces.analytics_service_interface import (
     EventSearchCriteria,
     EconomicEventSearchCriteria
 )
-from domains.analytics.services.config.analytics_service_container import get_analytics_service
 from core.platform.config.environment import Environment, EnvironmentType
 
 
@@ -165,9 +163,7 @@ class TestAnalyticsServiceArchitecture:
     def test_service_container_integration(self):
         """Test service container integrates correctly"""
         from domains.analytics.services.config.analytics_service_container import (
-            AnalyticsServiceContainer,
-            get_analytics_service_container,
-            get_analytics_service
+            AnalyticsServiceContainer
         )
         
         # Test container can be created

@@ -12,7 +12,7 @@ import os
 import sys
 import tempfile
 import numpy as np
-from typing import Dict, List, Any
+from typing import Dict
 from datetime import datetime, timedelta
 
 # Add project root to Python path

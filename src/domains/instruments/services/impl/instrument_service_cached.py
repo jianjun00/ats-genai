@@ -6,18 +6,14 @@ Integrates multi-layer caching, intelligent invalidation, and performance monito
 """
 
 import asyncio
-from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 import logging
 
 from src.infrastructure.caching import (
     MultiLayerCache,
-    CacheConfig,
-    EvictionPolicy,
     cached,
     CacheInvalidationManager,
-    DatabaseCache,
-    ConnectionPoolConfig
+    DatabaseCache
 )
 from ..interfaces.instrument_service_interface import (
     InstrumentServiceInterface,

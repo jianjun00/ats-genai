@@ -20,10 +20,8 @@ import requests
 import logging
 from datetime import datetime, timedelta, date, timezone
 import time
-import json
 import argparse
-from typing import List, Set, Tuple, Dict
-import concurrent.futures
+from typing import List, Tuple
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

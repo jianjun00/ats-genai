@@ -7,11 +7,7 @@ Tests the intelligent startup orchestration and decision tree logic
 import pytest
 import os
 import sys
-import subprocess
-import time
-import socket
-from unittest.mock import patch, MagicMock, call
-from datetime import datetime
+from unittest.mock import patch, MagicMock
 
 # Add src path for imports
 sys.path.append('/workspace/src')

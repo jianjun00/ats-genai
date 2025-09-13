@@ -15,11 +15,9 @@ import json
 import time
 
 import asyncpg
-import aiohttp
 from dataclasses import dataclass
 import numpy as np
 
-from shared.types.base import BaseModel
 from shared.exceptions.base import ATSBaseException
 from core.platform.config.environment import Environment
 
@@ -121,7 +119,6 @@ class NewsAnalysisResult:
 
 class LLMProcessingError(ATSBaseException):
     """Exception raised during LLM processing"""
-    pass
 
 
 class FinancialNERExtractor:

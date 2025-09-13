@@ -1,19 +1,16 @@
 import os
 print(f"[IMPORT_DEBUG][TEST] PYTHONPATH={{os.environ.get('PYTHONPATH')}}")
-import sys
 print(f"[IMPORT_DEBUG][TEST] sys.path={{sys.path}}")
-import tempfile
-from datetime import datetime, timedelta, date
 import pytest
 import logging
 logging.basicConfig(level=logging.DEBUG)
 import pandas as pd
 from pathlib import Path
-from shared.utils.environment import Environment, EnvironmentType
-from app.runner import Runner
-from state.universe_state_builder import UniverseStateIntervalBuilder
-from state.universe_state_manager import UniverseStateManager
-from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+from core.platform.config.environment import Environment, EnvironmentType
+from services.core.app.runner import Runner
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from domains.market_data.services.vendor_adapters.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 
 
 @pytest.mark.asyncio
@@ -78,7 +75,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     tiingo_dir = os.path.abspath(tiingo_dir)
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     # Use FileDailyPriceMarketDataManager to get instrument_ids
-    from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+    from domains.market_data.services.vendor_adapters.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
     import json
 
     print('\n' + '='*80)
@@ -359,7 +356,6 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     universe_state_manager = UniverseStateManager(env=env, base_path=output_dir, write_metadata=False)
 
     import asyncpg
-    import asyncio
     # Insert a test instrument and membership into the test DB
     async def insert_test_data():
         conn = await asyncpg.connect(unit_test_db)
@@ -573,7 +569,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     tiingo_dir = os.path.join(os.path.dirname(__file__), '../data/daily_prices_tiingo')
     tiingo_dir = os.path.abspath(tiingo_dir)
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
-    from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+    from domains.market_data.services.vendor_adapters.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
     market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_7days')

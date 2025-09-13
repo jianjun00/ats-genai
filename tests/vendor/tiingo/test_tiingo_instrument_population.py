@@ -1,12 +1,9 @@
 import pytest
-import asyncio
 import pandas as pd
 import io
 import zipfile
-import json
-from datetime import datetime, date
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import List, Dict, Optional
+from datetime import date
+from typing import List, Dict
 
 
 class TestTiingoInstrumentPopulation:
@@ -458,7 +455,6 @@ TSLA,NASDAQ,Stock,USD,2010-06-29,"""
     def test_performance_characteristics(self):
         """Test performance characteristics and optimization"""
 
-        import time
 
         def estimate_processing_time(instrument_count: int, batch_size: int = 1000) -> Dict:
             """Estimate processing time based on instrument count"""

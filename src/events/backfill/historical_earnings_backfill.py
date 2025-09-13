@@ -7,14 +7,12 @@ Prioritizes high-value symbols and recent history for maximum impact.
 """
 
 import asyncio
-import logging
 import os
 import sys
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Set, Tuple
-from dataclasses import dataclass, asdict
+from datetime import datetime, date
+from typing import Dict, List, Optional
+from dataclasses import dataclass
 import json
-from pathlib import Path
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))

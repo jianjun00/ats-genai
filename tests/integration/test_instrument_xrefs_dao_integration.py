@@ -8,7 +8,6 @@ to convert instrument_id to symbol for data retrieval.
 import pytest
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime
 
 import sys
 sys.path.insert(0, 'src')

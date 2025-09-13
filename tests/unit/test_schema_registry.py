@@ -580,7 +580,7 @@ class TestGlobalRegistryFunctions:
 
 if __name__ == "__main__":
     # Run tests manually without pytest
-    import traceback
+    pass
 
     test_classes = [
         TestSchemaRegistry,

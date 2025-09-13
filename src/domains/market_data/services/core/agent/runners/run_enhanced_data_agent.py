@@ -26,9 +26,8 @@ import signal
 # Import data agent components
 from domains.market_data.services.agent.data_agent_orchestrator import DataAgentOrchestrator
 from domains.market_data.services.agent.reconciliation import ReconciliationEngine
+from core.vendor.adapters import VendorAdapterFactory, create_tiingo_adapter, create_polygon_adapter
 from domains.market_data.services.agent.mock_adapter import MockAdapter
-from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
-from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
 from domains.market_data.services.agent.alert_handlers import (
     LoggingAlertHandler, SlackAlertHandler, EmailAlertHandler, CompositeAlertHandler
 )
@@ -79,8 +78,8 @@ async def setup_data_agent(args: argparse.Namespace) -> DataAgentOrchestrator:
             }
         else:
             adapters = {
-                "tiingo": TiingoAdapter(tiingo_api_key),
-                "polygon": PolygonAdapter(polygon_api_key)
+                "tiingo": create_tiingo_adapter(tiingo_api_key),
+                "polygon": create_polygon_adapter(polygon_api_key)
             }
 
     # Create reconciliation engine

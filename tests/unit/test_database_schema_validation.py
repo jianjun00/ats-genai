@@ -12,13 +12,8 @@ CRITICAL: These tests prevent schema errors from reaching dev/prod environments.
 """
 
 import pytest
-import asyncio
 import asyncpg
 import os
-from typing import Dict, List, Any, Set
-from unittest.mock import AsyncMock, patch
-import json
-import inspect
 
 # Disabled - test imports non-existent module
 # from enhanced_dataset_visualization_platform_real_data import (

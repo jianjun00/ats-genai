@@ -18,10 +18,9 @@ table_name = get_table_name('news', environment='dev')  # Returns 'dev_news'
 """
 
 import os
-import asyncio
 import asyncpg
 import logging
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 

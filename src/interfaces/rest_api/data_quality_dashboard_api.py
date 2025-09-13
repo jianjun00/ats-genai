@@ -6,15 +6,13 @@ Shows actual data quality issues detected in the ATS system with a functional we
 """
 
 import sys
-import os
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Any
+from datetime import datetime, date
+from typing import List, Optional
 from dataclasses import dataclass, asdict
-import json
 
 sys.path.insert(0, '/home/jianjun/ats-genai-model/src')
 
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify
 from infrastructure.database.connection_manager import get_database_connection
 
 app = Flask(__name__)

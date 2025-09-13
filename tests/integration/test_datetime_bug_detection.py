@@ -8,10 +8,8 @@ This test demonstrates the difference between:
 """
 
 import asyncio
-import json
-import os
 import sys
-from typing import Dict, List, Any
+from typing import Dict, List
 from datetime import datetime
 
 

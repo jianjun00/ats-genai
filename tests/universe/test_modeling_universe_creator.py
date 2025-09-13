@@ -6,9 +6,8 @@ and dollar volume criteria without complex async database mocking.
 """
 
 import pytest
-from datetime import date, timedelta
-from unittest.mock import Mock, MagicMock, patch
-from typing import List, Optional
+from datetime import date
+from unittest.mock import Mock
 
 # Test imports
 import sys

@@ -7,7 +7,6 @@ validation, serialization, and DAO operations.
 
 import pytest
 import json
-import hashlib
 from datetime import datetime, date
 from unittest.mock import AsyncMock, MagicMock, patch
 

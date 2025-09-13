@@ -13,11 +13,7 @@ sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 # Import the fixed processor
 sys.path.insert(0, '/home/jianjun/ats-genai-data/scripts')
 
-import os
-import json
 from pathlib import Path
-from datetime import datetime, date, timedelta
-from typing import Dict, List
 
 from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
 from storage.file_based_minute_manager import FileBasedMinuteManager

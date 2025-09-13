@@ -15,7 +15,6 @@ from domains.instruments.services.interfaces.instrument_service_interface import
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
-    UnifiedInstrumentDTO,
     InstrumentSearchCriteria,
     InstrumentOperationResult
 )

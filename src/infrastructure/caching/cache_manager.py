@@ -9,13 +9,12 @@ import asyncio
 import hashlib
 import json
 import pickle
-import time
 import zlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Callable, Tuple
+from typing import Any, Dict, List, Optional, Union, Callable
 import logging
 
 import redis.asyncio as redis
@@ -109,32 +108,26 @@ class CacheBackend(ABC):
     @abstractmethod
     async def get(self, key: str) -> Optional[Any]:
         """Get value from cache."""
-        pass
 
     @abstractmethod
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """Set value in cache."""
-        pass
 
     @abstractmethod
     async def delete(self, key: str) -> bool:
         """Delete value from cache."""
-        pass
 
     @abstractmethod
     async def exists(self, key: str) -> bool:
         """Check if key exists in cache."""
-        pass
 
     @abstractmethod
     async def clear(self, pattern: Optional[str] = None) -> int:
         """Clear cache entries matching pattern."""
-        pass
 
     @abstractmethod
     async def get_metrics(self) -> CacheMetrics:
         """Get cache metrics."""
-        pass
 
     def _generate_key(self, key: str) -> str:
         """Generate full cache key with prefix and namespace."""

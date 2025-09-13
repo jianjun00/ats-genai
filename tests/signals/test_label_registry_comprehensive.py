@@ -5,12 +5,10 @@ Comprehensive tests for Label Registry.
 Tests edge cases, mathematical correctness, and various label types.
 """
 
-import pytest
 import pandas as pd
 import numpy as np
 import sys
 import os
-from datetime import datetime, timedelta
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
@@ -20,8 +18,7 @@ from domains.trading.services.label_registry import (
     LabelConfig,
     PriceLabelGenerator,
     ReturnLabelGenerator,
-    ClassificationLabelGenerator,
-    CustomLabelGenerator
+    ClassificationLabelGenerator
 )
 
 class TestLabelRegistryEdgeCases:

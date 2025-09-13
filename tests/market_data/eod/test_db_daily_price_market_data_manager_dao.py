@@ -1,9 +1,6 @@
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-import pandas as pd
-import numpy as np
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from domains.market_data.services.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO

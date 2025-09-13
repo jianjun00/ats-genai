@@ -11,12 +11,10 @@ Tests the daily download system for FirstRate API integration:
 
 import pytest
 import tempfile
-import asyncio
 import zipfile
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-import aiohttp
+from unittest.mock import AsyncMock, patch
 import os
 import sys
 

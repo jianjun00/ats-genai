@@ -1,4 +1,3 @@
-import pytest
 from domains.trading.services.indicator_config import IndicatorConfig
 from domains.trading.services.indicator import PL, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop, Indicator
 

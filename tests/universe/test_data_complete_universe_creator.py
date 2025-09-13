@@ -1,15 +1,12 @@
 import pytest
-import asyncio
 import asyncpg
 from unittest.mock import patch, MagicMock, AsyncMock
-from datetime import date, datetime, timedelta
-from typing import List, Dict, Set, Optional
+from datetime import date, datetime
 
 from domains.trading.services.data_complete_universe_creator import (
     DataCompleteUniverseCreator,
     DataCompleteness
 )
-from shared.utils.environment import Environment
 
 
 class TestDataCompleteUniverseCreator:

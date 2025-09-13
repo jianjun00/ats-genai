@@ -7,12 +7,9 @@ Supports EODHD and Tiingo vendors.
 Uses PostgreSQL ON CONFLICT DO NOTHING for safe incremental updates.
 """
 
-import asyncio
 import asyncpg
-import sys
 import time
 import os
-from datetime import datetime
 from typing import Dict, Any
 import logging
 
@@ -69,7 +66,6 @@ class VendorDatabaseSync:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
-        pass
 
     async def sync_daily_prices_incremental(self, vendor: str = 'eodhd') -> Dict[str, Any]:
         """Incremental sync using direct INSERT with ON CONFLICT DO NOTHING."""

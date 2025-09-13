@@ -17,8 +17,8 @@ import asyncio
 import time
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List
+from datetime import datetime
+from typing import List
 
 
 class TestStandaloneBatchProcessingPerformance:

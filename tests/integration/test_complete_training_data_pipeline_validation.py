@@ -22,7 +22,6 @@ import asyncio
 import tempfile
 import shutil
 from pathlib import Path
-from datetime import datetime, timedelta
 import requests
 import json
 import sys
@@ -212,7 +211,6 @@ class TestCompleteTrainingDataPipeline:
 
         # Step 3: CRITICAL - Verify files can actually be read by ArrayRecord
         try:
-            import array_record
             from array_record.python.array_record_module import ArrayRecordReader
 
             for file_path in arrayrecord_files[:2]:  # Test first 2 files

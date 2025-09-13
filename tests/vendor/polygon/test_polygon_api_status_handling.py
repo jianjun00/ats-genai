@@ -11,8 +11,7 @@ import pytest
 import aiohttp
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock
 
 
 @pytest.fixture

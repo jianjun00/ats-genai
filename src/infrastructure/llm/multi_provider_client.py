@@ -12,9 +12,9 @@ import asyncio
 import aiohttp
 import json
 import time
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 import hashlib
 import redis.asyncio as redis
@@ -70,7 +70,6 @@ class LLMResponse:
 
 class LLMProviderError(ATSBaseException):
     """LLM provider specific error"""
-    pass
 
 
 class RateLimiter:

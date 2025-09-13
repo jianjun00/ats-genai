@@ -7,9 +7,8 @@ reducing storage overhead and improving test maintainability.
 
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
-from decimal import Decimal
 import random
 
 

@@ -6,14 +6,11 @@ with EconomicEventsDAO to generate training data only when news events are detec
 """
 
 import pytest
-import pandas as pd
-from datetime import datetime, date, timedelta
-from typing import Dict, List
+from datetime import datetime, date
 from unittest.mock import MagicMock, AsyncMock, patch
 
 # Import the callback class we're testing
 from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-from core.dao.economic_events_dao import EconomicEvent
 
 
 class TestNewsEventIntegration:

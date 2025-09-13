@@ -7,7 +7,7 @@ Comprehensive sanitization of JSON responses to prevent NaN, Infinity, and other
 import json
 import math
 from decimal import Decimal
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 import numpy as np
 
 class JSONSanitizer:

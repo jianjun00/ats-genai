@@ -9,11 +9,10 @@ import pytest
 import asyncio
 import asyncpg
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
+from unittest.mock import AsyncMock, MagicMock, patch
 import json
 import tempfile
 from pathlib import Path
-from typing import List, Dict, Any
 
 from domains.market_data.services.backfill.enhanced_minute_backfill_orchestrator import (
     EnhancedMinuteBackfillOrchestrator,

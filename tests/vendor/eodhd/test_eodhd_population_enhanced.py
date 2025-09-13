@@ -6,14 +6,11 @@ to properly fetch IPO dates and other temporal information.
 """
 
 import pytest
-import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import date
-import json
 
 # Import the modules we're testing
 import sys
-import os
 sys.path.append('/workspace/src')
 
 from src.secmaster.populate_instrument_eodhd import (

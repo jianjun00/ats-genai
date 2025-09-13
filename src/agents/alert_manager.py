@@ -6,18 +6,15 @@ Enterprise-grade alerting and notification system for the Data Quality Agent.
 Supports multiple notification channels, alert routing, and escalation policies.
 """
 
-import asyncio
 import json
 import logging
-import smtplib
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 import aiohttp
-import hashlib
 
 from agents.agent_config import get_config_manager
 

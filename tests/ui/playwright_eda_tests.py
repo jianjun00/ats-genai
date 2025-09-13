@@ -16,11 +16,8 @@ playwright install
 """
 
 import pytest
-import asyncio
-from playwright.async_api import async_playwright, Page, Browser, BrowserContext
-import json
+from playwright.async_api import async_playwright, Page
 import time
-from typing import Dict, List
 
 # Test Configuration
 BASE_URL = "http://localhost:3000"

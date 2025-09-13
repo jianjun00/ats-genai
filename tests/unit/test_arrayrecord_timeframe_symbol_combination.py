@@ -16,7 +16,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime, date
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 # Disabled imports due to missing dependencies
 # from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback

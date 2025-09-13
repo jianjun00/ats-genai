@@ -23,11 +23,10 @@ This test will FAIL if implementation creates:
 
 import pytest
 import tempfile
-import json
 import os
 import shutil
 from pathlib import Path
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import asyncio
 import sys
 import struct
@@ -35,7 +34,6 @@ import array_record.python.array_record_module as array_record_module
 
 sys.path.append('/home/jianjun/ats-genai-admin/src')
 
-from core.platform.database.connection_manager import get_raw_connection
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 

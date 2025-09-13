@@ -12,25 +12,19 @@ Tests advanced event analysis capabilities including:
 """
 
 import pytest
-import asyncio
-import json
-import hashlib
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-import tempfile
-import os
+from datetime import datetime
+from unittest.mock import patch
 
 # Test imports
 import sys
 sys.path.insert(0, 'src')
 
-from shared.utils.feature_flags import FeatureManager, feature_manager
+from shared.utils.feature_flags import feature_manager
 from llm.event_analysis import (
-    EventAnalysisRequest, EventAnalysisResult, LLMInterface,
-    MockLLMInterface, OpenAIInterface, EventAnalysisCache,
-    LLMEventAnalyzer, AdaptiveModelSelector, create_event_analyzer,
-    create_adaptive_analyzer, quick_event_analysis, deep_event_analysis
+    EventAnalysisRequest, EventAnalysisResult, MockLLMInterface,
+    OpenAIInterface, EventAnalysisCache, LLMEventAnalyzer,
+    AdaptiveModelSelector, create_event_analyzer, create_adaptive_analyzer,
+    quick_event_analysis, deep_event_analysis
 )
 
 

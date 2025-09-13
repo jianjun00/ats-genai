@@ -9,10 +9,8 @@ Tests comprehensive vendor-native instrument population:
 """
 
 import pytest
-import subprocess
 import sys
 import os
-import tempfile
 from unittest.mock import patch, MagicMock
 
 # Add src to path for imports
@@ -230,7 +228,6 @@ class TestInstrumentDataQuality:
     @pytest.mark.database
     def test_tiingo_instruments_include_delisted(self):
         """Test that Tiingo instruments include delisted securities."""
-        import psycopg2
 
         # This would require database connection - mock for unit test
         # In real integration test, would connect to test database

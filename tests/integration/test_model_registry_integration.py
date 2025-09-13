@@ -18,8 +18,7 @@ import torch.nn as nn
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.services.model_registry_service import (
-    ModelRegistryService, ModelMetadata, ModelInputSignature,
-    create_input_signature_from_dataset_config
+    ModelRegistryService, ModelMetadata, create_input_signature_from_dataset_config
 )
 from src.services.model_tracker import ModelTracker
 

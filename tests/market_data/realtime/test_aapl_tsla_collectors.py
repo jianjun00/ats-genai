@@ -10,10 +10,8 @@ import pytest
 import asyncio
 import asyncpg
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
-from decimal import Decimal
-import aiohttp
 import os
 import sys
 

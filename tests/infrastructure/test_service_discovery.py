@@ -8,9 +8,7 @@ and service client functionality.
 import asyncio
 import pytest
 import pytest_asyncio
-from datetime import datetime, timedelta
-from typing import Dict, Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock
 
 from src.infrastructure.service_discovery import (
     # Service Registry

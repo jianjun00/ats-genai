@@ -6,12 +6,10 @@ Tests the multi-timeframe feature extraction and hourly training data generation
 with proper integration to UniverseStateManager and market_data_manager.
 """
 
-import pytest
 import pandas as pd
 import numpy as np
-from datetime import date, datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
-from pathlib import Path
+from datetime import date
+from unittest.mock import Mock
 import sys
 import os
 

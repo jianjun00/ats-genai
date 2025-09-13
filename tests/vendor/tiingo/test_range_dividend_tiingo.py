@@ -1,18 +1,13 @@
 import pytest
-import asyncio
 from datetime import date
 from vendor.tiingo.services.range_dividend_tiingo import parse_date, map_tiingo_dividend, insert_dividends_tiingo
 
-import types
 from vendor.tiingo.services.range_dividend_tiingo import get_symbols_from_dividend_polygon
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_get_symbols_from_dividend_polygon_parses_dates(tmp_path):
     # Setup: create a test DB and table
-    import asyncpg
-    import os
-    import tempfile
     import uuid
     db_name = f"test_db_{uuid.uuid4().hex[:8]}"
     db_url = f"postgresql://localhost/{db_name}"

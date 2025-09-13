@@ -2,7 +2,6 @@ import pytest
 from datetime import date
 from domains.instruments.services.secmaster import SecMaster
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

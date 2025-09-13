@@ -5,7 +5,6 @@ Generate multi-timeframe training data for AAPL using the enhanced framework.
 
 import asyncio
 import sys
-import os
 
 # Add src to path
 sys.path.append('src')

@@ -2,7 +2,7 @@ import json
 import pytest
 from datetime import datetime
 from pathlib import Path
-from domains.market_data.services.eod.unify_daily_prices import FileDailyPricesUnifier, DailyPricesUnifierBase
+from domains.market_data.services.eod.unify_daily_prices import FileDailyPricesUnifier
 
 def load_fixture_prices(log_dir, symbol, provider):
     """
@@ -84,7 +84,7 @@ def test_unify_daily_prices_discrepancies(symbol, start_date, end_date):
     unifier = FileDailyPricesUnifier(environment=None, tiingo_data=tiingo_data, polygon_data=polygon_data)
     # Run unification for the date range
     import asyncio
-    from datetime import datetime, date
+    from datetime import datetime
     # Convert string dates to date objects
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()

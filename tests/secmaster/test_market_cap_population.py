@@ -4,7 +4,6 @@ Test coverage for market cap population functionality.
 """
 
 import pytest
-import asyncio
 import asyncpg
 import requests
 import hashlib

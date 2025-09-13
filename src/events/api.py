@@ -5,7 +5,7 @@ Event API - FastAPI endpoints for querying events and correlations
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -14,7 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from events.database import EventStorage
 from events.correlation import CorrelationEngine
 from events.producer import EventProducer
-from events.proto.events_pb2 import Event, EventType, Priority, Classification
 
 logger = logging.getLogger(__name__)
 

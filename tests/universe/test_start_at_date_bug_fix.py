@@ -10,9 +10,8 @@ first qualified for the universe, not when the evaluation job runs.
 """
 
 import sys
-import os
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 sys.path.append('/home/jianjun/ats-genai-admin/src')

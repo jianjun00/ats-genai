@@ -11,7 +11,6 @@ import argparse
 import logging
 from datetime import datetime
 import aiohttp
-import asyncpg
 from typing import List, Dict, Any
 import time
 import json

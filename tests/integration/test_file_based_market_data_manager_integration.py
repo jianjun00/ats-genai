@@ -15,7 +15,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
-from pathlib import Path
 
 import sys
 sys.path.insert(0, 'src')
@@ -28,7 +27,6 @@ from ml.training_data.timeseries_sequence_training_generator import (
     TimeSeriesSequenceTrainingGenerator
 )
 from core.config.environment import Environment
-from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 
 
 @pytest.fixture

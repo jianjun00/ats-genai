@@ -3,10 +3,8 @@ Integration tests for sequence selection end-to-end workflow
 Tests complete user workflow from API calls to chart rendering
 """
 import pytest
-import asyncio
 import json
-from unittest.mock import Mock, patch, AsyncMock
-import numpy as np
+from unittest.mock import patch
 
 from src.services.analytics_service import AnalyticsService
 

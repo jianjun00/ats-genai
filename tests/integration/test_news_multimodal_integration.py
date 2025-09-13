@@ -6,12 +6,9 @@ Tests end-to-end workflows, data flow, and system integration.
 
 import pytest
 import asyncio
-import json
-import tempfile
 import os
 from datetime import datetime, date, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict, Any
+from unittest.mock import AsyncMock, patch
 
 # Add src to path for imports
 import sys

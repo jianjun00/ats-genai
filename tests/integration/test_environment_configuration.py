@@ -7,10 +7,8 @@ Comprehensive testing for environment-specific gin configuration
 import os
 import sys
 import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import patch
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
@@ -131,7 +129,6 @@ def test_configuration_loading_and_switching():
     """Test loading configuration and switching between environments"""
 
     from shared.utils.environment_config import Environment, EnvironmentConfigLoader
-    import gin
 
     # Create temporary config files with different content
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -188,7 +185,6 @@ def test_configuration_validation():
     """Test configuration validation functionality"""
 
     from shared.utils.validation import ConfigurationValidator, ValidationResult
-    from shared.utils.environment_config import Environment
 
     validator = ConfigurationValidator()
 

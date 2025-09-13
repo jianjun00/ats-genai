@@ -1,12 +1,10 @@
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from datetime import date
 
 # Example: test for UniverseDAO
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-from db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio
 class DummyConn:

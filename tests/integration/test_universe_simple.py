@@ -7,7 +7,6 @@ Uses subprocess to avoid database connection complexity
 import subprocess
 import pytest
 import json
-import os
 
 class TestUniverseAnalyticsSimple:
     """Simplified tests using command-line queries"""

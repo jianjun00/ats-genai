@@ -10,16 +10,14 @@ Tests the business logic layer with mocked DAOs to verify:
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 from datetime import date
-from typing import List, Optional, Dict, Any
 
 from domains.instruments.services.impl.instrument_service_impl import InstrumentServiceImpl
 from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentDTO,
     InstrumentXrefDTO,
-    InstrumentSearchCriteria,
-    InstrumentOperationResult
+    InstrumentSearchCriteria
 )
 
 

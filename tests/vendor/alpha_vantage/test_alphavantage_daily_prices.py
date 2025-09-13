@@ -4,16 +4,14 @@ Tests for Alpha Vantage daily price ingestion
 """
 
 import pytest
-import asyncio
-from datetime import date, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from datetime import date
+from unittest.mock import MagicMock
 
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../src'))
 
 from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
-from shared.utils.environment import Environment
 
 class TestAlphaVantageDailyPrices:
 
@@ -175,8 +173,6 @@ if __name__ == "__main__":
         def test_imports(self):
             """Test that Alpha Vantage modules can be imported"""
             try:
-                from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO
-                from domains.market_data.services.eod.daily_price_alphavantage import fetch_alphavantage_daily_prices
                 self.assertTrue(True)
             except ImportError as e:
                 self.fail(f"Failed to import Alpha Vantage modules: {e}")

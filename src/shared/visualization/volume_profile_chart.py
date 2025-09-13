@@ -6,10 +6,9 @@ Provides per-timeframe chart visualization for Volume Profile indicators and oth
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from matplotlib.patches import Rectangle
 from typing import Dict, Any, List, Tuple, Optional, Union
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)

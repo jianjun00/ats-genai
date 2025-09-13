@@ -3,13 +3,10 @@ Tests for news sentiment analysis framework.
 """
 
 import pytest
-import asyncio
 import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
-import feedparser
 
 from sentiment.news_sentiment_analyzer import (
     SentimentScore,

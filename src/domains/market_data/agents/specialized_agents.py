@@ -13,14 +13,14 @@ financial intelligence and robust signal generation.
 
 import json
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from typing import Dict, Any
+from datetime import datetime
 
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
 from domains.market_data.services.llm.news_llm_processor import NewsArticle
 from domains.market_data.agents.multi_agent_framework import (
-    BaseFinancialAgent, AgentType, AgentAnalysis,
-    RiskAssessmentAnalysis, MarketImpactAnalysis, SignalGenerationAnalysis
+    BaseFinancialAgent, AgentType, RiskAssessmentAnalysis,
+    MarketImpactAnalysis, SignalGenerationAnalysis
 )
 
 logger = logging.getLogger(__name__)

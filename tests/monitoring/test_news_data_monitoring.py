@@ -19,11 +19,10 @@ USAGE:
 
 import asyncio
 import argparse
-import asyncpg
 import sys
 import os
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Dict, Any
 import json
 
 # Add src to path

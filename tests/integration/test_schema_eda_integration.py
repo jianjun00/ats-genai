@@ -6,7 +6,6 @@ to EDA visualization with schema metadata.
 """
 
 import pytest
-import asyncio
 import numpy as np
 import pandas as pd
 import tempfile
@@ -16,8 +15,6 @@ from datetime import datetime, date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.modeling.training_data_generator import (
-    ResidualReturnTrainingDataGenerator,
-    TrainingConfig,
     generate_residual_return_training_data
 )
 from src.schema.training_schema import TrainingDatasetSchema, FeatureType

@@ -6,17 +6,15 @@ Tests the exact conditions that caused database success but zero file size.
 """
 
 import pytest
-import asyncio
 import os
 import tempfile
 import struct
 from pathlib import Path
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 # Import components for testing
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-from domains.ml.services.storage.sequence_storage_manager import ArrayRecordStorageManager
 from domains.ml.services.training_data.schemas.binary_record_schema import SchemaTemplates
 
 
@@ -210,7 +208,7 @@ class TestArrayRecordFileWritingDebug:
         """
         # Skip if ArrayRecord not available
         try:
-            import array_record.python.array_record_module as array_record
+            pass
         except ImportError:
             pytest.skip("ArrayRecord not available")
 
@@ -579,7 +577,7 @@ class TestArrayRecordFileWritingDebug:
         print(f"🔍 REPRODUCING EXACT AAPL FAILURE SCENARIO:")
 
         try:
-            import array_record.python.array_record_module as array_record
+            pass
         except ImportError:
             pytest.fail("❌ CRITICAL: ArrayRecord not available - this explains AAPL failure")
 

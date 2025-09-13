@@ -6,7 +6,6 @@ import sys
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
 from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
-from pathlib import Path
 import logging
 
 logging.basicConfig(level=logging.INFO)

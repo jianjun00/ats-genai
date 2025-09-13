@@ -5,13 +5,10 @@ Tests all endpoints, error handling, authentication, and integration scenarios.
 """
 
 import pytest
-import asyncio
-import json
 import uuid
 from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
-from fastapi.websockets import WebSocket
 
 import sys
 from pathlib import Path

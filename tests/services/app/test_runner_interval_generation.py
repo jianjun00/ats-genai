@@ -18,7 +18,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../src'))
 
 from services.app.runner import Runner
 from core.platform.config.environment import Environment, EnvironmentType
-from core.business.calendars.time_duration import TimeDuration
 
 
 class TestRunnerIntervalGeneration:

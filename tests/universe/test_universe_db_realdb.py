@@ -3,7 +3,6 @@ import asyncpg
 from datetime import date
 from domains.trading.services.universe_db import UniverseDB
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db_clean
 from domains.trading.services.universe_manager import UniverseManager
 
 @pytest.mark.asyncio

@@ -17,8 +17,6 @@ import pytest
 import pandas as pd
 import numpy as np
 import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))

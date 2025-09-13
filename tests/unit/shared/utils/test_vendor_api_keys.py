@@ -8,7 +8,7 @@ found in 15+ vendor integration files.
 
 import pytest
 import os
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 import sys
 from pathlib import Path
 

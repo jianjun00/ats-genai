@@ -12,8 +12,6 @@ import pytest
 import asyncio
 from datetime import datetime, date, timedelta
 from decimal import Decimal
-from typing import List
-from unittest.mock import Mock, AsyncMock
 
 from domains.trading.services.interfaces.trading_service_interface import (
     TradingServiceInterface,
@@ -25,7 +23,6 @@ from domains.trading.services.interfaces.trading_service_interface import (
     PortfolioOptimizationRequest,
     TradingOperationResult
 )
-from domains.trading.services.config.trading_service_container import get_trading_service
 from core.platform.config.environment import Environment, EnvironmentType
 
 
@@ -180,9 +177,7 @@ class TestTradingServiceArchitecture:
     def test_service_container_integration(self):
         """Test service container integrates correctly"""
         from domains.trading.services.config.trading_service_container import (
-            TradingServiceContainer,
-            get_trading_service_container,
-            get_trading_service
+            TradingServiceContainer
         )
         from unittest.mock import Mock
         

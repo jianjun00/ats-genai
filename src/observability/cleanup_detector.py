@@ -8,16 +8,14 @@ using runtime monitoring data for safe cleanup recommendations.
 import json
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Any, Tuple, Optional
-import subprocess
+from typing import Dict, List, Set, Any, Optional
 import ast
-import importlib.util
 from dataclasses import dataclass
 
-from .code_usage_tracker import get_code_tracker, CodeUsageTracker
-from .database_usage_tracker import get_database_tracker, DatabaseUsageTracker
+from .code_usage_tracker import get_code_tracker
+from .database_usage_tracker import get_database_tracker
 
 
 @dataclass

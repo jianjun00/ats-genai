@@ -8,10 +8,9 @@ import argparse
 import asyncio
 import json
 import sys
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 import logging
-from typing import List, Dict, Any
 
 # Import our modules with proper error handling
 sys.path.append(str(Path(__file__).parent.parent.parent.parent.parent))

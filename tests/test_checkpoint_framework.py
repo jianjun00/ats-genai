@@ -11,10 +11,9 @@ Tests cover:
 
 import pytest
 import asyncio
-import json
 import logging
 from datetime import datetime, date, timedelta
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from unittest.mock import AsyncMock
 from typing import Dict, List, Optional, Tuple, Any
 import asyncpg
 import aiohttp

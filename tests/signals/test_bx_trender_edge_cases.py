@@ -4,8 +4,7 @@ Edge case and error handling tests for BX Trender indicators.
 import unittest
 import pandas as pd
 import numpy as np
-import math
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
@@ -14,7 +13,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
 from signals.enhanced_indicators import BXTrenderIndicator
-from signals.indicator import BXTrenderBasic, BXTrenderDirectional, BXTrenderVolumeWeighted
+from signals.indicator import BXTrenderBasic
 
 
 class TestBXTrenderEdgeCases(unittest.TestCase):
@@ -385,7 +384,6 @@ class TestBXTrenderErrorRecovery(unittest.TestCase):
     def test_concurrent_calculation(self):
         """Test thread safety of calculations."""
         import threading
-        import time
 
         prices = [100 + i * 0.1 for i in range(100)]
         data = self.create_dataframe_from_prices(prices)

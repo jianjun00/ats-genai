@@ -19,8 +19,7 @@ Usage:
 import sys
 import numpy as np
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
-import math
+from typing import List
 
 # Test data from the original HLC dataset
 # Format: [Date, High, Low, Close, h11, l11, z1b, z2b, ebot, pldot, etop, z5t, z6t]

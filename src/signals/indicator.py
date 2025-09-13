@@ -8,4 +8,3 @@ import gin
 @gin.configurable
 def indicator_config():
     """Configurable indicator function."""
-    pass

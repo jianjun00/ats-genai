@@ -7,7 +7,6 @@ rate limiting, and progress reporting for data backfill operations.
 """
 
 import pytest
-import asyncio
 import time
 from unittest.mock import Mock, patch
 from datetime import datetime, timedelta

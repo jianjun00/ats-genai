@@ -14,8 +14,7 @@ Tests cover:
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime
 import json
 import tempfile
 from pathlib import Path
@@ -27,7 +26,6 @@ from domains.trading.services.recommendation_engine import (
     HourlyRecommendationEngine
 )
 from domains.trading.services.optimization import OptimizationConstraints
-from domains.trading.services.performance_metrics import PerformanceMetrics
 
 
 class TestRecommendationOutput:

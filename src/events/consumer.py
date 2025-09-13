@@ -7,11 +7,11 @@ import json
 import logging
 import traceback
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 from celery import Celery, Task
 from celery.signals import worker_ready, worker_shutdown
 
-from events.proto.events_pb2 import Event, EventType, MessageToDict
+from events.proto.events_pb2 import Event, MessageToDict
 from events.database import EventStorage
 from events.correlation import CorrelationEngine
 

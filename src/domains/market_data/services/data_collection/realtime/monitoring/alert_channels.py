@@ -32,11 +32,10 @@ import json
 import logging
 import os
 import smtplib
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Dict, List, Optional, Any, Set
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 

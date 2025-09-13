@@ -8,7 +8,7 @@ import pytest
 import asyncio
 import asyncpg
 from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime, date
+from datetime import date
 import requests
 import aiohttp
 

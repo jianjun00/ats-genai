@@ -5,8 +5,6 @@ Tests the optimized loading, parallel requests, and demo data functionality.
 """
 
 import requests
-import json
-import pytest
 import time
 import concurrent.futures
 

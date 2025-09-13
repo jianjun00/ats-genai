@@ -5,10 +5,8 @@ Tests real stock examples and market dynamics scenarios
 """
 
 import unittest
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime
 import sys
-import os
 
 # Add project root to path
 sys.path.append('/home/jianjun/ats-genai-admin/src')

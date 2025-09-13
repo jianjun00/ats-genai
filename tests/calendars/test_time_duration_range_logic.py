@@ -7,9 +7,8 @@ correctly for feature extraction: [current_time - base_duration, current_time].
 
 import pytest
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 
-from core.business.calendars.time_duration import TimeDuration, DurationType
+from core.business.calendars.time_duration import TimeDuration
 
 
 class TestTimeDurationRangeLogic:

@@ -12,7 +12,6 @@ This test module is designed to run independently without complex dependencies.
 
 import pytest
 import pandas as pd
-from unittest.mock import Mock
 
 
 def mock_extract_all_features(data: pd.DataFrame, timeframe: str):

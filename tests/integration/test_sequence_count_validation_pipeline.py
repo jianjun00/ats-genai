@@ -11,7 +11,6 @@ Training Data Generation → Database Storage → API Response → UI Display
 """
 
 import pytest
-import asyncio
 import asyncpg
 import tempfile
 import shutil

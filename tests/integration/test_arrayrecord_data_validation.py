@@ -15,7 +15,7 @@ import ast
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from core.sanitizers.json_sanitizer import JSONSanitizer, sanitize_training_features
+from core.sanitizers.json_sanitizer import sanitize_training_features
 
 class TestArrayRecordDataValidation(unittest.TestCase):
     """Test ArrayRecord files for data integrity and NaN handling."""

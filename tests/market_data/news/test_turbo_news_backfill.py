@@ -1,8 +1,8 @@
 import pytest
 import asyncio
 import json
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, date
+from unittest.mock import AsyncMock, patch
+from datetime import datetime
 import aioresponses
 
 from domains.market_data.services.news.turbo_news_backfill import (

@@ -7,10 +7,7 @@ Tests various migration scenarios including empty DB, existing data, and DEV con
 import pytest
 import psycopg2
 import docker
-import subprocess
 import time
-import os
-from unittest.mock import patch, MagicMock
 
 
 class TestMigrationDecisionTree:

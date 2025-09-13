@@ -1,7 +1,6 @@
 pytest_plugins = ["src.test.conftest"]
 
 import pytest
-import pytest_asyncio
 import asyncpg
 from datetime import datetime, timedelta
 

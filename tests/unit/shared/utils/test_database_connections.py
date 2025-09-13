@@ -8,9 +8,7 @@ connections with automatic fallbacks for standalone scripts.
 
 import pytest
 import os
-import asyncio
-import asyncpg
-from unittest.mock import patch, Mock, AsyncMock, MagicMock
+from unittest.mock import patch, Mock, AsyncMock
 import sys
 from pathlib import Path
 

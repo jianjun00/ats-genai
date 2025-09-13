@@ -5,7 +5,7 @@ This is a Python implementation of the event schema.
 
 from enum import IntEnum
 from dataclasses import dataclass, field
-from typing import Optional, List, Union, Any
+from typing import Optional, List
 from datetime import datetime
 import json
 import uuid

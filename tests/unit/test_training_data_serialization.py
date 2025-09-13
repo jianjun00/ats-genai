@@ -10,7 +10,6 @@ import pytest
 import json
 import numpy as np
 from datetime import datetime, date
-from enum import Enum
 
 from ml.training_data.generators.training_data_metadata import TrainingDataMetadataManager, FeatureType
 

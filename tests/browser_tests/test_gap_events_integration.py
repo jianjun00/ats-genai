@@ -12,9 +12,6 @@ This test verifies that:
 """
 
 import pytest
-import asyncio
-import time
-from playwright.async_api import async_playwright, expect
 from playwright.sync_api import sync_playwright
 
 

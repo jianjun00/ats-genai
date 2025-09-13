@@ -6,7 +6,6 @@ Test symbol configuration in training data generation
 import os
 import sys
 import asyncio
-from datetime import date, timedelta
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -38,7 +37,6 @@ def test_job_config_symbol_configuration():
 def test_dataset_name_generation():
     """Test that dataset names are generated correctly for different symbols."""
 
-    from datetime import datetime
 
     # Test AAPL
     aapl_config = create_sample_job_config(symbols=['AAPL'])

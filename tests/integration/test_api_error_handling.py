@@ -12,16 +12,12 @@ Tests the robustness of our market cap system against various API failures:
 
 import pytest
 import asyncio
-import aiohttp
 import asyncpg
-from unittest.mock import patch, MagicMock, AsyncMock
-from aiohttp import ClientTimeout, ClientResponseError, ClientConnectionError
-import logging
-from datetime import date, datetime
+from unittest.mock import patch, AsyncMock
+from datetime import datetime
 import json
 
 from shared.utils.environment import Environment
-from src.secmaster.compute_market_cap_from_shares import compute_and_populate_market_cap
 
 
 class TestAPIErrorHandling:

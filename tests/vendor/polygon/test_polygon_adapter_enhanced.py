@@ -3,7 +3,6 @@ import requests
 from unittest.mock import patch, MagicMock
 from datetime import datetime, date
 from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
-from domains.market_data.services.agent.models import InstrumentMetadata, EODPrice
 
 
 class TestPolygonAdapterEnhanced:

@@ -1,10 +1,8 @@
 import os
 import pytest
-import asyncio
 from unittest import mock
 from datetime import datetime, date, timedelta
 import json
-import tempfile
 
 # Custom JSON encoder to handle date objects
 class DateTimeEncoder(json.JSONEncoder):
@@ -18,7 +16,6 @@ from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
 from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
 from domains.market_data.services.agent.reconciliation import ReconciliationEngine
 from domains.market_data.services.agent.llm_assistant import LLMAssistant
-from domains.market_data.services.agent.models import EODPrice, ReconciledRecord
 
 # Mock database fixtures
 class MockPool:

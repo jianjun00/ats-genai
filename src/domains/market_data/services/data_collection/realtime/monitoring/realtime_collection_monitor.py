@@ -29,13 +29,11 @@ Usage:
 import asyncio
 import asyncpg
 import logging
-import os
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 import json
 import time
-import statistics
 from dataclasses import dataclass, asdict
 from enum import Enum
 

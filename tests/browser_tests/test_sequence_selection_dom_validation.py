@@ -3,9 +3,8 @@ Browser-based tests for sequence selection DOM element validation
 Tests DOM elements exist and chart rendering works properly
 """
 import pytest
-from playwright.async_api import async_playwright, Page, Browser
+from playwright.async_api import async_playwright, Page
 import asyncio
-import time
 
 
 class TestSequenceSelectionDOMValidation:

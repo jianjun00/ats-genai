@@ -5,9 +5,6 @@ Tests the actual /eda interface that users interact with
 """
 
 import requests
-import json
-import subprocess
-import sys
 import re
 
 def test_eda_interface_access():

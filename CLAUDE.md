@@ -40,6 +40,112 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - **✅ ALWAYS enhance existing services** - add features to current code
 - **✅ ALWAYS consolidate functionality** - reduce complexity, don't add it
 
+## 🧠 **MCP Knowledge Graph - Persistent Memory (2025-09-13)**
+
+**CRITICAL: MCP Knowledge Graph is ACTIVE and MANDATORY for all development sessions**
+
+### **🚨 PERSISTENT MEMORY REQUIREMENTS**
+
+**✅ ALWAYS use MCP Knowledge Graph for:**
+- **Platform Knowledge**: Remember service configurations, API keys, database schemas
+- **Issue Tracking**: Store root causes, solutions, and debugging patterns
+- **Architecture Decisions**: Document design trade-offs and evolution
+- **Performance Baselines**: Track optimization results and benchmarks
+- **Development Context**: Maintain session continuity across conversations
+
+### **📊 Knowledge Graph Structure**
+
+**Core Entities:**
+```
+🏗️ INFRASTRUCTURE
+├── Services (analytics, postgres, redis, etc.)
+├── Databases (dev_db, intg_db, schemas)
+├── APIs (endpoints, authentication, rate limits)
+└── Containers (ats-dev-*, ats-intg-*)
+
+💾 DATA MANAGEMENT  
+├── Vendors (POLYGON, TIINGO, EODHD)
+├── Data Sources (minute-bars, training-data)
+├── Pipelines (ETL, ML training, validation)
+└── Quality Issues (gaps, duplicates, performance)
+
+🔧 DEVELOPMENT
+├── Issues (bugs, performance, integration)
+├── Solutions (fixes, optimizations, patterns)
+├── Configurations (Docker, environment variables)
+└── Dependencies (services, libraries, versions)
+```
+
+### **🎯 MCP Usage Patterns**
+
+**Session Startup:**
+1. **Load Context**: Retrieve current project state and recent issues
+2. **Check Dependencies**: Verify service status and configurations
+3. **Review History**: Access previous solutions and debugging patterns
+
+**During Development:**
+1. **Store Discoveries**: Document root causes and solutions immediately
+2. **Track Changes**: Record configuration updates and performance impacts
+3. **Link Relations**: Connect services, databases, and dependencies
+
+**Session End:**
+1. **Update Status**: Record completion state and next steps
+2. **Document Blockers**: Store unresolved issues for future sessions
+3. **Save Configurations**: Persist environment and service settings
+
+### **🚀 Quick MCP Commands**
+
+**ALWAYS available in Claude Code sessions:**
+```bash
+# MCP is automatically active - use natural language:
+"Remember that the analytics service uses port 4000 in integration environment"
+"Store the fact that POLYGON_API_KEY rate limit is 5 requests per minute"
+"What was the solution to the Docker networking issue we solved yesterday?"
+"Create a relationship between postgres-intg and analytics-intg services"
+```
+
+### **🔍 Knowledge Retrieval Examples**
+
+**Before Starting Work:**
+- "What are the current service port mappings?"
+- "What database connection issues have we encountered?"
+- "What was the last optimization we made to the analytics service?"
+
+**During Debugging:**
+- "Have we seen this error pattern before?"
+- "What's the relationship between this service and the database?"
+- "What environment variables does this service require?"
+
+**After Problem Solving:**
+- "Remember this Docker networking solution for future sessions"
+- "Store this API rate limiting configuration"
+- "Document this performance optimization result"
+
+### **⚡ Integration with Development Workflow**
+
+**Docker Commands + Memory:**
+```bash
+# Start services and remember configuration
+docker-compose -f docker-compose.intg.yml up -d
+# → MCP stores: "Integration environment started successfully at timestamp X"
+
+# Check service health and remember status  
+curl -f http://localhost:4000/health
+# → MCP stores: "Analytics service healthy, features: type_system=true, ray_computing=false"
+```
+
+**Git Operations + Memory:**
+```bash
+# Commit changes and remember context
+git commit -m "fix: restore analytics service functionality"
+# → MCP stores: "Analytics service restored from git history, original 7,956 lines"
+```
+
+**🚨 CRITICAL SUCCESS PATTERN:**
+- **Start Session**: "What should I know about the current project state?"
+- **End Session**: "Remember that [specific achievement/issue/solution]"
+- **Next Session**: Automatic context continuity and institutional knowledge
+
 ## 🐳 **Docker-Compose Architecture (2025-09-12 Migration)**
 
 **CRITICAL: Complete Docker-Compose Migration Completed**
@@ -216,6 +322,9 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 ## 🚨 **Critical Anti-Patterns to Avoid**
 
 **Infrastructure & Development:**
+- ❌ **Starting sessions without retrieving project context from knowledge graph**
+- ❌ **Not storing important discoveries and solutions in persistent memory**
+- ❌ **Losing institutional knowledge between development sessions**
 - ❌ Running docker commands directly (use run_dev instead)
 - ❌ Creating new services/files when existing can be enhanced
 - ❌ Using mock/synthetic data outside unit tests
@@ -223,6 +332,16 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - ❌ Writing tests after code (TDD requires tests first)
 - ❌ Skipping Playwright testing for UX changes
 - ❌ Not tracking training data generation in dev_runs table
+- ❌ **Using fragmented monitoring systems (coverage_monitor.py, validation scripts)**
+- ❌ **Creating separate issue detection instead of using unified service**
+- ❌ **Building standalone dashboards when unified dashboard exists**
+
+**Data Quality & Monitoring:**
+- ❌ **Using deprecated coverage monitoring scripts (use unified service)**
+- ❌ **Creating separate validation systems (use unified validation)**
+- ❌ **Building standalone alert systems (use unified alert manager)**
+- ❌ **Using deprecated database tables (use unified schema)**
+- ❌ **Implementing separate issue resolution (use unified workflows)**
 
 **Validation & Testing - CURRENT RUN ONLY:**
 - ❌ **NEVER check prior runs/historical data** to claim current run success
@@ -245,6 +364,9 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 ## 🎯 **Success Criteria**
 
 **You're following best practices when you:**
+- **Use MCP Knowledge Graph for persistent memory and context continuity**
+- **Store discoveries, solutions, and configurations in knowledge graph**
+- **Retrieve project context at session start and document findings at session end**
 - Use run_dev for all development operations
 - Write failing tests before code changes
 - Run integration tests and see them pass
@@ -254,7 +376,12 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - Test ALL UX changes with Playwright before claiming success
 - Investigate logs before restarting services
 - Understand root causes before implementing fixes
-- Document investigation findings in commits/issues
+- Document investigation findings in commits/issues AND knowledge graph
+- **Use unified data quality service for all monitoring and validation**
+- **Leverage consolidated architecture instead of creating fragmented systems**
+- **Follow service consolidation patterns established by unified framework**
+- **Use shared DTOs and repositories across all quality operations**
+- **Implement consistent issue detection, classification, and resolution workflows**
 
 ## 🚨 **CRITICAL: Training Data Generation Flow**
 
@@ -283,6 +410,47 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - **Content**: QR4-compliant scalar data (timestamp, symbol, open, high, low, close, volume, vwap)
 - **Database**: Registered in `dev_training_dataset` table
 - **Tracking**: All runs logged in `dev_runs` table with command_line, git_commit_hash
+
+## 🔄 **CRITICAL: Unified Data Quality Framework**
+
+**✅ USE unified data quality service for all monitoring, validation, and issue management**
+
+### **Unified Data Quality Architecture:**
+
+```
+🔄 CONSOLIDATED MONITORING FLOW:
+1. Unified Data Quality Service (Single Interface)
+   ↓
+2. Coverage Monitoring + Validation + Agent (Integrated)
+   ↓
+3. Issue Detection + Classification + Resolution (Automated)
+   ↓
+4. Unified Database + Alerts + Dashboard (Consolidated)
+```
+
+**🔹 SERVICE CONTAINER:** `UnifiedDataQualityServiceContainer` - Single entry point
+**🔹 UNIFIED DATABASE:** `dev_data_quality_issues` + `dev_data_quality_metrics`
+**🔹 AGENT INTEGRATION:** Enhanced agent with coverage + validation capabilities
+
+**Data Quality Commands:**
+```python
+# Initialize unified service
+from domains.data_quality.services.config.unified_data_quality_service_container import UnifiedDataQualityServiceContainer
+container = UnifiedDataQualityServiceContainer("dev")
+await container.initialize()
+unified_service = await container.get_unified_service()
+
+# Start monitoring (coverage + validation + agent)
+await container.start_monitoring()
+
+# Detect all issues across categories
+all_issues = await unified_service.detect_all_issues(IssueDetectionRequest(
+    categories=[IssueCategory.COVERAGE, IssueCategory.VALIDATION]
+))
+
+# Get unified dashboard data
+dashboard_data = await unified_service.get_dashboard_data()
+```
 
 ## 📚 **Additional Documentation**
 

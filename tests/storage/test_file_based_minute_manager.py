@@ -19,9 +19,6 @@ import tempfile
 import shutil
 import pandas as pd
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import List
-import json
 import random
 
 import sys
@@ -30,9 +27,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from storage.file_based_minute_manager import (
     FileBasedMinuteManager,
-    MinuteBar,
-    FileMetadata,
-    OverlapInfo
+    MinuteBar
 )
 
 class TestFileBasedMinuteManager:

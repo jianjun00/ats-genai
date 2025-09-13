@@ -11,10 +11,8 @@ This test suite validates:
 Purpose: Detect when dataset functionality is accidentally simplified or broken
 """
 
-import pytest
 import requests
-import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, List
 from dataclasses import dataclass
 
 # Test configuration

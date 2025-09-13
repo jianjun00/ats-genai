@@ -8,7 +8,6 @@ import numpy as np
 import tempfile
 import json
 from pathlib import Path
-from datetime import datetime
 import sys
 import os
 
@@ -16,8 +15,8 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from ml.training_data.generators.training_data_metadata import (
-    FeatureMetadata, LabelMetadata, TrainingDataMetadata,
-    TrainingDataMetadataManager, FeatureType, VisualizationType
+    FeatureMetadata, LabelMetadata, TrainingDataMetadataManager,
+    FeatureType, VisualizationType
 )
 
 

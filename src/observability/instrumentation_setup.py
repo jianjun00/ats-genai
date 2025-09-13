@@ -7,12 +7,11 @@ enabling automatic tracking of Python function usage and database operations.
 
 import os
 import sys
-import importlib
 from pathlib import Path
 from typing import List, Optional
 
 from .code_usage_tracker import get_code_tracker, CodeUsageTracker
-from .database_usage_tracker import get_database_tracker, install_db_tracking
+from .database_usage_tracker import install_db_tracking
 
 
 class ATSInstrumentationManager:

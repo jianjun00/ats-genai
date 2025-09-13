@@ -4,10 +4,9 @@ Unit tests for analytics service visualization methods.
 Tests the specific methods modified to fix training dataset visualization.
 """
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import sys
 import os
-from pathlib import Path
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
@@ -234,7 +233,6 @@ class TestAnalyticsServiceVisualization(unittest.TestCase):
         """Test that file discovery is case insensitive for symbols."""
         # This would require more complex mocking to test the actual matching logic
         # For now, we verify the concept through integration tests
-        pass
 
     @patch('core.database.connection_manager.get_raw_connection')
     def test_error_handling_robustness(self, mock_connection):

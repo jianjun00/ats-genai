@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime
 from state.indicator_interval import IndicatorInterval
 

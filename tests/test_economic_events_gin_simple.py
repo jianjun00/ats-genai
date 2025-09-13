@@ -4,7 +4,6 @@ Simple test for economic events clients gin configuration (without dependencies)
 """
 
 import sys
-import os
 sys.path.insert(0, 'src')
 
 def test_gin_configurable_classes_exist():

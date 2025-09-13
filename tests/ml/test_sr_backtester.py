@@ -3,12 +3,10 @@ Tests for Support/Resistance Backtesting Framework
 """
 
 import pytest
-import asyncio
 import numpy as np
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from dataclasses import asdict
 
 import sys
 from pathlib import Path
@@ -20,7 +18,6 @@ from domains.ml.services.evaluation.sr_backtester import (
     TradingSignal,
     BacktestMetrics
 )
-from shared.utils.environment import Environment
 
 class TestPredictionResult:
     """Test suite for PredictionResult data structure"""

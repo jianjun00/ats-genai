@@ -8,8 +8,7 @@ to ensure accurate parsing of earnings per share values.
 
 import pytest
 import json
-from datetime import datetime, date
-from decimal import Decimal
+from datetime import datetime
 from typing import Dict, Any
 
 class TestEPSExtraction:

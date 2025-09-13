@@ -7,12 +7,10 @@ Tests database integration, file discovery, quality validation, and error handli
 import unittest
 import tempfile
 import os
-import json
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime
 import numpy as np
-import pandas as pd
 
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))

@@ -10,7 +10,6 @@ Tests the complete multi-timeframe API pipeline that was fixed to resolve:
 import unittest
 import requests
 import json
-from pathlib import Path
 import sys
 import os
 

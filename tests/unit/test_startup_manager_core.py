@@ -9,7 +9,6 @@ import os
 import sys
 import subprocess
 from unittest.mock import patch, MagicMock, mock_open
-from datetime import datetime
 
 # Add script path for imports
 sys.path.append('/home/jianjun/ats-genai-data/scripts')

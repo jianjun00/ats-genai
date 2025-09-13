@@ -1,5 +1,4 @@
 import pytest
-from datetime import date
 
 # Example split adjustment logic for unit test
 def apply_split(price, split_numerator, split_denominator):

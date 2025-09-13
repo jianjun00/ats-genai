@@ -6,14 +6,9 @@ Tests actual HTTP requests to verify browser cache headers work correctly
 and prevent the caching issue that caused "Datasets received: 0".
 """
 
-import pytest
 import unittest
 import requests
-import json
 import time
-import subprocess
-import sys
-from pathlib import Path
 
 
 class TestAnalyticsServiceHTTPCache(unittest.TestCase):
@@ -295,7 +290,6 @@ class TestAnalyticsServicePerformance(unittest.TestCase):
     def test_concurrent_requests_handling(self):
         """Test that multiple concurrent requests are handled properly."""
         import concurrent.futures
-        import threading
 
         def make_request():
             """Make a single request and return status and data length."""
