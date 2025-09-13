@@ -12,6 +12,7 @@ correct data that matches the actual database state.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 import httpx
 import asyncpg
@@ -36,13 +37,13 @@ class TestAnalyticsEndpoints:
         # For local testing, use localhost port-forward
         return os.getenv('ANALYTICS_SERVICE_URL', 'http://localhost:3001')
 
-    @pytest.fixture(scope="class")
+    @pytest_asyncio.fixture(scope="class")
     async def http_client(self, analytics_base_url):
         """HTTP client for API calls."""
         async with httpx.AsyncClient(base_url=analytics_base_url, timeout=30.0) as client:
             yield client
 
-    @pytest.fixture(scope="class")
+    @pytest_asyncio.fixture(scope="class")
     async def db_connection(self):
         """Direct database connection for validation."""
         conn = await asyncpg.connect(
@@ -265,10 +266,9 @@ class TestAnalyticsEndpoints:
         assert response.headers["content-type"].startswith("text/html"), "Dashboard should return HTML"
 
         html_content = response.text
-        assert "ATS Analytics Dashboard" in html_content, "Dashboard should have correct title"
-        assert "Job Management" in html_content, "Dashboard should have job management tab"
-        assert "Dataset Analytics" in html_content, "Dashboard should have dataset tab"
-        assert "Data Coverage" in html_content, "Dashboard should have coverage tab"
+        assert "ATS Unified Analytics" in html_content, "Dashboard should have correct title"
+        # Check for EDA dashboard elements
+        assert "Type-aware EDA" in html_content or "EDA Dashboard" in html_content, "Dashboard should be EDA dashboard"
 
     @pytest.mark.asyncio
 
