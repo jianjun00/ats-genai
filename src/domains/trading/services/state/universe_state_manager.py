@@ -241,6 +241,11 @@ class UniverseStateManager:
         self._cache: Dict[str, Dict[str, pd.DataFrame]] = {}
         # Timeframe-aware instrument history: Dict[timeframe, Dict[instrument_id, pd.DataFrame]]
         self._instrument_history: Dict[str, Dict[int, pd.DataFrame]] = {}
+        # Rolling cache for InstrumentInterval objects (shared with UniverseStateBuilder)
+        # Format: Dict[timeframe_str, Dict[instrument_id, List[InstrumentInterval]]]
+        self._rolling_instrument_history: Dict[str, Dict[int, List]] = {}
+        # Rolling window size for interval cache
+        self.rolling_window = 20
         self.logger = logging.getLogger(__name__)
         # Initialize UniverseStateIntervalDAO for interval persistence
         self._interval_dao = UniverseStateIntervalDAO(self.env) if self.env else None
@@ -575,7 +580,54 @@ class UniverseStateManager:
     def clear_cache(self) -> None:
         """Clear in-memory cache."""
         self._cache.clear()
+        self._rolling_instrument_history.clear()
         self.logger.debug("Universe state cache cleared")
+    
+    # --- Rolling InstrumentInterval Cache Methods (shared with UniverseStateBuilder) ---
+    
+    def ensure_timeframe_cache(self, timeframe_str: str) -> None:
+        """Ensure timeframe cache structure exists for rolling intervals."""
+        if timeframe_str not in self._rolling_instrument_history:
+            self._rolling_instrument_history[timeframe_str] = {}
+    
+    def get_instrument_history_for_timeframe(self, inst_id: int, timeframe_str: str) -> List:
+        """Get instrument history for a specific timeframe from rolling cache."""
+        return self._rolling_instrument_history.get(timeframe_str, {}).get(inst_id, [])
+    
+    def add_interval_to_rolling_cache(self, inst_id: int, timeframe_str: str, interval) -> None:
+        """Add interval to rolling cache with window management."""
+        # Import here to avoid circular imports
+        from domains.trading.services.state.instrument_interval import InstrumentInterval
+        
+        self.ensure_timeframe_cache(timeframe_str)
+        
+        # Initialize instrument list if needed
+        if inst_id not in self._rolling_instrument_history[timeframe_str]:
+            self._rolling_instrument_history[timeframe_str][inst_id] = []
+        
+        # Add new interval
+        self._rolling_instrument_history[timeframe_str][inst_id].append(interval)
+        
+        # Maintain rolling window size
+        if len(self._rolling_instrument_history[timeframe_str][inst_id]) > self.rolling_window:
+            self._rolling_instrument_history[timeframe_str][inst_id] = \
+                self._rolling_instrument_history[timeframe_str][inst_id][-self.rolling_window:]
+        
+        self.logger.debug(f"Added interval to rolling cache: {timeframe_str} inst_id={inst_id}, "
+                         f"cache_size={len(self._rolling_instrument_history[timeframe_str][inst_id])}")
+    
+    def get_rolling_cache_debug_info(self) -> Dict[str, Any]:
+        """Get debug information about rolling cache state."""
+        debug_info = {}
+        for timeframe, instruments in self._rolling_instrument_history.items():
+            debug_info[timeframe] = {
+                'instrument_count': len(instruments),
+                'instruments': {
+                    inst_id: len(intervals) 
+                    for inst_id, intervals in instruments.items()
+                }
+            }
+        return debug_info
 
     # Private helper methods
 

@@ -756,10 +756,19 @@ async def main():
         # UniverseStateBuilder calls get_minute_ohlc_batch to access cached data from FileBasedMinuteMarketDataManager
         # This populates the universe state cache that training data generator needs
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+        from domains.trading.services.state.universe_state_manager import UniverseStateManager
+        
+        # Create universe state manager for shared cache
+        universe_state_manager = UniverseStateManager(
+            env=environment, 
+            run_context=run_context if enable_run_isolation else None
+        )
+        
         universe_state_builder = UniverseStateIntervalBuilder(
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
-            target_durations=args.base_duration  # Use same duration for simplicity
+            target_durations=args.base_duration,  # Use same duration for simplicity
+            universe_state_manager=universe_state_manager  # Pass shared cache manager
         )
         logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
         logger.info(f"   Base duration: {args.base_duration}")
@@ -788,6 +797,7 @@ async def main():
             callbacks=[universe_state_builder, training_callback],  # UniverseStateBuilder builds cache during offset period, training generates data from start_date
             market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
             universe_manager=universe_manager,  # 🚨 CRITICAL FIX: Use custom universe manager with proper symbols
+            universe_state_manager=universe_state_manager,  # Use shared cache manager
             base_duration=args.base_duration
         )
 

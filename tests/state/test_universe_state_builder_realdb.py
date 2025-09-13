@@ -24,7 +24,7 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     env.get_indicator_config = lambda: IndicatorConfig.default_config()
     base_path = tmp_path / "universe_state"
     state_manager = UniverseStateManager(env=env, base_path=base_path)
-    builder = UniverseStateIntervalBuilder(env=env, target_durations='5m,15m,60m', base_duration='5m')
+    builder = UniverseStateIntervalBuilder(env=env, target_durations='5m,15m,60m', base_duration='5m', universe_state_manager=state_manager)
 
     symbols = ["AAPL", "TSLA"]
     # Insert test instruments and get their ids

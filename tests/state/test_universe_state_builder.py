@@ -33,7 +33,7 @@ class TestUniverseStateIntervalBuilder:
     @pytest.fixture
     def universe_builder(self, mock_state_manager, mock_env):
         """Create UniverseStateIntervalBuilder instance for testing."""
-        return UniverseStateIntervalBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m')
+        return UniverseStateIntervalBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m', universe_state_manager=mock_state_manager)
 
     @pytest.fixture
     def sample_base_universe(self):
@@ -53,7 +53,8 @@ class TestUniverseStateIntervalBuilder:
     def test_initialization(self, mock_state_manager, mock_env):
         """Test UniverseStateIntervalBuilder initialization."""
         universe = MagicMock(name='Universe')
-        builder = UniverseStateIntervalBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m' )
+        mock_state_manager = MagicMock(spec=UniverseStateManager)
+        builder = UniverseStateIntervalBuilder(env=mock_env, base_duration='5m', target_durations='5m,15m,60m', universe_state_manager=mock_state_manager)
 
         assert builder.env == mock_env
         assert builder.min_market_cap == 100_000_000
@@ -93,7 +94,8 @@ class TestUniverseStateIntervalBuilder:
             def get_table_name(self, table):
                 return f"test_{table}"
         env = DummyEnv()
-        builder = UniverseStateIntervalBuilder(env=env, base_duration='5m', target_durations='5m,15m,60m')
+        mock_state_manager = MagicMock(spec=UniverseStateManager)
+        builder = UniverseStateIntervalBuilder(env=env, base_duration='5m', target_durations='5m,15m,60m', universe_state_manager=mock_state_manager)
         # Patch DAO to avoid DB
         from unittest.mock import AsyncMock
         builder.market_cap_core.dao.list_market_caps_for_date = AsyncMock(return_value=[{'instrument_id': 1, 'market_cap': 1000.0}, {'instrument_id': 2, 'market_cap': 2000.0}])

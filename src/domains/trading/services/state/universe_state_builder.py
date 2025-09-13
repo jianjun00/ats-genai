@@ -236,25 +236,19 @@ class UniverseStateIntervalBuilder(RunnerCallback):
     
     def _ensure_timeframe_cache(self, timeframe_str: str) -> None:
         """Ensure timeframe cache structure exists."""
-        if timeframe_str not in self._instrument_history:
-            self._instrument_history[timeframe_str] = {}
+        if self.universe_state_manager:
+            self.universe_state_manager.ensure_timeframe_cache(timeframe_str)
     
     def _get_instrument_history_for_timeframe(self, inst_id: int, timeframe_str: str) -> List[InstrumentInterval]:
         """Get instrument history for a specific timeframe."""
-        return self._instrument_history.get(timeframe_str, {}).get(inst_id, [])
+        if self.universe_state_manager:
+            return self.universe_state_manager.get_instrument_history_for_timeframe(inst_id, timeframe_str)
+        return []
     
     def _add_interval_to_cache(self, inst_id: int, timeframe_str: str, interval) -> None:
         """Add an interval to the timeframe-specific cache."""
-        self._ensure_timeframe_cache(timeframe_str)
-        
-        if inst_id not in self._instrument_history[timeframe_str]:
-            self._instrument_history[timeframe_str][inst_id] = []
-            
-        self._instrument_history[timeframe_str][inst_id].append(interval)
-        
-        # Maintain rolling window size
-        if len(self._instrument_history[timeframe_str][inst_id]) > self.rolling_window:
-            self._instrument_history[timeframe_str][inst_id] = self._instrument_history[timeframe_str][inst_id][-self.rolling_window:]
+        if self.universe_state_manager:
+            self.universe_state_manager.add_interval_to_rolling_cache(inst_id, timeframe_str, interval)
     
     def _get_interval_for_timeframe(self, inst_id: int, duration, current_time):
         """
@@ -495,20 +489,23 @@ class UniverseStateIntervalBuilder(RunnerCallback):
     Handles data collection, validation, corporate actions, and derived calculations.
     """
 
-    def __init__(self, env: Environment, base_duration: str, target_durations: str, forecast_callback=None):
+    def __init__(self, env: Environment, base_duration: str, target_durations: str, forecast_callback=None, universe_state_manager=None):
         """
         Initialize UniverseStateIntervalBuilder.
         Args:
             env: Environment instance (uses global if None)
             base_duration: str (e.g. '5m'), overrides Gin config if provided
             target_durations: comma-separated str (e.g. '5m,15m,60m'), overrides Gin config if provided
+            universe_state_manager: UniverseStateManager instance for shared rolling cache
         """
         # Inject DailyMarketCapDAO for market_cap sourcing
         self.market_cap_dao = DailyMarketCapDAO(env)
         self.env = env
         self.logger = logging.getLogger(__name__)
-        # Rolling cache: timeframe -> instrument_id -> list of InstrumentInterval
-        self._instrument_history: Dict[str, Dict[int, List[InstrumentInterval]]] = {}
+        
+        # Store reference to universe state manager for shared rolling cache
+        self.universe_state_manager = universe_state_manager
+        
         # Load indicator config from env with proper fallbacks
         if IndicatorConfig is not None:
             indicator_config = getattr(self.env, 'get_indicator_config', lambda: IndicatorConfig.empty_config())()
@@ -516,8 +513,6 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         else:
             # Fallback when IndicatorBuilder/IndicatorConfig are not available
             self.indicator_builder = None
-        # Rolling window size (max history to keep, can be set by env or default)
-        self.rolling_window = getattr(self.env, 'indicator_rolling_window', 20)
 
         # Durations
         from core.business.calendars.time_duration import TimeDuration
