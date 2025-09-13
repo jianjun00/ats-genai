@@ -21,7 +21,7 @@ from visualization.multi_panel_trading_chart import MultiPanelTradingChart
 from ml.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
 
 # Services
-from services.analytics_service import UnifiedAnalyticsService
+from core.analytics.service import AnalyticsService as UnifiedAnalyticsService
 
 logger = logging.getLogger(__name__)
 
