@@ -11,7 +11,7 @@ import sys
 import pytest
 import pandas as pd
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add src to path for imports
@@ -496,12 +496,10 @@ class TestMultiTimeframeIndicatorSignals:
 # Integration test helper functions
 def create_mock_indicator_runner():
     """Helper to create a mock indicator runner for integration tests."""
-    pass
 
 
 def verify_signal_storage():
     """Helper to verify signals are properly stored in database."""
-    pass
 
 
 if __name__ == "__main__":

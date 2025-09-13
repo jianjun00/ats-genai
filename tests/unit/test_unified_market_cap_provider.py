@@ -6,10 +6,8 @@ using mocked dependencies for reliable, fast testing.
 """
 
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import date, datetime, timedelta
-from decimal import Decimal
+from datetime import date
 
 from domains.market_data.services.market_cap.unified_market_cap_provider import (
     UnifiedMarketCapProvider,

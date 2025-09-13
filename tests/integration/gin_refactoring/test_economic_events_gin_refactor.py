@@ -4,7 +4,6 @@ Test the refactored economic events clients with gin configuration
 """
 
 import sys
-import os
 sys.path.insert(0, 'src')
 
 def test_fred_client_gin_refactor():

@@ -5,7 +5,6 @@ Playwright validation test for EDA UI
 
 import asyncio
 import sys
-import os
 
 @pytest.mark.asyncio
 

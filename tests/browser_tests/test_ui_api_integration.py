@@ -6,9 +6,7 @@ Tests API endpoints and interface compatibility
 
 import re
 import json
-import sys
 import subprocess
-import os
 
 def test_api_endpoints():
     """Test that API endpoints used by UI actually exist."""

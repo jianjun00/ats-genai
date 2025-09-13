@@ -8,11 +8,9 @@ Manages service discovery configuration, environment variables, and deployment c
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-import json
 import yaml
-import os
 import shutil
 
 logger = logging.getLogger(__name__)

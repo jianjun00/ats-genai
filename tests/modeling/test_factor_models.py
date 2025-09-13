@@ -5,8 +5,8 @@ Tests for factor models and residual return calculation.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
+from datetime import datetime
+from unittest.mock import Mock, patch
 import asyncpg
 
 from domains.ml.services.factor_models import (

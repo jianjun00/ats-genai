@@ -4,13 +4,11 @@ Real-time processor integration tests for Support/Resistance system
 """
 
 import pytest
-import asyncio
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from decimal import Decimal
-import json
 
 import sys
 import os

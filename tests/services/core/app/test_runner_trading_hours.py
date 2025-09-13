@@ -5,10 +5,8 @@ Tests the new trading hours filter to ensure training data generation only occur
 during regular market hours (9:35 AM - 4:00 PM Eastern Time).
 """
 
-import pytest
 from datetime import datetime, date
 from unittest.mock import Mock, patch
-import pytz
 
 from services.core.app.runner import Runner
 from core.platform.config.environment import Environment, EnvironmentType

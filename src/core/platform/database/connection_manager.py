@@ -7,7 +7,6 @@ with connection pooling, retry logic, and environment isolation.
 
 import asyncio
 import logging
-import os
 from contextlib import contextmanager, asynccontextmanager
 from typing import Optional, Dict, Any, Generator, AsyncGenerator
 from sqlalchemy import create_engine, Engine, text

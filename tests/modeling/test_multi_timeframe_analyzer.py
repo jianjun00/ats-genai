@@ -5,7 +5,7 @@ Tests for multi-timeframe analysis system.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
 
 from domains.ml.services.multi_timeframe_analyzer import (
@@ -17,7 +17,7 @@ from domains.ml.services.multi_timeframe_analyzer import (
     flatten_multi_timeframe_features,
     analyze_multi_timeframe_patterns
 )
-from domains.ml.services.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis, LLMProvider
+from domains.ml.services.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis
 from state.universe_state_manager import UniverseStateManager
 
 

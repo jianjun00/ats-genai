@@ -149,7 +149,7 @@ async def test_actual_dataset_creation():
     print("\n🚀 Testing actual dataset creation...")
 
     try:
-        from app.training_data_job_runner import run_training_data_job_for_symbol
+        pass
 
         # This will fail with current implementation but shows what we need
         print("Note: This will demonstrate the current issue...")

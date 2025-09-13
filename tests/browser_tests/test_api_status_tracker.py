@@ -14,14 +14,12 @@ import asyncio
 import sys
 import argparse
 import random
-import time
-from datetime import datetime
 
 # Add src and scripts to path
 sys.path.insert(0, '/workspace/src')
 sys.path.append('/workspace/scripts')
 
-from api_status_tracker import APIStatusTracker, initialize_global_tracker, get_global_tracker
+from api_status_tracker import APIStatusTracker
 import logging
 
 logging.basicConfig(level=logging.INFO)

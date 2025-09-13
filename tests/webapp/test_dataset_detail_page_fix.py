@@ -12,10 +12,7 @@ This test verifies:
 """
 
 import pytest
-import asyncio
 import aiohttp
-import json
-from typing import Dict, Any
 
 class TestDatasetDetailPageFix:
     """Test dataset detail page accessibility and functionality"""

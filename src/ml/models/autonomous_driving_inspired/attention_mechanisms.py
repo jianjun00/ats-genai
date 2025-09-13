@@ -14,10 +14,9 @@ Key components:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, Tuple, Optional, Any
 import math
 import logging
-from collections import deque
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

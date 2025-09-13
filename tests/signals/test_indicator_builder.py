@@ -1,9 +1,7 @@
-import pytest
 from datetime import datetime, timedelta
 from state.instrument_interval import InstrumentInterval
 from state.indicator_interval import IndicatorInterval
 from domains.trading.services.indicator_builder import IndicatorBuilder
-from domains.trading.services.indicator_config import IndicatorConfig
 from domains.trading.services.indicator import PL, OneOneHigh, OneOneLow, OneOneDot, ETop, EBot
 
 class DummyIndicatorConfig:

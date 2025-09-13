@@ -6,7 +6,6 @@ from domains.trading.services.data_complete_universe_creator import (
     DataCompleteUniverseCreator,
     DataCompleteness
 )
-from shared.utils.environment import Environment
 
 
 class TestDataCompleteUniverseCreatorCore:

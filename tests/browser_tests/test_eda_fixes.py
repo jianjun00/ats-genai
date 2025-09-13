@@ -5,7 +5,6 @@ Tests the specific issues that were reported by the user
 """
 
 import requests
-import json
 
 def test_symbol_filtering_pagination():
     """Test that symbol filtering returns proper pagination data (not undefined)."""

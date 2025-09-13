@@ -13,12 +13,9 @@ Tests cover:
 
 import pytest
 import asyncio
-import asyncpg
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta, date, timezone
-import json
 import os
-import aiohttp
 
 # Import the module under test
 import sys

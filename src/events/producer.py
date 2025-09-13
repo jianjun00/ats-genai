@@ -4,15 +4,13 @@ Event Producer - Redis-based event publishing for ATS
 
 import redis
 import uuid
-import json
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
-from google.protobuf.json_format import MessageToDict
+from typing import Dict
 
 from events.proto.events_pb2 import (
-    Event, EventType, Priority, Classification,
-    create_news_event, create_earnings_event, create_technical_signal_event
+    Event, EventType, create_news_event, create_earnings_event,
+    create_technical_signal_event
 )
 
 logger = logging.getLogger(__name__)
@@ -262,7 +260,7 @@ def publish_earnings(symbol: str, eps_actual: float, eps_consensus: float,
 
 # Example usage and testing
 if __name__ == "__main__":
-    import time
+    pass
 
     # Configure logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

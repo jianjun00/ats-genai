@@ -6,14 +6,13 @@ implements circuit breaker pattern, retry logic, and load balancing.
 """
 
 import asyncio
-import json
 import random
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Callable, Union
+from typing import Dict, List, Optional, Any, Callable
 import logging
 import aiohttp
 from contextlib import asynccontextmanager
@@ -146,7 +145,6 @@ class CircuitBreaker:
 
 class CircuitBreakerError(Exception):
     """Exception raised when circuit breaker is open."""
-    pass
 
 
 class LoadBalancer(ABC):
@@ -155,7 +153,6 @@ class LoadBalancer(ABC):
     @abstractmethod
     def select_instance(self, instances: List[ServiceInstance]) -> Optional[ServiceInstance]:
         """Select an instance from the available instances."""
-        pass
 
 
 class RoundRobinBalancer(LoadBalancer):
@@ -419,7 +416,6 @@ class ServiceClient:
 
 class ServiceDiscoveryError(Exception):
     """Exception raised when service discovery fails."""
-    pass
 
 
 @asynccontextmanager

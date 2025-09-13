@@ -14,15 +14,12 @@ These tests ensure the metadata tracking system meets enterprise compliance
 requirements for financial ML workflows.
 """
 
-import asyncio
 import pytest
 import json
 import sys
-import tempfile
 import subprocess
 from pathlib import Path
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent / 'src'))

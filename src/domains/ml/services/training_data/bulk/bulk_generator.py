@@ -4,12 +4,9 @@ Bulk Training Data Generator
 Efficiently generates training data for multiple symbols and date ranges.
 """
 
-import asyncio
-import json
 from dataclasses import dataclass
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Tuple
-from pathlib import Path
+from datetime import date, timedelta
+from typing import List, Optional, Tuple
 import subprocess
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed

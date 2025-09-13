@@ -6,7 +6,7 @@ database access across services.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import asyncio
 
 from src.core.database.mixins import (

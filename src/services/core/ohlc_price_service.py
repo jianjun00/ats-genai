@@ -7,20 +7,17 @@ Provides REST API endpoints for OHLC data retrieval with caching and
 integration with existing market data infrastructure.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
 import asyncpg
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Query
 import uvicorn
 
-from core.platform.config.environment import Environment
 from core.config.database import Database
 
 # Configure logging

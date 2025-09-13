@@ -3,9 +3,8 @@ Performance tests for optimized data pipeline components.
 Validates that batch operations provide significant performance improvements.
 """
 import pytest
-import asyncio
 import time
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from unittest.mock import AsyncMock, MagicMock
 from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
 from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPricesUnifier

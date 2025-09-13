@@ -1,6 +1,5 @@
 import pytest
 from unittest import mock
-import json
 from datetime import date
 
 from domains.market_data.services.agent.llm_assistant import LLMAssistant

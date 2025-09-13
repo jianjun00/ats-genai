@@ -3,25 +3,14 @@ Core service initialization and configuration
 """
 
 #!/usr/bin/env python3
-import asyncio
-import json
 import logging
-import os
-import sys
-import time
-import numpy as np
-from datetime import datetime, date, timedelta
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from dataclasses import asdict
+from typing import Dict, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.database.connection_manager import get_connection_manager
-from core.config.settings import get_settings
 
 
 #!/usr/bin/env python3
@@ -44,27 +33,14 @@ Features:
 - Real-time data quality monitoring
 """
 
-import asyncio
-import json
 import logging
-import os
-import sys
-import time
-import numpy as np
-from datetime import datetime, date, timedelta
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from urllib.parse import urlparse, parse_qs
-from dataclasses import asdict
+from typing import Dict, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.database.connection_manager import get_connection_manager
-from core.config.settings import get_settings
 
 # Import visualization components
 try:
@@ -88,7 +64,6 @@ except ImportError as e:
 
 # Ray EDA integration for massive dataset analysis
 try:
-    from services.ray_eda_engine import get_ray_eda_service
     RAY_AVAILABLE = True
     logger.info("✅ Ray EDA engine loaded - distributed computing enabled")
 except ImportError as e:
@@ -223,7 +198,7 @@ class UnifiedAnalyticsService:
         try:
             from core.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            from datetime import datetime, timedelta
+            from datetime import datetime
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -332,7 +307,7 @@ class UnifiedAnalyticsService:
         try:
             from core.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            from datetime import datetime, timedelta
+            from datetime import datetime
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:

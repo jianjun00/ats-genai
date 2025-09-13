@@ -5,13 +5,11 @@ Integration tests to verify backtests generate portfolio holding files on disk
 import os
 import json
 import pytest
-import asyncio
 import tempfile
 from pathlib import Path
 from datetime import date, datetime
 import asyncpg
 
-from shared.utils.environment import Environment
 
 class TestBacktestPortfolioFileGeneration:
     """Test that backtests properly generate and save portfolio holdings to disk"""

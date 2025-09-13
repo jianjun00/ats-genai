@@ -1,9 +1,6 @@
 import pytest
-import asyncio
-from unittest.mock import patch, MagicMock
 from datetime import date
-from vendor.polygon.services.range_splits_polygon import insert_splits_polygon, parse_date, date_chunks, main as range_main
-from core.dao.stock_splits_polygon_dao import StockSplitsPolygonDAO
+from vendor.polygon.services.range_splits_polygon import insert_splits_polygon, parse_date, date_chunks
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

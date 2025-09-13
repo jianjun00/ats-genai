@@ -5,7 +5,7 @@ Tests for training data generator for residual return prediction.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 

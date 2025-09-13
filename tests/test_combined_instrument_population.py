@@ -1,8 +1,4 @@
 import pytest
-import json
-import asyncio
-from unittest.mock import Mock, AsyncMock
-from typing import Dict, Set, List, Optional
 
 
 class TestCombinedInstrumentPopulation:
@@ -397,7 +393,6 @@ class TestCombinedInstrumentIntegration:
     def test_performance_estimation(self):
         """Test performance characteristics for large datasets"""
 
-        import time
 
         def simulate_processing_time(instrument_count: int) -> float:
             """Simulate processing time based on instrument count"""

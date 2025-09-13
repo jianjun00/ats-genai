@@ -2,7 +2,6 @@
 Price data parsing and standardization utilities.
 """
 
-import numpy as np
 import pandas as pd
 from typing import List, Optional
 

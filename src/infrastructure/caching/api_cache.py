@@ -5,11 +5,9 @@ Advanced HTTP response caching with intelligent invalidation,
 conditional requests, and cache-aware middleware.
 """
 
-import asyncio
 import hashlib
-import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union, Callable
@@ -17,9 +15,8 @@ import logging
 
 from fastapi import Request, Response
 from fastapi.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
 
-from .cache_manager import CacheBackend, MultiLayerCache, CacheConfig
+from .cache_manager import CacheBackend, MultiLayerCache
 
 logger = logging.getLogger(__name__)
 

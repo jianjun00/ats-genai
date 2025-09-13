@@ -4,16 +4,13 @@ run_dev Integration - Commands for event system management
 
 import json
 import logging
-import asyncio
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 
 from events.database import EventStorage
 from events.producer import EventProducer
-from events.consumer import celery_app, process_event_from_queue, batch_process_events
+from events.consumer import celery_app, process_event_from_queue
 from events.monitoring import EventSystemMonitor
-from events.api import app
-from events.proto.events_pb2 import create_news_event, create_earnings_event
 
 logger = logging.getLogger(__name__)
 

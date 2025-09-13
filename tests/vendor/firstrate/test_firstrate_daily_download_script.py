@@ -11,15 +11,13 @@ Tests the complete daily download script functionality:
 
 import pytest
 import tempfile
-import asyncio
 import zipfile
 import sys
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from unittest import mock
-from io import StringIO
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

@@ -12,8 +12,8 @@ import os
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, date, timedelta
-from unittest.mock import Mock, MagicMock, patch
+from datetime import datetime, date
+from unittest.mock import Mock
 
 # Add src to path to avoid gin config issues
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))

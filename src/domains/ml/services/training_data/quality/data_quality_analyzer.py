@@ -6,11 +6,9 @@ Provides automated quality scoring based on multiple metrics.
 
 import numpy as np
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, date
-import json
+from typing import Dict, List
+from datetime import date
 import os
-from pathlib import Path
 
 @dataclass
 class DataQualityMetrics:

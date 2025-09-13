@@ -4,8 +4,7 @@ Tests all major issues identified during sequence selection implementation
 """
 import pytest
 import json
-import numpy as np
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 import re
 
 from src.services.analytics_service import AnalyticsService

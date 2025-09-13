@@ -15,9 +15,8 @@ import asyncio
 import asyncpg
 import requests
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import time
-import json
 import argparse
 
 # Prometheus metrics support
@@ -29,7 +28,6 @@ except ImportError:
     logging.warning("prometheus_client not installed. Metrics will not be pushed to Prometheus.")
 
 from shared.utils.vendor_api_keys import get_eodhd_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 
 # Configure logging

@@ -20,7 +20,6 @@ from domains.instruments.services.interfaces.instrument_service_interface import
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
-    VendorInstrumentDTO,
     UnifiedInstrumentDTO,
     InstrumentSearchCriteria,
     InstrumentOperationResult
@@ -30,7 +29,6 @@ from domains.instruments.services.interfaces.instrument_service_interface import
 from core.dao.instruments.instruments_dao import InstrumentsDAO
 from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.dao.infrastructure.vendors_dao import VendorsDAO
-from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 
 
 logger = logging.getLogger(__name__)

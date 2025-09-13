@@ -4,13 +4,11 @@ This will verify if our formulas work on different price ranges and time periods
 """
 
 import sys
-import os
 sys.path.append('src')
 
 from domains.trading.services.indicator import PL, L11, Z1B, Z2B, EBot, ETop, Z5T, Z6T
 from state.instrument_interval import InstrumentInterval
 from datetime import datetime, date
-import math
 
 # New test data provided by user (corrected 08/28 values)
 test_data_raw = """

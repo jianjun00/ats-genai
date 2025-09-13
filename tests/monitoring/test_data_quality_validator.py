@@ -11,8 +11,6 @@ Tests comprehensive data quality validation including:
 """
 
 import pytest
-import asyncio
-import numpy as np
 from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 import sys

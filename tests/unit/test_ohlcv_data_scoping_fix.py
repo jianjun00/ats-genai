@@ -11,9 +11,8 @@ during feature extraction due to undefined data_df variables in certain code pat
 
 import pytest
 import pandas as pd
-import numpy as np
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock
 
 # Import the class under test
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator

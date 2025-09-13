@@ -6,14 +6,12 @@ health checks, and service discovery in a distributed architecture.
 """
 
 import asyncio
-import json
-import time
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set, Callable, Any
+from typing import Dict, List, Optional, Callable, Any
 import logging
 import aiohttp
 from contextlib import asynccontextmanager
@@ -90,32 +88,26 @@ class ServiceRegistry(ABC):
     @abstractmethod
     async def register_service(self, instance: ServiceInstance) -> bool:
         """Register a service instance."""
-        pass
 
     @abstractmethod
     async def deregister_service(self, service_name: str, instance_id: str) -> bool:
         """Deregister a service instance."""
-        pass
 
     @abstractmethod
     async def get_service_instances(self, service_name: str) -> List[ServiceInstance]:
         """Get all healthy instances of a service."""
-        pass
 
     @abstractmethod
     async def get_all_services(self) -> Dict[str, List[ServiceInstance]]:
         """Get all registered services and their instances."""
-        pass
 
     @abstractmethod
     async def update_health_status(self, service_name: str, instance_id: str, status: ServiceStatus) -> bool:
         """Update health status of a service instance."""
-        pass
 
     @abstractmethod
     async def heartbeat(self, service_name: str, instance_id: str) -> bool:
         """Update heartbeat for a service instance."""
-        pass
 
 
 class InMemoryServiceRegistry(ServiceRegistry):

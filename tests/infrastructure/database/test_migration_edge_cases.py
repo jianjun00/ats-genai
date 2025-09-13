@@ -5,16 +5,11 @@ Uses proper async fixture handling.
 """
 
 import pytest
-import asyncio
 import asyncpg
-import os
 import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import patch
 from db.migration_manager import MigrationManager
 from infrastructure.database.test_db_manager import TestDatabaseManager
-from shared.utils.environment import EnvironmentType, Environment
 import pytest_asyncio
 
 @pytest_asyncio.fixture

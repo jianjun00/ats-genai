@@ -5,8 +5,7 @@ Database integration tests for Support/Resistance system
 
 import pytest
 import asyncio
-import asyncpg
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 import json
 
@@ -15,9 +14,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from config.environment import Environment
-from events.analysis.support_resistance_detector import (
-    SRType, SRLevelType, SRTestOutcome, Timeframe
-)
 
 class TestSupportResistanceDatabase:
     """Test database schema and operations for S/R system"""

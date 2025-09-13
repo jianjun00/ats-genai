@@ -1,10 +1,7 @@
 import pytest
-import asyncio
 from datetime import datetime, timedelta
-import asyncpg
 
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from state.universe_state import UniverseStateInterval
 from core.calendars.time_duration import TimeDuration

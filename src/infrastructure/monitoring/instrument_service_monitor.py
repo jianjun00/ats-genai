@@ -5,18 +5,15 @@ Integrates the existing comprehensive service monitoring system with the Instrum
 Provides specific monitoring, health checks, and performance tracking for instrument domain services.
 """
 
-import asyncio
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
 from infrastructure.monitoring.service_metrics import (
-    ServiceMetricsCollector,
-    ServiceHealthMonitor, 
-    ResourceMonitor,
+    ServiceHealthMonitor,
+    ResourceMonitor, 
     ServiceMetric,
-    ServiceHealth,
     PerformanceBenchmark,
     AlertRule,
     get_global_metrics_collector,
@@ -26,7 +23,6 @@ from infrastructure.monitoring.service_metrics import (
 )
 
 # Service interfaces
-from domains.instruments.services.interfaces.instrument_service_interface import InstrumentServiceInterface
 
 logger = logging.getLogger(__name__)
 

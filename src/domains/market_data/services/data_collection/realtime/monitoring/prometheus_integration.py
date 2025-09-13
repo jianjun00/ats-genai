@@ -21,15 +21,10 @@ Usage:
 """
 
 import asyncio
-import asyncpg
-import json
 import logging
-import os
 import sys
-import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
-import aiohttp
 from aiohttp import web
 import yaml
 

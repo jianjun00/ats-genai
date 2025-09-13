@@ -6,11 +6,7 @@ including job management, dataset caching, and Ray EDA integration.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import json
-from datetime import datetime, timedelta
-from http.server import HTTPServer
-import threading
+from unittest.mock import Mock, patch
 import time
 
 from src.services.analytics_service import (

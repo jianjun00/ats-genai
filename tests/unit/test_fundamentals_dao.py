@@ -6,10 +6,8 @@ data validation, error handling, and vendor-specific behavior.
 """
 
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date
 
 from infrastructure.vendor.fmp.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
 from infrastructure.vendor.polygon.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental

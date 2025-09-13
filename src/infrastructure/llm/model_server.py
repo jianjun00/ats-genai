@@ -10,23 +10,21 @@ FastAPI server for hosting self-hosted LLM models with:
 - Performance optimization
 """
 
-import asyncio
 import argparse
 import logging
-import json
 import time
 import uvicorn
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from infrastructure.llm.local_model_client import (
-    LocalModelClient, LocalModelConfig, LocalModelMetrics,
-    create_fingpt_config, create_llama_8b_config, create_llama_70b_config
+    LocalModelClient, LocalModelConfig, create_fingpt_config,
+    create_llama_8b_config, create_llama_70b_config
 )
 
 # Configure logging

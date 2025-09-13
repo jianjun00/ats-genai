@@ -6,12 +6,8 @@ Tests every layer of the Ray EDA system from database to user interface
 
 import pytest
 import requests
-import json
 import time
-import asyncio
 import sys
-import os
-from unittest.mock import patch, MagicMock
 
 # Add src to path for imports
 sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')

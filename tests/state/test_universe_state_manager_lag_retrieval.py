@@ -1,9 +1,7 @@
-import asyncio
 from datetime import date, datetime, timedelta
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from src.state.universe_state_manager import UniverseStateManager
 

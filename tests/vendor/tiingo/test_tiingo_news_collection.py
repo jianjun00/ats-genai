@@ -11,11 +11,9 @@ Tests the complete Tiingo news collection pipeline including:
 """
 
 import pytest
-import asyncio
-import os
 import sys
-from datetime import datetime, date, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
+from datetime import datetime
+from unittest.mock import patch, AsyncMock
 
 sys.path.append('/workspace/src')
 

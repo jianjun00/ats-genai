@@ -6,12 +6,11 @@ Comprehensive data quality scanning tool implementing MCP 2025 standards.
 Performs completeness, accuracy, consistency, and timeliness checks.
 """
 
-import asyncio
 import asyncpg
 import logging
 from datetime import datetime, date, timedelta
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

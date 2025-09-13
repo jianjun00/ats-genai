@@ -10,11 +10,9 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, Union, Callable, AsyncIterator
+from typing import Dict, List, Optional, Any, Callable, AsyncIterator
 from dataclasses import asdict
-from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
-import json
 
 from domains.order_management.services.interfaces.order_execution_service_interface import (
     OrderExecutionServiceInterface, Order, Execution, OrderBook, ExecutionReport,
@@ -867,7 +865,6 @@ class OrderExecutionService(OrderExecutionServiceInterface):
     async def _persist_order(self, order: Order):
         """Persist order to database."""
         # Implementation would insert/update order in database
-        pass
 
     async def _execute_standard_order(self, order: Order):
         """Execute order using standard routing."""

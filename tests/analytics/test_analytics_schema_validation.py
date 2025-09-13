@@ -15,7 +15,6 @@ import pytest
 import asyncio
 import asyncpg
 import os
-from typing import Dict, List, Any
 
 
 class TestDatabaseSchemaValidation:

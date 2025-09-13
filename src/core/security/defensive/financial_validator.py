@@ -16,13 +16,11 @@ This module follows the "fail-secure" principle for financial systems.
 import hashlib
 import logging
 import re
-import time
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
-import statistics
 
 # Defensive imports with graceful degradation
 try:

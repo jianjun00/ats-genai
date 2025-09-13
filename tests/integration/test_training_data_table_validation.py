@@ -7,10 +7,8 @@ and technical indicators correctly across different dataset formats.
 """
 
 import asyncio
-import json
 import sys
-from typing import Dict, List, Any
-from unittest.mock import patch, MagicMock
+from typing import Dict
 
 
 class TestTrainingDataTableValidation:

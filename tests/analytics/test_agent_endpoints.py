@@ -12,7 +12,6 @@ import pytest
 import pytest_asyncio
 import httpx
 import os
-from typing import Dict, Any
 
 
 class TestAgentEndpoints:

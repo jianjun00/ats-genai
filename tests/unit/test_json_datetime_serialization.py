@@ -12,11 +12,9 @@ Solution: Custom _json_serializer method with proper datetime.isoformat() conver
 
 import pytest
 import json
-import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
 
 # Add src to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))

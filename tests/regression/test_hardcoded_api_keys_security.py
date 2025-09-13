@@ -11,11 +11,8 @@ Fix: Replaced with environment variable references and placeholders
 
 import pytest
 import os
-import subprocess
 import re
-import json
 from pathlib import Path
-from typing import List, Dict, Set
 
 class TestHardcodedApiKeysRegression:
     """Test suite to prevent hardcoded API keys from returning to codebase"""

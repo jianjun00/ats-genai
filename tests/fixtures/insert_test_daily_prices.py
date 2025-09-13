@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime
 import asyncio
 
 from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO

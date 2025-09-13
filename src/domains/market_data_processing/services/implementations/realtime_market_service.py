@@ -9,10 +9,9 @@ import logging
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, AsyncIterator, Callable, Set
+from typing import Dict, List, Optional, Any, AsyncIterator, Callable
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
-import json
 import redis.asyncio as redis
 from dataclasses import asdict
 
@@ -557,7 +556,6 @@ class RealtimeMarketService(RealtimeMarketServiceInterface):
         """Get current order book for symbol."""
         # Implementation would query order book data
         # This is a placeholder for the actual implementation
-        pass
 
     async def get_trade_history(
         self,
@@ -827,13 +825,11 @@ class RealtimeMarketService(RealtimeMarketServiceInterface):
         """Convert database row to TradeMessage."""
         # This would map database columns to TradeMessage fields
         # Implementation depends on your database schema
-        pass
 
     def _row_to_quote_message(self, row) -> QuoteMessage:
         """Convert database row to QuoteMessage."""
         # This would map database columns to QuoteMessage fields
         # Implementation depends on your database schema
-        pass
 
     async def _query_historical_minute_bars(
         self,
@@ -849,7 +845,6 @@ class RealtimeMarketService(RealtimeMarketServiceInterface):
         """Ingest data from specific source."""
         # This would implement source-specific data ingestion
         # For now, this is a placeholder
-        pass
 
     # Additional interface methods would be implemented here...
     # (get_order_book, start_data_replay, stop_data_replay, etc.)

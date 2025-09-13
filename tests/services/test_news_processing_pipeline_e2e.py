@@ -15,20 +15,19 @@ import pytest
 import asyncio
 import json
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime
 
 import asyncpg
 
 from domains.market_data.services.news.realtime_news_ingestion import (
-    RealTimeNewsIngestionService, create_realtime_news_service
+    create_realtime_news_service
 )
 from domains.market_data.services.llm.enhanced_news_llm_processor import (
     EnhancedLLMNewsProcessor
 )
 from domains.market_data.services.signals.signal_broadcasting_system import (
-    TradingSignalBroadcastingSystem, create_signal_broadcasting_system
+    create_signal_broadcasting_system
 )
 from domains.market_data.agents.multi_agent_framework import AgentType
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse

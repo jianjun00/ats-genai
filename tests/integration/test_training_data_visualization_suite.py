@@ -12,8 +12,7 @@ import json
 import os
 import sys
 import time
-from typing import Dict, Any, List
-from unittest.mock import patch, MagicMock
+from typing import Dict, Any
 
 # Add tests directory to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))

@@ -11,12 +11,9 @@ import asyncio
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from pathlib import Path
 import sys
 import os
-import tempfile
-import shutil
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))

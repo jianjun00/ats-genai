@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from schema.registry import SchemaRegistry, schema_registry
 from schema.types import FieldType, FieldSemantics, FieldDefinition, EntitySchema
-from schema.entities import INSTRUMENT_SCHEMA, PRICE_SCHEMA, INSTRUMENT_XREF_SCHEMA
 
 
 class TestSchemaRegistry:
@@ -580,7 +579,7 @@ class TestGlobalRegistryFunctions:
 
 if __name__ == "__main__":
     # Run tests manually without pytest
-    import traceback
+    pass
 
     test_classes = [
         TestSchemaRegistry,

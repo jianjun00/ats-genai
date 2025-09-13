@@ -10,14 +10,8 @@ Tests all improvements requested:
 5. Standardized naming and ports
 """
 
-import pytest
-import asyncio
 import requests
 import json
-from datetime import datetime, timedelta
-from typing import Dict, List
-import os
-import sys
 
 # Test configuration
 TEST_BASE_URL = "http://192.168.49.2:30001"
@@ -252,7 +246,6 @@ class TestEnhancedAnalytics:
                         try:
                             json_data = response.json()
                             # Success - valid JSON response
-                            pass
                         except json.JSONDecodeError as je:
                             json_parsing_issues.append({
                                 'endpoint': endpoint,

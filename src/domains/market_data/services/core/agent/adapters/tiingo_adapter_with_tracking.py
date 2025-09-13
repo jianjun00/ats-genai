@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from .base_adapter import VendorAdapter
 from .models import InstrumentMetadata, EODPrice
 import logging
-import asyncio
 import sys
 import gin
 

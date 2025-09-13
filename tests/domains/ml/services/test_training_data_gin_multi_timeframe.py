@@ -7,11 +7,7 @@ multiple timeframes (5m, 15m, 1h, 1d, 1w) as specified in training_data.gin.
 """
 
 import pytest
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
 from pathlib import Path
-import json
 
 class TestMultiTimeframeTrainingData:
     """Test suite to detect missing multi-timeframe features in training data generation."""

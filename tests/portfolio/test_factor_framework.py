@@ -12,8 +12,7 @@ Tests cover:
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import List
 
 from domains.trading.services.factor_framework import (
     FactorType,

@@ -5,8 +5,6 @@ Tests the actual API endpoints and full filtering workflow.
 """
 
 import requests
-import json
-import pytest
 import time
 
 class TestEDAFilteringIntegration:

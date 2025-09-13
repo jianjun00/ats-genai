@@ -6,7 +6,6 @@ Tests the critical fixes for timestamp formatting issues that caused
 "Invalid Date to Invalid Date" errors in frontend JavaScript.
 """
 import unittest
-from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone, timedelta
 import json
 

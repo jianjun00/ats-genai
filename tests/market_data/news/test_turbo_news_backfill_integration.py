@@ -1,13 +1,10 @@
 import pytest
 import asyncio
 import json
-from datetime import datetime, date
-from db.test_db_manager import unit_test_db
+from datetime import datetime
 from shared.utils.environment import Environment, EnvironmentType
 
 from domains.market_data.services.news.turbo_news_backfill import (
-    TurboPolygonNewsFetcher,
-    TurboTiingoNewsFetcher,
     TurboNewsDatabaseInserter
 )
 

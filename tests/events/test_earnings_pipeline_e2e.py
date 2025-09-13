@@ -8,12 +8,11 @@ from raw vendor data ingestion to quality monitoring and backfill.
 
 import pytest
 import asyncio
-import json
 import os
 import sys
-from datetime import datetime, date, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Dict, List, Any, Optional
+from datetime import datetime, date
+from unittest.mock import Mock, AsyncMock
+from typing import Dict, List
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

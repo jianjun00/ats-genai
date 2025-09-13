@@ -7,7 +7,6 @@ Tests the fix for timezone-naive vs timezone-aware timestamp comparison issues.
 import pytest
 import pandas as pd
 from datetime import datetime, timezone
-from unittest.mock import Mock
 
 from domains.market_data.services.reconciliation.cross_vendor_reconciler import (
     CrossVendorReconciler,

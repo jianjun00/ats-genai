@@ -3,11 +3,7 @@
 Comprehensive test coverage for training dataset visualization fixes.
 Tests all the fixes made to resolve "No sequence data available" issue.
 """
-import pytest
 import requests
-import json
-import asyncio
-from unittest.mock import Mock, patch
 import sys
 import os
 

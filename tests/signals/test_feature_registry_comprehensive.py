@@ -5,23 +5,18 @@ Comprehensive tests for Feature Registry.
 Tests edge cases, error handling, mathematical correctness, and performance.
 """
 
-import pytest
 import pandas as pd
 import numpy as np
 import sys
 import os
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from domains.trading.services.feature_registry import (
     FeatureRegistry,
-    FeatureConfig,
-    IndicatorFeatureGenerator,
-    TransformFeatureGenerator,
-    CustomFeatureGenerator
+    FeatureConfig
 )
 
 class TestFeatureRegistryEdgeCases:

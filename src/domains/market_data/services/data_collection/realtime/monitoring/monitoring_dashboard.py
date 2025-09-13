@@ -26,17 +26,14 @@ Usage:
 """
 
 import asyncio
-import aiohttp
 from aiohttp import web, WSMsgType
 import aiohttp_jinja2
 import jinja2
 import json
 import logging
-import os
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-import asyncpg
+from typing import Dict, List, Any
 from pathlib import Path
 import weakref
 

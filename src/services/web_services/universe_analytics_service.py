@@ -6,13 +6,11 @@ Provides analytics and visualization capabilities for universe membership,
 qualification metrics, and historical composition analysis.
 """
 
-import asyncio
 import asyncpg
 import logging
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
-import json
+from datetime import date
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 
 from core.platform.config.environment import Environment
 

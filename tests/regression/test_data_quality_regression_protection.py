@@ -16,15 +16,9 @@ This suite ensures these critical issues never recur.
 """
 
 import pytest
-import asyncio
-import asyncpg
-import os
 import glob
 import re
-from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Set, Optional
-import subprocess
-import json
+from datetime import datetime, timedelta
 
 class TestTiingoEndDateRegression:
     """Prevent regression of Tiingo end date misinterpretation issue"""

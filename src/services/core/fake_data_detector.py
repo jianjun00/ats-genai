@@ -3,9 +3,7 @@
 Fake data detection utility - fails fast when synthetic/mock data is detected.
 Enforces CLAUDE.md principle: NO MOCK/SYNTHETIC DATA outside of unit tests.
 """
-import json
-from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 class FakeDataDetector:
     """Detects and rejects fake/synthetic/mock data in production code."""

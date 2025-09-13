@@ -1,7 +1,6 @@
 import os
 import json
 import pytest
-import asyncio
 from shared.utils.environment import Environment
 from core.dao.vendors_dao import VendorsDAO
 

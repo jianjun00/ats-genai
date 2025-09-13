@@ -232,7 +232,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Ingestion session ID
         """
-        pass
 
     @abstractmethod
     async def stop_data_ingestion(self, session_id: str) -> bool:
@@ -245,7 +244,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def ingest_message(self, message: MarketDataMessage) -> bool:
@@ -258,7 +256,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def ingest_batch(self, messages: List[MarketDataMessage]) -> Dict[str, bool]:
@@ -271,7 +268,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status for each message by message_id
         """
-        pass
 
     # Data Processing & Validation
 
@@ -286,7 +282,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def validate_message(self, message: MarketDataMessage) -> List[ValidationResult]:
@@ -299,7 +294,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Validation results for all applicable rules
         """
-        pass
 
     @abstractmethod
     async def process_message(self, message: MarketDataMessage) -> MarketDataMessage:
@@ -312,7 +306,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Processed and enriched message
         """
-        pass
 
     # Real-time Aggregation
 
@@ -332,7 +325,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Aggregation session ID
         """
-        pass
 
     @abstractmethod
     async def get_current_minute_bar(self, symbol: str) -> Optional[MinuteBar]:
@@ -345,7 +337,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Current minute bar or None
         """
-        pass
 
     @abstractmethod
     async def get_completed_minute_bars(
@@ -365,7 +356,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             List of completed minute bars
         """
-        pass
 
     # Data Distribution & Subscriptions
 
@@ -389,7 +379,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Subscription ID
         """
-        pass
 
     @abstractmethod
     async def unsubscribe(self, subscription_id: str) -> bool:
@@ -402,7 +391,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def get_active_subscriptions(self) -> List[DataSubscription]:
@@ -412,7 +400,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             List of active subscriptions
         """
-        pass
 
     # Data Quality & Monitoring
 
@@ -434,7 +421,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Data quality metrics and assessment
         """
-        pass
 
     @abstractmethod
     async def get_processing_metrics(self) -> ProcessingMetrics:
@@ -444,7 +430,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Current processing metrics
         """
-        pass
 
     @abstractmethod
     async def get_latency_percentiles(
@@ -460,7 +445,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Latency percentiles (p50, p90, p95, p99)
         """
-        pass
 
     # Market Data Queries
 
@@ -475,7 +459,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Latest trade message or None
         """
-        pass
 
     @abstractmethod
     async def get_latest_quote(self, symbol: str) -> Optional[QuoteMessage]:
@@ -488,7 +471,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Latest quote message or None
         """
-        pass
 
     @abstractmethod
     async def get_order_book(
@@ -506,7 +488,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Current order book or None
         """
-        pass
 
     @abstractmethod
     async def get_trade_history(
@@ -528,7 +509,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             List of historical trades
         """
-        pass
 
     # Data Recovery & Replay
 
@@ -554,7 +534,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Replay session ID
         """
-        pass
 
     @abstractmethod
     async def stop_data_replay(self, session_id: str) -> bool:
@@ -567,7 +546,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     # Configuration & Administration
 
@@ -591,7 +569,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def get_source_status(self, source_id: str) -> Dict[str, Any]:
@@ -604,7 +581,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Source status and metrics
         """
-        pass
 
     @abstractmethod
     async def configure_enrichment(self, enrichment: DataEnrichment) -> bool:
@@ -617,7 +593,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     # Stream Processing
 
@@ -641,7 +616,6 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Stream ID
         """
-        pass
 
     @abstractmethod
     async def get_stream_data(
@@ -659,7 +633,6 @@ class RealtimeMarketServiceInterface(ABC):
         Yields:
             Processed market data messages
         """
-        pass
 
     @abstractmethod
     async def get_processing_pipeline_status(
@@ -675,4 +648,3 @@ class RealtimeMarketServiceInterface(ABC):
         Returns:
             Pipeline status and performance metrics
         """
-        pass

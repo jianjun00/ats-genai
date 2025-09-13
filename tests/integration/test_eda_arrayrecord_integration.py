@@ -16,9 +16,6 @@ Tests integration of:
 
 import pytest
 import requests
-import subprocess
-import tempfile
-import time
 import sys
 from pathlib import Path
 from datetime import datetime

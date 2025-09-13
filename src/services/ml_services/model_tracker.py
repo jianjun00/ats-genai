@@ -5,7 +5,6 @@ Provides seamless model tracking for all training jobs with minimal code changes
 """
 
 import os
-import sys
 import platform
 import socket
 import subprocess
@@ -16,8 +15,7 @@ import torch
 import numpy as np
 
 from .model_registry_service import (
-    ModelRegistryService, ModelMetadata, ModelInputSignature,
-    create_input_signature_from_dataset_config
+    ModelRegistryService, ModelMetadata, create_input_signature_from_dataset_config
 )
 
 logger = logging.getLogger(__name__)

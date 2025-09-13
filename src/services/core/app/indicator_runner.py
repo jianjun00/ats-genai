@@ -16,7 +16,7 @@ print('[DEBUG_IMPORT] about to import signals.indicator_config')
 from signals.indicator_config import IndicatorConfig
 print('[DEBUG_IMPORT] imported signals.indicator_config')
 print('[DEBUG_IMPORT] about to import signals.indicator')
-from signals.indicator import EnvelopeTop, EnvelopeBot, PL
+from signals.indicator import PL
 print('[DEBUG_IMPORT] imported signals.indicator')
 print('[DEBUG_IMPORT] about to import datetime/date/timedelta')
 print('[DEBUG_IMPORT] imported datetime/date/timedelta')
@@ -326,7 +326,6 @@ class IndicatorRunner(Runner):
         Returns:
             Dict mapping instrument_id to list of IndicatorInterval objects for the timeframe
         """
-        from datetime import timedelta
 
         print(f"[DEBUG_MULTI_TF] Computing signals for timeframe: {timeframe}")
 
@@ -390,7 +389,6 @@ class IndicatorRunner(Runner):
         if not minute_intervals:
             return []
 
-        from datetime import timedelta
 
         aggregated = []
 

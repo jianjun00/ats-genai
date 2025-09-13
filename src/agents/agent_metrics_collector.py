@@ -6,7 +6,6 @@ Collects and analyzes performance metrics for the Data Quality Agent.
 Provides insights for continuous improvement and operational monitoring.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple

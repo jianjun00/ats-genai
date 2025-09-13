@@ -17,12 +17,11 @@ Test Coverage:
 
 import pytest
 import asyncpg
-import asyncio
 import tempfile
 import shutil
 from pathlib import Path
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Any, Optional
+from datetime import date, timedelta
+from typing import Dict, Any
 import logging
 import json
 import time
@@ -31,7 +30,6 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from core.config.environment import Environment, EnvironmentType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

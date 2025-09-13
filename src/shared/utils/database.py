@@ -15,7 +15,6 @@ except ImportError:
         # Create a minimal Database class for compatibility
         class Database:
             """Minimal Database class for compatibility"""
-            pass
 
 # Import new utilities from database_connections module
 try:

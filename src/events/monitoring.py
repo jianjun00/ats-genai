@@ -7,9 +7,8 @@ import logging
 import time
 import psutil
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from dataclasses import dataclass, asdict
-from pathlib import Path
 
 from events.database import EventStorage
 from events.producer import EventProducer

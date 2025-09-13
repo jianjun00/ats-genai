@@ -8,16 +8,13 @@ import asyncio
 import pandas as pd
 import numpy as np
 import time
-from datetime import datetime, timedelta
-from contextlib import asynccontextmanager
 import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from events.analysis.support_resistance_detector import (
-    SupportResistanceDetector, SRLevel, SRTest, SREvent,
-    SRType, SRLevelType, SRTestOutcome, Timeframe
+    SupportResistanceDetector, SRTestOutcome, Timeframe
 )
 from events.processors.support_resistance_processor import SupportResistanceProcessor
 from config.environment import Environment

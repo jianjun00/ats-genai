@@ -7,9 +7,8 @@ and performance optimization features.
 
 import asyncio
 import pytest
-import time
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock
 
 from src.infrastructure.caching import (
     # Core caching
@@ -41,7 +40,6 @@ from src.infrastructure.caching import (
 
 from src.infrastructure.optimization import (
     PerformanceProfiler,
-    get_performance_profiler,
     profile_performance
 )
 
@@ -347,7 +345,6 @@ class TestAPICacheManager:
 
     def test_cache_key_generation(self, api_cache_manager):
         """Test cache key generation for requests."""
-        from fastapi import Request
 
         # Mock request
         mock_request = Mock()
@@ -366,7 +363,6 @@ class TestAPICacheManager:
 
     async def test_response_caching(self, api_cache_manager):
         """Test response storage and retrieval."""
-        from fastapi import Request, Response
 
         # Mock request and response
         mock_request = Mock()

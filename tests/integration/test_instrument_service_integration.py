@@ -11,11 +11,7 @@ Tests end-to-end functionality including:
 
 import pytest
 import pytest_asyncio
-import asyncio
-import json
-from datetime import datetime, date
-from typing import List, Dict, Any
-from unittest.mock import Mock, patch
+from datetime import date
 import time
 
 from fastapi.testclient import TestClient
@@ -26,8 +22,7 @@ from domains.instruments.services.interfaces.instrument_service_interface import
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
-    InstrumentSearchCriteria,
-    InstrumentOperationResult
+    InstrumentSearchCriteria
 )
 from domains.instruments.services.config.service_container import get_instrument_service
 from core.platform.config.environment import Environment, EnvironmentType

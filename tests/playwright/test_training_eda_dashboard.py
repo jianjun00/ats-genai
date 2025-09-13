@@ -5,8 +5,6 @@ Tests the training data visualization and analysis functionality
 
 import pytest
 from playwright.sync_api import Page, expect
-import time
-import json
 
 class TestTrainingEDADashboard:
     """Test suite for Training EDA Dashboard functionality"""

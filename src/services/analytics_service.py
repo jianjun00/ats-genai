@@ -22,15 +22,10 @@ import asyncio
 import json
 import logging
 import os
-import sys
-import time
-import numpy as np
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from urllib.parse import urlparse, parse_qs
-from dataclasses import asdict
+from typing import Dict, List, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,8 +34,6 @@ logger = logging.getLogger(__name__)
 # Import Data Quality Agent
 try:
     from agents.data_quality_agent import DataQualityAgent
-    from agents.workflow_state_manager import WorkflowStateManager
-    from agents.agent_metrics_collector import AgentMetricsCollector
     AGENT_AVAILABLE = True
     logger.info("✅ Data Quality Agent loaded successfully")
 except ImportError as e:
@@ -50,7 +43,6 @@ except ImportError as e:
 # Import core components
 try:
     from core.platform.database.connection_manager import get_connection_manager
-    from core.platform.config.settings import get_settings
     CORE_PLATFORM_AVAILABLE = True
 except ImportError:
     try:
@@ -487,7 +479,6 @@ class UnifiedAnalyticsService:
                     except Exception as file_error:
                         logger.warning(f"Could not load actual sequence data: {file_error}")
                         # Fall back to sample data
-                        pass
 
                     # Generate sample data if actual data not available
                     sample_data = self._generate_sample_sequence_for_dataset(dataset_info)
@@ -573,7 +564,6 @@ class UnifiedAnalyticsService:
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            from pathlib import Path
             import os
 
             # Determine environment and table name
@@ -718,7 +708,6 @@ class UnifiedAnalyticsService:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
-            import json
             import os
 
             # Determine environment and table name
@@ -887,7 +876,7 @@ class UnifiedAnalyticsService:
                                     # Look for 5m OHLCV columns
                                     for seq_idx in range(52):  # 5m has 52 time steps according to config
                                         # Calculate Unix timestamp for this bar in Eastern Time
-                                        from datetime import datetime, timezone, timedelta
+                                        from datetime import datetime, timedelta
                                         from zoneinfo import ZoneInfo
                                         base_dt = datetime(2025, 7, 1, 2, 0, 0, tzinfo=ZoneInfo("America/New_York"))
                                         bar_dt = base_dt + timedelta(minutes=seq_idx * 5)
@@ -972,7 +961,6 @@ class UnifiedAnalyticsService:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
-            import json
             import os
 
             logger.info(f"Getting multi-timeframe data for dataset {dataset_id}, sequence {sequence_id}")
@@ -1270,7 +1258,7 @@ class UnifiedAnalyticsService:
                 # Create OHLC records for this timeframe
                 for i in range(sequence_length):
                     # Calculate timestamp as Unix epoch seconds in Eastern Time
-                    from datetime import datetime, timezone, timedelta
+                    from datetime import datetime, timedelta
                     from zoneinfo import ZoneInfo
                     base_date = datetime(2025, 7, 1, 2, 0, 0, tzinfo=ZoneInfo("America/New_York"))
                     # Add time based on timeframe and index
@@ -1461,7 +1449,7 @@ class UnifiedAnalyticsService:
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            from datetime import datetime, timedelta
+            from datetime import datetime
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -1628,7 +1616,7 @@ class UnifiedAnalyticsService:
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            from datetime import datetime, timedelta
+            from datetime import datetime
             import os
 
             # Get environment-specific table name
@@ -1756,7 +1744,7 @@ class UnifiedAnalyticsService:
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
-            from datetime import datetime, timedelta
+            from datetime import datetime
             import os
 
             # Get environment-specific table name
@@ -1907,7 +1895,7 @@ class UnifiedAnalyticsService:
             from core.platform.database.connection_manager import get_raw_connection
             from core.platform.config.environment import Environment
             import psycopg2.extras
-            from datetime import datetime, timedelta
+            from datetime import datetime
             import os
 
             # Get environment-specific table names
@@ -5432,7 +5420,6 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
     def _serve_navigation_metadata(self):
         """Serve navigation metadata for a sequence."""
-        from urllib.parse import urlparse, parse_qs
 
         # Parse URL - /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/navigation-metadata
         path_parts = self.path.split('/')

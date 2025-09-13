@@ -7,13 +7,10 @@ and portfolio optimization.
 """
 
 import logging
-import math
 from datetime import datetime, date, timedelta
 from typing import List, Optional, Dict, Any, Union
 from decimal import Decimal
 
-import pandas as pd
-import numpy as np
 
 from ..interfaces.trading_service_interface import (
     TradingServiceInterface,

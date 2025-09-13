@@ -7,7 +7,7 @@ import numpy as np
 import time
 import sys
 import os
-from typing import Dict, List, Any
+from typing import Dict
 import gc
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
@@ -249,7 +249,6 @@ class VolumeProfilePerformanceBenchmark(unittest.TestCase):
         print("\n=== Concurrent Performance Test ===")
 
         import concurrent.futures
-        import threading
 
         def calculate_volume_profile():
             """Function to run in parallel."""

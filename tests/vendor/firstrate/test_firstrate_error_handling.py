@@ -15,14 +15,12 @@ import pytest
 import tempfile
 import asyncio
 import zipfile
-import aiohttp
 import sys
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
+from unittest.mock import AsyncMock, patch
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))

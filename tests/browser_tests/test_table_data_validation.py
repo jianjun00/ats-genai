@@ -6,7 +6,6 @@ Tests the specific fix for table showing "N/A" values
 
 import asyncio
 import pytest
-import json
 from playwright.async_api import async_playwright
 
 @pytest.mark.asyncio

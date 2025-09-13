@@ -12,10 +12,8 @@ Real test cases based on actual market data sampled from the database.
 """
 
 import pytest
-import json
 from datetime import date, datetime
 from typing import Dict, List, Optional, Any
-from unittest.mock import Mock, patch
 
 
 class TestEnhancedInstrumentPopulation:

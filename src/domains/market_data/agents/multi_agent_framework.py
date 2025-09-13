@@ -19,15 +19,15 @@ The framework uses ensemble methods to combine agent outputs for robust signal g
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Union, Tuple
+from datetime import datetime
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 import json
 from abc import ABC, abstractmethod
 
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
-from domains.market_data.services.llm.news_llm_processor import NewsArticle, NewsAnalysisResult
+from domains.market_data.services.llm.news_llm_processor import NewsArticle
 
 logger = logging.getLogger(__name__)
 
@@ -148,17 +148,14 @@ class BaseFinancialAgent(ABC):
     @abstractmethod
     def get_system_prompt(self) -> str:
         """Get the system prompt for this agent."""
-        pass
 
     @abstractmethod
     def create_analysis_prompt(self, article: NewsArticle, context: Dict[str, Any] = None) -> str:
         """Create analysis prompt for the given article."""
-        pass
 
     @abstractmethod
     def parse_llm_response(self, response: LLMResponse, processing_time_ms: int) -> AgentAnalysis:
         """Parse LLM response into structured analysis."""
-        pass
 
     async def analyze(self, article: NewsArticle, context: Dict[str, Any] = None) -> AgentAnalysis:
         """Perform analysis on the given article."""

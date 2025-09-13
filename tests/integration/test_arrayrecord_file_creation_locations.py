@@ -9,7 +9,6 @@ by the training data callback runner.
 import pytest
 import tempfile
 import shutil
-import asyncio
 from pathlib import Path
 from datetime import datetime, date
 from unittest.mock import patch, MagicMock

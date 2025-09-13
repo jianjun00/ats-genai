@@ -12,11 +12,9 @@ Issues Fixed:
 """
 
 import pytest
-import asyncio
 import asyncpg
 import os
 import sys
-from typing import Dict, List, Tuple, Optional
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))

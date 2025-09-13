@@ -8,7 +8,7 @@ API responses without requiring the full ATS infrastructure.
 
 import json
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import threading
@@ -374,7 +374,6 @@ class MockTrainingDataAPI(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         """Override to reduce logging noise"""
-        pass
 
 
 class MockAPIServer:

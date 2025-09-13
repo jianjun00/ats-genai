@@ -15,7 +15,6 @@ Key Principles:
 
 # Import base classes
 from .base.base_dao import BaseDAO
-from .base.vendor_dao import BaseVendorDAO
 
 # Import organized DAO modules
 from . import analytics

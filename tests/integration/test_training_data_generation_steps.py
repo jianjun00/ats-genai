@@ -6,17 +6,14 @@ proper functionality and identify root causes of failures.
 """
 
 import pytest
-import asyncio
 import os
 import tempfile
 import json
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch
-import logging
 
 # Import the components we're testing
-from domains.ml.services.training_data.runners.training_data_callback_runner import main, parse_args
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 from domains.ml.services.storage.sequence_storage_manager import ArrayRecordStorageManager
@@ -309,7 +306,7 @@ TrainingDataConfig.feature_types = ['ohlcv']
 
         # Test writer creation (mock ArrayRecord since it may not be available)
         try:
-            import array_record.python.array_record_module as array_record
+            pass
 
             test_file = os.path.join(temp_dir, "test.arrayrecord")
             writer = storage_manager.create_arrayrecord_writer(test_file)

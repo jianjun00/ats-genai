@@ -5,12 +5,7 @@ import asyncio
 import time
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List
-import logging
-import os
-import gc
+from datetime import datetime
 
 # Add src to Python path for imports
 import sys

@@ -15,11 +15,8 @@ import pytest
 import asyncio
 import asyncpg
 import logging
-from datetime import datetime, timedelta
-from decimal import Decimal
 import statistics
-import numpy as np
-from typing import List, Dict, Any
+from typing import Dict, Any
 import os
 import sys
 

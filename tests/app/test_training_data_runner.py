@@ -6,17 +6,12 @@ to test the training data generation with real test data.
 """
 
 import os
-import sys
 import tempfile
 import pytest
 import asyncio
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
-import json
 
-from tests.fixtures.insert_test_daily_prices import insert_test_daily_prices
-from tests.fixtures.setup_test_universe_data import setup_test_universe_data
 
 
 def test_training_data_runner_traditional_mode(unit_test_db, setup_test_universe_data):
@@ -336,14 +331,13 @@ def test_no_training_data_runner_class():
     """Test that TrainingDataRunner class no longer exists (pure callback approach)."""
     # ✅ CORRECT: TrainingDataRunner class should not exist
     try:
-        from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataRunner
+        pass
         # If we get here, the class still exists - that's wrong
         assert False, "TrainingDataRunner class should not exist in pure callback approach"
     except (ImportError, ModuleNotFoundError):
         # ✅ CORRECT: The class doesn't exist anymore
         print("✅ Verified: TrainingDataRunner class properly removed")
         print("   ✅ Pure callback approach implemented correctly")
-        pass
 
 
 def test_callback_with_test_data_setup():

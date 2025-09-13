@@ -15,30 +15,24 @@ Usage:
 import argparse
 import logging
 import torch
-import torch.nn.functional as F
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
-import json
-from datetime import datetime
+from typing import Dict, Any, List
 import warnings
 warnings.filterwarnings('ignore')
 
 # Import our autonomous driving inspired components
 from .data_preprocessing import (
-    AutonomousFinanceDataLoader, MultiTimeframeProcessor,
-    TimeframeConfig, AutonomousFinanceDataset
+    AutonomousFinanceDataLoader
 )
 from .transformer_model import (
     AutonomousFinanceTransformer, TransformerConfig
 )
 from .training import (
-    AutonomousFinanceTrainer, TrainingConfig, MultiTaskLoss, FinancialMetrics
+    AutonomousFinanceTrainer, TrainingConfig, FinancialMetrics
 )
-from .attention_mechanisms import AttentionConfig
 
 # Set up logging
 logging.basicConfig(

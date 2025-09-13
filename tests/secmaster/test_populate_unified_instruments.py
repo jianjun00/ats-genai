@@ -1,11 +1,9 @@
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
-from domains.instruments.services.populate_unified_instruments import populate_unified_instruments, parse_date
+from domains.instruments.services.populate_unified_instruments import parse_date
 
 from domains.instruments.services.populate_unified_instruments import parse_date
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 @pytest.mark.asyncio

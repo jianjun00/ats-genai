@@ -5,17 +5,14 @@ Real-time compliance validation using actual regulatory data sources
 for comprehensive data quality framework integration.
 """
 
-import asyncio
 import logging
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Set, Any, Tuple
+from typing import Dict, List, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
 from .real_regulatory_sources import (
     RealRegulatoryDataIntegrator,
-    SECFiling,
-    EconomicIndicator,
     RegulatoryContext
 )
 

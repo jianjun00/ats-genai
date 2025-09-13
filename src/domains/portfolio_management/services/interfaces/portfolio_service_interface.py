@@ -7,7 +7,7 @@ Comprehensive portfolio management operations for financial trading systems.
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, Union, Callable
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -311,7 +311,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Created portfolio
         """
-        pass
 
     @abstractmethod
     async def get_portfolio(self, portfolio_id: str) -> Optional[Portfolio]:
@@ -324,7 +323,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Portfolio if found
         """
-        pass
 
     @abstractmethod
     async def update_portfolio(
@@ -342,7 +340,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Updated portfolio
         """
-        pass
 
     @abstractmethod
     async def list_portfolios(
@@ -362,7 +359,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             List of portfolios
         """
-        pass
 
     @abstractmethod
     async def close_portfolio(
@@ -380,7 +376,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     # Position Management
 
@@ -408,7 +403,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Created position
         """
-        pass
 
     @abstractmethod
     async def update_position(
@@ -434,7 +428,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Updated position
         """
-        pass
 
     @abstractmethod
     async def get_positions(
@@ -452,7 +445,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             List of portfolio positions
         """
-        pass
 
     @abstractmethod
     async def get_position(
@@ -470,7 +462,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Position if found
         """
-        pass
 
     @abstractmethod
     async def liquidate_position(
@@ -490,7 +481,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Liquidation transaction
         """
-        pass
 
     # Transaction Management
 
@@ -528,7 +518,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Recorded transaction
         """
-        pass
 
     @abstractmethod
     async def get_transactions(
@@ -552,7 +541,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             List of transactions
         """
-        pass
 
     @abstractmethod
     async def calculate_realized_pnl(
@@ -574,7 +562,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Realized P&L amount
         """
-        pass
 
     # Valuation & Performance
 
@@ -594,7 +581,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Updated portfolio with current valuation
         """
-        pass
 
     @abstractmethod
     async def calculate_performance_metrics(
@@ -616,7 +602,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Portfolio performance metrics
         """
-        pass
 
     @abstractmethod
     async def get_performance_history(
@@ -640,7 +625,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Historical performance data
         """
-        pass
 
     @abstractmethod
     async def calculate_attribution_analysis(
@@ -662,7 +646,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Attribution analysis results
         """
-        pass
 
     # Risk Management
 
@@ -684,7 +667,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Portfolio risk metrics
         """
-        pass
 
     @abstractmethod
     async def monitor_risk_limits(
@@ -702,7 +684,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             List of risk alerts if any limits breached
         """
-        pass
 
     @abstractmethod
     async def stress_test_portfolio(
@@ -720,7 +701,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Stress test results by scenario
         """
-        pass
 
     # Rebalancing & Optimization
 
@@ -740,7 +720,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def check_rebalancing_needed(
@@ -758,7 +737,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Deviations from target allocations
         """
-        pass
 
     @abstractmethod
     async def generate_rebalance_orders(
@@ -778,7 +756,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             List of rebalancing orders
         """
-        pass
 
     @abstractmethod
     async def execute_rebalancing(
@@ -796,7 +773,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Rebalancing execution result
         """
-        pass
 
     @abstractmethod
     async def optimize_portfolio(
@@ -818,7 +794,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Portfolio optimization result
         """
-        pass
 
     # Monitoring & Alerts
 
@@ -840,7 +815,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Monitoring session ID
         """
-        pass
 
     @abstractmethod
     async def stop_real_time_monitoring(self, session_id: str) -> bool:
@@ -853,7 +827,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def get_portfolio_alerts(
@@ -873,7 +846,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             List of portfolio alerts
         """
-        pass
 
     @abstractmethod
     async def acknowledge_alert(
@@ -893,7 +865,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     # Reporting
 
@@ -925,7 +896,6 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Portfolio report data
         """
-        pass
 
     @abstractmethod
     async def export_portfolio_data(
@@ -949,4 +919,3 @@ class PortfolioServiceInterface(ABC):
         Returns:
             Exported data as bytes
         """
-        pass

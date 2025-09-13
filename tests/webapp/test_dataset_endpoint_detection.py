@@ -5,10 +5,8 @@ and can detect errors like "Error loading sequences" in the dataset detail page.
 """
 
 import pytest
-import asyncio
 import aiohttp
 import json
-from typing import Dict, List, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -229,7 +227,6 @@ class TestDatasetEndpointDetection:
         try:
             import asyncpg
             import asyncio
-            import os
 
             async def check_tables():
                 # Use environment variables or default values

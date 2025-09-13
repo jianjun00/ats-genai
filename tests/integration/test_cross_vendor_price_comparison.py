@@ -17,12 +17,10 @@ Key Test Scenarios:
 """
 
 import pytest
-import asyncio
 import asyncpg
 import numpy as np
-import pandas as pd
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Tuple, Optional
+from datetime import date, timedelta
+from typing import Dict, List
 from dataclasses import dataclass
 import sys
 import os
@@ -33,8 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from shared.utils.environment import Environment
 from domains.market_data.services.reconciliation.majority_voting_reconciler import (
     MajorityVotingReconciler,
-    VendorPrice,
-    PriceConsensus
+    VendorPrice
 )
 
 @dataclass

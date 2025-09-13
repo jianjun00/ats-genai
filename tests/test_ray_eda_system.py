@@ -18,7 +18,6 @@ import asyncio
 import sys
 import os
 import time
-from typing import Dict, List, Any
 from unittest.mock import patch, MagicMock
 
 # Add src to path
@@ -295,7 +294,6 @@ class TestErrorHandlingAndRobustness:
     @pytest.mark.asyncio
     async def test_database_connection_failure_handling(self):
         """Test graceful handling of database connection failures"""
-        from services.ray_eda_engine import get_ray_eda_service
 
         # Test with invalid connection parameters
         with patch('services.ray_eda_engine.get_ray_eda_service') as mock_service:
