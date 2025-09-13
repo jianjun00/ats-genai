@@ -15,6 +15,7 @@ from domains.instruments.services.interfaces.instrument_service_interface import
 
 # Service implementations
 from domains.instruments.services.impl.instrument_service_impl import InstrumentServiceImpl
+# from domains.instruments.services.impl.cached_instrument_service_impl import CachedInstrumentServiceImpl  # TODO: Re-enable when dependencies resolved
 
 # DAO dependencies
 from core.dao.instruments.instruments_dao import InstrumentsDAO
@@ -98,7 +99,8 @@ class InstrumentServiceContainer:
     async def _initialize_services(self):
         """Initialize all service implementations"""
         
-        # Instrument Service Implementation
+        # Use base service implementation for now
+        # TODO: Re-enable cached service when infrastructure dependencies are resolved
         self._services['instrument_service'] = InstrumentServiceImpl(
             instruments_dao=self._daos['instruments_dao'],
             xrefs_dao=self._daos['xrefs_dao'],
@@ -196,6 +198,27 @@ async def provide_instrument_service() -> InstrumentServiceInterface:
     except Exception as e:
         logger.error(f"Error providing instrument service: {e}")
         raise RuntimeError(f"Service unavailable: {e}")
+
+
+# Monitoring integration
+async def initialize_monitoring():
+    """Initialize service monitoring"""
+    try:
+        from infrastructure.monitoring.instrument_service_monitor import initialize_instrument_service_monitoring
+        await initialize_instrument_service_monitoring()
+        logger.info("Service monitoring initialized successfully")
+    except Exception as e:
+        logger.warning(f"Could not initialize monitoring: {e}")
+
+
+async def shutdown_monitoring():
+    """Shutdown service monitoring"""
+    try:
+        from infrastructure.monitoring.instrument_service_monitor import shutdown_instrument_service_monitoring
+        await shutdown_instrument_service_monitoring()
+        logger.info("Service monitoring shutdown complete")
+    except Exception as e:
+        logger.warning(f"Error during monitoring shutdown: {e}")
 
 
 # Configuration factory functions
