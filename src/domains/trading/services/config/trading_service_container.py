@@ -10,8 +10,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from core.platform.config.environment import Environment, EnvironmentType
-from ..interfaces.trading_service_interface import TradingServiceInterface
-from ..impl.trading_service_impl import TradingServiceImpl
+from core.services.unified_service_framework import TradingPlatformService
 from ...repositories.universe_dao import UniverseDAO
 from ...repositories.universe_membership_dao import UniverseMembershipDAO
 from ...repositories.factor_interval_dao import FactorIntervalDAO

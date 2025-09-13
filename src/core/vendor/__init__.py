@@ -14,3 +14,40 @@ ELIMINATES DUPLICATION:
 
 TARGET CONSOLIDATION: 6,770 lines → 3,000 lines (56% reduction)
 """
+
+# Import main classes from adapters module
+from .adapters import (
+    VendorAdapterFactory,
+    BaseVendorAdapter,
+    FirstRateAdapter,
+    PolygonAdapter,
+    TiingoAdapter,
+    EODHDAdapter,
+    FMPAdapter,
+    create_firstrate_adapter,
+    create_polygon_adapter,
+    create_tiingo_adapter,
+    VendorType,
+    DataType,
+    AdapterConfig,
+    UnifiedMinuteBar,
+    UnifiedFundamentals
+)
+
+__all__ = [
+    'VendorAdapterFactory',
+    'BaseVendorAdapter',
+    'FirstRateAdapter',
+    'PolygonAdapter', 
+    'TiingoAdapter',
+    'EODHDAdapter',
+    'FMPAdapter',
+    'create_firstrate_adapter',
+    'create_polygon_adapter',
+    'create_tiingo_adapter',
+    'VendorType',
+    'DataType',
+    'AdapterConfig',
+    'UnifiedMinuteBar',
+    'UnifiedFundamentals'
+]

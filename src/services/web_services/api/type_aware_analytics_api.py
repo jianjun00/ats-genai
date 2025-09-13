@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Import type system components
 from domains.ml.schema.registry import schema_registry
 from domains.ml.schema.types import FieldSemantics
-from services.analytics_service import AnalyticsService
+from core.analytics.service import AnalyticsService
 
 logger = logging.getLogger(__name__)
 

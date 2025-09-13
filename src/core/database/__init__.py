@@ -9,3 +9,20 @@ Consolidates ALL database access patterns from 272+ files:
 
 TARGET CONSOLIDATION: 11,135+ lines → 2,500 lines (78% reduction)
 """
+
+# Import main classes from repository module
+from .repository import (
+    ConnectionManager,
+    QueryBuilder, 
+    BaseRepository,
+    VendorDataRepository,
+    RepositoryFactory
+)
+
+__all__ = [
+    'ConnectionManager',
+    'QueryBuilder',
+    'BaseRepository', 
+    'VendorDataRepository',
+    'RepositoryFactory'
+]
