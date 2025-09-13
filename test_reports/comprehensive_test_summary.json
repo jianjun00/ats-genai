@@ -1,0 +1,152 @@
+{
+  "test_run": {
+    "timestamp": "2025-09-13T11:11:49.575295",
+    "total_duration": 7.886172294616699,
+    "components_tested": [
+      "universe_state_manager",
+      "universe_state_builder",
+      "training_data_callback",
+      "pipeline_integration"
+    ],
+    "total_test_classes": 9
+  },
+  "system_info": {
+    "python_version": "3.12.3 (main, Aug 14 2025, 17:47:21) [GCC 13.3.0]",
+    "platform": "linux",
+    "memory_gb": 31.2,
+    "cpu_count": 20
+  },
+  "results": {
+    "universe_state_manager": {
+      "TestUniverseStateManagerRollingCache": {
+        "file": "test_universe_state_manager_comprehensive.py",
+        "class": "TestUniverseStateManagerRollingCache",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      },
+      "TestUniverseStateManagerDatabaseIntegration": {
+        "file": "test_universe_state_manager_comprehensive.py",
+        "class": "TestUniverseStateManagerDatabaseIntegration",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      }
+    },
+    "universe_state_builder": {
+      "TestUniverseStateBuilderMultiTimeframe": {
+        "file": "test_universe_state_builder_comprehensive.py",
+        "class": "TestUniverseStateBuilderMultiTimeframe",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      },
+      "TestUniverseStateBuilderEdgeCases": {
+        "file": "test_universe_state_builder_comprehensive.py",
+        "class": "TestUniverseStateBuilderEdgeCases",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      }
+    },
+    "training_data_callback": {
+      "TestTrainingDataCallbackArrayRecord": {
+        "file": "test_training_data_callback_comprehensive.py",
+        "class": "TestTrainingDataCallbackArrayRecord",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      },
+      "TestTrainingDataCallbackDatabaseIntegration": {
+        "file": "test_training_data_callback_comprehensive.py",
+        "class": "TestTrainingDataCallbackDatabaseIntegration",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      },
+      "TestTrainingDataCallbackEndToEnd": {
+        "file": "test_training_data_callback_comprehensive.py",
+        "class": "TestTrainingDataCallbackEndToEnd",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      }
+    },
+    "pipeline_integration": {
+      "TestCompleteUUIDCacheTrainingPipeline": {
+        "file": "test_complete_pipeline_integration.py",
+        "class": "TestCompleteUUIDCacheTrainingPipeline",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      },
+      "TestPipelineDataIntegrity": {
+        "file": "test_complete_pipeline_integration.py",
+        "class": "TestPipelineDataIntegrity",
+        "duration": 0,
+        "returncode": -1,
+        "stdout": "",
+        "stderr": "'NoneType' object has no attribute 'exists'",
+        "success": false,
+        "json_report": null
+      }
+    }
+  },
+  "summary": {
+    "universe_state_manager": {
+      "total_classes": 2,
+      "passed_classes": 0,
+      "success_rate": 0.0,
+      "duration": 0
+    },
+    "universe_state_builder": {
+      "total_classes": 2,
+      "passed_classes": 0,
+      "success_rate": 0.0,
+      "duration": 0
+    },
+    "training_data_callback": {
+      "total_classes": 3,
+      "passed_classes": 0,
+      "success_rate": 0.0,
+      "duration": 0
+    },
+    "pipeline_integration": {
+      "total_classes": 2,
+      "passed_classes": 0,
+      "success_rate": 0.0,
+      "duration": 0
+    },
+    "overall": {
+      "total_classes": 9,
+      "passed_classes": 0,
+      "success_rate": 0.0,
+      "total_duration": 0,
+      "setup_overhead": 7.886172294616699
+    }
+  }
+}
