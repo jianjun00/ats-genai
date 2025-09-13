@@ -1,0 +1,27 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'ats-monitoring@localhost'
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+
+receivers:
+  - name: 'web.hook'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#ats-data-alerts'
+        username: 'ATS Coverage Monitor'
+        icon_emoji: ':chart_with_upwards_trend:'
+        title: 'ATS Coverage Alert - {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']

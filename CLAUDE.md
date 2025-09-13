@@ -223,6 +223,16 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - ❌ Writing tests after code (TDD requires tests first)
 - ❌ Skipping Playwright testing for UX changes
 - ❌ Not tracking training data generation in dev_runs table
+- ❌ **Using fragmented monitoring systems (coverage_monitor.py, validation scripts)**
+- ❌ **Creating separate issue detection instead of using unified service**
+- ❌ **Building standalone dashboards when unified dashboard exists**
+
+**Data Quality & Monitoring:**
+- ❌ **Using deprecated coverage monitoring scripts (use unified service)**
+- ❌ **Creating separate validation systems (use unified validation)**
+- ❌ **Building standalone alert systems (use unified alert manager)**
+- ❌ **Using deprecated database tables (use unified schema)**
+- ❌ **Implementing separate issue resolution (use unified workflows)**
 
 **Debugging & Problem Solving:**
 - ❌ Using workarounds without understanding root cause
@@ -244,6 +254,11 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - Investigate logs before restarting services
 - Understand root causes before implementing fixes
 - Document investigation findings in commits/issues
+- **Use unified data quality service for all monitoring and validation**
+- **Leverage consolidated architecture instead of creating fragmented systems**
+- **Follow service consolidation patterns established by unified framework**
+- **Use shared DTOs and repositories across all quality operations**
+- **Implement consistent issue detection, classification, and resolution workflows**
 
 ## 🚨 **CRITICAL: Training Data Generation Flow**
 
@@ -272,6 +287,47 @@ python scripts/run_dev.py run --script src/domains/ml/services/training_data/run
 - **Content**: QR4-compliant scalar data (timestamp, symbol, open, high, low, close, volume, vwap)
 - **Database**: Registered in `dev_training_dataset` table
 - **Tracking**: All runs logged in `dev_runs` table with command_line, git_commit_hash
+
+## 🔄 **CRITICAL: Unified Data Quality Framework**
+
+**✅ USE unified data quality service for all monitoring, validation, and issue management**
+
+### **Unified Data Quality Architecture:**
+
+```
+🔄 CONSOLIDATED MONITORING FLOW:
+1. Unified Data Quality Service (Single Interface)
+   ↓
+2. Coverage Monitoring + Validation + Agent (Integrated)
+   ↓
+3. Issue Detection + Classification + Resolution (Automated)
+   ↓
+4. Unified Database + Alerts + Dashboard (Consolidated)
+```
+
+**🔹 SERVICE CONTAINER:** `UnifiedDataQualityServiceContainer` - Single entry point
+**🔹 UNIFIED DATABASE:** `dev_data_quality_issues` + `dev_data_quality_metrics`
+**🔹 AGENT INTEGRATION:** Enhanced agent with coverage + validation capabilities
+
+**Data Quality Commands:**
+```python
+# Initialize unified service
+from domains.data_quality.services.config.unified_data_quality_service_container import UnifiedDataQualityServiceContainer
+container = UnifiedDataQualityServiceContainer("dev")
+await container.initialize()
+unified_service = await container.get_unified_service()
+
+# Start monitoring (coverage + validation + agent)
+await container.start_monitoring()
+
+# Detect all issues across categories
+all_issues = await unified_service.detect_all_issues(IssueDetectionRequest(
+    categories=[IssueCategory.COVERAGE, IssueCategory.VALIDATION]
+))
+
+# Get unified dashboard data
+dashboard_data = await unified_service.get_dashboard_data()
+```
 
 ## 📚 **Additional Documentation**
 
