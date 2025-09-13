@@ -778,48 +778,14 @@ async def main():
         await universe_manager.initialize()
         logger.info(f"✅ UniverseManager initialized with instrument_ids: {universe_manager.instrument_ids}")
         
-        # 🚨 CRITICAL FIX: Generate universe state by running UniverseStateBuilder via Runner
-        # This ensures universe state cache gets populated with the correct instrument_ids
-        logger.info(f"🔄 Pre-generating universe state for symbols: {args.symbols}")
-        
-        try:
-            from datetime import datetime, timedelta
-            
-            # Generate universe state for a reasonable date range around the training period
-            builder_start_date = datetime.strptime(args.start_date, "%Y-%m-%d") - timedelta(days=30)  # 30 days before training start
-            builder_end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
-            
-            logger.info(f"   UniverseStateBuilder date range: {builder_start_date.date()} to {builder_end_date.date()}")
-            logger.info(f"   This will generate universe state files for instrument_ids: {universe_manager.instrument_ids}")
-            
-            # 🚨 FIXED: Use Runner with UniverseStateBuilder callback to generate universe state
-            # The UniverseStateBuilder works as a callback within the Runner framework
-            state_runner = Runner(
-                start_date=builder_start_date.strftime("%Y-%m-%d"),
-                end_date=builder_end_date.strftime("%Y-%m-%d"),
-                environment=environment,
-                universe_id=args.universe_id or 1,
-                callbacks=[universe_state_builder],  # Use as callback to generate universe state files
-                market_data_manager=minute_data_manager,
-                universe_manager=universe_manager,  # Use the same universe manager with correct symbols
-                base_duration="60m"  # Use 60-minute intervals for universe state generation
-            )
-            
-            logger.info(f"🔄 Running universe state generation...")
-            await state_runner.run()
-            logger.info(f"✅ Universe state generation completed - universe state files now contain data for {args.symbols}")
-            
-        except Exception as e:
-            logger.warning(f"⚠️ Universe state generation failed: {e}")
-            logger.warning(f"   Training data generation will proceed but may lack historical context")
-            logger.warning(f"   The training data callback will use direct market data access instead")
+        logger.info(f"✅ UniverseManager and UniverseStateBuilder ready for callback execution")
         
         runner = Runner(
             start_date=collection_start_date.strftime("%Y-%m-%d"),
             end_date=collection_end_date.strftime("%Y-%m-%d"),
             environment=environment,
             universe_id=args.universe_id or 1,
-            callbacks=[training_callback],  # 🚨 CRITICAL FIX: Only use training callback to prevent duplicate database insertions
+            callbacks=[universe_state_builder, training_callback],  # UniverseStateBuilder builds cache during offset period, training generates data from start_date
             market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
             universe_manager=universe_manager,  # 🚨 CRITICAL FIX: Use custom universe manager with proper symbols
             base_duration=args.base_duration

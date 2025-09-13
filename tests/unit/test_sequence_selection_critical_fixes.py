@@ -8,7 +8,7 @@ import numpy as np
 from unittest.mock import Mock, patch
 import re
 
-from src.services.analytics_service import AnalyticsService
+from src.services.analytics_service import UnifiedAnalyticsService as AnalyticsService
 
 
 class TestSequenceSelectionCriticalFixes:

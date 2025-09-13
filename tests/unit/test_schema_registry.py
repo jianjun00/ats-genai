@@ -13,9 +13,9 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from schema.registry import SchemaRegistry, schema_registry
-from schema.types import FieldType, FieldSemantics, FieldDefinition, EntitySchema
-from schema.entities import INSTRUMENT_SCHEMA, PRICE_SCHEMA, INSTRUMENT_XREF_SCHEMA
+from domains.ml.schema.registry import SchemaRegistry, schema_registry
+from domains.ml.schema.types import FieldType, FieldSemantics, FieldDefinition, EntitySchema
+from domains.ml.schema.entities import INSTRUMENT_SCHEMA, PRICE_SCHEMA, INSTRUMENT_XREF_SCHEMA
 
 
 class TestSchemaRegistry:
