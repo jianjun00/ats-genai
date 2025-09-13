@@ -13,12 +13,9 @@ Tests cover:
 
 import pytest
 import asyncio
-import asyncpg
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta, timezone
-import json
 import os
-from prometheus_client import CollectorRegistry, CONTENT_TYPE_LATEST
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, HistogramMetricFamily
 
 # Import the module under test

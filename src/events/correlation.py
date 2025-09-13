@@ -4,9 +4,8 @@ Event Correlation Engine - Detect relationships between financial events
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Any
 from dataclasses import dataclass
-import re
 
 from events.proto.events_pb2 import Event, EventType
 

@@ -3,12 +3,10 @@ End-to-End Tests for Complete Support/Resistance ML Pipeline
 """
 
 import pytest
-import asyncio
 import numpy as np
-import pandas as pd
 import tempfile
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import sys
@@ -17,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from domains.trading.services.historical_universe_creator import HistoricalUniverseCreator, HistoricalStock
 from domains.ml.services.training_data.support_resistance_generator import (
-    SupportResistanceTrainingGenerator,
     TrainingExample,
     SupportResistanceLevel
 )
@@ -25,8 +22,6 @@ from domains.ml.services.models.support_resistance_model import (
     SupportResistanceEnsemble,
     SRModelConfig
 )
-from domains.ml.services.evaluation.sr_backtester import SRBacktester, BacktestMetrics
-from shared.utils.environment import Environment
 
 @pytest.mark.integration
 class TestCompleteSRPipeline:

@@ -26,7 +26,6 @@ async def test_centralized_connection():
 
     # Import after setting environment variables to ensure they're picked up
     from shared.utils.database import Database
-    from shared.utils.environment import Environment, EnvironmentType
 
     # Test only the test environment
     environments = ["test"]

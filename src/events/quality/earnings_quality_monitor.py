@@ -7,11 +7,10 @@ Provides alerts, quality scores, and automated remediation.
 """
 
 import asyncio
-import logging
 import os
 import sys
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List
 from dataclasses import dataclass
 import json
 

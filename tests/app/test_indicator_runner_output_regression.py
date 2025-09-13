@@ -1,9 +1,5 @@
-import os
-import sys
-import tempfile
 import pytest
 import importlib
-import types
 
 
 def test_missing_contextlib_import(monkeypatch):

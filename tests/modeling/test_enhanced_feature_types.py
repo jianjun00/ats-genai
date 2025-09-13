@@ -6,7 +6,6 @@ import pytest
 import json
 import tempfile
 import os
-from pathlib import Path
 
 from src.modeling.enhanced_feature_types import (
     FeatureType, TimeframeSpec, TechnicalIndicator,

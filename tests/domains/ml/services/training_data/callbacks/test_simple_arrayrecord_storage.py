@@ -12,9 +12,8 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from datetime import datetime, date
-from unittest.mock import AsyncMock, Mock, patch
-import json
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 # Test imports
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback

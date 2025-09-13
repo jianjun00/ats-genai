@@ -1,9 +1,7 @@
 import pytest
-import asyncio
 from datetime import date
 from vendor.tiingo.services.range_splits_tiingo import parse_date, map_tiingo_split, insert_splits_tiingo
 
-import types
 from vendor.tiingo.services.range_splits_tiingo import get_symbols_from_stock_splits_polygon
 
 @pytest.mark.asyncio

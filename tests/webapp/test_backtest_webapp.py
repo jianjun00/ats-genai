@@ -10,9 +10,7 @@ Comprehensive tests for the backtest webapp including:
 """
 
 import pytest
-import asyncio
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
 import sys
 import os
 
@@ -224,7 +222,6 @@ class TestBacktestWebAppIntegration:
     def test_concurrent_requests(self, client):
         """Test that webapp handles concurrent requests"""
         import threading
-        import time
 
         results = []
 

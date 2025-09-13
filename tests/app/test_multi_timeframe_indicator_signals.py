@@ -11,17 +11,17 @@ import sys
 import pytest
 import pandas as pd
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from app.indicator_runner import IndicatorRunner
-from state.universe_state_manager import UniverseStateManager
-from state.indicator_interval import IndicatorInterval
-from core.config.environment import Environment
-from signals.indicator_config import IndicatorConfig
+from services.core.app.indicator_runner import IndicatorRunner
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.indicator_interval import IndicatorInterval
+from core.platform.config.environment import Environment
+from domains.trading.services.signals.indicator_config import IndicatorConfig
 
 
 @pytest.fixture
@@ -496,12 +496,10 @@ class TestMultiTimeframeIndicatorSignals:
 # Integration test helper functions
 def create_mock_indicator_runner():
     """Helper to create a mock indicator runner for integration tests."""
-    pass
 
 
 def verify_signal_storage():
     """Helper to verify signals are properly stored in database."""
-    pass
 
 
 if __name__ == "__main__":

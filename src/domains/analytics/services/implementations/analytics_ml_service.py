@@ -4,17 +4,13 @@ Advanced Analytics and ML Service Implementation
 Comprehensive financial analytics, machine learning, and quantitative analysis implementation.
 """
 
-import asyncio
 import logging
 import time
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, Union, AsyncIterator, Tuple, Callable
-from collections import defaultdict, deque
-import joblib
-import json
+from typing import Dict, List, Optional, Any, AsyncIterator, Callable
 from dataclasses import asdict
 from concurrent.futures import ThreadPoolExecutor
 

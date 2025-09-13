@@ -17,16 +17,15 @@ import pytest
 import tempfile
 import shutil
 import json
-import os
 import asyncio
 from pathlib import Path
-from datetime import datetime, date, timedelta
+from datetime import date
 import sys
 
 sys.path.append('/home/jianjun/ats-genai-admin/src')
 
 from domains.ml.services.training_data.schemas.binary_record_schema import (
-    BinaryRecordSchema, SchemaTemplates, FieldDefinition
+    SchemaTemplates
 )
 from domains.ml.services.training_data.callbacks.training_data_callback import (
     IntervalBasedTrainingDataCallback

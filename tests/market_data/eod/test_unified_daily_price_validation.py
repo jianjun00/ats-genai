@@ -3,11 +3,8 @@ Test suite for unified daily price validation and unification
 """
 
 import pytest
-import asyncio
-import asyncpg
-from datetime import date, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-import numpy as np
+from datetime import date
+from unittest.mock import AsyncMock, patch
 
 # Import our modules (adjust path as needed)
 import sys
@@ -367,7 +364,6 @@ class TestIntegrationScenarios:
         """Test detection of market holidays"""
         # This would test holiday exclusion logic
         # Implementation depends on how holidays are detected
-        pass
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -375,7 +371,6 @@ class TestIntegrationScenarios:
         """Test handling of corporate actions affecting prices"""
         # This would test detection of stock splits, dividends affecting prices
         # Implementation depends on corporate action detection logic
-        pass
 
 
 # Performance and edge case tests

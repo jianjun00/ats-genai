@@ -3,10 +3,8 @@
 Check AAPL minute bar data for gaps and missing months
 """
 
-import os
 from pathlib import Path
-from datetime import datetime, date
-import calendar
+from datetime import date
 
 def main():
     print("🔍 Checking AAPL minute bar data completeness...")

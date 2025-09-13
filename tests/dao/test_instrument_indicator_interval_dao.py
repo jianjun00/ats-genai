@@ -1,6 +1,5 @@
 import pytest
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
 from domains.instruments.repositories.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO

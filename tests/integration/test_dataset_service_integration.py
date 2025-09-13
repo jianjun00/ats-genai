@@ -9,8 +9,6 @@ import tempfile
 import os
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch
-from datetime import datetime
 import numpy as np
 import pandas as pd
 import psycopg2

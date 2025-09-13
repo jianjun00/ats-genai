@@ -9,12 +9,11 @@ Tests cover the two main issues that were discovered:
 This ensures these critical issues never happen again.
 """
 
-import pytest
 import unittest
 import os
 import json
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
 
@@ -250,8 +249,6 @@ class TestBrowserCacheHeaders(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         from services.analytics_service import AnalyticsHandler
-        from io import StringIO
-        import sys
 
         # Mock HTTP components
         self.handler = AnalyticsHandler()

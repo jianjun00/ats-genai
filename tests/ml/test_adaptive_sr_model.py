@@ -6,11 +6,9 @@ of the support/resistance prediction model.
 """
 
 import pytest
-import asyncio
 import numpy as np
-import pandas as pd
-from datetime import date, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import date, timedelta
+from unittest.mock import AsyncMock, MagicMock
 import tempfile
 import os
 

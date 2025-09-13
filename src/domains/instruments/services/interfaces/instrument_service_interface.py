@@ -96,39 +96,32 @@ class InstrumentServiceInterface(ABC):
     @abstractmethod
     async def create_instrument(self, instrument: InstrumentDTO) -> InstrumentOperationResult:
         """Create a new instrument"""
-        pass
 
     @abstractmethod
     async def get_instrument_by_id(self, instrument_id: int) -> Optional[InstrumentDTO]:
         """Retrieve instrument by ID"""
-        pass
 
     @abstractmethod
     async def get_instrument_by_symbol(self, symbol: str, vendor_name: str = "ticker") -> Optional[InstrumentDTO]:
         """Retrieve instrument by symbol and vendor"""
-        pass
 
     @abstractmethod
     async def update_instrument(self, instrument: InstrumentDTO) -> InstrumentOperationResult:
         """Update existing instrument"""
-        pass
 
     @abstractmethod
     async def list_instruments(self, criteria: InstrumentSearchCriteria) -> List[InstrumentDTO]:
         """List instruments based on search criteria"""
-        pass
 
     # Cross-Reference Operations
 
     @abstractmethod
     async def create_cross_reference(self, xref: InstrumentXrefDTO) -> InstrumentOperationResult:
         """Create instrument cross-reference"""
-        pass
 
     @abstractmethod
     async def get_cross_references(self, instrument_id: int) -> List[InstrumentXrefDTO]:
         """Get all cross-references for an instrument"""
-        pass
 
     @abstractmethod
     async def resolve_instrument_by_vendor_symbol(
@@ -138,7 +131,6 @@ class InstrumentServiceInterface(ABC):
         as_of_date: Optional[date] = None
     ) -> Optional[InstrumentDTO]:
         """Resolve instrument by vendor symbol and date"""
-        pass
 
     # Unified Operations
 
@@ -149,7 +141,6 @@ class InstrumentServiceInterface(ABC):
         identifier_type: str = "symbol"
     ) -> Optional[UnifiedInstrumentDTO]:
         """Get unified instrument view with all cross-references and vendor data"""
-        pass
 
     @abstractmethod
     async def populate_from_vendor(
@@ -158,33 +149,27 @@ class InstrumentServiceInterface(ABC):
         symbols: Optional[List[str]] = None
     ) -> InstrumentOperationResult:
         """Populate instruments from vendor data source"""
-        pass
 
     # Batch Operations
 
     @abstractmethod
     async def create_instruments_batch(self, instruments: List[InstrumentDTO]) -> InstrumentOperationResult:
         """Create multiple instruments in batch"""
-        pass
 
     @abstractmethod
     async def create_cross_references_batch(self, xrefs: List[InstrumentXrefDTO]) -> InstrumentOperationResult:
         """Create multiple cross-references in batch"""
-        pass
 
     # Utility Operations
 
     @abstractmethod
     async def get_all_symbols(self, vendor_name: str = "ticker") -> List[str]:
         """Get all symbols for a vendor"""
-        pass
 
     @abstractmethod
     async def get_instrument_count(self) -> int:
         """Get total number of instruments"""
-        pass
 
     @abstractmethod
     async def validate_symbol(self, symbol: str, vendor_name: str = "ticker") -> bool:
         """Validate if symbol exists for vendor"""
-        pass

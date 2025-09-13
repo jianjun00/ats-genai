@@ -16,10 +16,9 @@ Usage:
 import sys
 import os
 import time
-import math
 from datetime import datetime
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 # Add src to path to import indicators
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -27,7 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 try:
     from domains.trading.services.indicator import (
         PL, L11, H11, Z1B, Z2B, EBot, ETop, Z5T, Z6T,
-        FiveNineSell, FiveNineBuy, InstrumentInterval
+        FiveNineSell, FiveNineBuy
     )
 except ImportError as e:
     print(f"❌ Cannot import indicators: {e}")

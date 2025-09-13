@@ -4,7 +4,7 @@ Playwright configuration for EDA UI tests
 
 import pytest
 import asyncio
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+from playwright.async_api import async_playwright
 
 @pytest.fixture(scope="session")
 def event_loop():

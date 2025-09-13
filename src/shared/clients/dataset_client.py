@@ -6,11 +6,10 @@ Provides simplified methods for common dataset operations without exposing servi
 
 import logging
 from typing import Dict, List, Optional, Any, Iterator, Tuple
-from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..services.dataset_service import DatasetService, DatasetMetadata, DatasetFileIterator
+from ..services.dataset_service import DatasetService, DatasetMetadata
 
 logger = logging.getLogger(__name__)
 

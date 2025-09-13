@@ -10,7 +10,6 @@ Critical tests that would have caught the real issues we encountered:
 """
 
 import pytest
-import asyncio
 import asyncpg
 import sys
 import os

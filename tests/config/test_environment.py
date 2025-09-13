@@ -4,13 +4,8 @@ Tests for Environment configuration management.
 
 import os
 import pytest
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import gin
+from unittest.mock import patch
 from shared.utils.environment import Environment, EnvironmentType
-from shared.utils.database import Database
-from shared.utils.logging_config import LoggingConfig
 
 
 
@@ -136,7 +131,6 @@ class TestEnvironment:
     @pytest.mark.skip(reason="Legacy configparser logic removed; Gin does not support section/key default lookup.")
     def test_get_config_value_with_default(self):
         """Test getting configuration value with default."""
-        pass
 
     def test_string_representations(self):
         """Test environment string representations."""

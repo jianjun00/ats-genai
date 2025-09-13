@@ -6,7 +6,6 @@ from vendor.tiingo.core.dao.daily_prices_tiingo_dao import DailyPricesTiingoDAO
 from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from src.db.test_db_manager import unit_test_db
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

@@ -13,12 +13,11 @@ Tests the complete FirstRate backfill system:
 import pytest
 import tempfile
 import zipfile
-import asyncio
 import json
 import os
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

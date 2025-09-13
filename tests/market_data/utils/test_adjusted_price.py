@@ -1,4 +1,3 @@
-import pytest
 from datetime import date
 from domains.market_data.services.utils.calculate_adjusted_prices import compute_adjusted_prices
 

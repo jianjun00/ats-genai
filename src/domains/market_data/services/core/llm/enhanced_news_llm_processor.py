@@ -14,14 +14,11 @@ Features:
 """
 
 import logging
-import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
-import json
-import time
+from typing import Dict, List, Optional, Any
 
 import asyncpg
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient
 from domains.market_data.services.llm.news_llm_processor import NewsArticle
@@ -64,7 +61,6 @@ class NewsAnalysisResult:
 
 class LLMProcessingError(Exception):
     """Custom exception for LLM processing errors."""
-    pass
 
 
 class EnhancedLLMNewsProcessor:

@@ -7,11 +7,9 @@ for systematically filling historical earnings data gaps.
 """
 
 import pytest
-import asyncio
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from unittest.mock import Mock, AsyncMock, patch
-from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Dict, List
 
 @pytest.fixture
 def mock_environment():

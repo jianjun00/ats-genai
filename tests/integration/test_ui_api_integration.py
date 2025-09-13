@@ -6,8 +6,6 @@ Prevents API endpoint mismatches and ensures interface functionality
 
 import pytest
 import requests
-import json
-from unittest.mock import patch
 import re
 from bs4 import BeautifulSoup
 

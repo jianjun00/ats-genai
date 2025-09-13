@@ -4,20 +4,15 @@ Simple Analytics Service - Lightweight service for Data Quality Agent Dashboard
 Minimal dependencies for production deployment demonstration
 """
 
-import asyncio
 import json
 import logging
 import os
-import sys
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List
 from urllib.parse import urlparse, parse_qs
-import threading
-import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

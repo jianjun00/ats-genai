@@ -10,10 +10,9 @@ import time
 import psutil
 import gc
 from datetime import datetime, date, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor
-import threading
 
 # Add src to path for imports
 import sys

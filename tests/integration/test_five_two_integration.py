@@ -23,7 +23,7 @@ import time
 import random
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 try:
     from domains.trading.services.indicator import (
         FiveTwoBuy, FiveTwoSell, FiveOneBuy, FiveOneSell,
-        FiveNineBuy, FiveNineSell, H11, L11, EnvelopeBot, EnvelopeTop
+        H11, L11, EnvelopeBot, EnvelopeTop
     )
 except ImportError as e:
     print(f"❌ Cannot import indicators: {e}")

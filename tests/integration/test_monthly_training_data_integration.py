@@ -10,11 +10,9 @@ Tests the complete integration of:
 """
 
 import pytest
-import asyncio
-import json
 import tempfile
 import shutil
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 import asyncpg
 

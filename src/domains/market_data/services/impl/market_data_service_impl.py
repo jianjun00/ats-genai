@@ -8,12 +8,11 @@ and cross-vendor consolidation.
 
 import logging
 import math
-from datetime import datetime, date, timedelta
+from datetime import date
 from typing import List, Optional, Dict, Any, Union
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 import pandas as pd
-import numpy as np
 
 from ..interfaces.market_data_service_interface import (
     MarketDataServiceInterface,

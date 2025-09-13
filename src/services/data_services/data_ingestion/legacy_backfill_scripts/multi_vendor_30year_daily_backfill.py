@@ -25,10 +25,9 @@ import json
 import time
 import requests
 from datetime import datetime, timedelta, date
-from typing import List, Dict, Optional, Any, NamedTuple
+from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from pathlib import Path
-import hashlib
 from enum import Enum
 
 # Add src to Python path

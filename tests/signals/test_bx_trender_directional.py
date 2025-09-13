@@ -2,10 +2,8 @@
 Unit tests for BX Trender Directional indicator.
 """
 import unittest
-import math
 import pandas as pd
 import numpy as np
-from unittest.mock import Mock
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 

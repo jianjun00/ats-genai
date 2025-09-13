@@ -18,11 +18,10 @@ import aiohttp
 import logging
 import time
 import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from datetime import datetime
+from typing import Dict, Any
 import os
 import sys
-import subprocess
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))

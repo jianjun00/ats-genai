@@ -6,7 +6,6 @@ and database operations in the development environment.
 """
 
 import pytest
-import asyncio
 import os
 from datetime import date
 

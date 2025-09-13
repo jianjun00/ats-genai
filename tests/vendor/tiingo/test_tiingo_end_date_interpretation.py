@@ -10,10 +10,8 @@ not delisting date. Our fix correctly interprets recent endDate as active status
 """
 
 import pytest
-import asyncio
 import asyncpg
 from datetime import date, datetime, timedelta
-from unittest.mock import patch, Mock
 import json
 import os
 import sys

@@ -221,7 +221,6 @@ from core.config.settings import get_settings
                     except Exception as file_error:
                         logger.warning(f"Could not load actual sequence data: {file_error}")
                         # Fall back to sample data
-                        pass
 
                     # Generate sample data if actual data not available
                     sample_data = self._generate_sample_sequence_for_dataset(dataset_info)

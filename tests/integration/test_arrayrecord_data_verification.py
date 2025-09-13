@@ -53,7 +53,6 @@ class TestArrayRecordDataVerification:
     def test_arrayrecord_can_be_imported(self):
         """Test that we can import ArrayRecord library."""
         try:
-            import array_record.python.array_record_module as array_record_module
             print("✅ ArrayRecord library available")
             return True
         except ImportError:

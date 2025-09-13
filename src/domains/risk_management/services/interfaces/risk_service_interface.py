@@ -7,7 +7,7 @@ Defines comprehensive risk management operations for financial trading systems.
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
@@ -213,7 +213,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Complete position risk assessment
         """
-        pass
 
     @abstractmethod
     async def assess_portfolio_risk(
@@ -233,7 +232,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Complete portfolio risk assessment
         """
-        pass
 
     # Risk Limit Management
 
@@ -261,7 +259,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Created risk limit
         """
-        pass
 
     @abstractmethod
     async def check_risk_limits(
@@ -279,7 +276,6 @@ class RiskServiceInterface(ABC):
         Returns:
             List of risk limits with current status
         """
-        pass
 
     @abstractmethod
     async def update_risk_limit(
@@ -301,7 +297,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Updated risk limit
         """
-        pass
 
     # Real-time Monitoring & Alerts
 
@@ -321,7 +316,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Monitoring session ID
         """
-        pass
 
     @abstractmethod
     async def stop_real_time_monitoring(self, session_id: str) -> bool:
@@ -334,7 +328,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     @abstractmethod
     async def get_active_alerts(
@@ -354,7 +347,6 @@ class RiskServiceInterface(ABC):
         Returns:
             List of active alerts
         """
-        pass
 
     @abstractmethod
     async def acknowledge_alert(
@@ -374,7 +366,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Success status
         """
-        pass
 
     # VaR and Stress Testing
 
@@ -398,7 +389,6 @@ class RiskServiceInterface(ABC):
         Returns:
             VaR calculation results
         """
-        pass
 
     @abstractmethod
     async def run_stress_test(
@@ -416,7 +406,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Stress test results by position
         """
-        pass
 
     @abstractmethod
     async def create_scenario(
@@ -440,7 +429,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Created scenario
         """
-        pass
 
     # Reporting and Analytics
 
@@ -458,7 +446,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Generated risk report
         """
-        pass
 
     @abstractmethod
     async def get_risk_metrics_history(
@@ -480,7 +467,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Historical risk metrics by metric name
         """
-        pass
 
     @abstractmethod
     async def get_compliance_status(
@@ -498,7 +484,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Compliance status by regulation type
         """
-        pass
 
     # Risk Configuration
 
@@ -518,7 +503,6 @@ class RiskServiceInterface(ABC):
         Returns:
             Model configuration ID
         """
-        pass
 
     @abstractmethod
     async def get_risk_model_performance(
@@ -536,4 +520,3 @@ class RiskServiceInterface(ABC):
         Returns:
             Model performance metrics
         """
-        pass

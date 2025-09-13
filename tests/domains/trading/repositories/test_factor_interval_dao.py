@@ -1,6 +1,5 @@
 import pytest
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
 from domains.trading.repositories.factor_interval_dao import FactorIntervalDAO
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from datetime import datetime

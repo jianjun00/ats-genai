@@ -1,12 +1,8 @@
 import pytest
-import asyncio
 from datetime import datetime, timezone
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
-from vendor.polygon.core.dao.instrument_polygon_dao import InstrumentPolygonDAO
 from vendor.polygon.core.dao.daily_prices_polygon_dao import DailyPricesPolygonDAO
 from domains.market_data.services.eod import daily_price_polygon
-import os
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

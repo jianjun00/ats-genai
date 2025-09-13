@@ -4,7 +4,6 @@ Test the refactored monitoring and LLM files with gin configuration
 """
 
 import sys
-import os
 sys.path.insert(0, 'src')
 
 def test_data_quality_config():

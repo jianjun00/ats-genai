@@ -129,39 +129,32 @@ class TradingServiceInterface(ABC):
     @abstractmethod
     async def create_universe(self, universe: UniverseDTO) -> TradingOperationResult:
         """Create a new trading universe"""
-        pass
     
     @abstractmethod
     async def get_universe_by_id(self, universe_id: int) -> Optional[UniverseDTO]:
         """Retrieve universe by ID"""
-        pass
     
     @abstractmethod
     async def get_universe_by_name(self, name: str) -> Optional[UniverseDTO]:
         """Retrieve universe by name"""
-        pass
     
     @abstractmethod
     async def list_universes(self, criteria: Optional[UniverseSearchCriteria] = None) -> List[UniverseDTO]:
         """List universes based on search criteria"""
-        pass
     
     @abstractmethod
     async def update_universe(self, universe: UniverseDTO) -> TradingOperationResult:
         """Update universe information"""
-        pass
     
     @abstractmethod
     async def delete_universe(self, universe_id: int) -> TradingOperationResult:
         """Delete universe (soft delete recommended)"""
-        pass
     
     # Universe Membership Operations
     
     @abstractmethod
     async def add_universe_member(self, membership: UniverseMembershipDTO) -> TradingOperationResult:
         """Add instrument to universe"""
-        pass
     
     @abstractmethod
     async def remove_universe_member(self, universe_id: int, 
@@ -169,82 +162,68 @@ class TradingServiceInterface(ABC):
                                    symbol: Optional[str] = None,
                                    end_date: Optional[datetime] = None) -> TradingOperationResult:
         """Remove instrument from universe"""
-        pass
     
     @abstractmethod
     async def get_universe_members(self, universe_id: int, 
                                  as_of_date: Optional[datetime] = None) -> List[UniverseMembershipDTO]:
         """Get current or historical universe members"""
-        pass
     
     @abstractmethod
     async def get_active_memberships(self, universe_id: int, 
                                    as_of_date: datetime) -> List[UniverseMembershipDTO]:
         """Get active universe memberships as of specific date"""
-        pass
     
     @abstractmethod
     async def update_membership_batch(self, memberships: List[UniverseMembershipDTO]) -> TradingOperationResult:
         """Update multiple universe memberships in batch"""
-        pass
     
     # Factor Interval Operations
     
     @abstractmethod
     async def create_factor_interval(self, factor: FactorIntervalDTO) -> TradingOperationResult:
         """Create a new factor interval record"""
-        pass
     
     @abstractmethod
     async def get_factor_interval_by_id(self, factor_id: int) -> Optional[FactorIntervalDTO]:
         """Retrieve factor interval by ID"""
-        pass
     
     @abstractmethod
     async def list_factor_intervals(self, criteria: FactorSearchCriteria) -> List[FactorIntervalDTO]:
         """List factor intervals based on search criteria"""
-        pass
     
     @abstractmethod
     async def create_factor_intervals_batch(self, factors: List[FactorIntervalDTO]) -> TradingOperationResult:
         """Create multiple factor intervals in batch"""
-        pass
     
     @abstractmethod
     async def delete_factor_interval(self, factor_id: int) -> TradingOperationResult:
         """Delete factor interval"""
-        pass
     
     @abstractmethod
     async def get_factors_by_universe_state(self, universe_state_interval_id: int) -> List[FactorIntervalDTO]:
         """Get all factors for a specific universe state interval"""
-        pass
     
     # Universe State Operations
     
     @abstractmethod
     async def create_universe_state_interval(self, state: UniverseStateIntervalDTO) -> TradingOperationResult:
         """Create a new universe state interval"""
-        pass
     
     @abstractmethod
     async def get_universe_state_interval(self, state_id: int) -> Optional[UniverseStateIntervalDTO]:
         """Retrieve universe state interval by ID"""
-        pass
     
     @abstractmethod
     async def get_universe_states_by_period(self, universe_id: int,
                                           start_time: datetime,
                                           end_time: datetime) -> List[UniverseStateIntervalDTO]:
         """Get universe states for a specific time period"""
-        pass
     
     # Portfolio Operations
     
     @abstractmethod
     async def optimize_portfolio(self, request: PortfolioOptimizationRequest) -> PortfolioOptimizationResult:
         """Optimize portfolio weights for given universe and constraints"""
-        pass
     
     @abstractmethod
     async def calculate_portfolio_metrics(self, universe_id: int,
@@ -252,21 +231,18 @@ class TradingServiceInterface(ABC):
                                         start_date: date,
                                         end_date: date) -> Dict[str, Any]:
         """Calculate portfolio performance metrics"""
-        pass
     
     @abstractmethod
     async def get_universe_correlation_matrix(self, universe_id: int,
                                             start_date: date,
                                             end_date: date) -> Dict[str, Dict[str, float]]:
         """Calculate correlation matrix for universe members"""
-        pass
     
     @abstractmethod
     async def calculate_factor_exposures(self, universe_id: int,
                                        weights: Dict[str, Decimal],
                                        as_of_date: date) -> Dict[str, Decimal]:
         """Calculate factor exposures for portfolio weights"""
-        pass
     
     # Analytics Operations
     
@@ -275,7 +251,6 @@ class TradingServiceInterface(ABC):
                                    start_date: Optional[date] = None,
                                    end_date: Optional[date] = None) -> Dict[str, Any]:
         """Get comprehensive analytics for a universe"""
-        pass
     
     @abstractmethod
     async def calculate_universe_returns(self, universe_id: int,
@@ -283,21 +258,18 @@ class TradingServiceInterface(ABC):
                                        end_date: date,
                                        weighting_scheme: str = "equal") -> Dict[str, Any]:
         """Calculate universe-level returns"""
-        pass
     
     @abstractmethod
     async def get_factor_performance(self, factor_names: List[str],
                                    start_date: date,
                                    end_date: date) -> Dict[str, Dict[str, Any]]:
         """Get factor performance analytics"""
-        pass
     
     @abstractmethod
     async def detect_universe_anomalies(self, universe_id: int,
                                       start_date: date,
                                       end_date: date) -> List[Dict[str, Any]]:
         """Detect anomalies in universe composition or performance"""
-        pass
     
     # Risk Management Operations
     
@@ -307,14 +279,12 @@ class TradingServiceInterface(ABC):
                           confidence_level: float = 0.95,
                           lookback_days: int = 252) -> Dict[str, Any]:
         """Calculate Value at Risk for portfolio"""
-        pass
     
     @abstractmethod
     async def stress_test_portfolio(self, universe_id: int,
                                   weights: Dict[str, Decimal],
                                   stress_scenarios: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Run stress tests on portfolio"""
-        pass
     
     @abstractmethod
     async def calculate_portfolio_beta(self, universe_id: int,
@@ -322,7 +292,6 @@ class TradingServiceInterface(ABC):
                                      benchmark_symbol: str,
                                      lookback_days: int = 252) -> Optional[Decimal]:
         """Calculate portfolio beta relative to benchmark"""
-        pass
     
     # Data Quality Operations
     
@@ -330,20 +299,17 @@ class TradingServiceInterface(ABC):
     async def validate_universe_data(self, universe_id: int,
                                    as_of_date: date) -> Dict[str, Any]:
         """Validate data quality for universe"""
-        pass
     
     @abstractmethod
     async def get_universe_coverage_report(self, universe_id: int,
                                          start_date: date,
                                          end_date: date) -> Dict[str, Any]:
         """Get data coverage report for universe"""
-        pass
     
     @abstractmethod
     async def reconcile_universe_memberships(self, universe_id: int,
                                            target_date: date) -> TradingOperationResult:
         """Reconcile universe memberships against reference data"""
-        pass
     
     # Utility Operations
     
@@ -353,18 +319,15 @@ class TradingServiceInterface(ABC):
                                  end_date: Optional[date] = None,
                                  format: str = "csv") -> Union[str, Dict[str, Any]]:
         """Export universe data in specified format"""
-        pass
     
     @abstractmethod
     async def clone_universe(self, source_universe_id: int,
                            new_name: str,
                            clone_memberships: bool = True) -> TradingOperationResult:
         """Clone an existing universe"""
-        pass
     
     @abstractmethod
     async def merge_universes(self, universe_ids: List[int],
                             target_name: str,
                             merge_strategy: str = "union") -> TradingOperationResult:
         """Merge multiple universes into a new universe"""
-        pass

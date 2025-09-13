@@ -11,10 +11,8 @@ Tests the complete Tiingo fundamentals collection pipeline including:
 """
 
 import pytest
-import asyncio
-import os
 import sys
-from datetime import datetime, date, timedelta
+from datetime import date
 from unittest.mock import patch, AsyncMock, MagicMock
 
 sys.path.append('/workspace/src')

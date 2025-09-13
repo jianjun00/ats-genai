@@ -12,10 +12,9 @@ Tests the new monthly training data system:
 import pytest
 import tempfile
 import shutil
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
-import json
 
 # Import the components to test
 from domains.ml.services.training_data.dao.monthly_training_data_dao import (
@@ -24,7 +23,7 @@ from domains.ml.services.training_data.dao.monthly_training_data_dao import (
 from domains.ml.services.training_data.callbacks.training_data_callback import (
     IntervalBasedTrainingDataCallback
 )
-from shared.utils.environment import Environment, EnvironmentType
+from shared.utils.environment import Environment
 
 
 class TestMonthlyTrainingDataDAO:

@@ -5,13 +5,11 @@ Each test gets its own isolated database.
 """
 
 import pytest
-import asyncio
 import asyncpg
 import os
 import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 from db.migration_manager import MigrationManager
 
 from shared.utils.environment import Environment
@@ -605,7 +603,6 @@ async def test_migration_with_environment_variables(unit_test_db_clean):
         os.environ['ENVIRONMENT'] = 'production'
 
         # Need to reload the environment configuration
-        from shared.utils.environment import Environment
         from importlib import reload
         import src.config.environment
         import gin

@@ -8,7 +8,6 @@ economic events, and analytics data processing.
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
-from decimal import Decimal
 
 from domains.analytics.services.interfaces.analytics_service_interface import (
     AnalyticsServiceInterface,

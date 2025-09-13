@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 
 from src.storage.multi_scale_sequence import (
-    MultiScaleSequence,
     ScaleFeatures,
     EventSequence,
     MarketEvent,

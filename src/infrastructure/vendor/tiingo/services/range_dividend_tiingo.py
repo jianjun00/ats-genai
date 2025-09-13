@@ -6,19 +6,15 @@ from datetime import datetime, date
 from shared.utils.environment import Environment, EnvironmentType
 from shared.utils.vendor_api_keys import get_tiingo_api_key
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from shared.utils.http_response_handlers import handle_vendor_response
+from shared.utils.data_transformers import transform_vendor_dividend, parse_vendor_date
+from shared.utils.validation_utils import validate_dividend_data, validate_date_range
+from shared.utils.config_utils import get_api_key_with_fallback
 from infrastructure.database.repositories.dividend_tiingo_dao import DividendTiingoDAO
 import asyncpg
 
-def parse_date(val):
-    if val is None:
-        return None
-    if isinstance(val, datetime):
-        return val.date()
-    if isinstance(val, date):
-        return val
-    return datetime.strptime(val, "%Y-%m-%d").date()
-
 def fetch_tiingo_dividends(symbol, api_key, start_date, end_date, stats=None, rate_limiter=None):
+    """Fetch dividend data from Tiingo API using shared HTTP handling."""
     url = f"https://api.tiingo.com/iex/{symbol}/dividends?startDate={start_date}&endDate={end_date}"
     headers = {"Authorization": f"Token {api_key}"}
     print(f"[DEBUG] Requesting Tiingo dividends: {url}")
@@ -35,34 +31,21 @@ def fetch_tiingo_dividends(symbol, api_key, start_date, end_date, stats=None, ra
     if stats:
         stats.record_api_call(success=(resp.status_code == 200), response_time=response_time)
 
-    if resp.status_code != 200:
-        print(f"Failed to fetch dividends for {symbol}: {resp.status_code} {resp.text}")
+    # Use shared HTTP response handler
+    result = handle_vendor_response(resp, symbol, vendor='tiingo')
+    
+    if result['success']:
+        return result['data']
+    else:
+        print(f"Failed to fetch dividends for {symbol}: {result['error']}")
         return []
-    return resp.json()
-
-def map_tiingo_dividend(div):
-    def pd(val):
-        return parse_date(div.get(val))
-    return {
-        'symbol': div.get('ticker') or div.get('symbol'),
-        'ex_dividend_date': pd('exDate'),
-        'cash_amount': div.get('cashAmount'),
-        'declaration_date': pd('declarationDate'),
-        'payment_date': pd('payDate'),
-        'record_date': pd('recordDate'),
-        'description': div.get('description'),
-        'refid': div.get('id'),
-        'qualified': div.get('qualified'),
-        'flag': div.get('flag'),
-        'currency': div.get('currency'),
-        'frequency': div.get('frequency'),
-    }
 
 async def get_symbols_from_dividend_polygon(env, start_date, end_date):
+    """Get distinct symbols from dividend_polygon table using shared date parsing."""
     db_url = env.get_database_url()
     table_name = env.get_table_name('dividend_polygon')
-    start = parse_date(start_date)
-    end = parse_date(end_date)
+    start = parse_vendor_date(start_date, vendor='tiingo')
+    end = parse_vendor_date(end_date, vendor='tiingo')
     pool = await asyncpg.create_pool(db_url)
     async with pool.acquire() as conn:
         rows = await conn.fetch(f"SELECT DISTINCT symbol FROM {table_name} WHERE ex_dividend_date >= $1 AND ex_dividend_date <= $2", start, end)
@@ -70,15 +53,24 @@ async def get_symbols_from_dividend_polygon(env, start_date, end_date):
     return [row['symbol'] for row in rows]
 
 async def insert_dividends_tiingo(dividends, dao):
+    """Insert dividends using shared data transformation and validation."""
     if not dividends:
         print("No dividends to insert.")
         return
     inserted = 0
     for div in dividends:
-        mapped = map_tiingo_dividend(div)
-        if mapped['symbol'] and mapped['ex_dividend_date'] and mapped['cash_amount'] is not None:
-            await dao.insert_dividend(mapped)
+        # Use shared data transformation
+        transformed = transform_vendor_dividend(div, vendor='tiingo')
+        
+        # Use shared validation
+        validation_result = validate_dividend_data(transformed)
+        
+        if validation_result.is_valid:
+            await dao.insert_dividend(transformed)
             inserted += 1
+        else:
+            print(f"Validation failed for dividend: {validation_result.errors}")
+    
     print(f"Inserted {inserted} dividends.")
 
 async def main():
@@ -89,8 +81,14 @@ async def main():
     args = parser.parse_args()
     env = Environment(env_type=EnvironmentType(args.environment))
 
-    # Use enhanced API key resolution from shared utilities
-    api_key = get_tiingo_api_key(env=env)
+    # Validate date range using shared validation
+    date_validation = validate_date_range(args.start_date, args.end_date, max_range_days=365)
+    if not date_validation.is_valid:
+        print(f"Invalid date range: {date_validation.errors}")
+        return
+
+    # Use enhanced API key resolution from shared utilities with fallback
+    api_key = get_api_key_with_fallback('tiingo', env_instance=env)
     if not api_key:
         raise Exception("Please set your TIINGO_API_KEY in your environment or config.")
 

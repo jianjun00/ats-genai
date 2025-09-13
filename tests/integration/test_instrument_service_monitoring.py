@@ -8,14 +8,13 @@ and performance tracking for the InstrumentService architecture.
 import pytest
 import asyncio
 import time
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
+from datetime import datetime
+from unittest.mock import Mock
 
 # Service imports
 from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentDTO,
-    InstrumentSearchCriteria,
-    InstrumentOperationResult
+    InstrumentSearchCriteria
 )
 from domains.instruments.services.config.service_container import get_instrument_service
 from core.platform.config.environment import Environment, EnvironmentType
@@ -24,7 +23,6 @@ from core.platform.config.environment import Environment, EnvironmentType
 from infrastructure.monitoring.instrument_service_monitor import (
     InstrumentServiceMonitor,
     get_instrument_service_monitor,
-    initialize_instrument_service_monitoring,
     record_instrument_business_metric,
     record_cache_performance
 )

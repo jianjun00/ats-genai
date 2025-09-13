@@ -17,17 +17,14 @@ from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
-import asyncio
 
 from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
-    InstrumentSearchCriteria,
-    InstrumentOperationResult
+    InstrumentSearchCriteria
 )
 from domains.instruments.services.config.service_container import provide_instrument_service
-from core.platform.config.environment import Environment, EnvironmentType
 
 logger = logging.getLogger(__name__)
 

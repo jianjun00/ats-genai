@@ -15,7 +15,7 @@ import shutil
 import json
 from pathlib import Path
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from unittest.mock import AsyncMock, Mock, patch
 
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 

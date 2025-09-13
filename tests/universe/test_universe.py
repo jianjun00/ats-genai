@@ -1,5 +1,4 @@
 from domains.trading.services.universe import Universe
-import pytest
 from datetime import date
 
 

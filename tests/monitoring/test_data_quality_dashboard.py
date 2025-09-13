@@ -3,12 +3,8 @@ Tests for data quality monitoring dashboard.
 """
 
 import pytest
-import pandas as pd
-import numpy as np
-import sys
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-import asyncio
+from datetime import datetime
+from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
 # Mock plotly and streamlit before importing the module

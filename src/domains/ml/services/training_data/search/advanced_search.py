@@ -6,10 +6,9 @@ Provides sophisticated search capabilities across training datasets.
 
 from dataclasses import dataclass
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict, Optional, Any
 from enum import Enum
 import json
-import re
 
 class SearchOperator(Enum):
     """Search operators for filtering."""

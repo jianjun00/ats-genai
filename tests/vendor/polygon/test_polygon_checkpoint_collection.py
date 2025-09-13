@@ -5,13 +5,10 @@ Tests the checkpoint system that enables fault-tolerant 30-year price collection
 across all instruments with resumable progress tracking.
 """
 
-import asyncio
 import pytest
 import asyncpg
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
-from unittest.mock import AsyncMock, patch, MagicMock
 
 
 @pytest.fixture

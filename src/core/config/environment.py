@@ -8,7 +8,6 @@ import gin
 @gin.configurable
 def environment_config():
     """Configurable environment function."""
-    pass
 
 
 @gin.configurable

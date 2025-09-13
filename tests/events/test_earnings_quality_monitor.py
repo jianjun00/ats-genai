@@ -7,12 +7,10 @@ metrics calculation, vendor health checks, and alerting logic.
 """
 
 import pytest
-import asyncio
 import json
 from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock, patch
-from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Dict
 
 # Mock the environment and database dependencies
 @pytest.fixture

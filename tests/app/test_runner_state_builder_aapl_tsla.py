@@ -1,13 +1,11 @@
 import pytest
 import pandas as pd
 from datetime import date
-from app.runner import Runner
-from shared.utils.environment import Environment
+from services.core.app.runner import Runner
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.services.universe_manager import UniverseManager
-from state.universe_state_manager import UniverseStateManager
-from shared.utils.environment import Environment, EnvironmentType
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
-import asyncio
 import asyncpg
 
 # Test config: use test DB prefix and test env
@@ -17,7 +15,6 @@ UNIVERSE_SYMBOLS = ["AAPL", "TSLA"]
 UNIVERSE_ID = 9998  # Arbitrary test universe ID for unit test
 
 import pytest
-from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -239,7 +236,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
             print(f"{date_str} rows:\n", day_df)
 
         # Load and check the full_universe_state parquet file
-        import glob, os
+        import glob
         from pathlib import Path
         # Use the default output dir for test
         base_dir = Path(universe_state_manager.base_path)

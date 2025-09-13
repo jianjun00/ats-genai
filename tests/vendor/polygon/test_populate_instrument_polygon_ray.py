@@ -1,6 +1,6 @@
 import pytest
 import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 # --- Test parse_date logic (copied from Ray remote) ---
 def parse_date(val):
@@ -47,7 +47,6 @@ def test_ray_core_logic_none():
 @pytest.mark.asyncio
 async def test_ray_remote_db_args(monkeypatch):
     # Patch asyncpg.create_pool and requests.get
-    import secmaster.populate_instrument_polygon as pip
     fake_pool = MagicMock()
     fake_conn = MagicMock()
     fake_pool.acquire = MagicMock(return_value=fake_conn)

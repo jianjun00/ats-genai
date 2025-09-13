@@ -9,15 +9,13 @@ Tests validate that the exchange DAOs properly extend BaseDAO and follow
 established patterns without duplicating functionality.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import date, datetime
+from unittest.mock import patch
+from datetime import date
 
 from domains.instruments.repositories.exchange_dao import ExchangeDAO
 from domains.instruments.repositories.instrument_xref_dao import InstrumentXrefDAO
 from core.dao.infrastructure.vendor_dao import VendorDAO
 from services.core.exchange_service import ExchangeService
-from core.security.exceptions.custom_exceptions import DataValidationError, DatabaseError
 from core.security.validation.data_validators import ValidationResult
 
 

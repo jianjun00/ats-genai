@@ -11,10 +11,9 @@ This test detects when the UI layout changes unexpectedly:
 PURPOSE: Prevent accidental UI regressions and layout changes
 """
 
-import pytest
 import requests
 import re
-from typing import Dict, List, Set
+from typing import Dict
 from dataclasses import dataclass
 
 # Test configuration

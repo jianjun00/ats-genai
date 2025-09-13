@@ -11,14 +11,10 @@ This test suite validates that the critical issues identified and fixed
 in the Polygon 30-year backfill system are working correctly together.
 """
 
-import asyncio
 import pytest
 import asyncpg
-import aiohttp
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
-from unittest.mock import AsyncMock, patch, MagicMock
 
 
 @pytest.fixture

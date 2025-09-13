@@ -39,7 +39,6 @@ USAGE:
     })
 """
 
-import asyncio
 import sys
 import os
 import subprocess
@@ -49,7 +48,7 @@ import platform
 import socket
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import asyncpg
 import logging
 

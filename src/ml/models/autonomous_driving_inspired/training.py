@@ -12,20 +12,15 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import OneCycleLR, ReduceLROnPlateau
-from typing import Dict, List, Tuple, Optional, Any, Union, Callable
+from torch.optim.lr_scheduler import OneCycleLR
+from typing import Dict, List, Tuple, Any, Union
 import numpy as np
-import pandas as pd
 from pathlib import Path
 import json
 import logging
-from datetime import datetime
 from dataclasses import dataclass, asdict
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 from .transformer_model import AutonomousFinanceTransformer, TransformerConfig
-from .data_preprocessing import AutonomousFinanceDataLoader
 
 logger = logging.getLogger(__name__)
 

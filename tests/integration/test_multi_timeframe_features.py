@@ -13,9 +13,7 @@ Tests cover:
 import pytest
 import requests
 import pandas as pd
-import json
-from datetime import datetime, date
-from typing import Dict, List, Any, Optional
+from datetime import datetime
 
 class TestMultiTimeframeFeatures:
     """Test multi-timeframe feature generation and display"""
@@ -304,7 +302,6 @@ class TestTrainingDataGeneration:
 
     def test_gin_configuration_available(self):
         """Test that Gin configuration files exist and are parseable"""
-        import os
         from pathlib import Path
 
         config_dir = Path("/home/jianjun/ats-genai-data/config")

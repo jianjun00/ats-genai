@@ -10,17 +10,14 @@ import os
 import pytest
 import asyncio
 import json
-import tempfile
 import threading
 import time
 import requests
-from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from services.multi_panel_eda_service import MultiPanelEDAService, create_enhanced_analytics_server
-from core.database.connection_manager import get_connection_manager
 
 
 class TestMultiPanelEDAService:

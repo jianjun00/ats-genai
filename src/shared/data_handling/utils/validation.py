@@ -7,7 +7,7 @@ Validates gin configuration loading and environment detection
 import os
 import gin
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 from .environment_config import Environment, get_config_loader

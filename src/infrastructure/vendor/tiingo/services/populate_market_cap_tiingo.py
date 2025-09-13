@@ -9,16 +9,13 @@ import asyncio
 import argparse
 import logging
 import aiohttp
-import time
 from datetime import date
 from typing import Optional, List, Dict, Any
 
 from shared.utils.environment import Environment, EnvironmentType
 from shared.utils.vendor_api_keys import get_tiingo_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
-from domains.instruments.services.config.service_container import get_instrument_service
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("populate_market_cap_tiingo")

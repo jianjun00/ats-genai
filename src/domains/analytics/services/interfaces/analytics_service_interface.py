@@ -112,78 +112,64 @@ class AnalyticsServiceInterface(ABC):
     @abstractmethod
     async def create_event(self, event: EventDTO) -> AnalyticsOperationResult:
         """Create a new event with business validation"""
-        pass
     
     @abstractmethod
     async def get_event_by_id(self, event_id: int) -> Optional[EventDTO]:
         """Retrieve event by ID"""
-        pass
     
     @abstractmethod
     async def list_events(self, criteria: EventSearchCriteria) -> List[EventDTO]:
         """List events based on search criteria"""
-        pass
     
     @abstractmethod
     async def get_events_count(self, criteria: Optional[EventSearchCriteria] = None) -> int:
         """Get total number of events matching criteria"""
-        pass
     
     @abstractmethod
     async def create_events_batch(self, events: List[EventDTO]) -> AnalyticsOperationResult:
         """Create multiple events in batch"""
-        pass
     
     # Economic Event Type Operations
     
     @abstractmethod
     async def create_economic_event_type(self, event_type: EconomicEventTypeDTO) -> AnalyticsOperationResult:
         """Create a new economic event type"""
-        pass
     
     @abstractmethod
     async def get_economic_event_type_by_id(self, type_id: int) -> Optional[EconomicEventTypeDTO]:
         """Retrieve economic event type by ID"""
-        pass
     
     @abstractmethod
     async def list_economic_event_types(self, 
                                       category: Optional[str] = None,
                                       country: Optional[str] = None) -> List[EconomicEventTypeDTO]:
         """List economic event types with optional filtering"""
-        pass
     
     @abstractmethod
     async def update_economic_event_type(self, event_type: EconomicEventTypeDTO) -> AnalyticsOperationResult:
         """Update economic event type"""
-        pass
     
     # Economic Event Operations
     
     @abstractmethod
     async def create_economic_event(self, event: EconomicEventDTO) -> AnalyticsOperationResult:
         """Create a new economic event"""
-        pass
     
     @abstractmethod
     async def get_economic_event_by_id(self, event_id: int) -> Optional[EconomicEventDTO]:
         """Retrieve economic event by ID"""
-        pass
     
     @abstractmethod
     async def list_economic_events(self, criteria: EconomicEventSearchCriteria) -> List[EconomicEventDTO]:
         """List economic events based on search criteria"""
-        pass
     
     @abstractmethod
     async def update_economic_event(self, event: EconomicEventDTO) -> AnalyticsOperationResult:
         """Update economic event (for revisions, actuals, etc.)"""
-        pass
     
     @abstractmethod
     async def create_economic_events_batch(self, events: List[EconomicEventDTO]) -> AnalyticsOperationResult:
         """Create multiple economic events in batch"""
-        pass
     
     # Analytics Operations
     
@@ -194,7 +180,6 @@ class AnalyticsServiceInterface(ABC):
                                   importance_level: Optional[int] = None,
                                   countries: Optional[List[str]] = None) -> List[EconomicEventDTO]:
         """Get economic calendar for date range"""
-        pass
     
     @abstractmethod
     async def get_events_by_instrument(self, 
@@ -202,21 +187,17 @@ class AnalyticsServiceInterface(ABC):
                                      start_date: Optional[datetime] = None,
                                      end_date: Optional[datetime] = None) -> List[EventDTO]:
         """Get all events for a specific instrument"""
-        pass
     
     @abstractmethod
     async def get_analytics_summary(self) -> Dict[str, Any]:
         """Get analytics data summary and statistics"""
-        pass
     
     # Data Quality Operations
     
     @abstractmethod
     async def validate_event_data(self, event: EventDTO) -> Dict[str, Any]:
         """Validate event data quality and consistency"""
-        pass
     
     @abstractmethod
     async def get_data_quality_report(self) -> Dict[str, Any]:
         """Get data quality report for analytics data"""
-        pass

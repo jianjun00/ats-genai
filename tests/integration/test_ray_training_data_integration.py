@@ -15,14 +15,12 @@ Test Coverage:
 """
 
 import pytest
-import asyncio
 import asyncpg
 import ray
 import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Any
 import logging
 import json
 import os
@@ -32,8 +30,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 from ml.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
 from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
-from core.config.environment import Environment, EnvironmentType
-from app.runner import Runner
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -424,7 +420,6 @@ class TestRayResilience:
 # Helper classes for testing
 class MockRunner:
     """Mock runner for testing callbacks."""
-    pass
 
 
 class MockAsyncMethod:

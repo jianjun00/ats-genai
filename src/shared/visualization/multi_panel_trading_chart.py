@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import Rectangle
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Tuple, Optional
 from datetime import datetime
 import logging
 

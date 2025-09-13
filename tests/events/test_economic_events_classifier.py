@@ -6,10 +6,8 @@ Tests pattern matching, classification accuracy, database operations, and edge c
 
 import pytest
 import asyncio
-import json
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict, Any
 
 # Add src to path for imports
 import sys
@@ -19,9 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from events.economic_events_classifier import (
     EconomicEventsClassifier,
     EconomicEventsProcessor,
-    EconomicEvent,
-    EventCategory,
-    EventSeverity
+    EventCategory
 )
 
 

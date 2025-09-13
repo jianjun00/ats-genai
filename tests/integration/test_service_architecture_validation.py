@@ -6,7 +6,6 @@ works correctly without complex environment dependencies.
 """
 
 import pytest
-import asyncio
 from unittest.mock import Mock, AsyncMock
 
 from domains.instruments.services.interfaces.instrument_service_interface import (
@@ -188,8 +187,7 @@ class TestServiceMigrationSuccess:
         
         from domains.instruments.services.interfaces.instrument_service_interface import (
             InstrumentDTO,
-            InstrumentXrefDTO, 
-            InstrumentSearchCriteria,
+            InstrumentSearchCriteria, 
             InstrumentOperationResult
         )
         

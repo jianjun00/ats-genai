@@ -16,11 +16,9 @@ import asyncio
 import aiohttp
 import time
 import statistics
-import concurrent.futures
 import psutil
 import os
 import requests
-from typing import List, Dict, Any
 import sys
 
 # Add src to path

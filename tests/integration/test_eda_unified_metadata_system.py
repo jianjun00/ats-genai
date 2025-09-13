@@ -6,19 +6,12 @@ Tests all issues found and validates fixes
 
 import pytest
 import requests
-import json
-import time
-import asyncio
-from unittest.mock import patch, MagicMock
 import sys
 import os
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from services.analytics_service import JobManager, AnalyticsHandler
-from services.dataset_metadata_service import DatasetMetadataService, DatasetType
-import asyncpg
 
 class TestEDAUnifiedMetadataSystem:
     """Test suite for the unified metadata system and issue coverage"""

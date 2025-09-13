@@ -3,9 +3,7 @@ Comprehensive integration tests for the ATS Event System
 """
 
 import pytest
-import json
 import time
-import uuid
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 import sys
@@ -15,12 +13,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from events.proto.events_pb2 import (
-    Event, EventType, Priority, Classification,
-    create_news_event, create_earnings_event, create_technical_signal_event,
-    SignalType, SignalDirection
+    Event, EventType, Priority, create_news_event,
+    create_earnings_event, create_technical_signal_event, SignalType,
+    SignalDirection
 )
 from events.producer import EventProducer
-from events.consumer import process_event_from_queue
 from events.database import EventStorage
 from events.correlation import CorrelationEngine
 from events.monitoring import EventSystemMonitor
@@ -564,7 +561,6 @@ def setup_test_environment():
     yield
 
     # Cleanup after tests
-    pass
 
 if __name__ == "__main__":
     # Run tests

@@ -1,8 +1,6 @@
 import pytest
 import json
 import os
-from unittest.mock import Mock
-from urllib.parse import urlencode, urlparse, parse_qs
 
 
 class TestPolygonInstrumentPopulation:

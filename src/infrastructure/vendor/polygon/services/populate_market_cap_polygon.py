@@ -15,7 +15,6 @@ from typing import Optional, List, Dict, Any
 
 from shared.utils.environment import Environment, EnvironmentType
 from shared.utils.vendor_api_keys import get_polygon_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
 from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
 

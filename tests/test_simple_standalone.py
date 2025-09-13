@@ -4,7 +4,6 @@ Simple standalone test for our hardcoded values without complex gin dependencies
 """
 
 import sys
-import os
 sys.path.insert(0, 'src')
 
 def test_simple_main_gin_standalone():

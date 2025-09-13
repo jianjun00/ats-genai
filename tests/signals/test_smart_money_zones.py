@@ -13,9 +13,6 @@ Tests cover:
 import pytest
 import pandas as pd
 import numpy as np
-import pytz
-from datetime import datetime, timedelta
-from typing import Dict, Any
 
 from domains.trading.services.smart_money_zones import (
     MarketStructure,

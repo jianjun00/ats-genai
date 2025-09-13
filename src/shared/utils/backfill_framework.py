@@ -293,3 +293,86 @@ class VendorRateLimiters:
     def alpha_vantage() -> RateLimiter:
         """Alpha Vantage API rate limiter (alias for alpha_vantage_free)"""
         return VendorRateLimiters.alpha_vantage_free()
+
+# Database Connection Utilities
+import os
+import asyncpg
+from typing import Union
+
+async def get_vendor_database_connection(env_type: str = None) -> asyncpg.Connection:
+    """
+    Get database connection for vendor backfill operations.
+    
+    Standardized database connection logic used by all vendor services
+    (polygon, eodhd, tiingo, etc.) with Docker and localhost fallbacks.
+    
+    Args:
+        env_type: Environment type ('dev', 'intg'). If None, reads from ENV_TYPE
+        
+    Returns:
+        asyncpg.Connection: Database connection
+        
+    Usage:
+        >>> conn = await get_vendor_database_connection('intg')
+        >>> result = await conn.fetchrow('SELECT version()')
+        >>> await conn.close()
+    """
+    env = (env_type or os.getenv('ENV_TYPE', 'intg')).lower()
+    
+    if env == 'intg':
+        # Try Docker first, fallback to localhost
+        try:
+            return await asyncpg.connect(
+                host='ats-intg-postgres',  # INTG PostgreSQL container name
+                port=5432,                 # Internal Docker port
+                user='postgres',
+                password='intg_password',
+                database='intg_db'
+            )
+        except Exception:
+            # Fallback to localhost for running outside Docker
+            return await asyncpg.connect(
+                host='localhost',
+                port=4432,                 # External port for INTG
+                user='postgres',
+                password='intg_password',
+                database='intg_db'
+            )
+    else:  # dev or other environments
+        # Try Docker first, fallback to localhost
+        try:
+            return await asyncpg.connect(
+                host='ats-dev-postgres',   # DEV PostgreSQL container name
+                port=5432,                 # Internal Docker port
+                user='postgres',
+                password='dev_password',
+                database='dev_db'
+            )
+        except Exception:
+            # Fallback to localhost for running outside Docker
+            return await asyncpg.connect(
+                host='localhost',
+                port=5432,                 # External port for DEV (polygon uses this)
+                user='postgres',
+                password='dev_password',
+                database='dev_db'
+            )
+
+def get_vendor_table_name(base_name: str, vendor: str, env_type: str = None) -> str:
+    """
+    Get vendor-specific table name with environment prefix.
+    
+    Args:
+        base_name: Base table name (e.g., 'daily_price')
+        vendor: Vendor name (e.g., 'polygon', 'eodhd', 'tiingo')
+        env_type: Environment type ('dev', 'intg'). If None, reads from ENV_TYPE
+        
+    Returns:
+        Full table name like 'intg_daily_price_polygon'
+        
+    Usage:
+        >>> table = get_vendor_table_name('daily_price', 'polygon', 'intg')
+        >>> # Returns: 'intg_daily_price_polygon'
+    """
+    env = (env_type or os.getenv('ENV_TYPE', 'intg')).lower()
+    return f"{env}_{base_name}_{vendor}"

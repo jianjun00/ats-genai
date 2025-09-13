@@ -10,12 +10,10 @@ import pandas as pd
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import datetime, timedelta
-import json
 
 from src.state.universe_state_manager import UniverseStateManager, UniverseStateMetadata
-from db.test_db_manager import unit_test_db_clean
 
 
 class TestUniverseStateManager:
@@ -587,8 +585,6 @@ class TestUniverseStateManager:
         """
         Regression test: Ensure instrument and indicator rows are joined by instrument_id and timestamp, and no duplicate/NaN OHLC rows are created.
         """
-        import pandas as pd
-        import numpy as np
         from datetime import datetime, timedelta
         # Simulate two instruments, one interval each, with indicators
         now = datetime(2023, 12, 1, 10, 0, 0)

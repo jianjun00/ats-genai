@@ -7,21 +7,11 @@ using real data scenarios.
 """
 
 import pytest
-import asyncio
-import os
-from datetime import datetime, date, timezone
+from datetime import datetime, date
 from unittest.mock import patch, MagicMock, AsyncMock
-import asyncpg
-from typing import List, Dict
 
 from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
 from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
-from core.utils.datetime_utils import (
-    format_datetime_for_api,
-    parse_api_datetime,
-    to_utc,
-    US_EASTERN
-)
 from shared.utils.database import Database
 
 

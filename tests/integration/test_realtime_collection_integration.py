@@ -14,8 +14,7 @@ import pytest
 import asyncio
 import asyncpg
 import logging
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import datetime
 import os
 import sys
 import time

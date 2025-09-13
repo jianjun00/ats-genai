@@ -14,14 +14,10 @@ Tests cover:
 import pytest
 import asyncio
 import time
-import psutil
 import tracemalloc
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta, timezone
-import json
-import os
 import statistics
-from concurrent.futures import ThreadPoolExecutor
 
 # Import the modules under test
 import sys
@@ -30,7 +26,6 @@ sys.path.append('src')
 from domains.market_data.services.realtime.streaming_collector import RealtimeStreamingCollector, MinuteBar
 from domains.market_data.services.realtime.gap_detector import GapDetectionEngine
 from domains.market_data.services.realtime.weekly_backfill import WeeklyBackfillEngine
-from domains.market_data.services.realtime.metrics_exporter import MetricsCollector
 
 @pytest.mark.benchmark
 class TestDataThroughputBenchmarks:

@@ -6,16 +6,13 @@ the same behavior when refactoring to use gin configuration.
 """
 
 import pytest
-from datetime import date, datetime, timedelta
-from typing import List, Dict, Any
+from datetime import date, datetime
 import os
 import sys
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from analytics_api_dynamic import DynamicAnalyticsEngine
-from simple_main import app
 from shared.utils.environment import Environment
 
 

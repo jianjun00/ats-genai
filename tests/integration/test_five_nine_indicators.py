@@ -12,7 +12,6 @@ Usage:
 
 import sys
 from dataclasses import dataclass
-from typing import List, Optional
 import math
 
 @dataclass

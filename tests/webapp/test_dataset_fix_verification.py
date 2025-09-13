@@ -4,10 +4,8 @@ This test verifies that the actual functionality works correctly.
 """
 
 import pytest
-import asyncio
 import aiohttp
 import json
-from typing import Dict, List, Any
 import logging
 
 logger = logging.getLogger(__name__)

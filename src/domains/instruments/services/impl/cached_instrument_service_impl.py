@@ -7,7 +7,6 @@ intelligent caching, cache invalidation, and performance optimization.
 
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime
 
 from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentServiceInterface,
@@ -17,7 +16,7 @@ from domains.instruments.services.interfaces.instrument_service_interface import
     InstrumentOperationResult
 )
 from domains.instruments.services.impl.instrument_service_impl import InstrumentServiceImpl
-from infrastructure.caching.redis_cache import RedisCache, CacheKeyBuilder, cache_result
+from infrastructure.caching.redis_cache import RedisCache, CacheKeyBuilder
 from core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)

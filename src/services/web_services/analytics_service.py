@@ -5,26 +5,13 @@ Coordinates 7 focused analytics modules for maintainable codebase.
 """
 
 import logging
-from typing import Dict, Any, Optional
 
 # Import analytics modules
 try:
-    from .analytics_modules.analytics_service_core import UnifiedAnalyticsService
     from .analytics_modules.request_handler import UnifiedAnalyticsRequestHandler
-    from .analytics_modules.dashboard_generator import generate_eda_dashboard_html
-    from .analytics_modules.type_aware_analyzer import get_intelligent_filters
-    from .analytics_modules.training_data_manager import TrainingDataManager
-    from .analytics_modules.data_analysis_engine import DataAnalysisEngine
-    from .analytics_modules.news_events_handler import NewsEventsHandler
 except ImportError:
     # Fallback for running directly
-    from analytics_modules.analytics_service_core import UnifiedAnalyticsService
     from analytics_modules.request_handler import UnifiedAnalyticsRequestHandler
-    from analytics_modules.dashboard_generator import generate_eda_dashboard_html
-    from analytics_modules.type_aware_analyzer import get_intelligent_filters
-    from analytics_modules.training_data_manager import TrainingDataManager
-    from analytics_modules.data_analysis_engine import DataAnalysisEngine
-    from analytics_modules.news_events_handler import NewsEventsHandler
 
 # Import server components
 from http.server import ThreadingHTTPServer

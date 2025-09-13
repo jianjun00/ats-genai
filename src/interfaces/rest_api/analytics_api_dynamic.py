@@ -14,7 +14,6 @@ import numpy as np
 from fastapi import FastAPI, Depends, Query, Path, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import gin
 
 from shared.utils.environment import Environment
 from shared.utils.database import Database
@@ -1341,8 +1340,6 @@ def create_analytics_app() -> FastAPI:
     # Initialize Data Quality Agent (singleton)
     try:
         from agents.data_quality_agent import DataQualityAgent
-        from agents.workflow_state_manager import WorkflowStateManager
-        from agents.agent_metrics_collector import AgentMetricsCollector
         
         # Global agent instance
         data_quality_agent = DataQualityAgent()

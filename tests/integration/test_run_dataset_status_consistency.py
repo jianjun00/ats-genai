@@ -16,15 +16,10 @@ Test Categories:
 import pytest
 import asyncio
 import asyncpg
-from datetime import datetime, date, timedelta
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import time
-import threading
+from datetime import datetime
 from typing import List, Dict, Any
 
 # Test infrastructure
-from core.config.environment import Environment, EnvironmentType
 
 
 class TestRunDatasetStatusConsistency:
@@ -397,11 +392,9 @@ class TestConsistencyRepairMechanism:
     async def test_repair_orphaned_datasets(self, db_connection):
         """Test automatic repair of orphaned datasets."""
         # Implementation would test the repair/cleanup mechanisms
-        pass
 
     async def test_repair_status_mismatches(self, db_connection):
         """Test automatic repair of run-dataset status mismatches."""
-        pass
 
 
 # ============================================================================

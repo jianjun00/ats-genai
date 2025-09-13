@@ -1,11 +1,9 @@
 import pytest
 import asyncpg
-import asyncio
 from datetime import date
 
 # Adjust import as needed for your project structure
 from shared.utils.environment import Environment, EnvironmentType, EnvironmentType
-from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

@@ -4,9 +4,6 @@ Unit tests for BX Trender indicator configuration and parameter validation.
 import unittest
 import pandas as pd
 import numpy as np
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
-from types import SimpleNamespace
 
 import sys
 import os

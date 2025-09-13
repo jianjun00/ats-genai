@@ -10,15 +10,14 @@ import gin
 import tempfile
 import os
 import sys
-from unittest.mock import patch
 import pandas as pd
 import numpy as np
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from domains.trading.services.feature_registry import FeatureRegistry, FeatureConfig, create_feature_config, create_feature_registry
-from domains.trading.services.label_registry import LabelRegistry, LabelConfig, create_label_config, create_label_registry
+from domains.trading.services.feature_registry import create_feature_registry
+from domains.trading.services.label_registry import create_label_registry
 from domains.ml.services.configurable_train_data_generator import (
     ConfigurableTrainingDataGenerator,
     ConfigurableTrainingDataConfig,

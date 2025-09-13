@@ -9,9 +9,7 @@ Simple validation script that can run without full pytest framework to verify:
 """
 
 import sys
-import os
 import importlib.util
-from datetime import datetime, date
 
 def validate_script_import(script_path, module_name):
     """Validate that a script can be imported successfully."""

@@ -1,7 +1,5 @@
 import pytest
 import asyncio
-import time
-import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 from shared.utils.db_retry import retry_async, retry_sync
 

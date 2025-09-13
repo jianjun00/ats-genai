@@ -7,8 +7,7 @@ and sequence tables don't show up properly.
 """
 
 import pytest
-from playwright.async_api import async_playwright, Page
-import asyncio
+from playwright.async_api import async_playwright
 import json
 
 class TestSequenceVisualizationDebug:

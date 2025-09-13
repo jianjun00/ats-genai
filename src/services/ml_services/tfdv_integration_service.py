@@ -6,12 +6,11 @@ Provides TFDV statistics generation and anomaly detection for training datasets.
 Integrates with the EDA dashboard for comprehensive data quality analysis.
 """
 
-import os
 import json
 import logging
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List
 from pathlib import Path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -19,14 +18,12 @@ from concurrent.futures import ThreadPoolExecutor
 # TFDV imports with fallback
 try:
     import tensorflow_data_validation as tfdv
-    from tensorflow_metadata.proto.v0 import statistics_pb2
-    from tensorflow_metadata.proto.v0 import schema_pb2
     TFDV_AVAILABLE = True
 except ImportError:
     TFDV_AVAILABLE = False
     logging.warning("TensorFlow Data Validation not available. Using mock implementation.")
 
-from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+from ml.training_data.dao.training_dataset_dao import TrainingDatasetDAO
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,6 @@ import asyncio
 import asyncpg
 import time
 import os
-from typing import Dict, List, Any
 
 
 class TestQueryPerformance:

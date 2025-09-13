@@ -14,14 +14,13 @@ This test suite covers:
 import pytest
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timedelta
 
 from domains.market_data.agents.multi_agent_framework import (
-    BaseFinancialAgent, AgentType, AgentAnalysis, ConfidenceLevel,
-    SentimentAgent, EntityRecognitionAgent, EventDetectionAgent,
-    SentimentAnalysis, EntityRecognitionAnalysis, EventDetectionAnalysis,
-    MultiAgentAnalysisOrchestrator
+    AgentType, AgentAnalysis, SentimentAgent, EntityRecognitionAgent,
+    EventDetectionAgent, SentimentAnalysis, EntityRecognitionAnalysis,
+    EventDetectionAnalysis, MultiAgentAnalysisOrchestrator
 )
 from domains.market_data.agents.specialized_agents import (
     RiskAssessmentAgent, MarketImpactAgent, SignalGenerationAgent,

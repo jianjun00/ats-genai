@@ -10,10 +10,8 @@ Tests all aspects of the dynamic universe system:
 """
 
 import pytest
-import asyncio
-from datetime import date, timedelta
-from unittest.mock import Mock, AsyncMock, patch
-import asyncpg
+from datetime import date
+from unittest.mock import Mock, AsyncMock
 
 from domains.trading.services.dynamic_modeling_universe import (
     DynamicModelingUniverse,

@@ -14,7 +14,7 @@ Design Goals:
 """
 
 import struct
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import json

@@ -6,7 +6,7 @@ These tests identify and reproduce the connection problems before fixing them.
 
 import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock
 from shared.utils.environment import Environment
 from domains.trading.services.dynamic_modeling_universe import DynamicModelingUniverse
 
@@ -274,7 +274,6 @@ def test_reproduce_original_error():
     """Reproduce the original connection error to understand it"""
 
     # This test reproduces the exact error we saw
-    import asyncpg
 
     # Simulate the config that was causing issues
     problematic_config = {

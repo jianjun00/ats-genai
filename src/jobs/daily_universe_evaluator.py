@@ -14,7 +14,7 @@ import sys
 import os
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 sys.path.append('/home/jianjun/ats-genai-admin/src')
 

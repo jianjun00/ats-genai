@@ -6,9 +6,7 @@ real-world functionality and cross-vendor data validation.
 """
 
 import pytest
-import asyncio
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date
 
 from vendor.fmp.core.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
 from vendor.polygon.core.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental

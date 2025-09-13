@@ -10,10 +10,9 @@ Tests the news data analysis functionality including:
 """
 
 import pytest
-import asyncio
 import sys
 from datetime import datetime, date, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 sys.path.append('/workspace/src')
 

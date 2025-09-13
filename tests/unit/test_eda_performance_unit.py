@@ -4,7 +4,6 @@ Unit tests for EDA performance optimization logic.
 Tests the performance improvement patterns and algorithms.
 """
 
-import pytest
 import sys
 import os
 

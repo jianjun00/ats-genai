@@ -11,10 +11,9 @@ Tests various scenarios of price reconciliation across multiple data vendors:
 """
 
 import pytest
-import asyncio
 import numpy as np
-from datetime import date, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from datetime import date
+from unittest.mock import AsyncMock
 import sys
 import os
 

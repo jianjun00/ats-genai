@@ -6,7 +6,6 @@ Integration Tests for Dataset Service Feature Metadata API
 import pytest
 import psycopg2
 import psycopg2.extras
-import json
 import sys
 import os
 from datetime import datetime
@@ -15,7 +14,7 @@ from unittest.mock import Mock, patch
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from services.dataset_service import DatasetService, DatasetMetadata
+from services.dataset_service import DatasetService
 
 
 class TestDatasetServiceFeatureMetadata:

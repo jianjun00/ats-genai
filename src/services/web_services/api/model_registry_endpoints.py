@@ -4,15 +4,13 @@ Model Registry API Endpoints - REST API for model registry operations
 Provides endpoints for model discovery, metadata retrieval, and deployment management.
 """
 
-import os
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, Path
 from pydantic import BaseModel
-import traceback
 
-from services.model_registry_service import ModelRegistryService, ModelMetadata
+from services.model_registry_service import ModelRegistryService
 
 logger = logging.getLogger(__name__)
 

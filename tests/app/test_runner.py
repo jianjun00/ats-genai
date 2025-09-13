@@ -1,9 +1,11 @@
 import os
 import tempfile
 from datetime import datetime, timedelta
+from core.platform.config.environment import Environment
+from services.core.app.runner import Runner
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from shared.utils.environment import Environment
 from app.runner import Runner
-from state.universe_state_builder import UniverseStateIntervalBuilder
 import logging
 
 class DummyUniverse:
@@ -14,7 +16,6 @@ class DummyStateManager:
     pass
 
 import pytest
-import pytest_asyncio
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -27,7 +28,6 @@ async def test_runner_with_universe_state_builder(tmp_path, caplog, unit_test_db
 callbacks=state.universe_state_builder.UniverseStateIntervalBuilder
 """)
     import os
-    from shared.utils.environment import EnvironmentType
     os.environ["ENVIRONMENT"] = "test"
     # set_environment(EnvironmentType.TEST)
     env = Environment(env_type="test", db_url=unit_test_db)
@@ -63,7 +63,6 @@ callbacks=state.universe_state_builder.UniverseStateIntervalBuilder
     env.get_base_duration = lambda: DummyDuration()
 
     # Patch UniverseManager and UniverseDB to avoid real DB access
-    from unittest.mock import AsyncMock, MagicMock, patch
 
     class DummyUniverseManager:
         def __init__(self, env, universe_id):

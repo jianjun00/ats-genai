@@ -6,16 +6,13 @@ Tests the actual user journey from opening the webpage to seeing working filters
 
 import time
 import requests
-import subprocess
-import json
 import sys
-import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import TimeoutException
 
 class RealUserExperienceTest:
     """Test what the user actually sees and experiences"""
@@ -284,7 +281,6 @@ class RealUserExperienceTest:
 
         try:
             import concurrent.futures
-            import threading
 
             def make_request(url):
                 start = time.time()

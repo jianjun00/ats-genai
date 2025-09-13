@@ -7,22 +7,13 @@ import asyncio
 import json
 import logging
 import os
-import sys
-import time
-import numpy as np
-from datetime import datetime, date, timedelta
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from dataclasses import asdict
-from decimal import Decimal
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.platform.database.connection_manager import get_connection_manager
-from core.config.settings import get_settings
 from core.sanitizers.json_sanitizer import JSONSanitizer
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .analytics_service_core import UnifiedAnalyticsService
@@ -354,7 +345,6 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
     def _serve_navigation_metadata(self):
         """Serve navigation metadata for a sequence."""
-        from urllib.parse import urlparse, parse_qs
 
         # Parse URL - /api/v1/training-datasets/{dataset_id}/sequences/{sequence_id}/navigation-metadata
         path_parts = self.path.split('/')

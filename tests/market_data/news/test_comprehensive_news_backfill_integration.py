@@ -5,10 +5,9 @@ Tests the complete pipeline with real API calls (when API keys available).
 """
 
 import pytest
-import asyncio
 import os
-from unittest.mock import AsyncMock, patch
-from datetime import datetime, date
+from unittest.mock import patch
+from datetime import date
 
 import sys
 sys.path.insert(0, 'src')

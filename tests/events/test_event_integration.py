@@ -8,10 +8,8 @@ temporal attention, and gated integration mechanisms.
 
 import pytest
 import torch
-import numpy as np
-import pandas as pd
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List
 
 from src.events.event_integration import (
     EventIntegrationLayer,

@@ -1,7 +1,6 @@
 import pytest
 from datetime import datetime
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
 
 @pytest.mark.asyncio

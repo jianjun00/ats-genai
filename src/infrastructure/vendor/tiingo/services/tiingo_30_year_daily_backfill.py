@@ -15,22 +15,20 @@ import asyncio
 import asyncpg
 import requests
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import time
-import json
 import argparse
 
 # Prometheus metrics support
 try:
-    from prometheus_client import Counter, Gauge, Histogram, push_to_gateway
+    from prometheus_client import Counter, Gauge, Histogram
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
     logging.warning("prometheus_client not installed. Metrics will not be pushed to Prometheus.")
 
 from shared.utils.vendor_api_keys import get_tiingo_api_key
-from shared.utils.database_connections import get_database_pool, get_table_name
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters, get_vendor_database_connection, get_vendor_table_name
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -109,46 +107,8 @@ class Tiingo30YearBackfiller:
         logger.info(f"   Rate limit: {3600/self.request_delay:.1f} requests/hour")
 
     async def get_database_connection(self):
-        """Get database connection (Docker-compatible and localhost-compatible)."""
-        # Auto-detect environment based on available databases
-        env = os.getenv('ENV_TYPE', 'intg').lower()
-
-        if env == 'intg':
-            # Try Docker first, fallback to localhost
-            try:
-                return await asyncpg.connect(
-                    host='ats-intg-postgres',  # INTG PostgreSQL container name
-                    port=5432,                 # Internal Docker port
-                    user='postgres',
-                    password='intg_password',
-                    database='intg_db'
-                )
-            except:
-                return await asyncpg.connect(
-                    host='localhost',
-                    port=4432,                 # External host port for intg
-                    user='postgres',
-                    password='intg_password',
-                    database='intg_db'
-                )
-        else:
-            # Try Docker first, fallback to localhost
-            try:
-                return await asyncpg.connect(
-                    host='ats-dev-postgres',   # DEV PostgreSQL container name
-                    port=5432,                 # Internal Docker port
-                    user='postgres',
-                    password='dev_password',
-                    database='dev_db'
-                )
-            except:
-                return await asyncpg.connect(
-                    host='localhost',
-                    port=3432,                 # External host port for dev
-                    user='postgres',
-                    password='dev_password',
-                    database='dev_db'
-                )
+        """Get database connection using shared utility."""
+        return await get_vendor_database_connection()
 
     async def get_instruments_for_backfill(self, conn, limit=None):
         """Get active instruments from instruments table."""
@@ -241,8 +201,7 @@ class Tiingo30YearBackfiller:
             return 0
 
         # Insert with idempotent UPSERT (using existing Tiingo table schema)
-        env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_price_tiingo' if env == 'intg' else 'dev_daily_price_tiingo'
+        table_name = get_vendor_table_name('daily_price', 'tiingo')
 
         try:
             result = await conn.executemany(f"""
@@ -269,8 +228,7 @@ class Tiingo30YearBackfiller:
 
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
-        env = os.getenv('ENV_TYPE', 'intg').lower()
-        table_name = 'intg_daily_price_tiingo' if env == 'intg' else 'dev_daily_price_tiingo'
+        table_name = get_vendor_table_name('daily_price', 'tiingo')
 
         count = await conn.fetchval(f"""
             SELECT COUNT(*) FROM {table_name}

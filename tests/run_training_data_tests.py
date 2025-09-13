@@ -12,7 +12,6 @@ import asyncio
 import argparse
 import sys
 import os
-from typing import Dict, Any
 
 # Add project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))

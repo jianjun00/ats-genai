@@ -5,9 +5,7 @@ Tests the new enhanced dataset detail page with filterable tables, OHLC charts, 
 """
 
 import pytest
-import asyncio
 import aiohttp
-import json
 
 class TestEnhancedDatasetFeatures:
     """Test enhanced dataset detail page functionality"""

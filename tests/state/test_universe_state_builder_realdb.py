@@ -1,13 +1,11 @@
 import pytest
 import pandas as pd
-import asyncio
 import asyncpg
 from datetime import datetime, date
 
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
 from shared.utils.environment import Environment, EnvironmentType
-from db.test_db_manager import unit_test_db_clean
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

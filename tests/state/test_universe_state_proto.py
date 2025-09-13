@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime
 from core.calendars.time_duration import TimeDuration
 from state.universe_state import UniverseStateInterval

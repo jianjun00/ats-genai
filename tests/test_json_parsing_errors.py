@@ -14,10 +14,8 @@ universal exception handler that returns JSON responses with proper Content-Type
 3. JSON.parse() fails on "Internal Server Error" text
 """
 
-import pytest
 import requests
 import json
-from typing import Dict, Any, Optional
 
 # Test configuration
 TEST_BASE_URL = "http://localhost:9996"  # Port forward URL

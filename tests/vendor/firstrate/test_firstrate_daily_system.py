@@ -13,7 +13,6 @@ Tests the complete system integration:
 
 import pytest
 import tempfile
-import asyncio
 import subprocess
 import sys
 import os
@@ -21,9 +20,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 import shutil
 import zipfile
-import json
-import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
@@ -245,7 +242,6 @@ class TestFirstRateSystemIntegration:
         """Test system behavior with concurrent access."""
         from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
         import threading
-        import time
 
         downloader = FirstRateDownloader(base_path=temp_system_setup["data_dir"].parent.parent)
 

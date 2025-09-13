@@ -8,13 +8,9 @@ Following CLAUDE.md requirements:
 - Manual verification steps
 """
 import pytest
-import asyncio
 import subprocess
 import time
 import requests
-import json
-from pathlib import Path
-import tempfile
 import os
 
 class TestEnhancedWebappIntegration:

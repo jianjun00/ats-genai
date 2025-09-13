@@ -11,7 +11,6 @@ This is a TEST RUN before the comprehensive backfill:
 """
 
 import os
-import sys
 import time
 import json
 import subprocess

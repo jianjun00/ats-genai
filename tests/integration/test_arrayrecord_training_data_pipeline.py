@@ -18,12 +18,11 @@ import pytest
 import os
 import tempfile
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 import pandas as pd
-import numpy as np
 import struct
 import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 # ArrayRecord imports
 import array_record.python.array_record_module as array_record

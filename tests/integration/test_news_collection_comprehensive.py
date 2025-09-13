@@ -12,8 +12,6 @@ Based on investigation of Polygon news collection stopping at 2025-08-27.
 """
 
 import pytest
-import asyncio
-import asyncpg
 import aiohttp
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock

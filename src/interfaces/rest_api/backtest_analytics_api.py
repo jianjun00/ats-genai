@@ -20,8 +20,8 @@ import uvicorn
 import gin
 
 # Import environment-specific configuration system
-from shared.utils.environment_config import load_gin_config, get_current_env, get_env_info
-from shared.utils.validation import validate_current_config
+from core.platform.config.environment_config import load_gin_config, get_current_env, get_env_info
+from shared.data_handling.utils.validation import validate_current_config
 
 from domains.analytics.services.portfolio_analytics import (
     PortfolioAnalyticsEngine,
@@ -113,14 +113,14 @@ class ForecastDataPoint(BaseModel):
 
 class PortfolioComparisonRequest(BaseModel):
     """Request for comparing multiple portfolio strategies"""
-    backtest_run_ids: List[str] = Field(..., min_length=query_config.min_comparison_runs, max_length=query_config.max_comparison_runs)
+    backtest_run_ids: List[str] = Field(..., min_length=2, max_length=10)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     metrics_to_compare: List[str] = ["total_return", "sharpe_ratio", "max_drawdown"]
 
 class ModelComparisonRequest(BaseModel):
     """Request for comparing model performance"""
-    backtest_run_ids: List[str] = Field(..., min_length=query_config.min_comparison_runs, max_length=query_config.max_comparison_runs)
+    backtest_run_ids: List[str] = Field(..., min_length=2, max_length=10)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
 

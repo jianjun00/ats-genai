@@ -5,7 +5,6 @@ Advanced database caching with query result caching, connection pooling,
 and query optimization patterns.
 """
 
-import asyncio
 import hashlib
 import time
 from contextlib import asynccontextmanager

@@ -27,6 +27,7 @@ class UniverseManager:
     async def get_symbols(self, universe_id: int = None):
         """Get symbols for the universe - returns configured symbols."""
         return self.symbols
+    
     async def initialize(self):
         """Initialize the universe manager with proper database lookups."""
         print(f"[UniverseManager] Initializing with symbols: {self.symbols}")
@@ -49,4 +50,3 @@ class UniverseManager:
 
     def cleanup(self):
         """Clean up resources."""
-        pass

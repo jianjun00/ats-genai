@@ -8,9 +8,7 @@ Tests the end-to-end browser functionality that was fixed to resolve:
 - Complete user workflow from sequence selection to chart display
 """
 import pytest
-import asyncio
 from playwright.async_api import async_playwright
-import json
 import requests
 
 

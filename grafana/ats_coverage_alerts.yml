@@ -1,0 +1,150 @@
+# ATS Data Coverage Monitoring - Prometheus Alert Rules
+groups:
+  - name: ats_coverage_alerts
+    rules:
+      # Critical: Overall coverage drops below 85%
+      - alert: LowDataCoverage
+        expr: ats_data_coverage_percentage < 85
+        for: 5m
+        labels:
+          severity: critical
+          service: ats-data-coverage
+        annotations:
+          summary: "ATS data coverage is critically low"
+          description: "Overall data coverage is {{ $value }}%, which is below the 85% threshold"
+
+      # Warning: Overall coverage drops below 95%
+      - alert: DataCoverageWarning
+        expr: ats_data_coverage_percentage < 95
+        for: 10m
+        labels:
+          severity: warning
+          service: ats-data-coverage
+        annotations:
+          summary: "ATS data coverage is below optimal level"
+          description: "Overall data coverage is {{ $value }}%, which is below the 95% optimal threshold"
+
+      # Critical: High number of priority gaps
+      - alert: HighPriorityGaps
+        expr: ats_data_gaps_high_priority > 20
+        for: 2m
+        labels:
+          severity: critical
+          service: ats-data-coverage
+        annotations:
+          summary: "High number of priority data gaps detected"
+          description: "{{ $value }} high priority data gaps requiring immediate backfill"
+
+      # Warning: Moderate number of priority gaps
+      - alert: ModerateDataGaps
+        expr: ats_data_gaps_high_priority > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: ats-data-coverage
+        annotations:
+          summary: "Moderate number of data gaps detected"
+          description: "{{ $value }} priority data gaps detected, monitoring for increase"
+
+      # Critical: Data is getting stale (more than 2 days old)
+      - alert: StaleData
+        expr: max(ats_data_freshness_days) > 2
+        for: 15m
+        labels:
+          severity: critical
+          service: ats-data-coverage
+        annotations:
+          summary: "ATS data is becoming stale"
+          description: "Some data is {{ $value }} days old, exceeding 2-day freshness threshold"
+
+      # Warning: Data freshness approaching threshold
+      - alert: DataFreshnessWarning
+        expr: max(ats_data_freshness_days) > 1
+        for: 30m
+        labels:
+          severity: warning
+          service: ats-data-coverage
+        annotations:
+          summary: "ATS data freshness warning"
+          description: "Some data is {{ $value }} days old, approaching freshness threshold"
+
+      # Critical: Coverage declining trend
+      - alert: CoverageDeclineAlert
+        expr: ats_data_coverage_trend_7d < -5
+        for: 1h
+        labels:
+          severity: critical
+          service: ats-data-coverage
+        annotations:
+          summary: "Data coverage is declining"
+          description: "Coverage has declined by {{ $value }}% over the past 7 days"
+
+      # Warning: Low backfill activity
+      - alert: LowBackfillActivity
+        expr: ats_backfill_operations_24h < 5 and ats_data_gaps_total > 50
+        for: 2h
+        labels:
+          severity: warning
+          service: ats-data-coverage
+        annotations:
+          summary: "Low backfill activity despite gaps"
+          description: "Only {{ $value }} backfill operations completed in 24h despite existing gaps"
+
+      # Info: Monitoring system error
+      - alert: MonitoringSystemError
+        expr: increase(ats_monitoring_errors_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          service: ats-data-coverage
+        annotations:
+          summary: "ATS monitoring system error detected"
+          description: "{{ $value }} monitoring errors detected in the last 5 minutes"
+
+  - name: ats_symbol_coverage_alerts
+    rules:
+      # Critical: Priority symbol has very low coverage
+      - alert: PrioritySymbolLowCoverage
+        expr: ats_data_coverage_by_symbol < 80
+        for: 30m
+        labels:
+          severity: critical
+          service: ats-data-coverage
+        annotations:
+          summary: "Priority symbol {{ $labels.symbol }} has low coverage"
+          description: "Symbol {{ $labels.symbol }} has only {{ $value }}% coverage, below 80% threshold"
+
+      # Warning: Priority symbol coverage declining
+      - alert: PrioritySymbolCoverageWarning
+        expr: ats_data_coverage_by_symbol < 90
+        for: 1h
+        labels:
+          severity: warning
+          service: ats-data-coverage
+        annotations:
+          summary: "Priority symbol {{ $labels.symbol }} coverage warning"
+          description: "Symbol {{ $labels.symbol }} has {{ $value }}% coverage, below 90% optimal threshold"
+
+  - name: ats_data_type_alerts
+    rules:
+      # Critical: Specific data type has very low coverage
+      - alert: DataTypeLowCoverage
+        expr: ats_data_coverage_percentage_by_type < 75
+        for: 20m
+        labels:
+          severity: critical
+          service: ats-data-coverage
+        annotations:
+          summary: "Data type {{ $labels.data_type }} has critically low coverage"
+          description: "Data type {{ $labels.data_type }} has only {{ $value }}% coverage"
+
+      # Warning: Data type coverage below optimal
+      - alert: DataTypeCoverageWarning
+        expr: ats_data_coverage_percentage_by_type < 90
+        for: 45m
+        labels:
+          severity: warning
+          service: ats-data-coverage
+        annotations:
+          summary: "Data type {{ $labels.data_type }} coverage below optimal"
+          description: "Data type {{ $labels.data_type }} has {{ $value }}% coverage, below 90% optimal"

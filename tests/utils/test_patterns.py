@@ -8,7 +8,7 @@ to reduce duplication and improve maintainability.
 import asyncio
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Callable, Union
+from typing import Dict, List, Optional, Callable, Union
 from unittest.mock import Mock, patch, AsyncMock
 from contextlib import asynccontextmanager
 import pytest

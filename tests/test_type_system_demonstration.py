@@ -6,7 +6,6 @@ These tests validate the complete transformation from manual EDA to
 intelligent, type-driven analysis and UI generation.
 """
 
-import asyncio
 import sys
 import os
 

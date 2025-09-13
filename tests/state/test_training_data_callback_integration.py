@@ -12,7 +12,6 @@ from pathlib import Path
 from datetime import datetime
 
 from tests.fixtures.insert_test_daily_prices import insert_test_daily_prices
-from tests.fixtures.setup_test_universe_data import setup_test_universe_data
 
 from state.training_data_callback import DateBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
