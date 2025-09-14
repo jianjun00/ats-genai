@@ -1,0 +1,229 @@
+# ATS Data Quality Agent - Prometheus Alert Rules
+groups:
+  - name: ats_data_quality_agent_core
+    rules:
+      # Critical: Agent is down/inactive
+      - alert: DataQualityAgentDown
+        expr: ats_data_quality_agent_status != 1
+        for: 2m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: agent-core
+        annotations:
+          summary: "Data Quality Agent is not active"
+          description: "Data Quality Agent has been inactive for more than 2 minutes. Status: {{ $labels.status }}"
+
+      # Critical: Agent restart frequency too high
+      - alert: AgentRestartingFrequently
+        expr: increase(ats_data_quality_agent_restarts_total[30m]) > 3
+        for: 5m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: agent-core
+        annotations:
+          summary: "Data Quality Agent restarting frequently"
+          description: "Agent has restarted {{ $value }} times in the last 30 minutes"
+
+      # Warning: Agent hasn't detected issues recently
+      - alert: AgentNoIssueDetection
+        expr: increase(ats_data_quality_issues_detected_total[1h]) == 0
+        for: 2h
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: issue-detection
+        annotations:
+          summary: "No new issues detected by agent in 2 hours"
+          description: "Agent may not be functioning properly - no issues detected recently"
+
+      # Warning: Agent scan duration increasing
+      - alert: AgentScanDurationHigh
+        expr: ats_data_quality_scan_duration_seconds > 600
+        for: 10m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: performance
+        annotations:
+          summary: "Data Quality Agent scan taking too long"
+          description: "Agent scan duration is {{ $value }} seconds, exceeding 10-minute threshold"
+
+  - name: ats_data_quality_issues
+    rules:
+      # Critical: High number of critical issues
+      - alert: HighCriticalDataQualityIssues
+        expr: ats_data_quality_issues_by_severity{severity="critical"} > 100
+        for: 5m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: issue-tracking
+        annotations:
+          summary: "High number of critical data quality issues"
+          description: "{{ $value }} critical data quality issues detected, exceeding threshold of 100"
+
+      # Critical: Rapid increase in issues
+      - alert: DataQualityIssueSpike
+        expr: increase(ats_data_quality_issues_detected_total[15m]) > 1000
+        for: 2m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: issue-tracking
+        annotations:
+          summary: "Rapid spike in data quality issues"
+          description: "{{ $value }} new issues detected in 15 minutes, indicating possible data corruption"
+
+      # Warning: High number of high-priority issues
+      - alert: HighPriorityDataQualityIssues
+        expr: ats_data_quality_issues_by_severity{severity="high"} > 15000
+        for: 15m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: issue-tracking
+        annotations:
+          summary: "High number of high-priority data quality issues"
+          description: "{{ $value }} high-priority issues detected, exceeding threshold of 15,000"
+
+      # Warning: Issues not being resolved
+      - alert: DataQualityIssueResolutionStalled
+        expr: increase(ats_data_quality_issues_resolved_total[2h]) == 0 and ats_data_quality_issues_total > 10000
+        for: 4h
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: issue-resolution
+        annotations:
+          summary: "No data quality issues resolved in 4 hours"
+          description: "Issue resolution appears stalled with {{ $value }} open issues"
+
+  - name: ats_data_quality_symbols
+    rules:
+      # Critical: High number of affected symbols
+      - alert: ManySymbolsAffected
+        expr: ats_data_quality_symbols_affected > 100
+        for: 10m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: symbol-tracking
+        annotations:
+          summary: "High number of symbols affected by data quality issues"
+          description: "{{ $value }} symbols affected by data quality issues, indicating widespread problems"
+
+      # Warning: Critical symbols affected
+      - alert: CriticalSymbolsAffected
+        expr: ats_data_quality_critical_symbols_affected > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: symbol-tracking
+        annotations:
+          summary: "Critical symbols affected by data quality issues"
+          description: "{{ $value }} critical symbols (AAPL, SPY, QQQ, etc.) affected by quality issues"
+
+  - name: ats_data_quality_performance
+    rules:
+      # Warning: Low quality score
+      - alert: DataQualityScoreLow
+        expr: ats_data_quality_overall_score < 75
+        for: 15m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: quality-metrics
+        annotations:
+          summary: "Overall data quality score is low"
+          description: "Data quality score is {{ $value }}, below 75% threshold"
+
+      # Critical: Very low quality score
+      - alert: DataQualityScoreCritical
+        expr: ats_data_quality_overall_score < 50
+        for: 5m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: quality-metrics
+        annotations:
+          summary: "Data quality score is critically low"
+          description: "Data quality score is {{ $value }}, below 50% critical threshold"
+
+      # Warning: Dashboard API errors
+      - alert: DataQualityDashboardAPIErrors
+        expr: increase(ats_data_quality_api_errors_total[10m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: dashboard-api
+        annotations:
+          summary: "Data Quality Dashboard API experiencing errors"
+          description: "{{ $value }} API errors in the last 10 minutes"
+
+  - name: ats_data_quality_vendor_specific
+    rules:
+      # Warning: Vendor-specific issues
+      - alert: VendorDataQualityIssues
+        expr: ats_data_quality_issues_by_vendor > 5000
+        for: 30m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: vendor-monitoring
+        annotations:
+          summary: "High number of data quality issues for vendor {{ $labels.vendor }}"
+          description: "{{ $value }} issues detected for vendor {{ $labels.vendor }}"
+
+      # Critical: Complete vendor data failure
+      - alert: VendorDataFailure
+        expr: ats_data_quality_vendor_availability{vendor=~"polygon|tiingo|eodhd"} < 0.9
+        for: 15m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: vendor-monitoring
+        annotations:
+          summary: "Vendor {{ $labels.vendor }} data availability critically low"
+          description: "Vendor {{ $labels.vendor }} availability is {{ $value }}, below 90% threshold"
+
+  - name: ats_data_quality_agent_health
+    rules:
+      # Warning: Agent memory usage high
+      - alert: AgentMemoryUsageHigh
+        expr: ats_data_quality_agent_memory_usage_bytes > 2000000000  # 2GB
+        for: 10m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: resource-usage
+        annotations:
+          summary: "Data Quality Agent memory usage is high"
+          description: "Agent memory usage is {{ $value | humanize }}B, exceeding 2GB threshold"
+
+      # Critical: Agent memory usage critical
+      - alert: AgentMemoryUsageCritical
+        expr: ats_data_quality_agent_memory_usage_bytes > 4000000000  # 4GB
+        for: 5m
+        labels:
+          severity: critical
+          service: ats-data-quality-agent
+          component: resource-usage
+        annotations:
+          summary: "Data Quality Agent memory usage is critical"
+          description: "Agent memory usage is {{ $value | humanize }}B, exceeding 4GB critical threshold"
+
+      # Warning: Agent database connection issues
+      - alert: AgentDatabaseConnectionIssues
+        expr: increase(ats_data_quality_agent_db_errors_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: ats-data-quality-agent
+          component: database
+        annotations:
+          summary: "Data Quality Agent experiencing database connection issues"
+          description: "{{ $value }} database errors in the last 5 minutes"

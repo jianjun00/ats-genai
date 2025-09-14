@@ -8,11 +8,12 @@ alerting:
   alertmanagers:
     - static_configs:
         - targets:
-          # - alertmanager:9093
+          - alertmanager:9093
 
 # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
 rule_files:
   - "ats_coverage_alerts.yml"
+  - "ats_data_quality_agent_alerts.yml"
 
 # A scrape configuration containing exactly one endpoint to scrape:
 scrape_configs:
@@ -23,21 +24,36 @@ scrape_configs:
     scrape_interval: 30s
     metrics_path: '/metrics'
 
-  # File-based metrics export (for coverage metrics)
-  - job_name: 'ats-coverage-file'
-    file_sd_configs:
-      - files:
-        - '/tmp/ats_coverage_metrics.prom'
-    scrape_interval: 60s
+  # ATS Analytics Service health endpoint
+  - job_name: 'ats-analytics-health'
+    static_configs:
+      - targets: ['host.docker.internal:4000']
+    metrics_path: '/health'
+    scrape_interval: 30s
     
   # Node exporter for system metrics
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['localhost:9100']
+      - targets: ['ats-node-exporter:9100']
     scrape_interval: 15s
 
   # PostgreSQL exporter (if available)
   - job_name: 'postgres-exporter'
     static_configs:
-      - targets: ['localhost:9187']
+      - targets: ['host.docker.internal:9187']
     scrape_interval: 30s
+
+  # ATS Data Quality Agent metrics (when implemented)
+  - job_name: 'ats-data-quality-agent'
+    static_configs:
+      - targets: ['host.docker.internal:4000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    
+  # ATS Analytics Service status monitoring  
+  - job_name: 'ats-analytics-monitoring'
+    static_configs:
+      - targets: ['host.docker.internal:4000']
+    metrics_path: '/data-quality/api/issues'
+    scrape_interval: 15s

@@ -1,23 +1,55 @@
+# Enhanced AlertManager Configuration for ATS Data Quality Agent
 global:
   smtp_smarthost: 'localhost:587'
-  smtp_from: 'ats-monitoring@localhost'
-
+  smtp_from: 'ats-alerts@company.com'
+  
 route:
-  group_by: ['alertname']
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 1h
-  receiver: 'web.hook'
+  group_by: ['alertname', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'default-alerts'
+  routes:
+  # Critical alerts - immediate notification
+  - match:
+      severity: critical
+    receiver: 'critical-alerts'
+    group_wait: 10s
+    repeat_interval: 1h
+  
+  # Data quality agent specific alerts
+  - match:
+      service: ats-data-quality-agent
+    receiver: 'data-quality-alerts'
+    group_wait: 30s
+    repeat_interval: 4h
+  
+  # Coverage alerts (existing)
+  - match:
+      service: ats-data-coverage
+    receiver: 'coverage-alerts'
+    group_wait: 60s
+    repeat_interval: 6h
 
 receivers:
-  - name: 'web.hook'
-    slack_configs:
-      - api_url: '${SLACK_WEBHOOK_URL}'
-        channel: '#ats-data-alerts'
-        username: 'ATS Coverage Monitor'
-        icon_emoji: ':chart_with_upwards_trend:'
-        title: 'ATS Coverage Alert - {{ .GroupLabels.alertname }}'
-        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
+  - name: 'default-alerts'
+    # Slack configuration disabled until webhook URL is configured
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_URL}'
+    #     channel: '#ats-alerts'
+    #     username: 'ATS Monitoring'
+    #     icon_emoji: ':warning:'
+    #     title: 'ATS Alert - {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
+
+  - name: 'critical-alerts'
+    # Slack configuration disabled until webhook URL is configured
+
+  - name: 'data-quality-alerts'
+    # Slack configuration disabled until webhook URL is configured
+
+  - name: 'coverage-alerts'
+    # Slack configuration disabled until webhook URL is configured
 
 inhibit_rules:
   - source_match:

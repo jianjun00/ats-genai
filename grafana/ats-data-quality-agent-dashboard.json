@@ -1,0 +1,321 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ATS Data Quality Agent Dashboard",
+    "tags": ["ats", "data-quality", "monitoring"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "enable": true,
+          "hide": false,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "query": "ALERTS{alertname=~\".*\"}",
+          "type": "tags"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Agent Status Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_data_quality_agent_status",
+            "legendFormat": "Agent Active"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"type": "value", "value": "0", "text": "INACTIVE"},
+              {"type": "value", "value": "1", "text": "ACTIVE"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Total Issues Detected",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_data_quality_issues_total",
+            "legendFormat": "Total Issues"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 5000},
+                {"color": "red", "value": 15000}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Issues by Severity",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "ats_data_quality_issues_by_severity",
+            "legendFormat": "{{ severity }}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Quality Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "ats_data_quality_overall_score",
+            "legendFormat": "Quality Score"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "green", "value": 90}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Issue Detection Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(ats_data_quality_issues_detected_total[5m])",
+            "legendFormat": "Issues/Second"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "yAxes": [
+          {
+            "label": "Issues per Second"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Symbols Affected",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ats_data_quality_symbols_affected",
+            "legendFormat": "Symbols Affected"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 20},
+                {"color": "red", "value": 50}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Agent Scan Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ats_data_quality_scan_duration_seconds",
+            "legendFormat": "Scan Duration"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 8
+        },
+        "yAxes": [
+          {
+            "label": "Seconds"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Issues by Vendor",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ats_data_quality_issues_by_vendor",
+            "legendFormat": "{{ vendor }}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 9,
+        "title": "Agent Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ats_data_quality_agent_memory_usage_bytes",
+            "legendFormat": "Memory Usage"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "yAxes": [
+          {
+            "label": "Bytes",
+            "logBase": 1,
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Recent Issues",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "increase(ats_data_quality_issues_detected_total[1h])",
+            "legendFormat": "New Issues (1h)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 24
+        }
+      },
+      {
+        "id": 11,
+        "title": "API Response Times",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, ats_data_quality_api_request_duration_seconds_bucket)",
+            "legendFormat": "95th Percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.50, ats_data_quality_api_request_duration_seconds_bucket)",
+            "legendFormat": "Median"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 32
+        },
+        "yAxes": [
+          {
+            "label": "Seconds"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Active Alerts",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ALERTS{service=\"ats-data-quality-agent\"}",
+            "legendFormat": "{{ alertname }}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 32
+        }
+      }
+    ]
+  }
+}
