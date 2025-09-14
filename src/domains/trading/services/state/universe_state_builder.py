@@ -26,6 +26,7 @@ INTERACTIONS:
 """
 
 import pandas as pd
+import gin
 try:
     from domains.trading.services.state.runner_callback import RunnerCallback
 except Exception:
@@ -49,7 +50,39 @@ except ImportError:
     IndicatorBuilder = None
     IndicatorConfig = None
 
+@gin.configurable
 class UniverseStateIntervalBuilder(RunnerCallback):
+    def __init__(self, env: Environment = None, base_duration: str = '1m', target_durations: str = '1m,5m,15m,1h,1d', forecast_callback=None, universe_state_manager=None):
+        """
+        Initialize UniverseStateIntervalBuilder.
+        Args:
+            env: Environment instance (uses global if None)
+            base_duration: str (e.g. '1m'), overrides Gin config if provided
+            target_durations: comma-separated str (e.g. '1m,5m,15m,1h,1d'), overrides Gin config if provided
+            universe_state_manager: UniverseStateManager instance for shared rolling cache
+        """
+        from shared.data_handling.utils.environment import Environment
+        from core.dao.security_reference.market_cap_dao import DailyMarketCapDAO
+        from core.business.calendars.time_duration import TimeDuration
+        import logging
+        
+        # Inject DailyMarketCapDAO for market_cap sourcing
+        self.market_cap_dao = DailyMarketCapDAO(env)
+        self.env = env or Environment()
+        self.logger = logging.getLogger(__name__)
+        
+        # Store reference to universe state manager for shared rolling cache
+        self.universe_state_manager = universe_state_manager
+        
+        # Parse duration parameters  
+        base_duration_str = base_duration
+        self.base_duration = TimeDuration(base_duration_str)
+        target_durations_str = target_durations
+        self.target_durations = [TimeDuration(d.strip()) for d in target_durations_str.split(',')]
+
+        # Default business logic parameters (from test expectations)
+        self.min_market_cap = 100_000_000
+    
     def handleStartOfDay(self, runner, current_time):
         self.logger.debug(f"UniverseStateIntervalBuilder.handleStartOfDay called at {current_time}")
 
@@ -116,7 +149,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         # Update rolling cache with 1-minute intervals
         for inst_id in instrument_ids:
             ohlc = ohlc_batch.get(inst_id)
-            if ohlc is not None and not ohlc.empty:
+            if ohlc is not None:
                 # ✅ CRITICAL FIX: Convert pandas Series to scalar values for InstrumentInterval
                 def safe_scalar_conversion(value, default=None):
                     """Convert pandas Series or other types to scalar float."""

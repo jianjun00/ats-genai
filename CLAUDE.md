@@ -34,6 +34,21 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - Creates false performance metrics
 - Results in production surprises when real data behaves differently
 
+### **🚫 NO MOCK OBJECTS IN TESTS**
+- **❌ NEVER use Mock objects** - replace all mocks with real objects
+- **❌ NEVER use unittest.mock.Mock()** - use actual instances
+- **❌ NEVER use @patch decorators** - inject real dependencies
+- **✅ Use real objects with controlled data** for predictable test scenarios
+- **✅ Create minimal real instances** instead of mocking behavior
+- **✅ Use dependency injection** to provide real test objects
+
+**Why Mock Objects Are Problematic:**
+- Hide interface changes and method signature mismatches
+- Don't catch integration issues between real components
+- Create brittle tests that pass with broken real implementations
+- Mask real-world object behavior and edge cases
+- Lead to false confidence in system integration
+
 ### **🔄 ENHANCE EXISTING BEFORE CREATING NEW**
 - **❌ NEVER create new files/services** without checking if existing can be enhanced
 - **❌ NEVER duplicate functionality** in new files
