@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JS Syntax Test</title>
+</head>
+<body>
+    <div id="test">Testing JavaScript Syntax</div>
+    <script>
+        // Extract just the JavaScript part to test
+        async function loadAgentStatus() {
+            try {
+                const response = await fetch('/agent/status');
+                const status = await response.json();
+                
+                const statusElement = document.getElementById('agent-status');
+                const startBtn = document.getElementById('start-agent-btn');
+                const stopBtn = document.getElementById('stop-agent-btn');
+                
+                if (status.monitoring_active) {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Workflows: ${status.active_workflows || 0} | Issues: ${status.pending_issues || 0}`;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                } else {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #6c757d;">IDLE</span> | Ready to start`;
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading agent status:', error);
+                document.getElementById('agent-status').innerHTML = `🤖 Agent: <span style="color: #f39c12;">ERROR</span> - ${error.message}`;
+            }
+        }
+        
+        console.log("loadAgentStatus function defined successfully");
+    </script>
+</body>
+</html>

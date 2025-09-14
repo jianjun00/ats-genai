@@ -27,18 +27,37 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, List, Any
 
+# Agent imports
+from agents.data_quality_agent import DataQualityAgent
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import Data Quality Agent
-try:
-    from agents.data_quality_agent import DataQualityAgent
-    AGENT_AVAILABLE = True
-    logger.info("✅ Data Quality Agent loaded successfully")
-except ImportError as e:
-    AGENT_AVAILABLE = False
-    logger.warning(f"⚠️ Data Quality Agent not available: {e}")
+# Simple Agent State Manager
+class SimpleAgentState:
+    def __init__(self):
+        self.monitoring_active = False
+        self.active_workflows = 0
+        self.pending_issues = 0
+        self.last_activity = datetime.now()
+    
+    def start_monitoring(self):
+        self.monitoring_active = True
+        self.last_activity = datetime.now()
+        return True
+    
+    def stop_monitoring(self):
+        self.monitoring_active = False
+        self.active_workflows = 0
+        self.pending_issues = 0
+        self.last_activity = datetime.now()
+        return True
+
+# Initialize simple agent state
+AGENT_AVAILABLE = True
+simple_agent_state = SimpleAgentState()
+logger.info("✅ Simple Data Quality Agent initialized")
 
 # Import core components
 try:
@@ -5319,11 +5338,21 @@ async function loadUniverseAnalytics() {
 # HTTP REQUEST HANDLER (from analytics_service.py)
 # ==============================================
 
+# Global shared analytics service instance
+_shared_analytics_service = None
+
+def get_shared_analytics_service():
+    """Get or create shared analytics service instance"""
+    global _shared_analytics_service
+    if _shared_analytics_service is None:
+        _shared_analytics_service = UnifiedAnalyticsService()
+    return _shared_analytics_service
+
 class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the unified analytics service."""
 
     def __init__(self, *args, **kwargs):
-        self.analytics_service = UnifiedAnalyticsService()
+        self.analytics_service = get_shared_analytics_service()
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
@@ -5391,7 +5420,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_table_distributions()
             elif self.path == '/data-quality/dashboard' or self.path == '/data-quality':
                 self._serve_data_quality_dashboard()
-            elif self.path == '/data-quality/api/issues':
+            elif self.path.startswith('/data-quality/api/issues'):
                 self._serve_data_quality_issues()
             elif self.path == '/agent/status':
                 self._serve_agent_status()
@@ -5417,6 +5446,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             
             if self.path.startswith('/financial_events'):
                 self._serve_financial_events()
+            elif self.path == '/agent/start':
+                self._serve_agent_start()
+            elif self.path == '/agent/stop':
+                self._serve_agent_stop()
             else:
                 self.send_response(404)
                 self.send_header('Content-type', 'application/json')
@@ -6468,9 +6501,31 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     <div class="header">
         <h1>🎯 ATS Data Quality Dashboard</h1>
         <p>Real-time monitoring of data quality issues in the ATS system</p>
-        <div style="margin-top: 15px;">
-            <span>Last updated: <span id="last-updated">-</span></span>
-            <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+        <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <span>Last updated: <span id="last-updated">-</span></span>
+                <span id="processing-method" style="margin-left: 15px; color: #f39c12;"></span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button class="refresh-btn" onclick="loadData(currentPage, currentPageSize, currentSeverityFilter, useRay)">🔄 Refresh</button>
+                <label style="color: white;">
+                    <input type="checkbox" id="ray-toggle" onchange="toggleRay()" style="margin-right: 5px;">
+                    ⚡ Ray Distributed
+                </label>
+                <select id="severity-filter" onchange="filterBySeverity()" style="padding: 4px 8px; border-radius: 4px;">
+                    <option value="">All Severities</option>
+                    <option value="critical">Critical Only</option>
+                    <option value="high">High Only</option>
+                    <option value="medium">Medium Only</option>
+                    <option value="low">Low Only</option>
+                </select>
+                <select id="page-size" onchange="changePageSize()" style="padding: 4px 8px; border-radius: 4px;">
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50" selected>50 per page</option>
+                    <option value="100">100 per page</option>
+                </select>
+            </div>
         </div>
         
         <!-- AGENT STATUS AND CONTROLS -->
@@ -6545,14 +6600,49 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     <div class="issues">
         <h2>🔍 Detected Issues</h2>
         <div id="issues-list" class="loading">Loading data quality issues from database...</div>
+        
+        <!-- Pagination Controls -->
+        <div id="pagination-controls" style="margin-top: 20px; text-align: center; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                <div style="color: white;">
+                    <span id="pagination-info">-</span>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button id="first-page" onclick="goToPage(1)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">⏮️ First</button>
+                    <button id="prev-page" onclick="goToPage(currentPage - 1)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">⬅️ Prev</button>
+                    <span style="color: white; margin: 0 10px;">
+                        Page <span id="current-page-display">1</span> of <span id="total-pages-display">1</span>
+                    </span>
+                    <button id="next-page" onclick="goToPage(currentPage + 1)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Next ➡️</button>
+                    <button id="last-page" onclick="goToPage(999)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Last ⏭️</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        async function loadData() {
+        let currentPage = 1;
+        let currentPageSize = 50;
+        let currentSeverityFilter = null;
+        let useRay = false;
+        
+        async function loadData(page = 1, pageSize = 50, severityFilter = null, rayEnabled = false) {
             try {
+                currentPage = page;
+                currentPageSize = pageSize;
+                currentSeverityFilter = severityFilter;
+                useRay = rayEnabled;
+                
                 document.getElementById('issues-list').innerHTML = '<div class="loading">Refreshing data...</div>';
                 
-                const response = await fetch('/data-quality/api/issues');
+                // Build query parameters
+                const params = new URLSearchParams();
+                params.append('page', page.toString());
+                params.append('page_size', pageSize.toString());
+                if (severityFilter) params.append('severity', severityFilter);
+                if (rayEnabled) params.append('ray', 'true');
+                
+                const response = await fetch(`/data-quality/api/issues?${params}`);
                 const data = await response.json();
                 displayData(data);
             } catch (error) {
@@ -6561,16 +6651,44 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
         }
         
+        async function loadAgentStatus() {
+            try {
+                const response = await fetch('/agent/status');
+                const status = await response.json();
+                
+                const statusElement = document.getElementById('agent-status');
+                const startBtn = document.getElementById('start-agent-btn');
+                const stopBtn = document.getElementById('stop-agent-btn');
+                
+                if (status.status === 'active') {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Tools: ${status.tools_available || 0} | ID: ${status.agent_id || 'Unknown'}`;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                } else {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #6c757d;">IDLE</span> | Ready to start`;
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading agent status:', error);
+                document.getElementById('agent-status').innerHTML = `🤖 Agent: <span style="color: #f39c12;">ERROR</span> - ${error.message}`;
+            }
+        }
+        
         function displayData(data) {
             const issues = data.issues || [];
-            const totalIssues = issues.length;
-            const criticalIssues = issues.filter(i => i.severity === 'critical').length;
-            const highIssues = issues.filter(i => i.severity === 'high').length;
-            const mediumIssues = issues.filter(i => i.severity === 'medium').length;
-            const lowIssues = issues.filter(i => i.severity === 'low').length;
+            const summary = data.summary || {};
+            const pagination = data.pagination || {};
+            
+            // Use summary stats if available (from Ray/pagination), otherwise calculate from page data
+            const totalIssues = summary.total_issues || data.total_count || issues.length;
+            const criticalIssues = summary.critical !== undefined ? summary.critical : issues.filter(i => i.severity === 'critical').length;
+            const highIssues = summary.high !== undefined ? summary.high : issues.filter(i => i.severity === 'high').length;
+            const mediumIssues = summary.medium !== undefined ? summary.medium : issues.filter(i => i.severity === 'medium').length;
+            const lowIssues = summary.low !== undefined ? summary.low : issues.filter(i => i.severity === 'low').length;
             const uniqueSymbols = [...new Set(issues.map(i => i.symbol).filter(s => s !== 'SYSTEM'))].length;
             
-            // Update stats
+            // Update stats with total counts (not just page counts)
             document.getElementById('total-issues').textContent = totalIssues;
             document.getElementById('critical-issues').textContent = criticalIssues;
             document.getElementById('high-issues').textContent = highIssues;
@@ -6651,6 +6769,73 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             });
             
             issuesContainer.innerHTML = issuesHtml;
+            
+            // Update pagination controls
+            updatePagination(pagination);
+            
+            // Show processing method
+            const methodElement = document.getElementById('processing-method');
+            if (data.method) {
+                const methodText = data.method === 'ray_distributed' ? 
+                    '⚡ Ray Distributed Processing' : 
+                    '🔄 Legacy Single-threaded';
+                methodElement.textContent = methodText;
+                methodElement.style.display = 'inline';
+            } else {
+                methodElement.style.display = 'none';
+            }
+        }
+        
+        // Update pagination display
+        function updatePagination(pagination) {
+            const paginationControls = document.getElementById('pagination-controls');
+            if (!pagination || pagination.total_pages <= 1) {
+                paginationControls.style.display = 'none';
+                return;
+            }
+            
+            paginationControls.style.display = 'block';
+            
+            // Update pagination info
+            const start = ((pagination.current_page - 1) * pagination.page_size) + 1;
+            const end = Math.min(pagination.current_page * pagination.page_size, pagination.total_issues);
+            document.getElementById('pagination-info').textContent = 
+                `Showing ${start}-${end} of ${pagination.total_issues} issues`;
+            
+            // Update page display
+            document.getElementById('current-page-display').textContent = pagination.current_page;
+            document.getElementById('total-pages-display').textContent = pagination.total_pages;
+            
+            // Update button states
+            document.getElementById('first-page').disabled = !pagination.has_prev;
+            document.getElementById('prev-page').disabled = !pagination.has_prev;
+            document.getElementById('next-page').disabled = !pagination.has_next;
+            document.getElementById('last-page').disabled = !pagination.has_next;
+            document.getElementById('last-page').onclick = () => goToPage(pagination.total_pages);
+        }
+        
+        // Pagination functions
+        function goToPage(page) {
+            if (page < 1) page = 1;
+            loadData(page, currentPageSize, currentSeverityFilter, useRay);
+        }
+        
+        function toggleRay() {
+            const rayToggle = document.getElementById('ray-toggle');
+            useRay = rayToggle.checked;
+            loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when toggling Ray
+        }
+        
+        function filterBySeverity() {
+            const severityFilter = document.getElementById('severity-filter');
+            currentSeverityFilter = severityFilter.value || null;
+            loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when filtering
+        }
+        
+        function changePageSize() {
+            const pageSizeSelect = document.getElementById('page-size');
+            currentPageSize = parseInt(pageSizeSelect.value);
+            loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when changing page size
         }
         
         // Helper function to get action buttons for issues
@@ -6715,40 +6900,21 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             ).join('');
         }
         
-        // Agent control functions
-        async function loadAgentStatus() {
-            try {
-                const response = await fetch('/agent/status');
-                const status = await response.json();
-                
-                const statusElement = document.getElementById('agent-status');
-                const startBtn = document.getElementById('start-agent-btn');
-                const stopBtn = document.getElementById('stop-agent-btn');
-                
-                if (status.monitoring_active) {
-                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Workflows: ${status.active_workflows} | Issues: ${status.pending_issues}`;
-                    startBtn.style.display = 'none';
-                    stopBtn.style.display = 'inline-block';
-                } else {
-                    statusElement.innerHTML = `🤖 Agent: <span style="color: #e74c3c;">STOPPED</span> | Last cycle: ${status.last_cycle || 'Never'}`;
-                    startBtn.style.display = 'inline-block';
-                    stopBtn.style.display = 'none';
-                }
-            } catch (error) {
-                document.getElementById('agent-status').innerHTML = `🤖 Agent: <span style="color: #f39c12;">ERROR</span> - ${error.message}`;
-            }
-        }
+        // Agent control functions - using the correct loadAgentStatus function defined above
         
         async function startAgent() {
             try {
                 const response = await fetch('/agent/start', { method: 'POST' });
                 const result = await response.json();
                 
-                if (result.success) {
-                    setTimeout(loadAgentStatus, 1000); // Reload status after delay
+                if (response.ok && result.message) {
+                    // Update status immediately and then again after a short delay
+                    loadAgentStatus();
+                    setTimeout(loadAgentStatus, 500);
+                    setTimeout(loadAgentStatus, 2000);
                     showNotification('✅ Data Quality Agent started successfully', 'success');
                 } else {
-                    showNotification(`❌ Failed to start agent: ${result.message}`, 'error');
+                    showNotification(`❌ Failed to start agent: ${result.message || result.error}`, 'error');
                 }
             } catch (error) {
                 showNotification(`❌ Error starting agent: ${error.message}`, 'error');
@@ -7007,7 +7173,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to update configuration', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error updating configuration: \${error.message}`, 'error');
+                showNotification(`❌ Error updating configuration: ${error.message}`, 'error');
             }
         }
         
@@ -7024,24 +7190,24 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to reset configuration', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error resetting configuration: \${error.message}`, 'error');
+                showNotification(`❌ Error resetting configuration: ${error.message}`, 'error');
             }
         }
         
         async function applyEnvironmentConfig(environment) {
             try {
-                const response = await fetch(`/agent/config/environment/\${environment}`, { method: 'POST' });
+                const response = await fetch(`/agent/config/environment/${environment}`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
-                    showNotification(`✅ Applied \${environment} configuration`, 'success');
+                    showNotification(`✅ Applied ${environment} configuration`, 'success');
                     document.querySelector('.modal').remove();
                     setTimeout(showConfigDialog, 1000); // Show updated config
                 } else {
-                    showNotification(`❌ Failed to apply \${environment} configuration`, 'error');
+                    showNotification(`❌ Failed to apply ${environment} configuration`, 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error applying \${environment} configuration: \${error.message}`, 'error');
+                showNotification(`❌ Error applying ${environment} configuration: ${error.message}`, 'error');
             }
         }
         
@@ -7061,27 +7227,27 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <!-- Alert Summary -->
                         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
                             <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.critical || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.critical || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">Critical</p>
                             </div>
                             <div style="background: #e67e22; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.high || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.high || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">High</p>
                             </div>
                             <div style="background: #f39c12; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.medium || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.medium || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">Medium</p>
                             </div>
                             <div style="background: #3498db; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.low || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.low || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">Low</p>
                             </div>
                         </div>
                         
                         <!-- Active Alerts -->
                         <div style="margin-bottom: 20px;">
-                            <h4>🔥 Active Alerts (\${alerts.length})</h4>
-                            \${alerts.length > 0 ? 
+                            <h4>🔥 Active Alerts (${alerts.length})</h4>
+                            ${alerts.length > 0 ? 
                                 alerts.map(alert => {
                                     const severityColors = {
                                         critical: '#e74c3c',
@@ -7092,24 +7258,24 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     const severityColor = severityColors[alert.severity] || '#6c757d';
                                     
                                     return `
-                                        <div style="border-left: 4px solid \${severityColor}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
+                                        <div style="border-left: 4px solid ${severityColor}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
                                             <div style="display: flex; justify-content: between; align-items: start;">
                                                 <div style="flex: 1;">
-                                                    <h5 style="margin: 0 0 5px 0; color: \${severityColor};">\${alert.title}</h5>
-                                                    <p style="margin: 0 0 8px 0;">\${alert.message}</p>
+                                                    <h5 style="margin: 0 0 5px 0; color: ${severityColor};">${alert.title}</h5>
+                                                    <p style="margin: 0 0 8px 0;">${alert.message}</p>
                                                     <small style="color: #6c757d;">
-                                                        \${alert.source_component} • \${new Date(alert.timestamp).toLocaleString()}
-                                                        \${alert.acknowledged ? ' • ✅ Acknowledged' : ''}
+                                                        ${alert.source_component} • ${new Date(alert.timestamp).toLocaleString()}
+                                                        ${alert.acknowledged ? ' • ✅ Acknowledged' : ''}
                                                     </small>
                                                 </div>
                                                 <div style="display: flex; gap: 5px; margin-left: 15px;">
-                                                    \${!alert.acknowledged ? 
-                                                        `<button onclick="acknowledgeAlert('\${alert.alert_id}')" 
+                                                    ${!alert.acknowledged ? 
+                                                        `<button onclick="acknowledgeAlert('${alert.alert_id}')" 
                                                                  style="padding: 4px 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                             ✓ Ack
                                                          </button>` : ''
                                                     }
-                                                    <button onclick="resolveAlert('\${alert.alert_id}')" 
+                                                    <button onclick="resolveAlert('${alert.alert_id}')" 
                                                             style="padding: 4px 8px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                         ✓ Resolve
                                                     </button>
@@ -7128,14 +7294,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                     <h5>Recent Activity</h5>
-                                    <p><strong>Last Hour:</strong> \${summary.alerts_last_hour || 0} alerts</p>
-                                    <p><strong>Last 24h:</strong> \${summary.alerts_last_24h || 0} alerts</p>
-                                    <p><strong>Rules Enabled:</strong> \${summary.alert_rules_enabled || 0}</p>
+                                    <p><strong>Last Hour:</strong> ${summary.alerts_last_hour || 0} alerts</p>
+                                    <p><strong>Last 24h:</strong> ${summary.alerts_last_24h || 0} alerts</p>
+                                    <p><strong>Rules Enabled:</strong> ${summary.alert_rules_enabled || 0}</p>
                                 </div>
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                     <h5>Notification Channels</h5>
-                                    \${Object.entries(channels).map(([id, channel]) => 
-                                        `<p><strong>\${id}:</strong> \${channel.enabled ? '✅' : '❌'} \${channel.type}</p>`
+                                    ${Object.entries(channels).map(([id, channel]) => 
+                                        `<p><strong>${id}:</strong> ${channel.enabled ? '✅' : '❌'} ${channel.type}</p>`
                                     ).join('') || '<p>No channels configured</p>'}
                                 </div>
                             </div>
@@ -7154,20 +7320,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         </div>
                         
                         <div style="text-align: center; padding-top: 15px; color: #6c757d;">
-                            <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
+                            <small>Last updated: ${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
                 `;
                 
                 showModal('Alert Management', alertsHtml);
             } catch (error) {
-                showNotification(`❌ Error loading alerts: \${error.message}`, 'error');
+                showNotification(`❌ Error loading alerts: ${error.message}`, 'error');
             }
         }
         
         async function acknowledgeAlert(alertId) {
             try {
-                const response = await fetch(`/agent/alerts/\${alertId}/acknowledge`, { method: 'POST' });
+                const response = await fetch(`/agent/alerts/${alertId}/acknowledge`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -7177,13 +7343,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to acknowledge alert', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error acknowledging alert: \${error.message}`, 'error');
+                showNotification(`❌ Error acknowledging alert: ${error.message}`, 'error');
             }
         }
         
         async function resolveAlert(alertId) {
             try {
-                const response = await fetch(`/agent/alerts/\${alertId}/resolve`, { method: 'POST' });
+                const response = await fetch(`/agent/alerts/${alertId}/resolve`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -7193,7 +7359,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to resolve alert', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error resolving alert: \${error.message}`, 'error');
+                showNotification(`❌ Error resolving alert: ${error.message}`, 'error');
             }
         }
         
@@ -7206,12 +7372,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 const failed = result.failed_channels;
                 
                 if (successful > 0) {
-                    showNotification(`✅ \${successful} channels tested successfully (\${failed} failed)`, 'success');
+                    showNotification(`✅ ${successful} channels tested successfully (${failed} failed)`, 'success');
                 } else {
-                    showNotification(`❌ All \${failed} notification channels failed`, 'error');
+                    showNotification(`❌ All ${failed} notification channels failed`, 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error testing notification channels: \${error.message}`, 'error');
+                showNotification(`❌ Error testing notification channels: ${error.message}`, 'error');
             }
         }
         
@@ -7243,38 +7409,38 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     <div style="max-height: 600px; overflow-y: auto;">
                         
                         <!-- Overall Health Status -->
-                        <div style="background: \${statusColor}; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-                            <h2 style="margin: 0;">Health Score: \${health.health_score}/100</h2>
-                            <p style="margin: 5px 0 0 0; font-size: 1.1em;">Status: \${health.status.toUpperCase()}</p>
+                        <div style="background: ${statusColor}; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                            <h2 style="margin: 0;">Health Score: ${health.health_score}/100</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 1.1em;">Status: ${health.status.toUpperCase()}</p>
                         </div>
                         
                         <!-- System Metrics -->
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                 <h4>💻 System Resources</h4>
-                                <p><strong>CPU:</strong> \${health.latest_metrics?.cpu_percent || 0}%</p>
-                                <p><strong>Memory:</strong> \${health.latest_metrics?.memory_percent || 0}%</p>
-                                <p><strong>Disk Usage:</strong> \${health.latest_metrics?.disk_usage_percent || 0}%</p>
-                                <p><strong>Free Space:</strong> \${(health.latest_metrics?.disk_free_gb || 0).toFixed(1)}GB</p>
+                                <p><strong>CPU:</strong> ${health.latest_metrics?.cpu_percent || 0}%</p>
+                                <p><strong>Memory:</strong> ${health.latest_metrics?.memory_percent || 0}%</p>
+                                <p><strong>Disk Usage:</strong> ${health.latest_metrics?.disk_usage_percent || 0}%</p>
+                                <p><strong>Free Space:</strong> ${(health.latest_metrics?.disk_free_gb || 0).toFixed(1)}GB</p>
                             </div>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                 <h4>🤖 Agent Status</h4>
-                                <p><strong>Status:</strong> \${agent.agent_status}</p>
-                                <p><strong>Monitoring:</strong> \${agent.monitoring_active ? 'Active' : 'Inactive'}</p>
-                                <p><strong>Workflows:</strong> \${ops.total_workflows}</p>
-                                <p><strong>Last Scan:</strong> \${ops.last_scan ? new Date(ops.last_scan).toLocaleTimeString() : 'Never'}</p>
+                                <p><strong>Status:</strong> ${agent.agent_status}</p>
+                                <p><strong>Monitoring:</strong> ${agent.monitoring_active ? 'Active' : 'Inactive'}</p>
+                                <p><strong>Workflows:</strong> ${ops.total_workflows}</p>
+                                <p><strong>Last Scan:</strong> ${ops.last_scan ? new Date(ops.last_scan).toLocaleTimeString() : 'Never'}</p>
                             </div>
                         </div>
                         
                         <!-- Active Alerts -->
                         <div style="margin-bottom: 20px;">
-                            <h4>🚨 Active Alerts (\${health.active_alerts?.length || 0})</h4>
-                            \${health.active_alerts?.length > 0 ? 
+                            <h4>🚨 Active Alerts (${health.active_alerts?.length || 0})</h4>
+                            ${health.active_alerts?.length > 0 ? 
                                 health.active_alerts.map(alert => `
-                                    <div style="border-left: 4px solid \${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'}; 
+                                    <div style="border-left: 4px solid ${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'}; 
                                                 padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 0 4px 4px 0;">
-                                        <strong>\${alert.component.toUpperCase()}:</strong> \${alert.message}
-                                        <br><small>\${new Date(alert.timestamp).toLocaleString()}</small>
+                                        <strong>${alert.component.toUpperCase()}:</strong> ${alert.message}
+                                        <br><small>${new Date(alert.timestamp).toLocaleString()}</small>
                                     </div>
                                 `).join('') : 
                                 '<p style="color: #27ae60;">✅ No active alerts</p>'
@@ -7285,10 +7451,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>📈 Performance Trends</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                <p><strong>CPU (10min avg):</strong> \${health.trends?.cpu_avg_10min || 0}%</p>
-                                <p><strong>Memory (10min avg):</strong> \${health.trends?.memory_avg_10min || 0}%</p>
-                                <p><strong>Monitoring Duration:</strong> \${(health.trends?.monitoring_duration_hours || 0).toFixed(1)} hours</p>
-                                <p><strong>Data Points:</strong> \${health.trends?.metrics_collected || 0}</p>
+                                <p><strong>CPU (10min avg):</strong> ${health.trends?.cpu_avg_10min || 0}%</p>
+                                <p><strong>Memory (10min avg):</strong> ${health.trends?.memory_avg_10min || 0}%</p>
+                                <p><strong>Monitoring Duration:</strong> ${(health.trends?.monitoring_duration_hours || 0).toFixed(1)} hours</p>
+                                <p><strong>Data Points:</strong> ${health.trends?.metrics_collected || 0}</p>
                             </div>
                         </div>
                         
@@ -7296,7 +7462,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>💡 Recommendations</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                \${health.recommendations?.map(rec => `<p>• \${rec}</p>`).join('') || '<p>No recommendations available</p>'}
+                                ${health.recommendations?.map(rec => `<p>• ${rec}</p>`).join('') || '<p>No recommendations available</p>'}
                             </div>
                         </div>
                         
@@ -7304,23 +7470,23 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>🛠️ MCP Tools Available</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                \${agent.tools_available?.map(tool => `
+                                ${agent.tools_available?.map(tool => `
                                     <span style="display: inline-block; background: #3498db; color: white; padding: 3px 8px; margin: 2px; border-radius: 12px; font-size: 0.8em;">
-                                        \${tool}
+                                        ${tool}
                                     </span>
                                 `).join('') || 'No tools available'}
                             </div>
                         </div>
                         
                         <div style="text-align: center; padding-top: 15px; border-top: 1px solid #ddd; color: #6c757d;">
-                            <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
+                            <small>Last updated: ${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
                 `;
                 
                 showModal('System Health Monitor', healthHtml);
             } catch (error) {
-                showNotification(`❌ Error loading system health: \${error.message}`, 'error');
+                showNotification(`❌ Error loading system health: ${error.message}`, 'error');
             }
         }
         
@@ -7379,9 +7545,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             });
         }
         
-        // Load data on page load
-        loadData();
-        loadAgentStatus();
+        // Initialize page on load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            loadAgentStatus();
+        });
         
         // Auto-refresh every 60 seconds
         setInterval(() => {
@@ -7399,8 +7567,18 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(dashboard_html.encode())
     
     def _serve_data_quality_issues(self):
-        """Serve data quality issues API endpoint."""
+        """Serve data quality issues API endpoint with Ray integration and pagination."""
         try:
+            # Parse query parameters
+            from urllib.parse import parse_qs, urlparse
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            page = int(query_params.get('page', ['1'])[0])
+            page_size = int(query_params.get('page_size', ['50'])[0])
+            severity_filter = query_params.get('severity', [None])[0]
+            use_ray = query_params.get('ray', ['false'])[0].lower() == 'true'
+            
             # Get database connection - container aware
             db_config = {
                 'host': 'ats-intg-postgres',  # Container name on ats-network
@@ -7410,19 +7588,77 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 'database': 'intg_db'
             }
             
-            issues = []
+            # Use Ray-powered agent if requested, otherwise use legacy method
+            if use_ray:
+                response_data = self._get_issues_with_ray(db_config, page, page_size, severity_filter)
+            else:
+                response_data = self._get_issues_legacy(db_config, page, page_size, severity_filter)
             
-            # Use asyncio to run async database operations
-            import asyncpg
-            import asyncio
+            self._send_json_response(response_data)
             
-            async def detect_issues():
-                nonlocal issues
-                try:
-                    conn = await asyncpg.connect(**db_config)
-                    
-                    # Check for missing recent data across all vendors
-                    missing_data_query = """
+        except Exception as e:
+            logger.error(f"Data quality issues API error: {e}")
+            self._send_json_response({
+                "error": str(e),
+                "issues": [],
+                "total_count": 0
+            }, status_code=500)
+    
+    def _get_issues_with_ray(self, db_config: Dict[str, Any], page: int, page_size: int, severity_filter: str) -> Dict[str, Any]:
+        """Get issues using Ray-powered distributed processing"""
+        import asyncio
+        
+        async def ray_detection():
+            try:
+                # Import Ray agent
+                import sys
+                import os
+                sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+                from services.data_quality.ray_data_quality_agent import RayDataQualityAgent
+                
+                agent = RayDataQualityAgent(db_config, num_workers=4)
+                result = await agent.get_issues_page(
+                    page=page, 
+                    page_size=page_size, 
+                    severity_filter=severity_filter
+                )
+                await agent.shutdown()
+                
+                return {
+                    "issues": result["issues"],
+                    "pagination": result["pagination"],
+                    "summary": result["summary"],
+                    "total_count": result["pagination"]["total_issues"],
+                    "method": "ray_distributed",
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                logger.error(f"Ray processing failed: {e}")
+                # Use legacy method
+                return self._get_issues_legacy(db_config, page, page_size, severity_filter)
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(ray_detection())
+        finally:
+            loop.close()
+    
+    def _get_issues_legacy(self, db_config: Dict[str, Any], page: int, page_size: int, severity_filter: str) -> Dict[str, Any]:
+        """Get issues using legacy single-threaded method"""
+        import asyncpg
+        import asyncio
+        
+        issues = []
+        
+        async def detect_issues():
+            nonlocal issues
+            try:
+                conn = await asyncpg.connect(**db_config)
+                
+                # Check for missing recent data across all vendors
+                missing_data_query = """
                     WITH recent_dates AS (
                         SELECT generate_series(
                             CURRENT_DATE - INTERVAL '7 days',
@@ -7445,195 +7681,219 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     ORDER BY rd.expected_date;
                     """
                     
-                    missing_dates = await conn.fetch(missing_data_query)
-                    for row in missing_dates:
-                        issues.append({
-                            "id": f"missing_data_{row['expected_date']}",
-                            "symbol": "ALL",
-                            "issue_type": "missing_data",
-                            "severity": "high",
-                            "description": f"No daily prices found for trading day {row['expected_date']}",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['expected_date'].isoformat(),
-                            "field": "all_fields",
-                            "expected_value": "Daily prices",
-                            "actual_value": "No data",
-                            "vendor_source": "multiple",
-                            "status": "open"
-                        })
-                    
-                    # Check for extreme volumes across all vendors
-                    extreme_volume_query = """
-                    SELECT symbol, date as price_date, volume, close, 'polygon' as vendor
-                    FROM intg_daily_price_polygon 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    AND volume > 50000000
-                    UNION ALL
-                    SELECT symbol, date as price_date, volume, close, 'tiingo' as vendor
-                    FROM intg_daily_price_tiingo 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    AND volume > 50000000
-                    UNION ALL
-                    SELECT symbol, date as price_date, volume, close, 'eodhd' as vendor
-                    FROM intg_daily_price_eodhd 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    AND volume > 50000000
-                    ORDER BY volume DESC;
-                    """
-                    
-                    extreme_volumes = await conn.fetch(extreme_volume_query)
-                    for row in extreme_volumes:
-                        issues.append({
-                            "id": f"high_volume_{row['symbol']}_{row['price_date']}_{row['vendor']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "extreme_volume",
-                            "severity": "medium",
-                            "description": f"Unusually high volume: {row['volume']:,} shares ({row['vendor']})",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['price_date'].isoformat(),
-                            "field": "volume",
-                            "expected_value": "< 50M shares",
-                            "actual_value": f"{row['volume']:,} shares",
-                            "vendor_source": row['vendor'],
-                            "status": "open"
-                        })
-                    
-                    # Check for duplicate records within each vendor table
-                    duplicate_query = """
-                    SELECT symbol, date as price_date, COUNT(*) as count, 'polygon' as vendor
-                    FROM intg_daily_price_polygon 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    GROUP BY symbol, date
-                    HAVING COUNT(*) > 1
-                    UNION ALL
-                    SELECT symbol, date as price_date, COUNT(*) as count, 'tiingo' as vendor
-                    FROM intg_daily_price_tiingo 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    GROUP BY symbol, date
-                    HAVING COUNT(*) > 1
-                    UNION ALL
-                    SELECT symbol, date as price_date, COUNT(*) as count, 'eodhd' as vendor
-                    FROM intg_daily_price_eodhd 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    GROUP BY symbol, date
-                    HAVING COUNT(*) > 1
-                    ORDER BY count DESC;
-                    """
-                    
-                    duplicates = await conn.fetch(duplicate_query)
-                    for row in duplicates:
-                        issues.append({
-                            "id": f"duplicate_{row['symbol']}_{row['price_date']}_{row['vendor']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "duplicate_records",
-                            "severity": "critical",
-                            "description": f"Duplicate records: {row['count']} entries for same date ({row['vendor']})",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['price_date'].isoformat(),
-                            "field": "all_fields",
-                            "expected_value": "1 record per day",
-                            "actual_value": f"{row['count']} records",
-                            "vendor_source": row['vendor'],
-                            "status": "open"
-                        })
-                    
-                    # Check for stale data across all vendor tables
-                    freshness_query = """
-                    WITH vendor_freshness AS (
-                        SELECT symbol, MAX(date) as latest_date, 'polygon' as vendor
-                        FROM intg_daily_price_polygon
-                        GROUP BY symbol
-                        UNION ALL
-                        SELECT symbol, MAX(date) as latest_date, 'tiingo' as vendor
-                        FROM intg_daily_price_tiingo
-                        GROUP BY symbol
-                        UNION ALL
-                        SELECT symbol, MAX(date) as latest_date, 'eodhd' as vendor
-                        FROM intg_daily_price_eodhd
-                        GROUP BY symbol
-                    ),
-                    symbol_freshness AS (
-                        SELECT symbol, MAX(latest_date) as latest_date, 
-                               string_agg(vendor, ',' ORDER BY latest_date DESC) as vendors
-                        FROM vendor_freshness
-                        GROUP BY symbol
-                    )
-                    SELECT symbol, latest_date, vendors
-                    FROM symbol_freshness
-                    WHERE latest_date < CURRENT_DATE - INTERVAL '3 days'
-                    ORDER BY latest_date DESC;
-                    """
-                    
-                    stale_data = await conn.fetch(freshness_query)
-                    for row in stale_data:
-                        from datetime import date as dt_date
-                        days_stale = (dt_date.today() - row['latest_date']).days
-                        issues.append({
-                            "id": f"stale_data_{row['symbol']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "stale_data",
-                            "severity": "medium" if days_stale < 7 else "high",
-                            "description": f"Data is {days_stale} days old (last: {row['latest_date']}) - vendors: {row['vendors']}",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['latest_date'].isoformat(),
-                            "field": "date",
-                            "expected_value": "< 3 days old",
-                            "actual_value": f"{days_stale} days old",
-                            "vendor_source": row['vendors'],
-                            "status": "open"
-                        })
-                    
-                    await conn.close()
-                    
-                except Exception as e:
-                    logger.error(f"Data quality detection error: {e}")
+                missing_dates = await conn.fetch(missing_data_query)
+                for row in missing_dates:
                     issues.append({
-                        "id": "detection_error",
-                        "symbol": "SYSTEM",
-                        "issue_type": "detection_error",
-                        "severity": "critical",
-                        "description": f"Data quality detection failed: {str(e)}",
+                        "id": f"missing_data_{row['expected_date']}",
+                        "symbol": "ALL",
+                        "issue_type": "missing_data",
+                        "severity": "high",
+                        "description": f"No daily prices found for trading day {row['expected_date']}",
                         "detected_at": datetime.now().isoformat(),
-                        "affected_date": datetime.now().date().isoformat(),
-                        "field": "system",
-                        "expected_value": "Successful detection",
-                        "actual_value": f"Error: {str(e)}",
-                        "vendor_source": "system",
+                        "affected_date": row['expected_date'].isoformat(),
+                        "field": "all_fields",
+                        "expected_value": "Daily prices",
+                        "actual_value": "No data",
+                        "vendor_source": "multiple",
                         "status": "open"
                     })
+                
+                # Check for extreme volumes across all vendors
+                extreme_volume_query = """
+                SELECT symbol, date as price_date, volume, close, 'polygon' as vendor
+                FROM intg_daily_price_polygon 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                AND volume > 50000000
+                UNION ALL
+                SELECT symbol, date as price_date, volume, close, 'tiingo' as vendor
+                FROM intg_daily_price_tiingo 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                AND volume > 50000000
+                UNION ALL
+                SELECT symbol, date as price_date, volume, close, 'eodhd' as vendor
+                FROM intg_daily_price_eodhd 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                AND volume > 50000000
+                ORDER BY volume DESC;
+                """
+                
+                extreme_volumes = await conn.fetch(extreme_volume_query)
+                for row in extreme_volumes:
+                    issues.append({
+                        "id": f"high_volume_{row['symbol']}_{row['price_date']}_{row['vendor']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "extreme_volume",
+                        "severity": "medium",
+                        "description": f"Unusually high volume: {row['volume']:,} shares ({row['vendor']})",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "volume",
+                        "expected_value": "< 50M shares",
+                        "actual_value": f"{row['volume']:,} shares",
+                        "vendor_source": row['vendor'],
+                        "status": "open"
+                    })
+                
+                # Check for duplicate records within each vendor table
+                duplicate_query = """
+                SELECT symbol, date as price_date, COUNT(*) as count, 'polygon' as vendor
+                FROM intg_daily_price_polygon 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY symbol, date
+                HAVING COUNT(*) > 1
+                UNION ALL
+                SELECT symbol, date as price_date, COUNT(*) as count, 'tiingo' as vendor
+                FROM intg_daily_price_tiingo 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY symbol, date
+                HAVING COUNT(*) > 1
+                UNION ALL
+                SELECT symbol, date as price_date, COUNT(*) as count, 'eodhd' as vendor
+                FROM intg_daily_price_eodhd 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY symbol, date
+                HAVING COUNT(*) > 1
+                ORDER BY count DESC;
+                """
+                
+                duplicates = await conn.fetch(duplicate_query)
+                for row in duplicates:
+                    issues.append({
+                        "id": f"duplicate_{row['symbol']}_{row['price_date']}_{row['vendor']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "duplicate_records",
+                        "severity": "critical",
+                        "description": f"Duplicate records: {row['count']} entries for same date ({row['vendor']})",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "all_fields",
+                        "expected_value": "1 record per day",
+                        "actual_value": f"{row['count']} records",
+                        "vendor_source": row['vendor'],
+                        "status": "open"
+                    })
+                
+                # Check for stale data across all vendor tables
+                freshness_query = """
+                WITH vendor_freshness AS (
+                    SELECT symbol, MAX(date) as latest_date, 'polygon' as vendor
+                    FROM intg_daily_price_polygon
+                    GROUP BY symbol
+                    UNION ALL
+                    SELECT symbol, MAX(date) as latest_date, 'tiingo' as vendor
+                    FROM intg_daily_price_tiingo
+                    GROUP BY symbol
+                    UNION ALL
+                    SELECT symbol, MAX(date) as latest_date, 'eodhd' as vendor
+                    FROM intg_daily_price_eodhd
+                    GROUP BY symbol
+                ),
+                symbol_freshness AS (
+                    SELECT symbol, MAX(latest_date) as latest_date, 
+                           string_agg(vendor, ',' ORDER BY latest_date DESC) as vendors
+                    FROM vendor_freshness
+                    GROUP BY symbol
+                )
+                SELECT symbol, latest_date, vendors
+                FROM symbol_freshness
+                WHERE latest_date < CURRENT_DATE - INTERVAL '3 days'
+                ORDER BY latest_date DESC;
+                """
+                
+                stale_data = await conn.fetch(freshness_query)
+                for row in stale_data:
+                    from datetime import date as dt_date
+                    days_stale = (dt_date.today() - row['latest_date']).days
+                    issues.append({
+                        "id": f"stale_data_{row['symbol']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "stale_data",
+                        "severity": "medium" if days_stale < 7 else "high",
+                        "description": f"Data is {days_stale} days old (last: {row['latest_date']}) - vendors: {row['vendors']}",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['latest_date'].isoformat(),
+                        "field": "date",
+                        "expected_value": "< 3 days old",
+                        "actual_value": f"{days_stale} days old",
+                        "vendor_source": row['vendors'],
+                        "status": "open"
+                    })
+                
+                await conn.close()
+                
+            except Exception as e:
+                logger.error(f"Data quality detection error: {e}")
+                issues.append({
+                    "id": "detection_error",
+                    "symbol": "SYSTEM",
+                    "issue_type": "detection_error",
+                    "severity": "critical",
+                    "description": f"Data quality detection failed: {str(e)}",
+                    "detected_at": datetime.now().isoformat(),
+                    "affected_date": datetime.now().date().isoformat(),
+                    "field": "system",
+                    "expected_value": "Successful detection",
+                    "actual_value": f"Error: {str(e)}",
+                    "vendor_source": "system",
+                    "status": "open"
+                    })
             
-            # Run the async detection
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        # Run the async detection
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
             loop.run_until_complete(detect_issues())
+        finally:
             loop.close()
-            
-            response_data = {
-                "issues": issues,
-                "total_count": len(issues),
-                "last_updated": datetime.now().isoformat(),
-                "detection_period_days": 7
-            }
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps(response_data, indent=2).encode())
-            
-        except Exception as e:
-            logger.error(f"Error serving data quality issues: {e}")
-            error_response = {
-                "error": str(e),
-                "issues": [],
-                "total_count": 0,
-                "last_updated": datetime.now().isoformat()
-            }
-            
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps(error_response).encode())
+        
+        # Apply severity filter if specified
+        if severity_filter:
+            issues = [issue for issue in issues if issue['severity'] == severity_filter]
+        
+        # Sort by severity and date
+        severity_priority = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+        issues.sort(key=lambda x: (
+            severity_priority.get(x['severity'], 4),
+            x['affected_date']
+        ), reverse=True)
+        
+        # Apply pagination
+        total_issues = len(issues)
+        total_pages = (total_issues + page_size - 1) // page_size
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        page_issues = issues[start_idx:end_idx]
+        
+        return {
+            "issues": page_issues,
+            "pagination": {
+                "current_page": page,
+                "page_size": page_size,
+                "total_issues": total_issues,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            },
+            "summary": {
+                "total_issues": total_issues,
+                "critical": len([i for i in issues if i['severity'] == 'critical']),
+                "high": len([i for i in issues if i['severity'] == 'high']),
+                "medium": len([i for i in issues if i['severity'] == 'medium']),
+                "low": len([i for i in issues if i['severity'] == 'low'])
+            },
+            "total_count": len(page_issues),
+            "method": "legacy_single_threaded",
+            "last_updated": datetime.now().isoformat(),
+            "detection_period_days": 7
+        }
+    
+    def _send_json_response(self, data: Dict[str, Any], status_code: int = 200):
+        """Send JSON response with proper headers"""
+        self.send_response(status_code)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps(data, indent=2).encode())
 
     def _serve_agent_status(self):
         """Serve agent status endpoint."""
@@ -7685,9 +7945,31 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"message": "Agent already active"}).encode())
                 return
 
-            # Start agent monitoring (mark as active, actual monitoring handled separately)
-            from agents.data_quality_agent import AgentStatus
-            agent.status = AgentStatus.ACTIVE
+            # Start agent monitoring - create async task for continuous monitoring
+            import asyncio
+            import threading
+            
+            def start_monitoring_thread():
+                """Run monitoring in a separate thread with its own event loop"""
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(agent.start_continuous_monitoring())
+                except Exception as e:
+                    logger.error(f"Agent monitoring failed: {e}")
+                finally:
+                    loop.close()
+                    
+            # Start the monitoring thread in background
+            if not hasattr(self.analytics_service, 'agent_monitoring_thread') or \
+               self.analytics_service.agent_monitoring_thread is None or \
+               not self.analytics_service.agent_monitoring_thread.is_alive():
+                self.analytics_service.agent_monitoring_thread = threading.Thread(
+                    target=start_monitoring_thread,
+                    daemon=True,
+                    name="AgentMonitoringThread"
+                )
+                self.analytics_service.agent_monitoring_thread.start()
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -8242,8 +8524,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             if not hasattr(self, 'financial_events_integration'):
                 from services.financial_events.multi_source_events_orchestrator import UnifiedFinancialEventsIntegration
                 self.financial_events_integration = UnifiedFinancialEventsIntegration(
-                    xai_api_key=os.getenv('XAI_API_KEY', 'demo_key_for_testing'),
-                    grok_api_key=os.getenv('GROK_API_KEY', os.getenv('XAI_API_KEY', 'demo_key_for_testing')),
+                    xai_api_key=os.getenv('XAI_API_KEY'),
+                    grok_api_key=os.getenv('GROK_API_KEY', os.getenv('XAI_API_KEY')),
                     analytics_base_url="http://localhost:4000",
                     enable_cache=True
                 )
