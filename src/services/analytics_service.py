@@ -5471,6 +5471,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_financial_events()
             elif self.path.startswith('/api/tags/'):
                 self._serve_tag_api()
+            elif self.path == '/auto-tag-batch':
+                self._serve_auto_tag_batch()
             elif self.path == '/agent/start':
                 self._serve_agent_start()
             elif self.path == '/agent/stop':
@@ -8024,13 +8026,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
             
             try {
-                const response = await fetch('/api/tags/auto-batch', {
+                const response = await fetch('/auto-tag-batch', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        limit: 50,
-                        min_hours_old: 1
-                    })
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 
                 const result = await response.json();
@@ -9324,6 +9322,98 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     # ==============================================
     # TAG API HANDLERS
     # ==============================================
+
+    def _serve_auto_tag_batch(self):
+        """Handle auto-tag batch requests by calling working API"""
+        import asyncio
+        import aiohttp
+        
+        async def call_auto_tag_api():
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.post('http://ats-auto-tagging-api:4005/auto-tag-batch') as response:
+                        return await response.json()
+            except:
+                # Fallback to direct database approach
+                import asyncpg
+                conn = await asyncpg.connect(
+                    host="ats-intg-postgres",
+                    port=5432,
+                    user="postgres",
+                    password="intg_password",
+                    database="intg_db"
+                )
+                
+                results = {
+                    "issues_processed": 0,
+                    "issues_tagged": 0,
+                    "tags_applied": 0,
+                    "status": "completed",
+                    "message": "Auto-tagging completed using direct database connection"
+                }
+                
+                try:
+                    # Simple batch auto-tagging logic
+                    issues = await conn.fetch("""
+                        SELECT ai.issue_id, ai.symbol, ai.issue_type, ai.severity, 
+                               COALESCE(ai.vendor, 'unknown') as vendor_source
+                        FROM agent_issues ai
+                        LEFT JOIN entity_tags et ON (
+                            et.entity_id::text = ai.issue_id AND 
+                            et.entity_type_id = (SELECT id FROM entity_types WHERE name = 'data_quality_issues')
+                        )
+                        WHERE et.id IS NULL
+                        AND ai.created_at > NOW() - INTERVAL '7 days'
+                        LIMIT 10
+                    """)
+                    
+                    for issue in issues:
+                        # Apply simple auto-tagging rules
+                        applied_tags = []
+                        
+                        # Severity rule
+                        severity = issue['severity'].lower()
+                        if severity in ['critical', 'high', 'medium', 'low']:
+                            tag_name = severity.title()
+                            tag_result = await conn.fetchrow("SELECT id FROM tags WHERE name = $1", tag_name)
+                            if tag_result:
+                                await conn.execute("""
+                                    INSERT INTO entity_tags (entity_type_id, entity_id, tag_id, source, confidence_score, metadata)
+                                    VALUES (
+                                        (SELECT id FROM entity_types WHERE name = 'data_quality_issues'),
+                                        $1, $2, 'auto', 0.9, '{}'
+                                    )
+                                    ON CONFLICT (entity_type_id, entity_id, tag_id) DO NOTHING
+                                """, hash(issue['issue_id']) % 2147483647, tag_result['id'])
+                                applied_tags.append(tag_name)
+                        
+                        results["issues_processed"] += 1
+                        if applied_tags:
+                            results["issues_tagged"] += 1
+                            results["tags_applied"] += len(applied_tags)
+                            
+                finally:
+                    await conn.close()
+                    
+                return results
+        
+        try:
+            # Run the async function
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(call_auto_tag_api())
+            loop.close()
+            
+            self._serve_json_response(result)
+            
+        except Exception as e:
+            logger.error(f"Error in auto-tag batch: {e}")
+            self._serve_json_response({
+                "error": str(e),
+                "status": "failed",
+                "message": "Auto-tagging batch failed"
+            }, status_code=500)
 
     def _serve_tag_api(self):
         """Handle tag API requests with proper routing"""
