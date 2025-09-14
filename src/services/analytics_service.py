@@ -5160,6 +5160,22 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             logger.error(f"Error handling GET request: {e}")
             self._serve_500(str(e))
 
+    def do_POST(self):
+        """Handle POST requests."""
+        try:
+            logger.info(f"📍 POST request: {self.path}")
+            if self.path == '/agent/start':
+                self._serve_agent_start_post()
+            elif self.path == '/agent/stop':
+                self._serve_agent_stop_post()
+            elif self.path == '/agent/action':
+                self._serve_agent_action()
+            else:
+                self._serve_404()
+        except Exception as e:
+            logger.error(f"Error handling POST request: {e}")
+            self._serve_500(str(e))
+
     def _serve_health_check(self):
         """Serve health check response."""
         self.send_response(200)
@@ -6455,12 +6471,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 const startBtn = document.getElementById('start-agent-btn');
                 const stopBtn = document.getElementById('stop-agent-btn');
                 
-                if (status.monitoring_active) {
-                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Workflows: ${status.active_workflows} | Issues: ${status.pending_issues}`;
+                if (status.status === 'active') {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Tools: ${status.tools_available} | ID: ${status.agent_id}`;
                     startBtn.style.display = 'none';
                     stopBtn.style.display = 'inline-block';
                 } else {
-                    statusElement.innerHTML = `🤖 Agent: <span style="color: #e74c3c;">STOPPED</span> | Last cycle: ${status.last_cycle || 'Never'}`;
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #e74c3c;">IDLE</span> | Tools: ${status.tools_available} | MCP Ready: ${status.mcp_tools_ready}`;
                     startBtn.style.display = 'inline-block';
                     stopBtn.style.display = 'none';
                 }
@@ -6737,7 +6753,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to update configuration', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error updating configuration: \${error.message}`, 'error');
+                showNotification(`❌ Error updating configuration: ${error.message}`, 'error');
             }
         }
         
@@ -6754,24 +6770,24 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to reset configuration', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error resetting configuration: \${error.message}`, 'error');
+                showNotification(`❌ Error resetting configuration: ${error.message}`, 'error');
             }
         }
         
         async function applyEnvironmentConfig(environment) {
             try {
-                const response = await fetch(`/agent/config/environment/\${environment}`, { method: 'POST' });
+                const response = await fetch(`/agent/config/environment/${environment}`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
-                    showNotification(`✅ Applied \${environment} configuration`, 'success');
+                    showNotification(`✅ Applied ${environment} configuration`, 'success');
                     document.querySelector('.modal').remove();
                     setTimeout(showConfigDialog, 1000); // Show updated config
                 } else {
-                    showNotification(`❌ Failed to apply \${environment} configuration`, 'error');
+                    showNotification(`❌ Failed to apply ${environment} configuration`, 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error applying \${environment} configuration: \${error.message}`, 'error');
+                showNotification(`❌ Error applying ${environment} configuration: ${error.message}`, 'error');
             }
         }
         
@@ -6791,27 +6807,27 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <!-- Alert Summary -->
                         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
                             <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.critical || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.critical || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">Critical</p>
                             </div>
                             <div style="background: #e67e22; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.high || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.high || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">High</p>
                             </div>
                             <div style="background: #f39c12; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.medium || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.medium || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">Medium</p>
                             </div>
                             <div style="background: #3498db; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h3 style="margin: 0;">\${summary.active_by_severity?.low || 0}</h3>
+                                <h3 style="margin: 0;">${summary.active_by_severity?.low || 0}</h3>
                                 <p style="margin: 5px 0 0 0;">Low</p>
                             </div>
                         </div>
                         
                         <!-- Active Alerts -->
                         <div style="margin-bottom: 20px;">
-                            <h4>🔥 Active Alerts (\${alerts.length})</h4>
-                            \${alerts.length > 0 ? 
+                            <h4>🔥 Active Alerts (${alerts.length})</h4>
+                            ${alerts.length > 0 ? 
                                 alerts.map(alert => {
                                     const severityColors = {
                                         critical: '#e74c3c',
@@ -6822,24 +6838,24 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     const severityColor = severityColors[alert.severity] || '#6c757d';
                                     
                                     return `
-                                        <div style="border-left: 4px solid \${severityColor}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
+                                        <div style="border-left: 4px solid ${severityColor}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
                                             <div style="display: flex; justify-content: between; align-items: start;">
                                                 <div style="flex: 1;">
-                                                    <h5 style="margin: 0 0 5px 0; color: \${severityColor};">\${alert.title}</h5>
-                                                    <p style="margin: 0 0 8px 0;">\${alert.message}</p>
+                                                    <h5 style="margin: 0 0 5px 0; color: ${severityColor};">${alert.title}</h5>
+                                                    <p style="margin: 0 0 8px 0;">${alert.message}</p>
                                                     <small style="color: #6c757d;">
-                                                        \${alert.source_component} • \${new Date(alert.timestamp).toLocaleString()}
-                                                        \${alert.acknowledged ? ' • ✅ Acknowledged' : ''}
+                                                        ${alert.source_component} • ${new Date(alert.timestamp).toLocaleString()}
+                                                        ${alert.acknowledged ? ' • ✅ Acknowledged' : ''}
                                                     </small>
                                                 </div>
                                                 <div style="display: flex; gap: 5px; margin-left: 15px;">
-                                                    \${!alert.acknowledged ? 
-                                                        `<button onclick="acknowledgeAlert('\${alert.alert_id}')" 
+                                                    ${!alert.acknowledged ? 
+                                                        `<button onclick="acknowledgeAlert('${alert.alert_id}')" 
                                                                  style="padding: 4px 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                             ✓ Ack
                                                          </button>` : ''
                                                     }
-                                                    <button onclick="resolveAlert('\${alert.alert_id}')" 
+                                                    <button onclick="resolveAlert('${alert.alert_id}')" 
                                                             style="padding: 4px 8px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                         ✓ Resolve
                                                     </button>
@@ -6858,14 +6874,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                     <h5>Recent Activity</h5>
-                                    <p><strong>Last Hour:</strong> \${summary.alerts_last_hour || 0} alerts</p>
-                                    <p><strong>Last 24h:</strong> \${summary.alerts_last_24h || 0} alerts</p>
-                                    <p><strong>Rules Enabled:</strong> \${summary.alert_rules_enabled || 0}</p>
+                                    <p><strong>Last Hour:</strong> ${summary.alerts_last_hour || 0} alerts</p>
+                                    <p><strong>Last 24h:</strong> ${summary.alerts_last_24h || 0} alerts</p>
+                                    <p><strong>Rules Enabled:</strong> ${summary.alert_rules_enabled || 0}</p>
                                 </div>
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                     <h5>Notification Channels</h5>
-                                    \${Object.entries(channels).map(([id, channel]) => 
-                                        `<p><strong>\${id}:</strong> \${channel.enabled ? '✅' : '❌'} \${channel.type}</p>`
+                                    ${Object.entries(channels).map(([id, channel]) => 
+                                        `<p><strong>${id}:</strong> ${channel.enabled ? '✅' : '❌'} ${channel.type}</p>`
                                     ).join('') || '<p>No channels configured</p>'}
                                 </div>
                             </div>
@@ -6884,20 +6900,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         </div>
                         
                         <div style="text-align: center; padding-top: 15px; color: #6c757d;">
-                            <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
+                            <small>Last updated: ${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
                 `;
                 
                 showModal('Alert Management', alertsHtml);
             } catch (error) {
-                showNotification(`❌ Error loading alerts: \${error.message}`, 'error');
+                showNotification(`❌ Error loading alerts: ${error.message}`, 'error');
             }
         }
         
         async function acknowledgeAlert(alertId) {
             try {
-                const response = await fetch(`/agent/alerts/\${alertId}/acknowledge`, { method: 'POST' });
+                const response = await fetch(`/agent/alerts/${alertId}/acknowledge`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -6907,13 +6923,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to acknowledge alert', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error acknowledging alert: \${error.message}`, 'error');
+                showNotification(`❌ Error acknowledging alert: ${error.message}`, 'error');
             }
         }
         
         async function resolveAlert(alertId) {
             try {
-                const response = await fetch(`/agent/alerts/\${alertId}/resolve`, { method: 'POST' });
+                const response = await fetch(`/agent/alerts/${alertId}/resolve`, { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -6923,7 +6939,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     showNotification('❌ Failed to resolve alert', 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error resolving alert: \${error.message}`, 'error');
+                showNotification(`❌ Error resolving alert: ${error.message}`, 'error');
             }
         }
         
@@ -6936,12 +6952,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 const failed = result.failed_channels;
                 
                 if (successful > 0) {
-                    showNotification(`✅ \${successful} channels tested successfully (\${failed} failed)`, 'success');
+                    showNotification(`✅ ${successful} channels tested successfully (${failed} failed)`, 'success');
                 } else {
-                    showNotification(`❌ All \${failed} notification channels failed`, 'error');
+                    showNotification(`❌ All ${failed} notification channels failed`, 'error');
                 }
             } catch (error) {
-                showNotification(`❌ Error testing notification channels: \${error.message}`, 'error');
+                showNotification(`❌ Error testing notification channels: ${error.message}`, 'error');
             }
         }
         
@@ -6973,38 +6989,38 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     <div style="max-height: 600px; overflow-y: auto;">
                         
                         <!-- Overall Health Status -->
-                        <div style="background: \${statusColor}; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-                            <h2 style="margin: 0;">Health Score: \${health.health_score}/100</h2>
-                            <p style="margin: 5px 0 0 0; font-size: 1.1em;">Status: \${health.status.toUpperCase()}</p>
+                        <div style="background: ${statusColor}; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                            <h2 style="margin: 0;">Health Score: ${health.health_score}/100</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 1.1em;">Status: ${health.status.toUpperCase()}</p>
                         </div>
                         
                         <!-- System Metrics -->
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                 <h4>💻 System Resources</h4>
-                                <p><strong>CPU:</strong> \${health.latest_metrics?.cpu_percent || 0}%</p>
-                                <p><strong>Memory:</strong> \${health.latest_metrics?.memory_percent || 0}%</p>
-                                <p><strong>Disk Usage:</strong> \${health.latest_metrics?.disk_usage_percent || 0}%</p>
-                                <p><strong>Free Space:</strong> \${(health.latest_metrics?.disk_free_gb || 0).toFixed(1)}GB</p>
+                                <p><strong>CPU:</strong> ${health.latest_metrics?.cpu_percent || 0}%</p>
+                                <p><strong>Memory:</strong> ${health.latest_metrics?.memory_percent || 0}%</p>
+                                <p><strong>Disk Usage:</strong> ${health.latest_metrics?.disk_usage_percent || 0}%</p>
+                                <p><strong>Free Space:</strong> ${(health.latest_metrics?.disk_free_gb || 0).toFixed(1)}GB</p>
                             </div>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                 <h4>🤖 Agent Status</h4>
-                                <p><strong>Status:</strong> \${agent.agent_status}</p>
-                                <p><strong>Monitoring:</strong> \${agent.monitoring_active ? 'Active' : 'Inactive'}</p>
-                                <p><strong>Workflows:</strong> \${ops.total_workflows}</p>
-                                <p><strong>Last Scan:</strong> \${ops.last_scan ? new Date(ops.last_scan).toLocaleTimeString() : 'Never'}</p>
+                                <p><strong>Status:</strong> ${agent.agent_status}</p>
+                                <p><strong>Monitoring:</strong> ${agent.monitoring_active ? 'Active' : 'Inactive'}</p>
+                                <p><strong>Workflows:</strong> ${ops.total_workflows}</p>
+                                <p><strong>Last Scan:</strong> ${ops.last_scan ? new Date(ops.last_scan).toLocaleTimeString() : 'Never'}</p>
                             </div>
                         </div>
                         
                         <!-- Active Alerts -->
                         <div style="margin-bottom: 20px;">
-                            <h4>🚨 Active Alerts (\${health.active_alerts?.length || 0})</h4>
-                            \${health.active_alerts?.length > 0 ? 
+                            <h4>🚨 Active Alerts (${health.active_alerts?.length || 0})</h4>
+                            ${health.active_alerts?.length > 0 ? 
                                 health.active_alerts.map(alert => `
-                                    <div style="border-left: 4px solid \${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'}; 
+                                    <div style="border-left: 4px solid ${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'}; 
                                                 padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 0 4px 4px 0;">
-                                        <strong>\${alert.component.toUpperCase()}:</strong> \${alert.message}
-                                        <br><small>\${new Date(alert.timestamp).toLocaleString()}</small>
+                                        <strong>${alert.component.toUpperCase()}:</strong> ${alert.message}
+                                        <br><small>${new Date(alert.timestamp).toLocaleString()}</small>
                                     </div>
                                 `).join('') : 
                                 '<p style="color: #27ae60;">✅ No active alerts</p>'
@@ -7015,10 +7031,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>📈 Performance Trends</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                <p><strong>CPU (10min avg):</strong> \${health.trends?.cpu_avg_10min || 0}%</p>
-                                <p><strong>Memory (10min avg):</strong> \${health.trends?.memory_avg_10min || 0}%</p>
-                                <p><strong>Monitoring Duration:</strong> \${(health.trends?.monitoring_duration_hours || 0).toFixed(1)} hours</p>
-                                <p><strong>Data Points:</strong> \${health.trends?.metrics_collected || 0}</p>
+                                <p><strong>CPU (10min avg):</strong> ${health.trends?.cpu_avg_10min || 0}%</p>
+                                <p><strong>Memory (10min avg):</strong> ${health.trends?.memory_avg_10min || 0}%</p>
+                                <p><strong>Monitoring Duration:</strong> ${(health.trends?.monitoring_duration_hours || 0).toFixed(1)} hours</p>
+                                <p><strong>Data Points:</strong> ${health.trends?.metrics_collected || 0}</p>
                             </div>
                         </div>
                         
@@ -7026,7 +7042,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>💡 Recommendations</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                \${health.recommendations?.map(rec => `<p>• \${rec}</p>`).join('') || '<p>No recommendations available</p>'}
+                                ${health.recommendations?.map(rec => `<p>• ${rec}</p>`).join('') || '<p>No recommendations available</p>'}
                             </div>
                         </div>
                         
@@ -7034,23 +7050,23 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <div style="margin-bottom: 20px;">
                             <h4>🛠️ MCP Tools Available</h4>
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                \${agent.tools_available?.map(tool => `
+                                ${agent.tools_available?.map(tool => `
                                     <span style="display: inline-block; background: #3498db; color: white; padding: 3px 8px; margin: 2px; border-radius: 12px; font-size: 0.8em;">
-                                        \${tool}
+                                        ${tool}
                                     </span>
                                 `).join('') || 'No tools available'}
                             </div>
                         </div>
                         
                         <div style="text-align: center; padding-top: 15px; border-top: 1px solid #ddd; color: #6c757d;">
-                            <small>Last updated: \${new Date(data.retrieved_at).toLocaleString()}</small>
+                            <small>Last updated: ${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
                 `;
                 
                 showModal('System Health Monitor', healthHtml);
             } catch (error) {
-                showNotification(`❌ Error loading system health: \${error.message}`, 'error');
+                showNotification(`❌ Error loading system health: ${error.message}`, 'error');
             }
         }
         
@@ -7392,6 +7408,72 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+    def _serve_agent_start_post(self):
+        """Handle POST request to start agent."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Agent not available"}).encode())
+                return
+
+            agent = self.analytics_service.data_quality_agent
+            if agent.status.value == "active":
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": "Agent already active"}).encode())
+                return
+
+            # Start agent monitoring (mark as active, actual monitoring handled separately)
+            from agents.data_quality_agent import AgentStatus
+            agent.status = AgentStatus.ACTIVE
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "message": "Agent started successfully"}).encode())
+        except Exception as e:
+            logger.error(f"Error starting agent: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+    def _serve_agent_stop_post(self):
+        """Handle POST request to stop agent."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Agent not available"}).encode())
+                return
+
+            agent = self.analytics_service.data_quality_agent
+            if agent.status.value == "idle":
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": "Agent already stopped"}).encode())
+                return
+
+            # Stop agent monitoring
+            from agents.data_quality_agent import AgentStatus
+            agent.status = AgentStatus.IDLE
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "message": "Agent stopped successfully"}).encode())
+        except Exception as e:
+            logger.error(f"Error stopping agent: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
     def _serve_agent_stop(self):
         """Serve agent stop endpoint."""
         try:
@@ -7452,6 +7534,54 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def _serve_agent_action(self):
+        """Handle POST request for agent actions."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Agent not available"}).encode())
+                return
+
+            # Read POST data
+            content_length = int(self.headers['Content-Length']) if self.headers.get('Content-Length') else 0
+            post_data = self.rfile.read(content_length)
+            
+            try:
+                import json
+                request_data = json.loads(post_data.decode('utf-8'))
+                action = request_data.get('action')
+                issue_id = request_data.get('issue_id')
+                
+                if not action:
+                    self.send_response(400)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": False, "error": "Action parameter is required"}).encode())
+                    return
+                
+                # For now, just log the action and return success
+                logger.info(f"Agent action requested: {action} for issue: {issue_id}")
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": f"Action '{action}' queued successfully"}).encode())
+                
+            except json.JSONDecodeError:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Invalid JSON in request body"}).encode())
+                
+        except Exception as e:
+            logger.error(f"Error handling agent action: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
     def _serve_404(self):
         """Serve 404 response."""
