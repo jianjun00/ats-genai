@@ -59,6 +59,17 @@ AGENT_AVAILABLE = True
 simple_agent_state = SimpleAgentState()
 logger.info("✅ Simple Data Quality Agent initialized")
 
+# Import Tagging System
+try:
+    from domains.tagging.services.tag_service import TagService
+    from domains.tagging.repositories.tag_repository import TagRepository
+    from domains.tagging.api.tag_api import tag_router
+    TAGGING_AVAILABLE = True
+    logger.info("✅ Tagging System loaded successfully")
+except ImportError as e:
+    TAGGING_AVAILABLE = False
+    logger.warning(f"⚠️ Tagging System not available: {e}")
+
 # Import core components
 try:
     from core.platform.database.connection_manager import get_connection_manager
@@ -141,11 +152,19 @@ class UnifiedAnalyticsService:
             self.data_quality_agent = DataQualityAgent()
             self.agent_monitoring_task = None
             logger.info("🤖 Data Quality Agent initialized")
+        
+        # Initialize Tagging Service
+        if TAGGING_AVAILABLE:
+            self.tagging_enabled = True
+            logger.info("🏷️ Tagging System initialized")
+        else:
+            self.tagging_enabled = False
 
         logger.info("🚀 Unified Analytics Service initialized")
         logger.info(f"   Type system: {'✅ Enabled' if self.type_system_enabled else '❌ Disabled'}")
         logger.info(f"   Ray computing: {'✅ Enabled' if self.ray_enabled else '❌ Disabled'}")
         logger.info(f"   Agent system: {'✅ Enabled' if self.agent_enabled else '❌ Disabled'}")
+        logger.info(f"   Tagging system: {'✅ Enabled' if getattr(self, 'tagging_enabled', False) else '❌ Disabled'}")
         logger.info(f"   Multi-panel visualization: {'✅ Enabled' if self.visualization_enabled else '❌ Disabled'}")
 
         if self.type_system_enabled:
@@ -5422,6 +5441,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_data_quality_dashboard()
             elif self.path.startswith('/data-quality/api/issues'):
                 self._serve_data_quality_issues()
+            elif self.path.startswith('/data-quality/api/issues/'):
+                self._serve_data_quality_issues_with_tags()
             elif self.path == '/agent/status':
                 self._serve_agent_status()
             elif self.path == '/agent/start':
@@ -5430,6 +5451,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_agent_stop()
             elif self.path.startswith('/agent/'):
                 self._serve_agent_endpoint()
+            elif self.path.startswith('/api/tags/'):
+                self._serve_tag_api()
             elif self.path.startswith('/financial_events'):
                 self._serve_financial_events()
             else:
@@ -5446,10 +5469,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             
             if self.path.startswith('/financial_events'):
                 self._serve_financial_events()
+            elif self.path.startswith('/api/tags/'):
+                self._serve_tag_api()
             elif self.path == '/agent/start':
                 self._serve_agent_start()
             elif self.path == '/agent/stop':
                 self._serve_agent_stop()
+            elif self.path.startswith('/agent/'):
+                self._serve_agent_action()
             else:
                 self.send_response(404)
                 self.send_header('Content-type', 'application/json')
@@ -8770,6 +8797,553 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         except Exception as e:
             logger.error(f"Error in sources handler: {e}")
             self._serve_500(str(e))
+
+    # ==============================================
+    # TAG API HANDLERS
+    # ==============================================
+
+    def _serve_tag_api(self):
+        """Handle tag API requests with proper routing"""
+        if not getattr(self.analytics_service, 'tagging_enabled', False):
+            self._serve_json_response({
+                "error": "Tagging system not available"
+            }, status_code=503)
+            return
+
+        try:
+            from urllib.parse import urlparse, parse_qs
+            import asyncio
+            
+            # Parse the path to extract tag API endpoint
+            parsed_url = urlparse(self.path)
+            path_parts = parsed_url.path.strip('/').split('/')
+            
+            if len(path_parts) < 3:  # /api/tags/...
+                self._serve_404()
+                return
+                
+            endpoint = '/'.join(path_parts[2:])  # Everything after /api/tags/
+            query_params = parse_qs(parsed_url.query)
+            
+            # Get tag service instance
+            async def get_tag_service():
+                from infrastructure.database.connection_manager import get_database_connection
+                connection = await get_database_connection("dev")  # TODO: Make configurable
+                repository = TagRepository(connection)
+                return TagService(repository)
+            
+            # Route to appropriate handler based on method and endpoint
+            if self.command == 'GET':
+                asyncio.run(self._handle_tag_get_request(endpoint, query_params, get_tag_service))
+            elif self.command == 'POST':
+                asyncio.run(self._handle_tag_post_request(endpoint, get_tag_service))
+            elif self.command == 'DELETE':
+                asyncio.run(self._handle_tag_delete_request(endpoint, get_tag_service))
+            else:
+                self._serve_405()  # Method not allowed
+                
+        except Exception as e:
+            logger.error(f"Error handling tag API request: {e}")
+            self._serve_500(str(e))
+
+    async def _handle_tag_get_request(self, endpoint, query_params, get_tag_service_func):
+        """Handle GET requests for tag API"""
+        try:
+            tag_service = await get_tag_service_func()
+            
+            if endpoint == '':
+                # GET /api/tags/ - Get all tags
+                active_only = query_params.get('active_only', ['true'])[0].lower() == 'true'
+                category_id = query_params.get('category_id', [None])[0]
+                search = query_params.get('search', [None])[0]
+                limit = int(query_params.get('limit', [100])[0])
+                
+                if search:
+                    tags = await tag_service.search_tags(search, limit=limit)
+                elif category_id:
+                    tags = await tag_service.get_tags_by_category(int(category_id), active_only=active_only)
+                else:
+                    tags = await tag_service.get_all_tags(active_only=active_only)
+                
+                response = [self._convert_tag_to_dict(tag) for tag in tags[:limit]]
+                
+            elif endpoint == 'categories':
+                # GET /api/tags/categories - Get all categories
+                categories = await tag_service.get_all_categories()
+                response = [self._convert_category_to_dict(cat) for cat in categories]
+                
+            elif endpoint == 'analytics':
+                # GET /api/tags/analytics - Get analytics
+                analytics = await tag_service.get_tag_analytics()
+                response = {
+                    "most_used_tags": [
+                        {
+                            "tag_id": stat.tag_id,
+                            "tag_name": stat.tag_name,
+                            "total_usage": stat.total_usage,
+                            "unique_entities": stat.unique_entities,
+                            "entity_types_count": stat.entity_types_count,
+                            "avg_confidence": float(stat.avg_confidence) if stat.avg_confidence else 0,
+                            "last_used": stat.last_used.isoformat() if stat.last_used else None,
+                            "active_days_last_90": stat.active_days_last_90
+                        }
+                        for stat in analytics.most_used_tags
+                    ],
+                    "tag_categories_distribution": analytics.tag_categories_distribution,
+                    "tagging_trends": analytics.tagging_trends,
+                    "entity_coverage": round(analytics.entity_coverage, 2),
+                    "avg_tags_per_entity": round(analytics.avg_tags_per_entity, 2),
+                    "top_co_occurring_tags": analytics.top_co_occurring_tags
+                }
+                
+            elif endpoint.startswith('entity/'):
+                # GET /api/tags/entity/{entity_type}/{entity_id} - Get entity tags
+                parts = endpoint.split('/')
+                if len(parts) >= 3:
+                    entity_type, entity_id = parts[1], int(parts[2])
+                    tags = await tag_service.get_entity_tags(entity_type, entity_id)
+                    response = [self._convert_tag_to_dict(tag) for tag in tags]
+                else:
+                    raise ValueError("Invalid entity path format")
+                    
+            elif endpoint.startswith('suggestions/'):
+                # GET /api/tags/suggestions/{entity_type}/{entity_id} - Get suggestions
+                parts = endpoint.split('/')
+                if len(parts) >= 3:
+                    entity_type, entity_id = parts[1], int(parts[2])
+                    limit = int(query_params.get('limit', [5])[0])
+                    suggestions = await tag_service.suggest_tags_for_entity(entity_type, entity_id, limit)
+                    response = [
+                        {
+                            "tag_id": suggestion.tag_id,
+                            "tag_name": suggestion.tag_name,
+                            "confidence_score": round(suggestion.confidence_score, 3),
+                            "source": suggestion.source.value,
+                            "explanation": suggestion.explanation
+                        }
+                        for suggestion in suggestions
+                    ]
+                else:
+                    raise ValueError("Invalid suggestions path format")
+                    
+            elif endpoint == 'usage-stats':
+                # GET /api/tags/usage-stats - Get usage statistics
+                limit = int(query_params.get('limit', [100])[0])
+                stats = await tag_service.get_tag_usage_stats(limit)
+                response = [
+                    {
+                        "tag_id": stat.tag_id,
+                        "tag_name": stat.tag_name,
+                        "total_usage": stat.total_usage,
+                        "unique_entities": stat.unique_entities,
+                        "entity_types_count": stat.entity_types_count,
+                        "avg_confidence": float(stat.avg_confidence) if stat.avg_confidence else 0,
+                        "last_used": stat.last_used.isoformat() if stat.last_used else None,
+                        "active_days_last_90": stat.active_days_last_90
+                    }
+                    for stat in stats
+                ]
+            else:
+                self._serve_404()
+                return
+                
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error in tag GET handler: {e}")
+            self._serve_500(str(e))
+
+    async def _handle_tag_post_request(self, endpoint, get_tag_service_func):
+        """Handle POST requests for tag API"""
+        try:
+            tag_service = await get_tag_service_func()
+            
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            request_body = self.rfile.read(content_length).decode('utf-8')
+            request_data = json.loads(request_body) if request_body else {}
+            
+            if endpoint == '':
+                # POST /api/tags/ - Create new tag
+                from domains.tagging.models.tag_models import CreateTagRequest
+                create_request = CreateTagRequest(
+                    name=request_data['name'],
+                    description=request_data.get('description'),
+                    category_id=request_data.get('category_id'),
+                    color=request_data.get('color'),
+                    metadata=request_data.get('metadata')
+                )
+                tag = await tag_service.create_tag(create_request)
+                response = self._convert_tag_to_dict(tag)
+                
+            elif endpoint == 'apply':
+                # POST /api/tags/apply - Apply tag to entity
+                from domains.tagging.models.tag_models import ApplyTagRequest, TagSource
+                apply_request = ApplyTagRequest(
+                    entity_type=request_data['entity_type'],
+                    entity_id=request_data['entity_id'],
+                    tag_id=request_data['tag_id'],
+                    confidence_score=request_data.get('confidence_score', 1.0),
+                    source=TagSource(request_data.get('source', 'manual')),
+                    metadata=request_data.get('metadata')
+                )
+                entity_tag = await tag_service.apply_tag_to_entity(apply_request)
+                
+                # Get tag details for response
+                tag = await tag_service.repository.get_tag_by_id(entity_tag.tag_id)
+                response = {
+                    "id": entity_tag.id,
+                    "entity_type": request_data['entity_type'],
+                    "entity_id": entity_tag.entity_id,
+                    "tag": self._convert_tag_to_dict(tag),
+                    "tagged_by_user_id": entity_tag.tagged_by_user_id,
+                    "tagged_at": entity_tag.tagged_at.isoformat(),
+                    "confidence_score": entity_tag.confidence_score,
+                    "source": entity_tag.source.value,
+                    "metadata": entity_tag.metadata
+                }
+                
+            elif endpoint == 'bulk-apply':
+                # POST /api/tags/bulk-apply - Bulk apply tags
+                from domains.tagging.models.tag_models import BulkTagRequest, TagSource
+                bulk_request = BulkTagRequest(
+                    entity_type=request_data['entity_type'],
+                    entity_ids=request_data['entity_ids'],
+                    tag_ids=request_data['tag_ids'],
+                    confidence_score=request_data.get('confidence_score', 1.0),
+                    source=TagSource(request_data.get('source', 'manual')),
+                    metadata=request_data.get('metadata')
+                )
+                results = await tag_service.bulk_apply_tags(bulk_request)
+                
+                success_count = len([r for r in results if not isinstance(r, Exception)])
+                error_count = len(results) - success_count
+                
+                response = {
+                    "total_operations": len(results),
+                    "successful": success_count,
+                    "failed": error_count,
+                    "message": f"Applied tags: {success_count} successful, {error_count} failed"
+                }
+                
+            elif endpoint == 'search-entities':
+                # POST /api/tags/search-entities - Search entities by tags
+                from domains.tagging.models.tag_models import TagFilter
+                from datetime import datetime
+                
+                tag_filter = TagFilter(
+                    entity_type=request_data['entity_type'],
+                    tag_ids=request_data.get('tag_ids'),
+                    categories=request_data.get('categories'),
+                    symbols=request_data.get('symbols'),
+                    date_from=datetime.fromisoformat(request_data['date_from']) if request_data.get('date_from') else None,
+                    date_to=datetime.fromisoformat(request_data['date_to']) if request_data.get('date_to') else None,
+                    search=request_data.get('search'),
+                    match_mode=request_data.get('match_mode', 'ANY'),
+                    limit=request_data.get('limit', 50),
+                    offset=request_data.get('offset', 0)
+                )
+                
+                tagged_entities = await tag_service.get_tagged_entities(tag_filter)
+                
+                response = [
+                    {
+                        "entity_type": entity.entity_type,
+                        "entity_id": entity.entity_id,
+                        "tags": [self._convert_tag_to_dict(tag) for tag in entity.tags],
+                        "total_tags": entity.total_tags
+                    }
+                    for entity in tagged_entities
+                ]
+                
+            elif endpoint == 'refresh-analytics':
+                # POST /api/tags/refresh-analytics - Refresh analytics
+                success = await tag_service.refresh_tag_analytics()
+                response = {"message": "Tag analytics refreshed successfully" if success else "Failed to refresh analytics"}
+                
+            else:
+                self._serve_404()
+                return
+                
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error in tag POST handler: {e}")
+            self._serve_500(str(e))
+
+    async def _handle_tag_delete_request(self, endpoint, get_tag_service_func):
+        """Handle DELETE requests for tag API"""
+        try:
+            tag_service = await get_tag_service_func()
+            
+            if endpoint.startswith('entity/') and '/tag/' in endpoint:
+                # DELETE /api/tags/entity/{entity_type}/{entity_id}/tag/{tag_id}
+                parts = endpoint.replace('entity/', '').split('/tag/')
+                if len(parts) == 2:
+                    entity_parts = parts[0].split('/')
+                    if len(entity_parts) >= 2:
+                        entity_type, entity_id = entity_parts[0], int(entity_parts[1])
+                        tag_id = int(parts[1])
+                        
+                        success = await tag_service.remove_tag_from_entity(entity_type, entity_id, tag_id)
+                        if success:
+                            response = {"message": "Tag removed successfully"}
+                        else:
+                            self._serve_json_response({"error": "Tag relationship not found"}, status_code=404)
+                            return
+                    else:
+                        raise ValueError("Invalid entity path format")
+                else:
+                    raise ValueError("Invalid delete path format")
+            else:
+                self._serve_404()
+                return
+                
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error in tag DELETE handler: {e}")
+            self._serve_500(str(e))
+
+    def _convert_tag_to_dict(self, tag):
+        """Convert Tag model to dictionary"""
+        return {
+            "id": tag.id,
+            "name": tag.name,
+            "slug": tag.slug,
+            "description": tag.description,
+            "color": tag.color,
+            "category_id": tag.category_id,
+            "category_name": tag.category.name if tag.category else None,
+            "created_at": tag.created_at.isoformat(),
+            "updated_at": tag.updated_at.isoformat(),
+            "usage_count": tag.usage_count,
+            "is_system_tag": tag.is_system_tag,
+            "is_active": tag.is_active,
+            "metadata": tag.metadata
+        }
+
+    def _convert_category_to_dict(self, category):
+        """Convert TagCategory model to dictionary"""
+        return {
+            "id": category.id,
+            "name": category.name,
+            "slug": category.slug,
+            "description": category.description,
+            "color": category.color,
+            "icon": category.icon,
+            "parent_id": category.parent_id,
+            "sort_order": category.sort_order,
+            "created_at": category.created_at.isoformat(),
+            "updated_at": category.updated_at.isoformat()
+        }
+
+    def _serve_data_quality_issues_with_tags(self):
+        """Enhanced data quality issues API with tag filtering support"""
+        try:
+            from urllib.parse import urlparse, parse_qs
+            import asyncio
+            
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            # Extract tag filtering parameters
+            tag_ids = query_params.get('tag_ids', [])
+            if tag_ids and tag_ids[0]:
+                tag_ids = [int(x) for x in tag_ids[0].split(',')]
+            else:
+                tag_ids = None
+                
+            categories = query_params.get('categories', [])
+            if categories and categories[0]:
+                categories = [int(x) for x in categories[0].split(',')]
+            else:
+                categories = None
+                
+            symbols = query_params.get('symbols', [])
+            if symbols and symbols[0]:
+                symbols = symbols[0].split(',')
+            else:
+                symbols = None
+                
+            date_from = query_params.get('date_from', [None])[0]
+            date_to = query_params.get('date_to', [None])[0]
+            match_mode = query_params.get('match_mode', ['ANY'])[0]
+            limit = int(query_params.get('limit', [50])[0])
+            offset = int(query_params.get('offset', [0])[0])
+            
+            async def get_filtered_issues():
+                if not getattr(self.analytics_service, 'tagging_enabled', False):
+                    # Fallback to regular issues if tagging not available
+                    return await self._get_basic_data_quality_issues(limit, offset)
+                
+                try:
+                    from infrastructure.database.connection_manager import get_database_connection
+                    from domains.tagging.models.tag_models import TagFilter
+                    from datetime import datetime
+                    
+                    connection = await get_database_connection("dev")
+                    tag_repository = TagRepository(connection)
+                    tag_service = TagService(tag_repository)
+                    
+                    # Create tag filter
+                    tag_filter = TagFilter(
+                        entity_type="data_quality_issues",
+                        tag_ids=tag_ids,
+                        categories=categories,
+                        symbols=symbols,
+                        date_from=datetime.fromisoformat(date_from) if date_from else None,
+                        date_to=datetime.fromisoformat(date_to) if date_to else None,
+                        match_mode=match_mode,
+                        limit=limit,
+                        offset=offset
+                    )
+                    
+                    # Get tagged entities (issues with tags)
+                    tagged_entities = await tag_service.get_tagged_entities(tag_filter)
+                    
+                    # Get detailed issue information
+                    issues_with_tags = []
+                    for entity in tagged_entities:
+                        issue_details = await self._get_issue_details(connection, entity.entity_id)
+                        if issue_details:
+                            issue_details['tags'] = [
+                                {
+                                    "id": tag.id,
+                                    "name": tag.name,
+                                    "color": tag.color,
+                                    "category_name": tag.category.name if tag.category else None
+                                }
+                                for tag in entity.tags
+                            ]
+                            issue_details['tag_count'] = entity.total_tags
+                            issues_with_tags.append(issue_details)
+                    
+                    return issues_with_tags
+                    
+                except Exception as e:
+                    logger.error(f"Error getting filtered issues: {e}")
+                    # Fallback to basic issues
+                    return await self._get_basic_data_quality_issues(limit, offset)
+            
+            issues = asyncio.run(get_filtered_issues())
+            
+            response = {
+                "success": True,
+                "issues": issues,
+                "filter_applied": {
+                    "tag_ids": tag_ids,
+                    "categories": categories,
+                    "symbols": symbols,
+                    "date_range": {
+                        "from": date_from,
+                        "to": date_to
+                    },
+                    "match_mode": match_mode
+                },
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "total": len(issues)
+                }
+            }
+            
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error serving filtered data quality issues: {e}")
+            self._serve_500(str(e))
+
+    async def _get_issue_details(self, connection, issue_id):
+        """Get detailed information for a specific issue"""
+        try:
+            query = """
+            SELECT id, symbol, issue_type, description, severity, 
+                   affected_date, vendor_source, field, expected_value, 
+                   actual_value, created_at, updated_at
+            FROM dev_data_quality_issues 
+            WHERE id = $1
+            """
+            result = await connection.fetchrow(query, issue_id)
+            
+            if result:
+                return {
+                    "id": result['id'],
+                    "symbol": result['symbol'],
+                    "issue_type": result['issue_type'],
+                    "description": result['description'],
+                    "severity": result['severity'],
+                    "affected_date": result['affected_date'].isoformat() if result['affected_date'] else None,
+                    "vendor_source": result['vendor_source'],
+                    "field": result['field'],
+                    "expected_value": result['expected_value'],
+                    "actual_value": result['actual_value'],
+                    "created_at": result['created_at'].isoformat() if result['created_at'] else None,
+                    "updated_at": result['updated_at'].isoformat() if result['updated_at'] else None
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting issue details for {issue_id}: {e}")
+            return None
+
+    async def _get_basic_data_quality_issues(self, limit=50, offset=0):
+        """Get basic data quality issues without tag filtering (fallback)"""
+        try:
+            from infrastructure.database.connection_manager import get_database_connection
+            
+            connection = await get_database_connection("dev")
+            
+            query = """
+            SELECT id, symbol, issue_type, description, severity, 
+                   affected_date, vendor_source, field, expected_value, 
+                   actual_value, created_at, updated_at
+            FROM dev_data_quality_issues 
+            ORDER BY created_at DESC
+            LIMIT $1 OFFSET $2
+            """
+            
+            results = await connection.fetch(query, limit, offset)
+            
+            issues = []
+            for result in results:
+                issues.append({
+                    "id": result['id'],
+                    "symbol": result['symbol'],
+                    "issue_type": result['issue_type'],
+                    "description": result['description'],
+                    "severity": result['severity'],
+                    "affected_date": result['affected_date'].isoformat() if result['affected_date'] else None,
+                    "vendor_source": result['vendor_source'],
+                    "field": result['field'],
+                    "expected_value": result['expected_value'],
+                    "actual_value": result['actual_value'],
+                    "created_at": result['created_at'].isoformat() if result['created_at'] else None,
+                    "updated_at": result['updated_at'].isoformat() if result['updated_at'] else None,
+                    "tags": [],
+                    "tag_count": 0
+                })
+                
+            return issues
+            
+        except Exception as e:
+            logger.error(f"Error getting basic data quality issues: {e}")
+            return []
+
+    def _serve_json_response(self, data, status_code=200):
+        """Helper method to serve JSON responses"""
+        self.send_response(status_code)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        self.wfile.write(json.dumps(data, indent=2).encode('utf-8'))
+
+    def _serve_405(self):
+        """Serve 405 Method Not Allowed"""
+        self._serve_json_response({"error": "Method not allowed"}, status_code=405)
 
 
 def start_unified_analytics_server(port: int = 3000):
