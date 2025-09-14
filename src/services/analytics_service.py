@@ -5453,6 +5453,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_agent_endpoint()
             elif self.path.startswith('/api/tags/'):
                 self._serve_tag_api()
+            elif self.path == '/available-tags':
+                self._serve_available_tags()
             elif self.path.startswith('/financial_events'):
                 self._serve_financial_events()
             else:
@@ -6632,23 +6634,23 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 </button>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                <!-- Tag Selection -->
-                <div>
-                    <label style="color: white; display: block; margin-bottom: 5px; font-weight: 500;">Tags</label>
-                    <div style="position: relative;">
-                        <input type="text" id="tag-search" placeholder="Search tags..." 
-                               style="width: 100%; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;"
-                               oninput="searchTags(this.value)" />
-                        <div id="tag-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 4px; z-index: 1000; display: none;">
-                            <!-- Tag options will be populated here -->
-                        </div>
-                    </div>
-                    <div id="selected-tags" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px;">
-                        <!-- Selected tags will appear here -->
-                    </div>
+            <!-- Available Tags Display -->
+            <div style="margin-bottom: 20px;">
+                <label style="color: white; display: block; margin-bottom: 10px; font-weight: 500; font-size: 1.1em;">🏷️ Available Tags</label>
+                <div id="available-tags-container" style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto;">
+                    <div style="color: #6c757d; text-align: center; padding: 20px;">Loading tags...</div>
                 </div>
-                
+            </div>
+            
+            <!-- Selected Tags -->
+            <div style="margin-bottom: 15px;">
+                <label style="color: white; display: block; margin-bottom: 8px; font-weight: 500;">Selected Tags</label>
+                <div id="selected-tags" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; min-height: 40px;">
+                    <div style="color: #6c757d; font-size: 0.9em; font-style: italic;">No tags selected</div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                 <!-- Symbol Filter -->
                 <div>
                     <label style="color: white; display: block; margin-bottom: 5px; font-weight: 500;">Symbols</label>
@@ -7759,13 +7761,102 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         
         async function loadAvailableTags() {
             try {
-                const response = await fetch('/api/tags/?limit=1000');
+                const response = await fetch('/available-tags');
                 const tags = await response.json();
                 availableTags = tags.sort((a, b) => a.name.localeCompare(b.name));
+                displayAvailableTags();
             } catch (error) {
                 console.error('Error loading tags:', error);
                 availableTags = [];
+                displayAvailableTags(); // Show empty state
             }
+        }
+        
+        function displayAvailableTags() {
+            const tagsContainer = document.getElementById('available-tags-container');
+            if (!tagsContainer) return;
+            
+            if (availableTags.length === 0) {
+                tagsContainer.innerHTML = '<div style="color: #6c757d; text-align: center; padding: 20px;">No tags available</div>';
+                return;
+            }
+            
+            // Group tags by category
+            const groupedTags = {};
+            availableTags.forEach(tag => {
+                const categoryName = tag.category?.name || 'Uncategorized';
+                if (!groupedTags[categoryName]) {
+                    groupedTags[categoryName] = [];
+                }
+                groupedTags[categoryName].push(tag);
+            });
+            
+            let html = '';
+            Object.keys(groupedTags).forEach(categoryName => {
+                const tags = groupedTags[categoryName];
+                const categoryColor = tags[0].category?.color || '#95a5a6';
+                
+                html += `<div style="margin-bottom: 15px;">
+                    <div style="font-weight: 600; color: ${categoryColor}; margin-bottom: 8px; font-size: 0.9em;">${categoryName}</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">`;
+                
+                tags.forEach(tag => {
+                    const isSelected = selectedTags.includes(tag.id);
+                    const selectedClass = isSelected ? 'tag-selected' : '';
+                    
+                    html += `<span class="available-tag ${selectedClass}" 
+                                  data-tag-id="${tag.id}" 
+                                  data-tag-name="${tag.name}"
+                                  style="background: ${tag.color}; color: white; padding: 4px 8px; border-radius: 12px; 
+                                         cursor: pointer; font-size: 0.8em; font-weight: 500; border: 2px solid ${isSelected ? '#fff' : 'transparent'};"
+                                  onclick="toggleTagSelection(${tag.id}, '${tag.name}', '${tag.color}')"
+                                  title="${tag.description}">${tag.name}</span>`;
+                });
+                
+                html += `</div></div>`;
+            });
+            
+            tagsContainer.innerHTML = html;
+        }
+        
+        function toggleTagSelection(tagId, tagName, tagColor) {
+            const index = selectedTags.indexOf(tagId);
+            if (index > -1) {
+                // Remove tag
+                selectedTags.splice(index, 1);
+            } else {
+                // Add tag
+                selectedTags.push(tagId);
+            }
+            
+            // Update display
+            displayAvailableTags();
+            updateSelectedTagsDisplay();
+        }
+        
+        function updateSelectedTagsDisplay() {
+            const container = document.getElementById('selected-tags');
+            if (!container) return;
+            
+            if (selectedTags.length === 0) {
+                container.innerHTML = '<div style="color: #6c757d; font-size: 0.9em; font-style: italic;">No tags selected</div>';
+                return;
+            }
+            
+            let html = '';
+            selectedTags.forEach(tagId => {
+                const tag = availableTags.find(t => t.id === tagId);
+                if (tag) {
+                    html += `<span class="selected-tag" style="background: ${tag.color}; color: white; padding: 4px 10px; border-radius: 12px; 
+                                   font-size: 0.8em; margin: 2px; display: inline-block; cursor: pointer;"
+                                   onclick="toggleTagSelection(${tag.id}, '${tag.name}', '${tag.color}')"
+                                   title="Click to remove">
+                                ${tag.name} ×
+                              </span>`;
+                }
+            });
+            
+            container.innerHTML = html;
         }
         
         function showTagFilters() {
@@ -9413,6 +9504,79 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "error": str(e),
                 "status": "failed",
                 "message": "Auto-tagging batch failed"
+            }, status_code=500)
+
+    def _serve_available_tags(self):
+        """Serve available tags for the tag filter panel"""
+        import asyncpg
+        
+        async def get_available_tags():
+            try:
+                conn = await asyncpg.connect(
+                    host="ats-intg-postgres",
+                    port=5432,
+                    user="postgres",
+                    password="intg_password",
+                    database="intg_db"
+                )
+                
+                # Get all system tags with their categories
+                tags = await conn.fetch("""
+                    SELECT t.id, t.name, t.color, t.description,
+                           tc.name as category_name, tc.color as category_color
+                    FROM tags t
+                    LEFT JOIN tag_categories tc ON t.category_id = tc.id
+                    WHERE t.is_active = true
+                    ORDER BY tc.sort_order, t.name
+                """)
+                
+                await conn.close()
+                
+                return [
+                    {
+                        "id": tag['id'],
+                        "name": tag['name'],
+                        "color": tag['color'],
+                        "description": tag['description'],
+                        "category": {
+                            "name": tag['category_name'] or "Uncategorized",
+                            "color": tag['category_color'] or "#95a5a6"
+                        }
+                    }
+                    for tag in tags
+                ]
+                
+            except Exception as e:
+                logger.error(f"Error loading available tags: {e}")
+                # Return some default tags for fallback
+                return [
+                    {"id": 1, "name": "Critical", "color": "#e74c3c", "description": "Critical severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 2, "name": "High", "color": "#ff6b6b", "description": "High severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 3, "name": "Medium", "color": "#ffa726", "description": "Medium severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 4, "name": "Low", "color": "#66bb6a", "description": "Low severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 5, "name": "Data Gap", "color": "#e74c3c", "description": "Missing data issue", "category": {"name": "Type", "color": "#f39c12"}},
+                    {"id": 6, "name": "Price Anomaly", "color": "#f39c12", "description": "Price data anomaly", "category": {"name": "Type", "color": "#f39c12"}},
+                    {"id": 7, "name": "Volume Spike", "color": "#9b59b6", "description": "Volume anomaly", "category": {"name": "Type", "color": "#f39c12"}},
+                    {"id": 8, "name": "Polygon", "color": "#8e44ad", "description": "Polygon data source", "category": {"name": "Source", "color": "#9b59b6"}},
+                    {"id": 9, "name": "Tiingo", "color": "#2ecc71", "description": "Tiingo data source", "category": {"name": "Source", "color": "#9b59b6"}},
+                    {"id": 10, "name": "EODHD", "color": "#e67e22", "description": "EODHD data source", "category": {"name": "Source", "color": "#9b59b6"}}
+                ]
+        
+        try:
+            # Run the async function
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            tags = loop.run_until_complete(get_available_tags())
+            loop.close()
+            
+            self._serve_json_response(tags)
+            
+        except Exception as e:
+            logger.error(f"Error serving available tags: {e}")
+            self._serve_json_response({
+                "error": str(e),
+                "message": "Failed to load available tags"
             }, status_code=500)
 
     def _serve_tag_api(self):
