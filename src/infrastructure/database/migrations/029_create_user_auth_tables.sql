@@ -3,11 +3,19 @@
 -- Purpose: Add user accounts, sessions, and user-based API keys for Portfolio GPT MVP
 
 -- Drop existing tables if they exist (for clean reruns)
+-- Handle both prefixed and non-prefixed versions for different environments
 DROP TABLE IF EXISTS user_preferences CASCADE;
-DROP TABLE IF EXISTS api_usage CASCADE;
+DROP TABLE IF EXISTS api_usage CASCADE; 
 DROP TABLE IF EXISTS api_keys CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+
+-- Also drop prefixed versions (for test environment)
+DROP TABLE IF EXISTS test_user_preferences CASCADE;
+DROP TABLE IF EXISTS test_api_usage CASCADE;
+DROP TABLE IF EXISTS test_api_keys CASCADE;
+DROP TABLE IF EXISTS test_user_sessions CASCADE;
+DROP TABLE IF EXISTS test_users CASCADE;
 
 -- Users table for Google OAuth2 authentication
 CREATE TABLE users (
