@@ -246,7 +246,7 @@ async def test_real_system_object_types(unit_test_db):
     print(f"\n🔍 Verifying REAL SYSTEM object types...")
     print(f"   🔗 Test DB URL: {unit_test_db}")
     
-    # Set up real environment using test database
+    # Set up real environment using unit test database
     environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     
     # Create real system components

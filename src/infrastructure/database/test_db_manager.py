@@ -413,9 +413,9 @@ async def unit_test_db(request):
         db_name = f"test_{timestamp_suffix}_{uuid.uuid4().hex[:8]}"
 
     # Construct Database object for this test
-    # Use test_user credentials explicitly for test database
+    # Use test_user credentials explicitly for test database - TimescaleDB instance
     db_host = "localhost"
-    db_port = 5432
+    db_port = 5433  # Changed to use our TimescaleDB instance with TimescaleDB extension
     db_user = "test_user"
     db_password = "test_password"
     db_pool_min = 1

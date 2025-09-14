@@ -4,7 +4,7 @@
 -- ==================================================
 
 -- Main datasets table - unified metadata for all dataset types
-CREATE TABLE IF NOT EXISTS dev_datasets (
+CREATE TABLE IF NOT EXISTS datasets (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     display_name VARCHAR(255) NOT NULL,
@@ -51,9 +51,9 @@ CREATE TABLE IF NOT EXISTS dev_datasets (
 );
 
 -- Dataset columns metadata - detailed column information
-CREATE TABLE IF NOT EXISTS dev_dataset_columns (
+CREATE TABLE IF NOT EXISTS dataset_columns (
     id SERIAL PRIMARY KEY,
-    dataset_id INTEGER REFERENCES dev_datasets(id) ON DELETE CASCADE,
+    dataset_id INTEGER REFERENCES datasets(id) ON DELETE CASCADE,
     column_name VARCHAR(255) NOT NULL,
     ordinal_position INTEGER,
     
@@ -103,9 +103,9 @@ CREATE TABLE IF NOT EXISTS dev_dataset_columns (
 );
 
 -- Pre-computed histogram statistics - TFDV-inspired storage
-CREATE TABLE IF NOT EXISTS dev_dataset_column_stats (
+CREATE TABLE IF NOT EXISTS dataset_column_stats (
     id SERIAL PRIMARY KEY,
-    dataset_column_id INTEGER REFERENCES dev_dataset_columns(id) ON DELETE CASCADE,
+    dataset_column_id INTEGER REFERENCES dataset_columns(id) ON DELETE CASCADE,
     
     -- Histogram type and parameters
     histogram_type VARCHAR(50) NOT NULL CHECK (histogram_type IN ('standard', 'quantile', 'categorical')),
@@ -130,51 +130,51 @@ CREATE TABLE IF NOT EXISTS dev_dataset_column_stats (
 -- Create indexes for performance (only if they don't exist)
 DO $$
 BEGIN
-    -- Indexes for dev_datasets
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_datasets' AND indexname = 'idx_datasets_name') THEN
-        CREATE INDEX idx_datasets_name ON dev_datasets(name);
+    -- Indexes for datasets
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'datasets' AND indexname = 'idx_datasets_name') THEN
+        CREATE INDEX idx_datasets_name ON datasets(name);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_datasets' AND indexname = 'idx_datasets_type') THEN
-        CREATE INDEX idx_datasets_type ON dev_datasets(dataset_type);
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'datasets' AND indexname = 'idx_datasets_type') THEN
+        CREATE INDEX idx_datasets_type ON datasets(dataset_type);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_datasets' AND indexname = 'idx_datasets_table_name') THEN
-        CREATE INDEX idx_datasets_table_name ON dev_datasets(table_name) WHERE table_name IS NOT NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'datasets' AND indexname = 'idx_datasets_table_name') THEN
+        CREATE INDEX idx_datasets_table_name ON datasets(table_name) WHERE table_name IS NOT NULL;
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_datasets' AND indexname = 'idx_datasets_stats_computed') THEN
-        CREATE INDEX idx_datasets_stats_computed ON dev_datasets(stats_computed);
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'datasets' AND indexname = 'idx_datasets_stats_computed') THEN
+        CREATE INDEX idx_datasets_stats_computed ON datasets(stats_computed);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_datasets' AND indexname = 'idx_datasets_last_accessed') THEN
-        CREATE INDEX idx_datasets_last_accessed ON dev_datasets(last_accessed_at);
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'datasets' AND indexname = 'idx_datasets_last_accessed') THEN
+        CREATE INDEX idx_datasets_last_accessed ON datasets(last_accessed_at);
     END IF;
     
-    -- Indexes for dev_dataset_columns  
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_dataset_columns' AND indexname = 'idx_dataset_columns_dataset_id') THEN
-        CREATE INDEX idx_dataset_columns_dataset_id ON dev_dataset_columns(dataset_id);
+    -- Indexes for dataset_columns  
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dataset_columns' AND indexname = 'idx_dataset_columns_dataset_id') THEN
+        CREATE INDEX idx_dataset_columns_dataset_id ON dataset_columns(dataset_id);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_dataset_columns' AND indexname = 'idx_dataset_columns_semantic_type') THEN
-        CREATE INDEX idx_dataset_columns_semantic_type ON dev_dataset_columns(semantic_type);
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dataset_columns' AND indexname = 'idx_dataset_columns_semantic_type') THEN
+        CREATE INDEX idx_dataset_columns_semantic_type ON dataset_columns(semantic_type);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_dataset_columns' AND indexname = 'idx_dataset_columns_data_type') THEN
-        CREATE INDEX idx_dataset_columns_data_type ON dev_dataset_columns(data_type);
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dataset_columns' AND indexname = 'idx_dataset_columns_data_type') THEN
+        CREATE INDEX idx_dataset_columns_data_type ON dataset_columns(data_type);
     END IF;
     
-    -- Indexes for dev_dataset_column_stats
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_dataset_column_stats' AND indexname = 'idx_column_stats_column_id') THEN
-        CREATE INDEX idx_column_stats_column_id ON dev_dataset_column_stats(dataset_column_id);
+    -- Indexes for dataset_column_stats
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dataset_column_stats' AND indexname = 'idx_column_stats_column_id') THEN
+        CREATE INDEX idx_column_stats_column_id ON dataset_column_stats(dataset_column_id);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_dataset_column_stats' AND indexname = 'idx_column_stats_type') THEN
-        CREATE INDEX idx_column_stats_type ON dev_dataset_column_stats(histogram_type);
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dataset_column_stats' AND indexname = 'idx_column_stats_type') THEN
+        CREATE INDEX idx_column_stats_type ON dataset_column_stats(histogram_type);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dev_dataset_column_stats' AND indexname = 'idx_column_stats_computed_at') THEN
-        CREATE INDEX idx_column_stats_computed_at ON dev_dataset_column_stats(computed_at);
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'dataset_column_stats' AND indexname = 'idx_column_stats_computed_at') THEN
+        CREATE INDEX idx_column_stats_computed_at ON dataset_column_stats(computed_at);
     END IF;
 END $$;
 
@@ -190,25 +190,25 @@ $$ language 'plpgsql';
 -- Create triggers for automatic timestamp updates
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'update_dev_datasets_updated_at') THEN
-        CREATE TRIGGER update_dev_datasets_updated_at
-            BEFORE UPDATE ON dev_datasets
+    IF NOT EXISTS (SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'update_datasets_updated_at') THEN
+        CREATE TRIGGER update_datasets_updated_at
+            BEFORE UPDATE ON datasets
             FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'update_dev_dataset_columns_updated_at') THEN
-        CREATE TRIGGER update_dev_dataset_columns_updated_at
-            BEFORE UPDATE ON dev_dataset_columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'update_dataset_columns_updated_at') THEN
+        CREATE TRIGGER update_dataset_columns_updated_at
+            BEFORE UPDATE ON dataset_columns
             FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END $$;
 
 -- Add comments for documentation
-COMMENT ON TABLE dev_datasets IS 'Unified metadata for all dataset types (tables, files, training data) - Migration 045';
-COMMENT ON TABLE dev_dataset_columns IS 'Detailed column metadata and statistics for all datasets - Migration 045';  
-COMMENT ON TABLE dev_dataset_column_stats IS 'Pre-computed histogram statistics for fast EDA visualization - Migration 045';
+COMMENT ON TABLE datasets IS 'Unified metadata for all dataset types (tables, files, training data) - Migration 045';
+COMMENT ON TABLE dataset_columns IS 'Detailed column metadata and statistics for all datasets - Migration 045';  
+COMMENT ON TABLE dataset_column_stats IS 'Pre-computed histogram statistics for fast EDA visualization - Migration 045';
 
-COMMENT ON COLUMN dev_datasets.dataset_type IS 'Type: database_table, single_file, sharded_files, training_dataset';
-COMMENT ON COLUMN dev_datasets.stats_computed IS 'Whether comprehensive statistics have been computed automatically';
-COMMENT ON COLUMN dev_dataset_columns.semantic_type IS 'Business meaning: identifier, categorical, numeric, date, etc.';
-COMMENT ON COLUMN dev_dataset_column_stats.histogram_bins IS 'JSON array of histogram bins with start, end, count, frequency';
+COMMENT ON COLUMN datasets.dataset_type IS 'Type: database_table, single_file, sharded_files, training_dataset';
+COMMENT ON COLUMN datasets.stats_computed IS 'Whether comprehensive statistics have been computed automatically';
+COMMENT ON COLUMN dataset_columns.semantic_type IS 'Business meaning: identifier, categorical, numeric, date, etc.';
+COMMENT ON COLUMN dataset_column_stats.histogram_bins IS 'JSON array of histogram bins with start, end, count, frequency';
