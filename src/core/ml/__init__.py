@@ -26,7 +26,7 @@ from .pipeline import (
 
 __all__ = [
     'MLPipeline',
-    'ModelRegistry', 
+    'ModelRegistry',
     'FeatureStore',
     'ModelType',
     'PipelineStage',

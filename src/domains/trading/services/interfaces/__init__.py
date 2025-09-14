@@ -20,7 +20,7 @@ from .trading_service_interface import (
 __all__ = [
     'TradingServiceInterface',
     'UniverseDTO',
-    'UniverseMembershipDTO', 
+    'UniverseMembershipDTO',
     'FactorIntervalDTO',
     'UniverseStateIntervalDTO',
     'UniverseSearchCriteria',

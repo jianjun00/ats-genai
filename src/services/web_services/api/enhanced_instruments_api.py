@@ -41,7 +41,7 @@ class InstrumentResponse(BaseModel):
     list_date: Optional[datetime] = None
     delist_date: Optional[datetime] = None
     is_active: Optional[bool] = True
-    
+
     class Config:
         from_attributes = True
 
@@ -53,7 +53,7 @@ class InstrumentCreateRequest(BaseModel):
     exchange: Optional[str] = Field(None, max_length=50)
     instrument_type: str = Field("stock", max_length=50)
     currency: str = Field("USD", max_length=3)
-    
+
     @validator('symbol')
     def symbol_must_be_uppercase(cls, v):
         return v.upper()
@@ -133,7 +133,7 @@ async def get_instrument_service() -> InstrumentServiceInterface:
 
 
 # Health Check Endpoint
-@app.get("/health", 
+@app.get("/health",
          summary="Health Check",
          description="Check API and service health")
 async def health_check(
@@ -143,12 +143,12 @@ async def health_check(
     try:
         # Test service connectivity
         count = await service.get_instrument_count()
-        
+
         # Get cache statistics if available
         cache_stats = {}
         if hasattr(service, 'get_cache_stats'):
             cache_stats = await service.get_cache_stats()
-        
+
         return {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
@@ -181,15 +181,15 @@ async def get_instrument(
     """Get instrument by ID with caching optimization"""
     try:
         instrument = await service.get_instrument_by_id(instrument_id)
-        
+
         if not instrument:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Instrument with ID {instrument_id} not found"
             )
-        
+
         return InstrumentResponse(**instrument.__dict__)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -202,7 +202,7 @@ async def get_instrument(
 
 @app.get("/instruments",
          response_model=List[InstrumentResponse],
-         summary="Search Instruments", 
+         summary="Search Instruments",
          description="Search instruments with filtering and pagination")
 async def search_instruments(
     symbols: Optional[str] = Query(None, description="Comma-separated symbols"),
@@ -221,7 +221,7 @@ async def search_instruments(
         exchanges_list = [e.strip().upper() for e in exchanges.split(',')] if exchanges else None
         types_list = [t.strip() for t in instrument_types.split(',')] if instrument_types else None
         currencies_list = [c.strip().upper() for c in currencies.split(',')] if currencies else None
-        
+
         # Create search criteria
         criteria = InstrumentSearchCriteria(
             symbols=symbols_list,
@@ -232,11 +232,11 @@ async def search_instruments(
             limit=limit,
             offset=offset
         )
-        
+
         instruments = await service.list_instruments(criteria)
-        
+
         return [InstrumentResponse(**inst.__dict__) for inst in instruments]
-        
+
     except Exception as e:
         logger.error(f"Error searching instruments: {e}")
         raise HTTPException(
@@ -258,15 +258,15 @@ async def get_instrument_by_symbol(
     try:
         symbol = symbol.upper()
         instrument = await service.get_instrument_by_symbol(symbol, vendor)
-        
+
         if not instrument:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Instrument with symbol '{symbol}' not found for vendor '{vendor}'"
             )
-        
+
         return InstrumentResponse(**instrument.__dict__)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -290,10 +290,10 @@ async def create_instrument(
     try:
         # Convert request to DTO
         instrument_dto = InstrumentDTO(**request.dict())
-        
+
         # Create instrument
         result = await service.create_instrument(instrument_dto)
-        
+
         if result.success:
             return OperationResponse(
                 success=True,
@@ -306,7 +306,7 @@ async def create_instrument(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=result.error_message or "Failed to create instrument"
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -329,9 +329,9 @@ async def get_cross_references(
     """Get cross-references with caching optimization"""
     try:
         xrefs = await service.get_cross_references(instrument_id)
-        
+
         return [InstrumentXrefResponse(**xref.__dict__) for xref in xrefs]
-        
+
     except Exception as e:
         logger.error(f"Error getting cross-references for {instrument_id}: {e}")
         raise HTTPException(
@@ -359,16 +359,16 @@ async def create_cross_reference(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Instrument with ID {instrument_id} not found"
             )
-        
+
         # Update request with instrument_id from path
         request.instrument_id = instrument_id
-        
+
         # Convert to DTO
         xref_dto = InstrumentXrefDTO(**request.dict())
-        
+
         # Create cross-reference
         result = await service.create_cross_reference(xref_dto)
-        
+
         if result.success:
             return OperationResponse(
                 success=True,
@@ -380,7 +380,7 @@ async def create_cross_reference(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=result.error_message or "Failed to create cross-reference"
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -404,14 +404,14 @@ async def validate_symbol(
     try:
         symbol = symbol.upper()
         is_valid = await service.validate_symbol(symbol, vendor)
-        
+
         return {
             "symbol": symbol,
             "vendor": vendor,
             "is_valid": is_valid,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error validating symbol {symbol}: {e}")
         raise HTTPException(
@@ -429,12 +429,12 @@ async def get_instrument_count(
     """Get total instrument count with caching"""
     try:
         count = await service.get_instrument_count()
-        
+
         return {
             "total_instruments": count,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting instrument count: {e}")
         raise HTTPException(
@@ -461,7 +461,7 @@ async def get_cache_stats(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail="Cache statistics not available for this service implementation"
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -486,7 +486,7 @@ async def warm_cache(
         if hasattr(service, 'warm_cache'):
             symbols_list = [s.strip().upper() for s in symbols.split(',')] if symbols else None
             await service.warm_cache(symbols=symbols_list, limit=limit)
-            
+
             return OperationResponse(
                 success=True,
                 message=f"Cache warmed successfully",
@@ -500,7 +500,7 @@ async def warm_cache(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail="Cache warming not available for this service implementation"
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -522,7 +522,7 @@ async def clear_cache(
     try:
         if hasattr(service, 'invalidate_all_cache'):
             deleted_count = await service.invalidate_all_cache()
-            
+
             return OperationResponse(
                 success=True,
                 message=f"Cache cleared successfully",
@@ -533,7 +533,7 @@ async def clear_cache(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail="Cache clearing not available for this service implementation"
             )
-            
+
     except HTTPException:
         raise
     except Exception as e:

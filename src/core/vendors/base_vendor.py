@@ -8,7 +8,7 @@ rate limiting, error handling, and data transformation patterns from 135+ files.
 REPLACES:
 =========
 - 26 vendor adapter files (3,780 lines)
-- 35 HTTP client implementations (7,500+ lines)  
+- 35 HTTP client implementations (7,500+ lines)
 - Authentication patterns replicated 35+ times
 - Rate limiting logic in every vendor service
 - Error handling duplicated across all integrations
@@ -90,7 +90,7 @@ class VendorConfig:
     supported_data_types: List[DataType] = field(default_factory=list)
     authentication_type: str = "header"  # header, query, oauth
     headers: Dict[str, str] = field(default_factory=dict)
-    
+
     def __post_init__(self):
         if not self.headers and self.authentication_type == "header":
             if self.name.lower() == 'polygon':
@@ -128,50 +128,50 @@ class VendorResponse:
 
 class RateLimiter:
     """Advanced rate limiting with burst support and vendor-specific logic."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  requests_per_minute: int = 60,
                  burst_size: Optional[int] = None,
                  vendor_name: str = "generic"):
         self.requests_per_minute = requests_per_minute
         self.burst_size = burst_size or min(requests_per_minute, 10)
         self.vendor_name = vendor_name
-        
+
         # Token bucket algorithm
         self.tokens = self.burst_size
         self.last_update = time.time()
-        
+
         # Request history for analytics
         self.request_history: List[float] = []
-        
+
     async def acquire(self) -> bool:
         """Acquire permission to make request."""
         now = time.time()
-        
+
         # Add tokens based on time elapsed
         time_elapsed = now - self.last_update
         tokens_to_add = time_elapsed * (self.requests_per_minute / 60.0)
         self.tokens = min(self.burst_size, self.tokens + tokens_to_add)
         self.last_update = now
-        
+
         if self.tokens >= 1:
             self.tokens -= 1
             self.request_history.append(now)
             return True
-        
+
         # Calculate wait time
         wait_time = (1 - self.tokens) / (self.requests_per_minute / 60.0)
         await asyncio.sleep(wait_time)
-        
+
         self.tokens = 0
         self.request_history.append(time.time())
         return True
-    
+
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get rate limiting usage statistics."""
         now = time.time()
         recent_requests = [t for t in self.request_history if now - t < 300]  # Last 5 minutes
-        
+
         return {
             'vendor': self.vendor_name,
             'requests_per_minute_limit': self.requests_per_minute,
@@ -187,89 +187,89 @@ class RateLimiter:
 class BaseVendor(abc.ABC):
     """
     Base class for ALL vendor integrations.
-    
+
     Consolidates common patterns from 135+ vendor files including:
     - Authentication and API key management
-    - Rate limiting and request throttling  
+    - Rate limiting and request throttling
     - HTTP client configuration and error handling
     - Response parsing and data transformation
     - Caching and persistence
     - Logging and monitoring
     """
-    
+
     def __init__(self, config: VendorConfig):
         self.config = config
         self.rate_limiter = RateLimiter(
-            config.rate_limit_per_minute, 
+            config.rate_limit_per_minute,
             vendor_name=config.name
         )
         self.response_stats = ResponseStats()
         self.session: Optional[aiohttp.ClientSession] = None
-        
+
         # Endpoint mappings (to be defined by subclasses)
         self.endpoints: Dict[DataType, str] = {}
-        
+
         # Data transformers (vendor-specific)
         self.transformers: Dict[DataType, Callable] = {}
-        
+
         logger.info(f"Initialized {config.name} vendor with capabilities: {config.capabilities}")
-    
+
     # -------------------------------------------------------------------------
     # ABSTRACT METHODS (vendor-specific implementation)
     # -------------------------------------------------------------------------
-    
+
     @abc.abstractmethod
     def get_endpoint_url(self, request: VendorRequest) -> str:
         """Get vendor-specific endpoint URL for request."""
         pass
-    
+
     @abc.abstractmethod
     def prepare_request_params(self, request: VendorRequest) -> Dict[str, Any]:
         """Prepare vendor-specific request parameters."""
         pass
-    
+
     @abc.abstractmethod
-    def parse_response_data(self, 
-                           response_data: Any, 
+    def parse_response_data(self,
+                           response_data: Any,
                            request: VendorRequest) -> List[Dict[str, Any]]:
         """Parse vendor-specific response format."""
         pass
-    
+
     # -------------------------------------------------------------------------
     # UNIFIED HTTP CLIENT METHODS
     # -------------------------------------------------------------------------
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create HTTP session with vendor-specific configuration."""
         if self.session is None or self.session.closed:
             timeout = aiohttp.ClientTimeout(total=self.config.timeout_seconds)
             connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
-            
+
             self.session = aiohttp.ClientSession(
                 headers=self.config.headers,
                 timeout=timeout,
                 connector=connector
             )
-            
+
         return self.session
-    
-    async def _make_request(self, 
-                           url: str, 
+
+    async def _make_request(self,
+                           url: str,
                            params: Dict[str, Any],
                            request: VendorRequest) -> VendorResponse:
         """Make HTTP request with unified error handling and rate limiting."""
         await self.rate_limiter.acquire()
-        
+
         session = await self._get_session()
-        
+
         for attempt in range(self.config.max_retries + 1):
             try:
                 start_time = time.time()
-                
+
                 async with session.get(url, params=params) as response:
                     response_time = time.time() - start_time
                     self.response_stats.record_response(response, response_time)
-                    
+
                     # Use shared HTTP response handler
                     raw_text = await response.text()
                     mock_response = type('MockResponse', (), {
@@ -277,16 +277,16 @@ class BaseVendor(abc.ABC):
                         'text': raw_text,
                         'json': lambda: json.loads(raw_text) if raw_text else {}
                     })()
-                    
+
                     result = handle_vendor_response(
-                        mock_response, 
-                        request.symbol, 
+                        mock_response,
+                        request.symbol,
                         vendor=self.config.name
                     )
-                    
+
                     if result['success']:
                         parsed_data = self.parse_response_data(result['data'], request)
-                        
+
                         return VendorResponse(
                             success=True,
                             data=parsed_data,
@@ -309,7 +309,7 @@ class BaseVendor(abc.ABC):
                             data=[],
                             error=result['error']
                         )
-                        
+
             except Exception as e:
                 if attempt == self.config.max_retries:
                     logger.error(f"Final attempt failed for {request.symbol}: {e}")
@@ -320,27 +320,27 @@ class BaseVendor(abc.ABC):
                     )
                 else:
                     await asyncio.sleep(self.config.retry_delay_seconds * (2 ** attempt))
-        
+
         return VendorResponse(success=False, data=[], error="Max retries exceeded")
-    
+
     # -------------------------------------------------------------------------
     # UNIFIED DATA FETCHING METHODS
     # -------------------------------------------------------------------------
-    
+
     async def fetch_data(self, request: VendorRequest) -> VendorResponse:
         """
         Unified data fetching method for all data types.
-        
+
         Consolidates fetch logic from 15+ backfill scripts and 35+ client files.
         """
         # Validate request
         if not validate_stock_symbol(request.symbol):
             return VendorResponse(
-                success=False, 
-                data=[], 
+                success=False,
+                data=[],
                 error=f"Invalid symbol: {request.symbol}"
             )
-        
+
         if request.start_date and request.end_date:
             date_validation = validate_date_range(request.start_date, request.end_date)
             if not date_validation.is_valid:
@@ -349,7 +349,7 @@ class BaseVendor(abc.ABC):
                     data=[],
                     error=f"Invalid date range: {date_validation.errors}"
                 )
-        
+
         # Check vendor capability
         if request.data_type not in self.config.supported_data_types:
             return VendorResponse(
@@ -357,35 +357,35 @@ class BaseVendor(abc.ABC):
                 data=[],
                 error=f"Data type {request.data_type} not supported by {self.config.name}"
             )
-        
+
         # Get endpoint and prepare request
         url = self.get_endpoint_url(request)
         params = self.prepare_request_params(request)
-        
+
         logger.debug(f"Fetching {request.data_type} for {request.symbol} from {self.config.name}")
-        
+
         # Make request
         response = await self._make_request(url, params, request)
-        
+
         # Apply data transformations if available
         if response.success and request.data_type in self.transformers:
             transformer = self.transformers[request.data_type]
             try:
-                response.data = [transformer(item, vendor=self.config.name) 
+                response.data = [transformer(item, vendor=self.config.name)
                                for item in response.data]
             except Exception as e:
                 logger.error(f"Data transformation failed: {e}")
-        
+
         return response
-    
-    async def fetch_prices(self, 
-                          symbol: str, 
-                          start_date: Union[str, date], 
+
+    async def fetch_prices(self,
+                          symbol: str,
+                          start_date: Union[str, date],
                           end_date: Union[str, date],
                           timeframe: str = "1d") -> VendorResponse:
         """Fetch price data (daily or minute)."""
         data_type = DataType.PRICES_DAILY if timeframe in ["1d", "daily"] else DataType.PRICES_MINUTE
-        
+
         request = VendorRequest(
             data_type=data_type,
             symbol=symbol,
@@ -393,12 +393,12 @@ class BaseVendor(abc.ABC):
             end_date=end_date if isinstance(end_date, date) else datetime.strptime(end_date, "%Y-%m-%d").date(),
             timeframe=timeframe
         )
-        
+
         return await self.fetch_data(request)
-    
-    async def fetch_dividends(self, 
-                             symbol: str, 
-                             start_date: Union[str, date], 
+
+    async def fetch_dividends(self,
+                             symbol: str,
+                             start_date: Union[str, date],
                              end_date: Union[str, date]) -> VendorResponse:
         """Fetch dividend data."""
         request = VendorRequest(
@@ -407,39 +407,39 @@ class BaseVendor(abc.ABC):
             start_date=start_date if isinstance(start_date, date) else datetime.strptime(start_date, "%Y-%m-%d").date(),
             end_date=end_date if isinstance(end_date, date) else datetime.strptime(end_date, "%Y-%m-%d").date()
         )
-        
+
         return await self.fetch_data(request)
-    
+
     async def fetch_fundamentals(self, symbol: str) -> VendorResponse:
         """Fetch fundamental data."""
         request = VendorRequest(
             data_type=DataType.FUNDAMENTALS,
             symbol=symbol
         )
-        
+
         return await self.fetch_data(request)
-    
+
     # -------------------------------------------------------------------------
     # BATCH PROCESSING METHODS
     # -------------------------------------------------------------------------
-    
-    async def fetch_batch(self, 
+
+    async def fetch_batch(self,
                          requests: List[VendorRequest],
                          max_concurrent: int = 5) -> List[VendorResponse]:
         """
         Fetch data for multiple requests concurrently.
-        
+
         Consolidates batch processing logic from multiple vendor services.
         """
         semaphore = asyncio.Semaphore(max_concurrent)
-        
+
         async def fetch_single(request: VendorRequest) -> VendorResponse:
             async with semaphore:
                 return await self.fetch_data(request)
-        
+
         tasks = [fetch_single(request) for request in requests]
         responses = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Handle exceptions
         results = []
         for i, response in enumerate(responses):
@@ -451,17 +451,17 @@ class BaseVendor(abc.ABC):
                 ))
             else:
                 results.append(response)
-        
+
         return results
-    
+
     # -------------------------------------------------------------------------
     # MONITORING AND STATISTICS
     # -------------------------------------------------------------------------
-    
+
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get comprehensive performance statistics."""
         rate_stats = self.rate_limiter.get_usage_stats()
-        
+
         return {
             'vendor': self.config.name,
             'rate_limiting': rate_stats,
@@ -480,7 +480,7 @@ class BaseVendor(abc.ABC):
                 'supported_data_types': [dt.value for dt in self.config.supported_data_types]
             }
         }
-    
+
     def log_performance_summary(self):
         """Log performance summary."""
         stats = self.get_performance_stats()
@@ -489,12 +489,12 @@ class BaseVendor(abc.ABC):
         logger.info(f"  Avg Response Time: {stats['response_stats']['average_response_time']:.2f}s")
         logger.info(f"  Rate Limit Hits: {stats['response_stats']['rate_limit_hits']}")
         logger.info(f"  Total Requests: {stats['response_stats']['total_requests']}")
-    
+
     async def close(self):
         """Clean up resources."""
         if self.session and not self.session.closed:
             await self.session.close()
-        
+
         self.log_performance_summary()
 
 # =============================================================================
@@ -504,13 +504,13 @@ class BaseVendor(abc.ABC):
 class VendorRegistry:
     """
     Global registry for all vendor implementations.
-    
+
     Consolidates vendor management from scattered initialization code.
     """
-    
+
     _vendors: Dict[str, Type[BaseVendor]] = {}
     _instances: Dict[str, BaseVendor] = {}
-    
+
     @classmethod
     def register(cls, name: str):
         """Decorator to register vendor implementation."""
@@ -519,32 +519,32 @@ class VendorRegistry:
             logger.info(f"Registered vendor: {name}")
             return vendor_class
         return decorator
-    
+
     @classmethod
     def create_vendor(cls, name: str, config: VendorConfig) -> BaseVendor:
         """Create vendor instance."""
         vendor_class = cls._vendors.get(name.lower())
         if not vendor_class:
             raise ValueError(f"Unknown vendor: {name}. Registered vendors: {list(cls._vendors.keys())}")
-        
+
         instance = vendor_class(config)
         cls._instances[name.lower()] = instance
         return instance
-    
+
     @classmethod
     def get_vendor(cls, name: str) -> Optional[BaseVendor]:
         """Get vendor instance."""
         return cls._instances.get(name.lower())
-    
+
     @classmethod
     def list_vendors(cls) -> List[str]:
         """List all registered vendors."""
         return list(cls._vendors.keys())
-    
+
     @classmethod
     def get_all_stats(cls) -> Dict[str, Any]:
         """Get performance stats for all vendors."""
-        return {name: vendor.get_performance_stats() 
+        return {name: vendor.get_performance_stats()
                 for name, vendor in cls._instances.items()}
 
 # =============================================================================
@@ -554,12 +554,12 @@ class VendorRegistry:
 def create_vendor_from_env(vendor_name: str) -> Optional[BaseVendor]:
     """Create vendor instance from environment configuration."""
     from shared.utils.config_utils import load_vendor_config
-    
+
     config_data = load_vendor_config(vendor_name)
     if not config_data:
         logger.error(f"No configuration found for vendor: {vendor_name}")
         return None
-    
+
     # Convert to VendorConfig
     vendor_config = VendorConfig(
         name=vendor_name,
@@ -569,7 +569,7 @@ def create_vendor_from_env(vendor_name: str) -> Optional[BaseVendor]:
         timeout_seconds=config_data.timeout,
         max_retries=config_data.retry_attempts
     )
-    
+
     return VendorRegistry.create_vendor(vendor_name, vendor_config)
 
 async def fetch_from_multiple_vendors(
@@ -579,29 +579,29 @@ async def fetch_from_multiple_vendors(
 ) -> VendorResponse:
     """
     Fetch data from multiple vendors with fallback strategy.
-    
+
     Consolidates multi-vendor logic from various backfill scripts.
     """
     responses = []
-    
+
     for vendor_name in vendors:
         vendor = VendorRegistry.get_vendor(vendor_name)
         if not vendor:
             logger.warning(f"Vendor {vendor_name} not available")
             continue
-        
+
         response = await vendor.fetch_data(request)
         responses.append(response)
-        
+
         if fallback_strategy == "first_success" and response.success:
             return response
-    
+
     if fallback_strategy == "best_quality":
         # Return response with most data points
         best_response = max(responses, key=lambda r: len(r.data) if r.success else 0)
         if best_response.success:
             return best_response
-    
+
     # Return combined error if all failed
     errors = [r.error for r in responses if not r.success]
     return VendorResponse(

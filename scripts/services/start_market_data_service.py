@@ -27,10 +27,10 @@ async def health() -> Dict[str, Any]:
     try:
         # Import here to avoid import errors during startup
         from domains.market_data.services.config.market_data_service_container import get_market_data_service
-        
+
         # Try to initialize the service
         service = await get_market_data_service()
-        
+
         return {
             'status': 'healthy',
             'service': 'market-data',
@@ -67,8 +67,8 @@ async def root():
 if __name__ == "__main__":
     logger.info("Starting ATS Market Data Service...")
     uvicorn.run(
-        app, 
-        host='0.0.0.0', 
+        app,
+        host='0.0.0.0',
         port=8000,
         log_level="info"
     )

@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 from infrastructure.monitoring.service_metrics import (
     ServiceHealthMonitor,
-    ResourceMonitor, 
+    ResourceMonitor,
     ServiceMetric,
     PerformanceBenchmark,
     AlertRule,
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class InstrumentServiceMonitor:
     """
     Specialized monitoring for InstrumentService architecture.
-    
+
     Provides:
     1. InstrumentService-specific health checks
     2. Business metrics tracking (instrument operations, cache performance)
@@ -38,19 +38,19 @@ class InstrumentServiceMonitor:
     4. Integration with existing monitoring infrastructure
     5. Service dependency monitoring
     """
-    
+
     def __init__(self):
         self.metrics_collector = get_global_metrics_collector()
         self.health_monitor = ServiceHealthMonitor(check_interval_seconds=30)
         self.resource_monitor = ResourceMonitor(self.metrics_collector)
         self.alert_rules = []  # Store alert rules locally
         self._monitoring_active = False
-        
+
         # Setup InstrumentService-specific configuration
         self._setup_instrument_benchmarks()
         self._setup_instrument_alerts()
         self._setup_instrument_health_checks()
-    
+
     def _setup_instrument_benchmarks(self):
         """Setup performance benchmarks for InstrumentService operations"""
         instrument_benchmarks = [
@@ -64,7 +64,7 @@ class InstrumentServiceMonitor:
                 throughput_min_ops_sec=100.0
             ),
             PerformanceBenchmark(
-                service_name="InstrumentService", 
+                service_name="InstrumentService",
                 operation="get_instrument_by_symbol",
                 latency_p50_ms=30.0,
                 latency_p95_ms=75.0,
@@ -74,7 +74,7 @@ class InstrumentServiceMonitor:
             ),
             PerformanceBenchmark(
                 service_name="InstrumentService",
-                operation="list_instruments", 
+                operation="list_instruments",
                 latency_p50_ms=100.0,
                 latency_p95_ms=250.0,
                 latency_p99_ms=500.0,
@@ -109,12 +109,12 @@ class InstrumentServiceMonitor:
                 throughput_min_ops_sec=1000.0
             )
         ]
-        
+
         for benchmark in instrument_benchmarks:
             self.metrics_collector.add_benchmark(benchmark)
-        
+
         logger.info(f"Setup {len(instrument_benchmarks)} InstrumentService benchmarks")
-    
+
     def _setup_instrument_alerts(self):
         """Setup alert rules specific to InstrumentService"""
         instrument_alerts = [
@@ -129,7 +129,7 @@ class InstrumentServiceMonitor:
             ),
             AlertRule(
                 name="InstrumentService High Latency",
-                service_name="InstrumentService", 
+                service_name="InstrumentService",
                 metric_type="latency",
                 condition="greater_than",
                 threshold=1000.0,  # 1 second
@@ -149,7 +149,7 @@ class InstrumentServiceMonitor:
                 name="Database Connection Pool Exhaustion",
                 service_name="InstrumentService",
                 metric_type="db_connection_pool_usage",
-                condition="greater_than", 
+                condition="greater_than",
                 threshold=0.9,  # 90% of pool
                 duration_seconds=60,  # 1 minute
                 severity="critical"
@@ -164,31 +164,31 @@ class InstrumentServiceMonitor:
                 severity="warning"
             )
         ]
-        
+
         for alert in instrument_alerts:
             self.alert_rules.append(alert)
             self.metrics_collector.add_alert_rule(alert)
-        
+
         logger.info(f"Setup {len(instrument_alerts)} InstrumentService alert rules")
-    
+
     def _setup_instrument_health_checks(self):
         """Setup health check functions for InstrumentService"""
-        
+
         async def instrument_service_health_check():
             """Comprehensive InstrumentService health check"""
             try:
                 # Dynamic import to avoid circular dependency
                 from domains.instruments.services.config.service_container import get_service_container
-                
+
                 # Get service container and instrument service
                 container = await get_service_container()
                 service = container.get_instrument_service()
-                
+
                 start_time = datetime.utcnow()
-                
+
                 # Test basic service operations
                 health_results = {}
-                
+
                 # 1. Test database connectivity via get_instrument_count
                 try:
                     count = await service.get_instrument_count()
@@ -198,7 +198,7 @@ class InstrumentServiceMonitor:
                     logger.error(f"Database connectivity check failed: {e}")
                     health_results['database_connectivity'] = False
                     health_results['database_error'] = str(e)
-                
+
                 # 2. Test symbol validation (lightweight operation)
                 try:
                     is_valid = await service.validate_symbol("AAPL")
@@ -208,7 +208,7 @@ class InstrumentServiceMonitor:
                     logger.error(f"Symbol validation check failed: {e}")
                     health_results['symbol_validation'] = False
                     health_results['validation_error'] = str(e)
-                
+
                 # 3. Test list operation (with small limit)
                 try:
                     from domains.instruments.services.interfaces.instrument_service_interface import InstrumentSearchCriteria
@@ -220,18 +220,18 @@ class InstrumentServiceMonitor:
                     logger.error(f"List operation check failed: {e}")
                     health_results['list_operation'] = False
                     health_results['list_error'] = str(e)
-                
+
                 # Calculate overall health
                 critical_operations = ['database_connectivity', 'symbol_validation']
                 critical_health = all(health_results.get(op, False) for op in critical_operations)
-                
+
                 response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
-                
+
                 if critical_health:
                     status = 'healthy' if all(health_results.get(k, False) for k in health_results if k.endswith('_connectivity') or k.endswith('_validation') or k.endswith('_operation')) else 'degraded'
                 else:
                     status = 'unhealthy'
-                
+
                 return {
                     'status': status,
                     'response_time_ms': response_time,
@@ -239,7 +239,7 @@ class InstrumentServiceMonitor:
                     'checks': health_results,
                     'timestamp': datetime.utcnow().isoformat()
                 }
-                
+
             except Exception as e:
                 logger.error(f"InstrumentService health check failed: {e}")
                 return {
@@ -248,7 +248,7 @@ class InstrumentServiceMonitor:
                     'service_name': 'InstrumentService',
                     'timestamp': datetime.utcnow().isoformat()
                 }
-        
+
         async def cache_health_check():
             """Health check for caching layer"""
             try:
@@ -261,21 +261,21 @@ class InstrumentServiceMonitor:
                 }
             except Exception as e:
                 return {
-                    'status': 'error', 
+                    'status': 'error',
                     'error': str(e),
                     'timestamp': datetime.utcnow().isoformat()
                 }
-        
+
         async def database_pool_health_check():
             """Health check for database connection pool"""
             try:
                 # Dynamic import to avoid circular dependency
                 from domains.instruments.services.config.service_container import get_service_container
-                
+
                 # Check database pool health
                 container = await get_service_container()
                 health_status = container.get_health_status()
-                
+
                 return {
                     'status': 'healthy' if health_status.get('initialized', False) else 'unhealthy',
                     'container_status': health_status,
@@ -287,70 +287,70 @@ class InstrumentServiceMonitor:
                     'error': str(e),
                     'timestamp': datetime.utcnow().isoformat()
                 }
-        
+
         # Register health checks
         self.health_monitor.register_health_check('InstrumentService', instrument_service_health_check)
         self.health_monitor.register_health_check('CacheService', cache_health_check)
         self.health_monitor.register_health_check('DatabasePool', database_pool_health_check)
-        
+
         # Register service dependencies
         self.health_monitor.register_dependency('InstrumentService', 'DatabasePool')
         self.health_monitor.register_dependency('CachedInstrumentService', 'CacheService')
-        
+
         logger.info("Setup InstrumentService health checks")
-    
+
     async def start_monitoring(self):
         """Start comprehensive InstrumentService monitoring"""
         if self._monitoring_active:
             logger.warning("Monitoring already active")
             return
-        
+
         logger.info("Starting InstrumentService monitoring...")
-        
+
         try:
             # Start health monitoring
             await self.health_monitor.start_monitoring()
-            
+
             # Start resource monitoring
             await self.resource_monitor.start_monitoring(
                 interval_seconds=60,
                 service_name="InstrumentService"
             )
-            
+
             self._monitoring_active = True
             logger.info("InstrumentService monitoring started successfully")
-            
+
         except Exception as e:
             logger.error(f"Failed to start InstrumentService monitoring: {e}")
             raise
-    
+
     async def stop_monitoring(self):
         """Stop InstrumentService monitoring"""
         if not self._monitoring_active:
             return
-        
+
         logger.info("Stopping InstrumentService monitoring...")
-        
+
         try:
             await self.health_monitor.stop_monitoring()
             await self.resource_monitor.stop_monitoring()
-            
+
             self._monitoring_active = False
             logger.info("InstrumentService monitoring stopped successfully")
-            
+
         except Exception as e:
             logger.error(f"Error stopping monitoring: {e}")
-    
+
     async def get_monitoring_dashboard(self) -> Dict[str, Any]:
         """Get comprehensive monitoring dashboard data"""
         try:
             # Get health status
             overall_health = await self.health_monitor.get_overall_health()
-            
+
             # Get service statistics
             service_stats = self.metrics_collector.get_service_stats('InstrumentService')
             cache_stats = self.metrics_collector.get_service_stats('CachedInstrumentService')
-            
+
             # Get benchmark violations
             instrument_violations = []
             operations = ['get_instrument_by_id', 'get_instrument_by_symbol', 'list_instruments', 'create_instrument', 'validate_symbol']
@@ -358,13 +358,13 @@ class InstrumentServiceMonitor:
                 violations = self.metrics_collector.get_benchmark_violations('InstrumentService', operation)
                 if violations:
                     instrument_violations.extend([f"{operation}: {v}" for v in violations])
-            
+
             # Get active alerts using the metrics collector
             active_alerts = self.metrics_collector.evaluate_alerts()
-            
+
             # Get recent performance metrics
             recent_metrics = self._get_recent_performance_summary()
-            
+
             return {
                 'timestamp': datetime.utcnow().isoformat(),
                 'monitoring_status': 'active' if self._monitoring_active else 'inactive',
@@ -382,7 +382,7 @@ class InstrumentServiceMonitor:
                     'warning_alerts': len([a for a in active_alerts if a.get('severity') == 'warning'])
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Error generating monitoring dashboard: {e}")
             return {
@@ -390,13 +390,13 @@ class InstrumentServiceMonitor:
                 'error': str(e),
                 'monitoring_status': 'error'
             }
-    
+
     def _get_recent_performance_summary(self) -> Dict[str, Any]:
         """Get recent performance summary across all operations"""
         try:
             # Get recent metrics (last hour)
             cutoff_time = datetime.utcnow() - timedelta(hours=1)
-            
+
             # This would filter recent metrics from the collector
             # For now, return basic summary structure
             return {
@@ -408,11 +408,11 @@ class InstrumentServiceMonitor:
                 'top_operations': [],
                 'error_breakdown': {}
             }
-            
+
         except Exception as e:
             logger.warning(f"Error calculating performance summary: {e}")
             return {'error': str(e)}
-    
+
     def record_business_metric(self, metric_name: str, value: float, labels: Dict[str, str] = None):
         """Record business-specific metrics for InstrumentService"""
         metric = ServiceMetric(
@@ -424,11 +424,11 @@ class InstrumentServiceMonitor:
             labels=labels or {}
         )
         self.metrics_collector.record_metric(metric)
-    
+
     def record_cache_metrics(self, operation: str, hit: bool, duration_ms: float):
         """Record cache-specific metrics"""
         cache_result = "hit" if hit else "miss"
-        
+
         # Record cache hit/miss
         self.metrics_collector.record_metric(ServiceMetric(
             service_name="CachedInstrumentService",
@@ -438,10 +438,10 @@ class InstrumentServiceMonitor:
             timestamp=datetime.utcnow(),
             labels={"cache_result": cache_result}
         ))
-        
+
         # Record cache operation duration
         self.metrics_collector.record_metric(ServiceMetric(
-            service_name="CachedInstrumentService", 
+            service_name="CachedInstrumentService",
             operation=operation,
             metric_type="cache_latency",
             value=duration_ms,
@@ -451,7 +451,7 @@ class InstrumentServiceMonitor:
 
 
 # ========================================================================================
-# CONVENIENCE FUNCTIONS AND DECORATORS  
+# CONVENIENCE FUNCTIONS AND DECORATORS
 # ========================================================================================
 
 # Global monitor instance
@@ -501,14 +501,14 @@ async def initialize_instrument_service_monitoring():
         # Setup global monitoring infrastructure
         setup_default_benchmarks()
         setup_default_alerts()
-        
+
         # Get and start InstrumentService monitor
         monitor = get_instrument_service_monitor()
         await monitor.start_monitoring()
-        
+
         logger.info("InstrumentService monitoring initialized successfully")
         return monitor
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize InstrumentService monitoring: {e}")
         raise
@@ -519,9 +519,9 @@ async def shutdown_instrument_service_monitoring():
     try:
         monitor = get_instrument_service_monitor()
         await monitor.stop_monitoring()
-        
+
         logger.info("InstrumentService monitoring shutdown complete")
-        
+
     except Exception as e:
         logger.error(f"Error during monitoring shutdown: {e}")
 
@@ -555,7 +555,7 @@ USAGE EXAMPLES:
 5. Startup Integration:
     # In your application startup
     await initialize_instrument_service_monitoring()
-    
+
     # In your application shutdown
     await shutdown_instrument_service_monitoring()
 """

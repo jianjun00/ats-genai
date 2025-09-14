@@ -16,7 +16,7 @@ class UniverseManager:
         self.symbols = symbols or ['TSLA']  # Default to TSLA for backward compatibility
         self._instrument_ids = None  # Will be populated dynamically
         self._instrument_xrefs_dao = InstrumentXrefsDAO(env)
-    
+
     @property
     def instrument_ids(self):
         """Return instrument IDs for the universe."""
@@ -31,7 +31,7 @@ class UniverseManager:
     async def initialize(self):
         """Initialize the universe manager with proper database lookups."""
         print(f"[UniverseManager] Initializing with symbols: {self.symbols}")
-        
+
         # Resolve symbols to instrument_ids using database lookup
         instrument_ids = []
         for symbol in self.symbols:
@@ -41,10 +41,10 @@ class UniverseManager:
                 print(f"[UniverseManager] Resolved {symbol} → instrument_id {instrument_id}")
             else:
                 print(f"[UniverseManager] ⚠️  WARNING: Could not resolve symbol {symbol} to instrument_id")
-        
+
         if not instrument_ids:
             raise ValueError(f"No valid instrument_ids found for symbols: {self.symbols}")
-        
+
         self._instrument_ids = instrument_ids
         print(f"[UniverseManager] ✅ Initialized with instrument_ids: {self._instrument_ids}")
         """Get symbols for the universe - minimal implementation for training data."""

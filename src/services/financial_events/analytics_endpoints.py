@@ -16,57 +16,57 @@ class FinancialEventsEndpoints:
     Endpoint handlers for financial events in analytics service
     Add these to the existing analytics service HTTP handler
     """
-    
+
     def __init__(self, analytics_integration):
         self.integration = analytics_integration
-        
+
     def route_financial_events(self, method: str, path: str, query_params: Dict[str, Any], body: Dict[str, Any] = None) -> Dict[str, Any]:
         """Route financial events API requests"""
-        
+
         try:
             if path == "/financial_events/extract" and method == "POST":
                 # Extract events from xAI and store in database
                 return asyncio.run(self._handle_extract_events(body or {}))
-                
+
             elif path == "/financial_events" and method == "GET":
                 # Get stored financial events with filters
                 return self._handle_get_events(query_params)
-                
+
             elif path == "/financial_events/summary" and method == "GET":
                 # Get events summary and statistics
                 return self._handle_get_summary(query_params)
-                
+
             elif path == "/financial_events/cache/stats" and method == "GET":
                 # Get cache performance statistics
                 return asyncio.run(self._handle_cache_stats())
-                
+
             elif path == "/financial_events/cache/clear" and method == "POST":
                 # Clear events cache
                 return asyncio.run(self._handle_clear_cache())
-                
+
             else:
                 return {
                     "success": False,
                     "error": f"Financial events endpoint not found: {method} {path}",
                     "available_endpoints": [
                         "POST /financial_events/extract - Extract and store events",
-                        "GET /financial_events - Query stored events", 
+                        "GET /financial_events - Query stored events",
                         "GET /financial_events/summary - Get events statistics",
                         "GET /financial_events/cache/stats - Get cache statistics",
                         "POST /financial_events/cache/clear - Clear cache"
                     ]
                 }
-                
+
         except Exception as e:
             logger.error(f"❌ Error handling financial events request: {e}")
             return {
                 "success": False,
                 "error": f"Internal server error: {str(e)}"
             }
-    
+
     async def _handle_extract_events(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle event extraction request"""
-        
+
         # Validate required parameters
         if not params.get('start_date') or not params.get('end_date'):
             return {
@@ -74,12 +74,12 @@ class FinancialEventsEndpoints:
                 "error": "start_date and end_date are required",
                 "example": {
                     "start_date": "2025-09-01",
-                    "end_date": "2025-09-13", 
+                    "end_date": "2025-09-13",
                     "symbols": ["AAPL", "TSLA"],
                     "force_refresh": False
                 }
             }
-        
+
         # Extract and store events
         result = await self.integration.extract_and_store_events(
             start_date=params['start_date'],
@@ -87,20 +87,20 @@ class FinancialEventsEndpoints:
             symbols=params.get('symbols', []),
             force_refresh=params.get('force_refresh', False)
         )
-        
+
         return result
-    
+
     def _handle_get_events(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle get events request"""
-        
+
         # Convert query parameters
         symbol = params.get('symbol')
         event_type = params.get('event_type')
         start_date = params.get('start_date')
-        end_date = params.get('end_date') 
+        end_date = params.get('end_date')
         impact_level = params.get('impact_level')
         limit = int(params.get('limit', [100])[0]) if isinstance(params.get('limit'), list) else int(params.get('limit', 100))
-        
+
         return self.integration.get_events_from_analytics(
             symbol=symbol,
             event_type=event_type,
@@ -109,14 +109,14 @@ class FinancialEventsEndpoints:
             impact_level=impact_level,
             limit=limit
         )
-    
+
     def _handle_get_summary(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle get summary request"""
         return self.integration.get_events_summary()
-    
+
     async def _handle_cache_stats(self) -> Dict[str, Any]:
         """Handle cache statistics request"""
-        
+
         try:
             cache_stats = await self.integration.event_extractor.get_cache_stats()
             return {
@@ -129,10 +129,10 @@ class FinancialEventsEndpoints:
                 "success": False,
                 "error": f"Failed to get cache stats: {e}"
             }
-    
+
     async def _handle_clear_cache(self) -> Dict[str, Any]:
         """Handle clear cache request"""
-        
+
         try:
             await self.integration.event_extractor.clear_cache()
             return {
@@ -154,16 +154,16 @@ FINANCIAL_EVENTS_HTML = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ATS Financial Events Dashboard</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
         }
-        .container { 
-            max-width: 1400px; 
-            margin: 0 auto; 
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
             background: rgba(255,255,255,0.1);
             padding: 30px;
             border-radius: 15px;
@@ -314,7 +314,7 @@ FINANCIAL_EVENTS_HTML = '''
             <h1>🚀 ATS Financial Events Dashboard</h1>
             <p>Real-time financial event extraction and analysis powered by xAI Grok</p>
         </div>
-        
+
         <div class="controls">
             <div class="control-group">
                 <label>Start Date</label>
@@ -354,9 +354,9 @@ FINANCIAL_EVENTS_HTML = '''
                 <button class="btn" onclick="loadEvents()" style="margin-top: 10px;">📊 Load Events</button>
             </div>
         </div>
-        
+
         <div id="statusMessage"></div>
-        
+
         <div class="stats-grid">
             <div class="stat-card">
                 <div>Total Events</div>
@@ -375,7 +375,7 @@ FINANCIAL_EVENTS_HTML = '''
                 <div class="stat-value" id="cacheHitRate">-</div>
             </div>
         </div>
-        
+
         <div class="events-container">
             <div class="events-header">📈 Financial Events</div>
             <div id="eventsContainer">
@@ -383,33 +383,33 @@ FINANCIAL_EVENTS_HTML = '''
             </div>
         </div>
     </div>
-    
+
     <script>
         async function extractEvents() {
             const status = document.getElementById('statusMessage');
             status.innerHTML = '<div class="status info">🔄 Extracting events from xAI Grok...</div>';
-            
+
             const symbols = document.getElementById('symbols').value
                 .split(',')
                 .map(s => s.trim())
                 .filter(s => s.length > 0);
-            
+
             const params = {
                 start_date: document.getElementById('startDate').value,
                 end_date: document.getElementById('endDate').value,
                 symbols: symbols,
                 force_refresh: false
             };
-            
+
             try {
                 const response = await fetch('/financial_events/extract', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(params)
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     status.innerHTML = `<div class="status success">
                         ✅ Successfully extracted ${result.events_extracted} events and stored ${result.events_stored} events!
@@ -422,29 +422,29 @@ FINANCIAL_EVENTS_HTML = '''
                 status.innerHTML = `<div class="status error">❌ Network error: ${error.message}</div>`;
             }
         }
-        
+
         async function loadEvents() {
             const container = document.getElementById('eventsContainer');
             container.innerHTML = '<div class="loading">🔄 Loading events...</div>';
-            
+
             const params = new URLSearchParams();
             const symbol = document.getElementById('symbols').value.split(',')[0]?.trim();
             if (symbol) params.set('symbol', symbol);
-            
+
             const eventType = document.getElementById('eventType').value;
             if (eventType) params.set('event_type', eventType);
-            
+
             const impactLevel = document.getElementById('impactLevel').value;
             if (impactLevel) params.set('impact_level', impactLevel);
-            
+
             params.set('start_date', document.getElementById('startDate').value);
             params.set('end_date', document.getElementById('endDate').value);
             params.set('limit', '20');
-            
+
             try {
                 const response = await fetch(`/financial_events?${params}`);
                 const result = await response.json();
-                
+
                 if (result.success) {
                     displayEvents(result.events);
                     await updateStats();
@@ -455,15 +455,15 @@ FINANCIAL_EVENTS_HTML = '''
                 container.innerHTML = `<div class="loading">❌ Network error: ${error.message}</div>`;
             }
         }
-        
+
         function displayEvents(events) {
             const container = document.getElementById('eventsContainer');
-            
+
             if (events.length === 0) {
                 container.innerHTML = '<div class="loading">📭 No events found for the specified criteria</div>';
                 return;
             }
-            
+
             const eventsHtml = events.map(event => `
                 <div class="event-item impact-${event.impact_level}">
                     <div class="event-meta">
@@ -477,36 +477,36 @@ FINANCIAL_EVENTS_HTML = '''
                     ${event.sentiment ? `<div style="margin-top: 8px; color: #4ECDC4;">Sentiment: ${event.sentiment}</div>` : ''}
                 </div>
             `).join('');
-            
+
             container.innerHTML = eventsHtml;
         }
-        
+
         async function updateStats() {
             try {
                 const response = await fetch('/financial_events/summary');
                 const result = await response.json();
-                
+
                 if (result.success && result.summary.length > 0) {
                     const stats = result.summary[0];
                     document.getElementById('totalEvents').textContent = stats.total_events || 0;
                     document.getElementById('highImpactEvents').textContent = stats.high_impact_events || 0;
                     document.getElementById('uniqueSymbols').textContent = stats.unique_symbols || 0;
                 }
-                
+
                 // Update cache stats
                 const cacheResponse = await fetch('/financial_events/cache/stats');
                 const cacheResult = await cacheResponse.json();
-                
+
                 if (cacheResult.success) {
                     const hitRate = cacheResult.cache_statistics.hit_rate || 'N/A';
                     document.getElementById('cacheHitRate').textContent = hitRate;
                 }
-                
+
             } catch (error) {
                 console.error('Error updating stats:', error);
             }
         }
-        
+
         // Load events on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadEvents();

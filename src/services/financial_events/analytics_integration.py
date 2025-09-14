@@ -35,7 +35,7 @@ class AnalyticsEventIntegration:
     """
     Integration layer between xAI Event Extractor and ATS Analytics Service
     """
-    
+
     def __init__(
         self,
         xai_api_key: str,
@@ -43,7 +43,7 @@ class AnalyticsEventIntegration:
         db_connection_string: str = None
     ):
         self.analytics_url = analytics_base_url
-        
+
         # Set up database connection
         if db_connection_string:
             self.db_connection_string = db_connection_string
@@ -56,20 +56,20 @@ class AnalyticsEventIntegration:
                 f"password={os.getenv('DB_PASSWORD', 'intg_password')} "
                 f"dbname={os.getenv('DB_NAME', 'intg_db')}"
             )
-        
+
         # Initialize xAI extractor
         self.event_extractor = OptimizedXAIEventExtractor(
             api_key=xai_api_key,
             enable_cache=True,
             cache_ttl_hours=6  # 6-hour cache for financial events
         )
-        
+
         logger.info(f"Analytics integration initialized: {analytics_base_url}")
         logger.info(f"Database connection: {self.db_connection_string.replace(os.getenv('DB_PASSWORD', 'intg_password'), '***')}")
-    
+
     async def create_events_table(self):
         """Create financial events table in ATS database"""
-        
+
         create_table_sql = """
         CREATE TABLE IF NOT EXISTS intg_financial_events (
             event_id SERIAL PRIMARY KEY,
@@ -85,13 +85,13 @@ class AnalyticsEventIntegration:
             extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         CREATE INDEX IF NOT EXISTS idx_financial_events_symbol ON intg_financial_events(company_symbol);
         CREATE INDEX IF NOT EXISTS idx_financial_events_date ON intg_financial_events(event_date);
         CREATE INDEX IF NOT EXISTS idx_financial_events_type ON intg_financial_events(event_type);
         CREATE INDEX IF NOT EXISTS idx_financial_events_impact ON intg_financial_events(impact_level);
         """
-        
+
         try:
             # Execute via direct database connection
             conn = psycopg2.connect(self.db_connection_string)
@@ -100,20 +100,20 @@ class AnalyticsEventIntegration:
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             logger.info("✅ Financial events table created successfully")
             return True
-                
+
         except Exception as e:
             logger.error(f"❌ Error creating events table: {e}")
             return False
-    
+
     async def store_events(self, events: List[FinancialEvent]) -> int:
         """Store financial events in ATS database"""
-        
+
         if not events:
             return 0
-        
+
         # Prepare batch insert
         values = []
         for event in events:
@@ -122,7 +122,7 @@ class AnalyticsEventIntegration:
             confidence_str = str(event.confidence_score) if event.confidence_score else "NULL"
             source_url_str = f"'{event.source_url}'" if event.source_url else "NULL"
             symbol_str = f"'{event.company_symbol}'" if event.company_symbol else "NULL"
-            
+
             values.append(f"""(
                 '{event.event_type}',
                 {symbol_str},
@@ -134,15 +134,15 @@ class AnalyticsEventIntegration:
                 {confidence_str},
                 {source_url_str}
             )""")
-        
+
         insert_sql = f"""
-        INSERT INTO intg_financial_events 
-        (event_type, company_symbol, details, event_date, event_time, impact_level, 
+        INSERT INTO intg_financial_events
+        (event_type, company_symbol, details, event_date, event_time, impact_level,
          sentiment, confidence_score, source_url)
         VALUES {', '.join(values)}
         ON CONFLICT DO NOTHING;
         """
-        
+
         try:
             # Execute via direct database connection
             conn = psycopg2.connect(self.db_connection_string)
@@ -152,14 +152,14 @@ class AnalyticsEventIntegration:
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             logger.info(f"✅ Stored {rows_affected} financial events successfully")
             return rows_affected
-                
+
         except Exception as e:
             logger.error(f"❌ Error storing events: {e}")
             return 0
-    
+
     async def extract_and_store_events(
         self,
         start_date: str,
@@ -168,9 +168,9 @@ class AnalyticsEventIntegration:
         force_refresh: bool = False
     ) -> Dict[str, Any]:
         """Extract events from xAI and store in analytics database"""
-        
+
         logger.info(f"Starting event extraction and storage: {start_date} to {end_date}")
-        
+
         try:
             # Extract events using xAI
             events = await self.event_extractor.extract_events_batch(
@@ -179,7 +179,7 @@ class AnalyticsEventIntegration:
                 symbols=symbols,
                 force_refresh=force_refresh
             )
-            
+
             if not events:
                 return {
                     "success": True,
@@ -187,13 +187,13 @@ class AnalyticsEventIntegration:
                     "events_stored": 0,
                     "message": "No events found for the specified criteria"
                 }
-            
+
             # Store events in database
             stored_count = await self.store_events(events)
-            
+
             # Get cache statistics
             cache_stats = await self.event_extractor.get_cache_stats()
-            
+
             return {
                 "success": True,
                 "events_extracted": len(events),
@@ -212,7 +212,7 @@ class AnalyticsEventIntegration:
                     for event in events[:5]  # Show first 5 events
                 ]
             }
-            
+
         except Exception as e:
             logger.error(f"❌ Error in extract_and_store_events: {e}")
             return {
@@ -221,7 +221,7 @@ class AnalyticsEventIntegration:
                 "events_extracted": 0,
                 "events_stored": 0
             }
-    
+
     def get_events_from_analytics(
         self,
         symbol: str = None,
@@ -232,7 +232,7 @@ class AnalyticsEventIntegration:
         limit: int = 100
     ) -> Dict[str, Any]:
         """Query financial events from analytics service"""
-        
+
         # Build query conditions
         conditions = []
         if symbol:
@@ -245,11 +245,11 @@ class AnalyticsEventIntegration:
             conditions.append(f"event_date <= '{end_date}'")
         if impact_level:
             conditions.append(f"impact_level = '{impact_level}'")
-        
+
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
-        
+
         query = f"""
-        SELECT 
+        SELECT
             event_id,
             event_type,
             company_symbol,
@@ -266,7 +266,7 @@ class AnalyticsEventIntegration:
         ORDER BY event_date DESC, event_time DESC NULLS LAST
         LIMIT {limit};
         """
-        
+
         try:
             # Execute via direct database connection
             conn = psycopg2.connect(self.db_connection_string)
@@ -275,10 +275,10 @@ class AnalyticsEventIntegration:
             results = cursor.fetchall()
             cursor.close()
             conn.close()
-            
+
             # Convert results to list of dictionaries and serialize dates
             events = [convert_dates_to_strings(dict(row)) for row in results]
-            
+
             return {
                 "success": True,
                 "events": events,
@@ -291,7 +291,7 @@ class AnalyticsEventIntegration:
                     "limit": limit
                 }
             }
-                
+
         except Exception as e:
             logger.error(f"❌ Error querying events: {e}")
             return {
@@ -299,12 +299,12 @@ class AnalyticsEventIntegration:
                 "error": str(e),
                 "events": []
             }
-    
+
     def get_events_summary(self) -> Dict[str, Any]:
         """Get summary statistics of stored financial events"""
-        
+
         summary_query = """
-        SELECT 
+        SELECT
             COUNT(*) as total_events,
             COUNT(DISTINCT company_symbol) as unique_symbols,
             COUNT(DISTINCT event_type) as event_types,
@@ -314,12 +314,12 @@ class AnalyticsEventIntegration:
             COUNT(*) FILTER (WHERE event_date >= CURRENT_DATE - INTERVAL '7 days') as events_last_week,
             COUNT(*) FILTER (WHERE event_date >= CURRENT_DATE - INTERVAL '30 days') as events_last_month
         FROM intg_financial_events;
-        
+
         SELECT event_type, COUNT(*) as count
         FROM intg_financial_events
         GROUP BY event_type
         ORDER BY count DESC;
-        
+
         SELECT company_symbol, COUNT(*) as event_count
         FROM intg_financial_events
         WHERE company_symbol IS NOT NULL
@@ -327,32 +327,32 @@ class AnalyticsEventIntegration:
         ORDER BY event_count DESC
         LIMIT 10;
         """
-        
+
         try:
             # Execute via direct database connection
             conn = psycopg2.connect(self.db_connection_string)
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            
+
             # Split and execute each query separately
             queries = summary_query.split(';')
             all_results = []
-            
+
             for query in queries:
                 query = query.strip()
                 if query:
                     cursor.execute(query)
                     results = cursor.fetchall()
                     all_results.extend([convert_dates_to_strings(dict(row)) for row in results])
-            
+
             cursor.close()
             conn.close()
-            
+
             return {
                 "success": True,
                 "summary": all_results,
                 "timestamp": datetime.now().isoformat()
             }
-                
+
         except Exception as e:
             logger.error(f"❌ Error getting events summary: {e}")
             return {
@@ -363,34 +363,34 @@ class AnalyticsEventIntegration:
 # REST API endpoints for analytics service integration
 class FinancialEventsAPI:
     """REST API endpoints for financial events in analytics service"""
-    
+
     def __init__(self, integration: AnalyticsEventIntegration):
         self.integration = integration
-    
+
     async def handle_extract_events(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle POST /financial_events/extract"""
-        
+
         start_date = params.get('start_date')
         end_date = params.get('end_date')
         symbols = params.get('symbols', [])
         force_refresh = params.get('force_refresh', False)
-        
+
         if not start_date or not end_date:
             return {
                 "success": False,
                 "error": "start_date and end_date are required"
             }
-        
+
         return await self.integration.extract_and_store_events(
             start_date=start_date,
             end_date=end_date,
             symbols=symbols,
             force_refresh=force_refresh
         )
-    
+
     def handle_get_events(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle GET /financial_events"""
-        
+
         return self.integration.get_events_from_analytics(
             symbol=params.get('symbol'),
             event_type=params.get('event_type'),
@@ -399,30 +399,30 @@ class FinancialEventsAPI:
             impact_level=params.get('impact_level'),
             limit=int(params.get('limit', 100))
         )
-    
+
     def handle_get_summary(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle GET /financial_events/summary"""
-        
+
         return self.integration.get_events_summary()
 
 # Usage example
 async def demo_integration():
     """Demonstrate the analytics integration"""
-    
+
     print("🚀 Financial Events Analytics Integration Demo")
     print("=" * 60)
-    
+
     # Initialize integration (replace with real API key)
     integration = AnalyticsEventIntegration(
         xai_api_key="test_key",
         analytics_base_url="http://localhost:4000"
     )
-    
+
     # Create table
     print("📋 Creating financial events table...")
     table_created = await integration.create_events_table()
     print(f"   Table creation: {'✅ Success' if table_created else '❌ Failed'}")
-    
+
     # Extract and store events
     print("\n📊 Extracting and storing financial events...")
     result = await integration.extract_and_store_events(
@@ -430,24 +430,24 @@ async def demo_integration():
         end_date="2025-09-13",
         symbols=["AAPL", "TSLA", "MSFT"]
     )
-    
+
     print(f"   Extraction: {'✅ Success' if result['success'] else '❌ Failed'}")
     print(f"   Events extracted: {result.get('events_extracted', 0)}")
     print(f"   Events stored: {result.get('events_stored', 0)}")
-    
+
     # Query events from analytics
     print("\n🔍 Querying stored events...")
     events_data = integration.get_events_from_analytics(
         impact_level="high",
         limit=5
     )
-    
+
     if events_data['success']:
         print(f"   Found {events_data['count']} high-impact events")
         for i, event in enumerate(events_data['events'][:3], 1):
             symbol = event.get('company_symbol', 'MARKET')
             print(f"   {i}. {event['event_date']} | {symbol}: {event['details'][:60]}...")
-    
+
     # Get summary
     print("\n📈 Events summary:")
     summary = integration.get_events_summary()

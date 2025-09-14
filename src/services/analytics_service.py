@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -29,6 +30,9 @@ from typing import Dict, List, Any
 
 # Agent imports
 from agents.data_quality_agent import DataQualityAgent
+
+# Prometheus metrics
+from services.prometheus_metrics import get_metrics_collector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,12 +45,12 @@ class SimpleAgentState:
         self.active_workflows = 0
         self.pending_issues = 0
         self.last_activity = datetime.now()
-    
+
     def start_monitoring(self):
         self.monitoring_active = True
         self.last_activity = datetime.now()
         return True
-    
+
     def stop_monitoring(self):
         self.monitoring_active = False
         self.active_workflows = 0
@@ -3777,7 +3781,7 @@ async function loadUniverseAnalytics() {
 
                         if (data.success && data.events && data.events.length > 0) {
                             const appliedFilters = data.query_params || {};
-                            
+
                             html = `
                                 <h3>🔮 AI Financial Events Analysis (xAI + Grok)</h3>
                                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -3787,7 +3791,7 @@ async function loadUniverseAnalytics() {
                             // Get summary stats
                             const summaryResponse = await fetch('/financial_events/summary');
                             const summaryData = await summaryResponse.json();
-                            
+
                             if (summaryData.success && summaryData.summary.length > 0) {
                                 const stats = summaryData.summary[0];
                                 html += `
@@ -3808,7 +3812,7 @@ async function loadUniverseAnalytics() {
                                         <div style="font-size: 12px; opacity: 0.9;">This Week</div>
                                     </div>`;
                             }
-                            
+
                             html += `
                                     </div>
                                 </div>
@@ -3818,8 +3822,8 @@ async function loadUniverseAnalytics() {
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                                         <div>
                                             <label for="xai-symbol-filter" style="display: block; margin-bottom: 5px; font-weight: 500;">Symbol Filter:</label>
-                                            <input type="text" id="xai-symbol-filter" placeholder="e.g., AAPL" 
-                                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+                                            <input type="text" id="xai-symbol-filter" placeholder="e.g., AAPL"
+                                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
                                                 value="${appliedFilters.symbol || ''}">
                                         </div>
                                         <div>
@@ -3842,7 +3846,7 @@ async function loadUniverseAnalytics() {
                                             </select>
                                         </div>
                                         <div style="display: flex; align-items: end;">
-                                            <button onclick="applyXAIFilters()" 
+                                            <button onclick="applyXAIFilters()"
                                                 style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500;">
                                                 Apply Filters
                                             </button>
@@ -3870,12 +3874,12 @@ async function loadUniverseAnalytics() {
                                             <tbody>`;
 
                             data.events.forEach((event, index) => {
-                                const impactColor = event.impact_level === 'high' ? '#dc3545' : 
+                                const impactColor = event.impact_level === 'high' ? '#dc3545' :
                                                   event.impact_level === 'medium' ? '#fd7e14' : '#28a745';
-                                const sentimentIcon = event.sentiment === 'positive' ? '📈' : 
+                                const sentimentIcon = event.sentiment === 'positive' ? '📈' :
                                                     event.sentiment === 'negative' ? '📉' : '➖';
                                 const confidencePercent = Math.round((event.confidence_score || 0) * 100);
-                                
+
                                 html += `
                                     <tr style="border-bottom: 1px solid #f1f3f4;">
                                         <td style="padding: 12px; vertical-align: top;">
@@ -3902,7 +3906,7 @@ async function loadUniverseAnalytics() {
                                             ${event.sentiment ? `<div style="font-size: 12px; color: #666;">Sentiment: ${event.sentiment}</div>` : ''}
                                         </td>
                                         <td style="padding: 12px; text-align: center; vertical-align: top;">
-                                            <div style="background: ${confidencePercent >= 80 ? '#d4edda' : confidencePercent >= 60 ? '#fff3cd' : '#f8d7da'}; 
+                                            <div style="background: ${confidencePercent >= 80 ? '#d4edda' : confidencePercent >= 60 ? '#fff3cd' : '#f8d7da'};
                                                        color: ${confidencePercent >= 80 ? '#155724' : confidencePercent >= 60 ? '#856404' : '#721c24'};
                                                        padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
                                                 ${confidencePercent}%
@@ -3938,7 +3942,7 @@ async function loadUniverseAnalytics() {
                     const symbolFilter = document.getElementById('xai-symbol-filter').value.trim();
                     const eventTypeFilter = document.getElementById('xai-event-type-filter').value;
                     const impactFilter = document.getElementById('xai-impact-filter').value;
-                    
+
                     // Build query parameters
                     const params = new URLSearchParams();
                     params.append('limit', 50);
@@ -3962,7 +3966,7 @@ async function loadUniverseAnalytics() {
                     // Show loading message
                     document.getElementById('analysis-content').innerHTML =
                         '<h3>🔮 xAI Financial Events</h3><p>Extracting new events from xAI... This may take a moment.</p>';
-                    
+
                     try {
                         const extractData = {
                             start_date: '2025-09-01',
@@ -3981,7 +3985,7 @@ async function loadUniverseAnalytics() {
                         });
 
                         const result = await response.json();
-                        
+
                         if (result.success) {
                             // Show detailed success message for multi-source extraction
                             const sourceInfo = result.sources_used ? ` from ${result.sources_used.join(' + ')}` : '';
@@ -5372,6 +5376,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
         self.analytics_service = get_shared_analytics_service()
+        self.metrics = get_metrics_collector()
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
@@ -5381,6 +5386,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
             if self.path == '/health':
                 self._serve_health_check()
+            elif self.path == '/metrics':
+                self._serve_prometheus_metrics()
             elif self.path == '/eda' or self.path == '/':
                 self._serve_eda_dashboard()
             elif self.path.startswith('/api/intelligent-filters/'):
@@ -5478,7 +5485,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         """Handle POST requests."""
         try:
             logger.info(f"📍 POST request: {self.path}")
-            
+
             if self.path.startswith('/financial_events'):
                 self._serve_financial_events()
             elif self.path.startswith('/api/tags/'):
@@ -5496,24 +5503,51 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({
-                    "error": "POST endpoint not found", 
+                    "error": "POST endpoint not found",
                     "path": self.path
                 }).encode())
-                
+
         except Exception as e:
             logger.error(f"Error handling POST request: {e}")
             self._serve_500(str(e))
 
+    def _serve_prometheus_metrics(self):
+        """Serve Prometheus metrics."""
+        try:
+            start_time = time.time()
+            metrics_content = self.metrics.get_prometheus_metrics()
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain; version=0.0.4; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(metrics_content.encode('utf-8'))
+            
+            # Record the API request
+            duration = time.time() - start_time
+            self.metrics.record_api_request(duration, error=False)
+            
+            logger.info("✅ Served Prometheus metrics")
+            
+        except Exception as e:
+            logger.error(f"❌ Error serving Prometheus metrics: {e}")
+            self.send_response(500)
+            self.end_headers()
+            self.metrics.record_api_request(0, error=True)
+    
     def _serve_health_check(self):
         """Serve health check response."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
 
+        # Get health metrics from Prometheus collector
+        health_metrics = self.metrics.get_health_metrics()
+        
         health_status = {
             "status": "healthy",
             "service": "ats-unified-analytics",
             "timestamp": datetime.now().isoformat(),
+            "data_quality_agent": health_metrics,
             "features": {
                 "type_system": self.analytics_service.type_system_enabled,
                 "ray_computing": self.analytics_service.ray_enabled,
@@ -6590,40 +6624,40 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 </button>
             </div>
         </div>
-        
+
         <!-- AGENT STATUS AND CONTROLS -->
         <div id="agent-section" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div id="agent-status" style="color: white; font-weight: bold;">
                     🤖 Agent: Loading...
                 </div>
-                
+
                 <div id="agent-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button id="start-agent-btn" onclick="startAgent()" 
+                    <button id="start-agent-btn" onclick="startAgent()"
                             style="padding: 6px 12px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         ▶️ Start
                     </button>
-                    <button id="stop-agent-btn" onclick="stopAgent()" 
+                    <button id="stop-agent-btn" onclick="stopAgent()"
                             style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9; display: none;">
                         ⏹️ Stop
                     </button>
-                    <button onclick="showWorkflowsDialog()" 
+                    <button onclick="showWorkflowsDialog()"
                             style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         📋 Workflows
                     </button>
-                    <button onclick="showAgentMetrics()" 
+                    <button onclick="showAgentMetrics()"
                             style="padding: 6px 12px; background: #9b59b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         📊 Metrics
                     </button>
-                    <button onclick="showConfigDialog()" 
+                    <button onclick="showConfigDialog()"
                             style="padding: 6px 12px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         ⚙️ Config
                     </button>
-                    <button onclick="showSystemHealthDialog()" 
+                    <button onclick="showSystemHealthDialog()"
                             style="padding: 6px 12px; background: #16a085; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         🩺 Health
                     </button>
-                    <button onclick="showAlertsDialog()" 
+                    <button onclick="showAlertsDialog()"
                             style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         🚨 Alerts
                     </button>
@@ -6709,7 +6743,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             </div>
         </div>
     </div>
-    
+
     <div class="stats">
         <div class="stat-card">
             <div class="stat-number" id="total-issues">-</div>
@@ -6732,16 +6766,16 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             <div class="stat-label">Quality Score</div>
         </div>
     </div>
-    
+
     <div id="quality-status" class="score critical">
         <h3>Overall Status: <span id="status-text">Loading...</span></h3>
         <p id="status-description">Analyzing data quality...</p>
     </div>
-    
+
     <div class="issues">
         <h2>🔍 Detected Issues</h2>
         <div id="issues-list" class="loading">Loading data quality issues from database...</div>
-        
+
         <!-- Pagination Controls -->
         <div id="pagination-controls" style="margin-top: 20px; text-align: center; display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
@@ -6779,9 +6813,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 currentPageSize = pageSize;
                 currentSeverityFilter = severityFilter;
                 useRay = rayEnabled;
-                
+
                 document.getElementById('issues-list').innerHTML = '<div class="loading">Refreshing data...</div>';
-                
+
                 // Build query parameters
                 const params = new URLSearchParams();
                 params.append('page', page.toString());
@@ -6813,20 +6847,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 const data = await response.json();
                 displayData(data);
             } catch (error) {
-                document.getElementById('issues-list').innerHTML = 
+                document.getElementById('issues-list').innerHTML =
                     `<div style="color: #e74c3c; text-align: center; padding: 30px;">❌ Error loading data: ${error.message}</div>`;
             }
         }
-        
+
         async function loadAgentStatus() {
             try {
                 const response = await fetch('/agent/status');
                 const status = await response.json();
-                
+
                 const statusElement = document.getElementById('agent-status');
                 const startBtn = document.getElementById('start-agent-btn');
                 const stopBtn = document.getElementById('stop-agent-btn');
-                
+
                 if (status.status === 'active') {
                     statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Tools: ${status.tools_available || 0} | ID: ${status.agent_id || 'Unknown'}`;
                     startBtn.style.display = 'none';
@@ -6841,12 +6875,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 document.getElementById('agent-status').innerHTML = `🤖 Agent: <span style="color: #f39c12;">ERROR</span> - ${error.message}`;
             }
         }
-        
+
         function displayData(data) {
             const issues = data.issues || [];
             const summary = data.summary || {};
             const pagination = data.pagination || {};
-            
+
             // Use summary stats if available (from Ray/pagination), otherwise calculate from page data
             const totalIssues = summary.total_issues || data.total_count || issues.length;
             const criticalIssues = summary.critical !== undefined ? summary.critical : issues.filter(i => i.severity === 'critical').length;
@@ -6854,26 +6888,26 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             const mediumIssues = summary.medium !== undefined ? summary.medium : issues.filter(i => i.severity === 'medium').length;
             const lowIssues = summary.low !== undefined ? summary.low : issues.filter(i => i.severity === 'low').length;
             const uniqueSymbols = [...new Set(issues.map(i => i.symbol).filter(s => s !== 'SYSTEM'))].length;
-            
+
             // Update stats with total counts (not just page counts)
             document.getElementById('total-issues').textContent = totalIssues;
             document.getElementById('critical-issues').textContent = criticalIssues;
             document.getElementById('high-issues').textContent = highIssues;
             document.getElementById('symbols-affected').textContent = uniqueSymbols;
             document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
-            
+
             // Calculate quality score
             const maxScore = 100;
             const penalty = (criticalIssues * 20) + (highIssues * 10) + (mediumIssues * 5) + (lowIssues * 1);
             const qualityScore = Math.max(0, maxScore - penalty);
-            
+
             document.getElementById('quality-score').textContent = qualityScore;
-            
+
             // Update quality status
             const statusDiv = document.getElementById('quality-status');
             const statusText = document.getElementById('status-text');
             const statusDesc = document.getElementById('status-description');
-            
+
             if (qualityScore >= 90) {
                 statusDiv.className = 'score excellent';
                 statusText.textContent = 'EXCELLENT';
@@ -6891,14 +6925,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 statusText.textContent = 'CRITICAL';
                 statusDesc.textContent = '💥 Major data quality problems, immediate action needed';
             }
-            
+
             // Display issues
             const issuesContainer = document.getElementById('issues-list');
             if (totalIssues === 0) {
                 issuesContainer.innerHTML = '<div class="no-issues">✅ Excellent! No data quality issues detected.<br>System is operating normally.</div>';
                 return;
             }
-            
+
             // Group issues by severity
             const issuesBySeverity = {
                 critical: issues.filter(i => i.severity === 'critical'),
@@ -6906,15 +6940,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 medium: issues.filter(i => i.severity === 'medium'),
                 low: issues.filter(i => i.severity === 'low')
             };
-            
+
             let issuesHtml = '';
-            
+
             ['critical', 'high', 'medium', 'low'].forEach(severity => {
                 const severityIssues = issuesBySeverity[severity];
                 if (severityIssues.length > 0) {
                     const severityEmoji = {critical: '🚨', high: '⚠️', medium: '📋', low: '💡'}[severity];
                     issuesHtml += `<h3 style="margin-top: 30px; color: #2c3e50;">${severityEmoji} ${severity.toUpperCase()} ISSUES (${severityIssues.length})</h3>`;
-                    
+
                     severityIssues.forEach(issue => {
                         const actionButtons = getIssueActionButtons(issue);
                         const tagsHtml = renderIssueTags(issue);
@@ -6928,7 +6962,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     <span class="meta-item">🏷️ ${issue.issue_type.replace('_', ' ')}</span>
                                     <span class="meta-item">📊 ${issue.field}</span>
                                     <span class="meta-item">📡 ${issue.vendor_source}</span>
-                                    ${issue.expected_value && issue.actual_value ? 
+                                    ${issue.expected_value && issue.actual_value ?
                                       `<br><span class="meta-item">💡 Expected: ${issue.expected_value}</span><span class="meta-item">📊 Actual: ${issue.actual_value}</span>` : ''}
                                 </div>
                                 ${tagsHtml}
@@ -6939,17 +6973,17 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     });
                 }
             });
-            
+
             issuesContainer.innerHTML = issuesHtml;
-            
+
             // Update pagination controls
             updatePagination(pagination);
-            
+
             // Show processing method
             const methodElement = document.getElementById('processing-method');
             if (data.method) {
-                const methodText = data.method === 'ray_distributed' ? 
-                    '⚡ Ray Distributed Processing' : 
+                const methodText = data.method === 'ray_distributed' ?
+                    '⚡ Ray Distributed Processing' :
                     '🔄 Legacy Single-threaded';
                 methodElement.textContent = methodText;
                 methodElement.style.display = 'inline';
@@ -7013,19 +7047,19 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 paginationControls.style.display = 'none';
                 return;
             }
-            
+
             paginationControls.style.display = 'block';
-            
+
             // Update pagination info
             const start = ((pagination.current_page - 1) * pagination.page_size) + 1;
             const end = Math.min(pagination.current_page * pagination.page_size, pagination.total_issues);
-            document.getElementById('pagination-info').textContent = 
+            document.getElementById('pagination-info').textContent =
                 `Showing ${start}-${end} of ${pagination.total_issues} issues`;
-            
+
             // Update page display
             document.getElementById('current-page-display').textContent = pagination.current_page;
             document.getElementById('total-pages-display').textContent = pagination.total_pages;
-            
+
             // Update button states
             document.getElementById('first-page').disabled = !pagination.has_prev;
             document.getElementById('prev-page').disabled = !pagination.has_prev;
@@ -7033,35 +7067,35 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             document.getElementById('last-page').disabled = !pagination.has_next;
             document.getElementById('last-page').onclick = () => goToPage(pagination.total_pages);
         }
-        
+
         // Pagination functions
         function goToPage(page) {
             if (page < 1) page = 1;
             loadData(page, currentPageSize, currentSeverityFilter, useRay);
         }
-        
+
         function toggleRay() {
             const rayToggle = document.getElementById('ray-toggle');
             useRay = rayToggle.checked;
             loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when toggling Ray
         }
-        
+
         function filterBySeverity() {
             const severityFilter = document.getElementById('severity-filter');
             currentSeverityFilter = severityFilter.value || null;
             loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when filtering
         }
-        
+
         function changePageSize() {
             const pageSizeSelect = document.getElementById('page-size');
             currentPageSize = parseInt(pageSizeSelect.value);
             loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when changing page size
         }
-        
+
         // Helper function to get action buttons for issues
         function getIssueActionButtons(issue) {
             const actions = [];
-            
+
             // Determine appropriate actions based on issue type and severity
             switch (issue.issue_type) {
                 case 'missing_data':
@@ -7071,7 +7105,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         color: '#3498db'
                     });
                     break;
-                    
+
                 case 'extreme_volume':
                 case 'extreme_price_range':
                     actions.push({
@@ -7080,11 +7114,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         color: '#9b59b6'
                     });
                     break;
-                    
+
                 case 'data_inconsistency':
                     actions.push({
                         label: '🔄 Auto-Deduplicate',
-                        action: 'auto_deduplicate', 
+                        action: 'auto_deduplicate',
                         color: '#27ae60'
                     });
                     actions.push({
@@ -7093,7 +7127,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         color: '#9b59b6'
                     });
                     break;
-                    
+
                 default:
                     if (issue.severity === 'critical' || issue.severity === 'high') {
                         actions.push({
@@ -7104,29 +7138,29 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     }
                     break;
             }
-            
+
             // Add general "Investigate" action for all issues
             actions.push({
                 label: '🕵️ Investigate',
                 action: 'investigate_issue',
                 color: '#f39c12'
             });
-            
-            return actions.map(actionBtn => 
-                `<button onclick="triggerAgentAction('${actionBtn.action}', '${issue.id}')" 
+
+            return actions.map(actionBtn =>
+                `<button onclick="triggerAgentAction('${actionBtn.action}', '${issue.id}')"
                          style="padding: 4px 8px; background: ${actionBtn.color}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                     ${actionBtn.label}
                  </button>`
             ).join('');
         }
-        
+
         // Agent control functions - using the correct loadAgentStatus function defined above
-        
+
         async function startAgent() {
             try {
                 const response = await fetch('/agent/start', { method: 'POST' });
                 const result = await response.json();
-                
+
                 if (response.ok && result.message) {
                     // Update status immediately and then again after a short delay
                     loadAgentStatus();
@@ -7140,12 +7174,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error starting agent: ${error.message}`, 'error');
             }
         }
-        
+
         async function stopAgent() {
             try {
                 const response = await fetch('/agent/stop', { method: 'POST' });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     setTimeout(loadAgentStatus, 1000); // Reload status after delay
                     showNotification('⏹️ Data Quality Agent stopped successfully', 'warning');
@@ -7156,15 +7190,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error stopping agent: ${error.message}`, 'error');
             }
         }
-        
+
         async function showWorkflowsDialog() {
             try {
                 const response = await fetch('/agent/workflows');
                 const data = await response.json();
-                
+
                 const workflows = data.workflows || [];
                 let workflowsHtml = '<h3>🔄 Active Workflows</h3>';
-                
+
                 if (workflows.length === 0) {
                     workflowsHtml += '<p>No active workflows found.</p>';
                 } else {
@@ -7172,18 +7206,18 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     workflows.forEach(wf => {
                         const statusColor = {
                             'created': '#3498db',
-                            'executing': '#f39c12', 
+                            'executing': '#f39c12',
                             'pending_approval': '#9b59b6',
                             'completed': '#27ae60',
                             'failed': '#e74c3c'
                         }[wf.status] || '#6c757d';
-                        
+
                         workflowsHtml += `
                             <div style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 8px; background: #f8f9fa;">
                                 <div><strong>${wf.issue_type}</strong> - ${wf.primary_action}</div>
                                 <div style="color: ${statusColor}; font-weight: bold;">Status: ${wf.status.toUpperCase()}</div>
                                 <div style="color: #6c757d; font-size: 0.9em;">
-                                    ID: ${wf.workflow_id} | Priority: ${wf.priority} | 
+                                    ID: ${wf.workflow_id} | Priority: ${wf.priority} |
                                     Created: ${new Date(wf.created_at).toLocaleString()}
                                 </div>
                                 ${wf.error ? `<div style="color: #e74c3c; margin-top: 5px;">Error: ${wf.error}</div>` : ''}
@@ -7192,18 +7226,18 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     });
                     workflowsHtml += '</div>';
                 }
-                
+
                 showModal('Workflows', workflowsHtml);
             } catch (error) {
                 showNotification(`❌ Error loading workflows: ${error.message}`, 'error');
             }
         }
-        
+
         async function showAgentMetrics() {
             try {
                 const response = await fetch('/agent/metrics');
                 const metrics = await response.json();
-                
+
                 let metricsHtml = '<h3>📊 Agent Performance Metrics</h3>';
                 metricsHtml += `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
@@ -7229,26 +7263,26 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         <p><strong>Last Cycle:</strong> ${metrics.last_cycle ? new Date(metrics.last_cycle).toLocaleString() : 'Never'}</p>
                     </div>
                 `;
-                
+
                 showModal('Agent Metrics', metricsHtml);
             } catch (error) {
                 showNotification(`❌ Error loading metrics: ${error.message}`, 'error');
             }
         }
-        
+
         async function triggerAgentAction(action, issueId = null) {
             try {
                 const payload = { action };
                 if (issueId) payload.issue_id = issueId;
-                
+
                 const response = await fetch('/agent/action', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showNotification(`✅ Agent action "${action}" triggered successfully`, 'success');
                     setTimeout(loadData, 2000); // Refresh dashboard after action
@@ -7259,12 +7293,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error triggering action: ${error.message}`, 'error');
             }
         }
-        
+
         async function showConfigDialog() {
             try {
                 const response = await fetch('/agent/config');
                 const data = await response.json();
-                
+
                 const config = data.config;
                 const configHtml = `
                     <h3>⚙️ Agent Configuration</h3>
@@ -7274,50 +7308,50 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
                                 <div>
                                     <label>Cycle Interval (seconds):</label>
-                                    <input type="number" id="cycle-interval" value="${config.monitoring.cycle_interval_seconds}" 
+                                    <input type="number" id="cycle-interval" value="${config.monitoring.cycle_interval_seconds}"
                                            style="width: 100%; padding: 5px; margin-top: 2px;">
                                 </div>
                                 <div>
                                     <label>Max Concurrent Workflows:</label>
-                                    <input type="number" id="max-workflows" value="${config.monitoring.max_concurrent_workflows}" 
+                                    <input type="number" id="max-workflows" value="${config.monitoring.max_concurrent_workflows}"
                                            style="width: 100%; padding: 5px; margin-top: 2px;">
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div style="margin-bottom: 20px;">
                             <h4>Issue Thresholds</h4>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
                                 <div>
                                     <label>Extreme Volume Multiplier:</label>
-                                    <input type="number" step="0.1" id="volume-multiplier" value="${config.issue_thresholds.extreme_volume_multiplier}" 
+                                    <input type="number" step="0.1" id="volume-multiplier" value="${config.issue_thresholds.extreme_volume_multiplier}"
                                            style="width: 100%; padding: 5px; margin-top: 2px;">
                                 </div>
                                 <div>
                                     <label>Price Change Threshold (%):</label>
-                                    <input type="number" step="0.1" id="price-change-threshold" value="${config.issue_thresholds.extreme_price_change_percent}" 
+                                    <input type="number" step="0.1" id="price-change-threshold" value="${config.issue_thresholds.extreme_price_change_percent}"
                                            style="width: 100%; padding: 5px; margin-top: 2px;">
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div style="margin-bottom: 20px;">
                             <h4>Action Settings</h4>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
                                 <div>
                                     <label>Auto-resolve Confidence:</label>
-                                    <input type="number" step="0.01" min="0" max="1" id="auto-resolve-threshold" 
-                                           value="${config.action_thresholds.auto_resolve_confidence_threshold}" 
+                                    <input type="number" step="0.01" min="0" max="1" id="auto-resolve-threshold"
+                                           value="${config.action_thresholds.auto_resolve_confidence_threshold}"
                                            style="width: 100%; padding: 5px; margin-top: 2px;">
                                 </div>
                                 <div>
                                     <label>Max Retry Attempts:</label>
-                                    <input type="number" id="max-retries" value="${config.action_thresholds.max_retry_attempts}" 
+                                    <input type="number" id="max-retries" value="${config.action_thresholds.max_retry_attempts}"
                                            style="width: 100%; padding: 5px; margin-top: 2px;">
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div style="margin-bottom: 20px;">
                             <h4>Agent Behavior</h4>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
@@ -7335,30 +7369,30 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
-                            <button onclick="updateAgentConfig()" 
+                            <button onclick="updateAgentConfig()"
                                     style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                 💾 Save Configuration
                             </button>
-                            <button onclick="resetAgentConfig()" 
+                            <button onclick="resetAgentConfig()"
                                     style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                 🔄 Reset to Defaults
                             </button>
-                            <button onclick="applyEnvironmentConfig('development')" 
+                            <button onclick="applyEnvironmentConfig('development')"
                                     style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                 🔧 Dev Mode
                             </button>
                         </div>
                     </div>
                 `;
-                
+
                 showModal('Agent Configuration', configHtml);
             } catch (error) {
                 showNotification(`❌ Error loading configuration: ${error.message}`, 'error');
             }
         }
-        
+
         async function updateAgentConfig() {
             try {
                 const updates = {
@@ -7377,15 +7411,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     enable_autonomous_mode: document.getElementById('autonomous-mode').checked,
                     enable_learning_mode: document.getElementById('learning-mode').checked
                 };
-                
+
                 const response = await fetch('/agent/config', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updates)
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showNotification('✅ Configuration updated successfully', 'success');
                     document.querySelector('.modal').remove();
@@ -7396,12 +7430,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error updating configuration: ${error.message}`, 'error');
             }
         }
-        
+
         async function resetAgentConfig() {
             try {
                 const response = await fetch('/agent/config/reset', { method: 'POST' });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showNotification('✅ Configuration reset to defaults', 'success');
                     document.querySelector('.modal').remove();
@@ -7413,12 +7447,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error resetting configuration: ${error.message}`, 'error');
             }
         }
-        
+
         async function applyEnvironmentConfig(environment) {
             try {
                 const response = await fetch(`/agent/config/environment/${environment}`, { method: 'POST' });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showNotification(`✅ Applied ${environment} configuration`, 'success');
                     document.querySelector('.modal').remove();
@@ -7430,20 +7464,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error applying ${environment} configuration: ${error.message}`, 'error');
             }
         }
-        
+
         async function showAlertsDialog() {
             try {
                 const response = await fetch('/agent/alerts');
                 const data = await response.json();
-                
+
                 const alerts = data.active_alerts || [];
                 const summary = data.alert_summary || {};
                 const channels = data.notification_channels || {};
-                
+
                 const alertsHtml = `
                     <h3>🚨 Alert Management</h3>
                     <div style="max-height: 600px; overflow-y: auto;">
-                        
+
                         <!-- Alert Summary -->
                         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
                             <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 8px; text-align: center;">
@@ -7463,20 +7497,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 <p style="margin: 5px 0 0 0;">Low</p>
                             </div>
                         </div>
-                        
+
                         <!-- Active Alerts -->
                         <div style="margin-bottom: 20px;">
                             <h4>🔥 Active Alerts (${alerts.length})</h4>
-                            ${alerts.length > 0 ? 
+                            ${alerts.length > 0 ?
                                 alerts.map(alert => {
                                     const severityColors = {
                                         critical: '#e74c3c',
-                                        high: '#e67e22', 
+                                        high: '#e67e22',
                                         medium: '#f39c12',
                                         low: '#3498db'
                                     };
                                     const severityColor = severityColors[alert.severity] || '#6c757d';
-                                    
+
                                     return `
                                         <div style="border-left: 4px solid ${severityColor}; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 0 8px 8px 0;">
                                             <div style="display: flex; justify-content: between; align-items: start;">
@@ -7489,13 +7523,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                                     </small>
                                                 </div>
                                                 <div style="display: flex; gap: 5px; margin-left: 15px;">
-                                                    ${!alert.acknowledged ? 
-                                                        `<button onclick="acknowledgeAlert('${alert.alert_id}')" 
+                                                    ${!alert.acknowledged ?
+                                                        `<button onclick="acknowledgeAlert('${alert.alert_id}')"
                                                                  style="padding: 4px 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                             ✓ Ack
                                                          </button>` : ''
                                                     }
-                                                    <button onclick="resolveAlert('${alert.alert_id}')" 
+                                                    <button onclick="resolveAlert('${alert.alert_id}')"
                                                             style="padding: 4px 8px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                         ✓ Resolve
                                                     </button>
@@ -7503,11 +7537,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                             </div>
                                         </div>
                                     `;
-                                }).join('') : 
+                                }).join('') :
                                 '<p style="color: #27ae60; text-align: center; padding: 20px;">✅ No active alerts</p>'
                             }
                         </div>
-                        
+
                         <!-- Alert Statistics -->
                         <div style="margin-bottom: 20px;">
                             <h4>📊 Alert Statistics</h4>
@@ -7520,42 +7554,42 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 </div>
                                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                                     <h5>Notification Channels</h5>
-                                    ${Object.entries(channels).map(([id, channel]) => 
+                                    ${Object.entries(channels).map(([id, channel]) =>
                                         `<p><strong>${id}:</strong> ${channel.enabled ? '✅' : '❌'} ${channel.type}</p>`
                                     ).join('') || '<p>No channels configured</p>'}
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Management Actions -->
                         <div style="display: flex; gap: 10px; justify-content: center; padding-top: 15px; border-top: 1px solid #ddd;">
-                            <button onclick="testNotificationChannels()" 
+                            <button onclick="testNotificationChannels()"
                                     style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                 📧 Test Notifications
                             </button>
-                            <button onclick="refreshAlerts()" 
+                            <button onclick="refreshAlerts()"
                                     style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                 🔄 Refresh
                             </button>
                         </div>
-                        
+
                         <div style="text-align: center; padding-top: 15px; color: #6c757d;">
                             <small>Last updated: ${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
                 `;
-                
+
                 showModal('Alert Management', alertsHtml);
             } catch (error) {
                 showNotification(`❌ Error loading alerts: ${error.message}`, 'error');
             }
         }
-        
+
         async function acknowledgeAlert(alertId) {
             try {
                 const response = await fetch(`/agent/alerts/${alertId}/acknowledge`, { method: 'POST' });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showNotification('✅ Alert acknowledged', 'success');
                     setTimeout(showAlertsDialog, 1000); // Refresh alerts dialog
@@ -7566,12 +7600,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error acknowledging alert: ${error.message}`, 'error');
             }
         }
-        
+
         async function resolveAlert(alertId) {
             try {
                 const response = await fetch(`/agent/alerts/${alertId}/resolve`, { method: 'POST' });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showNotification('✅ Alert resolved', 'success');
                     setTimeout(showAlertsDialog, 1000); // Refresh alerts dialog
@@ -7582,15 +7616,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error resolving alert: ${error.message}`, 'error');
             }
         }
-        
+
         async function testNotificationChannels() {
             try {
                 const response = await fetch('/agent/alerts/test-channels', { method: 'POST' });
                 const result = await response.json();
-                
+
                 const successful = result.successful_channels;
                 const failed = result.failed_channels;
-                
+
                 if (successful > 0) {
                     showNotification(`✅ ${successful} channels tested successfully (${failed} failed)`, 'success');
                 } else {
@@ -7600,40 +7634,40 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 showNotification(`❌ Error testing notification channels: ${error.message}`, 'error');
             }
         }
-        
+
         async function refreshAlerts() {
             document.querySelector('.modal').remove();
             setTimeout(showAlertsDialog, 500);
         }
-        
+
         async function showSystemHealthDialog() {
             try {
                 const response = await fetch('/agent/system-health');
                 const data = await response.json();
-                
+
                 const health = data.system_health;
                 const agent = data.agent_integration;
                 const ops = data.operational_summary;
-                
+
                 const statusColors = {
                     excellent: '#27ae60',
-                    good: '#f39c12', 
+                    good: '#f39c12',
                     warning: '#e67e22',
                     critical: '#e74c3c'
                 };
-                
+
                 const statusColor = statusColors[health.status] || '#6c757d';
-                
+
                 const healthHtml = `
                     <h3>🩺 System Health Monitor</h3>
                     <div style="max-height: 600px; overflow-y: auto;">
-                        
+
                         <!-- Overall Health Status -->
                         <div style="background: ${statusColor}; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
                             <h2 style="margin: 0;">Health Score: ${health.health_score}/100</h2>
                             <p style="margin: 5px 0 0 0; font-size: 1.1em;">Status: ${health.status.toUpperCase()}</p>
                         </div>
-                        
+
                         <!-- System Metrics -->
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
@@ -7651,22 +7685,22 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 <p><strong>Last Scan:</strong> ${ops.last_scan ? new Date(ops.last_scan).toLocaleTimeString() : 'Never'}</p>
                             </div>
                         </div>
-                        
+
                         <!-- Active Alerts -->
                         <div style="margin-bottom: 20px;">
                             <h4>🚨 Active Alerts (${health.active_alerts?.length || 0})</h4>
-                            ${health.active_alerts?.length > 0 ? 
+                            ${health.active_alerts?.length > 0 ?
                                 health.active_alerts.map(alert => `
-                                    <div style="border-left: 4px solid ${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'}; 
+                                    <div style="border-left: 4px solid ${alert.severity === 'critical' ? '#e74c3c' : alert.severity === 'warning' ? '#f39c12' : '#3498db'};
                                                 padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 0 4px 4px 0;">
                                         <strong>${alert.component.toUpperCase()}:</strong> ${alert.message}
                                         <br><small>${new Date(alert.timestamp).toLocaleString()}</small>
                                     </div>
-                                `).join('') : 
+                                `).join('') :
                                 '<p style="color: #27ae60;">✅ No active alerts</p>'
                             }
                         </div>
-                        
+
                         <!-- Performance Trends -->
                         <div style="margin-bottom: 20px;">
                             <h4>📈 Performance Trends</h4>
@@ -7677,7 +7711,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 <p><strong>Data Points:</strong> ${health.trends?.metrics_collected || 0}</p>
                             </div>
                         </div>
-                        
+
                         <!-- Recommendations -->
                         <div style="margin-bottom: 20px;">
                             <h4>💡 Recommendations</h4>
@@ -7685,7 +7719,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 ${health.recommendations?.map(rec => `<p>• ${rec}</p>`).join('') || '<p>No recommendations available</p>'}
                             </div>
                         </div>
-                        
+
                         <!-- MCP Tools Status -->
                         <div style="margin-bottom: 20px;">
                             <h4>🛠️ MCP Tools Available</h4>
@@ -7697,19 +7731,19 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                 `).join('') || 'No tools available'}
                             </div>
                         </div>
-                        
+
                         <div style="text-align: center; padding-top: 15px; border-top: 1px solid #ddd; color: #6c757d;">
                             <small>Last updated: ${new Date(data.retrieved_at).toLocaleString()}</small>
                         </div>
                     </div>
                 `;
-                
+
                 showModal('System Health Monitor', healthHtml);
             } catch (error) {
                 showNotification(`❌ Error loading system health: ${error.message}`, 'error');
             }
         }
-        
+
         // Utility functions for notifications and modals
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
@@ -7719,7 +7753,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 warning: '#f39c12',
                 info: '#3498db'
             };
-            
+
             notification.style.cssText = `
                 position: fixed; top: 20px; right: 20px; z-index: 10000;
                 background: ${colors[type]}; color: white; padding: 15px 20px;
@@ -7727,23 +7761,23 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 max-width: 350px; font-weight: 500;
             `;
             notification.textContent = message;
-            
+
             document.body.appendChild(notification);
-            
+
             setTimeout(() => {
                 notification.style.opacity = '0';
                 notification.style.transition = 'opacity 0.3s';
                 setTimeout(() => notification.remove(), 300);
             }, 4000);
         }
-        
+
         function showModal(title, content) {
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000;
                 background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
             `;
-            
+
             modal.innerHTML = `
                 <div style="background: white; border-radius: 12px; max-width: 80%; max-height: 80%; overflow: auto; position: relative;">
                     <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
@@ -7755,10 +7789,10 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     </div>
                 </div>
             `;
-            
+
             modal.className = 'modal';
             document.body.appendChild(modal);
-            
+
             // Close on background click
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) modal.remove();
@@ -8199,7 +8233,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             loadAgentStatus();
             loadAvailableTags();
         });
-        
+
         // Auto-refresh every 60 seconds
         setInterval(() => {
             loadData();
@@ -8209,12 +8243,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 </body>
 </html>
         '''
-        
+
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         self.wfile.write(dashboard_html.encode())
-    
+
     def _serve_data_quality_issues(self):
         """Serve data quality issues API endpoint with Ray integration and pagination."""
         try:
@@ -8222,12 +8256,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             from urllib.parse import parse_qs, urlparse
             parsed_url = urlparse(self.path)
             query_params = parse_qs(parsed_url.query)
-            
+
             page = int(query_params.get('page', ['1'])[0])
             page_size = int(query_params.get('page_size', ['50'])[0])
             severity_filter = query_params.get('severity', [None])[0]
             use_ray = query_params.get('ray', ['false'])[0].lower() == 'true'
-            
+
             # Get database connection - container aware
             db_config = {
                 'host': 'ats-intg-postgres',  # Container name on ats-network
@@ -8236,15 +8270,49 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 'password': 'intg_password',
                 'database': 'intg_db'
             }
+
+            # Record scan start time for metrics
+            scan_start_time = time.time()
             
             # Use Ray-powered agent if requested, otherwise use legacy method
             if use_ray:
                 response_data = self._get_issues_with_ray(db_config, page, page_size, severity_filter)
             else:
                 response_data = self._get_issues_legacy(db_config, page, page_size, severity_filter)
+
+            # Update metrics with scan duration and issue counts
+            scan_duration = time.time() - scan_start_time
+            self.metrics.update_scan_duration(scan_duration)
             
+            if 'summary' in response_data:
+                self.metrics.update_issue_metrics(response_data)
+                
+                # Update symbols affected (extract unique symbols from issues)
+                unique_symbols = set()
+                critical_symbols = {'AAPL', 'SPY', 'QQQ', 'TSLA', 'MSFT', 'NVDA'}  # Define critical symbols
+                affected_critical = 0
+                
+                for issue in response_data.get('issues', []):
+                    symbol = issue.get('symbol', '')
+                    if symbol:
+                        unique_symbols.add(symbol)
+                        if symbol in critical_symbols:
+                            affected_critical += 1
+                
+                self.metrics.update_symbols_affected(len(unique_symbols), affected_critical)
+                
+                # Update vendor-specific metrics
+                vendor_counts = {}
+                for issue in response_data.get('issues', []):
+                    vendor = issue.get('vendor_source', 'unknown')
+                    vendor_counts[vendor] = vendor_counts.get(vendor, 0) + 1
+                
+                for vendor, count in vendor_counts.items():
+                    if vendor in ['polygon', 'tiingo', 'eodhd']:
+                        self.metrics.update_vendor_metrics(vendor, count)
+
             self._send_json_response(response_data)
-            
+
         except Exception as e:
             logger.error(f"Data quality issues API error: {e}")
             self._send_json_response({
@@ -8252,11 +8320,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 "issues": [],
                 "total_count": 0
             }, status_code=500)
-    
+
     def _get_issues_with_ray(self, db_config: Dict[str, Any], page: int, page_size: int, severity_filter: str) -> Dict[str, Any]:
         """Get issues using Ray-powered distributed processing"""
         import asyncio
-        
+
         async def ray_detection():
             try:
                 # Import Ray agent
@@ -8264,15 +8332,15 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 import os
                 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
                 from services.data_quality.ray_data_quality_agent import RayDataQualityAgent
-                
+
                 agent = RayDataQualityAgent(db_config, num_workers=4)
                 result = await agent.get_issues_page(
-                    page=page, 
-                    page_size=page_size, 
+                    page=page,
+                    page_size=page_size,
                     severity_filter=severity_filter
                 )
                 await agent.shutdown()
-                
+
                 return {
                     "issues": result["issues"],
                     "pagination": result["pagination"],
@@ -8281,31 +8349,31 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     "method": "ray_distributed",
                     "timestamp": datetime.now().isoformat()
                 }
-                
+
             except Exception as e:
                 logger.error(f"Ray processing failed: {e}")
                 # Use legacy method
                 return self._get_issues_legacy(db_config, page, page_size, severity_filter)
-        
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             return loop.run_until_complete(ray_detection())
         finally:
             loop.close()
-    
+
     def _get_issues_legacy(self, db_config: Dict[str, Any], page: int, page_size: int, severity_filter: str) -> Dict[str, Any]:
         """Get issues using legacy single-threaded method"""
         import asyncpg
         import asyncio
-        
+
         issues = []
-        
+
         async def detect_issues():
             nonlocal issues
             try:
                 conn = await asyncpg.connect(**db_config)
-                
+
                 # Check for missing recent data across all vendors
                 missing_data_query = """
                     WITH recent_dates AS (
@@ -8329,7 +8397,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     AND EXTRACT(dow FROM rd.expected_date) NOT IN (0, 6)
                     ORDER BY rd.expected_date;
                     """
-                    
+
                 missing_dates = await conn.fetch(missing_data_query)
                 for row in missing_dates:
                     issues.append({
@@ -8346,26 +8414,26 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         "vendor_source": "multiple",
                         "status": "open"
                     })
-                
+
                 # Check for extreme volumes across all vendors
                 extreme_volume_query = """
                 SELECT symbol, date as price_date, volume, close, 'polygon' as vendor
-                FROM intg_daily_price_polygon 
+                FROM intg_daily_price_polygon
                 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                 AND volume > 50000000
                 UNION ALL
                 SELECT symbol, date as price_date, volume, close, 'tiingo' as vendor
-                FROM intg_daily_price_tiingo 
+                FROM intg_daily_price_tiingo
                 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                 AND volume > 50000000
                 UNION ALL
                 SELECT symbol, date as price_date, volume, close, 'eodhd' as vendor
-                FROM intg_daily_price_eodhd 
+                FROM intg_daily_price_eodhd
                 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                 AND volume > 50000000
                 ORDER BY volume DESC;
                 """
-                
+
                 extreme_volumes = await conn.fetch(extreme_volume_query)
                 for row in extreme_volumes:
                     issues.append({
@@ -8382,29 +8450,29 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         "vendor_source": row['vendor'],
                         "status": "open"
                     })
-                
+
                 # Check for duplicate records within each vendor table
                 duplicate_query = """
                 SELECT symbol, date as price_date, COUNT(*) as count, 'polygon' as vendor
-                FROM intg_daily_price_polygon 
+                FROM intg_daily_price_polygon
                 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                 GROUP BY symbol, date
                 HAVING COUNT(*) > 1
                 UNION ALL
                 SELECT symbol, date as price_date, COUNT(*) as count, 'tiingo' as vendor
-                FROM intg_daily_price_tiingo 
+                FROM intg_daily_price_tiingo
                 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                 GROUP BY symbol, date
                 HAVING COUNT(*) > 1
                 UNION ALL
                 SELECT symbol, date as price_date, COUNT(*) as count, 'eodhd' as vendor
-                FROM intg_daily_price_eodhd 
+                FROM intg_daily_price_eodhd
                 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                 GROUP BY symbol, date
                 HAVING COUNT(*) > 1
                 ORDER BY count DESC;
                 """
-                
+
                 duplicates = await conn.fetch(duplicate_query)
                 for row in duplicates:
                     issues.append({
@@ -8421,7 +8489,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         "vendor_source": row['vendor'],
                         "status": "open"
                     })
-                
+
                 # Check for stale data across all vendor tables
                 freshness_query = """
                 WITH vendor_freshness AS (
@@ -8438,7 +8506,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     GROUP BY symbol
                 ),
                 symbol_freshness AS (
-                    SELECT symbol, MAX(latest_date) as latest_date, 
+                    SELECT symbol, MAX(latest_date) as latest_date,
                            string_agg(vendor, ',' ORDER BY latest_date DESC) as vendors
                     FROM vendor_freshness
                     GROUP BY symbol
@@ -8448,7 +8516,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 WHERE latest_date < CURRENT_DATE - INTERVAL '3 days'
                 ORDER BY latest_date DESC;
                 """
-                
+
                 stale_data = await conn.fetch(freshness_query)
                 for row in stale_data:
                     from datetime import date as dt_date
@@ -8467,9 +8535,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         "vendor_source": row['vendors'],
                         "status": "open"
                     })
-                
+
                 await conn.close()
-                
+
             except Exception as e:
                 logger.error(f"Data quality detection error: {e}")
                 issues.append({
@@ -8486,7 +8554,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     "vendor_source": "system",
                     "status": "open"
                     })
-            
+
         # Run the async detection
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -8494,25 +8562,25 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             loop.run_until_complete(detect_issues())
         finally:
             loop.close()
-        
+
         # Apply severity filter if specified
         if severity_filter:
             issues = [issue for issue in issues if issue['severity'] == severity_filter]
-        
+
         # Sort by severity and date
         severity_priority = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
         issues.sort(key=lambda x: (
             severity_priority.get(x['severity'], 4),
             x['affected_date']
         ), reverse=True)
-        
+
         # Apply pagination
         total_issues = len(issues)
         total_pages = (total_issues + page_size - 1) // page_size
         start_idx = (page - 1) * page_size
         end_idx = start_idx + page_size
         page_issues = issues[start_idx:end_idx]
-        
+
         return {
             "issues": page_issues,
             "pagination": {
@@ -8535,7 +8603,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             "last_updated": datetime.now().isoformat(),
             "detection_period_days": 7
         }
-    
+
     def _send_json_response(self, data: Dict[str, Any], status_code: int = 200):
         """Send JSON response with proper headers"""
         self.send_response(status_code)
@@ -8597,7 +8665,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             # Start agent monitoring - create async task for continuous monitoring
             import asyncio
             import threading
-            
+
             def start_monitoring_thread():
                 """Run monitoring in a separate thread with its own event loop"""
                 try:
@@ -8608,7 +8676,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     logger.error(f"Agent monitoring failed: {e}")
                 finally:
                     loop.close()
-                    
+
             # Start the monitoring thread in background
             if not hasattr(self.analytics_service, 'agent_monitoring_thread') or \
                self.analytics_service.agent_monitoring_thread is None or \
@@ -8619,6 +8687,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     name="AgentMonitoringThread"
                 )
                 self.analytics_service.agent_monitoring_thread.start()
+
+            # Update metrics for agent start
+            self.metrics.update_agent_status('active', agent.agent_id)
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -8645,7 +8716,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             agent = self.analytics_service.data_quality_agent
             from agents.data_quality_agent import AgentStatus
             agent.status = AgentStatus.IDLE
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -9167,7 +9238,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
     def _serve_financial_events(self):
         """Handle financial events endpoints for xAI integration"""
-        
+
         try:
             # Initialize unified financial events integration if not already done
             if not hasattr(self, 'financial_events_integration'):
@@ -9178,7 +9249,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     analytics_base_url="http://localhost:4000",
                     enable_cache=True
                 )
-            
+
             # Route based on path and method
             if self.path == '/financial_events/setup' and self.command == 'POST':
                 self._handle_financial_events_setup()
@@ -9210,51 +9281,51 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         "POST /financial_events/setup - Create events table",
                         "POST /financial_events/extract - Extract events from xAI",
                         "GET /financial_events - Query events",
-                        "GET /financial_events/summary - Get statistics", 
+                        "GET /financial_events/summary - Get statistics",
                         "GET /financial_events/cache/stats - Cache performance",
                         "POST /financial_events/cache/clear - Clear cache"
                     ]
                 }).encode())
-                
+
         except Exception as e:
             logger.error(f"Error in financial events handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_setup(self):
         """Handle table setup for financial events"""
-        
+
         try:
             import asyncio
             result = asyncio.run(self.financial_events_integration.create_events_table())
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            
+
             response = {
                 "success": result,
                 "table_created": result,
                 "message": "Financial events table created successfully" if result else "Table creation failed"
             }
-            
+
             self.wfile.write(json.dumps(response).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in setup handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_extract(self):
         """Handle event extraction from xAI"""
-        
+
         try:
             # Parse POST body
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             params = json.loads(post_data.decode('utf-8'))
-            
+
             import asyncio
             from services.financial_events.multi_source_events_orchestrator import EventSource
-            
+
             # Determine preferred source
             preferred_source = params.get('source', 'combined').lower()
             if preferred_source == 'xai':
@@ -9263,7 +9334,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 source = EventSource.GROK
             else:
                 source = EventSource.COMBINED
-            
+
             result = asyncio.run(self.financial_events_integration.extract_events_multi_source(
                 start_date=params.get('start_date'),
                 end_date=params.get('end_date'),
@@ -9271,26 +9342,26 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 preferred_source=source,
                 force_refresh=params.get('force_refresh', False)
             ))
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in extract handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_query(self):
         """Handle querying financial events"""
-        
+
         try:
             from urllib.parse import urlparse, parse_qs
-            
+
             # Parse query parameters
             parsed_url = urlparse(self.path)
             query_params = parse_qs(parsed_url.query)
-            
+
             # Extract parameters (parse_qs returns lists)
             symbol = query_params.get('symbol', [None])[0]
             event_type = query_params.get('event_type', [None])[0]
@@ -9298,7 +9369,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             end_date = query_params.get('end_date', [None])[0]
             impact_level = query_params.get('impact_level', [None])[0]
             limit = int(query_params.get('limit', ['100'])[0])
-            
+
             result = self.financial_events_integration.get_events_from_analytics(
                 symbol=symbol,
                 event_type=event_type,
@@ -9307,115 +9378,115 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 impact_level=impact_level,
                 limit=limit
             )
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in query handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_summary(self):
         """Handle getting events summary"""
-        
+
         try:
             result = self.financial_events_integration.get_events_summary()
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in summary handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_cache_stats(self):
         """Handle getting cache statistics"""
-        
+
         try:
             import asyncio
             cache_stats = asyncio.run(self.financial_events_integration.event_extractor.get_cache_stats())
-            
+
             result = {
                 "success": True,
                 "cache_statistics": cache_stats
             }
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in cache stats handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_cache_clear(self):
         """Handle clearing cache"""
-        
+
         try:
             import asyncio
             asyncio.run(self.financial_events_integration.clear_all_caches())
-            
+
             result = {
                 "success": True,
                 "message": "All caches cleared successfully"
             }
-            
+
             self.send_response(200)
-            self.send_header('Content-type', 'application/json') 
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in cache clear handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_trending(self):
         """Handle getting trending financial events from all sources"""
-        
+
         try:
             from urllib.parse import urlparse, parse_qs
-            
+
             # Parse query parameters
             parsed_url = urlparse(self.path)
             query_params = parse_qs(parsed_url.query)
-            
+
             hours_back = int(query_params.get('hours', ['24'])[0])
-            
+
             import asyncio
             result = asyncio.run(self.financial_events_integration.get_trending_events_all_sources(
                 hours_back=hours_back
             ))
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in trending events handler: {e}")
             self._serve_500(str(e))
-    
+
     def _handle_financial_events_sources(self):
         """Handle getting available sources and integration status"""
-        
+
         try:
             status = self.financial_events_integration.get_integration_status()
-            
+
             # Add cache stats for each source
             import asyncio
             cache_stats = asyncio.run(self.financial_events_integration.get_unified_cache_stats())
             status["cache_stats"] = cache_stats
-            
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(status).encode())
-            
+
         except Exception as e:
             logger.error(f"Error in sources handler: {e}")
             self._serve_500(str(e))

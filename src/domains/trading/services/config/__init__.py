@@ -18,7 +18,7 @@ from .trading_service_container import (
 
 __all__ = [
     'TradingServiceContainer',
-    'get_trading_service_container', 
+    'get_trading_service_container',
     'get_trading_service',
     'cleanup_trading_service',
     'get_trading_service_health_status',

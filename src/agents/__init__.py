@@ -7,11 +7,11 @@ Implements 2025 agentic AI patterns for autonomous issue resolution.
 """
 
 from agents.data_quality_agent import DataQualityAgent
-from agents.workflow_state_manager import WorkflowStateManager  
+from agents.workflow_state_manager import WorkflowStateManager
 from agents.agent_metrics_collector import AgentMetricsCollector
 
 __all__ = [
     'DataQualityAgent',
-    'WorkflowStateManager', 
+    'WorkflowStateManager',
     'AgentMetricsCollector'
 ]

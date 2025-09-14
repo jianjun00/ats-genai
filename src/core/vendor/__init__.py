@@ -7,7 +7,7 @@ Consolidates ALL vendor adapter functionality from 6,770+ lines across duplicate
 
 ELIMINATES DUPLICATION:
 - firstrate_minute_adapter.py: 667 + 411 lines → Single implementation
-- polygon_minute_adapter.py: 415 + 415 lines → Single implementation  
+- polygon_minute_adapter.py: 415 + 415 lines → Single implementation
 - tiingo_intraday_adapter.py: 522 + 400 lines → Single implementation
 - eodhd_minute_adapter.py: 380 + 397 lines → Single implementation
 - Plus all fundamentals and base adapters
@@ -38,7 +38,7 @@ __all__ = [
     'VendorAdapterFactory',
     'BaseVendorAdapter',
     'FirstRateAdapter',
-    'PolygonAdapter', 
+    'PolygonAdapter',
     'TiingoAdapter',
     'EODHDAdapter',
     'FMPAdapter',

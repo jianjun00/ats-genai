@@ -18,7 +18,7 @@ from .market_data_service_container import (
 
 __all__ = [
     'MarketDataServiceContainer',
-    'get_market_data_service_container', 
+    'get_market_data_service_container',
     'get_market_data_service',
     'cleanup_market_data_service',
     'get_market_data_service_health_status',

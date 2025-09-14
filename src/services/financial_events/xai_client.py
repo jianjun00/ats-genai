@@ -15,12 +15,12 @@ class XAIClient:
     """
     Real xAI API client for production use
     """
-    
+
     def __init__(self, api_key: str, base_url: str = "https://api.x.ai/v1"):
         self.api_key = api_key
         self.base_url = base_url
         self.session: Optional[aiohttp.ClientSession] = None
-    
+
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
             headers={
@@ -30,13 +30,13 @@ class XAIClient:
             timeout=aiohttp.ClientTimeout(total=30)
         )
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
-    
+
     async def chat_completion(
-        self, 
+        self,
         messages: list,
         model: str = "grok-4",
         functions: Optional[list] = None,
@@ -48,44 +48,44 @@ class XAIClient:
         """
         Make chat completion request with Live Search and Function Calling
         """
-        
+
         payload = {
             "model": model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens
         }
-        
+
         # Add function calling if specified
         if functions:
             payload["functions"] = functions
         if function_call:
             payload["function_call"] = function_call
-        
+
         # Add Live Search parameters
         if search_parameters:
             payload["search_parameters"] = search_parameters
-        
+
         try:
             async with self.session.post(
                 f"{self.base_url}/chat/completions",
                 json=payload
             ) as response:
-                
+
                 if response.status != 200:
                     error_text = await response.text()
                     raise Exception(f"API call failed: {response.status} - {error_text}")
-                
+
                 result = await response.json()
                 return result
-                
+
         except Exception as e:
             logger.error(f"xAI API call failed: {e}")
             raise
 
     async def estimate_cost(
-        self, 
-        input_tokens: int, 
+        self,
+        input_tokens: int,
         output_tokens: int,
         cached_tokens: int = 0,
         search_sources: int = 0
@@ -93,15 +93,15 @@ class XAIClient:
         """
         Estimate cost for API call
         """
-        
+
         # Current xAI pricing (as of Sept 2025)
         input_cost = ((input_tokens - cached_tokens) * 3.00 + cached_tokens * 0.75) / 1_000_000
         output_cost = output_tokens * 15.00 / 1_000_000
         search_cost = search_sources * 0.025
-        
+
         return {
             "input_cost": input_cost,
-            "output_cost": output_cost, 
+            "output_cost": output_cost,
             "search_cost": search_cost,
             "total_cost": input_cost + output_cost + search_cost
         }
@@ -112,22 +112,22 @@ async def example_real_api_usage():
     Example of how to use the real API client
     Replace the mock _make_api_call method in OptimizedXAIEventExtractor
     """
-    
+
     api_key = "your_xai_api_key_here"  # Replace with real key
-    
+
     async with XAIClient(api_key) as client:
-        
+
         messages = [
             {
                 "role": "system",
                 "content": "You are a financial event extraction system..."
             },
             {
-                "role": "user", 
+                "role": "user",
                 "content": "Extract earnings events from Sept 1-13, 2025 for AAPL, TSLA, MSFT"
             }
         ]
-        
+
         functions = [{
             "name": "extract_financial_events",
             "description": "Extract financial events",
@@ -137,7 +137,7 @@ async def example_real_api_usage():
                     "events": {
                         "type": "array",
                         "items": {
-                            "type": "object", 
+                            "type": "object",
                             "properties": {
                                 "event_type": {"type": "string"},
                                 "company_symbol": {"type": "string"},
@@ -150,12 +150,12 @@ async def example_real_api_usage():
                 }
             }
         }]
-        
+
         search_params = {
             "search_mode": "comprehensive",
             "max_search_results": 50
         }
-        
+
         try:
             response = await client.chat_completion(
                 messages=messages,
@@ -163,10 +163,10 @@ async def example_real_api_usage():
                 function_call={"name": "extract_financial_events"},
                 search_parameters=search_params
             )
-            
+
             print("✅ API call successful")
             print(f"Response: {json.dumps(response, indent=2)}")
-            
+
         except Exception as e:
             print(f"❌ API call failed: {e}")
 

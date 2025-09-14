@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 async def quick_health_check():
     """Perform quick health check of core components"""
-    
+
     print("🔍 Quick Health Check - Data Quality Agent System")
     print("=" * 60)
-    
+
     checks_passed = 0
     total_checks = 0
-    
+
     # 1. Test imports
     print("📦 Testing core imports...")
     total_checks += 1
@@ -35,23 +35,23 @@ async def quick_health_check():
         from src.agents.agent_logger import get_agent_logger
         from src.agents.system_monitor import get_system_monitor
         from src.agents.alert_manager import get_alert_manager
-        
+
         # Test MCP tools imports
         from src.mcp_tools.quality_scan_tool import QualityScanTool
         from src.mcp_tools.backfill_orchestrator_tool import BackfillOrchestratorTool
-        
+
         print("  ✅ All core imports successful")
         checks_passed += 1
     except Exception as e:
         print(f"  ❌ Import failed: {e}")
-    
+
     # 2. Test configuration system
     print("⚙️ Testing configuration system...")
     total_checks += 1
     try:
         config_manager = get_config_manager()
         config = config_manager.get_config()
-        
+
         if config and hasattr(config, 'monitoring'):
             print(f"  ✅ Configuration loaded successfully")
             checks_passed += 1
@@ -59,17 +59,17 @@ async def quick_health_check():
             print("  ❌ Configuration invalid")
     except Exception as e:
         print(f"  ❌ Configuration test failed: {e}")
-    
+
     # 3. Test MCP tools initialization
     print("🛠️ Testing MCP tools...")
     total_checks += 1
     try:
         quality_tool = QualityScanTool()
         backfill_tool = BackfillOrchestratorTool()
-        
+
         quality_def = quality_tool.get_tool_definition()
         backfill_def = backfill_tool.get_tool_definition()
-        
+
         if quality_def.get('name') and backfill_def.get('name'):
             print(f"  ✅ MCP tools initialized: {quality_def['name']}, {backfill_def['name']}")
             checks_passed += 1
@@ -77,14 +77,14 @@ async def quick_health_check():
             print("  ❌ MCP tools initialization failed")
     except Exception as e:
         print(f"  ❌ MCP tools test failed: {e}")
-    
+
     # 4. Test agent initialization
     print("🤖 Testing agent initialization...")
     total_checks += 1
     try:
         # Create agent (don't start monitoring)
         agent = DataQualityAgent()
-        
+
         if agent.agent_id and agent.mcp_tools and agent.agent_config:
             print(f"  ✅ Agent initialized: {agent.agent_id}")
             print(f"     Tools: {list(agent.mcp_tools.keys())}")
@@ -93,20 +93,20 @@ async def quick_health_check():
             print("  ❌ Agent initialization incomplete")
     except Exception as e:
         print(f"  ❌ Agent initialization failed: {e}")
-    
+
     # 5. Test logging system
     print("📝 Testing logging system...")
     total_checks += 1
     try:
         logger_instance = get_agent_logger("health_check", "INFO")
         logger_instance.info("test", "health_check", "Test log message")
-        
+
         # Test performance tracking
         with logger_instance.operation_timer("test", "health_check_timer"):
             await asyncio.sleep(0.01)
-        
+
         performance = logger_instance.get_performance_summary()
-        
+
         if performance and "health_check_timer" in performance:
             print("  ✅ Logging system working")
             checks_passed += 1
@@ -114,14 +114,14 @@ async def quick_health_check():
             print("  ❌ Logging system incomplete")
     except Exception as e:
         print(f"  ❌ Logging test failed: {e}")
-    
+
     # 6. Test system monitoring
     print("🩺 Testing system monitoring...")
     total_checks += 1
     try:
         monitor = get_system_monitor("health_check")
         metrics = await monitor._collect_system_metrics()
-        
+
         if metrics and metrics.cpu_percent >= 0:
             print(f"  ✅ System monitoring working (CPU: {metrics.cpu_percent}%)")
             checks_passed += 1
@@ -129,19 +129,19 @@ async def quick_health_check():
             print("  ❌ System monitoring failed")
     except Exception as e:
         print(f"  ❌ System monitoring test failed: {e}")
-    
+
     # 7. Test alert management
     print("🚨 Testing alert management...")
     total_checks += 1
     try:
         alert_manager = get_alert_manager("health_check")
-        
+
         # Test alert evaluation
         test_data = {"cpu_percent": 50, "memory_percent": 60}
         await alert_manager.evaluate_alert_rules(test_data, "health_check")
-        
+
         summary = await alert_manager.get_alert_summary()
-        
+
         if summary and 'alert_rules_enabled' in summary:
             print(f"  ✅ Alert management working ({summary['alert_rules_enabled']} rules)")
             checks_passed += 1
@@ -149,23 +149,23 @@ async def quick_health_check():
             print("  ❌ Alert management incomplete")
     except Exception as e:
         print(f"  ❌ Alert management test failed: {e}")
-    
+
     # 8. Test database connectivity (optional)
     print("🗄️ Testing database connectivity...")
     total_checks += 1
     try:
         import asyncpg
-        
+
         # Try to connect to integration database
         conn = await asyncpg.connect(
             host='ats-intg-postgres', port=5432,
             user='postgres', password='intg_password', database='intg_db'
         )
-        
+
         # Simple test query
         result = await conn.fetchval("SELECT 1")
         await conn.close()
-        
+
         if result == 1:
             print("  ✅ Database connectivity working")
             checks_passed += 1
@@ -174,25 +174,25 @@ async def quick_health_check():
     except Exception as e:
         print(f"  ❌ Database connectivity failed: {e}")
         print("     (This is expected if containers are not running)")
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("📊 QUICK HEALTH CHECK SUMMARY")
     print("=" * 60)
-    
+
     success_rate = (checks_passed / total_checks * 100) if total_checks > 0 else 0
     status = "✅ HEALTHY" if checks_passed == total_checks else "⚠️  ISSUES DETECTED"
-    
+
     print(f"Status: {status}")
     print(f"Checks: {checks_passed}/{total_checks} passed ({success_rate:.1f}%)")
-    
+
     if checks_passed == total_checks:
         print("\n🎉 System is ready for production deployment!")
     else:
         print(f"\n⚠️  {total_checks - checks_passed} issues need attention before deployment")
-    
+
     print("=" * 60)
-    
+
     return checks_passed == total_checks
 
 def main():

@@ -439,7 +439,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
             # Get environment and run info
             environment = runner.get_environment()
-            
+
             # 🚨 CRITICAL FIX: Use Runner's run_context.run_id instead of separate database run_id
             # This ensures all database insertions use the unique Runner run_id, preventing duplicate key violations
             run_id = None
@@ -451,7 +451,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 run_id = getattr(self, 'run_id', None)
                 if run_id:
                     print(f"⚠️ Using fallback database run_id: {run_id}")
-                
+
             if not run_id:
                 print("⚠️ WARNING: No run_id available for monthly training data records")
                 return

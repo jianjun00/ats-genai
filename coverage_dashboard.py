@@ -21,17 +21,17 @@ logger = logging.getLogger(__name__)
 
 class CoverageDashboardHandler(BaseHTTPRequestHandler):
     """HTTP handler for the coverage dashboard."""
-    
+
     def __init__(self, *args, db_pool=None, **kwargs):
         self.db_pool = db_pool
         super().__init__(*args, **kwargs)
-    
+
     def do_GET(self):
         """Handle GET requests."""
         parsed_path = urlparse(self.path)
         path = parsed_path.path
         query_params = parse_qs(parsed_path.query)
-        
+
         try:
             if path == '/' or path == '/dashboard':
                 self.serve_dashboard()
@@ -52,7 +52,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
         except Exception as e:
             logger.error(f"Error handling request {path}: {e}")
             self.send_error(500, f"Internal Server Error: {str(e)}")
-    
+
     def serve_dashboard(self):
         """Serve the main dashboard HTML."""
         html_content = self.generate_dashboard_html()
@@ -60,28 +60,28 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         self.wfile.write(html_content.encode('utf-8'))
-    
+
     def serve_coverage_summary(self):
         """Serve coverage summary data."""
         async def get_data():
             async with self.db_pool.acquire() as conn:
                 return await conn.fetch("""
-                    SELECT vendor, data_type, total_symbols, symbols_complete, 
+                    SELECT vendor, data_type, total_symbols, symbols_complete,
                            symbols_missing, coverage_percentage, last_scan_time
                     FROM v_current_coverage_summary
                     ORDER BY vendor, data_type
                 """)
-        
+
         data = asyncio.run(get_data())
         response = [dict(row) for row in data]
-        
+
         # Convert datetime to string
         for item in response:
             if item['last_scan_time']:
                 item['last_scan_time'] = item['last_scan_time'].isoformat()
-        
+
         self.send_json_response(response)
-    
+
     def serve_priority_gaps(self):
         """Serve priority gaps requiring backfill."""
         async def get_data():
@@ -93,7 +93,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
                     FROM v_active_backfill_queue
                     LIMIT 50
                 """)
-        
+
         data = asyncio.run(get_data())
         response = []
         for row in data:
@@ -103,9 +103,9 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
             item['gap_end_date'] = item['gap_end_date'].isoformat()
             item['created_at'] = item['created_at'].isoformat()
             response.append(item)
-        
+
         self.send_json_response(response)
-    
+
     def serve_coverage_trend(self):
         """Serve coverage trending data."""
         async def get_data():
@@ -117,22 +117,22 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
                     WHERE metric_date >= CURRENT_DATE - INTERVAL '30 days'
                     ORDER BY vendor, data_type, metric_date
                 """)
-        
+
         data = asyncio.run(get_data())
         response = []
         for row in data:
             item = dict(row)
             item['metric_date'] = item['metric_date'].isoformat()
             response.append(item)
-        
+
         self.send_json_response(response)
-    
+
     def serve_backfill_queue(self):
         """Serve backfill queue status."""
         async def get_data():
             async with self.db_pool.acquire() as conn:
                 return await conn.fetch("""
-                    SELECT 
+                    SELECT
                         COUNT(*) as total_gaps,
                         COUNT(CASE WHEN backfill_status = 'pending' THEN 1 END) as pending,
                         COUNT(CASE WHEN backfill_status = 'in_progress' THEN 1 END) as in_progress,
@@ -143,12 +143,12 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
                     FROM dev_coverage_gaps
                     WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
                 """)
-        
+
         data = asyncio.run(get_data())
         response = dict(data[0]) if data else {}
-        
+
         self.send_json_response(response)
-    
+
     def serve_recent_operations(self):
         """Serve recent backfill operations."""
         async def get_data():
@@ -163,7 +163,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
                     ORDER BY created_at DESC
                     LIMIT 20
                 """)
-        
+
         data = asyncio.run(get_data())
         response = []
         for row in data:
@@ -172,13 +172,13 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
             if item['completed_at']:
                 item['completed_at'] = item['completed_at'].isoformat()
             response.append(item)
-        
+
         self.send_json_response(response)
-    
+
     def serve_health(self):
         """Serve health check."""
         self.send_json_response({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
-    
+
     def send_json_response(self, data):
         """Send JSON response."""
         self.send_response(200)
@@ -186,7 +186,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(json.dumps(data, default=str).encode('utf-8'))
-    
+
     def generate_dashboard_html(self):
         """Generate the main dashboard HTML."""
         return '''<!DOCTYPE html>
@@ -198,7 +198,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f5f5;
             color: #333;
@@ -265,10 +265,10 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
         .refresh-btn:hover { background: #2980b9; }
         .loading { text-align: center; color: #7f8c8d; padding: 2rem; }
         .chart-container { height: 300px; margin-top: 1rem; }
-        .timestamp { 
-            font-size: 0.8rem; 
-            color: #7f8c8d; 
-            text-align: right; 
+        .timestamp {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            text-align: right;
             margin-top: 1rem;
         }
         .status-indicator {
@@ -348,9 +348,9 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
 
             let html = '';
             data.forEach(item => {
-                const statusClass = item.coverage_percentage >= 90 ? 'status-good' : 
+                const statusClass = item.coverage_percentage >= 90 ? 'status-good' :
                                   item.coverage_percentage >= 70 ? 'status-warning' : 'status-critical';
-                
+
                 html += `
                     <div class="metric">
                         <div>
@@ -379,7 +379,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
             data.slice(0, 8).forEach(gap => {
                 const priorityClass = gap.adjusted_priority >= 20 ? 'priority-critical' :
                                     gap.adjusted_priority >= 10 ? 'priority-high' : 'priority-medium';
-                
+
                 html += `
                     <div class="gap-item ${priorityClass}">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -451,7 +451,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
             data.slice(0, 5).forEach(op => {
                 const duration = op.duration_seconds ? `${op.duration_seconds}s` : 'N/A';
                 const statusClass = `status-${op.status}`;
-                
+
                 html += `
                     <div class="metric">
                         <div>
@@ -470,7 +470,7 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
 
         function renderCoverageTrend(data) {
             const ctx = document.getElementById('coverage-chart').getContext('2d');
-            
+
             if (coverageChart) {
                 coverageChart.destroy();
             }
@@ -579,14 +579,14 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
 
 class CoverageDashboardServer:
     """Main server class for the coverage dashboard."""
-    
+
     def __init__(self, db_config: Dict, port: int = 8080, host: str = "localhost"):
         self.db_config = db_config
         self.port = port
         self.host = host
         self.db_pool = None
         self.server = None
-    
+
     async def initialize(self):
         """Initialize database connection pool."""
         self.db_pool = await asyncpg.create_pool(
@@ -599,16 +599,16 @@ class CoverageDashboardServer:
             max_size=10
         )
         logger.info(f"✅ Connected to database: {self.db_config['host']}:{self.db_config['port']}")
-    
+
     def run_server(self):
         """Run the HTTP server."""
         # Create a custom handler class with db_pool
         class CustomHandler(CoverageDashboardHandler):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, db_pool=self.db_pool, **kwargs)
-        
+
         CustomHandler.db_pool = self.db_pool
-        
+
         self.server = HTTPServer((self.host, self.port), CustomHandler)
         logger.info(f"🚀 Coverage Dashboard Server running at http://{self.host}:{self.port}")
         logger.info("🎯 Available endpoints:")
@@ -619,7 +619,7 @@ class CoverageDashboardServer:
         logger.info("   /api/backfill-queue - Queue status")
         logger.info("   /api/recent-operations - Recent backfill operations")
         logger.info("   /health - Health check")
-        
+
         try:
             self.server.serve_forever()
         except KeyboardInterrupt:
@@ -627,7 +627,7 @@ class CoverageDashboardServer:
         finally:
             if self.db_pool:
                 asyncio.run(self.db_pool.close())
-    
+
     async def close(self):
         """Close database connections and server."""
         if self.db_pool:
@@ -645,30 +645,30 @@ async def main():
         'password': os.getenv('DB_PASSWORD', 'intg_password'),
         'database': os.getenv('DB_NAME', 'intg_db')
     }
-    
+
     # Server configuration
     port = int(os.getenv('DASHBOARD_PORT', 8080))
     host = os.getenv('DASHBOARD_HOST', 'localhost')
-    
+
     print("🚀 ATS DATA COVERAGE MONITORING DASHBOARD")
     print("="*60)
     print(f"🔗 Starting at: http://{host}:{port}")
     print(f"📊 Database: {db_config['host']}:{db_config['port']}/{db_config['database']}")
     print()
-    
+
     dashboard = CoverageDashboardServer(db_config, port, host)
-    
+
     try:
         await dashboard.initialize()
-        
+
         # Run server in thread to allow async cleanup
         server_thread = threading.Thread(target=dashboard.run_server, daemon=True)
         server_thread.start()
-        
+
         # Keep main thread alive
         while True:
             await asyncio.sleep(1)
-            
+
     except KeyboardInterrupt:
         logger.info("Shutting down dashboard...")
         await dashboard.close()

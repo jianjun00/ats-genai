@@ -3,7 +3,7 @@ Tests for Data Quality Agent Endpoints
 
 Tests the new agent endpoints added to the analytics service:
 - /agent/status
-- /agent/start  
+- /agent/start
 - /agent/stop
 - /agent/health
 """
@@ -33,7 +33,7 @@ class TestAgentEndpoints:
         """Test agent status endpoint returns proper structure."""
         response = await http_client.get("/agent/status")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "agent_id" in data
         assert "status" in data
@@ -48,7 +48,7 @@ class TestAgentEndpoints:
         """Test agent health endpoint returns health status."""
         response = await http_client.get("/agent/health")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "healthy" in data
         assert "status" in data
@@ -60,7 +60,7 @@ class TestAgentEndpoints:
         """Test agent start endpoint."""
         response = await http_client.get("/agent/start")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "message" in data
 
@@ -69,7 +69,7 @@ class TestAgentEndpoints:
         """Test agent stop endpoint."""
         response = await http_client.get("/agent/stop")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "message" in data
 
@@ -78,11 +78,11 @@ class TestAgentEndpoints:
         """Test that agent endpoints are listed in 404 response."""
         response = await http_client.get("/nonexistent")
         assert response.status_code == 404
-        
+
         data = response.json()
         assert "available_endpoints" in data
         endpoints = data["available_endpoints"]
-        
+
         # Check that agent endpoints are listed
         assert "/agent/status" in endpoints
         assert "/agent/start" in endpoints
@@ -101,11 +101,11 @@ class TestAgentEndpoints:
         """Test that data quality issues API returns proper structure."""
         response = await http_client.get("/data-quality/api/issues")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "issues" in data
         assert isinstance(data["issues"], list)
-        
+
         # If there are issues, check structure
         if data["issues"]:
             issue = data["issues"][0]

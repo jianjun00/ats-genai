@@ -17,10 +17,10 @@ from services.financial_events.analytics_integration import AnalyticsEventIntegr
 
 async def setup_and_test_integration():
     """Set up and test the financial events integration"""
-    
+
     print("🚀 ATS Financial Events Integration Setup")
     print("=" * 60)
-    
+
     # Check if analytics service is running
     import requests
     try:
@@ -29,22 +29,22 @@ async def setup_and_test_integration():
             print("❌ Analytics service not responding at localhost:4000")
             print("💡 Start it with: docker-compose -f docker-compose.intg.yml up -d")
             return False
-        
+
         health_data = response.json()
         print(f"✅ Analytics service is healthy: {health_data.get('service', 'Unknown')}")
-        
+
     except Exception as e:
         print(f"❌ Cannot connect to analytics service: {e}")
         print("💡 Start it with: docker-compose -f docker-compose.intg.yml up -d")
         return False
-    
+
     # Initialize integration (using mock API key for demo)
     print("\n📋 Initializing financial events integration...")
     integration = AnalyticsEventIntegration(
         xai_api_key="demo_api_key_for_testing",
         analytics_base_url="http://localhost:4000"
     )
-    
+
     # Step 1: Create events table
     print("\n🗄️  Creating financial events table...")
     table_created = await integration.create_events_table()
@@ -52,7 +52,7 @@ async def setup_and_test_integration():
         print("   ✅ Financial events table created successfully")
     else:
         print("   ❌ Failed to create table (may already exist)")
-    
+
     # Step 2: Extract and store some events
     print("\n📊 Extracting financial events from xAI...")
     extraction_result = await integration.extract_and_store_events(
@@ -61,13 +61,13 @@ async def setup_and_test_integration():
         symbols=["AAPL", "TSLA", "MSFT", "GOOGL"],
         force_refresh=False
     )
-    
+
     if extraction_result['success']:
         print(f"   ✅ Successfully extracted and stored events:")
         print(f"      - Events extracted: {extraction_result['events_extracted']}")
         print(f"      - Events stored: {extraction_result['events_stored']}")
         print(f"      - Date range: {extraction_result['date_range']}")
-        
+
         # Show preview of events
         if extraction_result.get('events_preview'):
             print("\n   📈 Preview of extracted events:")
@@ -76,14 +76,14 @@ async def setup_and_test_integration():
                 print(f"      {i}. {event['date']} | {symbol} ({event['impact']}) - {event['details']}")
     else:
         print(f"   ❌ Extraction failed: {extraction_result.get('error', 'Unknown error')}")
-    
+
     # Step 3: Query events from analytics database
     print("\n🔍 Querying stored financial events...")
     events_query = integration.get_events_from_analytics(
         impact_level="high",
         limit=5
     )
-    
+
     if events_query['success']:
         print(f"   ✅ Found {events_query['count']} high-impact events:")
         for i, event in enumerate(events_query['events'][:3], 1):
@@ -93,11 +93,11 @@ async def setup_and_test_integration():
             print(f"      {i}. {date_str}{time_str} | {symbol}: {event['details'][:70]}...")
     else:
         print(f"   ❌ Query failed: {events_query.get('error', 'Unknown error')}")
-    
+
     # Step 4: Get summary statistics
     print("\n📊 Getting events summary...")
     summary = integration.get_events_summary()
-    
+
     if summary['success'] and summary.get('summary'):
         stats = summary['summary'][0] if summary['summary'] else {}
         print("   📈 Events Statistics:")
@@ -106,7 +106,7 @@ async def setup_and_test_integration():
         print(f"      - High impact events: {stats.get('high_impact_events', 0)}")
         print(f"      - Events last week: {stats.get('events_last_week', 0)}")
         print(f"      - Date range: {stats.get('earliest_date', 'N/A')} to {stats.get('latest_date', 'N/A')}")
-    
+
     # Step 5: Show cache statistics
     print("\n🚀 Cache Performance:")
     cache_stats = await integration.event_extractor.get_cache_stats()
@@ -118,7 +118,7 @@ async def setup_and_test_integration():
         print(f"      - Cache misses: {cache_stats.get('misses', 0)}")
     else:
         print("      - Caching disabled")
-    
+
     print("\n🎉 Integration setup and test completed successfully!")
     print("\n💡 Next steps:")
     print("   1. Open http://localhost:4000 to access the analytics dashboard")
@@ -127,15 +127,15 @@ async def setup_and_test_integration():
     print("      - POST /financial_events/extract - Extract new events")
     print("      - GET /financial_events - Query stored events")
     print("      - GET /financial_events/summary - Get statistics")
-    
+
     return True
 
 def show_api_examples():
     """Show example API requests"""
-    
+
     print("\n🔧 API Usage Examples:")
     print("=" * 40)
-    
+
     examples = [
         {
             "description": "Extract events from xAI",
@@ -155,7 +155,7 @@ def show_api_examples():
         },
         {
             "description": "Get earnings events for AAPL",
-            "method": "GET", 
+            "method": "GET",
             "endpoint": "/financial_events?symbol=AAPL&event_type=earnings"
         },
         {
@@ -164,13 +164,13 @@ def show_api_examples():
             "endpoint": "/financial_events/summary"
         }
     ]
-    
+
     for i, example in enumerate(examples, 1):
         print(f"\n{i}. {example['description']}")
         print(f"   {example['method']} http://localhost:4000{example['endpoint']}")
         if example.get('body'):
             print(f"   Body: {json.dumps(example['body'], indent=10)}")
-        
+
         # Show curl command
         if example['method'] == 'GET':
             print(f"   curl 'http://localhost:4000{example['endpoint']}'")
@@ -182,13 +182,13 @@ def show_api_examples():
 
 async def main():
     """Main integration script"""
-    
+
     # Setup and test integration
     success = await setup_and_test_integration()
-    
+
     if success:
         show_api_examples()
-        
+
         # Offer to open dashboard
         try:
             import webbrowser

@@ -27,10 +27,10 @@ async def health() -> Dict[str, Any]:
     try:
         # Import here to avoid import errors during startup
         from infrastructure.monitoring.service_metrics import get_global_metrics_collector
-        
+
         # Try to get metrics collector
         metrics_collector = get_global_metrics_collector()
-        
+
         return {
             'status': 'healthy',
             'service': 'monitoring-dashboard',
@@ -71,7 +71,7 @@ async def get_metrics():
     try:
         from infrastructure.monitoring.service_metrics import get_global_metrics_collector
         metrics_collector = get_global_metrics_collector()
-        
+
         # Return basic metrics
         return {
             'status': 'success',
@@ -92,8 +92,8 @@ async def get_metrics():
 if __name__ == "__main__":
     logger.info("Starting ATS Service Monitoring Dashboard...")
     uvicorn.run(
-        app, 
-        host='0.0.0.0', 
+        app,
+        host='0.0.0.0',
         port=8000,
         log_level="info"
     )

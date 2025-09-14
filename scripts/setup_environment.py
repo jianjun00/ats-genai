@@ -16,20 +16,20 @@ from typing import Dict, Any, Optional
 
 class EnvironmentSetup:
     """Setup environment for Data Quality Agent"""
-    
+
     def __init__(self, environment: str = "production"):
         self.environment = environment
         self.project_root = Path(__file__).parent.parent
         self.config_dir = self.project_root / "config"
         self.logs_dir = self.project_root / "logs"
-        
+
     def setup_directories(self):
         """Create necessary directories"""
         print("📁 Setting up directories...")
-        
+
         directories = [
             "logs/agent",
-            "logs/system", 
+            "logs/system",
             "logs/alerts",
             "logs/validation",
             "logs/api_tests",
@@ -39,25 +39,25 @@ class EnvironmentSetup:
             "data/checkpoints",
             "backup"
         ]
-        
+
         for directory in directories:
             dir_path = self.project_root / directory
             dir_path.mkdir(parents=True, exist_ok=True)
             print(f"  ✅ Created {directory}")
-        
+
         # Set permissions for log directories
         logs_path = self.project_root / "logs"
         if logs_path.exists():
             os.chmod(logs_path, 0o755)
-    
+
     def setup_configuration(self):
         """Setup configuration files"""
         print(f"⚙️ Setting up {self.environment} configuration...")
-        
+
         # Copy template files
         template_file = self.config_dir / f"{self.environment}.env.template"
         env_file = self.config_dir / f"{self.environment}.env"
-        
+
         if template_file.exists():
             if not env_file.exists():
                 shutil.copy(template_file, env_file)
@@ -67,11 +67,11 @@ class EnvironmentSetup:
                 print(f"  ✅ Configuration file {env_file} already exists")
         else:
             print(f"  ❌ Template file {template_file} not found")
-    
+
     def setup_agent_config(self):
         """Setup agent-specific configuration"""
         print("🤖 Setting up agent configuration...")
-        
+
         # Create default agent configuration
         config = {
             "monitoring": {
@@ -126,20 +126,20 @@ class EnvironmentSetup:
             "max_cpu_percent": 50.0,
             "enable_metrics_collection": True
         }
-        
+
         config_file = self.config_dir / "agent_config.json"
-        
+
         if not config_file.exists():
             with open(config_file, 'w') as f:
                 json.dump(config, f, indent=2)
             print(f"  ✅ Created {config_file}")
         else:
             print(f"  ✅ Agent configuration {config_file} already exists")
-    
+
     def setup_docker_compose(self):
         """Setup Docker Compose configuration"""
         print("🐳 Setting up Docker Compose configuration...")
-        
+
         if self.environment == "production":
             compose_content = """version: '3.8'
 
@@ -160,7 +160,7 @@ services:
     networks:
       - ats-network
     restart: unless-stopped
-    
+
   ats-prod-analytics:
     image: dragonflyer762/ats-genai:latest
     container_name: ats-prod-analytics
@@ -210,7 +210,7 @@ services:
       - ats_dev_data:/var/lib/postgresql/data
     networks:
       - ats-network
-    
+
   ats-dev-analytics:
     image: dragonflyer762/ats-genai:latest
     container_name: ats-dev-analytics
@@ -241,23 +241,23 @@ networks:
   ats-network:
     external: true
 """
-        
+
         compose_file = self.project_root / f"docker-compose.{self.environment}.yml"
-        
+
         if not compose_file.exists():
             with open(compose_file, 'w') as f:
                 f.write(compose_content)
             print(f"  ✅ Created {compose_file}")
         else:
             print(f"  ✅ Docker Compose file {compose_file} already exists")
-    
+
     def setup_systemd_service(self):
         """Setup systemd service for production"""
         if self.environment != "production":
             return
-        
+
         print("🔧 Setting up systemd service...")
-        
+
         service_content = f"""[Unit]
 Description=ATS Data Quality Agent
 After=docker.service
@@ -275,23 +275,23 @@ TimeoutStartSec=0
 [Install]
 WantedBy=multi-user.target
 """
-        
+
         service_file = self.project_root / "ats-data-quality-agent.service"
-        
+
         with open(service_file, 'w') as f:
             f.write(service_content)
-        
+
         print(f"  ✅ Created {service_file}")
         print("  📋 To install system service:")
         print(f"     sudo cp {service_file} /etc/systemd/system/")
         print("     sudo systemctl daemon-reload")
         print("     sudo systemctl enable ats-data-quality-agent")
         print("     sudo systemctl start ats-data-quality-agent")
-    
+
     def setup_cron_jobs(self):
         """Setup cron jobs for maintenance"""
         print("⏰ Setting up cron jobs...")
-        
+
         cron_script_content = f"""#!/bin/bash
 # ATS Data Quality Agent Maintenance Scripts
 
@@ -307,20 +307,20 @@ WantedBy=multi-user.target
 # Database backup (daily at 1 AM for production)
 {"0 1 * * * cd " + str(self.project_root) + " && ./scripts/backup_database.sh" if self.environment == "production" else "# Database backup disabled for development"}
 """
-        
+
         cron_file = self.project_root / "scripts" / f"crontab.{self.environment}"
-        
+
         with open(cron_file, 'w') as f:
             f.write(cron_script_content)
-        
+
         print(f"  ✅ Created {cron_file}")
         print("  📋 To install cron jobs:")
         print(f"     crontab {cron_file}")
-    
+
     def create_startup_script(self):
         """Create startup script"""
         print("🚀 Creating startup script...")
-        
+
         startup_content = f"""#!/bin/bash
 # ATS Data Quality Agent Startup Script
 
@@ -374,21 +374,21 @@ else
     exit 1
 fi
 """
-        
+
         startup_script = self.project_root / "scripts" / f"start_{self.environment}.sh"
-        
+
         with open(startup_script, 'w') as f:
             f.write(startup_content)
-        
+
         # Make executable
         os.chmod(startup_script, 0o755)
-        
+
         print(f"  ✅ Created {startup_script}")
-    
+
     def create_monitoring_script(self):
         """Create monitoring and alerting script"""
         print("📊 Creating monitoring script...")
-        
+
         monitoring_content = f"""#!/bin/bash
 # ATS Data Quality Agent Monitoring Script
 
@@ -396,9 +396,9 @@ fi
 send_alert() {{
     local message="$1"
     local severity="$2"
-    
+
     echo "$(date): [$severity] $message" >> logs/system/monitoring.log
-    
+
     # Send Slack notification if configured
     if [ ! -z "$SLACK_WEBHOOK_URL" ]; then
         curl -X POST -H 'Content-type: application/json' \\
@@ -410,36 +410,36 @@ send_alert() {{
 # Check if services are running
 check_services() {{
     local failed=0
-    
+
     if ! docker ps | grep -q "ats-{self.environment}-postgres"; then
         send_alert "PostgreSQL service not running" "CRITICAL"
         failed=1
     fi
-    
+
     if ! docker ps | grep -q "ats-{self.environment}-analytics"; then
         send_alert "Analytics service not running" "CRITICAL"
         failed=1
     fi
-    
+
     return $failed
 }}
 
 # Check API health
 check_api_health() {{
     local api_url="http://localhost:{'4000' if self.environment == 'production' else '3000'}/health"
-    
+
     if ! curl -f "$api_url" >/dev/null 2>&1; then
         send_alert "API health check failed" "HIGH"
         return 1
     fi
-    
+
     return 0
 }}
 
 # Check disk space
 check_disk_space() {{
     local usage=$(df / | awk 'NR==2 {{print $5}}' | sed 's/%//')
-    
+
     if [ $usage -gt 90 ]; then
         send_alert "Disk usage critical: ${{usage}}%" "CRITICAL"
         return 1
@@ -447,20 +447,20 @@ check_disk_space() {{
         send_alert "Disk usage warning: ${{usage}}%" "WARNING"
         return 1
     fi
-    
+
     return 0
 }}
 
 # Main monitoring loop
 main() {{
     echo "🔍 Starting monitoring check..."
-    
+
     local errors=0
-    
+
     check_services || ((errors++))
     check_api_health || ((errors++))
     check_disk_space || ((errors++))
-    
+
     if [ $errors -eq 0 ]; then
         echo "✅ All checks passed"
     else
@@ -476,22 +476,22 @@ fi
 
 main "$@"
 """
-        
+
         monitoring_script = self.project_root / "scripts" / f"monitor_{self.environment}.sh"
-        
+
         with open(monitoring_script, 'w') as f:
             f.write(monitoring_content)
-        
+
         # Make executable
         os.chmod(monitoring_script, 0o755)
-        
+
         print(f"  ✅ Created {monitoring_script}")
-    
+
     def run_setup(self):
         """Run complete environment setup"""
         print(f"🔧 Setting up {self.environment} environment for ATS Data Quality Agent")
         print("=" * 70)
-        
+
         try:
             self.setup_directories()
             self.setup_configuration()
@@ -501,18 +501,18 @@ main "$@"
             self.setup_cron_jobs()
             self.create_startup_script()
             self.create_monitoring_script()
-            
+
             print("\n" + "=" * 70)
             print("✅ Environment setup completed successfully!")
             print("=" * 70)
-            
+
             print(f"\n📋 Next steps for {self.environment}:")
             print(f"1. Edit config/{self.environment}.env with your actual configuration")
             print("2. Update config/agent_config.json if needed")
             print(f"3. Run: ./scripts/start_{self.environment}.sh")
             print("4. Access dashboard: http://localhost:{}/data-quality/dashboard".format(
                 "4000" if self.environment == "production" else "3000"))
-            
+
             if self.environment == "production":
                 print("\n🔒 Production-specific steps:")
                 print("1. Set up SSL/TLS certificates")
@@ -520,7 +520,7 @@ main "$@"
                 print("3. Set up monitoring and alerting")
                 print("4. Install systemd service")
                 print("5. Set up automated backups")
-            
+
         except Exception as e:
             print(f"\n❌ Setup failed: {str(e)}")
             sys.exit(1)
@@ -528,13 +528,13 @@ main "$@"
 def main():
     """Main entry point"""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Setup ATS Data Quality Agent environment")
-    parser.add_argument("environment", choices=["development", "production"], 
+    parser.add_argument("environment", choices=["development", "production"],
                        help="Environment to setup")
-    
+
     args = parser.parse_args()
-    
+
     setup = EnvironmentSetup(args.environment)
     setup.run_setup()
 

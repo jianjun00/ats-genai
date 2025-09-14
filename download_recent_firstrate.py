@@ -19,18 +19,18 @@ async def download_recent_data():
     """Download recent FirstRate data"""
     print("🚀 Downloading Recent FirstRate Data")
     print(f"📅 Current date: {date.today()}")
-    
+
     # Create downloader
     downloader = FirstRateDownloader()
-    
+
     # Create download jobs for recent days
     jobs = [DownloadJob(asset_type="stock")]
-    
+
     # Download last 5 days to ensure we get recent data
     for days_ago in range(5):
         download_date = date.today() - timedelta(days=days_ago)
         print(f"📥 Attempting download for {download_date}")
-        
+
         try:
             results = await downloader.download_daily_data(jobs, download_date)
             if results.get("stock", False):
@@ -39,7 +39,7 @@ async def download_recent_data():
                 print(f"❌ No data for {download_date}")
         except Exception as e:
             print(f"⚠️ Error downloading {download_date}: {e}")
-    
+
     # Check what files we now have
     data_path = Path("/mnt/d/ats-data/firstrate-data/daily/stock")
     if data_path.exists():

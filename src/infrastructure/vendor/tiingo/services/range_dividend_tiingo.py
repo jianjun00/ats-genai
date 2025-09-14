@@ -33,7 +33,7 @@ def fetch_tiingo_dividends(symbol, api_key, start_date, end_date, stats=None, ra
 
     # Use shared HTTP response handler
     result = handle_vendor_response(resp, symbol, vendor='tiingo')
-    
+
     if result['success']:
         return result['data']
     else:
@@ -61,16 +61,16 @@ async def insert_dividends_tiingo(dividends, dao):
     for div in dividends:
         # Use shared data transformation
         transformed = transform_vendor_dividend(div, vendor='tiingo')
-        
+
         # Use shared validation
         validation_result = validate_dividend_data(transformed)
-        
+
         if validation_result.is_valid:
             await dao.insert_dividend(transformed)
             inserted += 1
         else:
             print(f"Validation failed for dividend: {validation_result.errors}")
-    
+
     print(f"Inserted {inserted} dividends.")
 
 async def main():

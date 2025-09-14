@@ -302,23 +302,23 @@ from typing import Union
 async def get_vendor_database_connection(env_type: str = None) -> asyncpg.Connection:
     """
     Get database connection for vendor backfill operations.
-    
+
     Standardized database connection logic used by all vendor services
     (polygon, eodhd, tiingo, etc.) with Docker and localhost fallbacks.
-    
+
     Args:
         env_type: Environment type ('dev', 'intg'). If None, reads from ENV_TYPE
-        
+
     Returns:
         asyncpg.Connection: Database connection
-        
+
     Usage:
         >>> conn = await get_vendor_database_connection('intg')
         >>> result = await conn.fetchrow('SELECT version()')
         >>> await conn.close()
     """
     env = (env_type or os.getenv('ENV_TYPE', 'intg')).lower()
-    
+
     if env == 'intg':
         # Try Docker first, fallback to localhost
         try:
@@ -361,15 +361,15 @@ async def get_vendor_database_connection(env_type: str = None) -> asyncpg.Connec
 def get_vendor_table_name(base_name: str, vendor: str, env_type: str = None) -> str:
     """
     Get vendor-specific table name with environment prefix.
-    
+
     Args:
         base_name: Base table name (e.g., 'daily_price')
         vendor: Vendor name (e.g., 'polygon', 'eodhd', 'tiingo')
         env_type: Environment type ('dev', 'intg'). If None, reads from ENV_TYPE
-        
+
     Returns:
         Full table name like 'intg_daily_price_polygon'
-        
+
     Usage:
         >>> table = get_vendor_table_name('daily_price', 'polygon', 'intg')
         >>> # Returns: 'intg_daily_price_polygon'

@@ -80,14 +80,14 @@ class UniverseStateIntervalBuilder(RunnerCallback):
 
         # ✅ FIXED: Convert instrument_ids to symbols using proper database lookup
         # FileBasedMinuteMarketDataManager expects symbols, not instrument_ids
-        
+
         # Use InstrumentXrefsDAO for proper instrument_id to symbol lookup
         from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(runner.get_environment())
-        
+
         # Batch lookup for efficiency
         inst_id_to_symbol = await xrefs_dao.get_symbols_by_instrument_ids_batch(instrument_ids, "ticker")
-        
+
         symbols = []
         for inst_id in instrument_ids:
             symbol = inst_id_to_symbol.get(inst_id)

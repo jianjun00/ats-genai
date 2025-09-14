@@ -1,7 +1,7 @@
 """
 Unified Vendor Integration Framework
 
-Consolidates ALL vendor integrations (Polygon, Tiingo, EODHD, FMP, Alpha Vantage) 
+Consolidates ALL vendor integrations (Polygon, Tiingo, EODHD, FMP, Alpha Vantage)
 into a single pluggable architecture. Eliminates 25,000+ lines of duplicate code
 across 135+ vendor-specific files.
 

@@ -27,14 +27,14 @@ logger = logging.getLogger(__name__)
 @VendorRegistry.register('eodhd')
 class EODHDVendor(BaseVendor):
     """Unified EODHD vendor implementation consolidating 20+ files."""
-    
+
     def __init__(self, config: VendorConfig):
         if not config.capabilities:
             config.capabilities = [
                 VendorCapability.HISTORICAL,
                 VendorCapability.FUNDAMENTAL
             ]
-        
+
         if not config.supported_data_types:
             config.supported_data_types = [
                 DataType.PRICES_DAILY,
@@ -43,9 +43,9 @@ class EODHDVendor(BaseVendor):
                 DataType.FUNDAMENTALS,
                 DataType.ECONOMIC_EVENTS
             ]
-        
+
         super().__init__(config)
-        
+
         self.endpoints = {
             DataType.PRICES_DAILY: "/api/eod/{symbol}",
             DataType.DIVIDENDS: "/api/div/{symbol}",
@@ -53,31 +53,31 @@ class EODHDVendor(BaseVendor):
             DataType.FUNDAMENTALS: "/api/fundamentals/{symbol}",
             DataType.ECONOMIC_EVENTS: "/api/economic-events"
         }
-    
+
     def get_endpoint_url(self, request: VendorRequest) -> str:
         """Get EODHD-specific endpoint URL."""
         endpoint_template = self.endpoints.get(request.data_type)
         if not endpoint_template:
             raise ValueError(f"Unsupported data type for EODHD: {request.data_type}")
-        
+
         endpoint = endpoint_template.format(symbol=request.symbol)
         return urljoin(self.config.base_url, endpoint)
-    
+
     def prepare_request_params(self, request: VendorRequest) -> Dict[str, Any]:
         """Prepare EODHD-specific request parameters."""
         params = {
             'api_token': self.config.api_key,
             'fmt': 'json'
         }
-        
+
         if request.start_date:
             params['from'] = request.start_date.strftime('%Y-%m-%d')
         if request.end_date:
             params['to'] = request.end_date.strftime('%Y-%m-%d')
-        
+
         params.update(request.additional_params)
         return params
-    
+
     def parse_response_data(self, response_data: Any, request: VendorRequest) -> List[Dict[str, Any]]:
         """Parse EODHD response format."""
         if isinstance(response_data, list):
@@ -90,13 +90,13 @@ class EODHDVendor(BaseVendor):
 def create_eodhd_config(api_key: Optional[str] = None) -> VendorConfig:
     """Create EODHD vendor configuration."""
     from shared.utils.config_utils import get_api_key_with_fallback
-    
+
     if not api_key:
         api_key = get_api_key_with_fallback('eodhd')
-    
+
     if not api_key:
         raise ValueError("EODHD API key not found. Set EODHD_API_KEY environment variable.")
-    
+
     return VendorConfig(
         name="eodhd",
         base_url="https://eodhd.com",

@@ -43,13 +43,13 @@ class PerformanceMetrics:
 
 class AgentMetricsCollector:
     """Collects and analyzes Data Quality Agent performance metrics"""
-    
+
     def __init__(self, max_history_days: int = 30):
         self.max_history_days = max_history_days
         self.resolution_outcomes: deque = deque(maxlen=10000)  # Rolling window
         self.monitoring_cycles: deque = deque(maxlen=1000)
         self.daily_summaries: Dict[str, Dict[str, Any]] = {}
-        
+
         # Real-time counters
         self.session_stats = {
             "session_start": datetime.now(),
@@ -58,11 +58,11 @@ class AgentMetricsCollector:
             "issues_resolved": 0,
             "total_cycle_time": 0.0
         }
-    
+
     async def record_resolution_outcome(
         self,
         issue_type: str,
-        action: str, 
+        action: str,
         success: bool,
         duration_seconds: float = 0.0,
         error_message: Optional[str] = None,
@@ -71,7 +71,7 @@ class AgentMetricsCollector:
         confidence: float = 0.8
     ):
         """Record outcome of issue resolution attempt"""
-        
+
         outcome = ResolutionOutcome(
             timestamp=datetime.now(),
             issue_type=issue_type,
@@ -83,35 +83,35 @@ class AgentMetricsCollector:
             complexity=complexity,
             confidence=confidence
         )
-        
+
         self.resolution_outcomes.append(outcome)
-        
+
         # Update session stats
         if success:
             self.session_stats["issues_resolved"] += 1
-        
+
         logger.debug(f"Recorded resolution outcome: {issue_type} -> {action} -> {'success' if success else 'failure'}")
-    
+
     async def record_monitoring_cycle(self, cycle_duration_seconds: float):
         """Record completion of monitoring cycle"""
-        
+
         cycle_record = {
             "timestamp": datetime.now(),
             "duration_seconds": cycle_duration_seconds,
             "cycle_number": self.session_stats["cycles_completed"] + 1
         }
-        
+
         self.monitoring_cycles.append(cycle_record)
-        
+
         # Update session stats
         self.session_stats["cycles_completed"] += 1
         self.session_stats["total_cycle_time"] += cycle_duration_seconds
-    
+
     async def record_successful_resolution(self, workflow):
         """Record successful workflow completion"""
-        
+
         duration = workflow.actual_duration_seconds or 0.0
-        
+
         await self.record_resolution_outcome(
             issue_type=workflow.issue_type,
             action=workflow.primary_action,
@@ -121,12 +121,12 @@ class AgentMetricsCollector:
             complexity=workflow.complexity,
             confidence=workflow.metadata.get("confidence", 0.8)
         )
-    
+
     async def record_failed_resolution(self, workflow):
         """Record failed workflow"""
-        
+
         duration = workflow.actual_duration_seconds or 0.0
-        
+
         await self.record_resolution_outcome(
             issue_type=workflow.issue_type,
             action=workflow.primary_action,
@@ -137,12 +137,12 @@ class AgentMetricsCollector:
             complexity=workflow.complexity,
             confidence=workflow.metadata.get("confidence", 0.8)
         )
-    
+
     async def get_recent_successes(self, hours: int = 24) -> List[Dict[str, Any]]:
         """Get recent successful resolutions"""
-        
+
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        
+
         recent_successes = [
             {
                 "issue_type": outcome.issue_type,
@@ -155,14 +155,14 @@ class AgentMetricsCollector:
             for outcome in self.resolution_outcomes
             if outcome.success and outcome.timestamp >= cutoff_time
         ]
-        
+
         return recent_successes
-    
+
     async def get_recent_failures(self, hours: int = 24) -> List[Dict[str, Any]]:
         """Get recent failed resolutions"""
-        
+
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        
+
         recent_failures = [
             {
                 "issue_type": outcome.issue_type,
@@ -176,20 +176,20 @@ class AgentMetricsCollector:
             for outcome in self.resolution_outcomes
             if not outcome.success and outcome.timestamp >= cutoff_time
         ]
-        
+
         return recent_failures
-    
+
     async def get_performance_metrics(self, hours: int = 24) -> PerformanceMetrics:
         """Get comprehensive performance metrics for time period"""
-        
+
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        
+
         # Filter outcomes to time period
         period_outcomes = [
             outcome for outcome in self.resolution_outcomes
             if outcome.timestamp >= cutoff_time
         ]
-        
+
         if not period_outcomes:
             return PerformanceMetrics(
                 total_issues_processed=0,
@@ -202,28 +202,28 @@ class AgentMetricsCollector:
                 complexity_performance={},
                 time_period_hours=hours
             )
-        
+
         # Calculate basic metrics
         total_issues = len(period_outcomes)
         successful = len([o for o in period_outcomes if o.success])
         failed = total_issues - successful
         success_rate = successful / total_issues if total_issues > 0 else 0.0
-        
+
         # Average resolution time
         resolution_times = [o.duration_seconds for o in period_outcomes if o.duration_seconds > 0]
         avg_resolution_time = statistics.mean(resolution_times) if resolution_times else 0.0
-        
+
         # Issues by type
         issues_by_type = defaultdict(int)
         for outcome in period_outcomes:
             issues_by_type[outcome.issue_type] += 1
-        
+
         # Actions by success
         actions_by_success = defaultdict(lambda: {"success": 0, "failure": 0})
         for outcome in period_outcomes:
             status = "success" if outcome.success else "failure"
             actions_by_success[outcome.action][status] += 1
-        
+
         # Complexity performance analysis
         complexity_performance = {}
         for complexity in ["simple", "medium", "complex"]:
@@ -231,7 +231,7 @@ class AgentMetricsCollector:
             if complexity_outcomes:
                 complexity_successful = len([o for o in complexity_outcomes if o.success])
                 complexity_times = [o.duration_seconds for o in complexity_outcomes if o.duration_seconds > 0]
-                
+
                 complexity_performance[complexity] = {
                     "total": len(complexity_outcomes),
                     "successful": complexity_successful,
@@ -239,7 +239,7 @@ class AgentMetricsCollector:
                     "avg_duration": statistics.mean(complexity_times) if complexity_times else 0.0,
                     "median_duration": statistics.median(complexity_times) if complexity_times else 0.0
                 }
-        
+
         return PerformanceMetrics(
             total_issues_processed=total_issues,
             successful_resolutions=successful,
@@ -251,24 +251,24 @@ class AgentMetricsCollector:
             complexity_performance=complexity_performance,
             time_period_hours=hours
         )
-    
+
     async def get_summary_metrics(self) -> Dict[str, Any]:
         """Get current session and recent performance summary"""
-        
+
         # Session metrics
         session_duration = (datetime.now() - self.session_stats["session_start"]).total_seconds()
-        avg_cycle_time = (self.session_stats["total_cycle_time"] / 
+        avg_cycle_time = (self.session_stats["total_cycle_time"] /
                          max(self.session_stats["cycles_completed"], 1))
-        
+
         # Recent performance (last 24 hours)
         recent_metrics = await self.get_performance_metrics(hours=24)
-        
+
         # Monitoring cycle performance
-        recent_cycles = [c for c in self.monitoring_cycles 
+        recent_cycles = [c for c in self.monitoring_cycles
                         if c["timestamp"] >= datetime.now() - timedelta(hours=1)]
-        avg_recent_cycle_time = (statistics.mean([c["duration_seconds"] for c in recent_cycles]) 
+        avg_recent_cycle_time = (statistics.mean([c["duration_seconds"] for c in recent_cycles])
                                if recent_cycles else 0.0)
-        
+
         return {
             "session": {
                 "session_duration_seconds": session_duration,
@@ -292,41 +292,41 @@ class AgentMetricsCollector:
                 "data_retention_days": self.max_history_days
             }
         }
-    
+
     async def get_issue_type_analysis(self, issue_type: str, days: int = 7) -> Dict[str, Any]:
         """Get detailed analysis for specific issue type"""
-        
+
         cutoff_time = datetime.now() - timedelta(days=days)
-        
+
         # Filter to specific issue type and time period
         type_outcomes = [
             outcome for outcome in self.resolution_outcomes
             if outcome.issue_type == issue_type and outcome.timestamp >= cutoff_time
         ]
-        
+
         if not type_outcomes:
             return {
                 "issue_type": issue_type,
                 "total_occurrences": 0,
                 "analysis_period_days": days
             }
-        
+
         # Success analysis
         successful_outcomes = [o for o in type_outcomes if o.success]
         success_rate = len(successful_outcomes) / len(type_outcomes)
-        
+
         # Action effectiveness
         action_effectiveness = defaultdict(lambda: {"attempts": 0, "successes": 0})
         for outcome in type_outcomes:
             action_effectiveness[outcome.action]["attempts"] += 1
             if outcome.success:
                 action_effectiveness[outcome.action]["successes"] += 1
-        
+
         # Calculate success rates for each action
         for action_data in action_effectiveness.values():
             attempts = action_data["attempts"]
             action_data["success_rate"] = action_data["successes"] / attempts if attempts > 0 else 0.0
-        
+
         # Time analysis
         resolution_times = [o.duration_seconds for o in type_outcomes if o.duration_seconds > 0]
         time_stats = {}
@@ -337,7 +337,7 @@ class AgentMetricsCollector:
                 "min_resolution_time": min(resolution_times),
                 "max_resolution_time": max(resolution_times)
             }
-        
+
         # Confidence analysis
         confidence_scores = [o.confidence for o in type_outcomes]
         confidence_stats = {}
@@ -346,13 +346,13 @@ class AgentMetricsCollector:
                 "avg_confidence": statistics.mean(confidence_scores),
                 "median_confidence": statistics.median(confidence_scores)
             }
-        
+
         # Trend analysis (by day)
         daily_counts = defaultdict(int)
         for outcome in type_outcomes:
             day_key = outcome.timestamp.date().isoformat()
             daily_counts[day_key] += 1
-        
+
         return {
             "issue_type": issue_type,
             "analysis_period_days": days,
@@ -367,27 +367,27 @@ class AgentMetricsCollector:
             "best_action": self._get_best_action(action_effectiveness),
             "recommendations": self._generate_recommendations(issue_type, action_effectiveness, success_rate)
         }
-    
+
     async def get_agent_health_score(self) -> Dict[str, Any]:
         """Calculate overall agent health score"""
-        
+
         # Recent performance (last 24 hours)
         recent_metrics = await self.get_performance_metrics(hours=24)
-        
+
         # Health score components (0-1 scale)
         success_rate_score = recent_metrics.success_rate
-        
+
         # Response time score (faster is better, normalize to 0-1)
         response_time_score = max(0.0, min(1.0, 1.0 - (recent_metrics.average_resolution_time_seconds / 3600)))
-        
+
         # Activity score (based on issues processed)
         activity_score = min(1.0, recent_metrics.total_issues_processed / 10)  # Normalize to 10 issues/day
-        
+
         # Cycle performance score
-        recent_cycles = [c for c in self.monitoring_cycles 
+        recent_cycles = [c for c in self.monitoring_cycles
                         if c["timestamp"] >= datetime.now() - timedelta(hours=24)]
         cycle_score = min(1.0, len(recent_cycles) / 288)  # Normalize to 5-min cycles (288/day)
-        
+
         # Weighted overall health score
         weights = {
             "success_rate": 0.4,
@@ -395,14 +395,14 @@ class AgentMetricsCollector:
             "activity": 0.2,
             "cycle_performance": 0.1
         }
-        
+
         overall_score = (
             success_rate_score * weights["success_rate"] +
             response_time_score * weights["response_time"] +
             activity_score * weights["activity"] +
             cycle_score * weights["cycle_performance"]
         )
-        
+
         # Determine health status
         if overall_score >= 0.9:
             health_status = "excellent"
@@ -414,7 +414,7 @@ class AgentMetricsCollector:
             health_status = "poor"
         else:
             health_status = "critical"
-        
+
         return {
             "overall_health_score": overall_score,
             "health_status": health_status,
@@ -431,14 +431,14 @@ class AgentMetricsCollector:
                 "cycle_performance": cycle_score
             })
         }
-    
+
     async def export_metrics_report(self, hours: int = 24) -> Dict[str, Any]:
         """Export comprehensive metrics report"""
-        
+
         metrics = await self.get_performance_metrics(hours)
         summary = await self.get_summary_metrics()
         health = await self.get_agent_health_score()
-        
+
         # Top performing actions
         best_actions = []
         for action, stats in metrics.actions_by_success.items():
@@ -450,9 +450,9 @@ class AgentMetricsCollector:
                     "success_rate": success_rate,
                     "total_attempts": total
                 })
-        
+
         best_actions.sort(key=lambda x: x["success_rate"], reverse=True)
-        
+
         return {
             "report_generated": datetime.now().isoformat(),
             "time_period_hours": hours,
@@ -463,117 +463,117 @@ class AgentMetricsCollector:
             "complexity_insights": self._analyze_complexity_patterns(metrics),
             "improvement_opportunities": self._identify_improvement_opportunities(metrics)
         }
-    
+
     def _get_top_items(self, items_dict: Dict[str, int], top_n: int) -> List[Tuple[str, int]]:
         """Get top N items from dictionary by value"""
         return sorted(items_dict.items(), key=lambda x: x[1], reverse=True)[:top_n]
-    
+
     def _get_best_action(self, action_effectiveness: Dict[str, Dict[str, Any]]) -> Optional[str]:
         """Get best performing action for issue type"""
-        
+
         best_action = None
         best_score = 0.0
-        
+
         for action, stats in action_effectiveness.items():
             if stats["attempts"] >= 2:  # Minimum sample size
                 score = stats["success_rate"]
                 if score > best_score:
                     best_score = score
                     best_action = action
-        
+
         return best_action
-    
+
     def _generate_recommendations(
-        self, 
-        issue_type: str, 
-        action_effectiveness: Dict[str, Dict[str, Any]], 
+        self,
+        issue_type: str,
+        action_effectiveness: Dict[str, Dict[str, Any]],
         success_rate: float
     ) -> List[str]:
         """Generate recommendations for improving issue type handling"""
-        
+
         recommendations = []
-        
+
         if success_rate < 0.7:
             recommendations.append(f"Success rate for {issue_type} is low ({success_rate:.1%}). Consider reviewing resolution strategies.")
-        
+
         # Find best and worst performing actions
         actions_by_performance = sorted(
-            [(action, stats["success_rate"]) for action, stats in action_effectiveness.items() 
+            [(action, stats["success_rate"]) for action, stats in action_effectiveness.items()
              if stats["attempts"] >= 2],
             key=lambda x: x[1], reverse=True
         )
-        
+
         if len(actions_by_performance) >= 2:
             best_action, best_rate = actions_by_performance[0]
             worst_action, worst_rate = actions_by_performance[-1]
-            
+
             if best_rate - worst_rate > 0.3:
                 recommendations.append(f"Consider preferring '{best_action}' over '{worst_action}' for {issue_type}")
-        
+
         if success_rate > 0.9:
             recommendations.append(f"Excellent performance on {issue_type}. Consider full automation.")
-        
+
         return recommendations
-    
+
     def _generate_health_recommendations(
-        self, 
-        overall_score: float, 
+        self,
+        overall_score: float,
         component_scores: Dict[str, float]
     ) -> List[str]:
         """Generate health improvement recommendations"""
-        
+
         recommendations = []
-        
+
         if component_scores["success_rate"] < 0.7:
             recommendations.append("Low success rate detected. Review resolution strategies and failure patterns.")
-        
+
         if component_scores["response_time"] < 0.5:
             recommendations.append("High response times detected. Consider optimizing resolution workflows.")
-        
+
         if component_scores["activity"] < 0.3:
             recommendations.append("Low activity level. Check monitoring frequency and issue detection sensitivity.")
-        
+
         if component_scores["cycle_performance"] < 0.5:
             recommendations.append("Monitoring cycles running slowly. Check system resources and cycle intervals.")
-        
+
         if overall_score > 0.9:
             recommendations.append("Agent performing excellently. Consider expanding automation scope.")
-        
+
         return recommendations
-    
+
     def _analyze_complexity_patterns(self, metrics: PerformanceMetrics) -> Dict[str, Any]:
         """Analyze patterns in complexity handling"""
-        
+
         insights = []
-        
+
         for complexity, stats in metrics.complexity_performance.items():
             if stats["total"] >= 3:  # Minimum sample size
                 if stats["success_rate"] < 0.5:
                     insights.append(f"Low success rate for {complexity} issues ({stats['success_rate']:.1%})")
-                
+
                 if stats["avg_duration"] > 1800:  # 30 minutes
                     insights.append(f"{complexity.title()} issues taking too long (avg: {stats['avg_duration']/60:.1f} min)")
-        
+
         return {
             "complexity_insights": insights,
             "performance_by_complexity": metrics.complexity_performance
         }
-    
+
     def _identify_improvement_opportunities(self, metrics: PerformanceMetrics) -> List[str]:
         """Identify specific improvement opportunities"""
-        
+
         opportunities = []
-        
+
         # Low performing actions
         for action, stats in metrics.actions_by_success.items():
             total = stats["success"] + stats["failure"]
             if total >= 3 and stats["success"] / total < 0.6:
                 opportunities.append(f"Action '{action}' has low success rate ({stats['success']/total:.1%})")
-        
+
         # High volume issue types
         total_issues = sum(metrics.issues_by_type.values())
         for issue_type, count in metrics.issues_by_type.items():
             if count / total_issues > 0.4:  # More than 40% of issues
                 opportunities.append(f"High volume of '{issue_type}' issues ({count}) - consider preventive measures")
-        
+
         return opportunities

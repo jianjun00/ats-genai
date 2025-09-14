@@ -53,11 +53,11 @@ class VendorConfig:
     retry_delay: int = 1  # seconds
     headers: Dict[str, str] = field(default_factory=dict)
     params: Dict[str, Any] = field(default_factory=dict)
-    
+
     def is_valid(self) -> bool:
         """Check if configuration is valid."""
         return bool(self.name and self.api_key and self.base_url)
-    
+
     def get_auth_header(self) -> Dict[str, str]:
         """Get authentication header for API requests."""
         if self.name.lower() == 'polygon':
@@ -67,7 +67,7 @@ class VendorConfig:
         else:
             return {'X-API-Key': self.api_key}
 
-@dataclass  
+@dataclass
 class DatabaseConfig:
     """Configuration for database connections."""
     host: str
@@ -79,15 +79,15 @@ class DatabaseConfig:
     pool_size: int = 10
     max_overflow: int = 20
     connection_timeout: int = 30
-    
+
     def get_connection_string(self) -> str:
         """Get PostgreSQL connection string."""
         return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
-    
+
     def get_async_connection_string(self) -> str:
         """Get async PostgreSQL connection string."""
         return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
-    
+
     def is_valid(self) -> bool:
         """Check if configuration is valid."""
         return all([self.host, self.port, self.user, self.password, self.database])
@@ -103,18 +103,18 @@ class AppConfig:
     backup_path: str = '/backup'
     max_workers: int = 4
     batch_size: int = 1000
-    
+
     vendors: Dict[str, VendorConfig] = field(default_factory=dict)
     database: Optional[DatabaseConfig] = None
-    
+
     def add_vendor(self, vendor_config: VendorConfig):
         """Add vendor configuration."""
         self.vendors[vendor_config.name] = vendor_config
-    
+
     def get_vendor(self, name: str) -> Optional[VendorConfig]:
         """Get vendor configuration by name."""
         return self.vendors.get(name.lower())
-    
+
     def is_valid(self) -> bool:
         """Check if configuration is valid."""
         return bool(self.environment and (self.database is None or self.database.is_valid()))
@@ -125,35 +125,35 @@ class AppConfig:
 
 class ConfigManager:
     """Central configuration manager for ATS platform."""
-    
+
     def __init__(self, config_dir: Optional[Union[str, Path]] = None):
         self.config_dir = Path(config_dir or 'config')
         self.app_config: Optional[AppConfig] = None
         self._config_cache: Dict[str, Any] = {}
-        
+
     def load_config(self, environment: str = 'dev') -> AppConfig:
         """
         Load application configuration for environment.
-        
+
         Args:
             environment: Environment name (dev, intg, prod)
-            
+
         Returns:
             AppConfig instance
         """
         cache_key = f"app_config_{environment}"
         if cache_key in self._config_cache:
             return self._config_cache[cache_key]
-            
+
         # Load from environment variables first
         app_config = self._load_from_environment(environment)
-        
+
         # Override with config file if exists
         config_file = self.config_dir / f"app_{environment}.json"
         if config_file.exists():
             file_config = self._load_from_file(config_file)
             app_config = self._merge_configs(app_config, file_config)
-            
+
         # Load Gin config if available
         gin_file = self.config_dir / f"app_{environment}.gin"
         if gin_file.exists():
@@ -162,13 +162,13 @@ class ConfigManager:
                 logger.debug(f"Loaded Gin config: {gin_file}")
             except Exception as e:
                 logger.warning(f"Failed to load Gin config {gin_file}: {e}")
-        
+
         self.app_config = app_config
         self._config_cache[cache_key] = app_config
-        
+
         logger.info(f"Loaded configuration for environment: {environment}")
         return app_config
-    
+
     def _load_from_environment(self, environment: str) -> AppConfig:
         """Load configuration from environment variables."""
         # Database configuration
@@ -182,7 +182,7 @@ class ConfigManager:
                 database=os.environ['DB_NAME'],
                 environment=environment
             )
-        
+
         # Application configuration
         app_config = AppConfig(
             environment=environment,
@@ -195,16 +195,16 @@ class ConfigManager:
             batch_size=int(os.environ.get('BATCH_SIZE', 1000)),
             database=db_config
         )
-        
+
         # Load vendor configurations
         self._load_vendor_configs(app_config)
-        
+
         return app_config
-    
+
     def _load_vendor_configs(self, app_config: AppConfig):
         """Load vendor configurations from environment."""
         vendors = ['polygon', 'tiingo', 'eodhd']
-        
+
         for vendor in vendors:
             api_key = get_api_key_with_fallback(vendor)
             if api_key:
@@ -217,7 +217,7 @@ class ConfigManager:
                     retry_attempts=int(os.environ.get(f'{vendor.upper()}_RETRY_ATTEMPTS', 3))
                 )
                 app_config.add_vendor(vendor_config)
-    
+
     def _get_vendor_base_url(self, vendor: str) -> str:
         """Get base URL for vendor API."""
         urls = {
@@ -226,7 +226,7 @@ class ConfigManager:
             'eodhd': 'https://eodhd.com/api'
         }
         return os.environ.get(f'{vendor.upper()}_BASE_URL', urls.get(vendor, ''))
-    
+
     def _get_vendor_rate_limit(self, vendor: str) -> int:
         """Get rate limit for vendor API."""
         default_limits = {
@@ -236,7 +236,7 @@ class ConfigManager:
         }
         env_key = f'{vendor.upper()}_RATE_LIMIT'
         return int(os.environ.get(env_key, default_limits.get(vendor, 60)))
-    
+
     def _load_from_file(self, config_file: Path) -> Dict[str, Any]:
         """Load configuration from JSON file."""
         try:
@@ -245,7 +245,7 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Failed to load config file {config_file}: {e}")
             return {}
-    
+
     def _merge_configs(self, base_config: AppConfig, file_config: Dict[str, Any]) -> AppConfig:
         """Merge file configuration with base configuration."""
         # This is a simplified merge - in practice you'd want deeper merging
@@ -253,12 +253,12 @@ class ConfigManager:
         if 'database' in file_config:
             db_data = file_config['database']
             base_config.database = DatabaseConfig(**db_data)
-            
+
         if 'vendors' in file_config:
             for vendor_name, vendor_data in file_config['vendors'].items():
                 vendor_config = VendorConfig(name=vendor_name, **vendor_data)
                 base_config.add_vendor(vendor_config)
-                
+
         return base_config
 
 # =============================================================================
@@ -268,13 +268,13 @@ class ConfigManager:
 def load_vendor_config(vendor: str, environment: str = 'dev') -> Optional[VendorConfig]:
     """
     Load configuration for specific vendor.
-    
+
     Consolidates vendor config loading from multiple services.
-    
+
     Args:
         vendor: Vendor name (polygon, tiingo, eodhd)
         environment: Environment name
-        
+
     Returns:
         VendorConfig instance or None
     """
@@ -282,7 +282,7 @@ def load_vendor_config(vendor: str, environment: str = 'dev') -> Optional[Vendor
     if not api_key:
         logger.warning(f"No API key found for vendor: {vendor}")
         return None
-        
+
     config = VendorConfig(
         name=vendor,
         api_key=api_key,
@@ -290,7 +290,7 @@ def load_vendor_config(vendor: str, environment: str = 'dev') -> Optional[Vendor
         rate_limit=_get_vendor_rate_limit(vendor),
         timeout=int(os.environ.get(f'{vendor.upper()}_TIMEOUT', 30))
     )
-    
+
     return config if config.is_valid() else None
 
 def get_api_key_with_fallback(
@@ -300,19 +300,19 @@ def get_api_key_with_fallback(
 ) -> Optional[str]:
     """
     Get API key with multiple fallback sources.
-    
+
     Consolidates API key resolution from vendor services.
-    
+
     Args:
         vendor: Vendor name
         config: Configuration dictionary
         env_instance: Environment instance with get_api_key method
-        
+
     Returns:
         API key string or None
     """
     vendor_upper = vendor.upper()
-    
+
     # Try multiple environment variable patterns
     env_patterns = [
         f'{vendor_upper}_API_KEY',
@@ -320,18 +320,18 @@ def get_api_key_with_fallback(
         f'API_KEY_{vendor_upper}',
         f'{vendor.lower()}_api_key'
     ]
-    
+
     for pattern in env_patterns:
         key = os.environ.get(pattern)
         if key and key.strip() and key != 'your_api_key_here':
             return key.strip()
-    
+
     # Try config dictionary
     if config:
         key = config.get('api_key') or config.get(f'{vendor}_api_key')
         if key and key.strip():
             return key.strip()
-    
+
     # Try environment instance
     if env_instance and hasattr(env_instance, 'get_api_key'):
         try:
@@ -340,7 +340,7 @@ def get_api_key_with_fallback(
                 return key.strip()
         except Exception:
             pass
-    
+
     return None
 
 def _get_vendor_base_url(vendor: str) -> str:
@@ -356,7 +356,7 @@ def _get_vendor_rate_limit(vendor: str) -> int:
     """Get rate limit for vendor API."""
     default_limits = {
         'polygon': 5,    # Free tier is strict
-        'tiingo': 500,   # More generous  
+        'tiingo': 500,   # More generous
         'eodhd': 20      # Moderate
     }
     return default_limits.get(vendor.lower(), 60)
@@ -368,12 +368,12 @@ def _get_vendor_rate_limit(vendor: str) -> int:
 def load_database_config(environment: str = 'dev') -> Optional[DatabaseConfig]:
     """
     Load database configuration for environment.
-    
+
     Consolidates database config loading from multiple services.
-    
+
     Args:
         environment: Environment name
-        
+
     Returns:
         DatabaseConfig instance or None
     """
@@ -389,7 +389,7 @@ def load_database_config(environment: str = 'dev') -> Optional[DatabaseConfig]:
         'intg': {
             'host': 'ats-intg-postgres',
             'port': 5432,
-            'user': 'postgres', 
+            'user': 'postgres',
             'password': 'intg_password',
             'database': 'intg_db'
         },
@@ -401,9 +401,9 @@ def load_database_config(environment: str = 'dev') -> Optional[DatabaseConfig]:
             'database': 'prod_db'
         }
     }
-    
+
     defaults = env_defaults.get(environment, env_defaults['dev'])
-    
+
     config = DatabaseConfig(
         host=os.environ.get('DB_HOST', defaults['host']),
         port=int(os.environ.get('DB_PORT', defaults['port'])),
@@ -412,17 +412,17 @@ def load_database_config(environment: str = 'dev') -> Optional[DatabaseConfig]:
         database=os.environ.get('DB_NAME', defaults['database']),
         environment=environment
     )
-    
+
     return config if config.is_valid() else None
 
 def get_table_name(base_name: str, environment: str = 'dev') -> str:
     """
     Get environment-specific table name.
-    
+
     Args:
         base_name: Base table name
         environment: Environment name
-        
+
     Returns:
         Environment-prefixed table name
     """
@@ -441,16 +441,16 @@ def validate_configuration(
 ) -> Tuple[bool, List[str]]:
     """
     Validate configuration completeness and correctness.
-    
+
     Args:
         config: Configuration instance to validate
         required_keys: Additional required keys to check
-        
+
     Returns:
         Tuple of (is_valid, error_messages)
     """
     errors = []
-    
+
     if isinstance(config, AppConfig):
         if not config.environment:
             errors.append("Missing environment")
@@ -459,7 +459,7 @@ def validate_configuration(
         for vendor_name, vendor_config in config.vendors.items():
             if not vendor_config.is_valid():
                 errors.append(f"Invalid vendor configuration: {vendor_name}")
-                
+
     elif isinstance(config, VendorConfig):
         if not config.name:
             errors.append("Missing vendor name")
@@ -467,7 +467,7 @@ def validate_configuration(
             errors.append("Missing API key")
         if not config.base_url:
             errors.append("Missing base URL")
-            
+
     elif isinstance(config, DatabaseConfig):
         if not config.host:
             errors.append("Missing database host")
@@ -477,63 +477,63 @@ def validate_configuration(
             errors.append("Missing database password")
         if not config.database:
             errors.append("Missing database name")
-    
+
     # Check additional required keys
     if required_keys:
         for key in required_keys:
             if not hasattr(config, key) or not getattr(config, key):
                 errors.append(f"Missing required key: {key}")
-    
+
     return len(errors) == 0, errors
 
 def validate_environment_setup(environment: str) -> Tuple[bool, List[str]]:
     """
     Validate that environment is properly configured.
-    
+
     Args:
         environment: Environment name to validate
-        
+
     Returns:
         Tuple of (is_valid, error_messages)
     """
     errors = []
     warnings = []
-    
+
     # Check required environment variables
     required_vars = ['PYTHONPATH']
     for var in required_vars:
         if var not in os.environ:
             errors.append(f"Missing environment variable: {var}")
-    
+
     # Check database configuration
     db_config = load_database_config(environment)
     if not db_config:
         errors.append(f"Invalid database configuration for {environment}")
-    
+
     # Check vendor API keys
     vendors = ['polygon', 'tiingo', 'eodhd']
     missing_keys = []
     for vendor in vendors:
         if not get_api_key_with_fallback(vendor):
             missing_keys.append(vendor)
-    
+
     if missing_keys:
         warnings.append(f"Missing API keys for vendors: {missing_keys}")
-    
+
     # Check data directories
     data_paths = ['/data', '/mnt/d/ats-data']
     missing_paths = []
     for path in data_paths:
         if not Path(path).exists():
             missing_paths.append(path)
-    
+
     if missing_paths:
         warnings.append(f"Missing data directories: {missing_paths}")
-    
+
     # Log warnings
     for warning in warnings:
         logger.warning(f"Environment setup warning: {warning}")
-    
+
     return len(errors) == 0, errors
 
 # =============================================================================
@@ -542,11 +542,11 @@ def validate_environment_setup(environment: str) -> Tuple[bool, List[str]]:
 
 class ConfigCache:
     """Cache for configuration objects with TTL."""
-    
+
     def __init__(self, ttl_minutes: int = 60):
         self.ttl = timedelta(minutes=ttl_minutes)
         self._cache: Dict[str, Tuple[datetime, Any]] = {}
-    
+
     def get(self, key: str) -> Optional[Any]:
         """Get cached configuration."""
         if key in self._cache:
@@ -556,15 +556,15 @@ class ConfigCache:
             else:
                 del self._cache[key]
         return None
-    
+
     def set(self, key: str, value: Any):
         """Set cached configuration."""
         self._cache[key] = (datetime.now(), value)
-    
+
     def clear(self):
         """Clear all cached configurations."""
         self._cache.clear()
-    
+
     def refresh(self, key: str):
         """Remove specific key from cache to force refresh."""
         if key in self._cache:
@@ -576,12 +576,12 @@ config_cache = ConfigCache()
 def get_cached_config(key: str, loader_func: callable, *args, **kwargs) -> Any:
     """
     Get configuration with caching.
-    
+
     Args:
         key: Cache key
         loader_func: Function to load configuration
         *args, **kwargs: Arguments for loader function
-        
+
     Returns:
         Configuration object
     """

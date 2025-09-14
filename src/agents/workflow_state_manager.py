@@ -37,7 +37,7 @@ class WorkflowTransition:
     triggered_by: str  # 'agent', 'human', 'system'
     metadata: Dict[str, Any]
 
-@dataclass 
+@dataclass
 class WorkflowState:
     """Complete workflow state tracking"""
     workflow_id: str
@@ -62,29 +62,29 @@ class WorkflowState:
 
 class WorkflowStateManager:
     """Manages workflow states with persistence and transition validation"""
-    
+
     def __init__(self):
         self.workflows: Dict[str, WorkflowState] = {}
         self.transition_rules = self._define_transition_rules()
-        
+
     async def create_workflow(
         self,
         issue_id: str,
         issue_type: str,
         complexity: Any,  # IssueComplexity enum
-        strategy: Any,    # ResolutionStrategy enum  
+        strategy: Any,    # ResolutionStrategy enum
         primary_action: str,
         metadata: Optional[Dict[str, Any]] = None
     ) -> WorkflowState:
         """Create new workflow with initial state"""
-        
+
         workflow_id = str(uuid.uuid4())
         now = datetime.now()
-        
+
         # Estimate completion time based on complexity
         estimated_duration = self._estimate_workflow_duration(complexity, primary_action)
         estimated_completion = now + estimated_duration
-        
+
         workflow = WorkflowState(
             workflow_id=workflow_id,
             issue_id=issue_id,
@@ -106,7 +106,7 @@ class WorkflowStateManager:
             estimated_completion=estimated_completion,
             actual_duration_seconds=None
         )
-        
+
         # Record initial transition
         initial_transition = WorkflowTransition(
             from_status=None,
@@ -117,12 +117,12 @@ class WorkflowStateManager:
             metadata={"initial_creation": True}
         )
         workflow.transitions.append(initial_transition)
-        
+
         self.workflows[workflow_id] = workflow
-        
+
         logger.info(f"Created workflow {workflow_id} for issue {issue_id}")
         return workflow
-    
+
     async def update_workflow_status(
         self,
         workflow_id: str,
@@ -134,43 +134,43 @@ class WorkflowStateManager:
         metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
         """Update workflow status with validation and transition tracking"""
-        
+
         if workflow_id not in self.workflows:
             logger.error(f"Workflow {workflow_id} not found")
             return False
-        
+
         workflow = self.workflows[workflow_id]
         old_status = workflow.status
         new_status_enum = WorkflowStatus(new_status)
-        
+
         # Validate transition
         if not self._is_valid_transition(old_status, new_status_enum):
             logger.error(f"Invalid transition from {old_status.value} to {new_status} for workflow {workflow_id}")
             return False
-        
+
         now = datetime.now()
-        
+
         # Update workflow state
         workflow.status = new_status_enum
         workflow.updated_at = now
-        
+
         if new_status_enum == WorkflowStatus.EXECUTING and workflow.started_at is None:
             workflow.started_at = now
-        
+
         if new_status_enum in [WorkflowStatus.COMPLETED, WorkflowStatus.FAILED, WorkflowStatus.CANCELLED]:
             workflow.completed_at = now
             if workflow.started_at:
                 workflow.actual_duration_seconds = (now - workflow.started_at).total_seconds()
-        
+
         if error:
             workflow.error = error
-        
+
         if result:
             workflow.result = result
-        
+
         if metadata:
             workflow.metadata.update(metadata)
-        
+
         # Record transition
         transition = WorkflowTransition(
             from_status=old_status,
@@ -181,52 +181,52 @@ class WorkflowStateManager:
             metadata=metadata or {}
         )
         workflow.transitions.append(transition)
-        
+
         logger.info(f"Workflow {workflow_id} transitioned from {old_status.value} to {new_status}")
-        
+
         # Trigger any status-specific actions
         await self._handle_status_change(workflow, old_status, new_status_enum)
-        
+
         return True
-    
+
     async def get_workflow(self, workflow_id: str) -> Optional[WorkflowState]:
         """Get workflow by ID"""
         return self.workflows.get(workflow_id)
-    
+
     async def get_workflows_by_status(self, status: WorkflowStatus) -> List[WorkflowState]:
         """Get all workflows with specific status"""
         return [wf for wf in self.workflows.values() if wf.status == status]
-    
+
     async def get_active_workflows(self) -> List[WorkflowState]:
         """Get all active (non-terminal) workflows"""
         terminal_statuses = {
-            WorkflowStatus.COMPLETED, 
-            WorkflowStatus.FAILED, 
+            WorkflowStatus.COMPLETED,
+            WorkflowStatus.FAILED,
             WorkflowStatus.CANCELLED
         }
         return [wf for wf in self.workflows.values() if wf.status not in terminal_statuses]
-    
+
     async def get_stalled_workflows(self, stall_threshold_minutes: int = 60) -> List[WorkflowState]:
         """Get workflows that appear to be stalled"""
         cutoff_time = datetime.now() - timedelta(minutes=stall_threshold_minutes)
-        
+
         stalled = []
         for workflow in self.workflows.values():
             if (workflow.status in [WorkflowStatus.EXECUTING, WorkflowStatus.PENDING_APPROVAL] and
                 workflow.updated_at < cutoff_time):
                 stalled.append(workflow)
-        
+
         return stalled
-    
+
     async def assign_workflow(self, workflow_id: str, assignee: str) -> bool:
         """Assign workflow to specific person/team"""
         if workflow_id not in self.workflows:
             return False
-        
+
         workflow = self.workflows[workflow_id]
         workflow.assigned_to = assignee
         workflow.updated_at = datetime.now()
-        
+
         transition = WorkflowTransition(
             from_status=workflow.status,
             to_status=workflow.status,
@@ -236,49 +236,49 @@ class WorkflowStateManager:
             metadata={"assignment": assignee}
         )
         workflow.transitions.append(transition)
-        
+
         logger.info(f"Assigned workflow {workflow_id} to {assignee}")
         return True
-    
+
     async def cancel_workflow(self, workflow_id: str, reason: str = "Cancelled by request") -> bool:
         """Cancel active workflow"""
         return await self.update_workflow_status(
-            workflow_id, 
+            workflow_id,
             WorkflowStatus.CANCELLED.value,
             reason=reason,
             triggered_by="human"
         )
-    
+
     async def get_workflow_metrics(self) -> Dict[str, Any]:
         """Get workflow performance metrics"""
-        
+
         total_workflows = len(self.workflows)
         if total_workflows == 0:
             return {"total_workflows": 0}
-        
+
         # Status distribution
         status_counts = {}
         for workflow in self.workflows.values():
             status = workflow.status.value
             status_counts[status] = status_counts.get(status, 0) + 1
-        
+
         # Duration analysis for completed workflows
-        completed_workflows = [wf for wf in self.workflows.values() 
+        completed_workflows = [wf for wf in self.workflows.values()
                              if wf.status == WorkflowStatus.COMPLETED and wf.actual_duration_seconds]
-        
+
         avg_duration = 0
         if completed_workflows:
             avg_duration = sum(wf.actual_duration_seconds for wf in completed_workflows) / len(completed_workflows)
-        
+
         # Success rate
-        terminal_workflows = [wf for wf in self.workflows.values() 
+        terminal_workflows = [wf for wf in self.workflows.values()
                             if wf.status in [WorkflowStatus.COMPLETED, WorkflowStatus.FAILED]]
-        
+
         success_rate = 0
         if terminal_workflows:
             completed_count = len([wf for wf in terminal_workflows if wf.status == WorkflowStatus.COMPLETED])
             success_rate = completed_count / len(terminal_workflows)
-        
+
         # Complexity analysis
         complexity_performance = {}
         for complexity in ["simple", "medium", "complex"]:
@@ -290,7 +290,7 @@ class WorkflowStateManager:
                     "completed": completed,
                     "success_rate": completed / len(complexity_workflows)
                 }
-        
+
         return {
             "total_workflows": total_workflows,
             "status_distribution": status_counts,
@@ -300,13 +300,13 @@ class WorkflowStateManager:
             "active_workflows": len(await self.get_active_workflows()),
             "stalled_workflows": len(await self.get_stalled_workflows())
         }
-    
+
     def _define_transition_rules(self) -> Dict[WorkflowStatus, List[WorkflowStatus]]:
         """Define valid status transitions"""
         return {
             WorkflowStatus.CREATED: [
                 WorkflowStatus.EXECUTING,
-                WorkflowStatus.PENDING_APPROVAL, 
+                WorkflowStatus.PENDING_APPROVAL,
                 WorkflowStatus.CANCELLED
             ],
             WorkflowStatus.EXECUTING: [
@@ -347,25 +347,25 @@ class WorkflowStateManager:
             WorkflowStatus.FAILED: [],
             WorkflowStatus.CANCELLED: []
         }
-    
+
     def _is_valid_transition(self, from_status: WorkflowStatus, to_status: WorkflowStatus) -> bool:
         """Check if status transition is valid"""
         allowed_transitions = self.transition_rules.get(from_status, [])
         return to_status in allowed_transitions
-    
+
     def _estimate_workflow_duration(self, complexity: Any, action: str) -> timedelta:
         """Estimate workflow completion time"""
-        
+
         # Base durations by complexity
         base_durations = {
             "simple": timedelta(minutes=5),
             "medium": timedelta(minutes=30),
             "complex": timedelta(hours=2)
         }
-        
+
         complexity_str = complexity.value if hasattr(complexity, 'value') else str(complexity)
         base_duration = base_durations.get(complexity_str, timedelta(minutes=30))
-        
+
         # Action-specific multipliers
         action_multipliers = {
             "trigger_backfill": 1.0,
@@ -373,18 +373,18 @@ class WorkflowStateManager:
             "cross_validate_vendors": 2.0,
             "escalate_to_human": 4.0
         }
-        
+
         multiplier = action_multipliers.get(action, 1.0)
         return base_duration * multiplier
-    
+
     def _determine_priority(self, issue_type: str, complexity: Any) -> str:
         """Determine workflow priority"""
-        
+
         # High priority issue types
         high_priority_types = ["scan_error", "extreme_price_range", "extreme_volume"]
-        
+
         complexity_str = complexity.value if hasattr(complexity, 'value') else str(complexity)
-        
+
         if issue_type in high_priority_types:
             return "high"
         elif complexity_str == "complex":
@@ -393,50 +393,50 @@ class WorkflowStateManager:
             return "low"
         else:
             return "medium"
-    
+
     async def _handle_status_change(
-        self, 
-        workflow: WorkflowState, 
-        old_status: WorkflowStatus, 
+        self,
+        workflow: WorkflowState,
+        old_status: WorkflowStatus,
         new_status: WorkflowStatus
     ):
         """Handle status-specific actions"""
-        
+
         if new_status == WorkflowStatus.STALLED:
             logger.warning(f"Workflow {workflow.workflow_id} has stalled - may need intervention")
-        
+
         elif new_status == WorkflowStatus.FAILED:
             logger.error(f"Workflow {workflow.workflow_id} failed: {workflow.error}")
-        
+
         elif new_status == WorkflowStatus.COMPLETED:
             duration = workflow.actual_duration_seconds or 0
             logger.info(f"Workflow {workflow.workflow_id} completed in {duration:.1f} seconds")
-        
+
         elif new_status == WorkflowStatus.ESCALATED:
             logger.warning(f"Workflow {workflow.workflow_id} escalated - requires expert attention")
-    
+
     async def cleanup_old_workflows(self, days_old: int = 30):
         """Clean up old completed workflows"""
         cutoff_date = datetime.now() - timedelta(days=days_old)
-        
+
         to_remove = []
         for workflow_id, workflow in self.workflows.items():
             if (workflow.status in [WorkflowStatus.COMPLETED, WorkflowStatus.FAILED, WorkflowStatus.CANCELLED] and
                 workflow.completed_at and workflow.completed_at < cutoff_date):
                 to_remove.append(workflow_id)
-        
+
         for workflow_id in to_remove:
             del self.workflows[workflow_id]
-        
+
         if to_remove:
             logger.info(f"Cleaned up {len(to_remove)} old workflows")
-    
+
     def to_dict(self, workflow_id: str) -> Optional[Dict[str, Any]]:
         """Convert workflow to dictionary for serialization"""
         workflow = self.workflows.get(workflow_id)
         if not workflow:
             return None
-        
+
         return {
             "workflow_id": workflow.workflow_id,
             "issue_id": workflow.issue_id,
