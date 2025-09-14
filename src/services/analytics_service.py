@@ -6517,10 +6517,26 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         .score.excellent { background: linear-gradient(135deg, #27ae60, #229954); color: white; }
         .no-issues { background: linear-gradient(135deg, #27ae60, #229954); color: white; text-align: center; padding: 40px; border-radius: 12px; font-size: 1.3em; }
         .meta-item { display: inline-block; margin-right: 15px; }
+        .tag { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75em; font-weight: 500; margin: 2px; color: white; }
+        .tag.selected { background: #3498db; cursor: pointer; }
+        .tag.removable { background: #e74c3c; cursor: pointer; padding-right: 20px; position: relative; }
+        .tag.removable:hover { background: #c0392b; }
+        .tag.removable::after { content: '×'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 12px; }
+        .tag-option { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .tag-option:hover { background: #f8f9fa; }
+        .tag-option.selected { background: #e3f2fd; }
+        .issue-tags { margin-top: 8px; }
+        .issue-tags .tag { font-size: 0.7em; padding: 2px 6px; }
+        .tag-manager { margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; }
+        .tag-manager input { width: 100px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 3px; font-size: 0.8em; }
+        .tag-manager button { padding: 2px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75em; margin-left: 5px; }
+        .tag-manager .add-btn { background: #27ae60; color: white; }
+        .tag-manager .suggest-btn { background: #3498db; color: white; }
         @media (max-width: 768px) {
             .stats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; }
             .header { padding: 20px; }
             .header h1 { font-size: 1.8em; }
+            #tag-filters-panel div[style*="grid-template-columns"] { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -6552,6 +6568,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     <option value="50" selected>50 per page</option>
                     <option value="100">100 per page</option>
                 </select>
+                <button onclick="showTagFilters()" style="padding: 4px 12px; background: #9b59b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                    🏷️ Tag Filters
+                </button>
+                <button onclick="runAutoTaggingBatch()" style="padding: 4px 12px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                    🤖 Auto-Tag Batch
+                </button>
             </div>
         </div>
         
@@ -6591,7 +6613,85 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         🚨 Alerts
                     </button>
+                    <button onclick="showAutoTaggingRules()" 
+                            style="padding: 6px 12px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        🤖 Auto-Tag Rules
+                    </button>
                 </div>
+            </div>
+        </div>
+        
+        <!-- TAG FILTERING PANEL -->
+        <div id="tag-filters-panel" style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); display: none;">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: white; margin: 0; font-size: 1.1em;">🏷️ Filter Issues by Tags</h3>
+                <button onclick="hideTagFilters()" style="background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                    ✕ Close
+                </button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <!-- Tag Selection -->
+                <div>
+                    <label style="color: white; display: block; margin-bottom: 5px; font-weight: 500;">Tags</label>
+                    <div style="position: relative;">
+                        <input type="text" id="tag-search" placeholder="Search tags..." 
+                               style="width: 100%; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;"
+                               oninput="searchTags(this.value)" />
+                        <div id="tag-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 4px; z-index: 1000; display: none;">
+                            <!-- Tag options will be populated here -->
+                        </div>
+                    </div>
+                    <div id="selected-tags" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px;">
+                        <!-- Selected tags will appear here -->
+                    </div>
+                </div>
+                
+                <!-- Symbol Filter -->
+                <div>
+                    <label style="color: white; display: block; margin-bottom: 5px; font-weight: 500;">Symbols</label>
+                    <input type="text" id="symbol-filter" placeholder="AAPL,MSFT,NVDA..." 
+                           style="width: 100%; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;" />
+                </div>
+                
+                <!-- Date Range -->
+                <div>
+                    <label style="color: white; display: block; margin-bottom: 5px; font-weight: 500;">Date Range</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="date" id="date-from" 
+                               style="flex: 1; padding: 6px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;" />
+                        <input type="date" id="date-to" 
+                               style="flex: 1; padding: 6px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;" />
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <label style="color: white; display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="match-mode" value="ANY" checked />
+                        Match ANY tag
+                    </label>
+                    <label style="color: white; display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="match-mode" value="ALL" />
+                        Match ALL tags
+                    </label>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="clearAllFilters()" 
+                            style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                        Clear All
+                    </button>
+                    <button onclick="applyTagFilters()" 
+                            style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Active Filter Summary -->
+            <div id="active-filters-summary" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 4px; color: white; font-size: 0.9em; display: none;">
+                <strong>Active Filters:</strong> <span id="filter-summary-text"></span>
             </div>
         </div>
     </div>
@@ -6652,6 +6752,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         let currentPageSize = 50;
         let currentSeverityFilter = null;
         let useRay = false;
+        let availableTags = [];
+        let selectedTags = [];
+        let currentSymbolFilter = null;
+        let currentDateFromFilter = null;
+        let currentDateToFilter = null;
+        let currentMatchMode = 'ANY';
         
         async function loadData(page = 1, pageSize = 50, severityFilter = null, rayEnabled = false) {
             try {
@@ -6669,7 +6775,27 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 if (severityFilter) params.append('severity', severityFilter);
                 if (rayEnabled) params.append('ray', 'true');
                 
-                const response = await fetch(`/data-quality/api/issues?${params}`);
+                // Add tag filtering parameters
+                if (selectedTags.length > 0) {
+                    params.append('tag_ids', selectedTags.map(tag => tag.id).join(','));
+                    params.append('match_mode', currentMatchMode);
+                }
+                if (currentSymbolFilter) {
+                    params.append('symbols', currentSymbolFilter);
+                }
+                if (currentDateFromFilter) {
+                    params.append('date_from', currentDateFromFilter);
+                }
+                if (currentDateToFilter) {
+                    params.append('date_to', currentDateToFilter);
+                }
+                
+                // Use the tag-enhanced endpoint if filters are active
+                const endpoint = (selectedTags.length > 0 || currentSymbolFilter || currentDateFromFilter || currentDateToFilter) 
+                    ? `/data-quality/api/issues/?${params}` 
+                    : `/data-quality/api/issues?${params}`;
+                    
+                const response = await fetch(endpoint);
                 const data = await response.json();
                 displayData(data);
             } catch (error) {
@@ -6777,6 +6903,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     
                     severityIssues.forEach(issue => {
                         const actionButtons = getIssueActionButtons(issue);
+                        const tagsHtml = renderIssueTags(issue);
+                        const tagManagerHtml = renderTagManager(issue.id);
+                        
                         issuesHtml += `
                             <div class="issue ${issue.severity}">
                                 <div class="issue-title">${issue.symbol}: ${issue.description}</div>
@@ -6788,6 +6917,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     ${issue.expected_value && issue.actual_value ? 
                                       `<br><span class="meta-item">💡 Expected: ${issue.expected_value}</span><span class="meta-item">📊 Actual: ${issue.actual_value}</span>` : ''}
                                 </div>
+                                ${tagsHtml}
+                                ${tagManagerHtml}
                                 ${actionButtons ? `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">${actionButtons}</div>` : ''}
                             </div>
                         `;
@@ -6811,6 +6942,54 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             } else {
                 methodElement.style.display = 'none';
             }
+        }
+        
+        // =====================================
+        // TAG RENDERING HELPER FUNCTIONS
+        // =====================================
+        
+        function renderIssueTags(issue) {
+            if (!issue.tags || issue.tags.length === 0) {
+                return '<div class="issue-tags"><small style="color: #6c757d;">No tags</small></div>';
+            }
+            
+            let tagsHtml = '<div class="issue-tags">';
+            issue.tags.forEach(tag => {
+                tagsHtml += `
+                    <span class="tag" style="background-color: ${tag.color};" 
+                          onclick="removeTagFromIssue(${issue.id}, ${tag.id})"
+                          title="Click to remove tag">
+                        ${tag.name}
+                    </span>
+                `;
+            });
+            tagsHtml += '</div>';
+            return tagsHtml;
+        }
+        
+        function renderTagManager(issueId) {
+            return `
+                <div class="tag-manager">
+                    <input type="text" 
+                           id="tag-input-${issueId}" 
+                           placeholder="Add tag..." 
+                           onkeypress="if(event.key==='Enter'){addTagToIssue(${issueId}, this.value); this.value='';}"
+                           style="margin-right: 5px;" />
+                    <button class="add-btn" 
+                            onclick="addTagToIssue(${issueId}, document.getElementById('tag-input-${issueId}').value); document.getElementById('tag-input-${issueId}').value='';">
+                        + Add
+                    </button>
+                    <button class="suggest-btn" 
+                            onclick="suggestTagsForIssue(${issueId})">
+                        🤖 Suggest
+                    </button>
+                    <button class="suggest-btn" 
+                            onclick="autoTagIssue(${issueId})"
+                            style="background: #f39c12;">
+                        ⚡ Auto-Tag
+                    </button>
+                </div>
+            `;
         }
         
         // Update pagination display
@@ -7572,10 +7751,354 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             });
         }
         
+        // =====================================
+        // TAG MANAGEMENT FUNCTIONS
+        // =====================================
+        
+        async function loadAvailableTags() {
+            try {
+                const response = await fetch('/api/tags/?limit=1000');
+                const tags = await response.json();
+                availableTags = tags.sort((a, b) => a.name.localeCompare(b.name));
+            } catch (error) {
+                console.error('Error loading tags:', error);
+                availableTags = [];
+            }
+        }
+        
+        function showTagFilters() {
+            document.getElementById('tag-filters-panel').style.display = 'block';
+            if (availableTags.length === 0) {
+                loadAvailableTags();
+            }
+        }
+        
+        function hideTagFilters() {
+            document.getElementById('tag-filters-panel').style.display = 'none';
+        }
+        
+        function searchTags(query) {
+            const dropdown = document.getElementById('tag-dropdown');
+            
+            if (query.length < 2) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            const filteredTags = availableTags.filter(tag => 
+                tag.name.toLowerCase().includes(query.toLowerCase()) &&
+                !selectedTags.some(selected => selected.id === tag.id)
+            );
+            
+            dropdown.innerHTML = '';
+            filteredTags.slice(0, 10).forEach(tag => {
+                const option = document.createElement('div');
+                option.className = 'tag-option';
+                option.innerHTML = `
+                    <span style="background-color: ${tag.color}; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.8em;">
+                        ${tag.name}
+                    </span>
+                    <small>${tag.category_name || 'No category'}</small>
+                `;
+                option.onclick = () => selectTag(tag);
+                dropdown.appendChild(option);
+            });
+            
+            dropdown.style.display = filteredTags.length > 0 ? 'block' : 'none';
+        }
+        
+        function selectTag(tag) {
+            if (selectedTags.some(selected => selected.id === tag.id)) return;
+            
+            selectedTags.push(tag);
+            updateSelectedTagsDisplay();
+            document.getElementById('tag-search').value = '';
+            document.getElementById('tag-dropdown').style.display = 'none';
+        }
+        
+        function removeSelectedTag(tagId) {
+            selectedTags = selectedTags.filter(tag => tag.id !== tagId);
+            updateSelectedTagsDisplay();
+        }
+        
+        function updateSelectedTagsDisplay() {
+            const container = document.getElementById('selected-tags');
+            container.innerHTML = '';
+            
+            selectedTags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tag removable';
+                tagElement.style.backgroundColor = tag.color;
+                tagElement.textContent = tag.name;
+                tagElement.onclick = () => removeSelectedTag(tag.id);
+                container.appendChild(tagElement);
+            });
+        }
+        
+        function applyTagFilters() {
+            // Get form values
+            currentSymbolFilter = document.getElementById('symbol-filter').value.trim() || null;
+            currentDateFromFilter = document.getElementById('date-from').value || null;
+            currentDateToFilter = document.getElementById('date-to').value || null;
+            
+            const matchModeInput = document.querySelector('input[name="match-mode"]:checked');
+            currentMatchMode = matchModeInput ? matchModeInput.value : 'ANY';
+            
+            // Update filter summary
+            updateFilterSummary();
+            
+            // Hide filters panel and reload data
+            hideTagFilters();
+            loadData(1, currentPageSize, currentSeverityFilter, useRay);
+        }
+        
+        function clearAllFilters() {
+            selectedTags = [];
+            currentSymbolFilter = null;
+            currentDateFromFilter = null;
+            currentDateToFilter = null;
+            currentMatchMode = 'ANY';
+            
+            // Reset form controls
+            document.getElementById('symbol-filter').value = '';
+            document.getElementById('date-from').value = '';
+            document.getElementById('date-to').value = '';
+            document.querySelector('input[name="match-mode"][value="ANY"]').checked = true;
+            
+            updateSelectedTagsDisplay();
+            updateFilterSummary();
+            loadData(1, currentPageSize, currentSeverityFilter, useRay);
+        }
+        
+        function updateFilterSummary() {
+            const summaryContainer = document.getElementById('active-filters-summary');
+            const summaryText = document.getElementById('filter-summary-text');
+            
+            let summary = [];
+            
+            if (selectedTags.length > 0) {
+                const tagNames = selectedTags.map(tag => tag.name).join(', ');
+                summary.push(`Tags: ${tagNames} (${currentMatchMode})`);
+            }
+            
+            if (currentSymbolFilter) {
+                summary.push(`Symbols: ${currentSymbolFilter}`);
+            }
+            
+            if (currentDateFromFilter || currentDateToFilter) {
+                const dateRange = [currentDateFromFilter, currentDateToFilter].filter(Boolean).join(' to ');
+                summary.push(`Date: ${dateRange}`);
+            }
+            
+            if (summary.length > 0) {
+                summaryText.textContent = summary.join(' | ');
+                summaryContainer.style.display = 'block';
+            } else {
+                summaryContainer.style.display = 'none';
+            }
+        }
+        
+        async function addTagToIssue(issueId, tagName) {
+            if (!tagName.trim()) return;
+            
+            try {
+                // Find the tag by name or create new one
+                let tag = availableTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+                
+                if (!tag) {
+                    // Create new tag
+                    const createResponse = await fetch('/api/tags/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: tagName })
+                    });
+                    tag = await createResponse.json();
+                    availableTags.push(tag);
+                }
+                
+                // Apply tag to issue
+                const applyResponse = await fetch('/api/tags/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        entity_type: 'data_quality_issues',
+                        entity_id: issueId,
+                        tag_id: tag.id,
+                        source: 'manual'
+                    })
+                });
+                
+                if (applyResponse.ok) {
+                    // Refresh the current issue display
+                    loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                }
+            } catch (error) {
+                console.error('Error adding tag:', error);
+                alert('Failed to add tag. Please try again.');
+            }
+        }
+        
+        async function removeTagFromIssue(issueId, tagId) {
+            try {
+                const response = await fetch(`/api/tags/entity/data_quality_issues/${issueId}/tag/${tagId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    // Refresh the current issue display
+                    loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                }
+            } catch (error) {
+                console.error('Error removing tag:', error);
+                alert('Failed to remove tag. Please try again.');
+            }
+        }
+        
+        async function suggestTagsForIssue(issueId) {
+            try {
+                const response = await fetch(`/api/tags/suggestions-enhanced/data_quality_issues/${issueId}?limit=5`);
+                const suggestions = await response.json();
+                
+                if (suggestions.length > 0) {
+                    const suggestionText = suggestions.map(s => 
+                        `${s.tag_name} (${Math.round(s.confidence_score * 100)}%)`
+                    ).join(', ');
+                    
+                    if (confirm(`Suggested tags: ${suggestionText}\\n\\nApply these tags?`)) {
+                        // Apply all suggested tags
+                        for (const suggestion of suggestions) {
+                            await fetch('/api/tags/apply', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    entity_type: 'data_quality_issues',
+                                    entity_id: issueId,
+                                    tag_id: suggestion.tag_id,
+                                    confidence_score: suggestion.confidence_score,
+                                    source: suggestion.source
+                                })
+                            });
+                        }
+                        
+                        // Refresh display
+                        loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                    }
+                } else {
+                    alert('No tag suggestions available for this issue.');
+                }
+            } catch (error) {
+                console.error('Error getting suggestions:', error);
+                alert('Failed to get tag suggestions. Please try again.');
+            }
+        }
+        
+        async function autoTagIssue(issueId) {
+            try {
+                const response = await fetch(`/api/tags/auto-tag/data_quality_issues/${issueId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    if (result.applied_tags && result.applied_tags.length > 0) {
+                        alert(`Auto-tagging successful!\\n\\nApplied tags: ${result.applied_tags.join(', ')}\\n\\nTotal: ${result.total_applied} tags`);
+                        // Refresh the current issue display
+                        loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                    } else {
+                        alert('No auto-tags were applied to this issue. The issue may not match any auto-tagging rules.');
+                    }
+                } else {
+                    alert(`Auto-tagging failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error auto-tagging issue:', error);
+                alert('Failed to auto-tag issue. Please try again.');
+            }
+        }
+        
+        async function runAutoTaggingBatch() {
+            if (!confirm('Run auto-tagging on recent untagged issues?\\n\\nThis will apply tags automatically based on issue characteristics.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/tags/auto-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        limit: 50,
+                        min_hours_old: 1
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    let message = `Auto-tagging batch completed!\\n\\n`;
+                    if (result.issues_processed !== undefined) {
+                        message += `Issues processed: ${result.issues_processed}\\n`;
+                        message += `Issues tagged: ${result.issues_tagged}\\n`;
+                        message += `Total tags applied: ${result.tags_applied}\\n`;
+                        if (result.errors > 0) {
+                            message += `Errors: ${result.errors}\\n`;
+                        }
+                    } else {
+                        message += result.summary || 'Batch processing initiated.';
+                    }
+                    
+                    alert(message);
+                    
+                    // Refresh the current issue display
+                    loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                } else {
+                    alert(`Batch auto-tagging failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error running auto-tagging batch:', error);
+                alert('Failed to run auto-tagging batch. Please try again.');
+            }
+        }
+        
+        async function showAutoTaggingRules() {
+            try {
+                const response = await fetch('/api/tags/auto-rules');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let rulesHtml = '<h3>Auto-Tagging Rules</h3>';
+                    rulesHtml += `<p><strong>Total Rules:</strong> ${data.total_rules}</p>`;
+                    rulesHtml += `<p><strong>Categories:</strong> ${data.categories.join(', ')}</p>`;
+                    rulesHtml += '<div style="max-height: 400px; overflow-y: auto;">';
+                    
+                    data.rules.forEach(rule => {
+                        rulesHtml += `
+                            <div style="border: 1px solid #ddd; margin: 10px 0; padding: 10px; border-radius: 4px;">
+                                <strong>${rule.name}</strong> → <span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 4px;">${rule.tag_name}</span>
+                                <br><small>Confidence: ${Math.round(rule.confidence * 100)}% | Category: ${rule.category}</small>
+                                <br><em>${rule.description}</em>
+                            </div>
+                        `;
+                    });
+                    
+                    rulesHtml += '</div>';
+                    
+                    showModal('Auto-Tagging Rules', rulesHtml);
+                } else {
+                    alert('Failed to load auto-tagging rules.');
+                }
+            } catch (error) {
+                console.error('Error loading auto-tagging rules:', error);
+                alert('Failed to load auto-tagging rules.');
+            }
+        }
+        
         // Initialize page on load
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
             loadAgentStatus();
+            loadAvailableTags();
         });
         
         // Auto-refresh every 60 seconds
@@ -8926,6 +9449,36 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 else:
                     raise ValueError("Invalid suggestions path format")
                     
+            elif endpoint.startswith('suggestions-enhanced/'):
+                # GET /api/tags/suggestions-enhanced/{entity_type}/{entity_id} - Get enhanced suggestions
+                parts = endpoint.split('/')
+                if len(parts) >= 3:
+                    entity_type, entity_id = parts[1], int(parts[2])
+                    limit = int(query_params.get('limit', [5])[0])
+                    suggestions = await tag_service.get_auto_tag_suggestions_enhanced(entity_type, entity_id, limit)
+                    response = [
+                        {
+                            "tag_id": suggestion.tag_id,
+                            "tag_name": suggestion.tag_name,
+                            "confidence_score": round(suggestion.confidence_score, 3),
+                            "source": suggestion.source.value,
+                            "explanation": suggestion.explanation
+                        }
+                        for suggestion in suggestions
+                    ]
+                else:
+                    raise ValueError("Invalid enhanced suggestions path format")
+                    
+            elif endpoint == 'auto-rules':
+                # GET /api/tags/auto-rules - Get auto-tagging rules
+                auto_tagging = tag_service.get_auto_tagging_service()
+                rules = auto_tagging.get_all_rules()
+                response = {
+                    "rules": rules,
+                    "total_rules": len(rules),
+                    "categories": list(set(rule['category'] for rule in rules))
+                }
+                    
             elif endpoint == 'usage-stats':
                 # GET /api/tags/usage-stats - Get usage statistics
                 limit = int(query_params.get('limit', [100])[0])
@@ -9060,6 +9613,41 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 # POST /api/tags/refresh-analytics - Refresh analytics
                 success = await tag_service.refresh_tag_analytics()
                 response = {"message": "Tag analytics refreshed successfully" if success else "Failed to refresh analytics"}
+                
+            elif endpoint.startswith('auto-tag/'):
+                # POST /api/tags/auto-tag/{entity_type}/{entity_id} - Apply auto-tagging
+                parts = endpoint.replace('auto-tag/', '').split('/')
+                if len(parts) >= 2:
+                    entity_type, entity_id = parts[0], int(parts[1])
+                    
+                    if entity_type == "data_quality_issues":
+                        issue_details = await tag_service.repository.get_issue_details(entity_id)
+                        if not issue_details:
+                            self._serve_json_response({"error": "Entity not found"}, status_code=404)
+                            return
+                            
+                        applied_tags = await tag_service.auto_tag_issue(entity_id, issue_details)
+                        
+                        response = {
+                            "entity_type": entity_type,
+                            "entity_id": entity_id,
+                            "applied_tags": applied_tags,
+                            "total_applied": len(applied_tags),
+                            "message": f"Applied {len(applied_tags)} auto-tags successfully"
+                        }
+                    else:
+                        self._serve_json_response({"error": f"Auto-tagging not supported for entity type: {entity_type}"}, status_code=400)
+                        return
+                else:
+                    raise ValueError("Invalid auto-tag path format")
+                    
+            elif endpoint == 'auto-batch':
+                # POST /api/tags/auto-batch - Run batch auto-tagging
+                limit = int(request_data.get('limit', 100))
+                min_hours_old = int(request_data.get('min_hours_old', 1))
+                
+                auto_tagging = tag_service.get_auto_tagging_service()
+                response = await auto_tagging.run_auto_tagging_job(limit=limit, min_hours_old=min_hours_old)
                 
             else:
                 self._serve_404()

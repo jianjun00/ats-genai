@@ -21,18 +21,19 @@ class TagService:
     
     def __init__(self, tag_repository: TagRepository):
         self.repository = tag_repository
+        self._auto_tagging_service = None
     
     async def get_all_tags(self, active_only: bool = True) -> List[Tag]:
         """Get all tags with optional filtering"""
-        return await self.repository.get_all_tags(active_only=active_only)
+        return await self.repository.get_tags(limit=1000)  # Get all tags, already filtered by active
     
     async def get_tags_by_category(self, category_id: int, active_only: bool = True) -> List[Tag]:
         """Get tags filtered by category"""
-        return await self.repository.get_tags_by_category(category_id, active_only=active_only)
+        return await self.repository.get_tags(category_id=category_id, limit=1000)
     
     async def get_all_categories(self) -> List[TagCategory]:
         """Get all tag categories"""
-        return await self.repository.get_all_categories()
+        return await self.repository.get_tag_categories()
     
     async def search_tags(self, query: str, limit: int = 50) -> List[Tag]:
         """Search tags by name or description"""
@@ -298,3 +299,53 @@ class TagService:
                 logger.info(f"Deleted unused tag: {tag.name}")
         
         return [tag.id for tag in unused_tags]
+    
+    def get_auto_tagging_service(self):
+        """Get auto-tagging service instance (lazy initialization)"""
+        if self._auto_tagging_service is None:
+            from domains.tagging.services.auto_tagging_service import AutoTaggingService
+            self._auto_tagging_service = AutoTaggingService(self)
+        return self._auto_tagging_service
+    
+    async def auto_tag_issue(self, issue_id: int, issue_data: Dict[str, Any]) -> List[str]:
+        """Apply auto-tagging rules to a single issue"""
+        auto_tagging = self.get_auto_tagging_service()
+        return await auto_tagging.auto_tag_issue(issue_id, issue_data)
+    
+    async def get_auto_tag_suggestions_enhanced(self, entity_type: str, entity_id: int, limit: int = 5) -> List[TagSuggestion]:
+        """Enhanced tag suggestions combining rule-based, ML, and auto-tagging approaches"""
+        suggestions = []
+        
+        # Get original suggestions
+        original_suggestions = await self.suggest_tags_for_entity(entity_type, entity_id, limit)
+        suggestions.extend(original_suggestions)
+        
+        # Get auto-tagging suggestions if this is a data quality issue
+        if entity_type == "data_quality_issues":
+            try:
+                # Get issue details for auto-tagging
+                issue_details = await self.repository.get_issue_details(entity_id)
+                if issue_details:
+                    auto_tagging = self.get_auto_tagging_service()
+                    auto_suggestions = await auto_tagging.get_auto_tag_suggestions(issue_details)
+                    
+                    # Convert to TagSuggestion objects
+                    for auto_suggestion in auto_suggestions:
+                        # Find tag by name
+                        all_tags = await self.get_all_tags()
+                        matching_tag = next((tag for tag in all_tags if tag.name == auto_suggestion['tag_name']), None)
+                        
+                        if matching_tag and not any(s.tag_id == matching_tag.id for s in suggestions):
+                            suggestions.append(TagSuggestion(
+                                tag_id=matching_tag.id,
+                                tag_name=matching_tag.name,
+                                confidence_score=auto_suggestion['confidence_score'],
+                                source=TagSource.AUTO,
+                                explanation=auto_suggestion['explanation']
+                            ))
+            except Exception as e:
+                logger.warning(f"Error getting auto-tag suggestions: {e}")
+        
+        # Sort by confidence and return top suggestions
+        suggestions.sort(key=lambda x: x.confidence_score, reverse=True)
+        return suggestions[:limit]

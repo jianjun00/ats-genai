@@ -435,3 +435,93 @@ async def get_tag_usage_stats(
     except Exception as e:
         logger.error(f"Error getting usage stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Auto-tagging endpoints
+@tag_router.post("/auto-tag/{entity_type}/{entity_id}")
+async def auto_tag_entity(
+    entity_type: str,
+    entity_id: int,
+    tag_service: TagService = Depends(get_tag_service)
+):
+    """Apply auto-tagging rules to a specific entity"""
+    try:
+        # Get entity details for auto-tagging
+        if entity_type == "data_quality_issues":
+            issue_details = await tag_service.repository.get_issue_details(entity_id)
+            if not issue_details:
+                raise HTTPException(status_code=404, detail="Entity not found")
+                
+            applied_tags = await tag_service.auto_tag_issue(entity_id, issue_details)
+            
+            return {
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "applied_tags": applied_tags,
+                "total_applied": len(applied_tags),
+                "message": f"Applied {len(applied_tags)} auto-tags successfully"
+            }
+        else:
+            raise HTTPException(status_code=400, detail=f"Auto-tagging not supported for entity type: {entity_type}")
+            
+    except Exception as e:
+        logger.error(f"Error auto-tagging entity: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@tag_router.get("/auto-rules")
+async def get_auto_tagging_rules(
+    tag_service: TagService = Depends(get_tag_service)
+):
+    """Get all auto-tagging rules"""
+    try:
+        auto_tagging = tag_service.get_auto_tagging_service()
+        rules = auto_tagging.get_all_rules()
+        
+        return {
+            "rules": rules,
+            "total_rules": len(rules),
+            "categories": list(set(rule['category'] for rule in rules))
+        }
+    except Exception as e:
+        logger.error(f"Error getting auto-tagging rules: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@tag_router.post("/auto-batch")
+async def run_auto_tagging_batch(
+    limit: int = Body(100, embed=True, description="Maximum number of issues to process"),
+    min_hours_old: int = Body(1, embed=True, description="Minimum hours old for issues to process"),
+    tag_service: TagService = Depends(get_tag_service)
+):
+    """Run auto-tagging batch job on recent issues"""
+    try:
+        auto_tagging = tag_service.get_auto_tagging_service()
+        results = await auto_tagging.run_auto_tagging_job(limit=limit, min_hours_old=min_hours_old)
+        
+        return results
+    except Exception as e:
+        logger.error(f"Error running auto-tagging batch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@tag_router.get("/suggestions-enhanced/{entity_type}/{entity_id}")
+async def get_enhanced_tag_suggestions(
+    entity_type: str,
+    entity_id: int,
+    limit: int = Query(5, description="Maximum number of suggestions"),
+    tag_service: TagService = Depends(get_tag_service)
+):
+    """Get enhanced tag suggestions including auto-tagging rules"""
+    try:
+        suggestions = await tag_service.get_auto_tag_suggestions_enhanced(entity_type, entity_id, limit)
+        
+        return [
+            {
+                "tag_id": suggestion.tag_id,
+                "tag_name": suggestion.tag_name,
+                "confidence_score": round(suggestion.confidence_score, 3),
+                "source": suggestion.source.value,
+                "explanation": suggestion.explanation
+            }
+            for suggestion in suggestions
+        ]
+    except Exception as e:
+        logger.error(f"Error getting enhanced suggestions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
