@@ -2495,6 +2495,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadNewsEvents()">📰 News Events</button>
                 <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
                 <button onclick="loadGapEvents()">⚡ Gap Events</button>
+                <button onclick="loadXAIFinancialEvents()">🔮 AI Financial Events (xAI + Grok)</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
 
@@ -3708,6 +3709,253 @@ async function loadUniverseAnalytics() {
                     } catch (error) {
                         document.getElementById('analysis-content').innerHTML =
                             '<h3>⚡ Gap Events</h3><p style="color: red;">Error loading gap events: ' + error.message + '</p>';
+                    }
+                }
+
+                async function loadXAIFinancialEvents() {
+                    // Get filter values
+                    const symbolFilter = document.getElementById('symbol-filter')?.value || '';
+                    const startDateFilter = document.getElementById('start-date-filter')?.value || '';
+                    const endDateFilter = document.getElementById('end-date-filter')?.value || '';
+                    const limit = 50;
+
+                    // Show loading message
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>🔮 xAI Financial Events</h3><p>Loading financial events from xAI integration...</p>';
+
+                    try {
+                        // Build query parameters
+                        const params = new URLSearchParams();
+                        params.append('limit', limit);
+                        if (symbolFilter) params.append('symbol', symbolFilter);
+                        if (startDateFilter) params.append('start_date', startDateFilter);
+                        if (endDateFilter) params.append('end_date', endDateFilter);
+
+                        // Fetch financial events
+                        const response = await fetch(`/financial_events?${params.toString()}`);
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.events && data.events.length > 0) {
+                            const appliedFilters = data.query_params || {};
+                            
+                            html = `
+                                <h3>🔮 AI Financial Events Analysis (xAI + Grok)</h3>
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                                    <h4 style="margin: 0 0 10px 0;">📊 Event Summary (${data.count} events)</h4>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">`;
+
+                            // Get summary stats
+                            const summaryResponse = await fetch('/financial_events/summary');
+                            const summaryData = await summaryResponse.json();
+                            
+                            if (summaryData.success && summaryData.summary.length > 0) {
+                                const stats = summaryData.summary[0];
+                                html += `
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.total_events || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">Total Events</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.high_impact_events || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">High Impact</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.unique_symbols || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">Unique Symbols</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.events_last_week || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">This Week</div>
+                                    </div>`;
+                            }
+                            
+                            html += `
+                                    </div>
+                                </div>
+
+                                <!-- Filter Controls -->
+                                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                        <div>
+                                            <label for="xai-symbol-filter" style="display: block; margin-bottom: 5px; font-weight: 500;">Symbol Filter:</label>
+                                            <input type="text" id="xai-symbol-filter" placeholder="e.g., AAPL" 
+                                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+                                                value="${appliedFilters.symbol || ''}">
+                                        </div>
+                                        <div>
+                                            <label for="xai-event-type-filter" style="display: block; margin-bottom: 5px; font-weight: 500;">Event Type:</label>
+                                            <select id="xai-event-type-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">All Types</option>
+                                                <option value="earnings">Earnings</option>
+                                                <option value="fed_announcement">Fed Announcements</option>
+                                                <option value="stock_event">Stock Events</option>
+                                                <option value="economic_indicator">Economic Indicators</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="xai-impact-filter" style="display: block; margin-bottom: 5px; font-weight: 500;">Impact Level:</label>
+                                            <select id="xai-impact-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">All Levels</option>
+                                                <option value="high">High Impact</option>
+                                                <option value="medium">Medium Impact</option>
+                                                <option value="low">Low Impact</option>
+                                            </select>
+                                        </div>
+                                        <div style="display: flex; align-items: end;">
+                                            <button onclick="applyXAIFilters()" 
+                                                style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                                                Apply Filters
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Events Table -->
+                                <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                                    <div style="background: #667eea; color: white; padding: 15px;">
+                                        <h4 style="margin: 0;">🔮 Financial Events from xAI</h4>
+                                    </div>
+                                    <div style="overflow-x: auto;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead style="background: #f8f9fa;">
+                                                <tr>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Date</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Symbol</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Type</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Impact</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Details</th>
+                                                    <th style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">Confidence</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+
+                            data.events.forEach((event, index) => {
+                                const impactColor = event.impact_level === 'high' ? '#dc3545' : 
+                                                  event.impact_level === 'medium' ? '#fd7e14' : '#28a745';
+                                const sentimentIcon = event.sentiment === 'positive' ? '📈' : 
+                                                    event.sentiment === 'negative' ? '📉' : '➖';
+                                const confidencePercent = Math.round((event.confidence_score || 0) * 100);
+                                
+                                html += `
+                                    <tr style="border-bottom: 1px solid #f1f3f4;">
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <div style="font-weight: 500;">${event.event_date}</div>
+                                            <div style="font-size: 12px; color: #666;">${event.event_time || 'N/A'}</div>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-weight: 500;">
+                                                ${event.company_symbol || 'MARKET'}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <span style="font-size: 12px; background: #f5f5f5; color: #333; padding: 4px 8px; border-radius: 4px;">
+                                                ${event.event_type}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <span style="color: ${impactColor}; font-weight: 500; text-transform: uppercase; font-size: 12px;">
+                                                ${event.impact_level}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top; max-width: 300px;">
+                                            <div style="margin-bottom: 8px;">${sentimentIcon} ${event.details}</div>
+                                            ${event.sentiment ? `<div style="font-size: 12px; color: #666;">Sentiment: ${event.sentiment}</div>` : ''}
+                                        </td>
+                                        <td style="padding: 12px; text-align: center; vertical-align: top;">
+                                            <div style="background: ${confidencePercent >= 80 ? '#d4edda' : confidencePercent >= 60 ? '#fff3cd' : '#f8d7da'}; 
+                                                       color: ${confidencePercent >= 80 ? '#155724' : confidencePercent >= 60 ? '#856404' : '#721c24'};
+                                                       padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                                                ${confidencePercent}%
+                                            </div>
+                                        </td>
+                                    </tr>`;
+                            });
+
+                            html += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>`;
+                        } else {
+                            html = '<h3>🔮 xAI Financial Events</h3>' +
+                                '<div style="text-align: center; padding: 40px;">' +
+                                    '<p>No financial events found. Try expanding your date range or clearing filters.</p>' +
+                                    '<button onclick="extractNewEvents()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 10px;">' +
+                                        'Extract New Events from xAI' +
+                                    '</button>' +
+                                '</div>';
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>🔮 xAI Financial Events</h3><p style="color: red;">Error loading financial events: ' + error.message + '</p>';
+                    }
+                }
+
+                function applyXAIFilters() {
+                    const symbolFilter = document.getElementById('xai-symbol-filter').value.trim();
+                    const eventTypeFilter = document.getElementById('xai-event-type-filter').value;
+                    const impactFilter = document.getElementById('xai-impact-filter').value;
+                    
+                    // Build query parameters
+                    const params = new URLSearchParams();
+                    params.append('limit', 50);
+                    if (symbolFilter) params.append('symbol', symbolFilter);
+                    if (eventTypeFilter) params.append('event_type', eventTypeFilter);
+                    if (impactFilter) params.append('impact_level', impactFilter);
+
+                    // Reload with filters
+                    fetch(`/financial_events?${params.toString()}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            // Reload the page content with filtered results
+                            loadXAIFinancialEvents();
+                        })
+                        .catch(error => {
+                            console.error('Error applying filters:', error);
+                        });
+                }
+
+                async function extractNewEvents() {
+                    // Show loading message
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>🔮 xAI Financial Events</h3><p>Extracting new events from xAI... This may take a moment.</p>';
+                    
+                    try {
+                        const extractData = {
+                            start_date: '2025-09-01',
+                            end_date: '2025-09-13',
+                            symbols: ['AAPL', 'TSLA', 'MSFT', 'GOOGL', 'AMZN'],
+                            source: 'combined', // Use both xAI and Grok
+                            force_refresh: false
+                        };
+
+                        const response = await fetch('/financial_events/extract', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(extractData)
+                        });
+
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Show detailed success message for multi-source extraction
+                            const sourceInfo = result.sources_used ? ` from ${result.sources_used.join(' + ')}` : '';
+                            const uniqueInfo = result.events_unique ? ` (${result.events_unique} unique)` : '';
+                            alert(`Successfully extracted ${result.events_extracted} events${uniqueInfo}${sourceInfo} and stored ${result.events_stored} new events!`);
+                            loadXAIFinancialEvents(); // Reload the page
+                        } else {
+                            throw new Error(result.error || 'Unknown error during extraction');
+                        }
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>🔮 xAI Financial Events</h3><p style="color: red;">Error extracting events: ' + error.message + '</p>';
                     }
                 }
 
@@ -5153,11 +5401,33 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_agent_stop()
             elif self.path.startswith('/agent/'):
                 self._serve_agent_endpoint()
+            elif self.path.startswith('/financial_events'):
+                self._serve_financial_events()
             else:
                 self._serve_404()
 
         except Exception as e:
             logger.error(f"Error handling GET request: {e}")
+            self._serve_500(str(e))
+
+    def do_POST(self):
+        """Handle POST requests."""
+        try:
+            logger.info(f"📍 POST request: {self.path}")
+            
+            if self.path.startswith('/financial_events'):
+                self._serve_financial_events()
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "POST endpoint not found", 
+                    "path": self.path
+                }).encode())
+                
+        except Exception as e:
+            logger.error(f"Error handling POST request: {e}")
             self._serve_500(str(e))
 
     def _serve_health_check(self):
@@ -7151,7 +7421,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 try:
                     conn = await asyncpg.connect(**db_config)
                     
-                    # Check for missing recent data
+                    # Check for missing recent data across all vendors
                     missing_data_query = """
                     WITH recent_dates AS (
                         SELECT generate_series(
@@ -7161,9 +7431,11 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         )::date as expected_date
                     ),
                     actual_dates AS (
-                        SELECT DISTINCT date as actual_date
-                        FROM intg_daily_price 
-                        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                        SELECT DISTINCT date as actual_date FROM intg_daily_price_polygon WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                        UNION
+                        SELECT DISTINCT date as actual_date FROM intg_daily_price_tiingo WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                        UNION
+                        SELECT DISTINCT date as actual_date FROM intg_daily_price_eodhd WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     )
                     SELECT rd.expected_date
                     FROM recent_dates rd
@@ -7190,69 +7462,106 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             "status": "open"
                         })
                     
-                    # Check for extreme volumes
+                    # Check for extreme volumes across all vendors
                     extreme_volume_query = """
-                    SELECT symbol, date as price_date, volume, close
-                    FROM intg_daily_prices 
+                    SELECT symbol, date as price_date, volume, close, 'polygon' as vendor
+                    FROM intg_daily_price_polygon 
                     WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     AND volume > 50000000
-                    ORDER BY volume DESC
-                    LIMIT 10;
+                    UNION ALL
+                    SELECT symbol, date as price_date, volume, close, 'tiingo' as vendor
+                    FROM intg_daily_price_tiingo 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    AND volume > 50000000
+                    UNION ALL
+                    SELECT symbol, date as price_date, volume, close, 'eodhd' as vendor
+                    FROM intg_daily_price_eodhd 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    AND volume > 50000000
+                    ORDER BY volume DESC;
                     """
                     
                     extreme_volumes = await conn.fetch(extreme_volume_query)
                     for row in extreme_volumes:
                         issues.append({
-                            "id": f"high_volume_{row['symbol']}_{row['price_date']}",
+                            "id": f"high_volume_{row['symbol']}_{row['price_date']}_{row['vendor']}",
                             "symbol": row['symbol'],
                             "issue_type": "extreme_volume",
                             "severity": "medium",
-                            "description": f"Unusually high volume: {row['volume']:,} shares",
+                            "description": f"Unusually high volume: {row['volume']:,} shares ({row['vendor']})",
                             "detected_at": datetime.now().isoformat(),
                             "affected_date": row['price_date'].isoformat(),
                             "field": "volume",
-                            "expected_value": "< 10M shares",
+                            "expected_value": "< 50M shares",
                             "actual_value": f"{row['volume']:,} shares",
-                            "vendor_source": "polygon",
+                            "vendor_source": row['vendor'],
                             "status": "open"
                         })
                     
-                    # Check for duplicate records
+                    # Check for duplicate records within each vendor table
                     duplicate_query = """
-                    SELECT symbol, date as price_date, COUNT(*) as count
-                    FROM intg_daily_prices 
+                    SELECT symbol, date as price_date, COUNT(*) as count, 'polygon' as vendor
+                    FROM intg_daily_price_polygon 
                     WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     GROUP BY symbol, date
                     HAVING COUNT(*) > 1
-                    ORDER BY COUNT(*) DESC
-                    LIMIT 5;
+                    UNION ALL
+                    SELECT symbol, date as price_date, COUNT(*) as count, 'tiingo' as vendor
+                    FROM intg_daily_price_tiingo 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY symbol, date
+                    HAVING COUNT(*) > 1
+                    UNION ALL
+                    SELECT symbol, date as price_date, COUNT(*) as count, 'eodhd' as vendor
+                    FROM intg_daily_price_eodhd 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY symbol, date
+                    HAVING COUNT(*) > 1
+                    ORDER BY count DESC;
                     """
                     
                     duplicates = await conn.fetch(duplicate_query)
                     for row in duplicates:
                         issues.append({
-                            "id": f"duplicate_{row['symbol']}_{row['price_date']}",
+                            "id": f"duplicate_{row['symbol']}_{row['price_date']}_{row['vendor']}",
                             "symbol": row['symbol'],
                             "issue_type": "duplicate_records",
                             "severity": "critical",
-                            "description": f"Duplicate records: {row['count']} entries for same date",
+                            "description": f"Duplicate records: {row['count']} entries for same date ({row['vendor']})",
                             "detected_at": datetime.now().isoformat(),
                             "affected_date": row['price_date'].isoformat(),
                             "field": "all_fields",
                             "expected_value": "1 record per day",
                             "actual_value": f"{row['count']} records",
-                            "vendor_source": "multiple",
+                            "vendor_source": row['vendor'],
                             "status": "open"
                         })
                     
-                    # Check for stale data
+                    # Check for stale data across all vendor tables
                     freshness_query = """
-                    SELECT symbol, MAX(date) as latest_date
-                    FROM intg_daily_prices
-                    GROUP BY symbol
-                    HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
-                    ORDER BY MAX(date) DESC
-                    LIMIT 10;
+                    WITH vendor_freshness AS (
+                        SELECT symbol, MAX(date) as latest_date, 'polygon' as vendor
+                        FROM intg_daily_price_polygon
+                        GROUP BY symbol
+                        UNION ALL
+                        SELECT symbol, MAX(date) as latest_date, 'tiingo' as vendor
+                        FROM intg_daily_price_tiingo
+                        GROUP BY symbol
+                        UNION ALL
+                        SELECT symbol, MAX(date) as latest_date, 'eodhd' as vendor
+                        FROM intg_daily_price_eodhd
+                        GROUP BY symbol
+                    ),
+                    symbol_freshness AS (
+                        SELECT symbol, MAX(latest_date) as latest_date, 
+                               string_agg(vendor, ',' ORDER BY latest_date DESC) as vendors
+                        FROM vendor_freshness
+                        GROUP BY symbol
+                    )
+                    SELECT symbol, latest_date, vendors
+                    FROM symbol_freshness
+                    WHERE latest_date < CURRENT_DATE - INTERVAL '3 days'
+                    ORDER BY latest_date DESC;
                     """
                     
                     stale_data = await conn.fetch(freshness_query)
@@ -7264,13 +7573,13 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             "symbol": row['symbol'],
                             "issue_type": "stale_data",
                             "severity": "medium" if days_stale < 7 else "high",
-                            "description": f"Data is {days_stale} days old (last: {row['latest_date']})",
+                            "description": f"Data is {days_stale} days old (last: {row['latest_date']}) - vendors: {row['vendors']}",
                             "detected_at": datetime.now().isoformat(),
                             "affected_date": row['latest_date'].isoformat(),
                             "field": "date",
                             "expected_value": "< 3 days old",
                             "actual_value": f"{days_stale} days old",
-                            "vendor_source": "polygon",
+                            "vendor_source": row['vendors'],
                             "status": "open"
                         })
                     
@@ -7924,6 +8233,261 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             charts[timeframe] = chart_config
 
         return charts
+
+    def _serve_financial_events(self):
+        """Handle financial events endpoints for xAI integration"""
+        
+        try:
+            # Initialize unified financial events integration if not already done
+            if not hasattr(self, 'financial_events_integration'):
+                from services.financial_events.multi_source_events_orchestrator import UnifiedFinancialEventsIntegration
+                self.financial_events_integration = UnifiedFinancialEventsIntegration(
+                    xai_api_key=os.getenv('XAI_API_KEY', 'demo_key_for_testing'),
+                    grok_api_key=os.getenv('GROK_API_KEY', os.getenv('XAI_API_KEY', 'demo_key_for_testing')),
+                    analytics_base_url="http://localhost:4000",
+                    enable_cache=True
+                )
+            
+            # Route based on path and method
+            if self.path == '/financial_events/setup' and self.command == 'POST':
+                self._handle_financial_events_setup()
+            elif self.path == '/financial_events/extract' and self.command == 'POST':
+                self._handle_financial_events_extract()
+            elif self.path.startswith('/financial_events?') and self.command == 'GET':
+                self._handle_financial_events_query()
+            elif self.path == '/financial_events' and self.command == 'GET':
+                self._handle_financial_events_query()
+            elif self.path == '/financial_events/summary' and self.command == 'GET':
+                self._handle_financial_events_summary()
+            elif self.path == '/financial_events/cache/stats' and self.command == 'GET':
+                self._handle_financial_events_cache_stats()
+            elif self.path == '/financial_events/cache/clear' and self.command == 'POST':
+                self._handle_financial_events_cache_clear()
+            elif self.path.startswith('/financial_events/trending') and self.command == 'GET':
+                self._handle_financial_events_trending()
+            elif self.path.startswith('/financial_events/sources') and self.command == 'GET':
+                self._handle_financial_events_sources()
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "Financial events endpoint not found",
+                    "path": self.path,
+                    "method": self.command,
+                    "available_endpoints": [
+                        "POST /financial_events/setup - Create events table",
+                        "POST /financial_events/extract - Extract events from xAI",
+                        "GET /financial_events - Query events",
+                        "GET /financial_events/summary - Get statistics", 
+                        "GET /financial_events/cache/stats - Cache performance",
+                        "POST /financial_events/cache/clear - Clear cache"
+                    ]
+                }).encode())
+                
+        except Exception as e:
+            logger.error(f"Error in financial events handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_setup(self):
+        """Handle table setup for financial events"""
+        
+        try:
+            import asyncio
+            result = asyncio.run(self.financial_events_integration.create_events_table())
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            response = {
+                "success": result,
+                "table_created": result,
+                "message": "Financial events table created successfully" if result else "Table creation failed"
+            }
+            
+            self.wfile.write(json.dumps(response).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in setup handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_extract(self):
+        """Handle event extraction from xAI"""
+        
+        try:
+            # Parse POST body
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            params = json.loads(post_data.decode('utf-8'))
+            
+            import asyncio
+            from services.financial_events.multi_source_events_orchestrator import EventSource
+            
+            # Determine preferred source
+            preferred_source = params.get('source', 'combined').lower()
+            if preferred_source == 'xai':
+                source = EventSource.XAI
+            elif preferred_source == 'grok':
+                source = EventSource.GROK
+            else:
+                source = EventSource.COMBINED
+            
+            result = asyncio.run(self.financial_events_integration.extract_events_multi_source(
+                start_date=params.get('start_date'),
+                end_date=params.get('end_date'),
+                symbols=params.get('symbols', []),
+                preferred_source=source,
+                force_refresh=params.get('force_refresh', False)
+            ))
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in extract handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_query(self):
+        """Handle querying financial events"""
+        
+        try:
+            from urllib.parse import urlparse, parse_qs
+            
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            # Extract parameters (parse_qs returns lists)
+            symbol = query_params.get('symbol', [None])[0]
+            event_type = query_params.get('event_type', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+            impact_level = query_params.get('impact_level', [None])[0]
+            limit = int(query_params.get('limit', ['100'])[0])
+            
+            result = self.financial_events_integration.get_events_from_analytics(
+                symbol=symbol,
+                event_type=event_type,
+                start_date=start_date,
+                end_date=end_date,
+                impact_level=impact_level,
+                limit=limit
+            )
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in query handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_summary(self):
+        """Handle getting events summary"""
+        
+        try:
+            result = self.financial_events_integration.get_events_summary()
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in summary handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_cache_stats(self):
+        """Handle getting cache statistics"""
+        
+        try:
+            import asyncio
+            cache_stats = asyncio.run(self.financial_events_integration.event_extractor.get_cache_stats())
+            
+            result = {
+                "success": True,
+                "cache_statistics": cache_stats
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in cache stats handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_cache_clear(self):
+        """Handle clearing cache"""
+        
+        try:
+            import asyncio
+            asyncio.run(self.financial_events_integration.clear_all_caches())
+            
+            result = {
+                "success": True,
+                "message": "All caches cleared successfully"
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json') 
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in cache clear handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_trending(self):
+        """Handle getting trending financial events from all sources"""
+        
+        try:
+            from urllib.parse import urlparse, parse_qs
+            
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            hours_back = int(query_params.get('hours', ['24'])[0])
+            
+            import asyncio
+            result = asyncio.run(self.financial_events_integration.get_trending_events_all_sources(
+                hours_back=hours_back
+            ))
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in trending events handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_sources(self):
+        """Handle getting available sources and integration status"""
+        
+        try:
+            status = self.financial_events_integration.get_integration_status()
+            
+            # Add cache stats for each source
+            import asyncio
+            cache_stats = asyncio.run(self.financial_events_integration.get_unified_cache_stats())
+            status["cache_stats"] = cache_stats
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(status).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in sources handler: {e}")
+            self._serve_500(str(e))
 
 
 def start_unified_analytics_server(port: int = 3000):
