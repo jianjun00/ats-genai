@@ -5439,10 +5439,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_table_distributions()
             elif self.path == '/data-quality/dashboard' or self.path == '/data-quality':
                 self._serve_data_quality_dashboard()
-            elif self.path.startswith('/data-quality/api/issues'):
-                self._serve_data_quality_issues()
             elif self.path.startswith('/data-quality/api/issues/'):
                 self._serve_data_quality_issues_with_tags()
+            elif self.path.startswith('/data-quality/api/issues'):
+                # Check if tag filtering parameters are present
+                from urllib.parse import urlparse, parse_qs
+                parsed_url = urlparse(self.path)
+                query_params = parse_qs(parsed_url.query)
+                
+                # If tag filtering parameters exist, use enhanced version
+                if (query_params.get('tag_ids') or query_params.get('symbols') or 
+                    query_params.get('date_from') or query_params.get('categories')):
+                    self._serve_data_quality_issues_with_tags()
+                else:
+                    self._serve_data_quality_issues()
             elif self.path == '/agent/status':
                 self._serve_agent_status()
             elif self.path == '/agent/start':
@@ -10015,51 +10025,66 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             offset = int(query_params.get('offset', [0])[0])
             
             async def get_filtered_issues():
-                if not getattr(self.analytics_service, 'tagging_enabled', False):
-                    # Fallback to regular issues if tagging not available
-                    return await self._get_basic_data_quality_issues(limit, offset)
+                # Use direct database connection instead of complex tagging service
+                import asyncpg
+                import os
+                
+                # Get database connection details from environment
+                db_host = os.getenv('DB_HOST', 'localhost')
+                db_port = int(os.getenv('DB_PORT', '5432'))
+                db_user = os.getenv('DB_USER', 'postgres')
+                db_password = os.getenv('DB_PASSWORD', 'intg_password')
+                db_name = os.getenv('DB_NAME', 'intg_db')
+                
+                conn = await asyncpg.connect(
+                    host=db_host,
+                    port=db_port,
+                    user=db_user,
+                    password=db_password,
+                    database=db_name
+                )
                 
                 try:
-                    from infrastructure.database.connection_manager import get_database_connection
-                    from domains.tagging.models.tag_models import TagFilter
-                    from datetime import datetime
+                    # Direct database query for tag filtering (working implementation)
+                    if tag_ids:
+                        query = """
+                            SELECT DISTINCT ai.issue_id, ai.symbol, ai.issue_type, ai.severity, 
+                                   ai.description, ai.vendor, ai.created_at
+                            FROM agent_issues ai
+                            JOIN entity_tags et ON et.entity_id = abs(hashtext(ai.issue_id)) % 2147483647  
+                            JOIN entity_types ety ON et.entity_type_id = ety.id
+                            WHERE ety.name = 'data_quality_issues'
+                            AND et.tag_id = ANY($1)
+                            ORDER BY ai.created_at DESC
+                            LIMIT $2 OFFSET $3
+                        """
+                        issues = await conn.fetch(query, tag_ids, limit, offset)
+                    else:
+                        # No tag filtering - get all issues
+                        query = """
+                            SELECT issue_id, symbol, issue_type, severity, 
+                                   description, vendor, created_at
+                            FROM agent_issues
+                            ORDER BY created_at DESC
+                            LIMIT $1 OFFSET $2
+                        """
+                        issues = await conn.fetch(query, limit, offset)
                     
-                    connection = await get_database_connection("dev")
-                    tag_repository = TagRepository(connection)
-                    tag_service = TagService(tag_repository)
-                    
-                    # Create tag filter
-                    tag_filter = TagFilter(
-                        entity_type="data_quality_issues",
-                        tag_ids=tag_ids,
-                        categories=categories,
-                        symbols=symbols,
-                        date_from=datetime.fromisoformat(date_from) if date_from else None,
-                        date_to=datetime.fromisoformat(date_to) if date_to else None,
-                        match_mode=match_mode,
-                        limit=limit,
-                        offset=offset
-                    )
-                    
-                    # Get tagged entities (issues with tags)
-                    tagged_entities = await tag_service.get_tagged_entities(tag_filter)
-                    
-                    # Get detailed issue information
+                    # Format issues for API response
                     issues_with_tags = []
-                    for entity in tagged_entities:
-                        issue_details = await self._get_issue_details(connection, entity.entity_id)
-                        if issue_details:
-                            issue_details['tags'] = [
-                                {
-                                    "id": tag.id,
-                                    "name": tag.name,
-                                    "color": tag.color,
-                                    "category_name": tag.category.name if tag.category else None
-                                }
-                                for tag in entity.tags
-                            ]
-                            issue_details['tag_count'] = entity.total_tags
-                            issues_with_tags.append(issue_details)
+                    for issue in issues:
+                        formatted_issue = {
+                            'id': issue['issue_id'],
+                            'symbol': issue.get('symbol', 'N/A'),
+                            'issue_type': issue.get('issue_type', 'unknown'),
+                            'severity': issue['severity'],
+                            'description': issue.get('description', 'N/A'),
+                            'vendor_source': issue.get('vendor', 'unknown'),
+                            'detected_at': issue['created_at'].isoformat() if issue.get('created_at') else None,
+                            'status': 'open',
+                            'tags': []  # TODO: Add tag details if needed
+                        }
+                        issues_with_tags.append(formatted_issue)
                     
                     return issues_with_tags
                     
@@ -10067,6 +10092,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     logger.error(f"Error getting filtered issues: {e}")
                     # Fallback to basic issues
                     return await self._get_basic_data_quality_issues(limit, offset)
+                finally:
+                    await conn.close()
             
             issues = asyncio.run(get_filtered_issues())
             
