@@ -2,7 +2,7 @@
 -- Description: Tables for storing economic events from multiple sources (Polygon, Tiingo, Alpha Vantage, FRED)
 
 -- Economic event types lookup table
-CREATE TABLE IF NOT EXISTS economic_event_types (
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_event_types (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS economic_event_types (
 );
 
 -- Economic events main table
-CREATE TABLE IF NOT EXISTS economic_events (
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_events (
     id SERIAL PRIMARY KEY,
-    event_type_id INTEGER NOT NULL REFERENCES economic_event_types(id),
+    event_type_id INTEGER NOT NULL REFERENCES {table_prefix}economic_event_types(id),
     date DATE NOT NULL,
     release_time TIMESTAMP WITH TIME ZONE,
     estimate DECIMAL(20,6),
@@ -37,9 +37,9 @@ CREATE TABLE IF NOT EXISTS economic_events (
 );
 
 -- Economic events from Polygon
-CREATE TABLE IF NOT EXISTS economic_events_polygon (
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_polygon (
     id SERIAL PRIMARY KEY,
-    economic_event_id INTEGER NOT NULL REFERENCES economic_events(id),
+    economic_event_id INTEGER NOT NULL REFERENCES {table_prefix}economic_events(id),
     polygon_event_id VARCHAR(255),
     name VARCHAR(500),
     country VARCHAR(3),
@@ -52,9 +52,9 @@ CREATE TABLE IF NOT EXISTS economic_events_polygon (
 );
 
 -- Economic events from Tiingo
-CREATE TABLE IF NOT EXISTS economic_events_tiingo (
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_tiingo (
     id SERIAL PRIMARY KEY,
-    economic_event_id INTEGER NOT NULL REFERENCES economic_events(id),
+    economic_event_id INTEGER NOT NULL REFERENCES {table_prefix}economic_events(id),
     tiingo_event_id VARCHAR(255),
     description TEXT,
     source_url VARCHAR(1000),
@@ -64,9 +64,9 @@ CREATE TABLE IF NOT EXISTS economic_events_tiingo (
 );
 
 -- Economic events from Alpha Vantage
-CREATE TABLE IF NOT EXISTS economic_events_alpha_vantage (
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_alpha_vantage (
     id SERIAL PRIMARY KEY,
-    economic_event_id INTEGER NOT NULL REFERENCES economic_events(id),
+    economic_event_id INTEGER NOT NULL REFERENCES {table_prefix}economic_events(id),
     alpha_vantage_event_id VARCHAR(255),
     function_name VARCHAR(100), -- ECONOMIC_INDICATORS, etc.
     interval_period VARCHAR(50), -- monthly, quarterly, etc.
@@ -75,9 +75,9 @@ CREATE TABLE IF NOT EXISTS economic_events_alpha_vantage (
 );
 
 -- Economic events from EODHD
-CREATE TABLE IF NOT EXISTS economic_events_eodhd (
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_eodhd (
     id SERIAL PRIMARY KEY,
-    economic_event_id INTEGER NOT NULL REFERENCES economic_events(id),
+    economic_event_id INTEGER NOT NULL REFERENCES {table_prefix}economic_events(id),
     eodhd_event_id VARCHAR(255),
     event_name VARCHAR(500),
     country VARCHAR(3),
@@ -90,9 +90,9 @@ CREATE TABLE IF NOT EXISTS economic_events_eodhd (
 );
 
 -- Economic events from FRED (Federal Reserve Economic Data)
-CREATE TABLE IF NOT EXISTS economic_events_fred (
+CREATE TABLE IF NOT EXISTS {table_prefix}economic_events_fred (
     id SERIAL PRIMARY KEY,
-    economic_event_id INTEGER NOT NULL REFERENCES economic_events(id),
+    economic_event_id INTEGER NOT NULL REFERENCES {table_prefix}economic_events(id),
     fred_series_id VARCHAR(255),
     fred_observation_date DATE,
     series_title VARCHAR(500),
@@ -104,19 +104,19 @@ CREATE TABLE IF NOT EXISTS economic_events_fred (
 );
 
 -- Create indexes for efficient querying
-CREATE INDEX IF NOT EXISTS idx_economic_events_date ON economic_events(date);
-CREATE INDEX IF NOT EXISTS idx_economic_events_event_type ON economic_events(event_type_id);
-CREATE INDEX IF NOT EXISTS idx_economic_events_source_vendor ON economic_events(source_vendor);
-CREATE INDEX IF NOT EXISTS idx_economic_events_release_time ON economic_events(release_time);
-CREATE INDEX IF NOT EXISTS idx_economic_events_importance ON economic_event_types(importance_level);
-CREATE INDEX IF NOT EXISTS idx_economic_events_country ON economic_event_types(country);
+CREATE INDEX IF NOT EXISTS idx_economic_events_date ON {table_prefix}economic_events(date);
+CREATE INDEX IF NOT EXISTS idx_economic_events_event_type ON {table_prefix}economic_events(event_type_id);
+CREATE INDEX IF NOT EXISTS idx_economic_events_source_vendor ON {table_prefix}economic_events(source_vendor);
+CREATE INDEX IF NOT EXISTS idx_economic_events_release_time ON {table_prefix}economic_events(release_time);
+CREATE INDEX IF NOT EXISTS idx_economic_events_importance ON {table_prefix}economic_event_types(importance_level);
+CREATE INDEX IF NOT EXISTS idx_economic_events_country ON {table_prefix}economic_event_types(country);
 
 -- Create indexes on vendor-specific tables
-CREATE INDEX IF NOT EXISTS idx_economic_events_polygon_event_id ON economic_events_polygon(economic_event_id);
-CREATE INDEX IF NOT EXISTS idx_economic_events_tiingo_event_id ON economic_events_tiingo(economic_event_id);
-CREATE INDEX IF NOT EXISTS idx_economic_events_alpha_vantage_event_id ON economic_events_alpha_vantage(economic_event_id);
-CREATE INDEX IF NOT EXISTS idx_economic_events_eodhd_event_id ON economic_events_eodhd(economic_event_id);
-CREATE INDEX IF NOT EXISTS idx_economic_events_fred_event_id ON economic_events_fred(economic_event_id);
+CREATE INDEX IF NOT EXISTS idx_economic_events_polygon_event_id ON {table_prefix}economic_events_polygon(economic_event_id);
+CREATE INDEX IF NOT EXISTS idx_economic_events_tiingo_event_id ON {table_prefix}economic_events_tiingo(economic_event_id);
+CREATE INDEX IF NOT EXISTS idx_economic_events_alpha_vantage_event_id ON {table_prefix}economic_events_alpha_vantage(economic_event_id);
+CREATE INDEX IF NOT EXISTS idx_economic_events_eodhd_event_id ON {table_prefix}economic_events_eodhd(economic_event_id);
+CREATE INDEX IF NOT EXISTS idx_economic_events_fred_event_id ON {table_prefix}economic_events_fred(economic_event_id);
 
 -- Create function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -128,13 +128,23 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at columns
--- Note: Environment-specific table prefixing will be applied automatically by migration manager
--- For intg environment: economic_event_types becomes intg_economic_event_types
--- For dev environment: economic_event_types becomes dev_economic_event_types  
--- For test environment: economic_event_types becomes test_economic_event_types
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_economic_event_types_updated_at') THEN
+        CREATE TRIGGER update_economic_event_types_updated_at 
+            BEFORE UPDATE ON {table_prefix}economic_event_types 
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_economic_events_updated_at') THEN
+        CREATE TRIGGER update_economic_events_updated_at 
+            BEFORE UPDATE ON {table_prefix}economic_events 
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- Insert common economic event types
-INSERT INTO economic_event_types (name, description, category, country, importance_level, frequency) VALUES
+INSERT INTO {table_prefix}economic_event_types (name, description, category, country, importance_level, frequency) VALUES
 -- US Economic Indicators
 ('Non-Farm Payrolls', 'Monthly employment change excluding farm workers', 'Employment', 'USA', 5, 'monthly'),
 ('Unemployment Rate', 'Percentage of labor force that is unemployed', 'Employment', 'USA', 5, 'monthly'),
