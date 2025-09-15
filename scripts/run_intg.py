@@ -504,12 +504,24 @@ class IntgCLI:
         if description:
             print(f"📊 {description}")
 
-        cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -c "{sql_query}"'
-        result = self.run_command(cmd)
-
-        if result:
-            print(result)
-        return result
+        import tempfile
+        import os
+        
+        # Write SQL to temporary file to avoid shell quoting issues
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as temp_file:
+            temp_file.write(sql_query)
+            temp_file_path = temp_file.name
+        
+        try:
+            cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -f {temp_file_path}'
+            result = self.run_command(cmd)
+            
+            if result:
+                print(result)
+            return result
+        finally:
+            # Clean up temporary file
+            os.unlink(temp_file_path)
 
     def get_issue(self, issue_id):
         """Get a specific data quality issue by ID"""
@@ -591,7 +603,9 @@ class IntgCLI:
         metadata_json = "'{}'::jsonb"
         if metadata:
             import json
-            metadata_json = f"'{json.dumps(metadata)}'::jsonb"
+            # Properly escape single quotes in JSON
+            json_str = json.dumps(metadata).replace("'", "''")
+            metadata_json = f"'{json_str}'::jsonb"
         
         sql = f"""
         INSERT INTO dev_data_quality_issues (
@@ -648,7 +662,9 @@ class IntgCLI:
         metadata_json = "'{}'::jsonb"
         if metadata:
             import json
-            metadata_json = f"'{json.dumps(metadata)}'::jsonb"
+            # Properly escape single quotes in JSON
+            json_str = json.dumps(metadata).replace("'", "''")
+            metadata_json = f"'{json_str}'::jsonb"
         
         sql = f"""
         UPDATE dev_data_quality_issues 
@@ -663,17 +679,22 @@ class IntgCLI:
         print(f"✅ Resolving issue {issue_id}...")
         return self.query_db(sql, f"Resolved Issue #{issue_id}")
 
-    def delete_issue(self, issue_id):
+    def delete_issue(self, issue_id, force=False):
         """Delete a data quality issue (use with caution)"""
         
         # First show what we're about to delete
         print(f"⚠️  About to delete issue {issue_id}:")
         self.get_issue(issue_id)
         
-        confirm = input("Are you sure you want to delete this issue? (yes/NO): ")
-        if confirm.lower() != 'yes':
-            print("❌ Delete cancelled")
-            return False
+        if not force:
+            try:
+                confirm = input("Are you sure you want to delete this issue? (yes/NO): ")
+                if confirm.lower() != 'yes':
+                    print("❌ Delete cancelled")
+                    return False
+            except EOFError:
+                print("❌ Delete cancelled (no input)")
+                return False
         
         sql = f"DELETE FROM dev_data_quality_issues WHERE id = {issue_id}"
         
@@ -806,6 +827,7 @@ def main():
     # issue delete <id>
     parser_issue_delete = issue_subparsers.add_parser("delete", help="Delete issue")
     parser_issue_delete.add_argument("issue_id", type=int, help="Issue ID")
+    parser_issue_delete.add_argument("--force", action="store_true", help="Skip confirmation prompt")
     
     # issue stats
     issue_subparsers.add_parser("stats", help="Show issue statistics")
@@ -909,7 +931,7 @@ def main():
             cli.resolve_issue(args.issue_id, args.notes)
             
         elif args.issue_action == "delete":
-            cli.delete_issue(args.issue_id)
+            cli.delete_issue(args.issue_id, force=args.force)
             
         elif args.issue_action == "stats":
             cli.get_issue_stats()
