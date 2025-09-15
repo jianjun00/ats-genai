@@ -4,6 +4,54 @@ Integration CLI for running integration environment operations with Docker and l
 
 Automatically handles Docker operations, database connections, and service management
 for the integration environment without requiring Kubernetes knowledge.
+
+🔧 ISSUE MANAGEMENT COMMANDS:
+===========================
+
+Basic Usage:
+  python3 scripts/run_intg.py issue <command> [options]
+
+Available Commands:
+  
+  📋 LIST ISSUES:
+    run_intg.py issue list                           # List all issues
+    run_intg.py issue list --symbol AAPL             # Filter by symbol
+    run_intg.py issue list --tag urgent              # Filter by tag
+    run_intg.py issue list --status pending          # Filter by status
+    run_intg.py issue list --vendor polygon          # Filter by vendor
+    run_intg.py issue list --severity critical       # Filter by severity
+    run_intg.py issue list --category coverage       # Filter by category
+    run_intg.py issue list --limit 50                # Limit results
+  
+  🔍 GET SPECIFIC ISSUE:
+    run_intg.py issue get 123                        # Get issue by ID
+  
+  ➕ CREATE NEW ISSUE:
+    run_intg.py issue create coverage_gap polygon AAPL 2025-01-01 2025-01-05
+    run_intg.py issue create missing_data tiingo TSLA 2025-01-01 2025-01-01 --severity critical --tag urgent
+    run_intg.py issue create stale_data eodhd SPY 2025-01-01 2025-01-02 --description "Data not updating"
+  
+  📝 UPDATE ISSUE:
+    run_intg.py issue update 123 --status in_progress
+    run_intg.py issue update 123 --severity high --assigned-agent data_quality_bot
+    run_intg.py issue update 123 --priority-score 8
+  
+  ✅ RESOLVE ISSUE:
+    run_intg.py issue resolve 123 --notes "Fixed by backfill job"
+  
+  🗑️ DELETE ISSUE:
+    run_intg.py issue delete 123                     # Will prompt for confirmation
+
+Examples:
+  # Create a coverage gap issue for AAPL
+  run_intg.py issue create coverage_gap polygon AAPL 2025-01-01 2025-01-05 --tag data_missing --severity high
+  
+  # List all critical issues
+  run_intg.py issue list --severity critical
+  
+  # Update issue status to resolved
+  run_intg.py issue resolve 45 --notes "Resolved via polygon backfill"
+
 """
 
 import subprocess
@@ -632,6 +680,28 @@ class IntgCLI:
         print(f"🗑️  Deleting issue {issue_id}...")
         return self.query_db(sql, f"Deleted Issue #{issue_id}")
 
+    def get_issue_stats(self):
+        """Get statistics about data quality issues"""
+        sql = """
+        SELECT 
+            status,
+            severity,
+            COUNT(*) as count,
+            COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
+        FROM dev_data_quality_issues 
+        GROUP BY status, severity
+        ORDER BY status, 
+                 CASE severity 
+                     WHEN 'critical' THEN 1 
+                     WHEN 'high' THEN 2 
+                     WHEN 'medium' THEN 3 
+                     WHEN 'low' THEN 4 
+                 END
+        """
+        
+        print("📊 Data Quality Issue Statistics:")
+        return self.query_db(sql, "Issue Statistics by Status and Severity")
+
     def setup_intg_env(self):
         """Setup complete integration environment"""
         print("🏗️  Setting up integration environment...")
@@ -736,36 +806,36 @@ def main():
     # issue delete <id>
     parser_issue_delete = issue_subparsers.add_parser("delete", help="Delete issue")
     parser_issue_delete.add_argument("issue_id", type=int, help="Issue ID")
+    
+    # issue stats
+    issue_subparsers.add_parser("stats", help="Show issue statistics")
 
     args = parser.parse_args()
+
+    # Show help if no command provided
+    if not args.action:
+        parser.print_help()
+        sys.exit(1)
 
     cli = IntgCLI()
 
     # Parse environment variables if provided
     environment = None
-    if args.env:
+    if hasattr(args, 'env') and args.env:
         try:
             environment = json.loads(args.env)
         except json.JSONDecodeError:
             print("❌ Invalid JSON format for --env")
             sys.exit(1)
 
+    # Handle commands
     if args.action == "run":
-        if not args.script:
-            print("❌ --script required for run action")
-            sys.exit(1)
         cli.run_docker_job(args.script, gpu=args.gpu, environment=environment)
 
     elif args.action == "start":
-        if not args.service:
-            print("❌ --service required for start action")
-            sys.exit(1)
         cli.start_service(args.service, args.port, args.gpu, environment)
 
     elif args.action == "stop":
-        if not args.service:
-            print("❌ --service required for stop action")
-            sys.exit(1)
         cli.stop_service(args.service)
 
     elif args.action == "status":
@@ -775,21 +845,83 @@ def main():
         cli.run_test(args.test)
 
     elif args.action == "query":
-        if not args.query:
-            print("❌ --query required for query action")
-            sys.exit(1)
         cli.query_db(args.query)
 
     elif args.action == "setup":
         cli.setup_intg_env()
 
     elif args.action == "logs":
-        if not args.service:
-            print("❌ --service required for logs action")
+        # Find the logs logic
+        print(f"📋 Showing logs for service: {args.service}")
+        # TODO: Implement logs display logic
+
+    elif args.action == "issue":
+        # Handle issue subcommands
+        if not hasattr(args, 'issue_action') or not args.issue_action:
+            print("❌ Issue subcommand required. Use: get, list, create, update, resolve, delete")
             sys.exit(1)
-        container_name = f"ats-intg-{args.service}"
-        cmd = f"docker logs -f {container_name}"
-        subprocess.run(cmd, shell=True)
+            
+        if args.issue_action == "get":
+            cli.get_issue(args.issue_id)
+            
+        elif args.issue_action == "list":
+            cli.list_issues(
+                tag=args.tag,
+                symbol=args.symbol,
+                status=args.status,
+                vendor=args.vendor,
+                category=args.category,
+                severity=args.severity,
+                limit=args.limit
+            )
+            
+        elif args.issue_action == "create":
+            cli.create_issue(
+                args.issue_type,
+                args.vendor,
+                args.symbol,
+                args.date_start,
+                args.date_end,
+                category=args.category,
+                severity=args.severity,
+                description=args.description,
+                tag=args.tag
+            )
+            
+        elif args.issue_action == "update":
+            update_kwargs = {}
+            if hasattr(args, 'status') and args.status:
+                update_kwargs['status'] = args.status
+            if hasattr(args, 'severity') and args.severity:
+                update_kwargs['severity'] = args.severity
+            if hasattr(args, 'resolution_strategy') and args.resolution_strategy:
+                update_kwargs['resolution_strategy'] = args.resolution_strategy
+            if hasattr(args, 'assigned_agent') and args.assigned_agent:
+                update_kwargs['assigned_agent'] = args.assigned_agent
+            if hasattr(args, 'complexity') and args.complexity:
+                update_kwargs['complexity'] = args.complexity
+            if hasattr(args, 'priority_score') and args.priority_score:
+                update_kwargs['priority_score'] = args.priority_score
+                
+            cli.update_issue(args.issue_id, **update_kwargs)
+            
+        elif args.issue_action == "resolve":
+            cli.resolve_issue(args.issue_id, args.notes)
+            
+        elif args.issue_action == "delete":
+            cli.delete_issue(args.issue_id)
+            
+        elif args.issue_action == "stats":
+            cli.get_issue_stats()
+            
+        else:
+            print(f"❌ Unknown issue action: {args.issue_action}")
+            sys.exit(1)
+
+    else:
+        print(f"❌ Unknown action: {args.action}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
