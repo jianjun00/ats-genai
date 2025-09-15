@@ -10070,9 +10070,29 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         """
                         issues = await conn.fetch(query, limit, offset)
                     
-                    # Format issues for API response
+                    # Format issues for API response with tag details
                     issues_with_tags = []
                     for issue in issues:
+                        # Get tags for this specific issue
+                        issue_tags = await conn.fetch("""
+                            SELECT t.id, t.name, t.category_id
+                            FROM tags t
+                            JOIN entity_tags et ON et.tag_id = t.id
+                            JOIN entity_types ety ON et.entity_type_id = ety.id
+                            WHERE ety.name = 'data_quality_issues'
+                            AND et.entity_id = abs(hashtext($1)) % 2147483647
+                            ORDER BY t.name
+                        """, issue['issue_id'])
+                        
+                        # Format tag details
+                        tag_details = []
+                        for tag in issue_tags:
+                            tag_details.append({
+                                'id': tag['id'],
+                                'name': tag['name'],
+                                'category_id': tag['category_id']
+                            })
+                        
                         formatted_issue = {
                             'id': issue['issue_id'],
                             'symbol': issue.get('symbol', 'N/A'),
@@ -10082,7 +10102,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             'vendor_source': issue.get('vendor', 'unknown'),
                             'detected_at': issue['created_at'].isoformat() if issue.get('created_at') else None,
                             'status': 'open',
-                            'tags': []  # TODO: Add tag details if needed
+                            'tags': tag_details,
+                            'tag_count': len(tag_details)
                         }
                         issues_with_tags.append(formatted_issue)
                     
