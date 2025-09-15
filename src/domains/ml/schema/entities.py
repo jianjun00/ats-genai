@@ -226,7 +226,7 @@ INSTRUMENT_SCHEMA = EntitySchema(
 
 PRICE_SCHEMA = EntitySchema(
     entity_name="daily_price",
-    table_name="dev_daily_prices_polygon",
+    table_name="dev_daily_price_polygon",
     description="Daily OHLCV price data for instruments",
     primary_key=["symbol", "date"],
     indexes=[["symbol"], ["date"], ["symbol", "date"]],
@@ -436,8 +436,8 @@ TABLE_SCHEMA_MAPPING = {
     "dev_instruments": INSTRUMENT_SCHEMA,
     "dev_instrument_tiingo": INSTRUMENT_SCHEMA,  # Same structure
     "dev_instrument_polygon": INSTRUMENT_SCHEMA,  # Same structure
-    "dev_daily_prices_polygon": PRICE_SCHEMA,
-    "dev_daily_prices_tiingo": PRICE_SCHEMA,
-    "dev_daily_prices_eodhd": PRICE_SCHEMA,
+    "dev_daily_price_polygon": PRICE_SCHEMA,
+    "dev_daily_price_tiingo": PRICE_SCHEMA,
+    "dev_daily_price_eodhd": PRICE_SCHEMA,
     "instrument_xrefs": INSTRUMENT_XREF_SCHEMA
 }

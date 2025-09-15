@@ -313,6 +313,113 @@ python3 scripts/run_dev.py run --script scripts/populate_30year_eodhd_minute_bar
 
 ---
 
+## 📈 FirstRate Daily Data Operations
+
+### FirstRate Data Pipeline Management
+**Complete automation for stock, ETF, and FX minute bar data collection**
+
+**Status Dashboard:** Real-time coverage validation and data quality monitoring
+
+### Daily Data Collection & Processing
+```bash
+# Automated daily jobs (runs via cron at 6:00 AM EST/EDT)
+./scripts/cron/firstrate_daily_complete.sh
+
+# Manual execution - complete pipeline
+cd /home/jianjun/ats-genai-data && ./scripts/cron/firstrate_daily_complete.sh
+
+# Individual operations
+PYTHONPATH=src python3 scripts/firstrate_etf_backfill.py --download-only
+PYTHONPATH=src python3 scripts/process_firstrate_etf_zips.py
+PYTHONPATH=src python3 scripts/firstrate_quick_coverage_check.py
+```
+
+### Daily Job Management
+```bash
+# Install/manage daily automation
+./scripts/cron/install_firstrate_daily_cron.sh          # Install all jobs
+./scripts/cron/install_firstrate_daily_cron.sh remove   # Remove all jobs
+./scripts/cron/install_firstrate_daily_cron.sh show     # Show current jobs
+./scripts/cron/install_firstrate_daily_cron.sh schedule # Show schedule info
+
+# Check cron status
+crontab -l | grep -i firstrate                          # View FirstRate jobs
+journalctl _COMM=cron -f | grep firstrate               # Monitor cron execution
+```
+
+### Data Coverage & Validation
+```bash
+# Quick coverage check (key symbols only)
+PYTHONPATH=src python3 scripts/firstrate_quick_coverage_check.py
+
+# Trading days validation
+PYTHONPATH=src python3 scripts/firstrate_trading_days_validation.py --sample
+
+# Weekly comprehensive validation
+PYTHONPATH=src python3 scripts/minute_bar_validation.py --days 7 --dry-run
+```
+
+### ETF Backfill Operations
+```bash
+# Critical ETF backfill (30 days)
+PYTHONPATH=src python3 scripts/firstrate_etf_backfill.py
+
+# Process downloaded ETF zip files
+PYTHONPATH=src python3 scripts/process_firstrate_etf_zips.py
+
+# Check ETF coverage after processing
+PYTHONPATH=src python3 scripts/firstrate_quick_coverage_check.py
+```
+
+### FirstRate Data Locations
+```bash
+# Raw downloaded data
+ls -la /mnt/d/ats-data/firstrate-data/daily/stock/
+ls -la /mnt/d/ats-data/firstrate-data/daily/etf/
+
+# Processed parquet files (monthly structure)
+ls -la /mnt/d/ats-data/minute-bars/firstrate/A/AAPL/2025/08/
+ls -la /mnt/d/ats-data/minute-bars/firstrate/S/SPY/2025/09/
+
+# Logs and monitoring
+tail -f /mnt/d/ats-logs/firstrate-daily-*.log
+tail -f /mnt/d/ats-logs/firstrate-coverage.log
+```
+
+### FirstRate Daily Schedule
+```bash
+# Complete cron schedule (runs Monday-Friday)
+0 6 * * 1-5    # Daily data download & processing
+0 8 * * 1-5    # Coverage validation
+0 9 * * 1-5    # Trading days validation
+0 7 * * 6      # Weekly comprehensive validation (Saturdays)
+0 23 * * *     # Log cleanup (daily)
+```
+
+### Troubleshooting FirstRate Jobs
+```bash
+# Check last job execution
+tail -50 /mnt/d/ats-logs/firstrate-daily-cron.log
+
+# Manual job execution (testing)
+cd /home/jianjun/ats-genai-data
+./scripts/cron/firstrate_daily_complete.sh
+
+# Coverage issues
+PYTHONPATH=src python3 scripts/firstrate_quick_coverage_check.py
+# Expected: 80%+ coverage for key symbols (AAPL, MSFT, SPY, QQQ, etc.)
+
+# Data quality validation
+find /mnt/d/ats-data/minute-bars/firstrate -name "*.parquet" -mtime -1 | wc -l
+# Expected: New parquet files from recent processing
+
+# Disk space monitoring
+df -h /mnt/d/ats-data/
+du -sh /mnt/d/ats-data/firstrate-data/
+```
+
+---
+
 ## 💾 Database Management
 
 ### 🚨 CRITICAL: No Automatic Backup Restoration

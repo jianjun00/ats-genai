@@ -78,7 +78,7 @@ SELECT
     original_data->>'close' as old_price,
     new_data->>'close' as new_price,
     ((new_data->>'close')::DECIMAL - (original_data->>'close')::DECIMAL) as price_change
-FROM dev_daily_prices_polygon_audit 
+FROM dev_daily_price_polygon_audit 
 WHERE audit_action = 'UPDATE'
   AND (original_data->>'symbol' = 'AAPL' OR new_data->>'symbol' = 'AAPL')
 ORDER BY audit_timestamp DESC;
@@ -101,12 +101,12 @@ WHERE audit_action = 'DELETE'
 UNION ALL
 
 SELECT 
-    'dev_daily_prices_polygon' as table_name,
+    'dev_daily_price_polygon' as table_name,
     audit_timestamp,
     audit_user,
     original_data->>'symbol' as deleted_symbol,
     original_data->>'date' as deleted_date
-FROM dev_daily_prices_polygon_audit 
+FROM dev_daily_price_polygon_audit 
 WHERE audit_action = 'DELETE'
   AND audit_timestamp > now() - INTERVAL '24 hours'
 ORDER BY audit_timestamp DESC;

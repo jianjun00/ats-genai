@@ -26,7 +26,7 @@ async def final_symbol_filter_test():
             # Test 2: Dataset selection works
             print("\\n🧪 Test 2: Dataset selection...")
             dataset_select = page.locator("#dataset-select")
-            await dataset_select.select_option("intg_daily_prices_tiingo")
+            await dataset_select.select_option("intg_daily_price_tiingo")
             await page.wait_for_timeout(8000)
             print("✅ Dataset selected successfully")
 

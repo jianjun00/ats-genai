@@ -5,8 +5,8 @@ from shared.utils.environment import EnvironmentType
 
 
 def test_tiingo_log_fixture(log_fixture):
-    """Test loading Tiingo API logs for AAPL from tests/data/daily_prices_tiingo."""
-    req, resp = log_fixture('daily_prices_tiingo', 'aapl', '')
+    """Test loading Tiingo API logs for AAPL from tests/data/daily_price_tiingo."""
+    req, resp = log_fixture('daily_price_tiingo', 'aapl', '')
     assert 'url' in req
     assert isinstance(resp, (list, dict))
     # Check that the response contains at least one price row if not empty

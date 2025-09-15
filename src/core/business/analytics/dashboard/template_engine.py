@@ -77,7 +77,7 @@ class DashboardTemplateEngine:
                             // Fallback to common financial tables
                             tables = [
                                 'dev_daily_prices', 'dev_training_datasets', 'dev_instruments',
-                                'dev_daily_prices_polygon', 'dev_daily_prices_tiingo', 'dev_daily_prices_eodhd'
+                                'dev_daily_price_polygon', 'dev_daily_price_tiingo', 'dev_daily_price_eodhd'
                             ];
                         }
 
@@ -158,9 +158,9 @@ class DashboardTemplateEngine:
                                     <option value="dev_daily_prices">dev_daily_prices</option>
                                     <option value="dev_training_datasets">dev_training_datasets</option>
                                     <option value="dev_instruments">dev_instruments</option>
-                                    <option value="dev_daily_prices_polygon">dev_daily_prices_polygon</option>
-                                    <option value="dev_daily_prices_tiingo">dev_daily_prices_tiingo</option>
-                                    <option value="dev_daily_prices_eodhd">dev_daily_prices_eodhd</option>
+                                    <option value="dev_daily_price_polygon">dev_daily_price_polygon</option>
+                                    <option value="dev_daily_price_tiingo">dev_daily_price_tiingo</option>
+                                    <option value="dev_daily_price_eodhd">dev_daily_price_eodhd</option>
                                 </select>
                             </div>
                         `;

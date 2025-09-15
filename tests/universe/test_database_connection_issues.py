@@ -168,7 +168,7 @@ class TestDatabaseConnectionIssues:
             "universe",
             "universe_membership",
             "universe_tracking",
-            "daily_prices_polygon",
+            "daily_price_polygon",
             "instrument_xrefs",
             "vendors",
             "daily_market_cap"
@@ -215,7 +215,7 @@ class TestDatabaseQueryGeneration:
         """
 
         formatted_query = query_template.format(
-            prices_table=env.get_table_name("daily_prices_polygon"),
+            prices_table=env.get_table_name("daily_price_polygon"),
             xrefs_table=env.get_table_name("instrument_xrefs"),
             vendors_table=env.get_table_name("vendors"),
             market_cap_table=env.get_table_name("daily_market_cap")
@@ -223,7 +223,7 @@ class TestDatabaseQueryGeneration:
 
         # Test that query contains expected elements
         assert "WITH price_data AS" in formatted_query
-        assert "test_daily_prices_polygon" in formatted_query
+        assert "test_daily_price_polygon" in formatted_query
         assert "test_instrument_xrefs" in formatted_query
         assert "test_vendors" in formatted_query
         assert "test_daily_market_cap" in formatted_query

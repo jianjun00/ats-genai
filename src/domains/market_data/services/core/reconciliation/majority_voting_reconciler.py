@@ -83,8 +83,8 @@ class MajorityVotingReconciler:
         """Fetch prices for a symbol from all vendors"""
 
         vendor_tables = {
-            'polygon': self.env.get_table_name('daily_prices_polygon'),
-            'tiingo': self.env.get_table_name('daily_prices_tiingo'),
+            'polygon': self.env.get_table_name('daily_price_polygon'),
+            'tiingo': self.env.get_table_name('daily_price_tiingo'),
             'alphavantage': self.env.get_table_name('daily_prices_alphavantage'),
             'fmp': self.env.get_table_name('daily_prices_fmp')
         }

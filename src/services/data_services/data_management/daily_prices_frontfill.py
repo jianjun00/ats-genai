@@ -29,10 +29,10 @@ class DailyPricesFrontfillJob(BaseFrontfillJob):
         # Vendor-specific configurations
         if config.vendor.lower() == "polygon":
             self.base_url = "https://api.polygon.io/v2/aggs/ticker"
-            self.table_name = env.get_table_name("daily_prices_polygon")
+            self.table_name = env.get_table_name("daily_price_polygon")
         elif config.vendor.lower() == "tiingo":
             self.base_url = "https://api.tiingo.com/tiingo/daily"
-            self.table_name = env.get_table_name("daily_prices_tiingo")
+            self.table_name = env.get_table_name("daily_price_tiingo")
         else:
             raise ValueError(f"Unsupported vendor: {config.vendor}")
 
@@ -291,7 +291,7 @@ async def create_daily_prices_frontfill_jobs(connection_pool: asyncpg.Pool,
 
     # Polygon daily prices job
     polygon_config = FrontfillConfig(
-        job_name="daily_prices_polygon_frontfill",
+        job_name="daily_price_polygon_frontfill",
         job_type="daily_prices",
         vendor="polygon",
         checkpoint_type=CheckpointType.TIMESTAMP,
@@ -305,7 +305,7 @@ async def create_daily_prices_frontfill_jobs(connection_pool: asyncpg.Pool,
 
     # Tiingo daily prices job
     tiingo_config = FrontfillConfig(
-        job_name="daily_prices_tiingo_frontfill",
+        job_name="daily_price_tiingo_frontfill",
         job_type="daily_prices",
         vendor="tiingo",
         checkpoint_type=CheckpointType.TIMESTAMP,

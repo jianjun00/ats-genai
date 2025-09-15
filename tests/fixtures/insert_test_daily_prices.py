@@ -25,7 +25,7 @@ async def insert_test_daily_prices(json_path, symbol, instrument_id, unit_test_d
 
 async def main(unit_test_db):
     base = os.path.dirname(__file__)
-    data_dir = os.path.join(base, '../data/daily_prices_polygon')
+    data_dir = os.path.join(base, '../data/daily_price_polygon')
     aapl_path = os.path.join(data_dir, 'polygon_aapl_response.json')
     tsla_path = os.path.join(data_dir, 'polygon_tsla_response.json')
     await insert_test_daily_prices(aapl_path, 'AAPL', 1, unit_test_db)

@@ -42,7 +42,7 @@ async def generate_aapl_2025_data():
         # Query daily price data from INTG Tiingo table (has 2025 data)
         query = """
         SELECT date, open, high, low, close, volume
-        FROM intg_daily_prices_tiingo
+        FROM intg_daily_price_tiingo
         WHERE symbol = $1 AND date >= $2 AND date <= $3
         ORDER BY date
         """

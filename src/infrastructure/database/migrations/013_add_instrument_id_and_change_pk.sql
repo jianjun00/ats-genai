@@ -16,34 +16,34 @@ END $$;
 ALTER TABLE daily_prices ADD CONSTRAINT dp_pk PRIMARY KEY (date, instrument_id);
 
 -- 2. Daily prices tiingo
-ALTER TABLE daily_prices_tiingo ADD COLUMN IF NOT EXISTS instrument_id INTEGER REFERENCES instruments(id);
+ALTER TABLE daily_price_tiingo ADD COLUMN IF NOT EXISTS instrument_id INTEGER REFERENCES instruments(id);
 DO $$
 DECLARE
     constraint_name text;
 BEGIN
     SELECT tc.constraint_name INTO constraint_name
     FROM information_schema.table_constraints tc
-    WHERE tc.table_name = 'daily_prices_tiingo' AND tc.constraint_type = 'PRIMARY KEY';
+    WHERE tc.table_name = 'daily_price_tiingo' AND tc.constraint_type = 'PRIMARY KEY';
     IF constraint_name IS NOT NULL THEN
-        EXECUTE format('ALTER TABLE daily_prices_tiingo DROP CONSTRAINT %I', constraint_name);
+        EXECUTE format('ALTER TABLE daily_price_tiingo DROP CONSTRAINT %I', constraint_name);
     END IF;
 END $$;
-ALTER TABLE daily_prices_tiingo ADD CONSTRAINT dpt_pk PRIMARY KEY (date, instrument_id);
+ALTER TABLE daily_price_tiingo ADD CONSTRAINT dpt_pk PRIMARY KEY (date, instrument_id);
 
 -- 3. Daily prices polygon
-ALTER TABLE daily_prices_polygon ADD COLUMN IF NOT EXISTS instrument_id INTEGER REFERENCES instruments(id);
+ALTER TABLE daily_price_polygon ADD COLUMN IF NOT EXISTS instrument_id INTEGER REFERENCES instruments(id);
 DO $$
 DECLARE
     constraint_name text;
 BEGIN
     SELECT tc.constraint_name INTO constraint_name
     FROM information_schema.table_constraints tc
-    WHERE tc.table_name = 'daily_prices_polygon' AND tc.constraint_type = 'PRIMARY KEY';
+    WHERE tc.table_name = 'daily_price_polygon' AND tc.constraint_type = 'PRIMARY KEY';
     IF constraint_name IS NOT NULL THEN
-        EXECUTE format('ALTER TABLE daily_prices_polygon DROP CONSTRAINT %I', constraint_name);
+        EXECUTE format('ALTER TABLE daily_price_polygon DROP CONSTRAINT %I', constraint_name);
     END IF;
 END $$;
-ALTER TABLE daily_prices_polygon ADD CONSTRAINT dpp_pk PRIMARY KEY (date, instrument_id);
+ALTER TABLE daily_price_polygon ADD CONSTRAINT dpp_pk PRIMARY KEY (date, instrument_id);
 
 -- 4. Stock splits
 ALTER TABLE stock_splits ADD COLUMN IF NOT EXISTS instrument_id INTEGER REFERENCES instruments(id);
