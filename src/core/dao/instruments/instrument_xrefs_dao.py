@@ -81,8 +81,8 @@ class InstrumentXrefsDAO:
         try:
             async with pool.acquire() as conn:
                 table_name = self.table_name
-                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor = $2"
-                params = [symbol, 'ticker']
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor_id = $2"
+                params = [symbol, 1]  # vendor_id 1 for 'ticker' vendor
                 if at_date is not None:
                     # at_date must be a datetime.date object for asyncpg
                     q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"

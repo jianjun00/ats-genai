@@ -895,64 +895,18 @@ class UniverseStateManager:
             
             self.logger.debug(f"Looking for {timeframe} interval: {interval_start} to {interval_end}")
             
-            # TODO: Implement async database query to find matching UniverseStateInterval
-            # For now, check the rolling cache as a fallback
-            return self._get_universe_state_interval_from_cache(timeframe, interval_start, interval_end)
+            # Query database for stored UniverseStateInterval - UniverseStateBuilder should have created these
+            self.logger.debug(f"Querying database for UniverseStateInterval {timeframe} from {interval_start} to {interval_end}")
+            
+            # TODO: Implement actual database query here
+            # For now, return None to expose the bug that no intervals are stored
+            self.logger.warning(f"No UniverseStateInterval found for {timeframe} at {current_time} - UniverseStateBuilder may not have run")
+            return None
             
         except Exception as e:
             self.logger.error(f"Failed to retrieve UniverseStateInterval for {timeframe} at {current_time}: {e}")
             return None
     
-    def _get_universe_state_interval_from_cache(self, timeframe: str, start_time: datetime, end_time: datetime) -> Optional['UniverseStateInterval']:
-        """
-        Attempt to retrieve UniverseStateInterval from rolling cache.
-        
-        This is a fallback method when database retrieval is not implemented.
-        It reconstructs a UniverseStateInterval from cached InstrumentInterval objects.
-        """
-        from domains.trading.services.state.universe_state import UniverseStateInterval
-        from core.business.calendars.time_duration import TimeDuration
-        
-        try:
-            # Check if we have cached data for this timeframe
-            if timeframe not in self._rolling_instrument_history:
-                self.logger.debug(f"No rolling cache data for timeframe {timeframe}")
-                return None
-            
-            duration = TimeDuration(timeframe)
-            instrument_intervals = {}
-            
-            # Collect InstrumentInterval objects for all instruments at this time
-            for instrument_id, intervals in self._rolling_instrument_history[timeframe].items():
-                # Find interval that matches the time range
-                for interval in intervals:
-                    interval_start = getattr(interval, 'start_date_time', None)
-                    if interval_start and abs((interval_start - start_time).total_seconds()) < 60:
-                        # Found matching interval for this instrument
-                        instrument_intervals[instrument_id] = interval
-                        break
-            
-            if not instrument_intervals:
-                self.logger.debug(f"No cached instrument intervals found for {timeframe} at {start_time}")
-                return None
-            
-            # Create UniverseStateInterval with cached data
-            universe_state_interval = UniverseStateInterval(
-                duration=duration,
-                start_date_time=start_time,
-                end_date_time=end_time,
-                factor_intervals=[],  # Empty for now
-                instrument_intervals=instrument_intervals,
-                instrument_indicator_intervals={},  # TODO: Add indicator data from cache
-                universe_id=1  # Default universe ID
-            )
-            
-            self.logger.debug(f"Created UniverseStateInterval from cache: {len(instrument_intervals)} instruments")
-            return universe_state_interval
-            
-        except Exception as e:
-            self.logger.error(f"Failed to create UniverseStateInterval from cache: {e}")
-            return None
 
     def get_future_universe_state_interval(self, timeframe: str, current_time: datetime, lead_periods: int = 1, run_id: str = None) -> Optional['UniverseStateInterval']:
         """

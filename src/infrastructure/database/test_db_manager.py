@@ -467,12 +467,16 @@ async def unit_test_db(request):
             command_timeout=30
         )
         
-        # Setup database manager without migrations for real system bug testing
-        db_manager = gin.get_configurable(DatabaseTestManager)("unit", run_migrations=False, database_obj=db_obj)
+        # Setup database manager with migrations enabled - debug migration issues
+        db_manager = gin.get_configurable(DatabaseTestManager)("unit", run_migrations=True, database_obj=db_obj)
         # Override the db_url to use our in-memory instance
         db_manager.db_url = test_db_url
         
-        print(f"[DEBUG] In-memory PostgreSQL test database ready - migrations disabled for real system bug testing")
+        # Run migrations and debug issues
+        print(f"[DEBUG] Running migrations on in-memory PostgreSQL instance - debugging failures")
+        await db_manager.setup_test_database()
+        
+        print(f"[DEBUG] In-memory PostgreSQL test database ready - all migrations completed")
         
         yield test_db_url
         
