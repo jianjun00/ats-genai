@@ -463,6 +463,175 @@ class IntgCLI:
             print(result)
         return result
 
+    def get_issue(self, issue_id):
+        """Get a specific data quality issue by ID"""
+        sql = f"""
+        SELECT id, issue_type, issue_category, vendor, data_type, symbol,
+               affected_date_start, affected_date_end, severity, status,
+               complexity, priority_score, resolution_strategy,
+               assigned_agent, workflow_id,
+               issue_metadata, resolution_metadata,
+               created_at, updated_at, resolved_at
+        FROM dev_data_quality_issues 
+        WHERE id = {issue_id}
+        """
+        
+        print(f"🔍 Getting issue {issue_id}...")
+        return self.query_db(sql, f"Data Quality Issue #{issue_id}")
+
+    def list_issues(self, tag=None, symbol=None, status=None, vendor=None, 
+                   category=None, severity=None, limit=20):
+        """List data quality issues with optional filters"""
+        
+        where_conditions = []
+        
+        if tag:
+            # Tag is stored in issue_metadata JSONB
+            where_conditions.append(f"issue_metadata->>'tag' = '{tag}'")
+        if symbol:
+            where_conditions.append(f"symbol = '{symbol.upper()}'")
+        if status:
+            where_conditions.append(f"status = '{status}'")
+        if vendor:
+            where_conditions.append(f"vendor = '{vendor}'")
+        if category:
+            where_conditions.append(f"issue_category = '{category}'")
+        if severity:
+            where_conditions.append(f"severity = '{severity}'")
+            
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+            
+        sql = f"""
+        SELECT id, issue_type, issue_category, vendor, data_type, symbol,
+               affected_date_start, affected_date_end, severity, status,
+               priority_score, assigned_agent,
+               created_at, updated_at
+        FROM dev_data_quality_issues 
+        {where_clause}
+        ORDER BY created_at DESC, priority_score DESC
+        LIMIT {limit}
+        """
+        
+        filter_desc = []
+        if tag: filter_desc.append(f"tag={tag}")
+        if symbol: filter_desc.append(f"symbol={symbol}")
+        if status: filter_desc.append(f"status={status}")
+        if vendor: filter_desc.append(f"vendor={vendor}")
+        if category: filter_desc.append(f"category={category}")
+        if severity: filter_desc.append(f"severity={severity}")
+        
+        desc = "Data Quality Issues"
+        if filter_desc:
+            desc += f" (filtered by {', '.join(filter_desc)})"
+            
+        print(f"📋 Listing {desc}...")
+        return self.query_db(sql, desc)
+
+    def create_issue(self, issue_type, vendor, symbol, date_start, date_end,
+                    category="validation", severity="medium", description=None, tag=None):
+        """Create a new data quality issue"""
+        
+        # Build metadata
+        metadata = {}
+        if description:
+            metadata["description"] = description
+        if tag:
+            metadata["tag"] = tag
+            
+        metadata_json = "'{}'::jsonb"
+        if metadata:
+            import json
+            metadata_json = f"'{json.dumps(metadata)}'::jsonb"
+        
+        sql = f"""
+        INSERT INTO dev_data_quality_issues (
+            issue_type, issue_category, vendor, data_type, symbol,
+            affected_date_start, affected_date_end, severity, status,
+            issue_metadata, created_at, updated_at
+        ) VALUES (
+            '{issue_type}', '{category}', '{vendor}', 'daily_prices', '{symbol.upper()}',
+            '{date_start}', '{date_end}', '{severity}', 'pending',
+            {metadata_json}, NOW(), NOW()
+        ) RETURNING id, issue_type, symbol, severity, status
+        """
+        
+        print(f"➕ Creating issue: {issue_type} for {vendor}/{symbol} ({date_start} to {date_end})")
+        return self.query_db(sql, "New Data Quality Issue Created")
+
+    def update_issue(self, issue_id, **kwargs):
+        """Update an existing data quality issue"""
+        
+        valid_fields = {
+            'status', 'severity', 'resolution_strategy', 'assigned_agent',
+            'complexity', 'priority_score'
+        }
+        
+        updates = []
+        for field, value in kwargs.items():
+            if field in valid_fields and value is not None:
+                updates.append(f"{field} = '{value}'")
+        
+        if not updates:
+            print("❌ No valid fields provided for update")
+            return False
+            
+        updates.append("updated_at = NOW()")
+        
+        sql = f"""
+        UPDATE dev_data_quality_issues 
+        SET {', '.join(updates)}
+        WHERE id = {issue_id}
+        RETURNING id, issue_type, symbol, status, severity, updated_at
+        """
+        
+        print(f"📝 Updating issue {issue_id}...")
+        return self.query_db(sql, f"Updated Issue #{issue_id}")
+
+    def resolve_issue(self, issue_id, resolution_notes=None):
+        """Mark an issue as resolved"""
+        
+        metadata = {}
+        if resolution_notes:
+            metadata["resolution_notes"] = resolution_notes
+            metadata["resolved_by"] = "run_intg_cli"
+            
+        metadata_json = "'{}'::jsonb"
+        if metadata:
+            import json
+            metadata_json = f"'{json.dumps(metadata)}'::jsonb"
+        
+        sql = f"""
+        UPDATE dev_data_quality_issues 
+        SET status = 'resolved',
+            resolved_at = NOW(),
+            updated_at = NOW(),
+            resolution_metadata = {metadata_json}
+        WHERE id = {issue_id}
+        RETURNING id, issue_type, symbol, status, resolved_at
+        """
+        
+        print(f"✅ Resolving issue {issue_id}...")
+        return self.query_db(sql, f"Resolved Issue #{issue_id}")
+
+    def delete_issue(self, issue_id):
+        """Delete a data quality issue (use with caution)"""
+        
+        # First show what we're about to delete
+        print(f"⚠️  About to delete issue {issue_id}:")
+        self.get_issue(issue_id)
+        
+        confirm = input("Are you sure you want to delete this issue? (yes/NO): ")
+        if confirm.lower() != 'yes':
+            print("❌ Delete cancelled")
+            return False
+        
+        sql = f"DELETE FROM dev_data_quality_issues WHERE id = {issue_id}"
+        
+        print(f"🗑️  Deleting issue {issue_id}...")
+        return self.query_db(sql, f"Deleted Issue #{issue_id}")
+
     def setup_intg_env(self):
         """Setup complete integration environment"""
         print("🏗️  Setting up integration environment...")
@@ -487,17 +656,86 @@ class IntgCLI:
 
 def main():
     parser = argparse.ArgumentParser(description="Integration CLI for localhost/Docker integration operations")
-    parser.add_argument("action", choices=[
-        "run", "start", "stop", "status", "test", "query", "setup", "logs"
-    ], help="Action to perform")
-
-    parser.add_argument("--script", "-s", help="Script to run")
-    parser.add_argument("--service", help="Service name")
-    parser.add_argument("--query", "-q", help="SQL query to run")
-    parser.add_argument("--test", "-t", help="Test path or pattern")
-    parser.add_argument("--gpu", action="store_true", help="Enable GPU support")
-    parser.add_argument("--port", "-p", help="Port mapping")
-    parser.add_argument("--env", help="Environment variables (JSON format)")
+    
+    # Use subparsers for better command structure
+    subparsers = parser.add_subparsers(dest="action", help="Available commands")
+    
+    # Original commands
+    parser_run = subparsers.add_parser("run", help="Run a script")
+    parser_run.add_argument("--script", "-s", required=True, help="Script to run")
+    parser_run.add_argument("--gpu", action="store_true", help="Enable GPU support")
+    parser_run.add_argument("--env", help="Environment variables (JSON format)")
+    
+    parser_start = subparsers.add_parser("start", help="Start a service")
+    parser_start.add_argument("--service", required=True, help="Service name")
+    parser_start.add_argument("--port", "-p", help="Port mapping")
+    parser_start.add_argument("--gpu", action="store_true", help="Enable GPU support")
+    parser_start.add_argument("--env", help="Environment variables (JSON format)")
+    
+    parser_stop = subparsers.add_parser("stop", help="Stop a service")
+    parser_stop.add_argument("--service", required=True, help="Service name")
+    
+    subparsers.add_parser("status", help="Show service status")
+    
+    parser_test = subparsers.add_parser("test", help="Run tests")
+    parser_test.add_argument("--test", "-t", help="Test path or pattern")
+    
+    parser_query = subparsers.add_parser("query", help="Run database query")
+    parser_query.add_argument("--query", "-q", required=True, help="SQL query to run")
+    
+    subparsers.add_parser("setup", help="Setup integration environment")
+    
+    parser_logs = subparsers.add_parser("logs", help="Show service logs")
+    parser_logs.add_argument("--service", required=True, help="Service name")
+    
+    # New issue management commands
+    parser_issue = subparsers.add_parser("issue", help="Manage data quality issues")
+    issue_subparsers = parser_issue.add_subparsers(dest="issue_action", help="Issue commands")
+    
+    # issue get <id>
+    parser_issue_get = issue_subparsers.add_parser("get", help="Get issue by ID")
+    parser_issue_get.add_argument("issue_id", type=int, help="Issue ID")
+    
+    # issue list [filters]
+    parser_issue_list = issue_subparsers.add_parser("list", help="List issues with optional filters")
+    parser_issue_list.add_argument("--tag", help="Filter by tag")
+    parser_issue_list.add_argument("--symbol", help="Filter by symbol")
+    parser_issue_list.add_argument("--status", help="Filter by status")
+    parser_issue_list.add_argument("--vendor", help="Filter by vendor")
+    parser_issue_list.add_argument("--category", help="Filter by category")
+    parser_issue_list.add_argument("--severity", help="Filter by severity")
+    parser_issue_list.add_argument("--limit", type=int, default=20, help="Limit results (default: 20)")
+    
+    # issue create
+    parser_issue_create = issue_subparsers.add_parser("create", help="Create new issue")
+    parser_issue_create.add_argument("issue_type", help="Issue type (e.g., coverage_gap, missing_data)")
+    parser_issue_create.add_argument("vendor", help="Vendor (polygon, tiingo, eodhd)")
+    parser_issue_create.add_argument("symbol", help="Symbol")
+    parser_issue_create.add_argument("date_start", help="Start date (YYYY-MM-DD)")
+    parser_issue_create.add_argument("date_end", help="End date (YYYY-MM-DD)")
+    parser_issue_create.add_argument("--category", default="validation", help="Category (default: validation)")
+    parser_issue_create.add_argument("--severity", default="medium", help="Severity (default: medium)")
+    parser_issue_create.add_argument("--description", help="Description")
+    parser_issue_create.add_argument("--tag", help="Tag for categorization")
+    
+    # issue update <id>
+    parser_issue_update = issue_subparsers.add_parser("update", help="Update issue")
+    parser_issue_update.add_argument("issue_id", type=int, help="Issue ID")
+    parser_issue_update.add_argument("--status", help="New status")
+    parser_issue_update.add_argument("--severity", help="New severity")
+    parser_issue_update.add_argument("--resolution-strategy", help="Resolution strategy")
+    parser_issue_update.add_argument("--assigned-agent", help="Assigned agent")
+    parser_issue_update.add_argument("--complexity", help="Complexity level")
+    parser_issue_update.add_argument("--priority-score", type=int, help="Priority score")
+    
+    # issue resolve <id>
+    parser_issue_resolve = issue_subparsers.add_parser("resolve", help="Resolve issue")
+    parser_issue_resolve.add_argument("issue_id", type=int, help="Issue ID")
+    parser_issue_resolve.add_argument("--notes", help="Resolution notes")
+    
+    # issue delete <id>
+    parser_issue_delete = issue_subparsers.add_parser("delete", help="Delete issue")
+    parser_issue_delete.add_argument("issue_id", type=int, help="Issue ID")
 
     args = parser.parse_args()
 
