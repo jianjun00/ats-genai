@@ -70,6 +70,7 @@ class IntgCLI:
         self.db_user = "postgres"
         self.db_password = "intg_password"
         self.db_name = "intg_db"
+        self.table_prefix = "intg"  # Integration environment uses intg_ prefix
 
         # ATS persistent volume paths (D: drive) - Integration specific
         self.ats_data_path = "/mnt/d/ats-data/intg"
@@ -532,7 +533,7 @@ class IntgCLI:
                assigned_agent, workflow_id,
                issue_metadata, resolution_metadata,
                created_at, updated_at, resolved_at
-        FROM dev_data_quality_issues 
+        FROM {self.table_prefix}_data_quality_issues 
         WHERE id = {issue_id}
         """
         
@@ -568,7 +569,7 @@ class IntgCLI:
                affected_date_start, affected_date_end, severity, status,
                priority_score, assigned_agent,
                created_at, updated_at
-        FROM dev_data_quality_issues 
+        FROM {self.table_prefix}_data_quality_issues 
         {where_clause}
         ORDER BY created_at DESC, priority_score DESC
         LIMIT {limit}
@@ -608,7 +609,7 @@ class IntgCLI:
             metadata_json = f"'{json_str}'::jsonb"
         
         sql = f"""
-        INSERT INTO dev_data_quality_issues (
+        INSERT INTO {self.table_prefix}_data_quality_issues (
             issue_type, issue_category, vendor, data_type, symbol,
             affected_date_start, affected_date_end, severity, status,
             issue_metadata, created_at, updated_at
@@ -642,7 +643,7 @@ class IntgCLI:
         updates.append("updated_at = NOW()")
         
         sql = f"""
-        UPDATE dev_data_quality_issues 
+        UPDATE {self.table_prefix}_data_quality_issues 
         SET {', '.join(updates)}
         WHERE id = {issue_id}
         RETURNING id, issue_type, symbol, status, severity, updated_at
@@ -667,7 +668,7 @@ class IntgCLI:
             metadata_json = f"'{json_str}'::jsonb"
         
         sql = f"""
-        UPDATE dev_data_quality_issues 
+        UPDATE {self.table_prefix}_data_quality_issues 
         SET status = 'resolved',
             resolved_at = NOW(),
             updated_at = NOW(),
@@ -696,7 +697,7 @@ class IntgCLI:
                 print("❌ Delete cancelled (no input)")
                 return False
         
-        sql = f"DELETE FROM dev_data_quality_issues WHERE id = {issue_id}"
+        sql = f"DELETE FROM {self.table_prefix}_data_quality_issues WHERE id = {issue_id}"
         
         print(f"🗑️  Deleting issue {issue_id}...")
         return self.query_db(sql, f"Deleted Issue #{issue_id}")
@@ -709,7 +710,7 @@ class IntgCLI:
             severity,
             COUNT(*) as count,
             COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
-        FROM dev_data_quality_issues 
+        FROM {self.table_prefix}_data_quality_issues 
         GROUP BY status, severity
         ORDER BY status, 
                  CASE severity 
