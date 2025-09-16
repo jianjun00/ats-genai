@@ -18,7 +18,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from src.app.training_data_job_runner import TrainingDataJobRunner, TrainingDataJobConfig
 
-
 class TestMultiTimeframeTrainingDataJobRunner:
     """Test suite for multi-timeframe functionality in TrainingDataJobRunner."""
 
@@ -372,7 +371,6 @@ class TestMultiTimeframeTrainingDataJobRunner:
 
         print(f"✅ Feature naming consistency test passed")
 
-
 class TestMultiTimeframeTrainingDataGeneration:
     """Integration tests for complete multi-timeframe training data generation."""
 
@@ -499,7 +497,6 @@ class TestMultiTimeframeTrainingDataGeneration:
 
         mock_manager.get_lag_prices.side_effect = mock_get_lag_prices
         return mock_manager
-
 
 if __name__ == "__main__":
     # Run tests directly
