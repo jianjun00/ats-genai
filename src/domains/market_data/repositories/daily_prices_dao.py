@@ -2,15 +2,15 @@ from shared.utils.environment import Environment
 import asyncpg
 import logging
 
-class DailyPricesDAO:
+class DailyPriceDAO:
     def __init__(self, env: Environment):
         self.env = env
         self.table_name = self.env.get_table_name('daily_price_polygon')
         self.db_url = self.env.get_database_url()
         self.logger = logging.getLogger(__name__)
-        self.logger.debug(f"DailyPricesDAO using db_url: {self.db_url}")
-        self.logger.debug(f"DailyPricesDAO env_type: {getattr(self.env, 'env_type', None)}")
-        self.logger.debug(f"DailyPricesDAO table_name: {self.table_name}")
+        self.logger.debug(f"DailyPriceDAO using db_url: {self.db_url}")
+        self.logger.debug(f"DailyPriceDAO env_type: {getattr(self.env, 'env_type', None)}")
+        self.logger.debug(f"DailyPriceDAO table_name: {self.table_name}")
 
     async def list_prices_for_date(self, as_of_date):
         pool = await asyncpg.create_pool(self.db_url)

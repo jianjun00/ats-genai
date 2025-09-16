@@ -11,7 +11,7 @@ from datetime import datetime, date
 from sqlalchemy import text
 
 from core.dao.base.vendor_dao import MarketDataVendorDAO, VendorType
-from core.dao.market_data.daily_price_polygon_dao import DailyPricesDAO
+from core.dao.market_data.daily_price_polygon_dao import DailyPriceDAO
 from core.platform.logging.logger_config import get_logger
 
 
@@ -25,7 +25,7 @@ class TiingoDAO(MarketDataVendorDAO):
 
     def __init__(self):
         super().__init__("tiingo_data", VendorType.TIINGO)
-        self.daily_price_polygon_dao = DailyPricesDAO()
+        self.daily_price_polygon_dao = DailyPriceDAO()
         self.logger = get_logger(__name__)
 
     def get_vendor_config(self) -> Dict[str, Any]:

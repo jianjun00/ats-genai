@@ -16,7 +16,7 @@ from core.security.validation.data_validators import MarketDataValidator, Valida
 from core.platform.logging.logger_config import get_logger
 
 
-class DailyPricesDAO(BaseDAO):
+class DailyPriceDAO(BaseDAO):
     """
     Unified DAO for daily price data across all vendors.
 
