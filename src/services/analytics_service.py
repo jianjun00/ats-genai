@@ -8336,111 +8336,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     ORDER BY rd.expected_date;
                     """
                     
-                    missing_dates = await conn.fetch(missing_data_query)
-                    for row in missing_dates:
-                        issues.append({
-                            "id": f"missing_data_{row['expected_date']}",
-                            "symbol": "ALL",
-                            "issue_type": "missing_data",
-                            "severity": "high",
-                            "description": f"No daily prices found for trading day {row['expected_date']}",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['expected_date'].isoformat(),
-                            "field": "all_fields",
-                            "expected_value": "Daily prices",
-                            "actual_value": "No data",
-                            "vendor_source": "multiple",
-                            "status": "open"
-                        })
-                    
-                    # Check for extreme volumes
-                    extreme_volume_query = """
-                    SELECT symbol, date as price_date, volume, close
-                    FROM intg_daily_price_polygon 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    AND volume > 50000000
-                    ORDER BY volume DESC
-                    LIMIT 10;
-                    """
-                    
-                    extreme_volumes = await conn.fetch(extreme_volume_query)
-                    for row in extreme_volumes:
-                        issues.append({
-                            "id": f"high_volume_{row['symbol']}_{row['price_date']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "extreme_volume",
-                            "severity": "medium",
-                            "description": f"Unusually high volume: {row['volume']:,} shares",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['price_date'].isoformat(),
-                            "field": "volume",
-                            "expected_value": "< 10M shares",
-                            "actual_value": f"{row['volume']:,} shares",
-                            "vendor_source": "polygon",
-                            "status": "open"
-                        })
-                    
-                    # Check for duplicate records
-                    duplicate_query = """
-                    SELECT symbol, date as price_date, COUNT(*) as count
-                    FROM intg_daily_price_polygon 
-                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                    GROUP BY symbol, date
-                    HAVING COUNT(*) > 1
-                    ORDER BY COUNT(*) DESC
-                    LIMIT 5;
-                    """
-                    
-                    duplicates = await conn.fetch(duplicate_query)
-                    for row in duplicates:
-                        issues.append({
-                            "id": f"duplicate_{row['symbol']}_{row['price_date']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "duplicate_records",
-                            "severity": "critical",
-                            "description": f"Duplicate records: {row['count']} entries for same date",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['price_date'].isoformat(),
-                            "field": "all_fields",
-                            "expected_value": "1 record per day",
-                            "actual_value": f"{row['count']} records",
-                            "vendor_source": "multiple",
-                            "status": "open"
-                        })
-                    
-                    # Check for stale data
-                    freshness_query = """
-                    SELECT symbol, MAX(date) as latest_date
-                    FROM intg_daily_price_polygon
-                    GROUP BY symbol
-                    HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
-                    ORDER BY MAX(date) DESC
-                    LIMIT 10;
-                    """
-                    
-                    stale_data = await conn.fetch(freshness_query)
-                    for row in stale_data:
-                        from datetime import date as dt_date
-                        days_stale = (dt_date.today() - row['latest_date']).days
-                        issues.append({
-                            "id": f"stale_data_{row['symbol']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "stale_data",
-                            "severity": "medium" if days_stale < 7 else "high",
-                            "description": f"Data is {days_stale} days old (last: {row['latest_date']})",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['latest_date'].isoformat(),
-                            "field": "date",
-                            "expected_value": "< 3 days old",
-                            "actual_value": f"{days_stale} days old",
-                            "vendor_source": "polygon",
-                            "status": "open"
-                        })
-                    
-                    await conn.close()
-                    
-                except Exception as e:
-                    logger.error(f"Data quality detection error: {e}")
+                missing_dates = await conn.fetch(missing_data_query)
+                for row in missing_dates:
                     issues.append({
                         "id": f"missing_data_{row['expected_date']}",
                         "symbol": "ALL",
@@ -8455,6 +8352,109 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         "vendor_source": "multiple",
                         "status": "open"
                     })
+                
+                # Check for extreme volumes
+                extreme_volume_query = """
+                    SELECT symbol, date as price_date, volume, close
+                    FROM intg_daily_price_polygon 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    AND volume > 50000000
+                    ORDER BY volume DESC
+                    LIMIT 10;
+                """
+                
+                extreme_volumes = await conn.fetch(extreme_volume_query)
+                for row in extreme_volumes:
+                    issues.append({
+                        "id": f"high_volume_{row['symbol']}_{row['price_date']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "extreme_volume",
+                        "severity": "medium",
+                        "description": f"Unusually high volume: {row['volume']:,} shares",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "volume",
+                        "expected_value": "< 10M shares",
+                        "actual_value": f"{row['volume']:,} shares",
+                        "vendor_source": "polygon",
+                        "status": "open"
+                    })
+                
+                # Check for duplicate records
+                duplicate_query = """
+                    SELECT symbol, date as price_date, COUNT(*) as count
+                    FROM intg_daily_price_polygon 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY symbol, date
+                    HAVING COUNT(*) > 1
+                    ORDER BY COUNT(*) DESC
+                    LIMIT 5;
+                """
+                
+                duplicates = await conn.fetch(duplicate_query)
+                for row in duplicates:
+                    issues.append({
+                        "id": f"duplicate_{row['symbol']}_{row['price_date']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "duplicate_records",
+                        "severity": "critical",
+                        "description": f"Duplicate records: {row['count']} entries for same date",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "all_fields",
+                        "expected_value": "1 record per day",
+                        "actual_value": f"{row['count']} records",
+                        "vendor_source": "multiple",
+                        "status": "open"
+                    })
+                
+                # Check for stale data
+                freshness_query = """
+                SELECT symbol, MAX(date) as latest_date
+                FROM intg_daily_price_polygon
+                GROUP BY symbol
+                HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
+                ORDER BY MAX(date) DESC
+                LIMIT 10;
+                """
+                
+                stale_data = await conn.fetch(freshness_query)
+                for row in stale_data:
+                    from datetime import date as dt_date
+                    days_stale = (dt_date.today() - row['latest_date']).days
+                    issues.append({
+                        "id": f"stale_data_{row['symbol']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "stale_data",
+                        "severity": "medium" if days_stale < 7 else "high",
+                        "description": f"Data is {days_stale} days old (last: {row['latest_date']})",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['latest_date'].isoformat(),
+                        "field": "date",
+                        "expected_value": "< 3 days old",
+                        "actual_value": f"{days_stale} days old",
+                        "vendor_source": "polygon",
+                        "status": "open"
+                    })
+                
+                await conn.close()
+                
+            except Exception as e:
+                logger.error(f"Data quality detection error: {e}")
+                issues.append({
+                    "id": "detection_error",
+                    "symbol": "ALL",
+                    "issue_type": "system_error",
+                    "severity": "high",
+                    "description": f"Error during issue detection: {str(e)}",
+                    "detected_at": datetime.now().isoformat(),
+                    "affected_date": datetime.now().date().isoformat(),
+                    "field": "system",
+                    "expected_value": "No errors",
+                    "actual_value": str(e),
+                    "vendor_source": "system",
+                    "status": "open"
+                })
                 
                 # Check for extreme volumes across all vendors
                 extreme_volume_query = """
