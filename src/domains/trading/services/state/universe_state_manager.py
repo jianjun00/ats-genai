@@ -396,15 +396,53 @@ class UniverseStateManager:
                 # Get run_id from run_context, fallback to default if not available
                 run_id = getattr(self.run_context, 'run_id', 'default_run') if self.run_context else 'no_run_context'
 
+                # Prepare state_data from universe_state
+                universe_state = metadata.get('universe_state') if metadata else None
+                state_data = None
+                if universe_state is not None:
+                    state_data = {
+                        'duration': metadata['duration'],
+                        'instruments': {},
+                        'indicators': {},
+                        'factors': []
+                    }
+                    
+                    # Extract instrument intervals
+                    for inst_id, inst_interval in getattr(universe_state, 'instrument_intervals', {}).items():
+                        state_data['instruments'][str(inst_id)] = {
+                            'open': inst_interval.open,
+                            'high': inst_interval.high,
+                            'low': inst_interval.low,
+                            'close': inst_interval.close,
+                            'volume': inst_interval.traded_volume,
+                            'market_cap': inst_interval.market_cap,
+                            'status': inst_interval.status
+                        }
+                    
+                    # Extract indicator intervals
+                    for timeframe, inst_dict in getattr(universe_state, 'instrument_indicator_intervals', {}).items():
+                        for inst_id, indicator_interval in inst_dict.items():
+                            if str(inst_id) not in state_data['indicators']:
+                                state_data['indicators'][str(inst_id)] = {}
+                            state_data['indicators'][str(inst_id)][timeframe] = getattr(indicator_interval, 'indicators', {})
+                    
+                    # Extract factor intervals
+                    for factor_interval in getattr(universe_state, 'factor_intervals', []):
+                        if hasattr(factor_interval, 'factor_name') and hasattr(factor_interval, 'factor_value'):
+                            state_data['factors'].append({
+                                'name': factor_interval.factor_name,
+                                'value': factor_interval.factor_value
+                            })
+
                 interval_id = await self._interval_dao.create(
                     universe_id=metadata['universe_id'],
                     duration=metadata['duration'],
                     start_date_time=start_dt,
                     end_date_time=end_dt,
-                    run_id=run_id
+                    run_id=run_id,
+                    state_data=state_data
                 )
                 # Persist nested only if provided
-                universe_state = metadata.get('universe_state') if metadata else None
                 if universe_state is not None:
                     instrument_interval_dao = InstrumentIntervalDAO(self.env)
                     indicator_interval_dao = InstrumentIndicatorIntervalDAO(self.env)

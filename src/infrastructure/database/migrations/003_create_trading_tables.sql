@@ -10,16 +10,22 @@ ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS instrument_interval (
     id SERIAL PRIMARY KEY,
     run_id TEXT NOT NULL,
+    universe_state_interval_id INTEGER, -- References universe_state_interval(id)
     instrument_id INTEGER NOT NULL REFERENCES instrument(id) ON DELETE CASCADE,
-    datetime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    open_price DOUBLE PRECISION,
-    high_price DOUBLE PRECISION,
-    low_price DOUBLE PRECISION,
-    close_price DOUBLE PRECISION,
-    volume BIGINT,
+    datetime TIMESTAMP WITHOUT TIME ZONE, -- Legacy field
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    traded_volume DOUBLE PRECISION,
+    traded_dollar DOUBLE PRECISION,
+    status TEXT,
     market_cap DOUBLE PRECISION,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(run_id, instrument_id, datetime)
+    interval_start TIMESTAMP WITHOUT TIME ZONE,
+    interval_end TIMESTAMP WITHOUT TIME ZONE,
+    interval_duration TEXT, -- '5m', '15m', '60m' etc.
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    -- Note: Removed UNIQUE constraint to allow idempotent operations
 );
 
 -- Instrument indicator interval table for technical indicators
@@ -51,10 +57,13 @@ CREATE TABLE IF NOT EXISTS universe_state_interval (
     id SERIAL PRIMARY KEY,
     run_id TEXT NOT NULL,
     universe_id INTEGER NOT NULL REFERENCES universe(id),
-    datetime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    duration TEXT NOT NULL, -- '5m', '15m', '60m', '1h', '1d' etc.
+    start_date_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    end_date_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    datetime TIMESTAMP WITHOUT TIME ZONE, -- Optional legacy field
     state_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(run_id, universe_id, datetime)
+    UNIQUE(run_id, universe_id, duration, start_date_time)
 );
 
 -- Runs table for tracking analysis runs
