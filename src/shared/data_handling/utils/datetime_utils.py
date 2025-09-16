@@ -313,3 +313,39 @@ def get_period_start(dt: datetime, timeframe: str) -> datetime:
         return dt.replace(second=0, microsecond=0)
     else:
         return dt
+
+
+def parse_flexible_datetime(val: Union[datetime, date, str]) -> datetime:
+    """
+    Parse flexible datetime input from various formats.
+    
+    Supports:
+    - datetime and date objects (passthrough)
+    - ISO format strings (YYYY-MM-DDTHH:MM:SS)
+    - Simple date strings (YYYY-MM-DD)
+    
+    Args:
+        val: Input value to parse
+        
+    Returns:
+        datetime object
+        
+    Raises:
+        ValueError: If string format is not recognized
+        TypeError: If input type is not supported
+    """
+    if isinstance(val, (datetime, date)):
+        return val if isinstance(val, datetime) else datetime.combine(val, time.min)
+    
+    if isinstance(val, str):
+        # Try ISO format first
+        try:
+            return datetime.fromisoformat(val)
+        except ValueError:
+            # Try simple date format
+            try:
+                return datetime.strptime(val, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {val}. Supported formats: ISO (YYYY-MM-DDTHH:MM:SS) or simple date (YYYY-MM-DD)")
+    
+    raise TypeError(f"Invalid type for date: {type(val)}. Expected datetime, date, or string")

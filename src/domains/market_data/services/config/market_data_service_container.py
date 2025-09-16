@@ -12,7 +12,7 @@ from datetime import datetime
 from core.platform.config.environment import Environment, EnvironmentType
 from ..interfaces.market_data_service_interface import MarketDataServiceInterface
 from ..impl.market_data_service_impl import MarketDataServiceImpl
-from ...repositories.daily_price_polygon_dao import DailyPricesDAO
+from ...repositories.daily_price_polygon_dao import DailyPriceDAO
 from ...repositories.fundamentals_dao import FundamentalsDAO
 
 # Optional instruments DAO import with fallback
@@ -38,7 +38,7 @@ class MarketDataServiceContainer:
         self.logger = logging.getLogger(__name__)
         self._initialized = False
         self._service_instance: Optional[MarketDataServiceInterface] = None
-        self._daily_price_polygon_dao: Optional[DailyPricesDAO] = None
+        self._daily_price_polygon_dao: Optional[DailyPriceDAO] = None
         self._fundamentals_dao: Optional[FundamentalsDAO] = None
         self._instruments_dao: Optional[Any] = None
     
@@ -51,7 +51,7 @@ class MarketDataServiceContainer:
             self.logger.info(f"Initializing MarketDataServiceContainer for environment: {self.environment.env_type}")
             
             # Initialize DAOs
-            self._daily_price_polygon_dao = DailyPricesDAO(self.environment)
+            self._daily_price_polygon_dao = DailyPriceDAO(self.environment)
             self._fundamentals_dao = FundamentalsDAO(self.environment)
             
             # Initialize instruments DAO if available

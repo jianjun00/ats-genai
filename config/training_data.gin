@@ -5,8 +5,8 @@
 domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
 domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
 
-# Available timeframes for training data generation
-domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.timeframes = ['1m', '5m', '15m', '1h', '1d', '1w', '1M']
+# Note: Timeframes are automatically obtained from UniverseStateIntervalBuilder.target_durations
+# This ensures consistency between universe state building and training data generation
 
 # Note: Smart money zones timeframes would be configured when that module is available
 # domains.trading.services.indicators.smart_money_zones.MultiTimeframeAnalysis.timeframes = ['5m', '15m', '1h', '4h']
@@ -32,6 +32,10 @@ domains.ml.services.training_data.timeseries_sequence_training_generator.Trainin
     "support_resistance", # Support/resistance level analysis
     "market_structure"    # Support/resistance, trends
 ]
+
+# Universe State Builder Configuration - Multi-timeframe processing
+domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m,15m,60m,1d'
+domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
 
 # Note: Trading hours configuration would be configured when that module is available
 # Trading Hours Configuration (Market Timezone)  

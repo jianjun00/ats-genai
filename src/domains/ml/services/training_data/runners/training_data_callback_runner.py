@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from services.core.app.runner import Runner
 from shared.utils.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 # Removed: SequenceStorageManager - not needed per PRD/DRD QR5 single-step architecture
 from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
@@ -743,23 +744,42 @@ async def main():
     try:
         logger.debug("Creating Runner with training callback using expanded collection window")
 
-        # CRITICAL FIX: Use FileBasedMinuteMarketDataManager for training data generation
-        # The default DailyPriceMarketDataManager doesn't have minute bar data needed for training
-        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-
-        # Initialize with correct path for minute bar data
-        minute_data_manager = FileBasedMinuteMarketDataManager(environment, '/data/minute-bars')
-        logger.info(f"✅ Created FileBasedMinuteMarketDataManager for training data generation")
-        logger.info(f"   Base path: /data/minute-bars")
+        # CRITICAL FIX: Use UnifiedMarketDataManager for training data generation  
+        # Supports multiple data sources including FirstRate minute bar data
+        from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType
+        
+        # Initialize unified market data manager with correct path for minute bar data
+        from core.market_data.unified_manager import StorageBackend
+        config = MarketDataConfig(
+            vendors=[VendorType.FIRSTRATE],  # Use FirstRate for minute data
+            storage_backend=StorageBackend.FILE, 
+            file_storage_path="/mnt/d/ats-data/minute-bars/firstrate"
+        )
+        minute_data_manager = UnifiedMarketDataManager(config)
+        logger.info(f"✅ Created UnifiedMarketDataManager for training data generation")
+        logger.info(f"   Storage backend: file")
+        logger.info(f"   Base path: /mnt/d/ats-data/minute-bars/firstrate")
 
         # ARCHITECTURE FIX: Add UniverseStateBuilder to populate universe state cache
         # UniverseStateBuilder calls get_minute_ohlc_batch to access cached data from FileBasedMinuteMarketDataManager
         # This populates the universe state cache that training data generator needs
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+        from domains.trading.services.state.universe_state_manager import UniverseStateManager
+        
+        # Create universe state manager for shared cache
+        # Set enable_run_isolation to False for training data generation (no need for isolation)
+        enable_run_isolation = False
+        run_context = None
+        universe_state_manager = UniverseStateManager(
+            env=environment, 
+            run_context=run_context if enable_run_isolation else None
+        )
+        
         universe_state_builder = UniverseStateIntervalBuilder(
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
-            target_durations=args.base_duration  # Use same duration for simplicity
+            target_durations=args.base_duration,  # Use same duration for simplicity
+            universe_state_manager=universe_state_manager  # Pass shared cache manager
         )
         logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
         logger.info(f"   Base duration: {args.base_duration}")
@@ -788,6 +808,7 @@ async def main():
             callbacks=[universe_state_builder, training_callback],  # UniverseStateBuilder builds cache during offset period, training generates data from start_date
             market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
             universe_manager=universe_manager,  # 🚨 CRITICAL FIX: Use custom universe manager with proper symbols
+            universe_state_manager=universe_state_manager,  # Use shared cache manager
             base_duration=args.base_duration
         )
 

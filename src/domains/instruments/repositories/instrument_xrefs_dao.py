@@ -75,21 +75,14 @@ class InstrumentXrefsDAO:
 
     async def resolve_instrument_id_by_symbol(self, symbol, at_date=None):
         """
-        Lookup instrument_id from instrument_xrefs using symbol and vendor_id for 'ticker'.
+        Lookup instrument_id from instrument_xrefs using symbol and vendor for 'ticker'.
         """
-        from .vendors_dao import VendorsDAO
-        vendors_dao = VendorsDAO(self.env)
-        vendor_row = await vendors_dao.get_vendor_by_name("ticker")
-        if not vendor_row:
-            print(f"[DEBUG][resolve_instrument_id_by_symbol] vendor 'ticker' not found!")
-            return None
-        vendor_id = vendor_row['id']
         pool = await asyncpg.create_pool(self.db_url)
         try:
             async with pool.acquire() as conn:
                 table_name = self.table_name
-                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor_id = $2"
-                params = [symbol, vendor_id]
+                q = f"SELECT instrument_id FROM {table_name} WHERE symbol = $1 AND vendor = $2"
+                params = [symbol, 'ticker']
                 if at_date is not None:
                     # at_date must be a datetime.date object for asyncpg
                     q += " AND (start_at <= $3 AND (end_at IS NULL OR end_at >= $3))"

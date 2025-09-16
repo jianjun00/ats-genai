@@ -23,11 +23,18 @@ class TestUniverseStateBuilderTimeRangeFix:
         self.mock_env = Mock(spec=Environment)
         self.mock_env.indicator_rolling_window = 20
 
+        # Create mock universe state manager for shared cache
+        self.mock_universe_state_manager = Mock()
+        self.mock_universe_state_manager.ensure_timeframe_cache.return_value = None
+        self.mock_universe_state_manager.get_instrument_history_for_timeframe.return_value = []
+        self.mock_universe_state_manager.add_interval_to_rolling_cache.return_value = None
+
         # Create builder with 60-minute base duration
         self.builder = UniverseStateIntervalBuilder(
             env=self.mock_env,
             base_duration="60m",
-            target_durations="60m"
+            target_durations="60m",
+            universe_state_manager=self.mock_universe_state_manager
         )
 
         # Setup mock runner
@@ -94,7 +101,8 @@ class TestUniverseStateBuilderTimeRangeFix:
             builder = UniverseStateIntervalBuilder(
                 env=self.mock_env,
                 base_duration=duration_str,
-                target_durations=duration_str
+                target_durations=duration_str,
+                universe_state_manager=self.mock_universe_state_manager
             )
 
             # Reset mock

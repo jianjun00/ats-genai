@@ -123,30 +123,43 @@ class UniverseStateIntervalDAO:
         self.env = env
         self.db_url = env.get_database_url()
 
-    async def create(self, universe_id: int, duration: str, start_date_time, end_date_time, run_id: str) -> int:
+    async def create(self, universe_id: int, duration: str, start_date_time, end_date_time, run_id: str, state_data: dict = None) -> int:
         """Insert a new UniverseStateInterval record. Returns the new id (or interval_id)."""
+        
+        # 🚨 UUID SYSTEM: Use UUID from Environment if available, otherwise use provided run_id
+        effective_run_id = run_id
+        if hasattr(self.env, 'get_run_uuid') and self.env.get_run_uuid() is not None:
+            effective_run_id = self.env.get_run_uuid()
+            print(f"[UUID DEBUG] UniverseStateIntervalDAO using Environment UUID: {effective_run_id}")
+        elif effective_run_id is None:
+            print(f"[UUID DEBUG] UniverseStateIntervalDAO: No UUID available in Environment or parameters")
+        
+        # Convert state_data to JSON if provided
+        import json
+        state_data_json = json.dumps(state_data) if state_data else None
+        
         conn = await asyncpg.connect(self.db_url)
         try:
             try:
                 row = await conn.fetchrow(
                     f"""
                     INSERT INTO {self.env.get_table_name('universe_state_interval')} (
-                        universe_id, duration, start_date_time, end_date_time, run_id
-                    ) VALUES ($1, $2, $3, $4, $5)
+                        universe_id, duration, start_date_time, end_date_time, run_id, state_data
+                    ) VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING id
                     """,
-                    universe_id, duration, start_date_time, end_date_time, run_id
+                    universe_id, duration, start_date_time, end_date_time, effective_run_id, state_data_json
                 )
                 return row['id']
             except asyncpg.UndefinedColumnError:
                 row = await conn.fetchrow(
                     f"""
                     INSERT INTO {self.env.get_table_name('universe_state_interval')} (
-                        universe_id, duration, start_date_time, end_date_time, run_id
-                    ) VALUES ($1, $2, $3, $4, $5)
+                        universe_id, duration, start_date_time, end_date_time, run_id, state_data
+                    ) VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING interval_id
                     """,
-                    universe_id, duration, start_date_time, end_date_time, run_id
+                    universe_id, duration, start_date_time, end_date_time, effective_run_id, state_data_json
                 )
                 return row['interval_id']
         finally:

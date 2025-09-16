@@ -384,99 +384,117 @@ from shared.data_handling.utils.environment import Environment, EnvironmentType
 @pytest_asyncio.fixture
 async def unit_test_db(request):
     """
-    Fixture for a completely empty unit test database (no tables, no migrations applied).
-    Ensures environment is TEST. Used for DAO and non-migration tests.
-    Generates a unique test DB name per test with timestamp for proper isolation.
+    Fixture for an in-memory PostgreSQL database instance per test.
+    Creates a temporary PostgreSQL cluster, starts it, and provides a clean database.
+    No external Docker dependencies - each test gets its own isolated PostgreSQL instance.
     """
     import gin
-    import uuid
-    from shared.data_handling.utils.database import Database
-    test_file = str(request.fspath) if hasattr(request, 'fspath') else "nofile"
-    # Take only first 8 chars of file name to keep DB name short
-    test_file_base = os.path.splitext(os.path.basename(test_file))[0]
-    test_file_base = ''.join(c for c in test_file_base if c.isalnum())[:8]
-    test_name = request.node.name if hasattr(request, 'node') else None
-
-    # Generate timestamp-based unique suffix for proper test isolation
+    import tempfile
+    import subprocess
+    import shutil
+    import socket
     import time
-    timestamp_suffix = str(int(time.time() * 1000))[-10:]  # Last 10 digits of millisecond timestamp
-
-    if test_name:
-        # Use first 8 chars of test name for readability
-        test_name_short = ''.join(c for c in test_name if c.isalnum())[:8]
-        db_name = f"test_{test_file_base}_{test_name_short}_{timestamp_suffix}"
-    else:
-        db_name = f"test_{test_file_base}_{uuid.uuid4().hex[:8]}_{timestamp_suffix}"
-
-    # Ensure DB name doesn't exceed PostgreSQL's 63-char limit
-    if len(db_name) > 63:
-        db_name = f"test_{timestamp_suffix}_{uuid.uuid4().hex[:8]}"
-
-    # Construct Database object for this test
-    # Use test_user credentials explicitly for test database
-    db_host = "localhost"
-    db_port = 5432
+    from shared.data_handling.utils.database import Database
+    
+    # Create temporary directory for this PostgreSQL instance
+    temp_dir = tempfile.mkdtemp(prefix="postgres_test_")
+    print(f"[DEBUG] Created temporary PostgreSQL directory: {temp_dir}")
+    
+    # Find an available port for this PostgreSQL instance
+    def find_free_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('', 0))
+            s.listen(1)
+            port = s.getsockname()[1]
+        return port
+    
+    db_port = find_free_port()
+    db_name = "test_db"
     db_user = "test_user"
-    db_password = "test_password"
-    db_pool_min = 1
-    db_pool_max = 10
-    db_cmd_timeout = 60
-
-    print(f"[ENV DEBUG] Using database credentials: host={db_host}, port={db_port}, user={db_user}, database={db_name}")
-
-    db_obj = Database(
-        host=db_host,
-        port=db_port,
-        user=db_user,
-        password=db_password,
-        database=db_name,
-        base_database=db_name,
-        pool_min_size=db_pool_min,
-        pool_max_size=db_pool_max,
-        command_timeout=db_cmd_timeout
-    )
-    db_manager = gin.get_configurable(DatabaseTestManager)("unit", database_obj=db_obj)
-    test_db_url = await db_manager.setup_test_database()
-
-    # Get the table prefix from the db_manager's env
-    table_prefix = db_manager.table_prefix
-    print(f"[DEBUG] Using table prefix from db_manager: '{table_prefix}'")
-
-    # Create migration manager with the correct table prefix
-    migration_manager = MigrationManager(test_db_url)
-    migration_manager.table_prefix = table_prefix  # Ensure we use the same prefix
-    print(f"[DEBUG] Applying migrations to {test_db_url} with table prefix: '{table_prefix}'")
-
-    # Run migrations with the correct prefix
-    success = await migration_manager.migrate_to_latest()
-    if not success:
-        raise RuntimeError("Failed to apply migrations to test database")
-
-    # Verify tables were created with the correct prefix
-    print(f"[DEBUG] Verifying tables with prefix: '{table_prefix}'")
-    conn = await asyncpg.connect(test_db_url)
+    db_password = "test_pass"
+    
+    print(f"[DEBUG] Starting in-memory PostgreSQL on port {db_port}")
+    
     try:
-        tables = await conn.fetch("""
-            SELECT tablename
-            FROM pg_tables
-            WHERE schemaname = 'public'
-            ORDER BY tablename
-        """)
-        print(f"[DEBUG] Tables in database after migration: {[t['tablename'] for t in tables]}")
-    finally:
+        # PostgreSQL binaries are in /usr/lib/postgresql/16/bin/
+        pg_bin_dir = "/usr/lib/postgresql/16/bin"
+        
+        # Initialize PostgreSQL database cluster
+        init_cmd = [
+            f"{pg_bin_dir}/initdb", 
+            "-D", temp_dir,
+            "--auth-local=trust",
+            "--auth-host=trust",  # Use trust for host connections too
+            "-U", db_user
+        ]
+        result = subprocess.run(init_cmd, check=True, capture_output=True, text=True)
+        print(f"[DEBUG] initdb completed successfully")
+        
+        # Start PostgreSQL server
+        pg_ctl_cmd = [
+            f"{pg_bin_dir}/pg_ctl", 
+            "-D", temp_dir,
+            "-o", f"-p {db_port} -k {temp_dir}",
+            "-l", f"{temp_dir}/postgres.log",
+            "start"
+        ]
+        result = subprocess.run(pg_ctl_cmd, check=True, capture_output=True, text=True)
+        print(f"[DEBUG] PostgreSQL server started successfully")
+        
+        # Wait for PostgreSQL to be ready
+        time.sleep(1)
+        
+        # Create test database (use dummy password for URL parsing compatibility)
+        db_url = f"postgresql://{db_user}:dummy@localhost:{db_port}/postgres"
+        conn = await asyncpg.connect(db_url)
+        await conn.execute(f'CREATE DATABASE "{db_name}"')
         await conn.close()
-
-    yield test_db_url
-    await db_manager.teardown_test_database()
-    # Clean up backup/dump files created for this test DB
-    backup_dir = Path(__file__).parent / "../db/migrations/backups"
-    if backup_dir.exists():
-        pattern = f"{db_name}_*.dump"
-        for dump_file in backup_dir.glob(pattern):
-            try:
-                dump_file.unlink()
-            except Exception:
-                pass
+        
+        # Construct final database URL (use dummy password for URL parsing compatibility)
+        test_db_url = f"postgresql://{db_user}:dummy@localhost:{db_port}/{db_name}"
+        print(f"[DEBUG] In-memory PostgreSQL ready at: {test_db_url}")
+        
+        # Create Database object for the test
+        db_obj = Database(
+            host="localhost",
+            port=db_port,
+            user=db_user,
+            password="",  # No password needed with local trust auth
+            database=db_name,
+            base_database=db_name,
+            pool_min_size=1,
+            pool_max_size=5,
+            command_timeout=30
+        )
+        
+        # Setup database manager with migrations enabled - debug migration issues
+        db_manager = gin.get_configurable(DatabaseTestManager)("unit", run_migrations=True, database_obj=db_obj)
+        # Override the db_url to use our in-memory instance
+        db_manager.db_url = test_db_url
+        
+        # Run migrations and debug issues
+        print(f"[DEBUG] Running migrations on in-memory PostgreSQL instance - debugging failures")
+        await db_manager.setup_test_database()
+        
+        print(f"[DEBUG] In-memory PostgreSQL test database ready - all migrations completed")
+        
+        yield test_db_url
+        
+    finally:
+        # Cleanup: Stop PostgreSQL and remove temporary directory
+        try:
+            pg_bin_dir = "/usr/lib/postgresql/16/bin"
+            stop_cmd = [f"{pg_bin_dir}/pg_ctl", "-D", temp_dir, "stop", "-m", "immediate"]
+            subprocess.run(stop_cmd, capture_output=True, text=True)
+            print(f"[DEBUG] Stopped in-memory PostgreSQL instance")
+        except Exception as e:
+            print(f"[DEBUG] Error stopping PostgreSQL: {e}")
+        
+        try:
+            shutil.rmtree(temp_dir)
+            print(f"[DEBUG] Cleaned up temporary directory: {temp_dir}")
+        except Exception as e:
+            print(f"[DEBUG] Error cleaning up directory: {e}")
 
 @pytest_asyncio.fixture
 async def unit_test_db_clean(request):

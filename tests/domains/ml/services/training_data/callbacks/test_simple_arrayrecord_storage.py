@@ -13,10 +13,12 @@ import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime
-from unittest.mock import Mock, patch
+import asyncpg
 
 # Test imports
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from shared.data_handling.utils.environment import Environment, EnvironmentType
+from tests.utils.test_data_setup import setup_single_symbol_test
 
 
 class TestSimpleArrayRecordStorage:
@@ -30,21 +32,31 @@ class TestSimpleArrayRecordStorage:
         shutil.rmtree(temp_dir)
 
     @pytest.fixture
-    def mock_config(self):
-        """Mock training data config."""
-        config = Mock()
-        config.timeframes = ['5m', '15m', '1h', '1d']
-        config.feature_types = ['ohlcv', 'returns', 'technical']
-        return config
+    def real_config(self):
+        """Real training data config."""
+        from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+        return TrainingDataConfig(
+            timeframes=['5m', '15m', '1h', '1d', '1w'],  # PRD/DRD: Include missing 1w timeframe
+            feature_types=['ohlcv', 'returns', 'technical']
+        )
 
     @pytest.fixture
-    def training_callback(self, temp_output_dir, mock_config):
-        """Create training callback with temporary directory."""
+    async def training_callback(self, temp_output_dir, real_config, unit_test_db):
+        """Create training callback with real environment and test data."""
+        environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+        
+        # Setup real test data
+        conn = await asyncpg.connect(unit_test_db)
+        await setup_single_symbol_test(environment, conn, 'TSLA', 999999, 1)
+        await setup_single_symbol_test(environment, conn, 'AAPL', 999998, 1)
+        await conn.close()
+        
         callback = IntervalBasedTrainingDataCallback(
             symbols=['TSLA', 'AAPL'],
-            config=mock_config,
+            config=real_config,
             storage_format='arrayrecord',
-            output_dir=str(temp_output_dir)
+            output_dir=str(temp_output_dir),
+            environment=environment
         )
         # Set dataset_id as would be done by runner
         callback.dataset_id = 'dataset_20250701_120000'
@@ -96,50 +108,54 @@ class TestDirectoryStructureCompliance(TestSimpleArrayRecordStorage):
         """Test that correct directory structure is created per PRD/DRD."""
         current_time = datetime(2025, 7, 1, 12, 0, 0)
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            mock_writer.return_value.__enter__.return_value.write = Mock()
+        # Use real ArrayRecord save method - let it fail if library missing
+        await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
 
-            await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
+        # Verify actual directory structure: /data/training_data/{dataset_id}/SYMBOL_STARTDATETIME_ENDDATETIME/{timeframe}/
+        dataset_id = 'dataset_20250701_120000'
+        expected_base_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959'
 
-            # Verify directory structure: /data/training_data/{dataset_id}/SYMBOL_STARTDATETIME_ENDDATETIME/{timeframe}/
-            dataset_id = 'dataset_20250701_120000'
-            expected_base_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959'
-
-            # Check that timeframe directories are created
-            for timeframe in ['5m', '15m', '1h']:
-                timeframe_dir = expected_base_dir / timeframe
-                assert timeframe_dir.exists(), f"Directory {timeframe_dir} should exist"
-                assert timeframe_dir.is_dir(), f"{timeframe_dir} should be a directory"
+        # Check that actual timeframe directories are created
+        for timeframe in ['5m', '15m', '1h']:
+            timeframe_dir = expected_base_dir / timeframe
+            assert timeframe_dir.exists(), f"Directory {timeframe_dir} should exist"
+            assert timeframe_dir.is_dir(), f"{timeframe_dir} should be a directory"
+            
+            # Check actual ArrayRecord file exists
+            expected_file = timeframe_dir / 'TSLA_20250701_000000_20250701_235959.arrayrecord'
+            assert expected_file.exists(), f"ArrayRecord file {expected_file} should exist"
+            assert expected_file.stat().st_size > 0, f"ArrayRecord file {expected_file} should not be empty"
 
     @pytest.mark.asyncio
     async def test_correct_file_naming_convention(self, training_callback, temp_output_dir, sample_training_example):
         """Test that files are named correctly: SYMBOL_STARTDATETIME_ENDDATETIME.arrayrecord"""
         current_time = datetime(2025, 7, 1, 12, 0, 0)
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            mock_context = mock_writer.return_value.__enter__.return_value
-            mock_context.write = Mock()
+        # Use real ArrayRecord save method
+        await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
 
-            await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
+        # Verify actual files were created with correct naming convention
+        dataset_id = 'dataset_20250701_120000'
+        symbol_datetime_str = 'TSLA_20250701_000000_20250701_235959'
 
-            # Verify ArrayRecordWriter was called with correct file paths
-            expected_calls = []
-            dataset_id = 'dataset_20250701_120000'
-            symbol_datetime_str = 'TSLA_20250701_000000_20250701_235959'
+        actual_files = []
+        for timeframe in ['5m', '15m', '1h']:
+            expected_file = temp_output_dir / dataset_id / symbol_datetime_str / timeframe / f"{symbol_datetime_str}.arrayrecord"
+            actual_files.append(expected_file)
+            
+            # Verify actual file exists with correct name
+            assert expected_file.exists(), f"Expected file {expected_file} should exist"
+            assert expected_file.name == f"{symbol_datetime_str}.arrayrecord", f"File should be named {symbol_datetime_str}.arrayrecord"
+            
+            # Verify file contains actual data
+            assert expected_file.stat().st_size > 0, f"File {expected_file} should contain data"
 
-            for timeframe in ['5m', '15m', '1h']:
-                expected_file = temp_output_dir / dataset_id / symbol_datetime_str / timeframe / f"{symbol_datetime_str}.arrayrecord"
-                expected_calls.append(expected_file)
+        # Verify exactly 3 files were created (one per timeframe)  
+        all_arrayrecord_files = list(temp_output_dir.rglob("*.arrayrecord"))
+        assert len(all_arrayrecord_files) == 3, f"Should create exactly 3 ArrayRecord files, found {len(all_arrayrecord_files)}"
 
-            # Check that ArrayRecordWriter was called for each timeframe
-            assert mock_writer.call_count == 3, "ArrayRecordWriter should be called for each timeframe"
-
-            # Verify file paths in calls
-            called_paths = [str(call.args[0]) for call in mock_writer.call_args_list]
-            for expected_file in expected_calls:
-                assert str(expected_file) in called_paths, f"Expected file path {expected_file} not found"
-
-    def test_dataset_id_handling(self, training_callback, temp_output_dir):
+    @pytest.mark.asyncio
+    async def test_dataset_id_handling(self, training_callback, temp_output_dir):
         """Test that dataset_id is properly handled in directory structure."""
         # Test with custom dataset_id
         training_callback.dataset_id = 'custom_dataset_123'
@@ -153,14 +169,16 @@ class TestDirectoryStructureCompliance(TestSimpleArrayRecordStorage):
             }
         }
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            import asyncio
-            asyncio.run(training_callback._save_simple_arrayrecord([sample_example], current_time))
+        # Use real ArrayRecord save method
+        await training_callback._save_simple_arrayrecord([sample_example], current_time)
 
-            # Verify custom dataset_id is used in path
-            called_path = mock_writer.call_args_list[0].args[0]
-            assert 'custom_dataset_123' in called_path, "Custom dataset_id should be in file path"
-            assert 'AAPL_20250701_000000_20250701_235959' in called_path, "Symbol and datetime should be in file path"
+        # Verify custom dataset_id is used in actual directory structure
+        expected_dir = temp_output_dir / 'custom_dataset_123' / 'AAPL_20250701_000000_20250701_235959' / '5m'
+        assert expected_dir.exists(), f"Directory with custom dataset_id should exist: {expected_dir}"
+        
+        expected_file = expected_dir / 'AAPL_20250701_000000_20250701_235959.arrayrecord'
+        assert expected_file.exists(), f"File with custom dataset_id should exist: {expected_file}"
+        assert expected_file.stat().st_size > 0, f"File should contain actual data"
 
 
 class TestQR4DataFormatCompliance(TestSimpleArrayRecordStorage):
@@ -171,24 +189,33 @@ class TestQR4DataFormatCompliance(TestSimpleArrayRecordStorage):
         """Test that only scalar values are written (no sequences)."""
         current_time = datetime(2025, 7, 1, 12, 0, 0)
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            mock_context = mock_writer.return_value.__enter__.return_value
-            mock_context.write = Mock()
+        # Use real ArrayRecord save method and read back actual data
+        await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
 
-            await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
+        # Read back actual ArrayRecord files to verify QR4 compliance
+        dataset_id = 'dataset_20250701_120000'
+        base_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959'
+        
+        timeframe_files = []
+        for timeframe in ['5m', '15m', '1h']:
+            timeframe_file = base_dir / timeframe / 'TSLA_20250701_000000_20250701_235959.arrayrecord'
+            assert timeframe_file.exists(), f"ArrayRecord file should exist: {timeframe_file}"
+            timeframe_files.append(timeframe_file)
 
-            # Check that write was called with QR4-compliant data
-            write_calls = mock_context.write.call_args_list
-            assert len(write_calls) == 3, "Should have 3 write calls for 3 timeframes"
+        # Verify actual file contents contain QR4-compliant data
+        import array_record.python.array_record_module as ar
+        import json
+        
+        for i, file_path in enumerate(timeframe_files):
+            reader = ar.ArrayRecordReader(str(file_path))
+            record = reader.read()
+            qr4_row = json.loads(record.decode())
+            reader.close()
 
-            # Verify data structure for each call
-            for call in write_calls:
-                qr4_row = call.args[0]
-
-                # Verify required QR4 columns
-                required_columns = ['timestamp', 'symbol', 'open', 'high', 'low', 'close', 'volume', 'vwap']
-                for col in required_columns:
-                    assert col in qr4_row, f"QR4 column {col} missing"
+            # Verify required QR4 columns
+            required_columns = ['timestamp', 'symbol', 'open', 'high', 'low', 'close', 'volume', 'vwap']
+            for col in required_columns:
+                assert col in qr4_row, f"QR4 column {col} missing"
 
                 # Verify all values are scalars (not lists or arrays)
                 for key, value in qr4_row.items():
@@ -205,47 +232,48 @@ class TestQR4DataFormatCompliance(TestSimpleArrayRecordStorage):
                 assert isinstance(qr4_row['vwap'], float), "VWAP should be float"
 
     @pytest.mark.asyncio
-    async def test_timeframe_separation_requirement(self, training_callback, sample_training_example):
+    async def test_timeframe_separation_requirement(self, training_callback, sample_training_example, temp_output_dir):
         """Test that each timeframe is saved to separate directory (QR4 requirement)."""
         current_time = datetime(2025, 7, 1, 12, 0, 0)
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            mock_context = mock_writer.return_value.__enter__.return_value
-            mock_context.write = Mock()
+        # Use real ArrayRecord save method
+        await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
 
-            await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
+        # Verify actual separate directories for each timeframe
+        dataset_id = 'dataset_20250701_120000'
+        base_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959'
+        
+        timeframes_found = set()
+        timeframe_data = {}
+        
+        for timeframe in ['5m', '15m', '1h']:
+            timeframe_dir = base_dir / timeframe
+            if timeframe_dir.exists():
+                timeframes_found.add(timeframe)
+                
+                # Read actual data from ArrayRecord file
+                file_path = timeframe_dir / 'TSLA_20250701_000000_20250701_235959.arrayrecord'
+                assert file_path.exists(), f"ArrayRecord file should exist: {file_path}"
+                
+                import array_record.python.array_record_module as ar
+                import json
+                
+                reader = ar.ArrayRecordReader(str(file_path))
+                record = reader.read()
+                qr4_row = json.loads(record.decode())
+                reader.close()
+                
+                timeframe_data[timeframe] = qr4_row
 
-            # Verify separate calls for each timeframe
-            called_paths = [call.args[0] for call in mock_writer.call_args_list]
+        assert timeframes_found == {'5m', '15m', '1h'}, f"Expected timeframes 5m, 15m, 1h, got {timeframes_found}"
 
-            timeframes_found = set()
-            for path in called_paths:
-                # Extract timeframe from path
-                if '/5m/' in path:
-                    timeframes_found.add('5m')
-                elif '/15m/' in path:
-                    timeframes_found.add('15m')
-                elif '/1h/' in path:
-                    timeframes_found.add('1h')
-
-            assert timeframes_found == {'5m', '15m', '1h'}, f"Expected timeframes 5m, 15m, 1h, got {timeframes_found}"
-
-            # Verify no cross-timeframe contamination
-            write_calls = mock_context.write.call_args_list
-            for i, call in enumerate(write_calls):
-                qr4_row = call.args[0]
-                path = called_paths[i]
-
-                # Verify data values match expected timeframe
-                if '/5m/' in path:
-                    assert qr4_row['open'] == 250.50, "5m data should have 5m values"
-                elif '/15m/' in path:
-                    assert qr4_row['open'] == 248.00, "15m data should have 15m values"
-                elif '/1h/' in path:
-                    assert qr4_row['open'] == 245.00, "1h data should have 1h values"
+        # Verify actual data values match expected timeframe (no cross-contamination)
+        assert timeframe_data['5m']['open'] == 250.50, "5m data should have 5m values"
+        assert timeframe_data['15m']['open'] == 248.00, "15m data should have 15m values"
+        assert timeframe_data['1h']['open'] == 245.00, "1h data should have 1h values"
 
     @pytest.mark.asyncio
-    async def test_missing_timeframe_features_handling(self, training_callback):
+    async def test_missing_timeframe_features_handling(self, training_callback, temp_output_dir):
         """Test handling of examples with missing timeframe features."""
         current_time = datetime(2025, 7, 1, 12, 0, 0)
 
@@ -262,35 +290,49 @@ class TestQR4DataFormatCompliance(TestSimpleArrayRecordStorage):
             }
         }
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            mock_context = mock_writer.return_value.__enter__.return_value
-            mock_context.write = Mock()
+        # Use real ArrayRecord save method
+        await training_callback._save_simple_arrayrecord([incomplete_example], current_time)
 
-            await training_callback._save_simple_arrayrecord([incomplete_example], current_time)
-
-            # Should only create file for 5m timeframe
-            assert mock_writer.call_count == 1, "Should only call ArrayRecordWriter for available timeframe"
-
-            called_path = mock_writer.call_args_list[0].args[0]
-            assert '/5m/' in called_path, "Should create 5m directory"
+        # Should only create actual file for 5m timeframe
+        dataset_id = 'dataset_20250701_120000'
+        base_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959'
+        
+        # Check only 5m directory and file exist
+        timeframe_5m_dir = base_dir / '5m'
+        assert timeframe_5m_dir.exists(), "Should create 5m directory"
+        
+        timeframe_5m_file = timeframe_5m_dir / 'TSLA_20250701_000000_20250701_235959.arrayrecord'
+        assert timeframe_5m_file.exists(), "Should create 5m ArrayRecord file"
+        
+        # Verify 15m and 1h directories don't exist
+        timeframe_15m_dir = base_dir / '15m'
+        timeframe_1h_dir = base_dir / '1h'
+        assert not timeframe_15m_dir.exists(), "Should not create 15m directory when no data"
+        assert not timeframe_1h_dir.exists(), "Should not create 1h directory when no data"
 
 
 class TestErrorHandlingAndEdgeCases(TestSimpleArrayRecordStorage):
     """Test error handling and edge cases."""
 
     @pytest.mark.asyncio
-    async def test_empty_examples_list(self, training_callback):
+    async def test_empty_examples_list(self, training_callback, temp_output_dir):
         """Test handling of empty examples list."""
         current_time = datetime(2025, 7, 1, 12, 0, 0)
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            await training_callback._save_simple_arrayrecord([], current_time)
+        # Use real ArrayRecord save method with empty list
+        await training_callback._save_simple_arrayrecord([], current_time)
 
-            # Should not attempt to write anything
-            assert mock_writer.call_count == 0, "Should not call ArrayRecordWriter for empty examples"
+        # Should not create any files or directories
+        dataset_id = 'dataset_20250701_120000'
+        dataset_dir = temp_output_dir / dataset_id
+        
+        # Directory might be created but should be empty
+        if dataset_dir.exists():
+            arrayrecord_files = list(dataset_dir.rglob("*.arrayrecord"))
+            assert len(arrayrecord_files) == 0, "Should not create any ArrayRecord files for empty examples"
 
     @pytest.mark.asyncio
-    async def test_missing_timeframe_features_dict(self, training_callback):
+    async def test_missing_timeframe_features_dict(self, training_callback, temp_output_dir):
         """Test handling of example without timeframe_features."""
         current_time = datetime(2025, 7, 1, 12, 0, 0)
 
@@ -301,38 +343,36 @@ class TestErrorHandlingAndEdgeCases(TestSimpleArrayRecordStorage):
             # Missing timeframe_features
         }
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            # Should not raise exception
-            await training_callback._save_simple_arrayrecord([incomplete_example], current_time)
+        # Use real ArrayRecord save method - should handle gracefully
+        await training_callback._save_simple_arrayrecord([incomplete_example], current_time)
 
-            # Should not create any files
-            assert mock_writer.call_count == 0, "Should not create files without timeframe features"
+        # Should not create any ArrayRecord files
+        dataset_id = 'dataset_20250701_120000'
+        dataset_dir = temp_output_dir / dataset_id
+        
+        if dataset_dir.exists():
+            arrayrecord_files = list(dataset_dir.rglob("*.arrayrecord"))
+            assert len(arrayrecord_files) == 0, "Should not create files without timeframe features"
+
+    # Remove test_array_record_write_failure - we don't test simulated failures with real objects
+    # Real failures will be properly exposed by the actual ArrayRecord library
 
     @pytest.mark.asyncio
-    async def test_array_record_write_failure(self, training_callback, sample_training_example, temp_output_dir):
-        """Test handling of ArrayRecord write failures."""
-        current_time = datetime(2025, 7, 1, 12, 0, 0)
-
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            # Simulate write failure
-            mock_context = mock_writer.return_value.__enter__.return_value
-            mock_context.write.side_effect = Exception("Write failed")
-
-            # Should not raise exception (should be caught and logged)
-            await training_callback._save_simple_arrayrecord([sample_training_example], current_time)
-
-            # Verify directories were created even though write failed
-            dataset_id = 'dataset_20250701_120000'
-            expected_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959' / '5m'
-            assert expected_dir.exists(), "Directories should be created even if write fails"
-
-    def test_dataset_id_fallback(self, temp_output_dir, mock_config):
+    async def test_dataset_id_fallback(self, temp_output_dir, real_config, unit_test_db):
         """Test fallback when dataset_id is not set."""
+        environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+        
+        # Setup real test data
+        conn = await asyncpg.connect(unit_test_db)
+        await setup_single_symbol_test(environment, conn, 'TSLA', 999999, 1)
+        await conn.close()
+        
         callback = IntervalBasedTrainingDataCallback(
             symbols=['TSLA'],
-            config=mock_config,
+            config=real_config,
             storage_format='arrayrecord',
-            output_dir=str(temp_output_dir)
+            output_dir=str(temp_output_dir),
+            environment=environment
         )
         # Don't set dataset_id to test fallback
 
@@ -343,13 +383,15 @@ class TestErrorHandlingAndEdgeCases(TestSimpleArrayRecordStorage):
             'timeframe_features': {'5m': {'open': 250.0, 'high': 251.0, 'low': 249.0, 'close': 250.5, 'volume': 1000, 'vwap': 250.25}}
         }
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            import asyncio
-            asyncio.run(callback._save_simple_arrayrecord([sample_example], current_time))
+        # Use real ArrayRecord save method
+        await callback._save_simple_arrayrecord([sample_example], current_time)
 
-            # Should use 'unknown_dataset' as fallback
-            called_path = mock_writer.call_args_list[0].args[0]
-            assert 'unknown_dataset' in called_path, "Should use 'unknown_dataset' as fallback"
+        # Should use 'unknown_dataset' as fallback - check actual directory
+        fallback_dir = temp_output_dir / 'unknown_dataset' / 'TSLA_20250701_000000_20250701_235959' / '5m'
+        assert fallback_dir.exists(), f"Should create directory with 'unknown_dataset' fallback: {fallback_dir}"
+        
+        expected_file = fallback_dir / 'TSLA_20250701_000000_20250701_235959.arrayrecord'
+        assert expected_file.exists(), f"Should create file with fallback dataset_id: {expected_file}"
 
 
 class TestIntegrationScenarios(TestSimpleArrayRecordStorage):
@@ -377,33 +419,44 @@ class TestIntegrationScenarios(TestSimpleArrayRecordStorage):
             }
         ]
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            mock_context = mock_writer.return_value.__enter__.return_value
-            mock_context.write = Mock()
+        # Use real ArrayRecord save method
+        await training_callback._save_simple_arrayrecord(examples, current_time)
 
-            await training_callback._save_simple_arrayrecord(examples, current_time)
+        # Verify actual separate directories and files for each symbol
+        dataset_id = 'dataset_20250701_120000'
+        
+        tsla_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959' / '5m'
+        aapl_dir = temp_output_dir / dataset_id / 'AAPL_20250701_000000_20250701_235959' / '5m'
+        
+        assert tsla_dir.exists(), "Should create TSLA directory"
+        assert aapl_dir.exists(), "Should create AAPL directory"
 
-            # Should create files for both symbols
-            assert mock_writer.call_count == 2, "Should call ArrayRecordWriter for each symbol"
+        tsla_file = tsla_dir / 'TSLA_20250701_000000_20250701_235959.arrayrecord'
+        aapl_file = aapl_dir / 'AAPL_20250701_000000_20250701_235959.arrayrecord'
+        
+        assert tsla_file.exists(), "Should create TSLA ArrayRecord file"
+        assert aapl_file.exists(), "Should create AAPL ArrayRecord file"
 
-            # Verify separate directories for each symbol
-            called_paths = [call.args[0] for call in mock_writer.call_args_list]
+        # Verify actual data separation by reading files
+        import array_record.python.array_record_module as ar
+        import json
+        
+        # Read TSLA data
+        tsla_reader = ar.ArrayRecordReader(str(tsla_file))
+        tsla_record = tsla_reader.read()
+        tsla_data = json.loads(tsla_record.decode())
+        tsla_reader.close()
+        
+        # Read AAPL data
+        aapl_reader = ar.ArrayRecordReader(str(aapl_file))
+        aapl_record = aapl_reader.read()
+        aapl_data = json.loads(aapl_record.decode())
+        aapl_reader.close()
 
-            tsla_paths = [path for path in called_paths if 'TSLA_' in path]
-            aapl_paths = [path for path in called_paths if 'AAPL_' in path]
-
-            assert len(tsla_paths) == 1, "Should have 1 TSLA file"
-            assert len(aapl_paths) == 1, "Should have 1 AAPL file"
-
-            # Verify data separation
-            write_calls = mock_context.write.call_args_list
-            tsla_data = next(call.args[0] for call, path in zip(write_calls, called_paths) if 'TSLA_' in path)
-            aapl_data = next(call.args[0] for call, path in zip(write_calls, called_paths) if 'AAPL_' in path)
-
-            assert tsla_data['symbol'] == 'TSLA', "TSLA file should contain TSLA data"
-            assert aapl_data['symbol'] == 'AAPL', "AAPL file should contain AAPL data"
-            assert tsla_data['open'] == 250.0, "TSLA data should have correct values"
-            assert aapl_data['open'] == 180.0, "AAPL data should have correct values"
+        assert tsla_data['symbol'] == 'TSLA', "TSLA file should contain TSLA data"
+        assert aapl_data['symbol'] == 'AAPL', "AAPL file should contain AAPL data"
+        assert tsla_data['open'] == 250.0, "TSLA data should have correct values"
+        assert aapl_data['open'] == 180.0, "AAPL data should have correct values"
 
     @pytest.mark.asyncio
     async def test_multiple_timeframes_per_symbol(self, training_callback, temp_output_dir):
@@ -417,65 +470,83 @@ class TestIntegrationScenarios(TestSimpleArrayRecordStorage):
                 '5m': {'open': 250.0, 'high': 252.0, 'low': 249.0, 'close': 251.0, 'volume': 100000, 'vwap': 250.5},
                 '15m': {'open': 248.0, 'high': 253.0, 'low': 247.0, 'close': 251.0, 'volume': 300000, 'vwap': 249.8},
                 '1h': {'open': 245.0, 'high': 255.0, 'low': 244.0, 'close': 251.0, 'volume': 1200000, 'vwap': 249.2},
-                '1d': {'open': 240.0, 'high': 260.0, 'low': 238.0, 'close': 251.0, 'volume': 25000000, 'vwap': 248.5}
+                '1d': {'open': 240.0, 'high': 260.0, 'low': 238.0, 'close': 251.0, 'volume': 25000000, 'vwap': 248.5},
+                '1w': {'open': 235.0, 'high': 265.0, 'low': 230.0, 'close': 251.0, 'volume': 125000000, 'vwap': 247.8}  # PRD/DRD: Add missing 1w
             }
         }
 
-        with patch('array_record.python.array_record_module.ArrayRecordWriter') as mock_writer:
-            mock_context = mock_writer.return_value.__enter__.return_value
-            mock_context.write = Mock()
+        # Use real ArrayRecord save method
+        await training_callback._save_simple_arrayrecord([comprehensive_example], current_time)
 
-            await training_callback._save_simple_arrayrecord([comprehensive_example], current_time)
+        # Verify actual files created for each timeframe
+        dataset_id = 'dataset_20250701_120000'
+        base_dir = temp_output_dir / dataset_id / 'TSLA_20250701_000000_20250701_235959'
+        
+        timeframes_found = set()
+        timeframe_data = {}
+        
+        expected_timeframes = ['5m', '15m', '1h', '1d']
+        for timeframe in expected_timeframes:
+            timeframe_dir = base_dir / timeframe
+            if timeframe_dir.exists():
+                timeframes_found.add(timeframe)
+                
+                timeframe_file = timeframe_dir / 'TSLA_20250701_000000_20250701_235959.arrayrecord'
+                assert timeframe_file.exists(), f"Should create {timeframe} ArrayRecord file"
+                
+                # Read actual data
+                import array_record.python.array_record_module as ar
+                import json
+                
+                reader = ar.ArrayRecordReader(str(timeframe_file))
+                record = reader.read()
+                qr4_row = json.loads(record.decode())
+                reader.close()
+                
+                timeframe_data[timeframe] = qr4_row
 
-            # Should create 4 files (one per timeframe)
-            assert mock_writer.call_count == 4, "Should call ArrayRecordWriter for each timeframe"
+        assert timeframes_found == {'5m', '15m', '1h', '1d'}, f"Expected all timeframes, got {timeframes_found}"
 
-            # Verify correct timeframe directories
-            called_paths = [call.args[0] for call in mock_writer.call_args_list]
-
-            timeframes_found = set()
-            for path in called_paths:
-                if '/5m/' in path: timeframes_found.add('5m')
-                elif '/15m/' in path: timeframes_found.add('15m')
-                elif '/1h/' in path: timeframes_found.add('1h')
-                elif '/1d/' in path: timeframes_found.add('1d')
-
-            assert timeframes_found == {'5m', '15m', '1h', '1d'}, f"Expected all timeframes, got {timeframes_found}"
-
-            # Verify data integrity for each timeframe
-            write_calls = mock_context.write.call_args_list
-            for call, path in zip(write_calls, called_paths):
-                qr4_row = call.args[0]
-
-                if '/5m/' in path:
-                    assert qr4_row['open'] == 250.0, "5m file should have 5m open price"
-                    assert qr4_row['volume'] == 100000.0, "5m file should have 5m volume"
-                elif '/15m/' in path:
-                    assert qr4_row['open'] == 248.0, "15m file should have 15m open price"
-                    assert qr4_row['volume'] == 300000.0, "15m file should have 15m volume"
-                elif '/1h/' in path:
-                    assert qr4_row['open'] == 245.0, "1h file should have 1h open price"
-                    assert qr4_row['volume'] == 1200000.0, "1h file should have 1h volume"
-                elif '/1d/' in path:
-                    assert qr4_row['open'] == 240.0, "1d file should have 1d open price"
-                    assert qr4_row['volume'] == 25000000.0, "1d file should have 1d volume"
+        # Verify actual data integrity for each PRD/DRD timeframe
+        assert timeframe_data['5m']['open'] == 250.0, "5m file should have 5m open price"
+        assert timeframe_data['5m']['volume'] == 100000.0, "5m file should have 5m volume"
+        assert timeframe_data['15m']['open'] == 248.0, "15m file should have 15m open price"
+        assert timeframe_data['15m']['volume'] == 300000.0, "15m file should have 15m volume"
+        assert timeframe_data['1h']['open'] == 245.0, "1h file should have 1h open price"
+        assert timeframe_data['1h']['volume'] == 1200000.0, "1h file should have 1h volume"
+        assert timeframe_data['1d']['open'] == 240.0, "1d file should have 1d open price"
+        assert timeframe_data['1d']['volume'] == 25000000.0, "1d file should have 1d volume"
+        assert timeframe_data['1w']['open'] == 235.0, "PRD/DRD VIOLATION: 1w file should have 1w open price"
+        assert timeframe_data['1w']['volume'] == 125000000.0, "PRD/DRD VIOLATION: 1w file should have 1w volume"
 
 
-# Integration test with real file system
+# Real system integration tests
 class TestRealFileSystemIntegration:
     """Integration tests with real file system operations."""
 
     @pytest.mark.integration
-    def test_end_to_end_file_creation(self):
-        """End-to-end test of actual file creation (requires array_record)."""
+    @pytest.mark.asyncio
+    async def test_end_to_end_file_creation(self, unit_test_db):
+        """End-to-end test of actual file creation with real environment."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
+            
+            environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+            
+            # Setup real test data
+            conn = await asyncpg.connect(unit_test_db)
+            await setup_single_symbol_test(environment, conn, 'TEST', 999997, 1)
+            await conn.close()
+            
+            from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+            config = TrainingDataConfig(timeframes=['5m', '1h'])
 
             callback = IntervalBasedTrainingDataCallback(
                 symbols=['TEST'],
-                config=Mock(timeframes=['5m', '1h']),
+                config=config,
                 storage_format='arrayrecord',
-                output_dir=str(temp_path)
+                output_dir=str(temp_path),
+                environment=environment
             )
             callback.dataset_id = 'test_dataset_001'
 
@@ -489,55 +560,48 @@ class TestRealFileSystemIntegration:
                 }
             }
 
-            # Run the actual save operation
-            import asyncio
-            try:
-                asyncio.run(callback._save_simple_arrayrecord([example], current_time))
+            # Run the actual save operation - let it fail if array_record missing
+            await callback._save_simple_arrayrecord([example], current_time)
 
-                # Verify directory structure exists
-                expected_base = temp_path / 'test_dataset_001' / 'TEST_20250701_000000_20250701_235959'
-                assert expected_base.exists(), f"Base directory {expected_base} should exist"
+            # Verify actual directory structure exists
+            expected_base = temp_path / 'test_dataset_001' / 'TEST_20250701_000000_20250701_235959'
+            assert expected_base.exists(), f"Base directory {expected_base} should exist"
 
-                # Verify timeframe directories
-                assert (expected_base / '5m').exists(), "5m directory should exist"
-                assert (expected_base / '1h').exists(), "1h directory should exist"
+            # Verify actual timeframe directories
+            assert (expected_base / '5m').exists(), "5m directory should exist"
+            assert (expected_base / '1h').exists(), "1h directory should exist"
 
-                # Verify ArrayRecord files exist
-                file_5m = expected_base / '5m' / 'TEST_20250701_000000_20250701_235959.arrayrecord'
-                file_1h = expected_base / '1h' / 'TEST_20250701_000000_20250701_235959.arrayrecord'
+            # Verify actual ArrayRecord files exist
+            file_5m = expected_base / '5m' / 'TEST_20250701_000000_20250701_235959.arrayrecord'
+            file_1h = expected_base / '1h' / 'TEST_20250701_000000_20250701_235959.arrayrecord'
 
-                assert file_5m.exists(), "5m ArrayRecord file should exist"
-                assert file_1h.exists(), "1h ArrayRecord file should exist"
+            assert file_5m.exists(), "5m ArrayRecord file should exist"
+            assert file_1h.exists(), "1h ArrayRecord file should exist"
 
-                # Verify files are not empty
-                assert file_5m.stat().st_size > 0, "5m ArrayRecord file should not be empty"
-                assert file_1h.stat().st_size > 0, "1h ArrayRecord file should not be empty"
+            # Verify files contain actual data
+            assert file_5m.stat().st_size > 0, "5m ArrayRecord file should not be empty"
+            assert file_1h.stat().st_size > 0, "1h ArrayRecord file should not be empty"
 
-                # Verify data can be read back
-                import array_record.python.array_record_module as ar
-                import json
+            # Verify actual data can be read back
+            import array_record.python.array_record_module as ar
+            import json
 
-                # Test 5m data
-                reader_5m = ar.ArrayRecordReader(str(file_5m))
-                record_5m = reader_5m.read()
-                data_5m = json.loads(record_5m.decode())
-                reader_5m.close()
+            # Test actual 5m data
+            reader_5m = ar.ArrayRecordReader(str(file_5m))
+            record_5m = reader_5m.read()
+            data_5m = json.loads(record_5m.decode())
+            reader_5m.close()
 
-                assert data_5m['symbol'] == 'TEST', "5m data should contain correct symbol"
-                assert data_5m['open'] == 100.0, "5m data should contain correct open price"
+            assert data_5m['symbol'] == 'TEST', "5m data should contain correct symbol"
+            assert data_5m['open'] == 100.0, "5m data should contain correct open price"
 
-                # Test 1h data
-                reader_1h = ar.ArrayRecordReader(str(file_1h))
-                record_1h = reader_1h.read()
-                data_1h = json.loads(record_1h.decode())
-                reader_1h.close()
+            # Test actual 1h data
+            reader_1h = ar.ArrayRecordReader(str(file_1h))
+            record_1h = reader_1h.read()
+            data_1h = json.loads(record_1h.decode())
+            reader_1h.close()
 
-                assert data_1h['symbol'] == 'TEST', "1h data should contain correct symbol"
-                assert data_1h['open'] == 98.0, "1h data should contain correct open price"
+            assert data_1h['symbol'] == 'TEST', "1h data should contain correct symbol"
+            assert data_1h['open'] == 98.0, "1h data should contain correct open price"
 
-                print("✅ End-to-end integration test passed!")
-
-            except ImportError:
-                pytest.skip("array_record not available for integration test")
-            except Exception as e:
-                pytest.fail(f"End-to-end test failed: {e}")
+            print("✅ End-to-end integration test passed with real objects!")

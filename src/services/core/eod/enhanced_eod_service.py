@@ -18,7 +18,7 @@ import pandas as pd
 # Reuse existing ATS framework
 from core.platform.config.environment import Environment
 from core.dao.base.base_dao import BaseDAO
-from core.dao.market_data.daily_prices_dao import DailyPricesDAO
+from core.dao.market_data.daily_prices_dao import DailyPriceDAO
 from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.platform.logging.logger_config import get_logger
 from core.business.calendars.exchange_calendar import ExchangeCalendar
@@ -80,7 +80,7 @@ class EnhancedEODDAO(BaseDAO):
     def __init__(self, env: Environment):
         super().__init__("daily_prices")
         self.env = env
-        self.daily_prices_dao = DailyPricesDAO()
+        self.daily_prices_dao = DailyPriceDAO()
         self.instrument_dao = InstrumentXrefsDAO(env)
         self.logger = get_logger(f"{__name__}.EOD")
 

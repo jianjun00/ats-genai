@@ -234,7 +234,7 @@ COMMENT ON VIEW v_active_backfill_queue IS 'Priority-ordered queue of gaps requi
 -- ================================================================
 CREATE OR REPLACE VIEW v_recent_gaps AS
 SELECT 
-    g.id as gap_id,
+    g.gap_id,
     g.vendor,
     g.data_type,
     g.symbol,

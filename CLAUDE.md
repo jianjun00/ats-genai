@@ -34,6 +34,21 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - Creates false performance metrics
 - Results in production surprises when real data behaves differently
 
+### **🚫 NO MOCK OBJECTS IN TESTS**
+- **❌ NEVER use Mock objects** - replace all mocks with real objects
+- **❌ NEVER use unittest.mock.Mock()** - use actual instances
+- **❌ NEVER use @patch decorators** - inject real dependencies
+- **✅ Use real objects with controlled data** for predictable test scenarios
+- **✅ Create minimal real instances** instead of mocking behavior
+- **✅ Use dependency injection** to provide real test objects
+
+**Why Mock Objects Are Problematic:**
+- Hide interface changes and method signature mismatches
+- Don't catch integration issues between real components
+- Create brittle tests that pass with broken real implementations
+- Mask real-world object behavior and edge cases
+- Lead to false confidence in system integration
+
 ### **🔄 ENHANCE EXISTING BEFORE CREATING NEW**
 - **❌ NEVER create new files/services** without checking if existing can be enhanced
 - **❌ NEVER duplicate functionality** in new files
@@ -270,13 +285,168 @@ docker inspect ats-intg-analytics | grep NetworkMode # Verify network
 - Debug: `docker ps | grep -E "(3000|4000|5432|4432)"`
 - Fix: Use correct environment port mappings
 
-## 🧪 **Test-Driven Development (MANDATORY)**
+## 🧪 **RIGOROUS TESTING PRINCIPLES (MANDATORY)** ⚡
+
+### **🚨 CRITICAL: TEST-FIRST DEVELOPMENT DISCIPLINE**
 
 **MANDATORY sequence for ALL code changes:**
-1. Write failing test FIRST: `python scripts/run_dev.py test --test tests/integration/test_new_feature.py`
-2. Write minimal code to make test pass
-3. Verify test passes: `python scripts/run_dev.py test`
-4. Integration testing: `python scripts/run_dev.py test --test tests/integration/`
+1. **Write failing test FIRST**: `python scripts/run_dev.py test --test tests/integration/test_new_feature.py`
+2. **Write minimal code** to make test pass
+3. **Verify test passes**: `python scripts/run_dev.py test`
+4. **Integration testing**: `python scripts/run_dev.py test --test tests/integration/`
+
+### **🎯 FOUR PILLARS OF TESTING EXCELLENCE**
+
+#### **1️⃣ TEST-FIRST DEVELOPMENT (MANDATORY TDD)**
+- **❌ NEVER write production code without a failing test first**
+- **❌ NEVER add features without test coverage**
+- **❌ NEVER fix bugs without reproducing them in tests first**
+- **✅ ALWAYS write the test that demonstrates the desired behavior**
+- **✅ ALWAYS see the test fail before implementing**
+- **✅ ALWAYS verify the test passes after implementation**
+
+**Example Pattern:**
+```python
+# ❌ WRONG: Writing code first
+def calculate_portfolio_value(positions):
+    return sum(pos.value for pos in positions)
+
+# ✅ RIGHT: Test first
+def test_calculate_portfolio_value():
+    positions = [Position(value=100), Position(value=200)]
+    result = calculate_portfolio_value(positions)
+    assert result == 300  # Test fails initially
+    
+# THEN implement the function
+```
+
+#### **2️⃣ NO EXCEPTION HANDLING IN TESTS (LET TESTS FAIL)**
+- **❌ NEVER use try/except blocks in tests to hide failures**
+- **❌ NEVER catch exceptions unless testing exception behavior**
+- **❌ NEVER suppress test failures with broad exception handling**
+- **✅ ALWAYS let tests fail loudly with clear error messages**
+- **✅ ALWAYS use specific assertions that describe expected behavior**
+- **✅ ALWAYS allow unexpected exceptions to surface immediately**
+
+**Example Pattern:**
+```python
+# ❌ WRONG: Hiding failures
+def test_market_data_processing():
+    try:
+        result = process_market_data(data)
+        if result:
+            assert True  # Meaningless test
+    except Exception:
+        pass  # Hides real problems
+
+# ✅ RIGHT: Let it fail clearly
+def test_market_data_processing():
+    result = process_market_data(test_data)
+    assert result.status == 'SUCCESS'
+    assert len(result.processed_records) == 100
+    assert result.error_count == 0
+    # Any unexpected exception will fail the test with clear stack trace
+```
+
+#### **3️⃣ VALIDATE ACTUAL RESULTS (NOT JUST EXISTENCE)**
+- **❌ NEVER check only if results exist (assert result is not None)**
+- **❌ NEVER use superficial validations (assert len(result) > 0)**
+- **❌ NEVER ignore content validation for performance convenience**
+- **✅ ALWAYS verify exact values, counts, and business logic correctness**
+- **✅ ALWAYS check data integrity and expected transformations**
+- **✅ ALWAYS validate edge cases and boundary conditions**
+
+**Example Pattern:**
+```python
+# ❌ WRONG: Superficial existence checks
+def test_training_data_generation():
+    dataset = generate_training_data(symbols=['AAPL'])
+    assert dataset is not None  # Meaningless
+    assert len(dataset) > 0     # Weak validation
+
+# ✅ RIGHT: Exact result validation
+def test_training_data_generation():
+    dataset = generate_training_data(symbols=['AAPL'], timeframe='5m', days=1)
+    
+    # Validate exact expected count (192 = 6.5 hours * 12 intervals/hour)
+    assert len(dataset) == 192
+    
+    # Validate data structure and content
+    assert all(record.symbol == 'AAPL' for record in dataset)
+    assert all(record.timeframe == '5m' for record in dataset)
+    assert all(record.open > 0 for record in dataset)
+    assert all(record.volume >= 0 for record in dataset)
+    
+    # Validate business logic
+    first_record = dataset[0]
+    assert first_record.timestamp.minute % 5 == 0  # 5-minute alignment
+    
+    # Validate sequence integrity  
+    timestamps = [r.timestamp for r in dataset]
+    assert timestamps == sorted(timestamps)  # Chronological order
+```
+
+#### **4️⃣ REAL OBJECTS ONLY (NO MOCK OBJECTS)**
+- **❌ NEVER use unittest.mock.Mock() or @patch decorators**
+- **❌ NEVER mock database connections, APIs, or business objects**
+- **❌ NEVER use fake implementations that hide integration issues**
+- **✅ ALWAYS use real instances with controlled test data**
+- **✅ ALWAYS use dependency injection for real test objects**
+- **✅ ALWAYS test actual integration between real components**
+
+**Example Pattern:**
+```python
+# ❌ WRONG: Mock objects hide real integration issues
+@patch('database_service.get_connection')
+def test_universe_state_builder(mock_db):
+    mock_db.return_value = Mock()
+    builder = UniverseStateBuilder(mock_db)
+    # Test passes but may fail in production
+
+# ✅ RIGHT: Real objects with test data
+async def test_universe_state_builder(unit_test_db):
+    # Use real database with test schema
+    environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+    
+    # Use real market data manager with test data
+    market_data_manager = UnifiedMarketDataManager(test_data_dir)
+    
+    # Use real universe state builder
+    builder = UniverseStateBuilder(
+        environment=environment,
+        market_data_manager=market_data_manager
+    )
+    
+    # Test with real data flow
+    result = await builder.build_universe_state('AAPL', test_timestamp)
+    
+    # Validate real business logic
+    assert result.symbol == 'AAPL'
+    assert result.ohlc.open > 0
+    assert len(result.technical_indicators) == 16
+```
+
+### **🔍 TESTING ANTI-PATTERNS TO ELIMINATE**
+
+**Superficial Testing:**
+- ❌ `assert result` instead of `assert result.value == expected_value`
+- ❌ `assert len(data) > 0` instead of `assert len(data) == expected_count`
+- ❌ Testing that functions run without testing what they produce
+
+**Mock Overuse:**
+- ❌ Mocking core business objects that need real behavior validation
+- ❌ Using mocks to avoid setting up test data
+- ❌ Creating mock expectations that don't match real interface contracts
+
+**Exception Suppression:**
+- ❌ `try: test_function() except: pass` patterns that hide failures
+- ❌ Generic exception handling that masks specific failure points
+- ❌ Assertions inside try/catch blocks that can be skipped
+
+**Test-After Development:**
+- ❌ Writing tests after implementing features (not TDD)
+- ❌ Writing tests just to increase coverage metrics
+- ❌ Retrofitting tests that confirm existing behavior rather than drive design
 
 ## 🎭 **Playwright UX Testing (MANDATORY for Frontend)**
 

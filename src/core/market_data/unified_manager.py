@@ -241,6 +241,125 @@ class EODHDAdapter(VendorAdapter):
         super().__init__(VendorType.EODHD, api_key)
         self.base_url = "https://eodhistoricaldata.com"
 
+class FirstRateAdapter(VendorAdapter):
+    """FirstRate adapter for reading minute bar data from files."""
+    
+    def __init__(self, file_path: str):
+        super().__init__(VendorType.FIRSTRATE, "file_based")
+        self.base_path = Path(file_path)
+        
+    async def get_ohlcv(
+        self,
+        symbols: List[str],
+        start_date: datetime,
+        end_date: datetime,
+        timeframe: TimeframeType
+    ) -> Dict[str, pd.DataFrame]:
+        """Get OHLCV data from FirstRate parquet files."""
+        logger.info(f"🔍 [DEBUG] FirstRateAdapter.get_ohlcv called for symbols={symbols}, start={start_date}, end={end_date}, timeframe={timeframe}")
+        logger.info(f"🔍 [DEBUG] FirstRateAdapter base_path={self.base_path}")
+        results = {}
+        
+        for symbol in symbols:
+            logger.info(f"🔍 [DEBUG] Processing symbol {symbol}")
+            try:
+                # FirstRate file structure: /base_path/{first_letter}/{SYMBOL}/{YYYY}/{MM}/{SYMBOL}_{YYYY}_{MM}.parquet
+                symbol_dir = self.base_path / symbol[0] / symbol  # First letter subdirectory
+                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Looking in directory {symbol_dir}")
+                
+                # Generate month range to look for files
+                import pandas as pd
+                from dateutil.relativedelta import relativedelta
+                
+                current = start_date.replace(day=1)  # First day of start month
+                end = end_date.replace(day=1)        # First day of end month
+                
+                all_data = []
+                
+                while current <= end:
+                    year_month_dir = symbol_dir / str(current.year) / f"{current.month:02d}"
+                    parquet_file = year_month_dir / f"{symbol}_{current.year}_{current.month:02d}.parquet"
+                    
+                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: Checking file {parquet_file}")
+                    if parquet_file.exists():
+                        logger.info(f"🔍 [DEBUG] Symbol {symbol}: File exists, reading parquet data")
+                        try:
+                            # Read monthly parquet file
+                            monthly_df = pd.read_parquet(parquet_file)
+                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Loaded {len(monthly_df)} rows from {parquet_file}")
+                            if not monthly_df.empty:
+                                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data columns: {list(monthly_df.columns)}")
+                                if 'timestamp' in monthly_df.columns:
+                                    data_start = monthly_df['timestamp'].min()
+                                    data_end = monthly_df['timestamp'].max() 
+                                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data time range: {data_start} to {data_end}")
+                                else:
+                                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: Index range: {monthly_df.index.min()} to {monthly_df.index.max()}")
+                            
+                            # Convert timestamp column to datetime and set as index
+                            if 'timestamp' in monthly_df.columns:
+                                monthly_df['timestamp'] = pd.to_datetime(monthly_df['timestamp'])
+                                monthly_df = monthly_df.set_index('timestamp')
+                            else:
+                                logger.warning(f"No timestamp column in {parquet_file}")
+                                continue
+                            
+                            # Filter by date range - use EDT timezone for consistency with minute bar data
+                            from zoneinfo import ZoneInfo
+                            edt_tz = ZoneInfo("America/New_York")
+                            
+                            start_dt = pd.to_datetime(start_date).tz_localize(edt_tz) if pd.to_datetime(start_date).tz is None else pd.to_datetime(start_date).tz_convert(edt_tz)
+                            end_dt = pd.to_datetime(end_date).tz_localize(edt_tz) if pd.to_datetime(end_date).tz is None else pd.to_datetime(end_date).tz_convert(edt_tz)
+                            
+                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Filtering data range {start_dt} to {end_dt}")
+                            
+                            # Ensure monthly_df index is also in EDT
+                            original_index_tz = monthly_df.index.tz
+                            if monthly_df.index.tz is None:
+                                monthly_df.index = monthly_df.index.tz_localize(edt_tz)
+                            else:
+                                monthly_df.index = monthly_df.index.tz_convert(edt_tz)
+                            
+                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data index timezone converted from {original_index_tz} to {monthly_df.index.tz}")
+                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data index range after timezone conversion: {monthly_df.index.min()} to {monthly_df.index.max()}")
+                            
+                            mask = (monthly_df.index >= start_dt) & (monthly_df.index <= end_dt)
+                            filtered_monthly = monthly_df[mask]
+                            
+                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: After filtering: {len(filtered_monthly)} rows (from {len(monthly_df)} original)")
+                            if not filtered_monthly.empty:
+                                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Filtered time range: {filtered_monthly.index.min()} to {filtered_monthly.index.max()}")
+                                all_data.append(filtered_monthly)
+                                logger.info(f"Loaded {len(filtered_monthly)} rows for {symbol} from {parquet_file}")
+                            else:
+                                logger.info(f"🔍 [DEBUG] Symbol {symbol}: No data in requested time range")
+                        
+                        except Exception as file_error:
+                            logger.error(f"Error reading {parquet_file}: {file_error}")
+                            continue
+                    else:
+                        logger.info(f"🔍 [DEBUG] Symbol {symbol}: File not found: {parquet_file}")
+                    
+                    # Move to next month
+                    current += relativedelta(months=1)
+                
+                # Combine all monthly data
+                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Found {len(all_data)} monthly files with data")
+                if all_data:
+                    combined_df = pd.concat(all_data, axis=0).sort_index()
+                    results[symbol] = combined_df
+                    logger.info(f"🔍 [DEBUG] Total loaded {len(combined_df)} rows for {symbol} across {len(all_data)} files")
+                    logger.info(f"🔍 [DEBUG] Final combined data range: {combined_df.index.min()} to {combined_df.index.max()}")
+                else:
+                    logger.warning(f"🔍 [DEBUG] No FirstRate data found for {symbol} between {start_date} and {end_date}")
+                    results[symbol] = pd.DataFrame()
+                    
+            except Exception as e:
+                logger.error(f"Error reading FirstRate data for {symbol}: {e}")
+                results[symbol] = pd.DataFrame()
+                
+        return results
+
 class VendorAdapterRegistry:
     """Registry for managing all vendor adapters."""
     
@@ -436,6 +555,12 @@ class UnifiedMarketDataManager:
                 if api_key:
                     self.vendor_registry.register_adapter(EODHDAdapter(api_key))
                     
+            elif vendor_type == VendorType.FIRSTRATE:
+                # FirstRate uses file-based storage, not API
+                file_path = getattr(self.config, 'file_storage_path', '/mnt/d/ats-data/minute-bars/firstrate')
+                self.vendor_registry.register_adapter(FirstRateAdapter(file_path))
+                logger.info(f"Initialized FirstRate adapter with path: {file_path}")
+                    
     async def get_ohlcv(
         self,
         symbols: Union[str, List[str]],
@@ -497,6 +622,64 @@ class UnifiedMarketDataManager:
             self._cache[cache_key] = results
             
         return results
+        
+    async def get_minute_ohlc_batch(
+        self,
+        symbols: List[str],
+        start: datetime,
+        end: datetime
+    ) -> Dict[str, Optional[Dict[str, float]]]:
+        """
+        Compatibility method for UniverseStateIntervalBuilder.
+        
+        Wraps get_ohlcv to provide the expected interface for minute OHLC data.
+        Returns dict of symbol -> OHLC dict (open, high, low, close) for the time range.
+        """
+        logger.info(f"🔍 [DEBUG] get_minute_ohlc_batch called for symbols={symbols}, start={start}, end={end}")
+        try:
+            # Use get_ohlcv to fetch 1-minute data
+            ohlcv_data = await self.get_ohlcv(
+                symbols=symbols,
+                start_date=start,
+                end_date=end,
+                timeframe=TimeframeType.MINUTE_1
+            )
+            
+            logger.info(f"🔍 [DEBUG] get_ohlcv returned data for {len(ohlcv_data)} symbols: {list(ohlcv_data.keys())}")
+            for symbol, df in ohlcv_data.items():
+                if df is not None and not df.empty:
+                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: {len(df)} records, time range {df.index.min()} to {df.index.max()}")
+                else:
+                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: No data (empty DataFrame)")
+            
+            # Convert to expected format: symbol -> {open, high, low, close}
+            result = {}
+            for symbol in symbols:
+                if symbol in ohlcv_data and not ohlcv_data[symbol].empty:
+                    df = ohlcv_data[symbol]
+                    # Get the latest OHLC values from the time range
+                    latest_idx = df.index[-1]
+                    latest_data = {
+                        'open': float(df.loc[latest_idx, 'open']),
+                        'high': float(df.loc[latest_idx, 'high']),
+                        'low': float(df.loc[latest_idx, 'low']),
+                        'close': float(df.loc[latest_idx, 'close']),
+                        'volume': float(df.loc[latest_idx, 'volume']) if 'volume' in df.columns else None,
+                        'timestamp': latest_idx
+                    }
+                    result[symbol] = latest_data
+                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: Latest OHLC at {latest_idx} = {latest_data}")
+                else:
+                    result[symbol] = None
+                    logger.warning(f"🔍 [DEBUG] No minute data found for {symbol} between {start} and {end}")
+                    
+            logger.info(f"🔍 [DEBUG] get_minute_ohlc_batch returning: {len([k for k, v in result.items() if v is not None])} symbols with data")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in get_minute_ohlc_batch for symbols {symbols}: {e}")
+            # Return None for all symbols if there's an error
+            return {symbol: None for symbol in symbols}
         
     def _select_best_vendor(self, timeframe: TimeframeType) -> VendorType:
         """Select best vendor based on timeframe and availability."""

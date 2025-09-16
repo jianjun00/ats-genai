@@ -5,7 +5,7 @@ import pytz
 
 from core.platform.config.environment import Environment, EnvironmentType
 from domains.market_data.services.core.market_data_manager import MarketDataManager
-from domains.market_data.services.vendor_adapters.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
+from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, LegacyMarketDataManager
 from domains.instruments.services.secmaster.security_master import SecurityMaster
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from core.business.calendars.time_duration import TimeDuration
@@ -74,11 +74,19 @@ class Runner:
         else:
             self.run_context = run_context
 
+        # 🚨 UUID SYSTEM: Set run UUID in Environment for database operations
+        if self.run_context and hasattr(self.env, 'set_run_uuid'):
+            self.env.set_run_uuid(self.run_context.run_id)
+            self.logger.info(f"Set run UUID in Environment: {self.run_context.run_id}") if hasattr(self, 'logger') else None
+        
         # Set up run-aware logging if we have a run context
         if self.run_context and enable_run_isolation:
             setup_run_aware_logging(run_context=self.run_context)
             self.logger = get_run_aware_logger(__name__, self.run_context)
             self.logger.info(f"Initialized Runner with run-aware logging: {self.run_context.run_id}")
+            # Log UUID setup after logger is available
+            if hasattr(self.env, 'get_run_uuid') and self.env.get_run_uuid():
+                self.logger.info(f"✅ Environment configured with run UUID: {self.env.get_run_uuid()}")
         else:
             self.logger = logging.getLogger(__name__)
 
@@ -95,7 +103,6 @@ class Runner:
         else:
             self.universe_state_manager = UniverseStateManager(
                 self.env,
-                write_metadata=not is_test_env,
                 run_context=self.run_context if enable_run_isolation else None
             )
             if enable_run_isolation and self.run_context:
@@ -104,7 +111,7 @@ class Runner:
                 self.logger.info("Using legacy universe state manager")
 
         self.universe_manager = universe_manager if universe_manager is not None else UniverseManager(self.env, self.universe_id)
-        self.market_data_manager = market_data_manager if market_data_manager is not None else DailyPriceMarketDataManager(self.env)
+        self.market_data_manager = market_data_manager if market_data_manager is not None else LegacyMarketDataManager()
 
     def _init_callbacks(self, callbacks: List[str]) -> List[RunnerCallback]:
         # Expect config to contain a list of callback classes/instances

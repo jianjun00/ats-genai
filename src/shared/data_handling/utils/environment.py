@@ -67,7 +67,6 @@ except ImportError:
 import gin
 
 @gin.configurable
-@gin.configurable
 class Environment:
     def get(self, key, default=None):
         """
@@ -100,8 +99,13 @@ class Environment:
     Loads config from Gin config file (e.g., config/app.gin).
     All config values are bound as module-level variables.
     """
-    def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None, db_url: Optional[str] = None, logging_config: LoggingConfig = LoggingConfig()):
+    def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None, db_url: Optional[str] = None, logging_config: LoggingConfig = LoggingConfig(), run_uuid: Optional[str] = None):
         print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
+        
+        # 🚨 UUID SYSTEM: Store run UUID for database operations
+        self._run_uuid = run_uuid
+        print(f"[UUID DEBUG] Environment initialized with run_uuid: {run_uuid}")
+        
         # Accept either a gin config path or an environment type (enum or str)
         config_path = None
         # If gin_config_path is actually an EnvironmentType or str, treat as env_type
@@ -514,10 +518,30 @@ class Environment:
     def __str__(self) -> str:
         """String representation of environment."""
         return f"Environment({self.env_type.value})"
+    
+    # 🚨 UUID SYSTEM: Methods for managing run UUID in database operations
+    def set_run_uuid(self, run_uuid: str) -> None:
+        """Set the run UUID for database operations."""
+        self._run_uuid = run_uuid
+        print(f"[UUID DEBUG] Environment run_uuid set to: {run_uuid}")
+    
+    def get_run_uuid(self) -> Optional[str]:
+        """Get the run UUID for database operations."""
+        return self._run_uuid
+    
+    def has_run_uuid(self) -> bool:
+        """Check if run UUID is set."""
+        return self._run_uuid is not None
+    
+    def require_run_uuid(self) -> str:
+        """Get run UUID or raise error if not set."""
+        if self._run_uuid is None:
+            raise RuntimeError("Run UUID is required but not set in Environment")
+        return self._run_uuid
 
     def __repr__(self) -> str:
         """Detailed string representation."""
-        return f"Environment(type={self.env_type.value}, db_url={self.db_url})"
+        return f"Environment(type={self.env_type.value}, db_url={self.db_url}, run_uuid={self._run_uuid})"
 
 
 # Global environment instance for easy access (lazy initialization)

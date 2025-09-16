@@ -47,8 +47,6 @@ class UniverseManager:
         
         self._instrument_ids = instrument_ids
         print(f"[UniverseManager] ✅ Initialized with instrument_ids: {self._instrument_ids}")
-        """Get symbols for the universe - minimal implementation for training data."""
-        return ['TSLA']  # Hardcode TSLA for training data generation
 
     def cleanup(self):
         """Clean up resources."""
