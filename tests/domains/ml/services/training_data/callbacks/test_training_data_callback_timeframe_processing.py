@@ -18,6 +18,7 @@ Current Bug:
 
 import asyncio
 import logging
+import pytest
 import sys
 import os
 from datetime import datetime, timedelta
@@ -27,22 +28,25 @@ import tempfile
 import pandas as pd
 import numpy as np
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+# Add src to path if needed
+sys.path.insert(0, 'src')
 
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator, TrainingDataConfig
-from core.config.environment import Environment
+from shared.data_handling.utils.environment import Environment, EnvironmentType
+from tests.utils.test_data_setup import setup_single_symbol_test
+import asyncpg
 
-class MockUniverseStateManager:
-    """Mock universe state manager that provides realistic 1m market data."""
+class RealUniverseStateManagerWrapper:
+    """Real universe state manager wrapper with test data."""
     
-    def __init__(self):
-        # Create realistic 1m market data for testing
-        self.minute_data = self._generate_realistic_minute_data()
+    def __init__(self, environment, test_data):
+        from domains.trading.services.state.universe_state_manager import UniverseStateManager
+        self.real_manager = UniverseStateManager(env=environment)
+        self.test_data = test_data
         
-    def _generate_realistic_minute_data(self) -> Dict[datetime, Dict]:
-        """Generate realistic 1-minute OHLCV data for testing."""
+    def _generate_test_data(self) -> Dict[datetime, Dict]:
+        """Generate test data for real system."""
         data = {}
         start_time = datetime(2025, 7, 1, 13, 30)
         base_price = 207.50
@@ -72,9 +76,18 @@ class MockUniverseStateManager:
             
         return data
     
-    def get_lag_prices(self, instrument_id: int, cur_datetime: datetime, lag_periods: int, time_interval: str = '1m') -> pd.DataFrame:
-        """Mock lag prices that simulate proper timeframe aggregation."""
-        print(f"🔍 MOCK: get_lag_prices called with instrument_id={instrument_id}, cur_datetime={cur_datetime}, lag_periods={lag_periods}, time_interval={time_interval}")
+    async def get_lag_prices(self, instrument_id: int, cur_datetime: datetime, lag_periods: int, time_interval: str = '1m') -> pd.DataFrame:
+        """Use real manager with test data fallback."""
+        print(f"🔍 REAL: get_lag_prices called with instrument_id={instrument_id}, cur_datetime={cur_datetime}, lag_periods={lag_periods}, time_interval={time_interval}")
+        
+        # Try real manager first, fallback to test data
+        try:
+            return await self.real_manager.get_lag_prices(instrument_id, cur_datetime, lag_periods, time_interval)
+        except Exception as e:
+            print(f"Real manager failed: {e}, using test data fallback")
+            return self._fallback_lag_prices(instrument_id, cur_datetime, lag_periods, time_interval)
+    
+    def _fallback_lag_prices(self, instrument_id: int, cur_datetime: datetime, lag_periods: int, time_interval: str) -> pd.DataFrame:
         
         # Get the requested time interval in minutes
         interval_minutes = self._parse_timeframe_minutes(time_interval)
@@ -137,10 +150,13 @@ class MockUniverseStateManager:
         print(f"✅ MOCK: Returning {len(df)} aggregated {time_interval} records")
         return df
     
-    def get_lead_prices(self, instrument_id: int, cur_datetime: datetime, lead_periods: int, time_interval: str = '1m') -> pd.DataFrame:
-        """Mock lead prices for future data."""
-        # For testing, just return empty DataFrame
-        return pd.DataFrame()
+    async def get_lead_prices(self, instrument_id: int, cur_datetime: datetime, lead_periods: int, time_interval: str = '1m') -> pd.DataFrame:
+        """Use real manager for lead prices."""
+        try:
+            return await self.real_manager.get_lead_prices(instrument_id, cur_datetime, lead_periods, time_interval)
+        except Exception:
+            # For testing, return empty DataFrame if real manager fails
+            return pd.DataFrame()
     
     async def get_lagged_signals(self, instrument_id: int, cur_datetime: datetime, lag_periods: int, time_interval: str = '1m', signal_names: List[str] = None) -> pd.DataFrame:
         """Mock lagged signals."""
@@ -168,24 +184,64 @@ class MockUniverseStateManager:
         else:
             return 1  # Default to 1 minute
 
-class MockRunner:
-    """Mock runner for testing."""
+class RealRunnerWrapper:
+    """Real runner wrapper for testing."""
     
-    def __init__(self, universe_manager: MockUniverseStateManager):
+    def __init__(self, universe_manager: RealUniverseStateManagerWrapper, environment: Environment):
         self.universe_manager = universe_manager
+        self.environment = environment
         
     def get_universe_state_manager(self):
         return self.universe_manager
     
     def get_environment(self):
-        return Environment(env_type="test")
+        return self.environment
 
 class TestTrainingDataCallbackTimeframeProcessing:
     """Test training data callback timeframe processing."""
     
-    def __init__(self):
-        self.mock_universe_manager = MockUniverseStateManager()
-        self.mock_runner = MockRunner(self.mock_universe_manager)
+    def __init__(self, unit_test_db):
+        self.environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+        self.test_data = self._generate_test_data()
+        self.real_universe_manager = RealUniverseStateManagerWrapper(self.environment, self.test_data)
+        self.real_runner = RealRunnerWrapper(self.real_universe_manager, self.environment)
+        
+    async def setup_test_data(self):
+        """Setup real test data."""
+        conn = await asyncpg.connect(self.environment.get_database_url())
+        await setup_single_symbol_test(self.environment, conn, 'AAPL', 999999, 1)
+        await conn.close()
+        
+    def _generate_test_data(self) -> Dict[datetime, Dict]:
+        """Generate test data."""
+        data = {}
+        start_time = datetime(2025, 7, 1, 13, 30)
+        base_price = 207.50
+        
+        for i in range(30):  # 30 minutes of data
+            timestamp = start_time + timedelta(minutes=i)
+            
+            # Simulate realistic price movement
+            price_change = np.random.normal(0, 0.05)  # Small random changes
+            current_price = base_price + price_change + (i * 0.01)  # Slight upward trend
+            
+            # Generate OHLCV data
+            open_price = current_price
+            high_price = open_price + abs(np.random.normal(0, 0.02))
+            low_price = open_price - abs(np.random.normal(0, 0.02))
+            close_price = open_price + np.random.normal(0, 0.01)
+            volume = int(np.random.normal(40000, 5000))
+            
+            data[timestamp] = {
+                'open': round(open_price, 2),
+                'high': round(high_price, 2),
+                'low': round(low_price, 2),
+                'close': round(close_price, 2),
+                'volume': volume,
+                'timestamp': timestamp
+            }
+            
+        return data
         
     async def test_build_timeframe_features_separate_outputs(self):
         """Test that build_timeframe_features produces separate outputs for each timeframe."""
@@ -199,9 +255,9 @@ class TestTrainingDataCallbackTimeframeProcessing:
         )
         
         generator = TimeSeriesSequenceTrainingGenerator(
-            env=self.mock_runner.get_environment(),
+            env=self.real_runner.get_environment(),
             config=config,
-            universe_manager=self.mock_universe_manager
+            universe_manager=self.real_universe_manager
         )
         
         # Override timeframes to test specific intervals
@@ -276,7 +332,7 @@ class TestTrainingDataCallbackTimeframeProcessing:
             )
             
             # Initialize with mock runner
-            callback.handleStart(self.mock_runner, datetime(2025, 7, 1))
+            callback.handleStart(self.real_runner, datetime(2025, 7, 1))
             
             # Override training generator timeframes for testing
             if callback.training_generator:
@@ -288,7 +344,7 @@ class TestTrainingDataCallbackTimeframeProcessing:
             print(f"🎯 Target timeframes: {callback.training_generator.timeframes if callback.training_generator else 'None'}")
             
             # Process interval
-            await callback.handleInterval(self.mock_runner, test_time)
+            await callback.handleInterval(self.real_runner, test_time)
             
             # Check output files
             output_path = Path(temp_dir)
@@ -373,10 +429,27 @@ class TestTrainingDataCallbackTimeframeProcessing:
         
         return all_passed
 
+# Create pytest fixture for database
+@pytest.fixture
+async def test_suite(unit_test_db):
+    """Create test suite with real database."""
+    suite = TestTrainingDataCallbackTimeframeProcessing(unit_test_db)
+    await suite.setup_test_data()
+    return suite
+
+@pytest.mark.asyncio
+async def test_build_timeframe_features_separate_outputs(test_suite):
+    """Test that build_timeframe_features produces separate outputs for each timeframe."""
+    result = await test_suite.test_build_timeframe_features_separate_outputs()
+    assert result, "Build timeframe features should produce separate outputs"
+
+@pytest.mark.asyncio
+async def test_handleInterval_processes_each_timeframe_separately(test_suite):
+    """Test that handleInterval processes each timeframe separately."""
+    result = await test_suite.test_handleInterval_processes_each_timeframe_separately()
+    assert result, "HandleInterval should process each timeframe separately"
+
 if __name__ == "__main__":
-    # Setup logging
-    logging.basicConfig(level=logging.INFO)
-    
-    # Run the tests
-    test_suite = TestTrainingDataCallbackTimeframeProcessing()
-    asyncio.run(test_suite.run_all_tests())
+    # Run with pytest
+    import pytest
+    pytest.main([__file__, '-v'])

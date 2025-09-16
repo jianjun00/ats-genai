@@ -518,12 +518,26 @@ class SequenceWindowBuilder:
             self.logger.warning(f"Failed to get {timeframe} data for instrument {instrument_id}: {e}")
             return {}
 
-    async def build_timeframe_features(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, Dict[str, float]]:
-        """Build single-point features for all configured timeframes."""
+    async def build_timeframe_features(self, instrument_id: int, prediction_timestamp: datetime, target_timeframes: Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
+        """Build single-point features for specified timeframes.
+        
+        Args:
+            instrument_id: Instrument ID
+            prediction_timestamp: Timestamp for prediction
+            target_timeframes: Specific timeframes to build (None = all timeframes)
+        
+        Returns:
+            Dict mapping timeframe to features
+        """
         timeframe_features = {}
 
-        # Build current features for each timeframe
-        for timeframe in self.timeframes:
+        # Use target timeframes if specified, otherwise use all configured timeframes
+        timeframes_to_build = target_timeframes if target_timeframes is not None else self.timeframes
+        
+        print(f"🔧 DEBUG: Building features for timeframes: {timeframes_to_build} (target: {target_timeframes})")
+
+        # Build current features for each specified timeframe
+        for timeframe in timeframes_to_build:
             features = await self.get_timeframe_data(
                 instrument_id, prediction_timestamp, timeframe, is_future=False
             )
@@ -689,13 +703,16 @@ class TimeSeriesSequenceTrainingGenerator:
 
     async def generate_training_example(self,
                                        symbol: str,
-                                       prediction_timestamp: datetime) -> Optional[Dict]:
+                                       prediction_timestamp: datetime,
+                                       target_timeframes: Optional[List[str]] = None) -> Optional[Dict]:
         """
         Generate a single training example for the given symbol and timestamp.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
             prediction_timestamp: Timestamp to generate prediction for
+            target_timeframes: Optional list of specific timeframes to generate (e.g., ['5m']). 
+                             If None, generates for all configured timeframes.
 
         Returns:
             Dict with single-point features per timeframe or None if insufficient data
@@ -709,8 +726,12 @@ class TimeSeriesSequenceTrainingGenerator:
             # Generate base features
             base_features = self.generate_base_features(instrument_id, prediction_timestamp)
 
-            # Build single-point timeframe features
-            timeframe_features = await self.sequence_builder.build_timeframe_features(instrument_id, prediction_timestamp)
+            # Build single-point timeframe features for specific timeframes
+            timeframe_features = await self.sequence_builder.build_timeframe_features(
+                instrument_id, 
+                prediction_timestamp,
+                target_timeframes=target_timeframes
+            )
 
             # Build single-point prediction targets
             targets = await self.sequence_builder.build_prediction_targets(instrument_id, prediction_timestamp)

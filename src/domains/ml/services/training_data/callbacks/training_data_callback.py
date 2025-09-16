@@ -162,54 +162,65 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.logger.info("Interval-based training data generator initialized")
 
     async def handleInterval(self, runner: Any, current_time: datetime):
-        """Generate and immediately save training data for current interval."""
+        """Generate training data for specific timeframes based on current time.
+        
+        PRD/DRD Timeframe Granularity Logic:
+        - 5m: Generate every 5 minutes (05, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 00)
+        - 15m: Generate every 15 minutes (00, 15, 30, 45)
+        - 1h: Generate every hour (00 minutes only)
+        - 1d: Generate once per day (00:00 only)
+        - 1w: Generate once per week (Monday 00:00 only)
+        
+        Examples:
+        - At 35m: Generate only 5m timeframe
+        - At 45m: Generate 5m and 15m timeframes  
+        - At 00m: Generate 5m, 15m, and 1h timeframes
+        - At Monday 00:00: Generate all timeframes including 1d and 1w
+        """
         if not self.training_generator:
             return
 
-        # Store runner context for data access in helper methods
-        self._current_runner = runner
+        # Determine which timeframes to generate based on current time
+        target_timeframes = self._get_target_timeframes_for_interval(current_time)
+        
+        if not target_timeframes:
+            print(f"⏭️ DEBUG: No timeframes to generate at {current_time} (minute={current_time.minute})")
+            return
+
+        print(f"🎯 DEBUG: Generating timeframes {target_timeframes} at {current_time} (minute={current_time.minute})")
 
         self.interval_counter += 1
         examples_generated = []
 
         try:
-            # Generate examples for all symbols
+            # Generate examples for each symbol and timeframe combination
             for symbol in self.symbols:
-                try:
-                    print(f"🔄 DEBUG: Attempting to generate training example for {symbol} at {current_time}")
-                    example = await self.training_generator.generate_training_example(
-                        symbol=symbol,
-                        prediction_timestamp=current_time
-                    )
+                for timeframe in target_timeframes:
+                    try:
+                        print(f"🔄 DEBUG: Generating training example for {symbol} timeframe {timeframe}")
+                        example = await self.training_generator.generate_training_example(
+                            symbol=symbol,
+                            prediction_timestamp=current_time,
+                            target_timeframes=[timeframe]  # Generate for single timeframe only
+                        )
 
-                    print(f"📊 DEBUG: Generated example for {symbol}: {example is not None}")
-                    if example:
-                        print(f"🔑 DEBUG: Example keys: {list(example.keys()) if isinstance(example, dict) else 'Not a dict'}")
-                        if isinstance(example, dict) and 'timeframe_features' in example:
-                            print(f"⏰ DEBUG: Timeframe features: {list(example['timeframe_features'].keys()) if isinstance(example['timeframe_features'], dict) else 'Not dict'}")
-                        examples_generated.append(example)
-                        print(f"✅ DEBUG: Added example to collection. Total examples: {len(examples_generated)}")
-                    else:
-                        print(f"❌ DEBUG: No example generated for {symbol} - example is None/empty")
+                        if example and example.get('timeframe_features', {}).get(timeframe):
+                            print(f"✅ DEBUG: Generated example for {symbol} {timeframe}")
+                            examples_generated.append(example)
+                        else:
+                            print(f"❌ DEBUG: No example generated for {symbol} {timeframe}")
 
-                except Exception as e:
-                    print(f"💥 DEBUG: Exception generating example for {symbol}: {e}")
-                    import traceback
-                    print(f"📋 DEBUG: Full traceback: {traceback.format_exc()}")
-                    self.logger.error(f"Failed to generate example for {symbol}: {e}")
+                    except Exception as e:
+                        print(f"💥 DEBUG: Exception generating example for {symbol} {timeframe}: {e}")
+                        self.logger.error(f"Failed to generate example for {symbol} {timeframe}: {e}")
 
             # Save immediately if we have examples
-            print(f"🎯 DEBUG: CHECKPOINT - About to check examples_generated list")
-            print(f"🎯 DEBUG: examples_generated type: {type(examples_generated)}")
-            print(f"🎯 DEBUG: examples_generated length: {len(examples_generated)}")
-            print(f"🎯 DEBUG: examples_generated contents: {examples_generated}")
-            print(f"DEBUG: Generated {len(examples_generated)} examples for interval at {current_time}")
             if examples_generated:
-                print(f"DEBUG: Saving {len(examples_generated)} examples...")
+                print(f"📤 DEBUG: Saving {len(examples_generated)} examples for timeframes {target_timeframes}")
                 await self._save_simple_arrayrecord(examples_generated, current_time)
-                print(f"DEBUG: Save completed for {len(examples_generated)} examples")
+                print(f"✅ DEBUG: Save completed for {len(examples_generated)} examples")
             else:
-                print(f"DEBUG: No examples to save at {current_time}")
+                print(f"⏭️ DEBUG: No examples to save at {current_time}")
 
         except Exception as e:
             print(f"🚨 CRITICAL ERROR in handleInterval: {e}")
@@ -374,7 +385,8 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 print(f"     - {month_date.strftime('%Y-%m')}")
 
             # Initialize writers for each symbol/timeframe/month combination
-            timeframes = ['5m', '15m', '1h', '1d']
+            # PRD/DRD: Include all required timeframes including missing 1w
+            timeframes = ['5m', '15m', '1h', '1d', '1w']
 
             for symbol in self.symbols:
                 print(f"   Initializing monthly writers for {symbol}")
@@ -531,89 +543,9 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             import traceback
             traceback.print_exc()
 
-    async def _stream_intervals_to_writers(self, examples: List[Dict], current_time: datetime):
-        """
-        Stream current interval data to appropriate writers (NO accumulation).
 
-        CRITICAL: Process current interval immediately and append to existing writers.
-        This maintains chronological order and prevents memory issues.
-        """
 
-        try:
-            for example in examples:
-                symbol = example['symbol']
 
-                # Get minute data for CURRENT interval only (no accumulation)
-                current_interval_data = await self._get_current_interval_minute_data(symbol, current_time)
-
-                if not current_interval_data:
-                    continue
-
-                # Create 5-minute intervals from current data
-                five_min_intervals = self._create_5min_intervals_from_current(current_interval_data, current_time)
-
-                if not five_min_intervals:
-                    continue
-
-                # Stream to each timeframe writer
-                timeframes = ['5m', '15m', '1h', '1d']
-                for timeframe in timeframes:
-                    # Get appropriate intervals for this timeframe
-                    intervals = self._get_intervals_for_timeframe(five_min_intervals, timeframe, current_time)
-
-                    if intervals:
-                        # Stream to writer (append)
-                        file_key = f"{symbol}_{timeframe}"
-                        if file_key in self.array_record_writers:
-                            writer = self.array_record_writers[file_key]
-
-                            for interval in intervals:
-                                await self._write_interval_to_writer(writer, symbol, interval)
-
-            print(f"✅ Streamed intervals for {len(examples)} symbols at {current_time}")
-
-        except Exception as e:
-            print(f"❌ Error streaming intervals: {e}")
-            import traceback
-            traceback.print_exc()
-
-    async def _get_current_interval_minute_data(self, symbol: str, current_time: datetime):
-        """Get minute data for CURRENT interval only (no accumulation)."""
-        try:
-            if hasattr(self, '_current_runner') and self._current_runner:
-                runner = self._current_runner
-                if hasattr(runner, 'minute_market_data_manager'):
-                    data_manager = runner.minute_market_data_manager
-
-                    # Get data for current time window only
-                    current_date = current_time.date()
-
-                    # Get minute data for just this date
-                    daily_data = await data_manager.get_minute_data(
-                        symbol=symbol,
-                        start_date=current_date,
-                        end_date=current_date
-                    )
-
-                    return daily_data if daily_data else []
-                else:
-                    return []
-            else:
-                return []
-
-        except Exception as e:
-            print(f"❌ Error getting current interval data: {e}")
-            return []
-
-    def _create_5min_intervals_from_current(self, minute_data, current_time):
-        """Create 5-minute intervals from current minute data."""
-        # Simplified version - for current interval processing
-        return self._create_5min_intervals(minute_data)
-
-    def _get_intervals_for_timeframe(self, five_min_intervals, timeframe, current_time):
-        """Get appropriate intervals for timeframe from current data."""
-        # Use existing aggregation logic
-        return self._aggregate_to_timeframe(five_min_intervals, timeframe)
 
     async def _write_interval_to_writer(self, writer, symbol, interval):
         """
@@ -699,119 +631,9 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             raise
 
 
-    def _create_5min_intervals(self, minute_data):
-        """Aggregate minute data into 5-minute intervals."""
-        if not minute_data:
-            return []
 
-        intervals = []
-        current_interval = []
 
-        # Sort by timestamp
-        sorted_data = sorted(minute_data, key=lambda x: x.get('timestamp', ''))
 
-        for i, minute in enumerate(sorted_data):
-            current_interval.append(minute)
-
-            # Every 5 minutes or at the end, create an interval
-            if len(current_interval) == 5 or i == len(sorted_data) - 1:
-                if current_interval:
-                    # Create OHLCV for this 5-minute interval
-                    interval_ohlcv = {
-                        'timestamp': current_interval[0].get('timestamp'),
-                        'open': current_interval[0].get('open'),
-                        'high': max(m.get('high', 0) for m in current_interval),
-                        'low': min(m.get('low', 999999) for m in current_interval),
-                        'close': current_interval[-1].get('close'),
-                        'volume': sum(m.get('volume', 0) for m in current_interval)
-                    }
-                    intervals.append(interval_ohlcv)
-                    current_interval = []
-
-        return intervals
-
-    def _aggregate_to_timeframe(self, five_min_data, timeframe):
-        """Aggregate 5-minute intervals to other timeframes."""
-        if timeframe == '5m':
-            return five_min_data
-
-        # For other timeframes, aggregate accordingly
-        if timeframe == '15m':
-            # Every 3 intervals (15 min / 5 min = 3)
-            return self._aggregate_intervals(five_min_data, 3)
-        elif timeframe == '1h':
-            # Every 12 intervals (60 min / 5 min = 12)
-            return self._aggregate_intervals(five_min_data, 12)
-        elif timeframe == '1d':
-            # All intervals in the day
-            return self._aggregate_intervals(five_min_data, len(five_min_data))
-
-        return five_min_data
-
-    def _aggregate_intervals(self, intervals, group_size):
-        """Aggregate intervals into larger timeframes."""
-        aggregated = []
-
-        for i in range(0, len(intervals), group_size):
-            group = intervals[i:i + group_size]
-            if group:
-                agg_interval = {
-                    'timestamp': group[0]['timestamp'],
-                    'open': group[0]['open'],
-                    'high': max(g['high'] for g in group),
-                    'low': min(g['low'] for g in group),
-                    'close': group[-1]['close'],
-                    'volume': sum(g['volume'] for g in group)
-                }
-                aggregated.append(agg_interval)
-
-        return aggregated
-
-    async def _write_binary_arrayrecord(self, file_path, symbol, intervals):
-        """Write intervals as binary protobuf records (NOT JSON!)."""
-        import array_record.python.array_record_module as array_record
-        import struct
-
-        try:
-            writer = array_record.ArrayRecordWriter(str(file_path), 'group_size:1')
-
-            for interval in intervals:
-                # Create binary protobuf-like record
-                # Format: timestamp(double) + symbol(string) + open(float) + high(float) + low(float) + close(float) + volume(float)
-
-                # Convert timestamp to unix timestamp
-                from datetime import datetime
-                if isinstance(interval['timestamp'], str):
-                    ts = datetime.fromisoformat(interval['timestamp']).timestamp()
-                else:
-                    ts = float(interval['timestamp'])
-
-                # Pack as binary data (NOT JSON!)
-                symbol_bytes = symbol.encode('utf-8')
-                symbol_len = len(symbol_bytes)
-
-                # Binary format: timestamp(8) + symbol_len(4) + symbol(variable) + ohlcv(5*4)
-                binary_record = struct.pack(
-                    f'>dI{symbol_len}sfffff',  # Big-endian: double, uint32, string, 5 floats
-                    ts,                       # timestamp
-                    symbol_len,               # symbol length
-                    symbol_bytes,             # symbol
-                    float(interval.get('open', 0.0)),
-                    float(interval.get('high', 0.0)),
-                    float(interval.get('low', 0.0)),
-                    float(interval.get('close', 0.0)),
-                    float(interval.get('volume', 0.0))
-                )
-
-                writer.write(binary_record)
-
-            writer.close()
-            print(f"✅ Successfully wrote {len(intervals)} binary records to {file_path.name}")
-
-        except Exception as e:
-            print(f"❌ Error writing binary ArrayRecord: {e}")
-            import traceback
-            traceback.print_exc()
 
     async def handleEnd(self, runner: Any, current_time: datetime):
         """Close all ArrayRecord writers and generate final summary."""
@@ -846,6 +668,45 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             traceback.print_exc()
 
         self.logger.info(f"Interval-based generation completed: {self.interval_counter} intervals processed")
+    
+    def _get_target_timeframes_for_interval(self, current_time: datetime) -> List[str]:
+        """Determine which timeframes should generate examples at current time.
+        
+        PRD/DRD Native Frequency Requirements:
+        - 5m: Every 5 minutes (12 records/hour)
+        - 15m: Every 15 minutes (4 records/hour)
+        - 1h: Every hour at 00 minutes (1 record/hour)
+        - 1d: Every day at 00:00 (1 record/day)
+        - 1w: Every Monday at 00:00 (1 record/week)
+        """
+        minute = current_time.minute
+        hour = current_time.hour
+        weekday = current_time.weekday()  # 0=Monday, 6=Sunday
+        
+        target_timeframes = []
+        
+        # 5m: Generate every 5 minutes
+        if minute % 5 == 0:
+            target_timeframes.append('5m')
+        
+        # 15m: Generate every 15 minutes (00, 15, 30, 45)
+        if minute % 15 == 0:
+            target_timeframes.append('15m')
+        
+        # 1h: Generate every hour at 00 minutes
+        if minute == 0:
+            target_timeframes.append('1h')
+        
+        # 1d: Generate once per day at 00:00
+        if hour == 0 and minute == 0:
+            target_timeframes.append('1d')
+        
+        # 1w: Generate once per week on Monday at 00:00
+        if weekday == 0 and hour == 0 and minute == 0:  # Monday 00:00
+            target_timeframes.append('1w')
+        
+        return target_timeframes
+    
 
 
 # Backward compatibility alias
