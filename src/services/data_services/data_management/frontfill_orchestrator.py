@@ -14,7 +14,7 @@ import signal
 from core.platform.config.environment import Environment
 from core.config.database import get_connection_pool
 from frontfill.checkpoint_manager import CheckpointManager
-from frontfill.daily_prices_frontfill import create_daily_prices_frontfill_jobs
+from frontfill.daily_price_polygon_frontfill import create_daily_price_polygon_frontfill_jobs
 from frontfill.news_frontfill import create_news_frontfill_jobs
 from frontfill.economic_events_frontfill import (
     create_economic_events_frontfill_jobs,
@@ -131,7 +131,7 @@ class FrontfillOrchestrator:
         """Create all job instances."""
         # Create daily prices jobs
         if self.api_keys.get("polygon") and self.api_keys.get("tiingo"):
-            daily_price_jobs = await create_daily_prices_frontfill_jobs(
+            daily_price_jobs = await create_daily_price_polygon_frontfill_jobs(
                 self.connection_pool, self.env,
                 self.api_keys["polygon"], self.api_keys["tiingo"]
             )

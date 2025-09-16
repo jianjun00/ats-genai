@@ -151,7 +151,7 @@ class DailyValidationEngine:
                     AND p.date >= $1 - INTERVAL '30 days'
                 LEFT JOIN dev_daily_price_tiingo t ON rs.symbol = t.symbol
                     AND t.date >= $1 - INTERVAL '30 days'
-                LEFT JOIN dev_daily_prices_fmp f ON rs.symbol = f.symbol
+                LEFT JOIN dev_daily_price_fmp f ON rs.symbol = f.symbol
                     AND f.date >= $1 - INTERVAL '30 days'
                 GROUP BY rs.symbol
                 HAVING COUNT(DISTINCT p.date) + COUNT(DISTINCT t.date) + COUNT(DISTINCT f.date) >= 5

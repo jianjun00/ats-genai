@@ -914,7 +914,7 @@ class SRBacktester:
                 # Get price data for the symbol on this date
                 price_data = await conn.fetchrow("""
                     SELECT close_price, volume
-                    FROM dev_daily_prices
+                    FROM dev_daily_price_polygon
                     WHERE symbol = $1 AND date <= $2
                     ORDER BY date DESC
                     LIMIT 1

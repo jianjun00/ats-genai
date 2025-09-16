@@ -15,7 +15,7 @@ import os
 # Add src to path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor_daily_prices
+from infrastructure.vendor.eodhd.services.eodhd_database_sync import sync_vendor_daily_price_polygon
 
 async def test_sync_metrics():
     """Test database sync with metrics collection."""
@@ -54,7 +54,7 @@ async def test_sync_metrics():
         }
 
         # Run sync for EODHD with metrics collection
-        result = await sync_vendor_daily_prices('eodhd', source_config, target_config)
+        result = await sync_vendor_daily_price_polygon('eodhd', source_config, target_config)
 
         if result['success']:
             logger.info("✅ Sync completed successfully!")

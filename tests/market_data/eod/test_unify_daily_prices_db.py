@@ -1,7 +1,7 @@
 import pytest
 from datetime import date
 from shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.services.eod.unify_daily_prices import DatabaseDailyPricesUnifier
+from domains.market_data.services.eod.unify_daily_price_polygon import DatabaseDailyPricesUnifier
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from core.dao.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
@@ -10,9 +10,9 @@ from vendor.polygon.core.dao.daily_price_polygon_dao import DailyPricesPolygonDA
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
-async def test_unify_daily_prices_with_instrument_id(unit_test_db):
+async def test_unify_daily_price_polygon_with_instrument_id(unit_test_db):
     """
-    Test DatabaseDailyPricesUnifier.unify_daily_prices fetches by instrument_id, not symbol.
+    Test DatabaseDailyPricesUnifier.unify_daily_price_polygon fetches by instrument_id, not symbol.
     """
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     instruments_dao = InstrumentsDAO(env)
@@ -58,8 +58,8 @@ async def test_unify_daily_prices_with_instrument_id(unit_test_db):
 
     # Run the unifier
     unifier = DatabaseDailyPricesUnifier(env)
-    results = await unifier.unify_daily_prices(symbol, test_date, test_date)
-    assert results, "unify_daily_prices should return at least one result"
+    results = await unifier.unify_daily_price_polygon(symbol, test_date, test_date)
+    assert results, "unify_daily_price_polygon should return at least one result"
     row = results[0]
     assert row['date'] == test_date
     assert row['symbol'] == symbol
@@ -70,12 +70,12 @@ async def test_unify_daily_prices_with_instrument_id(unit_test_db):
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
-async def test_unify_daily_prices_missing_instrument_id(unit_test_db):
+async def test_unify_daily_price_polygon_missing_instrument_id(unit_test_db):
     """
-    Test DatabaseDailyPricesUnifier.unify_daily_prices returns [] if instrument_id cannot be resolved.
+    Test DatabaseDailyPricesUnifier.unify_daily_price_polygon returns [] if instrument_id cannot be resolved.
     """
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     unifier = DatabaseDailyPricesUnifier(env)
     # Use a symbol with no xref
-    results = await unifier.unify_daily_prices("NOEXIST", date(2025, 7, 18), date(2025, 7, 18))
+    results = await unifier.unify_daily_price_polygon("NOEXIST", date(2025, 7, 18), date(2025, 7, 18))
     assert results == [], "Should return empty list if instrument_id cannot be resolved"

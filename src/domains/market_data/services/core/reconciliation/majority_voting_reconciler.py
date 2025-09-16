@@ -96,7 +96,7 @@ class MajorityVotingReconciler:
             async with pool.acquire() as conn:
                 # Get instrument_id for symbol
                 instrument_id = await conn.fetchval("""
-                    SELECT id FROM dev_instruments WHERE symbol = $1
+                    SELECT id FROM dev_instrument WHERE symbol = $1
                 """, symbol)
 
                 if not instrument_id:
@@ -377,7 +377,7 @@ class MajorityVotingReconciler:
     async def create_consensus_table(self, table_suffix: str = "consensus") -> str:
         """Create consensus price table with reconciled data"""
 
-        consensus_table = self.env.get_table_name(f'daily_prices_{table_suffix}')
+        consensus_table = self.env.get_table_name(f'daily_price_polygon_{table_suffix}')
 
         pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=3)
         try:
@@ -398,7 +398,7 @@ class MajorityVotingReconciler:
                         created_at TIMESTAMP DEFAULT NOW(),
                         updated_at TIMESTAMP DEFAULT NOW(),
                         UNIQUE(instrument_id, date),
-                        FOREIGN KEY (instrument_id) REFERENCES dev_instruments(id)
+                        FOREIGN KEY (instrument_id) REFERENCES dev_instrument(id)
                     )
                 """)
 
@@ -427,7 +427,7 @@ class MajorityVotingReconciler:
                 # Get instrument_id for symbol
                 symbol = reconciliations[0].symbol
                 instrument_id = await conn.fetchval("""
-                    SELECT id FROM dev_instruments WHERE symbol = $1
+                    SELECT id FROM dev_instrument WHERE symbol = $1
                 """, symbol)
 
                 if not instrument_id:

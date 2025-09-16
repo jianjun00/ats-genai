@@ -136,7 +136,7 @@ class SlackDailyCoverageSummary:
         """Get list of active instruments."""
         query = """
         SELECT id, symbol
-        FROM intg_instruments
+        FROM intg_instrument
         WHERE active = true
         AND symbol IS NOT NULL
         AND symbol != ''
@@ -162,7 +162,7 @@ class SlackDailyCoverageSummary:
         # Get total coverage over all trading days
         total_query = f"""
         SELECT COUNT(*) as total_records
-        FROM intg_daily_prices_{vendor}
+        FROM intg_daily_price_polygon_{vendor}
         WHERE instrument_id = ANY($1)
         AND date = ANY($2)
         """
@@ -170,7 +170,7 @@ class SlackDailyCoverageSummary:
         # Get recent coverage for trend calculation
         recent_query = f"""
         SELECT COUNT(*) as recent_records
-        FROM intg_daily_prices_{vendor}
+        FROM intg_daily_price_polygon_{vendor}
         WHERE instrument_id = ANY($1)
         AND date = ANY($2)
         """
@@ -178,7 +178,7 @@ class SlackDailyCoverageSummary:
         # Get data freshness
         freshness_query = f"""
         SELECT MAX(date) as latest_date
-        FROM intg_daily_prices_{vendor}
+        FROM intg_daily_price_polygon_{vendor}
         WHERE instrument_id = ANY($1)
         """
 

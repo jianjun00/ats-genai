@@ -11,7 +11,7 @@ from datetime import datetime, date
 from sqlalchemy import text
 
 from core.dao.base.vendor_dao import MarketDataVendorDAO, VendorType
-from core.dao.market_data.daily_prices_dao import DailyPricesDAO
+from core.dao.market_data.daily_price_polygon_dao import DailyPricesDAO
 from core.platform.logging.logger_config import get_logger
 
 
@@ -25,7 +25,7 @@ class TiingoDAO(MarketDataVendorDAO):
 
     def __init__(self):
         super().__init__("tiingo_data", VendorType.TIINGO)
-        self.daily_prices_dao = DailyPricesDAO()
+        self.daily_price_polygon_dao = DailyPricesDAO()
         self.logger = get_logger(__name__)
 
     def get_vendor_config(self) -> Dict[str, Any]:
@@ -48,7 +48,7 @@ class TiingoDAO(MarketDataVendorDAO):
         """Get Tiingo data table schema."""
         return {
             "id": "SERIAL PRIMARY KEY",
-            "data_type": "VARCHAR(50) NOT NULL",  # 'daily_prices', 'dividends', 'splits', etc.
+            "data_type": "VARCHAR(50) NOT NULL",  # 'daily_price_polygon', 'dividends', 'splits', etc.
             "symbol": "VARCHAR(10) NOT NULL",
             "date": "DATE NOT NULL",
             "data": "JSONB NOT NULL",  # Store all Tiingo-specific data
@@ -120,7 +120,7 @@ class TiingoDAO(MarketDataVendorDAO):
             self.logger.error(f"Invalid price data for {symbol} on {date}")
             return None
 
-        return self.daily_prices_dao.create(price_data)
+        return self.daily_price_polygon_dao.create(price_data)
 
     def get_daily_price(
         self,
@@ -139,7 +139,7 @@ class TiingoDAO(MarketDataVendorDAO):
         Returns:
             Price record or None
         """
-        return self.daily_prices_dao.get_price_by_symbol_date(symbol, date, vendor="tiingo")
+        return self.daily_price_polygon_dao.get_price_by_symbol_date(symbol, date, vendor="tiingo")
 
     def get_price_by_instrument(
         self,
@@ -157,7 +157,7 @@ class TiingoDAO(MarketDataVendorDAO):
             Price record or None
         """
         query = f"""
-            SELECT * FROM {self.daily_prices_dao.table_name}
+            SELECT * FROM {self.daily_price_polygon_dao.table_name}
             WHERE instrument_id = :instrument_id AND date = :date AND vendor = 'tiingo'
             LIMIT 1
         """
@@ -167,7 +167,7 @@ class TiingoDAO(MarketDataVendorDAO):
             "date": date if isinstance(date, date) else date.date()
         }
 
-        results = self.daily_prices_dao.execute_query(query, params)
+        results = self.daily_price_polygon_dao.execute_query(query, params)
         return results[0] if results else None
 
     def list_prices_by_instrument(self, instrument_id: int) -> List[Dict[str, Any]]:
@@ -181,14 +181,14 @@ class TiingoDAO(MarketDataVendorDAO):
             List of price records
         """
         query = f"""
-            SELECT * FROM {self.daily_prices_dao.table_name}
+            SELECT * FROM {self.daily_price_polygon_dao.table_name}
             WHERE instrument_id = :instrument_id AND vendor = 'tiingo'
             ORDER BY date
         """
 
-        return self.daily_prices_dao.execute_query(query, {"instrument_id": instrument_id})
+        return self.daily_price_polygon_dao.execute_query(query, {"instrument_id": instrument_id})
 
-    def batch_insert_daily_prices(self, price_records: List[Dict[str, Any]]) -> int:
+    def batch_insert_daily_price_polygon(self, price_records: List[Dict[str, Any]]) -> int:
         """
         Batch insert daily price records.
 
@@ -214,7 +214,7 @@ class TiingoDAO(MarketDataVendorDAO):
             else:
                 self.logger.warning(f"Skipping invalid price record: {record}")
 
-        return self.daily_prices_dao.bulk_insert(enhanced_records)
+        return self.daily_price_polygon_dao.bulk_insert(enhanced_records)
 
     # Dividend Operations (replacing dividend_tiingo_dao.py)
     def insert_dividend(

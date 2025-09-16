@@ -125,7 +125,7 @@ class RealtimeBatchValidator:
                 SELECT DISTINCT symbol FROM dev_one_minute_live_fmp
                 WHERE timestamp::date = $1
             ) symbols
-            LEFT JOIN dev_instruments i ON symbols.symbol = i.symbol
+            LEFT JOIN dev_instrument i ON symbols.symbol = i.symbol
             ORDER BY symbol
             LIMIT 500  -- Limit for processing time
         """

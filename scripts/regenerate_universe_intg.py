@@ -45,7 +45,7 @@ def regenerate_high_volume_universe():
                 )
                 SELECT COUNT(*) as qualifying_symbols
                 FROM comprehensive_volume_analysis va
-                INNER JOIN intg_instruments i ON va.symbol = i.symbol
+                INNER JOIN intg_instrument i ON va.symbol = i.symbol
             """)
 
             qualifying_count = cursor.fetchone()['qualifying_symbols']
@@ -90,7 +90,7 @@ def regenerate_high_volume_universe():
                     NULL as end_at,  -- All currently active
                     i.id as instrument_id
                 FROM comprehensive_volume_analysis va
-                INNER JOIN intg_instruments i ON va.symbol = i.symbol
+                INNER JOIN intg_instrument i ON va.symbol = i.symbol
             """)
 
             active_members = cursor.rowcount
@@ -113,17 +113,17 @@ def regenerate_high_volume_universe():
                     cursor.execute("""
                         INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
                         SELECT 2, %s, %s::timestamp, %s::timestamp, i.id
-                        FROM intg_instruments i
+                        FROM intg_instrument i
                         WHERE i.symbol = %s
                     """, (symbol, start_date, end_date, symbol))
                     print(f"   📉 Added historical exit: {symbol} ({reason})")
                 except Exception as e:
                     # Create instrument if missing
-                    cursor.execute("SELECT MAX(id) FROM intg_instruments")
+                    cursor.execute("SELECT MAX(id) FROM intg_instrument")
                     max_id = cursor.fetchone()['max'] or 90000
                     new_id = max_id + 1
 
-                    cursor.execute("INSERT INTO intg_instruments (id, symbol) VALUES (%s, %s)", (new_id, symbol))
+                    cursor.execute("INSERT INTO intg_instrument (id, symbol) VALUES (%s, %s)", (new_id, symbol))
                     cursor.execute("""
                         INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
                         VALUES (2, %s, %s::timestamp, %s::timestamp, %s)
@@ -144,7 +144,7 @@ def regenerate_high_volume_universe():
                     cursor.execute("""
                         INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
                         SELECT 2, %s, %s::timestamp, NULL, i.id
-                        FROM intg_instruments i
+                        FROM intg_instrument i
                         WHERE i.symbol = %s
                         AND NOT EXISTS (
                             SELECT 1 FROM intg_universe_membership um

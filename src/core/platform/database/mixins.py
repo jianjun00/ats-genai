@@ -133,7 +133,7 @@ class DatabaseMixin:
             base_name: Base table name (e.g., "instruments")
 
         Returns:
-            Environment-prefixed table name (e.g., "dev_instruments")
+            Environment-prefixed table name (e.g., "dev_instrument")
         """
         return self.settings.get_table_name(base_name)
 

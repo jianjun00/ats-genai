@@ -15,7 +15,7 @@ def check_metrics_availability():
     try:
         response = requests.get(
             "http://localhost:9090/api/v1/query",
-            params={"query": "ats_daily_prices_coverage_percent"}
+            params={"query": "ats_daily_price_polygon_coverage_percent"}
         )
         if response.status_code == 200:
             data = response.json()
@@ -140,11 +140,11 @@ def verify_dashboard_panels():
 
         # Check metrics used
         expected_metrics = [
-            "ats_daily_prices_missing_symbols_total",
-            "ats_daily_prices_missing_records_total",
-            "ats_daily_prices_coverage_percent",
-            "ats_daily_prices_bad_symbols_total",
-            "ats_daily_prices_bad_records_total"
+            "ats_daily_price_polygon_missing_symbols_total",
+            "ats_daily_price_polygon_missing_records_total",
+            "ats_daily_price_polygon_coverage_percent",
+            "ats_daily_price_polygon_bad_symbols_total",
+            "ats_daily_price_polygon_bad_records_total"
         ]
 
         dashboard_str = json.dumps(dashboard_config)
@@ -167,7 +167,7 @@ def check_pushgateway():
         response = requests.get("http://localhost:9091/metrics", timeout=5)
         if response.status_code == 200:
             content = response.text
-            if "ats_daily_prices" in content:
+            if "ats_daily_price_polygon" in content:
                 print("✅ Pushgateway has our daily prices metrics")
                 return True
             else:
@@ -184,7 +184,7 @@ def main():
     # Step 1: Verify metrics are available
     print("\n📊 Step 1: Checking metrics availability...")
     if not check_metrics_availability():
-        print("❌ Please run: python3 scripts/daily_prices_quality_metrics.py --push-metrics")
+        print("❌ Please run: python3 scripts/daily_price_polygon_quality_metrics.py --push-metrics")
         return False
 
     # Step 2: Check Pushgateway

@@ -161,7 +161,7 @@ class MarketFactorCalculator:
         # Try Polygon first, then Tiingo
         for vendor in ['polygon', 'tiingo']:
             try:
-                table_name = self.env.get_table_name(f'daily_prices_{vendor}')
+                table_name = self.env.get_table_name(f'daily_price_polygon_{vendor}')
 
                 async with self.pool.acquire() as conn:
                     rows = await conn.fetch(f"""
@@ -245,7 +245,7 @@ class SectorFactorCalculator:
         """Get price data for instrument."""
         for vendor in ['polygon', 'tiingo']:
             try:
-                table_name = self.env.get_table_name(f'daily_prices_{vendor}')
+                table_name = self.env.get_table_name(f'daily_price_polygon_{vendor}')
 
                 async with self.pool.acquire() as conn:
                     rows = await conn.fetch(f"""
@@ -335,7 +335,7 @@ class StyleFactorCalculator:
 
         for vendor in ['polygon', 'tiingo']:
             try:
-                table_name = self.env.get_table_name(f'daily_prices_{vendor}')
+                table_name = self.env.get_table_name(f'daily_price_polygon_{vendor}')
 
                 async with self.pool.acquire() as conn:
                     rows = await conn.fetch(f"""
@@ -687,7 +687,7 @@ class ResidualReturnCalculator:
 
         for vendor in ['polygon', 'tiingo']:
             try:
-                table_name = self.env.get_table_name(f'daily_prices_{vendor}')
+                table_name = self.env.get_table_name(f'daily_price_polygon_{vendor}')
 
                 async with self.pool.acquire() as conn:
                     rows = await conn.fetch(f"""

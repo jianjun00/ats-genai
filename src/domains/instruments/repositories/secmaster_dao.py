@@ -6,7 +6,7 @@ class SecMasterDAO:
     def __init__(self, env: Environment):
         self.env = env
         self.universe_membership_table = self.env.get_table_name('universe_membership')
-        self.daily_prices_table = self.env.get_table_name('daily_prices')
+        self.daily_price_polygon_table = self.env.get_table_name('daily_price_polygon')
         self.db_url = self.env.get_database_url()
 
     async def get_spy_membership_events(self) -> List[Dict[str, Any]]:
@@ -32,7 +32,7 @@ class SecMasterDAO:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     f"""
-                    SELECT instrument_id, close FROM {self.daily_prices_table}
+                    SELECT instrument_id, close FROM {self.daily_price_polygon_table}
                     WHERE date = $1 AND instrument_id = ANY($2)
                     """, as_of_date, instrument_ids
                 )
@@ -46,7 +46,7 @@ class SecMasterDAO:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     f"""
-                    SELECT instrument_id, market_cap FROM {self.daily_prices_table}
+                    SELECT instrument_id, market_cap FROM {self.daily_price_polygon_table}
                     WHERE date = $1 AND instrument_id = ANY($2)
                     """, as_of_date, instrument_ids
                 )
@@ -60,7 +60,7 @@ class SecMasterDAO:
             async with pool.acquire() as conn:
                 price = await conn.fetchval(
                     f"""
-                    SELECT close FROM {self.daily_prices_table}
+                    SELECT close FROM {self.daily_price_polygon_table}
                     WHERE instrument_id = $1 AND date <= $2
                     ORDER BY date DESC LIMIT 1
                     """, instrument_id, as_of_date
@@ -75,7 +75,7 @@ class SecMasterDAO:
             async with pool.acquire() as conn:
                 mc = await conn.fetchval(
                     f"""
-                    SELECT market_cap FROM {self.daily_prices_table}
+                    SELECT market_cap FROM {self.daily_price_polygon_table}
                     WHERE instrument_id = $1 AND date <= $2
                     ORDER BY date DESC LIMIT 1
                     """, instrument_id, as_of_date
@@ -91,7 +91,7 @@ class SecMasterDAO:
                 avg_dv = await conn.fetchval(
                     f"""
                     SELECT AVG(close * volume) FROM (
-                        SELECT close, volume FROM {self.daily_prices_table}
+                        SELECT close, volume FROM {self.daily_price_polygon_table}
                         WHERE instrument_id = $1 AND date <= $2
                         ORDER BY date DESC LIMIT $3
                     ) sub

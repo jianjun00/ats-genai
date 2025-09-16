@@ -181,7 +181,7 @@ class TestSecMasterDAO:
 
         # Verify SQL structure
         call_args = mock_connection.fetch.call_args[0][0]
-        assert "SELECT instrument_id, market_cap FROM test_daily_prices" in call_args
+        assert "SELECT instrument_id, market_cap FROM test_daily_price_polygon" in call_args
         assert "WHERE date = $1 AND instrument_id = ANY($2)" in call_args
 
     @pytest.mark.asyncio
@@ -209,7 +209,7 @@ class TestSecMasterDAO:
 
         # Verify query structure - should get most recent price on or before date
         call_args = mock_connection.fetchval.call_args[0][0]
-        assert "SELECT close FROM test_daily_prices" in call_args
+        assert "SELECT close FROM test_daily_price_polygon" in call_args
         assert "WHERE instrument_id = $1 AND date <= $2" in call_args
         assert "ORDER BY date DESC LIMIT 1" in call_args
 
@@ -261,7 +261,7 @@ class TestSecMasterDAO:
 
         # Verify query structure
         call_args = mock_connection.fetchval.call_args[0][0]
-        assert "SELECT market_cap FROM test_daily_prices" in call_args
+        assert "SELECT market_cap FROM test_daily_price_polygon" in call_args
         assert "WHERE instrument_id = $1 AND date <= $2" in call_args
         assert "ORDER BY date DESC LIMIT 1" in call_args
 
@@ -373,7 +373,7 @@ class TestSecMasterDAO:
         mock_connection.fetch.return_value = []
 
         # Test with potentially malicious data
-        malicious_date = "2023-01-01'; DROP TABLE test_daily_prices; --"
+        malicious_date = "2023-01-01'; DROP TABLE test_daily_price_polygon; --"
         malicious_ids = [1, 2, 3]
 
         with patch(\'domains.market_data.repositories.secmaster_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
@@ -396,13 +396,13 @@ class TestSecMasterDAO:
 
         assert dao.env == mock_environment
         assert dao.universe_membership_table == "test_universe_membership"
-        assert dao.daily_prices_table == "test_daily_prices"
+        assert dao.daily_price_polygon_table == "test_daily_price_polygon"
         assert dao.db_url == "postgresql://test:test@localhost/test_db"
 
         # Verify environment methods were called correctly
         call_args_list = mock_environment.get_table_name.call_args_list
         actual_calls = [call.args[0] for call in call_args_list]
-        assert actual_calls == ['universe_membership', 'daily_prices']
+        assert actual_calls == ['universe_membership', 'daily_price_polygon']
         mock_environment.get_database_url.assert_called_once()
 
     @pytest.mark.asyncio

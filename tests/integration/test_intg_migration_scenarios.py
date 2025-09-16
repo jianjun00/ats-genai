@@ -103,6 +103,8 @@ class TestMigrationDecisionTree:
             # Clear all INTG tables
             cur.execute("DELETE FROM intg_daily_price;")
             cur.execute("DELETE FROM intg_fundamental_comprehensive;")
+            cur.execute("DELETE FROM intg_daily_price_polygon;")
+            cur.execute("DELETE FROM intg_fundamentals_comprehensive;")
             cur.execute("DELETE FROM intg_instrument;")
 
             conn.commit()
@@ -127,6 +129,7 @@ class TestMigrationDecisionTree:
             # Add test price data
             cur.execute("""
                 INSERT INTO intg_daily_price (symbol, date, vendor, open_price, close_price, volume)
+                INSERT INTO intg_daily_price_polygon (symbol, date, vendor, open_price, close_price, volume)
                 VALUES ('TEST_MIGRATION', CURRENT_DATE - 1, 'test_vendor', 100.0, 105.0, 1000000)
                 ON CONFLICT (symbol, date, vendor) DO NOTHING;
             """)

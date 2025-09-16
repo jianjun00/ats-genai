@@ -31,7 +31,7 @@ async def get_sample_instruments(limit: int = 5):
     conn = await asyncpg.connect(**DATABASE_CONFIG)
     try:
         rows = await conn.fetch(
-            "SELECT symbol FROM dev_instruments WHERE symbol ~ '^[A-Z]+$' AND LENGTH(symbol) <= 4 ORDER BY symbol LIMIT $1",
+            "SELECT symbol FROM dev_instrument WHERE symbol ~ '^[A-Z]+$' AND LENGTH(symbol) <= 4 ORDER BY symbol LIMIT $1",
             limit
         )
         return [row['symbol'] for row in rows]

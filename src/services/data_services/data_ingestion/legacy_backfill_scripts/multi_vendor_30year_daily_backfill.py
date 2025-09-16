@@ -11,7 +11,7 @@ Features:
 - Enhanced checkpoint system for resume capability
 - Parallel vendor processing
 - Idempotent operations
-- All US instruments from dev_instruments table
+- All US instruments from dev_instrument table
 - Intelligent progress tracking and recovery
 """
 
@@ -235,11 +235,11 @@ class MultiVendorDailyBackfiller:
             raise
 
     async def get_us_instruments(self, limit: int = None) -> List[Dict[str, Any]]:
-        """Get list of active US instruments from dev_instruments table."""
+        """Get list of active US instruments from dev_instrument table."""
         try:
             query = """
             SELECT id, symbol, name, exchange, active
-            FROM dev_instruments
+            FROM dev_instrument
             WHERE active = true
               AND symbol ~ '^[A-Z]{1,5}$'  -- US symbol pattern
               AND exchange IN ('NYSE', 'NASDAQ', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
@@ -413,7 +413,7 @@ class MultiVendorDailyBackfiller:
         if not prices:
             return 0
 
-        table_name = f"dev_daily_prices_{vendor}"
+        table_name = f"dev_daily_price_polygon_{vendor}"
 
         try:
             async with self.db_pool.acquire() as conn:

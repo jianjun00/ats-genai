@@ -25,7 +25,7 @@ class DailyPricesDAO(BaseDAO):
     """
 
     def __init__(self):
-        super().__init__("daily_prices")
+        super().__init__("daily_price_polygon")
         self.validator = MarketDataValidator()
         self.logger = get_logger(__name__)
 

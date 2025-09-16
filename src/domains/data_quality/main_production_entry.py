@@ -281,7 +281,7 @@ class ProductionDataQualityFramework:
             while current_date <= end_date:
                 try:
                     # Get price data from vendor APIs
-                    price_data = await self.components['vendor_client'].get_daily_prices(
+                    price_data = await self.components['vendor_client'].get_daily_price_polygon(
                         symbol, current_date, current_date
                     )
 

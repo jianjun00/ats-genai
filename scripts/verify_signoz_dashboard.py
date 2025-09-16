@@ -45,11 +45,11 @@ class SignOzDashboardVerifier:
 
         # Test metrics using Prometheus-compatible endpoint
         metrics_to_test = [
-            "ats_daily_prices_coverage_percent",
-            "ats_daily_prices_missing_symbols_total",
-            "ats_daily_prices_missing_records_total",
-            "ats_daily_prices_bad_symbols_total",
-            "ats_daily_prices_bad_records_total"
+            "ats_daily_price_polygon_coverage_percent",
+            "ats_daily_price_polygon_missing_symbols_total",
+            "ats_daily_price_polygon_missing_records_total",
+            "ats_daily_price_polygon_bad_symbols_total",
+            "ats_daily_price_polygon_bad_records_total"
         ]
 
         available_metrics = []
@@ -94,7 +94,7 @@ class SignOzDashboardVerifier:
                 "step": 60,
                 "queries": [
                     {
-                        "query": "ats_daily_prices_coverage_percent",
+                        "query": "ats_daily_price_polygon_coverage_percent",
                         "name": "coverage_test",
                         "legend": "Coverage Test"
                     }
@@ -149,7 +149,7 @@ class SignOzDashboardVerifier:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_missing_symbols_total",
+                                    "query": "ats_daily_price_polygon_missing_symbols_total",
                                     "legend": "{{vendor}} Missing Symbols",
                                     "disabled": False
                                 }
@@ -164,7 +164,7 @@ class SignOzDashboardVerifier:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_missing_records_total",
+                                    "query": "ats_daily_price_polygon_missing_records_total",
                                     "legend": "{{vendor}} Missing Records",
                                     "disabled": False
                                 }
@@ -179,7 +179,7 @@ class SignOzDashboardVerifier:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_coverage_percent",
+                                    "query": "ats_daily_price_polygon_coverage_percent",
                                     "legend": "{{vendor}} Coverage %",
                                     "disabled": False
                                 }
@@ -194,7 +194,7 @@ class SignOzDashboardVerifier:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_bad_symbols_total",
+                                    "query": "ats_daily_price_polygon_bad_symbols_total",
                                     "legend": "{{vendor}} Bad Symbols",
                                     "disabled": False
                                 }
@@ -209,7 +209,7 @@ class SignOzDashboardVerifier:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_coverage_percent",
+                                    "query": "ats_daily_price_polygon_coverage_percent",
                                     "legend": "{{vendor}} Coverage %",
                                     "disabled": False
                                 }
@@ -224,7 +224,7 @@ class SignOzDashboardVerifier:
                             "queryType": "promql",
                             "promql": [
                                 {
-                                    "query": "ats_daily_prices_missing_symbols_total",
+                                    "query": "ats_daily_price_polygon_missing_symbols_total",
                                     "legend": "{{vendor}} Missing Symbols",
                                     "disabled": False
                                 }

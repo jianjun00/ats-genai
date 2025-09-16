@@ -28,6 +28,7 @@ services:
     volumes:
       - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./grafana/ats_coverage_alerts.yml:/etc/prometheus/ats_coverage_alerts.yml
+      - ./grafana/ats_data_quality_agent_alerts.yml:/etc/prometheus/ats_data_quality_agent_alerts.yml
       - prometheus_data:/prometheus
     networks:
       - ats-monitoring
@@ -43,11 +44,12 @@ services:
     expose:
       - 3000
     ports:
-      - "3000:3000"
+      - "3030:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/ats-coverage-dashboard.json:/etc/grafana/provisioning/dashboards/ats-coverage-dashboard.json
+      - ./grafana/ats-data-quality-agent-dashboard.json:/etc/grafana/provisioning/dashboards/ats-data-quality-agent-dashboard.json
     networks:
       - ats-monitoring
     depends_on:

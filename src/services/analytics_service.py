@@ -27,18 +27,48 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, List, Any
 
+# Agent imports
+from agents.data_quality_agent import DataQualityAgent
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import Data Quality Agent
+# Simple Agent State Manager
+class SimpleAgentState:
+    def __init__(self):
+        self.monitoring_active = False
+        self.active_workflows = 0
+        self.pending_issues = 0
+        self.last_activity = datetime.now()
+    
+    def start_monitoring(self):
+        self.monitoring_active = True
+        self.last_activity = datetime.now()
+        return True
+    
+    def stop_monitoring(self):
+        self.monitoring_active = False
+        self.active_workflows = 0
+        self.pending_issues = 0
+        self.last_activity = datetime.now()
+        return True
+
+# Initialize simple agent state
+AGENT_AVAILABLE = True
+simple_agent_state = SimpleAgentState()
+logger.info("✅ Simple Data Quality Agent initialized")
+
+# Import Tagging System
 try:
-    from agents.data_quality_agent import DataQualityAgent
-    AGENT_AVAILABLE = True
-    logger.info("✅ Data Quality Agent loaded successfully")
+    from domains.tagging.services.tag_service import TagService
+    from domains.tagging.repositories.tag_repository import TagRepository
+    from domains.tagging.api.tag_api import tag_router
+    TAGGING_AVAILABLE = True
+    logger.info("✅ Tagging System loaded successfully")
 except ImportError as e:
-    AGENT_AVAILABLE = False
-    logger.warning(f"⚠️ Data Quality Agent not available: {e}")
+    TAGGING_AVAILABLE = False
+    logger.warning(f"⚠️ Tagging System not available: {e}")
 
 # Import core components
 try:
@@ -122,11 +152,19 @@ class UnifiedAnalyticsService:
             self.data_quality_agent = DataQualityAgent()
             self.agent_monitoring_task = None
             logger.info("🤖 Data Quality Agent initialized")
+        
+        # Initialize Tagging Service
+        if TAGGING_AVAILABLE:
+            self.tagging_enabled = True
+            logger.info("🏷️ Tagging System initialized")
+        else:
+            self.tagging_enabled = False
 
         logger.info("🚀 Unified Analytics Service initialized")
         logger.info(f"   Type system: {'✅ Enabled' if self.type_system_enabled else '❌ Disabled'}")
         logger.info(f"   Ray computing: {'✅ Enabled' if self.ray_enabled else '❌ Disabled'}")
         logger.info(f"   Agent system: {'✅ Enabled' if self.agent_enabled else '❌ Disabled'}")
+        logger.info(f"   Tagging system: {'✅ Enabled' if getattr(self, 'tagging_enabled', False) else '❌ Disabled'}")
         logger.info(f"   Multi-panel visualization: {'✅ Enabled' if self.visualization_enabled else '❌ Disabled'}")
 
         if self.type_system_enabled:
@@ -2495,6 +2533,7 @@ class UnifiedAnalyticsService:
                 <button onclick="loadNewsEvents()">📰 News Events</button>
                 <button onclick="loadEarningsEvents()">📊 Earnings Events</button>
                 <button onclick="loadGapEvents()">⚡ Gap Events</button>
+                <button onclick="loadXAIFinancialEvents()">🔮 AI Financial Events (xAI + Grok)</button>
                 <button onclick="loadMultiPanelVisualization()">🎨 Multi-Panel Trading Charts</button>
                 <button onclick="loadRayAnalytics()">⚡ Distributed Analytics</button>
 
@@ -3708,6 +3747,253 @@ async function loadUniverseAnalytics() {
                     } catch (error) {
                         document.getElementById('analysis-content').innerHTML =
                             '<h3>⚡ Gap Events</h3><p style="color: red;">Error loading gap events: ' + error.message + '</p>';
+                    }
+                }
+
+                async function loadXAIFinancialEvents() {
+                    // Get filter values
+                    const symbolFilter = document.getElementById('symbol-filter')?.value || '';
+                    const startDateFilter = document.getElementById('start-date-filter')?.value || '';
+                    const endDateFilter = document.getElementById('end-date-filter')?.value || '';
+                    const limit = 50;
+
+                    // Show loading message
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>🔮 xAI Financial Events</h3><p>Loading financial events from xAI integration...</p>';
+
+                    try {
+                        // Build query parameters
+                        const params = new URLSearchParams();
+                        params.append('limit', limit);
+                        if (symbolFilter) params.append('symbol', symbolFilter);
+                        if (startDateFilter) params.append('start_date', startDateFilter);
+                        if (endDateFilter) params.append('end_date', endDateFilter);
+
+                        // Fetch financial events
+                        const response = await fetch(`/financial_events?${params.toString()}`);
+                        const data = await response.json();
+
+                        let html = '';
+
+                        if (data.success && data.events && data.events.length > 0) {
+                            const appliedFilters = data.query_params || {};
+                            
+                            html = `
+                                <h3>🔮 AI Financial Events Analysis (xAI + Grok)</h3>
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                                    <h4 style="margin: 0 0 10px 0;">📊 Event Summary (${data.count} events)</h4>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">`;
+
+                            // Get summary stats
+                            const summaryResponse = await fetch('/financial_events/summary');
+                            const summaryData = await summaryResponse.json();
+                            
+                            if (summaryData.success && summaryData.summary.length > 0) {
+                                const stats = summaryData.summary[0];
+                                html += `
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.total_events || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">Total Events</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.high_impact_events || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">High Impact</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.unique_symbols || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">Unique Symbols</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 24px; font-weight: bold;">${stats.events_last_week || 0}</div>
+                                        <div style="font-size: 12px; opacity: 0.9;">This Week</div>
+                                    </div>`;
+                            }
+                            
+                            html += `
+                                    </div>
+                                </div>
+
+                                <!-- Filter Controls -->
+                                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                        <div>
+                                            <label for="xai-symbol-filter" style="display: block; margin-bottom: 5px; font-weight: 500;">Symbol Filter:</label>
+                                            <input type="text" id="xai-symbol-filter" placeholder="e.g., AAPL" 
+                                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+                                                value="${appliedFilters.symbol || ''}">
+                                        </div>
+                                        <div>
+                                            <label for="xai-event-type-filter" style="display: block; margin-bottom: 5px; font-weight: 500;">Event Type:</label>
+                                            <select id="xai-event-type-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">All Types</option>
+                                                <option value="earnings">Earnings</option>
+                                                <option value="fed_announcement">Fed Announcements</option>
+                                                <option value="stock_event">Stock Events</option>
+                                                <option value="economic_indicator">Economic Indicators</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="xai-impact-filter" style="display: block; margin-bottom: 5px; font-weight: 500;">Impact Level:</label>
+                                            <select id="xai-impact-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="">All Levels</option>
+                                                <option value="high">High Impact</option>
+                                                <option value="medium">Medium Impact</option>
+                                                <option value="low">Low Impact</option>
+                                            </select>
+                                        </div>
+                                        <div style="display: flex; align-items: end;">
+                                            <button onclick="applyXAIFilters()" 
+                                                style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                                                Apply Filters
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Events Table -->
+                                <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                                    <div style="background: #667eea; color: white; padding: 15px;">
+                                        <h4 style="margin: 0;">🔮 Financial Events from xAI</h4>
+                                    </div>
+                                    <div style="overflow-x: auto;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead style="background: #f8f9fa;">
+                                                <tr>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Date</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Symbol</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Type</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Impact</th>
+                                                    <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Details</th>
+                                                    <th style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">Confidence</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+
+                            data.events.forEach((event, index) => {
+                                const impactColor = event.impact_level === 'high' ? '#dc3545' : 
+                                                  event.impact_level === 'medium' ? '#fd7e14' : '#28a745';
+                                const sentimentIcon = event.sentiment === 'positive' ? '📈' : 
+                                                    event.sentiment === 'negative' ? '📉' : '➖';
+                                const confidencePercent = Math.round((event.confidence_score || 0) * 100);
+                                
+                                html += `
+                                    <tr style="border-bottom: 1px solid #f1f3f4;">
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <div style="font-weight: 500;">${event.event_date}</div>
+                                            <div style="font-size: 12px; color: #666;">${event.event_time || 'N/A'}</div>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-weight: 500;">
+                                                ${event.company_symbol || 'MARKET'}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <span style="font-size: 12px; background: #f5f5f5; color: #333; padding: 4px 8px; border-radius: 4px;">
+                                                ${event.event_type}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top;">
+                                            <span style="color: ${impactColor}; font-weight: 500; text-transform: uppercase; font-size: 12px;">
+                                                ${event.impact_level}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; vertical-align: top; max-width: 300px;">
+                                            <div style="margin-bottom: 8px;">${sentimentIcon} ${event.details}</div>
+                                            ${event.sentiment ? `<div style="font-size: 12px; color: #666;">Sentiment: ${event.sentiment}</div>` : ''}
+                                        </td>
+                                        <td style="padding: 12px; text-align: center; vertical-align: top;">
+                                            <div style="background: ${confidencePercent >= 80 ? '#d4edda' : confidencePercent >= 60 ? '#fff3cd' : '#f8d7da'}; 
+                                                       color: ${confidencePercent >= 80 ? '#155724' : confidencePercent >= 60 ? '#856404' : '#721c24'};
+                                                       padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                                                ${confidencePercent}%
+                                            </div>
+                                        </td>
+                                    </tr>`;
+                            });
+
+                            html += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>`;
+                        } else {
+                            html = '<h3>🔮 xAI Financial Events</h3>' +
+                                '<div style="text-align: center; padding: 40px;">' +
+                                    '<p>No financial events found. Try expanding your date range or clearing filters.</p>' +
+                                    '<button onclick="extractNewEvents()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 10px;">' +
+                                        'Extract New Events from xAI' +
+                                    '</button>' +
+                                '</div>';
+                        }
+
+                        document.getElementById('analysis-content').innerHTML = html;
+
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>🔮 xAI Financial Events</h3><p style="color: red;">Error loading financial events: ' + error.message + '</p>';
+                    }
+                }
+
+                function applyXAIFilters() {
+                    const symbolFilter = document.getElementById('xai-symbol-filter').value.trim();
+                    const eventTypeFilter = document.getElementById('xai-event-type-filter').value;
+                    const impactFilter = document.getElementById('xai-impact-filter').value;
+                    
+                    // Build query parameters
+                    const params = new URLSearchParams();
+                    params.append('limit', 50);
+                    if (symbolFilter) params.append('symbol', symbolFilter);
+                    if (eventTypeFilter) params.append('event_type', eventTypeFilter);
+                    if (impactFilter) params.append('impact_level', impactFilter);
+
+                    // Reload with filters
+                    fetch(`/financial_events?${params.toString()}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            // Reload the page content with filtered results
+                            loadXAIFinancialEvents();
+                        })
+                        .catch(error => {
+                            console.error('Error applying filters:', error);
+                        });
+                }
+
+                async function extractNewEvents() {
+                    // Show loading message
+                    document.getElementById('analysis-content').innerHTML =
+                        '<h3>🔮 xAI Financial Events</h3><p>Extracting new events from xAI... This may take a moment.</p>';
+                    
+                    try {
+                        const extractData = {
+                            start_date: '2025-09-01',
+                            end_date: '2025-09-13',
+                            symbols: ['AAPL', 'TSLA', 'MSFT', 'GOOGL', 'AMZN'],
+                            source: 'combined', // Use both xAI and Grok
+                            force_refresh: false
+                        };
+
+                        const response = await fetch('/financial_events/extract', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(extractData)
+                        });
+
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Show detailed success message for multi-source extraction
+                            const sourceInfo = result.sources_used ? ` from ${result.sources_used.join(' + ')}` : '';
+                            const uniqueInfo = result.events_unique ? ` (${result.events_unique} unique)` : '';
+                            alert(`Successfully extracted ${result.events_extracted} events${uniqueInfo}${sourceInfo} and stored ${result.events_stored} new events!`);
+                            loadXAIFinancialEvents(); // Reload the page
+                        } else {
+                            throw new Error(result.error || 'Unknown error during extraction');
+                        }
+                    } catch (error) {
+                        document.getElementById('analysis-content').innerHTML =
+                            '<h3>🔮 xAI Financial Events</h3><p style="color: red;">Error extracting events: ' + error.message + '</p>';
                     }
                 }
 
@@ -5071,11 +5357,21 @@ async function loadUniverseAnalytics() {
 # HTTP REQUEST HANDLER (from analytics_service.py)
 # ==============================================
 
+# Global shared analytics service instance
+_shared_analytics_service = None
+
+def get_shared_analytics_service():
+    """Get or create shared analytics service instance"""
+    global _shared_analytics_service
+    if _shared_analytics_service is None:
+        _shared_analytics_service = UnifiedAnalyticsService()
+    return _shared_analytics_service
+
 class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the unified analytics service."""
 
     def __init__(self, *args, **kwargs):
-        self.analytics_service = UnifiedAnalyticsService()
+        self.analytics_service = get_shared_analytics_service()
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
@@ -5143,8 +5439,20 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_table_distributions()
             elif self.path == '/data-quality/dashboard' or self.path == '/data-quality':
                 self._serve_data_quality_dashboard()
-            elif self.path == '/data-quality/api/issues':
-                self._serve_data_quality_issues()
+            elif self.path.startswith('/data-quality/api/issues/'):
+                self._serve_data_quality_issues_with_tags()
+            elif self.path.startswith('/data-quality/api/issues'):
+                # Check if tag filtering parameters are present
+                from urllib.parse import urlparse, parse_qs
+                parsed_url = urlparse(self.path)
+                query_params = parse_qs(parsed_url.query)
+                
+                # If tag filtering parameters exist, use enhanced version
+                if (query_params.get('tag_ids') or query_params.get('symbols') or 
+                    query_params.get('date_from') or query_params.get('categories')):
+                    self._serve_data_quality_issues_with_tags()
+                else:
+                    self._serve_data_quality_issues()
             elif self.path == '/agent/status':
                 self._serve_agent_status()
             elif self.path == '/agent/start':
@@ -5153,6 +5461,12 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self._serve_agent_stop()
             elif self.path.startswith('/agent/'):
                 self._serve_agent_endpoint()
+            elif self.path.startswith('/api/tags/'):
+                self._serve_tag_api()
+            elif self.path == '/available-tags':
+                self._serve_available_tags()
+            elif self.path.startswith('/financial_events'):
+                self._serve_financial_events()
             else:
                 self._serve_404()
 
@@ -6203,10 +6517,26 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         .score.excellent { background: linear-gradient(135deg, #27ae60, #229954); color: white; }
         .no-issues { background: linear-gradient(135deg, #27ae60, #229954); color: white; text-align: center; padding: 40px; border-radius: 12px; font-size: 1.3em; }
         .meta-item { display: inline-block; margin-right: 15px; }
+        .tag { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75em; font-weight: 500; margin: 2px; color: white; }
+        .tag.selected { background: #3498db; cursor: pointer; }
+        .tag.removable { background: #e74c3c; cursor: pointer; padding-right: 20px; position: relative; }
+        .tag.removable:hover { background: #c0392b; }
+        .tag.removable::after { content: '×'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 12px; }
+        .tag-option { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .tag-option:hover { background: #f8f9fa; }
+        .tag-option.selected { background: #e3f2fd; }
+        .issue-tags { margin-top: 8px; }
+        .issue-tags .tag { font-size: 0.7em; padding: 2px 6px; }
+        .tag-manager { margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; }
+        .tag-manager input { width: 100px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 3px; font-size: 0.8em; }
+        .tag-manager button { padding: 2px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75em; margin-left: 5px; }
+        .tag-manager .add-btn { background: #27ae60; color: white; }
+        .tag-manager .suggest-btn { background: #3498db; color: white; }
         @media (max-width: 768px) {
             .stats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; }
             .header { padding: 20px; }
             .header h1 { font-size: 1.8em; }
+            #tag-filters-panel div[style*="grid-template-columns"] { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -6214,9 +6544,37 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     <div class="header">
         <h1>🎯 ATS Data Quality Dashboard</h1>
         <p>Real-time monitoring of data quality issues in the ATS system</p>
-        <div style="margin-top: 15px;">
-            <span>Last updated: <span id="last-updated">-</span></span>
-            <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+        <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <span>Last updated: <span id="last-updated">-</span></span>
+                <span id="processing-method" style="margin-left: 15px; color: #f39c12;"></span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button class="refresh-btn" onclick="loadData(currentPage, currentPageSize, currentSeverityFilter, useRay)">🔄 Refresh</button>
+                <label style="color: white;">
+                    <input type="checkbox" id="ray-toggle" onchange="toggleRay()" style="margin-right: 5px;">
+                    ⚡ Ray Distributed
+                </label>
+                <select id="severity-filter" onchange="filterBySeverity()" style="padding: 4px 8px; border-radius: 4px;">
+                    <option value="">All Severities</option>
+                    <option value="critical">Critical Only</option>
+                    <option value="high">High Only</option>
+                    <option value="medium">Medium Only</option>
+                    <option value="low">Low Only</option>
+                </select>
+                <select id="page-size" onchange="changePageSize()" style="padding: 4px 8px; border-radius: 4px;">
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50" selected>50 per page</option>
+                    <option value="100">100 per page</option>
+                </select>
+                <button onclick="showTagFilters()" style="padding: 4px 12px; background: #9b59b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                    🏷️ Tag Filters
+                </button>
+                <button onclick="runAutoTaggingBatch()" style="padding: 4px 12px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                    🤖 Auto-Tag Batch
+                </button>
+            </div>
         </div>
         
         <!-- AGENT STATUS AND CONTROLS -->
@@ -6255,7 +6613,85 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                             style="padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
                         🚨 Alerts
                     </button>
+                    <button onclick="showAutoTaggingRules()" 
+                            style="padding: 6px 12px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; opacity: 0.9;">
+                        🤖 Auto-Tag Rules
+                    </button>
                 </div>
+            </div>
+        </div>
+        
+        <!-- TAG FILTERING PANEL -->
+        <div id="tag-filters-panel" style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.15); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); display: none;">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: white; margin: 0; font-size: 1.1em;">🏷️ Filter Issues by Tags</h3>
+                <button onclick="hideTagFilters()" style="background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                    ✕ Close
+                </button>
+            </div>
+            
+            <!-- Available Tags Display -->
+            <div style="margin-bottom: 20px;">
+                <label style="color: white; display: block; margin-bottom: 10px; font-weight: 500; font-size: 1.1em;">🏷️ Available Tags</label>
+                <div id="available-tags-container" style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto;">
+                    <div style="color: #6c757d; text-align: center; padding: 20px;">Loading tags...</div>
+                </div>
+            </div>
+            
+            <!-- Selected Tags -->
+            <div style="margin-bottom: 15px;">
+                <label style="color: white; display: block; margin-bottom: 8px; font-weight: 500;">Selected Tags</label>
+                <div id="selected-tags" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; min-height: 40px;">
+                    <div style="color: #6c757d; font-size: 0.9em; font-style: italic;">No tags selected</div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <!-- Symbol Filter -->
+                <div>
+                    <label style="color: white; display: block; margin-bottom: 5px; font-weight: 500;">Symbols</label>
+                    <input type="text" id="symbol-filter" placeholder="AAPL,MSFT,NVDA..." 
+                           style="width: 100%; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;" />
+                </div>
+                
+                <!-- Date Range -->
+                <div>
+                    <label style="color: white; display: block; margin-bottom: 5px; font-weight: 500;">Date Range</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="date" id="date-from" 
+                               style="flex: 1; padding: 6px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;" />
+                        <input type="date" id="date-to" 
+                               style="flex: 1; padding: 6px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white;" />
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <label style="color: white; display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="match-mode" value="ANY" checked />
+                        Match ANY tag
+                    </label>
+                    <label style="color: white; display: flex; align-items: center; gap: 5px;">
+                        <input type="radio" name="match-mode" value="ALL" />
+                        Match ALL tags
+                    </label>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="clearAllFilters()" 
+                            style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                        Clear All
+                    </button>
+                    <button onclick="applyTagFilters()" 
+                            style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Active Filter Summary -->
+            <div id="active-filters-summary" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 4px; color: white; font-size: 0.9em; display: none;">
+                <strong>Active Filters:</strong> <span id="filter-summary-text"></span>
             </div>
         </div>
     </div>
@@ -6291,14 +6727,75 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     <div class="issues">
         <h2>🔍 Detected Issues</h2>
         <div id="issues-list" class="loading">Loading data quality issues from database...</div>
+        
+        <!-- Pagination Controls -->
+        <div id="pagination-controls" style="margin-top: 20px; text-align: center; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                <div style="color: white;">
+                    <span id="pagination-info">-</span>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button id="first-page" onclick="goToPage(1)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">⏮️ First</button>
+                    <button id="prev-page" onclick="goToPage(currentPage - 1)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">⬅️ Prev</button>
+                    <span style="color: white; margin: 0 10px;">
+                        Page <span id="current-page-display">1</span> of <span id="total-pages-display">1</span>
+                    </span>
+                    <button id="next-page" onclick="goToPage(currentPage + 1)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Next ➡️</button>
+                    <button id="last-page" onclick="goToPage(999)" style="padding: 6px 10px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Last ⏭️</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        async function loadData() {
+        let currentPage = 1;
+        let currentPageSize = 50;
+        let currentSeverityFilter = null;
+        let useRay = false;
+        let availableTags = [];
+        let selectedTags = [];
+        let currentSymbolFilter = null;
+        let currentDateFromFilter = null;
+        let currentDateToFilter = null;
+        let currentMatchMode = 'ANY';
+        
+        async function loadData(page = 1, pageSize = 50, severityFilter = null, rayEnabled = false) {
             try {
+                currentPage = page;
+                currentPageSize = pageSize;
+                currentSeverityFilter = severityFilter;
+                useRay = rayEnabled;
+                
                 document.getElementById('issues-list').innerHTML = '<div class="loading">Refreshing data...</div>';
                 
-                const response = await fetch('/data-quality/api/issues');
+                // Build query parameters
+                const params = new URLSearchParams();
+                params.append('page', page.toString());
+                params.append('page_size', pageSize.toString());
+                if (severityFilter) params.append('severity', severityFilter);
+                if (rayEnabled) params.append('ray', 'true');
+                
+                // Add tag filtering parameters
+                if (selectedTags.length > 0) {
+                    params.append('tag_ids', selectedTags.map(tag => tag.id).join(','));
+                    params.append('match_mode', currentMatchMode);
+                }
+                if (currentSymbolFilter) {
+                    params.append('symbols', currentSymbolFilter);
+                }
+                if (currentDateFromFilter) {
+                    params.append('date_from', currentDateFromFilter);
+                }
+                if (currentDateToFilter) {
+                    params.append('date_to', currentDateToFilter);
+                }
+                
+                // Use the tag-enhanced endpoint if filters are active
+                const endpoint = (selectedTags.length > 0 || currentSymbolFilter || currentDateFromFilter || currentDateToFilter) 
+                    ? `/data-quality/api/issues/?${params}` 
+                    : `/data-quality/api/issues?${params}`;
+                    
+                const response = await fetch(endpoint);
                 const data = await response.json();
                 displayData(data);
             } catch (error) {
@@ -6307,16 +6804,44 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             }
         }
         
+        async function loadAgentStatus() {
+            try {
+                const response = await fetch('/agent/status');
+                const status = await response.json();
+                
+                const statusElement = document.getElementById('agent-status');
+                const startBtn = document.getElementById('start-agent-btn');
+                const stopBtn = document.getElementById('stop-agent-btn');
+                
+                if (status.status === 'active') {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Tools: ${status.tools_available || 0} | ID: ${status.agent_id || 'Unknown'}`;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                } else {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #6c757d;">IDLE</span> | Ready to start`;
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading agent status:', error);
+                document.getElementById('agent-status').innerHTML = `🤖 Agent: <span style="color: #f39c12;">ERROR</span> - ${error.message}`;
+            }
+        }
+        
         function displayData(data) {
             const issues = data.issues || [];
-            const totalIssues = issues.length;
-            const criticalIssues = issues.filter(i => i.severity === 'critical').length;
-            const highIssues = issues.filter(i => i.severity === 'high').length;
-            const mediumIssues = issues.filter(i => i.severity === 'medium').length;
-            const lowIssues = issues.filter(i => i.severity === 'low').length;
+            const summary = data.summary || {};
+            const pagination = data.pagination || {};
+            
+            // Use summary stats if available (from Ray/pagination), otherwise calculate from page data
+            const totalIssues = summary.total_issues || data.total_count || issues.length;
+            const criticalIssues = summary.critical !== undefined ? summary.critical : issues.filter(i => i.severity === 'critical').length;
+            const highIssues = summary.high !== undefined ? summary.high : issues.filter(i => i.severity === 'high').length;
+            const mediumIssues = summary.medium !== undefined ? summary.medium : issues.filter(i => i.severity === 'medium').length;
+            const lowIssues = summary.low !== undefined ? summary.low : issues.filter(i => i.severity === 'low').length;
             const uniqueSymbols = [...new Set(issues.map(i => i.symbol).filter(s => s !== 'SYSTEM'))].length;
             
-            // Update stats
+            // Update stats with total counts (not just page counts)
             document.getElementById('total-issues').textContent = totalIssues;
             document.getElementById('critical-issues').textContent = criticalIssues;
             document.getElementById('high-issues').textContent = highIssues;
@@ -6378,6 +6903,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     
                     severityIssues.forEach(issue => {
                         const actionButtons = getIssueActionButtons(issue);
+                        const tagsHtml = renderIssueTags(issue);
+                        const tagManagerHtml = renderTagManager(issue.id);
+                        
                         issuesHtml += `
                             <div class="issue ${issue.severity}">
                                 <div class="issue-title">${issue.symbol}: ${issue.description}</div>
@@ -6389,6 +6917,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                                     ${issue.expected_value && issue.actual_value ? 
                                       `<br><span class="meta-item">💡 Expected: ${issue.expected_value}</span><span class="meta-item">📊 Actual: ${issue.actual_value}</span>` : ''}
                                 </div>
+                                ${tagsHtml}
+                                ${tagManagerHtml}
                                 ${actionButtons ? `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">${actionButtons}</div>` : ''}
                             </div>
                         `;
@@ -6397,6 +6927,121 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             });
             
             issuesContainer.innerHTML = issuesHtml;
+            
+            // Update pagination controls
+            updatePagination(pagination);
+            
+            // Show processing method
+            const methodElement = document.getElementById('processing-method');
+            if (data.method) {
+                const methodText = data.method === 'ray_distributed' ? 
+                    '⚡ Ray Distributed Processing' : 
+                    '🔄 Legacy Single-threaded';
+                methodElement.textContent = methodText;
+                methodElement.style.display = 'inline';
+            } else {
+                methodElement.style.display = 'none';
+            }
+        }
+        
+        // =====================================
+        // TAG RENDERING HELPER FUNCTIONS
+        // =====================================
+        
+        function renderIssueTags(issue) {
+            if (!issue.tags || issue.tags.length === 0) {
+                return '<div class="issue-tags"><small style="color: #6c757d;">No tags</small></div>';
+            }
+            
+            let tagsHtml = '<div class="issue-tags">';
+            issue.tags.forEach(tag => {
+                tagsHtml += `
+                    <span class="tag" style="background-color: ${tag.color};" 
+                          onclick="removeTagFromIssue(${issue.id}, ${tag.id})"
+                          title="Click to remove tag">
+                        ${tag.name}
+                    </span>
+                `;
+            });
+            tagsHtml += '</div>';
+            return tagsHtml;
+        }
+        
+        function renderTagManager(issueId) {
+            return `
+                <div class="tag-manager">
+                    <input type="text" 
+                           id="tag-input-${issueId}" 
+                           placeholder="Add tag..." 
+                           onkeypress="if(event.key==='Enter'){addTagToIssue(${issueId}, this.value); this.value='';}"
+                           style="margin-right: 5px;" />
+                    <button class="add-btn" 
+                            onclick="addTagToIssue(${issueId}, document.getElementById('tag-input-${issueId}').value); document.getElementById('tag-input-${issueId}').value='';">
+                        + Add
+                    </button>
+                    <button class="suggest-btn" 
+                            onclick="suggestTagsForIssue(${issueId})">
+                        🤖 Suggest
+                    </button>
+                    <button class="suggest-btn" 
+                            onclick="autoTagIssue(${issueId})"
+                            style="background: #f39c12;">
+                        ⚡ Auto-Tag
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Update pagination display
+        function updatePagination(pagination) {
+            const paginationControls = document.getElementById('pagination-controls');
+            if (!pagination || pagination.total_pages <= 1) {
+                paginationControls.style.display = 'none';
+                return;
+            }
+            
+            paginationControls.style.display = 'block';
+            
+            // Update pagination info
+            const start = ((pagination.current_page - 1) * pagination.page_size) + 1;
+            const end = Math.min(pagination.current_page * pagination.page_size, pagination.total_issues);
+            document.getElementById('pagination-info').textContent = 
+                `Showing ${start}-${end} of ${pagination.total_issues} issues`;
+            
+            // Update page display
+            document.getElementById('current-page-display').textContent = pagination.current_page;
+            document.getElementById('total-pages-display').textContent = pagination.total_pages;
+            
+            // Update button states
+            document.getElementById('first-page').disabled = !pagination.has_prev;
+            document.getElementById('prev-page').disabled = !pagination.has_prev;
+            document.getElementById('next-page').disabled = !pagination.has_next;
+            document.getElementById('last-page').disabled = !pagination.has_next;
+            document.getElementById('last-page').onclick = () => goToPage(pagination.total_pages);
+        }
+        
+        // Pagination functions
+        function goToPage(page) {
+            if (page < 1) page = 1;
+            loadData(page, currentPageSize, currentSeverityFilter, useRay);
+        }
+        
+        function toggleRay() {
+            const rayToggle = document.getElementById('ray-toggle');
+            useRay = rayToggle.checked;
+            loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when toggling Ray
+        }
+        
+        function filterBySeverity() {
+            const severityFilter = document.getElementById('severity-filter');
+            currentSeverityFilter = severityFilter.value || null;
+            loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when filtering
+        }
+        
+        function changePageSize() {
+            const pageSizeSelect = document.getElementById('page-size');
+            currentPageSize = parseInt(pageSizeSelect.value);
+            loadData(1, currentPageSize, currentSeverityFilter, useRay); // Reset to page 1 when changing page size
         }
         
         // Helper function to get action buttons for issues
@@ -6490,11 +7135,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 const response = await fetch('/agent/start', { method: 'POST' });
                 const result = await response.json();
                 
-                if (result.success) {
-                    setTimeout(loadAgentStatus, 1000); // Reload status after delay
+                if (response.ok && result.message) {
+                    // Update status immediately and then again after a short delay
+                    loadAgentStatus();
+                    setTimeout(loadAgentStatus, 500);
+                    setTimeout(loadAgentStatus, 2000);
                     showNotification('✅ Data Quality Agent started successfully', 'success');
                 } else {
-                    showNotification(`❌ Failed to start agent: ${result.message}`, 'error');
+                    showNotification(`❌ Failed to start agent: ${result.message || result.error}`, 'error');
                 }
             } catch (error) {
                 showNotification(`❌ Error starting agent: ${error.message}`, 'error');
@@ -7125,9 +7773,440 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             });
         }
         
-        // Load data on page load
-        loadData();
-        loadAgentStatus();
+        // =====================================
+        // TAG MANAGEMENT FUNCTIONS
+        // =====================================
+        
+        async function loadAvailableTags() {
+            try {
+                const response = await fetch('/available-tags');
+                const tags = await response.json();
+                availableTags = tags.sort((a, b) => a.name.localeCompare(b.name));
+                displayAvailableTags();
+            } catch (error) {
+                console.error('Error loading tags:', error);
+                availableTags = [];
+                displayAvailableTags(); // Show empty state
+            }
+        }
+        
+        function displayAvailableTags() {
+            const tagsContainer = document.getElementById('available-tags-container');
+            if (!tagsContainer) return;
+            
+            if (availableTags.length === 0) {
+                tagsContainer.innerHTML = '<div style="color: #6c757d; text-align: center; padding: 20px;">No tags available</div>';
+                return;
+            }
+            
+            // Group tags by category
+            const groupedTags = {};
+            availableTags.forEach(tag => {
+                const categoryName = tag.category?.name || 'Uncategorized';
+                if (!groupedTags[categoryName]) {
+                    groupedTags[categoryName] = [];
+                }
+                groupedTags[categoryName].push(tag);
+            });
+            
+            let html = '';
+            Object.keys(groupedTags).forEach(categoryName => {
+                const tags = groupedTags[categoryName];
+                const categoryColor = tags[0].category?.color || '#95a5a6';
+                
+                html += `<div style="margin-bottom: 15px;">
+                    <div style="font-weight: 600; color: ${categoryColor}; margin-bottom: 8px; font-size: 0.9em;">${categoryName}</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">`;
+                
+                tags.forEach(tag => {
+                    const isSelected = selectedTags.includes(tag.id);
+                    const selectedClass = isSelected ? 'tag-selected' : '';
+                    
+                    html += `<span class="available-tag ${selectedClass}" 
+                                  data-tag-id="${tag.id}" 
+                                  data-tag-name="${tag.name}"
+                                  style="background: ${tag.color}; color: white; padding: 4px 8px; border-radius: 12px; 
+                                         cursor: pointer; font-size: 0.8em; font-weight: 500; border: 2px solid ${isSelected ? '#fff' : 'transparent'};"
+                                  onclick="toggleTagSelection(${tag.id}, '${tag.name}', '${tag.color}')"
+                                  title="${tag.description}">${tag.name}</span>`;
+                });
+                
+                html += `</div></div>`;
+            });
+            
+            tagsContainer.innerHTML = html;
+        }
+        
+        function toggleTagSelection(tagId, tagName, tagColor) {
+            const index = selectedTags.indexOf(tagId);
+            if (index > -1) {
+                // Remove tag
+                selectedTags.splice(index, 1);
+            } else {
+                // Add tag
+                selectedTags.push(tagId);
+            }
+            
+            // Update display
+            displayAvailableTags();
+            updateSelectedTagsDisplay();
+        }
+        
+        function updateSelectedTagsDisplay() {
+            const container = document.getElementById('selected-tags');
+            if (!container) return;
+            
+            if (selectedTags.length === 0) {
+                container.innerHTML = '<div style="color: #6c757d; font-size: 0.9em; font-style: italic;">No tags selected</div>';
+                return;
+            }
+            
+            let html = '';
+            selectedTags.forEach(tagId => {
+                const tag = availableTags.find(t => t.id === tagId);
+                if (tag) {
+                    html += `<span class="selected-tag" style="background: ${tag.color}; color: white; padding: 4px 10px; border-radius: 12px; 
+                                   font-size: 0.8em; margin: 2px; display: inline-block; cursor: pointer;"
+                                   onclick="toggleTagSelection(${tag.id}, '${tag.name}', '${tag.color}')"
+                                   title="Click to remove">
+                                ${tag.name} ×
+                              </span>`;
+                }
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function showTagFilters() {
+            document.getElementById('tag-filters-panel').style.display = 'block';
+            if (availableTags.length === 0) {
+                loadAvailableTags();
+            }
+        }
+        
+        function hideTagFilters() {
+            document.getElementById('tag-filters-panel').style.display = 'none';
+        }
+        
+        function searchTags(query) {
+            const dropdown = document.getElementById('tag-dropdown');
+            
+            if (query.length < 2) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            const filteredTags = availableTags.filter(tag => 
+                tag.name.toLowerCase().includes(query.toLowerCase()) &&
+                !selectedTags.some(selected => selected.id === tag.id)
+            );
+            
+            dropdown.innerHTML = '';
+            filteredTags.slice(0, 10).forEach(tag => {
+                const option = document.createElement('div');
+                option.className = 'tag-option';
+                option.innerHTML = `
+                    <span style="background-color: ${tag.color}; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.8em;">
+                        ${tag.name}
+                    </span>
+                    <small>${tag.category_name || 'No category'}</small>
+                `;
+                option.onclick = () => selectTag(tag);
+                dropdown.appendChild(option);
+            });
+            
+            dropdown.style.display = filteredTags.length > 0 ? 'block' : 'none';
+        }
+        
+        function selectTag(tag) {
+            if (selectedTags.some(selected => selected.id === tag.id)) return;
+            
+            selectedTags.push(tag);
+            updateSelectedTagsDisplay();
+            document.getElementById('tag-search').value = '';
+            document.getElementById('tag-dropdown').style.display = 'none';
+        }
+        
+        function removeSelectedTag(tagId) {
+            selectedTags = selectedTags.filter(tag => tag.id !== tagId);
+            updateSelectedTagsDisplay();
+        }
+        
+        function updateSelectedTagsDisplay() {
+            const container = document.getElementById('selected-tags');
+            container.innerHTML = '';
+            
+            selectedTags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tag removable';
+                tagElement.style.backgroundColor = tag.color;
+                tagElement.textContent = tag.name;
+                tagElement.onclick = () => removeSelectedTag(tag.id);
+                container.appendChild(tagElement);
+            });
+        }
+        
+        function applyTagFilters() {
+            // Get form values
+            currentSymbolFilter = document.getElementById('symbol-filter').value.trim() || null;
+            currentDateFromFilter = document.getElementById('date-from').value || null;
+            currentDateToFilter = document.getElementById('date-to').value || null;
+            
+            const matchModeInput = document.querySelector('input[name="match-mode"]:checked');
+            currentMatchMode = matchModeInput ? matchModeInput.value : 'ANY';
+            
+            // Update filter summary
+            updateFilterSummary();
+            
+            // Hide filters panel and reload data
+            hideTagFilters();
+            loadData(1, currentPageSize, currentSeverityFilter, useRay);
+        }
+        
+        function clearAllFilters() {
+            selectedTags = [];
+            currentSymbolFilter = null;
+            currentDateFromFilter = null;
+            currentDateToFilter = null;
+            currentMatchMode = 'ANY';
+            
+            // Reset form controls
+            document.getElementById('symbol-filter').value = '';
+            document.getElementById('date-from').value = '';
+            document.getElementById('date-to').value = '';
+            document.querySelector('input[name="match-mode"][value="ANY"]').checked = true;
+            
+            updateSelectedTagsDisplay();
+            updateFilterSummary();
+            loadData(1, currentPageSize, currentSeverityFilter, useRay);
+        }
+        
+        function updateFilterSummary() {
+            const summaryContainer = document.getElementById('active-filters-summary');
+            const summaryText = document.getElementById('filter-summary-text');
+            
+            let summary = [];
+            
+            if (selectedTags.length > 0) {
+                const tagNames = selectedTags.map(tag => tag.name).join(', ');
+                summary.push(`Tags: ${tagNames} (${currentMatchMode})`);
+            }
+            
+            if (currentSymbolFilter) {
+                summary.push(`Symbols: ${currentSymbolFilter}`);
+            }
+            
+            if (currentDateFromFilter || currentDateToFilter) {
+                const dateRange = [currentDateFromFilter, currentDateToFilter].filter(Boolean).join(' to ');
+                summary.push(`Date: ${dateRange}`);
+            }
+            
+            if (summary.length > 0) {
+                summaryText.textContent = summary.join(' | ');
+                summaryContainer.style.display = 'block';
+            } else {
+                summaryContainer.style.display = 'none';
+            }
+        }
+        
+        async function addTagToIssue(issueId, tagName) {
+            if (!tagName.trim()) return;
+            
+            try {
+                // Find the tag by name or create new one
+                let tag = availableTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+                
+                if (!tag) {
+                    // Create new tag
+                    const createResponse = await fetch('/api/tags/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: tagName })
+                    });
+                    tag = await createResponse.json();
+                    availableTags.push(tag);
+                }
+                
+                // Apply tag to issue
+                const applyResponse = await fetch('/api/tags/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        entity_type: 'data_quality_issues',
+                        entity_id: issueId,
+                        tag_id: tag.id,
+                        source: 'manual'
+                    })
+                });
+                
+                if (applyResponse.ok) {
+                    // Refresh the current issue display
+                    loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                }
+            } catch (error) {
+                console.error('Error adding tag:', error);
+                alert('Failed to add tag. Please try again.');
+            }
+        }
+        
+        async function removeTagFromIssue(issueId, tagId) {
+            try {
+                const response = await fetch(`/api/tags/entity/data_quality_issues/${issueId}/tag/${tagId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    // Refresh the current issue display
+                    loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                }
+            } catch (error) {
+                console.error('Error removing tag:', error);
+                alert('Failed to remove tag. Please try again.');
+            }
+        }
+        
+        async function suggestTagsForIssue(issueId) {
+            try {
+                const response = await fetch(`/api/tags/suggestions-enhanced/data_quality_issues/${issueId}?limit=5`);
+                const suggestions = await response.json();
+                
+                if (suggestions.length > 0) {
+                    const suggestionText = suggestions.map(s => 
+                        `${s.tag_name} (${Math.round(s.confidence_score * 100)}%)`
+                    ).join(', ');
+                    
+                    if (confirm(`Suggested tags: ${suggestionText}\\n\\nApply these tags?`)) {
+                        // Apply all suggested tags
+                        for (const suggestion of suggestions) {
+                            await fetch('/api/tags/apply', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    entity_type: 'data_quality_issues',
+                                    entity_id: issueId,
+                                    tag_id: suggestion.tag_id,
+                                    confidence_score: suggestion.confidence_score,
+                                    source: suggestion.source
+                                })
+                            });
+                        }
+                        
+                        // Refresh display
+                        loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                    }
+                } else {
+                    alert('No tag suggestions available for this issue.');
+                }
+            } catch (error) {
+                console.error('Error getting suggestions:', error);
+                alert('Failed to get tag suggestions. Please try again.');
+            }
+        }
+        
+        async function autoTagIssue(issueId) {
+            try {
+                const response = await fetch(`/api/tags/auto-tag/data_quality_issues/${issueId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    if (result.applied_tags && result.applied_tags.length > 0) {
+                        alert(`Auto-tagging successful!\\n\\nApplied tags: ${result.applied_tags.join(', ')}\\n\\nTotal: ${result.total_applied} tags`);
+                        // Refresh the current issue display
+                        loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                    } else {
+                        alert('No auto-tags were applied to this issue. The issue may not match any auto-tagging rules.');
+                    }
+                } else {
+                    alert(`Auto-tagging failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error auto-tagging issue:', error);
+                alert('Failed to auto-tag issue. Please try again.');
+            }
+        }
+        
+        async function runAutoTaggingBatch() {
+            if (!confirm('Run auto-tagging on recent untagged issues?\\n\\nThis will apply tags automatically based on issue characteristics.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/auto-tag-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    let message = `Auto-tagging batch completed!\\n\\n`;
+                    if (result.issues_processed !== undefined) {
+                        message += `Issues processed: ${result.issues_processed}\\n`;
+                        message += `Issues tagged: ${result.issues_tagged}\\n`;
+                        message += `Total tags applied: ${result.tags_applied}\\n`;
+                        if (result.errors > 0) {
+                            message += `Errors: ${result.errors}\\n`;
+                        }
+                    } else {
+                        message += result.summary || 'Batch processing initiated.';
+                    }
+                    
+                    alert(message);
+                    
+                    // Refresh the current issue display
+                    loadData(currentPage, currentPageSize, currentSeverityFilter, useRay);
+                } else {
+                    alert(`Batch auto-tagging failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error running auto-tagging batch:', error);
+                alert('Failed to run auto-tagging batch. Please try again.');
+            }
+        }
+        
+        async function showAutoTaggingRules() {
+            try {
+                const response = await fetch('/api/tags/auto-rules');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let rulesHtml = '<h3>Auto-Tagging Rules</h3>';
+                    rulesHtml += `<p><strong>Total Rules:</strong> ${data.total_rules}</p>`;
+                    rulesHtml += `<p><strong>Categories:</strong> ${data.categories.join(', ')}</p>`;
+                    rulesHtml += '<div style="max-height: 400px; overflow-y: auto;">';
+                    
+                    data.rules.forEach(rule => {
+                        rulesHtml += `
+                            <div style="border: 1px solid #ddd; margin: 10px 0; padding: 10px; border-radius: 4px;">
+                                <strong>${rule.name}</strong> → <span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 4px;">${rule.tag_name}</span>
+                                <br><small>Confidence: ${Math.round(rule.confidence * 100)}% | Category: ${rule.category}</small>
+                                <br><em>${rule.description}</em>
+                            </div>
+                        `;
+                    });
+                    
+                    rulesHtml += '</div>';
+                    
+                    showModal('Auto-Tagging Rules', rulesHtml);
+                } else {
+                    alert('Failed to load auto-tagging rules.');
+                }
+            } catch (error) {
+                console.error('Error loading auto-tagging rules:', error);
+                alert('Failed to load auto-tagging rules.');
+            }
+        }
+        
+        // Initialize page on load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            loadAgentStatus();
+            loadAvailableTags();
+        });
         
         // Auto-refresh every 60 seconds
         setInterval(() => {
@@ -7145,8 +8224,18 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(dashboard_html.encode())
     
     def _serve_data_quality_issues(self):
-        """Serve data quality issues API endpoint."""
+        """Serve data quality issues API endpoint with Ray integration and pagination."""
         try:
+            # Parse query parameters
+            from urllib.parse import parse_qs, urlparse
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            page = int(query_params.get('page', ['1'])[0])
+            page_size = int(query_params.get('page_size', ['50'])[0])
+            severity_filter = query_params.get('severity', [None])[0]
+            use_ray = query_params.get('ray', ['false'])[0].lower() == 'true'
+            
             # Get database connection - container aware
             db_config = {
                 'host': 'ats-intg-postgres',  # Container name on ats-network
@@ -7156,19 +8245,77 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 'database': 'intg_db'
             }
             
-            issues = []
+            # Use Ray-powered agent if requested, otherwise use legacy method
+            if use_ray:
+                response_data = self._get_issues_with_ray(db_config, page, page_size, severity_filter)
+            else:
+                response_data = self._get_issues_legacy(db_config, page, page_size, severity_filter)
             
-            # Use asyncio to run async database operations
-            import asyncpg
-            import asyncio
+            self._send_json_response(response_data)
             
-            async def detect_issues():
-                nonlocal issues
-                try:
-                    conn = await asyncpg.connect(**db_config)
-                    
-                    # Check for missing recent data
-                    missing_data_query = """
+        except Exception as e:
+            logger.error(f"Data quality issues API error: {e}")
+            self._send_json_response({
+                "error": str(e),
+                "issues": [],
+                "total_count": 0
+            }, status_code=500)
+    
+    def _get_issues_with_ray(self, db_config: Dict[str, Any], page: int, page_size: int, severity_filter: str) -> Dict[str, Any]:
+        """Get issues using Ray-powered distributed processing"""
+        import asyncio
+        
+        async def ray_detection():
+            try:
+                # Import Ray agent
+                import sys
+                import os
+                sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+                from services.data_quality.ray_data_quality_agent import RayDataQualityAgent
+                
+                agent = RayDataQualityAgent(db_config, num_workers=4)
+                result = await agent.get_issues_page(
+                    page=page, 
+                    page_size=page_size, 
+                    severity_filter=severity_filter
+                )
+                await agent.shutdown()
+                
+                return {
+                    "issues": result["issues"],
+                    "pagination": result["pagination"],
+                    "summary": result["summary"],
+                    "total_count": result["pagination"]["total_issues"],
+                    "method": "ray_distributed",
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+            except Exception as e:
+                logger.error(f"Ray processing failed: {e}")
+                # Use legacy method
+                return self._get_issues_legacy(db_config, page, page_size, severity_filter)
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(ray_detection())
+        finally:
+            loop.close()
+    
+    def _get_issues_legacy(self, db_config: Dict[str, Any], page: int, page_size: int, severity_filter: str) -> Dict[str, Any]:
+        """Get issues using legacy single-threaded method"""
+        import asyncpg
+        import asyncio
+        
+        issues = []
+        
+        async def detect_issues():
+            nonlocal issues
+            try:
+                conn = await asyncpg.connect(**db_config)
+                
+                # Check for missing recent data across all vendors
+                missing_data_query = """
                     WITH recent_dates AS (
                         SELECT generate_series(
                             CURRENT_DATE - INTERVAL '7 days',
@@ -7189,52 +8336,52 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     ORDER BY rd.expected_date;
                     """
                     
-                    missing_dates = await conn.fetch(missing_data_query)
-                    for row in missing_dates:
-                        issues.append({
-                            "id": f"missing_data_{row['expected_date']}",
-                            "symbol": "ALL",
-                            "issue_type": "missing_data",
-                            "severity": "high",
-                            "description": f"No daily prices found for trading day {row['expected_date']}",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['expected_date'].isoformat(),
-                            "field": "all_fields",
-                            "expected_value": "Daily prices",
-                            "actual_value": "No data",
-                            "vendor_source": "multiple",
-                            "status": "open"
-                        })
-                    
-                    # Check for extreme volumes
-                    extreme_volume_query = """
+                missing_dates = await conn.fetch(missing_data_query)
+                for row in missing_dates:
+                    issues.append({
+                        "id": f"missing_data_{row['expected_date']}",
+                        "symbol": "ALL",
+                        "issue_type": "missing_data",
+                        "severity": "high",
+                        "description": f"No daily prices found for trading day {row['expected_date']}",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['expected_date'].isoformat(),
+                        "field": "all_fields",
+                        "expected_value": "Daily prices",
+                        "actual_value": "No data",
+                        "vendor_source": "multiple",
+                        "status": "open"
+                    })
+                
+                # Check for extreme volumes
+                extreme_volume_query = """
                     SELECT symbol, date as price_date, volume, close
                     FROM intg_daily_price_polygon 
                     WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     AND volume > 50000000
                     ORDER BY volume DESC
                     LIMIT 10;
-                    """
-                    
-                    extreme_volumes = await conn.fetch(extreme_volume_query)
-                    for row in extreme_volumes:
-                        issues.append({
-                            "id": f"high_volume_{row['symbol']}_{row['price_date']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "extreme_volume",
-                            "severity": "medium",
-                            "description": f"Unusually high volume: {row['volume']:,} shares",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['price_date'].isoformat(),
-                            "field": "volume",
-                            "expected_value": "< 10M shares",
-                            "actual_value": f"{row['volume']:,} shares",
-                            "vendor_source": "polygon",
-                            "status": "open"
-                        })
-                    
-                    # Check for duplicate records
-                    duplicate_query = """
+                """
+                
+                extreme_volumes = await conn.fetch(extreme_volume_query)
+                for row in extreme_volumes:
+                    issues.append({
+                        "id": f"high_volume_{row['symbol']}_{row['price_date']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "extreme_volume",
+                        "severity": "medium",
+                        "description": f"Unusually high volume: {row['volume']:,} shares",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "volume",
+                        "expected_value": "< 10M shares",
+                        "actual_value": f"{row['volume']:,} shares",
+                        "vendor_source": "polygon",
+                        "status": "open"
+                    })
+                
+                # Check for duplicate records
+                duplicate_query = """
                     SELECT symbol, date as price_date, COUNT(*) as count
                     FROM intg_daily_price_polygon 
                     WHERE date >= CURRENT_DATE - INTERVAL '7 days'
@@ -7242,105 +8389,269 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     HAVING COUNT(*) > 1
                     ORDER BY COUNT(*) DESC
                     LIMIT 5;
-                    """
-                    
-                    duplicates = await conn.fetch(duplicate_query)
-                    for row in duplicates:
-                        issues.append({
-                            "id": f"duplicate_{row['symbol']}_{row['price_date']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "duplicate_records",
-                            "severity": "critical",
-                            "description": f"Duplicate records: {row['count']} entries for same date",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['price_date'].isoformat(),
-                            "field": "all_fields",
-                            "expected_value": "1 record per day",
-                            "actual_value": f"{row['count']} records",
-                            "vendor_source": "multiple",
-                            "status": "open"
-                        })
-                    
-                    # Check for stale data
-                    freshness_query = """
-                    SELECT symbol, MAX(date) as latest_date
-                    FROM intg_daily_price_polygon
-                    GROUP BY symbol
-                    HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
-                    ORDER BY MAX(date) DESC
-                    LIMIT 10;
-                    """
-                    
-                    stale_data = await conn.fetch(freshness_query)
-                    for row in stale_data:
-                        from datetime import date as dt_date
-                        days_stale = (dt_date.today() - row['latest_date']).days
-                        issues.append({
-                            "id": f"stale_data_{row['symbol']}",
-                            "symbol": row['symbol'],
-                            "issue_type": "stale_data",
-                            "severity": "medium" if days_stale < 7 else "high",
-                            "description": f"Data is {days_stale} days old (last: {row['latest_date']})",
-                            "detected_at": datetime.now().isoformat(),
-                            "affected_date": row['latest_date'].isoformat(),
-                            "field": "date",
-                            "expected_value": "< 3 days old",
-                            "actual_value": f"{days_stale} days old",
-                            "vendor_source": "polygon",
-                            "status": "open"
-                        })
-                    
-                    await conn.close()
-                    
-                except Exception as e:
-                    logger.error(f"Data quality detection error: {e}")
+                """
+                
+                duplicates = await conn.fetch(duplicate_query)
+                for row in duplicates:
                     issues.append({
-                        "id": "detection_error",
-                        "symbol": "SYSTEM",
-                        "issue_type": "detection_error",
+                        "id": f"duplicate_{row['symbol']}_{row['price_date']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "duplicate_records",
                         "severity": "critical",
-                        "description": f"Data quality detection failed: {str(e)}",
+                        "description": f"Duplicate records: {row['count']} entries for same date",
                         "detected_at": datetime.now().isoformat(),
-                        "affected_date": datetime.now().date().isoformat(),
-                        "field": "system",
-                        "expected_value": "Successful detection",
-                        "actual_value": f"Error: {str(e)}",
-                        "vendor_source": "system",
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "all_fields",
+                        "expected_value": "1 record per day",
+                        "actual_value": f"{row['count']} records",
+                        "vendor_source": "multiple",
                         "status": "open"
                     })
+                
+                # Check for stale data
+                freshness_query = """
+                SELECT symbol, MAX(date) as latest_date
+                FROM intg_daily_price_polygon
+                GROUP BY symbol
+                HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
+                ORDER BY MAX(date) DESC
+                LIMIT 10;
+                """
+                
+                stale_data = await conn.fetch(freshness_query)
+                for row in stale_data:
+                    from datetime import date as dt_date
+                    days_stale = (dt_date.today() - row['latest_date']).days
+                    issues.append({
+                        "id": f"stale_data_{row['symbol']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "stale_data",
+                        "severity": "medium" if days_stale < 7 else "high",
+                        "description": f"Data is {days_stale} days old (last: {row['latest_date']})",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['latest_date'].isoformat(),
+                        "field": "date",
+                        "expected_value": "< 3 days old",
+                        "actual_value": f"{days_stale} days old",
+                        "vendor_source": "polygon",
+                        "status": "open"
+                    })
+                
+                await conn.close()
+                
+            except Exception as e:
+                logger.error(f"Data quality detection error: {e}")
+                issues.append({
+                    "id": "detection_error",
+                    "symbol": "ALL",
+                    "issue_type": "system_error",
+                    "severity": "high",
+                    "description": f"Error during issue detection: {str(e)}",
+                    "detected_at": datetime.now().isoformat(),
+                    "affected_date": datetime.now().date().isoformat(),
+                    "field": "system",
+                    "expected_value": "No errors",
+                    "actual_value": str(e),
+                    "vendor_source": "system",
+                    "status": "open"
+                })
+                
+                # Check for extreme volumes across all vendors
+                extreme_volume_query = """
+                SELECT symbol, date as price_date, volume, close, 'polygon' as vendor
+                FROM intg_daily_price_polygon 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                AND volume > 50000000
+                UNION ALL
+                SELECT symbol, date as price_date, volume, close, 'tiingo' as vendor
+                FROM intg_daily_price_tiingo 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                AND volume > 50000000
+                UNION ALL
+                SELECT symbol, date as price_date, volume, close, 'eodhd' as vendor
+                FROM intg_daily_price_eodhd 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                AND volume > 50000000
+                ORDER BY volume DESC;
+                """
+                
+                extreme_volumes = await conn.fetch(extreme_volume_query)
+                for row in extreme_volumes:
+                    issues.append({
+                        "id": f"high_volume_{row['symbol']}_{row['price_date']}_{row['vendor']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "extreme_volume",
+                        "severity": "medium",
+                        "description": f"Unusually high volume: {row['volume']:,} shares ({row['vendor']})",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "volume",
+                        "expected_value": "< 50M shares",
+                        "actual_value": f"{row['volume']:,} shares",
+                        "vendor_source": row['vendor'],
+                        "status": "open"
+                    })
+                
+                # Check for duplicate records within each vendor table
+                duplicate_query = """
+                SELECT symbol, date as price_date, COUNT(*) as count, 'polygon' as vendor
+                FROM intg_daily_price_polygon 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY symbol, date
+                HAVING COUNT(*) > 1
+                UNION ALL
+                SELECT symbol, date as price_date, COUNT(*) as count, 'tiingo' as vendor
+                FROM intg_daily_price_tiingo 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY symbol, date
+                HAVING COUNT(*) > 1
+                UNION ALL
+                SELECT symbol, date as price_date, COUNT(*) as count, 'eodhd' as vendor
+                FROM intg_daily_price_eodhd 
+                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY symbol, date
+                HAVING COUNT(*) > 1
+                ORDER BY count DESC;
+                """
+                
+                duplicates = await conn.fetch(duplicate_query)
+                for row in duplicates:
+                    issues.append({
+                        "id": f"duplicate_{row['symbol']}_{row['price_date']}_{row['vendor']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "duplicate_records",
+                        "severity": "critical",
+                        "description": f"Duplicate records: {row['count']} entries for same date ({row['vendor']})",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['price_date'].isoformat(),
+                        "field": "all_fields",
+                        "expected_value": "1 record per day",
+                        "actual_value": f"{row['count']} records",
+                        "vendor_source": row['vendor'],
+                        "status": "open"
+                    })
+                
+                # Check for stale data across all vendor tables
+                freshness_query = """
+                WITH vendor_freshness AS (
+                    SELECT symbol, MAX(date) as latest_date, 'polygon' as vendor
+                    FROM intg_daily_price_polygon
+                    GROUP BY symbol
+                    UNION ALL
+                    SELECT symbol, MAX(date) as latest_date, 'tiingo' as vendor
+                    FROM intg_daily_price_tiingo
+                    GROUP BY symbol
+                    UNION ALL
+                    SELECT symbol, MAX(date) as latest_date, 'eodhd' as vendor
+                    FROM intg_daily_price_eodhd
+                    GROUP BY symbol
+                ),
+                symbol_freshness AS (
+                    SELECT symbol, MAX(latest_date) as latest_date, 
+                           string_agg(vendor, ',' ORDER BY latest_date DESC) as vendors
+                    FROM vendor_freshness
+                    GROUP BY symbol
+                )
+                SELECT symbol, latest_date, vendors
+                FROM symbol_freshness
+                WHERE latest_date < CURRENT_DATE - INTERVAL '3 days'
+                ORDER BY latest_date DESC;
+                """
+                
+                stale_data = await conn.fetch(freshness_query)
+                for row in stale_data:
+                    from datetime import date as dt_date
+                    days_stale = (dt_date.today() - row['latest_date']).days
+                    issues.append({
+                        "id": f"stale_data_{row['symbol']}",
+                        "symbol": row['symbol'],
+                        "issue_type": "stale_data",
+                        "severity": "medium" if days_stale < 7 else "high",
+                        "description": f"Data is {days_stale} days old (last: {row['latest_date']}) - vendors: {row['vendors']}",
+                        "detected_at": datetime.now().isoformat(),
+                        "affected_date": row['latest_date'].isoformat(),
+                        "field": "date",
+                        "expected_value": "< 3 days old",
+                        "actual_value": f"{days_stale} days old",
+                        "vendor_source": row['vendors'],
+                        "status": "open"
+                    })
+                
+                await conn.close()
+                
+            except Exception as e:
+                logger.error(f"Data quality detection error: {e}")
+                issues.append({
+                    "id": "detection_error",
+                    "symbol": "SYSTEM",
+                    "issue_type": "detection_error",
+                    "severity": "critical",
+                    "description": f"Data quality detection failed: {str(e)}",
+                    "detected_at": datetime.now().isoformat(),
+                    "affected_date": datetime.now().date().isoformat(),
+                    "field": "system",
+                    "expected_value": "Successful detection",
+                    "actual_value": f"Error: {str(e)}",
+                    "vendor_source": "system",
+                    "status": "open"
+                    })
             
-            # Run the async detection
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        # Run the async detection
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
             loop.run_until_complete(detect_issues())
+        finally:
             loop.close()
-            
-            response_data = {
-                "issues": issues,
-                "total_count": len(issues),
-                "last_updated": datetime.now().isoformat(),
-                "detection_period_days": 7
-            }
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps(response_data, indent=2).encode())
-            
-        except Exception as e:
-            logger.error(f"Error serving data quality issues: {e}")
-            error_response = {
-                "error": str(e),
-                "issues": [],
-                "total_count": 0,
-                "last_updated": datetime.now().isoformat()
-            }
-            
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps(error_response).encode())
+        
+        # Apply severity filter if specified
+        if severity_filter:
+            issues = [issue for issue in issues if issue['severity'] == severity_filter]
+        
+        # Sort by severity and date
+        severity_priority = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+        issues.sort(key=lambda x: (
+            severity_priority.get(x['severity'], 4),
+            x['affected_date']
+        ), reverse=True)
+        
+        # Apply pagination
+        total_issues = len(issues)
+        total_pages = (total_issues + page_size - 1) // page_size
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        page_issues = issues[start_idx:end_idx]
+        
+        return {
+            "issues": page_issues,
+            "pagination": {
+                "current_page": page,
+                "page_size": page_size,
+                "total_issues": total_issues,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            },
+            "summary": {
+                "total_issues": total_issues,
+                "critical": len([i for i in issues if i['severity'] == 'critical']),
+                "high": len([i for i in issues if i['severity'] == 'high']),
+                "medium": len([i for i in issues if i['severity'] == 'medium']),
+                "low": len([i for i in issues if i['severity'] == 'low'])
+            },
+            "total_count": len(page_issues),
+            "method": "legacy_single_threaded",
+            "last_updated": datetime.now().isoformat(),
+            "detection_period_days": 7
+        }
+    
+    def _send_json_response(self, data: Dict[str, Any], status_code: int = 200):
+        """Send JSON response with proper headers"""
+        self.send_response(status_code)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps(data, indent=2).encode())
 
     def _serve_agent_status(self):
         """Serve agent status endpoint."""
@@ -7392,9 +8703,31 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"message": "Agent already active"}).encode())
                 return
 
-            # Start agent monitoring (mark as active, actual monitoring handled separately)
-            from agents.data_quality_agent import AgentStatus
-            agent.status = AgentStatus.ACTIVE
+            # Start agent monitoring - create async task for continuous monitoring
+            import asyncio
+            import threading
+            
+            def start_monitoring_thread():
+                """Run monitoring in a separate thread with its own event loop"""
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(agent.start_continuous_monitoring())
+                except Exception as e:
+                    logger.error(f"Agent monitoring failed: {e}")
+                finally:
+                    loop.close()
+                    
+            # Start the monitoring thread in background
+            if not hasattr(self.analytics_service, 'agent_monitoring_thread') or \
+               self.analytics_service.agent_monitoring_thread is None or \
+               not self.analytics_service.agent_monitoring_thread.is_alive():
+                self.analytics_service.agent_monitoring_thread = threading.Thread(
+                    target=start_monitoring_thread,
+                    daemon=True,
+                    name="AgentMonitoringThread"
+                )
+                self.analytics_service.agent_monitoring_thread.start()
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -8054,6 +9387,1055 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             charts[timeframe] = chart_config
 
         return charts
+
+    def _serve_financial_events(self):
+        """Handle financial events endpoints for xAI integration"""
+        
+        try:
+            # Initialize unified financial events integration if not already done
+            if not hasattr(self, 'financial_events_integration'):
+                from services.financial_events.multi_source_events_orchestrator import UnifiedFinancialEventsIntegration
+                self.financial_events_integration = UnifiedFinancialEventsIntegration(
+                    xai_api_key=os.getenv('XAI_API_KEY'),
+                    grok_api_key=os.getenv('GROK_API_KEY', os.getenv('XAI_API_KEY')),
+                    analytics_base_url="http://localhost:4000",
+                    enable_cache=True
+                )
+            
+            # Route based on path and method
+            if self.path == '/financial_events/setup' and self.command == 'POST':
+                self._handle_financial_events_setup()
+            elif self.path == '/financial_events/extract' and self.command == 'POST':
+                self._handle_financial_events_extract()
+            elif self.path.startswith('/financial_events?') and self.command == 'GET':
+                self._handle_financial_events_query()
+            elif self.path == '/financial_events' and self.command == 'GET':
+                self._handle_financial_events_query()
+            elif self.path == '/financial_events/summary' and self.command == 'GET':
+                self._handle_financial_events_summary()
+            elif self.path == '/financial_events/cache/stats' and self.command == 'GET':
+                self._handle_financial_events_cache_stats()
+            elif self.path == '/financial_events/cache/clear' and self.command == 'POST':
+                self._handle_financial_events_cache_clear()
+            elif self.path.startswith('/financial_events/trending') and self.command == 'GET':
+                self._handle_financial_events_trending()
+            elif self.path.startswith('/financial_events/sources') and self.command == 'GET':
+                self._handle_financial_events_sources()
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "Financial events endpoint not found",
+                    "path": self.path,
+                    "method": self.command,
+                    "available_endpoints": [
+                        "POST /financial_events/setup - Create events table",
+                        "POST /financial_events/extract - Extract events from xAI",
+                        "GET /financial_events - Query events",
+                        "GET /financial_events/summary - Get statistics", 
+                        "GET /financial_events/cache/stats - Cache performance",
+                        "POST /financial_events/cache/clear - Clear cache"
+                    ]
+                }).encode())
+                
+        except Exception as e:
+            logger.error(f"Error in financial events handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_setup(self):
+        """Handle table setup for financial events"""
+        
+        try:
+            import asyncio
+            result = asyncio.run(self.financial_events_integration.create_events_table())
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            response = {
+                "success": result,
+                "table_created": result,
+                "message": "Financial events table created successfully" if result else "Table creation failed"
+            }
+            
+            self.wfile.write(json.dumps(response).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in setup handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_extract(self):
+        """Handle event extraction from xAI"""
+        
+        try:
+            # Parse POST body
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            params = json.loads(post_data.decode('utf-8'))
+            
+            import asyncio
+            from services.financial_events.multi_source_events_orchestrator import EventSource
+            
+            # Determine preferred source
+            preferred_source = params.get('source', 'combined').lower()
+            if preferred_source == 'xai':
+                source = EventSource.XAI
+            elif preferred_source == 'grok':
+                source = EventSource.GROK
+            else:
+                source = EventSource.COMBINED
+            
+            result = asyncio.run(self.financial_events_integration.extract_events_multi_source(
+                start_date=params.get('start_date'),
+                end_date=params.get('end_date'),
+                symbols=params.get('symbols', []),
+                preferred_source=source,
+                force_refresh=params.get('force_refresh', False)
+            ))
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in extract handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_query(self):
+        """Handle querying financial events"""
+        
+        try:
+            from urllib.parse import urlparse, parse_qs
+            
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            # Extract parameters (parse_qs returns lists)
+            symbol = query_params.get('symbol', [None])[0]
+            event_type = query_params.get('event_type', [None])[0]
+            start_date = query_params.get('start_date', [None])[0]
+            end_date = query_params.get('end_date', [None])[0]
+            impact_level = query_params.get('impact_level', [None])[0]
+            limit = int(query_params.get('limit', ['100'])[0])
+            
+            result = self.financial_events_integration.get_events_from_analytics(
+                symbol=symbol,
+                event_type=event_type,
+                start_date=start_date,
+                end_date=end_date,
+                impact_level=impact_level,
+                limit=limit
+            )
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in query handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_summary(self):
+        """Handle getting events summary"""
+        
+        try:
+            result = self.financial_events_integration.get_events_summary()
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in summary handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_cache_stats(self):
+        """Handle getting cache statistics"""
+        
+        try:
+            import asyncio
+            cache_stats = asyncio.run(self.financial_events_integration.event_extractor.get_cache_stats())
+            
+            result = {
+                "success": True,
+                "cache_statistics": cache_stats
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in cache stats handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_cache_clear(self):
+        """Handle clearing cache"""
+        
+        try:
+            import asyncio
+            asyncio.run(self.financial_events_integration.clear_all_caches())
+            
+            result = {
+                "success": True,
+                "message": "All caches cleared successfully"
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json') 
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in cache clear handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_trending(self):
+        """Handle getting trending financial events from all sources"""
+        
+        try:
+            from urllib.parse import urlparse, parse_qs
+            
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            hours_back = int(query_params.get('hours', ['24'])[0])
+            
+            import asyncio
+            result = asyncio.run(self.financial_events_integration.get_trending_events_all_sources(
+                hours_back=hours_back
+            ))
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in trending events handler: {e}")
+            self._serve_500(str(e))
+    
+    def _handle_financial_events_sources(self):
+        """Handle getting available sources and integration status"""
+        
+        try:
+            status = self.financial_events_integration.get_integration_status()
+            
+            # Add cache stats for each source
+            import asyncio
+            cache_stats = asyncio.run(self.financial_events_integration.get_unified_cache_stats())
+            status["cache_stats"] = cache_stats
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(status).encode())
+            
+        except Exception as e:
+            logger.error(f"Error in sources handler: {e}")
+            self._serve_500(str(e))
+
+    # ==============================================
+    # TAG API HANDLERS
+    # ==============================================
+
+    def _serve_auto_tag_batch(self):
+        """Handle auto-tag batch requests by calling working API"""
+        import asyncio
+        import aiohttp
+        
+        async def call_auto_tag_api():
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.post('http://ats-auto-tagging-api:4005/auto-tag-batch') as response:
+                        return await response.json()
+            except:
+                # Fallback to direct database approach
+                import asyncpg
+                conn = await asyncpg.connect(
+                    host="ats-intg-postgres",
+                    port=5432,
+                    user="postgres",
+                    password="intg_password",
+                    database="intg_db"
+                )
+                
+                results = {
+                    "issues_processed": 0,
+                    "issues_tagged": 0,
+                    "tags_applied": 0,
+                    "status": "completed",
+                    "message": "Auto-tagging completed using direct database connection"
+                }
+                
+                try:
+                    # Simple batch auto-tagging logic
+                    issues = await conn.fetch("""
+                        SELECT ai.issue_id, ai.symbol, ai.issue_type, ai.severity, 
+                               COALESCE(ai.vendor, 'unknown') as vendor_source
+                        FROM agent_issues ai
+                        LEFT JOIN entity_tags et ON (
+                            et.entity_id::text = ai.issue_id AND 
+                            et.entity_type_id = (SELECT id FROM entity_types WHERE name = 'data_quality_issues')
+                        )
+                        WHERE et.id IS NULL
+                        AND ai.created_at > NOW() - INTERVAL '7 days'
+                        LIMIT 10
+                    """)
+                    
+                    for issue in issues:
+                        # Apply simple auto-tagging rules
+                        applied_tags = []
+                        
+                        # Severity rule
+                        severity = issue['severity'].lower()
+                        if severity in ['critical', 'high', 'medium', 'low']:
+                            tag_name = severity.title()
+                            tag_result = await conn.fetchrow("SELECT id FROM tags WHERE name = $1", tag_name)
+                            if tag_result:
+                                await conn.execute("""
+                                    INSERT INTO entity_tags (entity_type_id, entity_id, tag_id, source, confidence_score, metadata)
+                                    VALUES (
+                                        (SELECT id FROM entity_types WHERE name = 'data_quality_issues'),
+                                        $1, $2, 'auto', 0.9, '{}'
+                                    )
+                                    ON CONFLICT (entity_type_id, entity_id, tag_id) DO NOTHING
+                                """, hash(issue['issue_id']) % 2147483647, tag_result['id'])
+                                applied_tags.append(tag_name)
+                        
+                        results["issues_processed"] += 1
+                        if applied_tags:
+                            results["issues_tagged"] += 1
+                            results["tags_applied"] += len(applied_tags)
+                            
+                finally:
+                    await conn.close()
+                    
+                return results
+        
+        try:
+            # Run the async function
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(call_auto_tag_api())
+            loop.close()
+            
+            self._serve_json_response(result)
+            
+        except Exception as e:
+            logger.error(f"Error in auto-tag batch: {e}")
+            self._serve_json_response({
+                "error": str(e),
+                "status": "failed",
+                "message": "Auto-tagging batch failed"
+            }, status_code=500)
+
+    def _serve_available_tags(self):
+        """Serve available tags for the tag filter panel"""
+        import asyncpg
+        
+        async def get_available_tags():
+            try:
+                conn = await asyncpg.connect(
+                    host="ats-intg-postgres",
+                    port=5432,
+                    user="postgres",
+                    password="intg_password",
+                    database="intg_db"
+                )
+                
+                # Get all system tags with their categories
+                tags = await conn.fetch("""
+                    SELECT t.id, t.name, t.color, t.description,
+                           tc.name as category_name, tc.color as category_color
+                    FROM tags t
+                    LEFT JOIN tag_categories tc ON t.category_id = tc.id
+                    WHERE t.is_active = true
+                    ORDER BY tc.sort_order, t.name
+                """)
+                
+                await conn.close()
+                
+                return [
+                    {
+                        "id": tag['id'],
+                        "name": tag['name'],
+                        "color": tag['color'],
+                        "description": tag['description'],
+                        "category": {
+                            "name": tag['category_name'] or "Uncategorized",
+                            "color": tag['category_color'] or "#95a5a6"
+                        }
+                    }
+                    for tag in tags
+                ]
+                
+            except Exception as e:
+                logger.error(f"Error loading available tags: {e}")
+                # Return some default tags for fallback
+                return [
+                    {"id": 1, "name": "Critical", "color": "#e74c3c", "description": "Critical severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 2, "name": "High", "color": "#ff6b6b", "description": "High severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 3, "name": "Medium", "color": "#ffa726", "description": "Medium severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 4, "name": "Low", "color": "#66bb6a", "description": "Low severity", "category": {"name": "Priority", "color": "#e74c3c"}},
+                    {"id": 5, "name": "Data Gap", "color": "#e74c3c", "description": "Missing data issue", "category": {"name": "Type", "color": "#f39c12"}},
+                    {"id": 6, "name": "Price Anomaly", "color": "#f39c12", "description": "Price data anomaly", "category": {"name": "Type", "color": "#f39c12"}},
+                    {"id": 7, "name": "Volume Spike", "color": "#9b59b6", "description": "Volume anomaly", "category": {"name": "Type", "color": "#f39c12"}},
+                    {"id": 8, "name": "Polygon", "color": "#8e44ad", "description": "Polygon data source", "category": {"name": "Source", "color": "#9b59b6"}},
+                    {"id": 9, "name": "Tiingo", "color": "#2ecc71", "description": "Tiingo data source", "category": {"name": "Source", "color": "#9b59b6"}},
+                    {"id": 10, "name": "EODHD", "color": "#e67e22", "description": "EODHD data source", "category": {"name": "Source", "color": "#9b59b6"}}
+                ]
+        
+        try:
+            # Run the async function
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            tags = loop.run_until_complete(get_available_tags())
+            loop.close()
+            
+            self._serve_json_response(tags)
+            
+        except Exception as e:
+            logger.error(f"Error serving available tags: {e}")
+            self._serve_json_response({
+                "error": str(e),
+                "message": "Failed to load available tags"
+            }, status_code=500)
+
+    def _serve_tag_api(self):
+        """Handle tag API requests with proper routing"""
+        if not getattr(self.analytics_service, 'tagging_enabled', False):
+            self._serve_json_response({
+                "error": "Tagging system not available"
+            }, status_code=503)
+            return
+
+        try:
+            from urllib.parse import urlparse, parse_qs
+            import asyncio
+            
+            # Parse the path to extract tag API endpoint
+            parsed_url = urlparse(self.path)
+            path_parts = parsed_url.path.strip('/').split('/')
+            
+            if len(path_parts) < 3:  # /api/tags/...
+                self._serve_404()
+                return
+                
+            endpoint = '/'.join(path_parts[2:])  # Everything after /api/tags/
+            query_params = parse_qs(parsed_url.query)
+            
+            # Get tag service instance
+            async def get_tag_service():
+                from infrastructure.database.connection_manager import get_database_connection
+                connection = await get_database_connection("dev")  # TODO: Make configurable
+                repository = TagRepository(connection)
+                return TagService(repository)
+            
+            # Route to appropriate handler based on method and endpoint
+            if self.command == 'GET':
+                asyncio.run(self._handle_tag_get_request(endpoint, query_params, get_tag_service))
+            elif self.command == 'POST':
+                asyncio.run(self._handle_tag_post_request(endpoint, get_tag_service))
+            elif self.command == 'DELETE':
+                asyncio.run(self._handle_tag_delete_request(endpoint, get_tag_service))
+            else:
+                self._serve_405()  # Method not allowed
+                
+        except Exception as e:
+            logger.error(f"Error handling tag API request: {e}")
+            self._serve_500(str(e))
+
+    async def _handle_tag_get_request(self, endpoint, query_params, get_tag_service_func):
+        """Handle GET requests for tag API"""
+        try:
+            tag_service = await get_tag_service_func()
+            
+            if endpoint == '':
+                # GET /api/tags/ - Get all tags
+                active_only = query_params.get('active_only', ['true'])[0].lower() == 'true'
+                category_id = query_params.get('category_id', [None])[0]
+                search = query_params.get('search', [None])[0]
+                limit = int(query_params.get('limit', [100])[0])
+                
+                if search:
+                    tags = await tag_service.search_tags(search, limit=limit)
+                elif category_id:
+                    tags = await tag_service.get_tags_by_category(int(category_id), active_only=active_only)
+                else:
+                    tags = await tag_service.get_all_tags(active_only=active_only)
+                
+                response = [self._convert_tag_to_dict(tag) for tag in tags[:limit]]
+                
+            elif endpoint == 'categories':
+                # GET /api/tags/categories - Get all categories
+                categories = await tag_service.get_all_categories()
+                response = [self._convert_category_to_dict(cat) for cat in categories]
+                
+            elif endpoint == 'analytics':
+                # GET /api/tags/analytics - Get analytics
+                analytics = await tag_service.get_tag_analytics()
+                response = {
+                    "most_used_tags": [
+                        {
+                            "tag_id": stat.tag_id,
+                            "tag_name": stat.tag_name,
+                            "total_usage": stat.total_usage,
+                            "unique_entities": stat.unique_entities,
+                            "entity_types_count": stat.entity_types_count,
+                            "avg_confidence": float(stat.avg_confidence) if stat.avg_confidence else 0,
+                            "last_used": stat.last_used.isoformat() if stat.last_used else None,
+                            "active_days_last_90": stat.active_days_last_90
+                        }
+                        for stat in analytics.most_used_tags
+                    ],
+                    "tag_categories_distribution": analytics.tag_categories_distribution,
+                    "tagging_trends": analytics.tagging_trends,
+                    "entity_coverage": round(analytics.entity_coverage, 2),
+                    "avg_tags_per_entity": round(analytics.avg_tags_per_entity, 2),
+                    "top_co_occurring_tags": analytics.top_co_occurring_tags
+                }
+                
+            elif endpoint.startswith('entity/'):
+                # GET /api/tags/entity/{entity_type}/{entity_id} - Get entity tags
+                parts = endpoint.split('/')
+                if len(parts) >= 3:
+                    entity_type, entity_id = parts[1], int(parts[2])
+                    tags = await tag_service.get_entity_tags(entity_type, entity_id)
+                    response = [self._convert_tag_to_dict(tag) for tag in tags]
+                else:
+                    raise ValueError("Invalid entity path format")
+                    
+            elif endpoint.startswith('suggestions/'):
+                # GET /api/tags/suggestions/{entity_type}/{entity_id} - Get suggestions
+                parts = endpoint.split('/')
+                if len(parts) >= 3:
+                    entity_type, entity_id = parts[1], int(parts[2])
+                    limit = int(query_params.get('limit', [5])[0])
+                    suggestions = await tag_service.suggest_tags_for_entity(entity_type, entity_id, limit)
+                    response = [
+                        {
+                            "tag_id": suggestion.tag_id,
+                            "tag_name": suggestion.tag_name,
+                            "confidence_score": round(suggestion.confidence_score, 3),
+                            "source": suggestion.source.value,
+                            "explanation": suggestion.explanation
+                        }
+                        for suggestion in suggestions
+                    ]
+                else:
+                    raise ValueError("Invalid suggestions path format")
+                    
+            elif endpoint.startswith('suggestions-enhanced/'):
+                # GET /api/tags/suggestions-enhanced/{entity_type}/{entity_id} - Get enhanced suggestions
+                parts = endpoint.split('/')
+                if len(parts) >= 3:
+                    entity_type, entity_id = parts[1], int(parts[2])
+                    limit = int(query_params.get('limit', [5])[0])
+                    suggestions = await tag_service.get_auto_tag_suggestions_enhanced(entity_type, entity_id, limit)
+                    response = [
+                        {
+                            "tag_id": suggestion.tag_id,
+                            "tag_name": suggestion.tag_name,
+                            "confidence_score": round(suggestion.confidence_score, 3),
+                            "source": suggestion.source.value,
+                            "explanation": suggestion.explanation
+                        }
+                        for suggestion in suggestions
+                    ]
+                else:
+                    raise ValueError("Invalid enhanced suggestions path format")
+                    
+            elif endpoint == 'auto-rules':
+                # GET /api/tags/auto-rules - Get auto-tagging rules
+                auto_tagging = tag_service.get_auto_tagging_service()
+                rules = auto_tagging.get_all_rules()
+                response = {
+                    "rules": rules,
+                    "total_rules": len(rules),
+                    "categories": list(set(rule['category'] for rule in rules))
+                }
+                    
+            elif endpoint == 'usage-stats':
+                # GET /api/tags/usage-stats - Get usage statistics
+                limit = int(query_params.get('limit', [100])[0])
+                stats = await tag_service.get_tag_usage_stats(limit)
+                response = [
+                    {
+                        "tag_id": stat.tag_id,
+                        "tag_name": stat.tag_name,
+                        "total_usage": stat.total_usage,
+                        "unique_entities": stat.unique_entities,
+                        "entity_types_count": stat.entity_types_count,
+                        "avg_confidence": float(stat.avg_confidence) if stat.avg_confidence else 0,
+                        "last_used": stat.last_used.isoformat() if stat.last_used else None,
+                        "active_days_last_90": stat.active_days_last_90
+                    }
+                    for stat in stats
+                ]
+            else:
+                self._serve_404()
+                return
+                
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error in tag GET handler: {e}")
+            self._serve_500(str(e))
+
+    async def _handle_tag_post_request(self, endpoint, get_tag_service_func):
+        """Handle POST requests for tag API"""
+        try:
+            tag_service = await get_tag_service_func()
+            
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            request_body = self.rfile.read(content_length).decode('utf-8')
+            request_data = json.loads(request_body) if request_body else {}
+            
+            if endpoint == '':
+                # POST /api/tags/ - Create new tag
+                from domains.tagging.models.tag_models import CreateTagRequest
+                create_request = CreateTagRequest(
+                    name=request_data['name'],
+                    description=request_data.get('description'),
+                    category_id=request_data.get('category_id'),
+                    color=request_data.get('color'),
+                    metadata=request_data.get('metadata')
+                )
+                tag = await tag_service.create_tag(create_request)
+                response = self._convert_tag_to_dict(tag)
+                
+            elif endpoint == 'apply':
+                # POST /api/tags/apply - Apply tag to entity
+                from domains.tagging.models.tag_models import ApplyTagRequest, TagSource
+                apply_request = ApplyTagRequest(
+                    entity_type=request_data['entity_type'],
+                    entity_id=request_data['entity_id'],
+                    tag_id=request_data['tag_id'],
+                    confidence_score=request_data.get('confidence_score', 1.0),
+                    source=TagSource(request_data.get('source', 'manual')),
+                    metadata=request_data.get('metadata')
+                )
+                entity_tag = await tag_service.apply_tag_to_entity(apply_request)
+                
+                # Get tag details for response
+                tag = await tag_service.repository.get_tag_by_id(entity_tag.tag_id)
+                response = {
+                    "id": entity_tag.id,
+                    "entity_type": request_data['entity_type'],
+                    "entity_id": entity_tag.entity_id,
+                    "tag": self._convert_tag_to_dict(tag),
+                    "tagged_by_user_id": entity_tag.tagged_by_user_id,
+                    "tagged_at": entity_tag.tagged_at.isoformat(),
+                    "confidence_score": entity_tag.confidence_score,
+                    "source": entity_tag.source.value,
+                    "metadata": entity_tag.metadata
+                }
+                
+            elif endpoint == 'bulk-apply':
+                # POST /api/tags/bulk-apply - Bulk apply tags
+                from domains.tagging.models.tag_models import BulkTagRequest, TagSource
+                bulk_request = BulkTagRequest(
+                    entity_type=request_data['entity_type'],
+                    entity_ids=request_data['entity_ids'],
+                    tag_ids=request_data['tag_ids'],
+                    confidence_score=request_data.get('confidence_score', 1.0),
+                    source=TagSource(request_data.get('source', 'manual')),
+                    metadata=request_data.get('metadata')
+                )
+                results = await tag_service.bulk_apply_tags(bulk_request)
+                
+                success_count = len([r for r in results if not isinstance(r, Exception)])
+                error_count = len(results) - success_count
+                
+                response = {
+                    "total_operations": len(results),
+                    "successful": success_count,
+                    "failed": error_count,
+                    "message": f"Applied tags: {success_count} successful, {error_count} failed"
+                }
+                
+            elif endpoint == 'search-entities':
+                # POST /api/tags/search-entities - Search entities by tags
+                from domains.tagging.models.tag_models import TagFilter
+                from datetime import datetime
+                
+                tag_filter = TagFilter(
+                    entity_type=request_data['entity_type'],
+                    tag_ids=request_data.get('tag_ids'),
+                    categories=request_data.get('categories'),
+                    symbols=request_data.get('symbols'),
+                    date_from=datetime.fromisoformat(request_data['date_from']) if request_data.get('date_from') else None,
+                    date_to=datetime.fromisoformat(request_data['date_to']) if request_data.get('date_to') else None,
+                    search=request_data.get('search'),
+                    match_mode=request_data.get('match_mode', 'ANY'),
+                    limit=request_data.get('limit', 50),
+                    offset=request_data.get('offset', 0)
+                )
+                
+                tagged_entities = await tag_service.get_tagged_entities(tag_filter)
+                
+                response = [
+                    {
+                        "entity_type": entity.entity_type,
+                        "entity_id": entity.entity_id,
+                        "tags": [self._convert_tag_to_dict(tag) for tag in entity.tags],
+                        "total_tags": entity.total_tags
+                    }
+                    for entity in tagged_entities
+                ]
+                
+            elif endpoint == 'refresh-analytics':
+                # POST /api/tags/refresh-analytics - Refresh analytics
+                success = await tag_service.refresh_tag_analytics()
+                response = {"message": "Tag analytics refreshed successfully" if success else "Failed to refresh analytics"}
+                
+            elif endpoint.startswith('auto-tag/'):
+                # POST /api/tags/auto-tag/{entity_type}/{entity_id} - Apply auto-tagging
+                parts = endpoint.replace('auto-tag/', '').split('/')
+                if len(parts) >= 2:
+                    entity_type, entity_id = parts[0], int(parts[1])
+                    
+                    if entity_type == "data_quality_issues":
+                        issue_details = await tag_service.repository.get_issue_details(entity_id)
+                        if not issue_details:
+                            self._serve_json_response({"error": "Entity not found"}, status_code=404)
+                            return
+                            
+                        applied_tags = await tag_service.auto_tag_issue(entity_id, issue_details)
+                        
+                        response = {
+                            "entity_type": entity_type,
+                            "entity_id": entity_id,
+                            "applied_tags": applied_tags,
+                            "total_applied": len(applied_tags),
+                            "message": f"Applied {len(applied_tags)} auto-tags successfully"
+                        }
+                    else:
+                        self._serve_json_response({"error": f"Auto-tagging not supported for entity type: {entity_type}"}, status_code=400)
+                        return
+                else:
+                    raise ValueError("Invalid auto-tag path format")
+                    
+            elif endpoint == 'auto-batch':
+                # POST /api/tags/auto-batch - Run batch auto-tagging
+                limit = int(request_data.get('limit', 100))
+                min_hours_old = int(request_data.get('min_hours_old', 1))
+                
+                auto_tagging = tag_service.get_auto_tagging_service()
+                response = await auto_tagging.run_auto_tagging_job(limit=limit, min_hours_old=min_hours_old)
+                
+            else:
+                self._serve_404()
+                return
+                
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error in tag POST handler: {e}")
+            self._serve_500(str(e))
+
+    async def _handle_tag_delete_request(self, endpoint, get_tag_service_func):
+        """Handle DELETE requests for tag API"""
+        try:
+            tag_service = await get_tag_service_func()
+            
+            if endpoint.startswith('entity/') and '/tag/' in endpoint:
+                # DELETE /api/tags/entity/{entity_type}/{entity_id}/tag/{tag_id}
+                parts = endpoint.replace('entity/', '').split('/tag/')
+                if len(parts) == 2:
+                    entity_parts = parts[0].split('/')
+                    if len(entity_parts) >= 2:
+                        entity_type, entity_id = entity_parts[0], int(entity_parts[1])
+                        tag_id = int(parts[1])
+                        
+                        success = await tag_service.remove_tag_from_entity(entity_type, entity_id, tag_id)
+                        if success:
+                            response = {"message": "Tag removed successfully"}
+                        else:
+                            self._serve_json_response({"error": "Tag relationship not found"}, status_code=404)
+                            return
+                    else:
+                        raise ValueError("Invalid entity path format")
+                else:
+                    raise ValueError("Invalid delete path format")
+            else:
+                self._serve_404()
+                return
+                
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error in tag DELETE handler: {e}")
+            self._serve_500(str(e))
+
+    def _convert_tag_to_dict(self, tag):
+        """Convert Tag model to dictionary"""
+        return {
+            "id": tag.id,
+            "name": tag.name,
+            "slug": tag.slug,
+            "description": tag.description,
+            "color": tag.color,
+            "category_id": tag.category_id,
+            "category_name": tag.category.name if tag.category else None,
+            "created_at": tag.created_at.isoformat(),
+            "updated_at": tag.updated_at.isoformat(),
+            "usage_count": tag.usage_count,
+            "is_system_tag": tag.is_system_tag,
+            "is_active": tag.is_active,
+            "metadata": tag.metadata
+        }
+
+    def _convert_category_to_dict(self, category):
+        """Convert TagCategory model to dictionary"""
+        return {
+            "id": category.id,
+            "name": category.name,
+            "slug": category.slug,
+            "description": category.description,
+            "color": category.color,
+            "icon": category.icon,
+            "parent_id": category.parent_id,
+            "sort_order": category.sort_order,
+            "created_at": category.created_at.isoformat(),
+            "updated_at": category.updated_at.isoformat()
+        }
+
+    def _serve_data_quality_issues_with_tags(self):
+        """Enhanced data quality issues API with tag filtering support"""
+        try:
+            from urllib.parse import urlparse, parse_qs
+            import asyncio
+            
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            # Extract tag filtering parameters
+            tag_ids = query_params.get('tag_ids', [])
+            if tag_ids and tag_ids[0]:
+                tag_ids = [int(x) for x in tag_ids[0].split(',')]
+            else:
+                tag_ids = None
+                
+            categories = query_params.get('categories', [])
+            if categories and categories[0]:
+                categories = [int(x) for x in categories[0].split(',')]
+            else:
+                categories = None
+                
+            symbols = query_params.get('symbols', [])
+            if symbols and symbols[0]:
+                symbols = symbols[0].split(',')
+            else:
+                symbols = None
+                
+            date_from = query_params.get('date_from', [None])[0]
+            date_to = query_params.get('date_to', [None])[0]
+            match_mode = query_params.get('match_mode', ['ANY'])[0]
+            limit = int(query_params.get('limit', [50])[0])
+            offset = int(query_params.get('offset', [0])[0])
+            
+            async def get_filtered_issues():
+                # Use direct database connection instead of complex tagging service
+                import asyncpg
+                import os
+                
+                # Get database connection details from environment
+                db_host = os.getenv('DB_HOST', 'localhost')
+                db_port = int(os.getenv('DB_PORT', '5432'))
+                db_user = os.getenv('DB_USER', 'postgres')
+                db_password = os.getenv('DB_PASSWORD', 'intg_password')
+                db_name = os.getenv('DB_NAME', 'intg_db')
+                
+                conn = await asyncpg.connect(
+                    host=db_host,
+                    port=db_port,
+                    user=db_user,
+                    password=db_password,
+                    database=db_name
+                )
+                
+                try:
+                    # Direct database query for tag filtering (working implementation)
+                    if tag_ids:
+                        query = """
+                            SELECT DISTINCT ai.issue_id, ai.symbol, ai.issue_type, ai.severity, 
+                                   ai.description, ai.vendor, ai.created_at
+                            FROM agent_issues ai
+                            JOIN entity_tags et ON et.entity_id = abs(hashtext(ai.issue_id)) % 2147483647  
+                            JOIN entity_types ety ON et.entity_type_id = ety.id
+                            WHERE ety.name = 'data_quality_issues'
+                            AND et.tag_id = ANY($1)
+                            ORDER BY ai.created_at DESC
+                            LIMIT $2 OFFSET $3
+                        """
+                        issues = await conn.fetch(query, tag_ids, limit, offset)
+                    else:
+                        # No tag filtering - get all issues
+                        query = """
+                            SELECT issue_id, symbol, issue_type, severity, 
+                                   description, vendor, created_at
+                            FROM agent_issues
+                            ORDER BY created_at DESC
+                            LIMIT $1 OFFSET $2
+                        """
+                        issues = await conn.fetch(query, limit, offset)
+                    
+                    # Format issues for API response
+                    issues_with_tags = []
+                    for issue in issues:
+                        formatted_issue = {
+                            'id': issue['issue_id'],
+                            'symbol': issue.get('symbol', 'N/A'),
+                            'issue_type': issue.get('issue_type', 'unknown'),
+                            'severity': issue['severity'],
+                            'description': issue.get('description', 'N/A'),
+                            'vendor_source': issue.get('vendor', 'unknown'),
+                            'detected_at': issue['created_at'].isoformat() if issue.get('created_at') else None,
+                            'status': 'open',
+                            'tags': []  # TODO: Add tag details if needed
+                        }
+                        issues_with_tags.append(formatted_issue)
+                    
+                    return issues_with_tags
+                    
+                except Exception as e:
+                    logger.error(f"Error getting filtered issues: {e}")
+                    # Fallback to basic issues
+                    return await self._get_basic_data_quality_issues(limit, offset)
+                finally:
+                    await conn.close()
+            
+            issues = asyncio.run(get_filtered_issues())
+            
+            response = {
+                "success": True,
+                "issues": issues,
+                "filter_applied": {
+                    "tag_ids": tag_ids,
+                    "categories": categories,
+                    "symbols": symbols,
+                    "date_range": {
+                        "from": date_from,
+                        "to": date_to
+                    },
+                    "match_mode": match_mode
+                },
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "total": len(issues)
+                }
+            }
+            
+            self._serve_json_response(response)
+            
+        except Exception as e:
+            logger.error(f"Error serving filtered data quality issues: {e}")
+            self._serve_500(str(e))
+
+    async def _get_issue_details(self, connection, issue_id):
+        """Get detailed information for a specific issue"""
+        try:
+            query = """
+            SELECT id, symbol, issue_type, description, severity, 
+                   affected_date, vendor_source, field, expected_value, 
+                   actual_value, created_at, updated_at
+            FROM dev_data_quality_issues 
+            WHERE id = $1
+            """
+            result = await connection.fetchrow(query, issue_id)
+            
+            if result:
+                return {
+                    "id": result['id'],
+                    "symbol": result['symbol'],
+                    "issue_type": result['issue_type'],
+                    "description": result['description'],
+                    "severity": result['severity'],
+                    "affected_date": result['affected_date'].isoformat() if result['affected_date'] else None,
+                    "vendor_source": result['vendor_source'],
+                    "field": result['field'],
+                    "expected_value": result['expected_value'],
+                    "actual_value": result['actual_value'],
+                    "created_at": result['created_at'].isoformat() if result['created_at'] else None,
+                    "updated_at": result['updated_at'].isoformat() if result['updated_at'] else None
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting issue details for {issue_id}: {e}")
+            return None
+
+    async def _get_basic_data_quality_issues(self, limit=50, offset=0):
+        """Get basic data quality issues without tag filtering (fallback)"""
+        try:
+            from infrastructure.database.connection_manager import get_database_connection
+            
+            connection = await get_database_connection("dev")
+            
+            query = """
+            SELECT id, symbol, issue_type, description, severity, 
+                   affected_date, vendor_source, field, expected_value, 
+                   actual_value, created_at, updated_at
+            FROM dev_data_quality_issues 
+            ORDER BY created_at DESC
+            LIMIT $1 OFFSET $2
+            """
+            
+            results = await connection.fetch(query, limit, offset)
+            
+            issues = []
+            for result in results:
+                issues.append({
+                    "id": result['id'],
+                    "symbol": result['symbol'],
+                    "issue_type": result['issue_type'],
+                    "description": result['description'],
+                    "severity": result['severity'],
+                    "affected_date": result['affected_date'].isoformat() if result['affected_date'] else None,
+                    "vendor_source": result['vendor_source'],
+                    "field": result['field'],
+                    "expected_value": result['expected_value'],
+                    "actual_value": result['actual_value'],
+                    "created_at": result['created_at'].isoformat() if result['created_at'] else None,
+                    "updated_at": result['updated_at'].isoformat() if result['updated_at'] else None,
+                    "tags": [],
+                    "tag_count": 0
+                })
+                
+            return issues
+            
+        except Exception as e:
+            logger.error(f"Error getting basic data quality issues: {e}")
+            return []
+
+    def _serve_json_response(self, data, status_code=200):
+        """Helper method to serve JSON responses"""
+        self.send_response(status_code)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        self.wfile.write(json.dumps(data, indent=2).encode('utf-8'))
+
+    def _serve_405(self):
+        """Serve 405 Method Not Allowed"""
+        self._serve_json_response({"error": "Method not allowed"}, status_code=405)
 
 
 def start_unified_analytics_server(port: int = 3000):

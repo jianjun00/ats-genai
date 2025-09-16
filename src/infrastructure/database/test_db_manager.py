@@ -600,7 +600,7 @@ SAMPLE_FIXTURES = {
             "active": True
         }
     ],
-    "daily_prices": [
+    "daily_price_polygon": [
         {
             "date": "2024-01-01",
             "symbol": "TEST",

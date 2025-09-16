@@ -28,7 +28,7 @@ async def main():
         conn = await asyncpg.connect(db_url)
 
         # Get SPY instrument ID
-        result = await conn.fetchrow("SELECT id, symbol FROM dev_instruments WHERE symbol = 'SPY'")
+        result = await conn.fetchrow("SELECT id, symbol FROM dev_instrument WHERE symbol = 'SPY'")
 
         if not result:
             logger.error("❌ SPY not found in instruments table")

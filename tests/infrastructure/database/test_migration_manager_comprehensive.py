@@ -77,17 +77,17 @@ async def test_apply_table_prefixes(unit_test_db_clean):
 
     sql = """
     CREATE TABLE IF NOT EXISTS events (id SERIAL PRIMARY KEY);
-    CREATE TABLE IF NOT EXISTS daily_prices (date DATE);
+    CREATE TABLE IF NOT EXISTS daily_price_polygon (date DATE);
     INSERT INTO events (id) VALUES (1);
-    SELECT * FROM daily_prices;
+    SELECT * FROM daily_price_polygon;
     """
 
     prefixed_sql = manager._apply_table_prefixes(sql)
 
     assert "CREATE TABLE IF NOT EXISTS test_events" in prefixed_sql
-    assert "CREATE TABLE IF NOT EXISTS test_daily_prices" in prefixed_sql
+    assert "CREATE TABLE IF NOT EXISTS test_daily_price_polygon" in prefixed_sql
     assert "INSERT INTO test_events" in prefixed_sql
-    assert "SELECT * FROM test_daily_prices" in prefixed_sql
+    assert "SELECT * FROM test_daily_price_polygon" in prefixed_sql
 
 
 @pytest.mark.unit

@@ -80,7 +80,7 @@ class InstrumentServiceHealthIntegration:
         database_check = DatabaseHealthCheck(
             name="instrument_database",
             connection_factory=self._get_database_connection,
-            query="SELECT COUNT(*) FROM dev_instruments LIMIT 1"
+            query="SELECT COUNT(*) FROM dev_instrument LIMIT 1"
         )
         self.health_manager.add_health_check(database_check)
 

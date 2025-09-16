@@ -255,7 +255,7 @@ class MultiTimeframeDataCollector:
                         dp.close as close,
                         COALESCE(dp.volume, 0) as volume
                     FROM {table_name} dp
-                    JOIN dev_instruments i ON dp.instrument_id = i.id
+                    JOIN dev_instrument i ON dp.instrument_id = i.id
                     WHERE i.symbol = ANY($1)
                     AND dp.timestamp::date BETWEEN $2 AND $3
                     AND EXTRACT(MINUTE FROM dp.timestamp) % $4 = 0
@@ -289,8 +289,8 @@ class MultiTimeframeDataCollector:
                 dp.low_price as low,
                 dp.close as close,
                 COALESCE(dp.volume, 0) as volume
-            FROM dev_daily_prices dp
-            JOIN dev_instruments i ON dp.instrument_id = i.id
+            FROM dev_daily_price_polygon dp
+            JOIN dev_instrument i ON dp.instrument_id = i.id
             WHERE i.symbol = ANY($1)
             AND dp.date BETWEEN $2 AND $3
             ORDER BY i.symbol, dp.date

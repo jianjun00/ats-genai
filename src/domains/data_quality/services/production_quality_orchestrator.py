@@ -372,7 +372,7 @@ class ProductionDataQualityOrchestrator:
         """Perform multi-vendor cross-verification for critical tier."""
         try:
             # Get data from multiple vendors for cross-validation
-            verification_results = await self.vendor_client.cross_validate_daily_prices(
+            verification_results = await self.vendor_client.cross_validate_daily_price_polygon(
                 symbol, trading_date, vendors=['polygon', 'tiingo', 'eodhd']
             )
 
@@ -396,7 +396,7 @@ class ProductionDataQualityOrchestrator:
         """Perform single vendor verification for analytics tier."""
         try:
             # Single vendor verification
-            verification_result = await self.vendor_client.verify_daily_prices(
+            verification_result = await self.vendor_client.verify_daily_price_polygon(
                 symbol, trading_date, primary_vendor='polygon'
             )
 

@@ -169,7 +169,7 @@ class DailyMinuteBarBackfill:
                         ELSE 'stock'
                     END as instrument_type,
                     COALESCE(exchange, 'UNKNOWN') as exchange
-                FROM intg_instruments
+                FROM intg_instrument
                 WHERE active = true
                   AND symbol IS NOT NULL
                   AND LENGTH(symbol) BETWEEN 1 AND 5

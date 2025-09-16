@@ -52,7 +52,7 @@ CURRENCY_VALUES = [
 
 INSTRUMENT_SCHEMA = EntitySchema(
     entity_name="instrument",
-    table_name="dev_instruments",
+    table_name="dev_instrument",
     description="Master data for financial instruments",
     primary_key=["id"],
     indexes=[["symbol"], ["exchange"], ["type"], ["active"]],
@@ -433,7 +433,7 @@ ALL_SCHEMAS = {
 
 # Additional table mappings for legacy tables
 TABLE_SCHEMA_MAPPING = {
-    "dev_instruments": INSTRUMENT_SCHEMA,
+    "dev_instrument": INSTRUMENT_SCHEMA,
     "dev_instrument_tiingo": INSTRUMENT_SCHEMA,  # Same structure
     "dev_instrument_polygon": INSTRUMENT_SCHEMA,  # Same structure
     "dev_daily_price_polygon": PRICE_SCHEMA,

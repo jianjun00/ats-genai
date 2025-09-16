@@ -107,7 +107,7 @@ class UniverseMembershipManager:
                     symbol,
                     date,
                     close * volume as dollar_volume
-                FROM {self.daily_prices_table}
+                FROM {self.daily_price_polygon_table}
                 WHERE date BETWEEN %s AND %s
                     AND volume > 0  -- Exclude non-trading days
                 ORDER BY symbol, date
@@ -263,7 +263,7 @@ class UniverseMembershipManager:
                             symbol,
                             date,
                             close * volume as dollar_volume
-                        FROM {self.daily_prices_table}
+                        FROM {self.daily_price_polygon_table}
                         WHERE symbol = %s
                             AND date BETWEEN %s AND %s
                             AND volume > 0

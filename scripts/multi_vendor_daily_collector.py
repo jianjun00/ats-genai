@@ -414,7 +414,7 @@ class MultiVendorDailyCollector:
         async with self.db_pool.acquire() as conn:
             query = """
                 SELECT DISTINCT symbol, id
-                FROM intg_instruments
+                FROM intg_instrument
                 WHERE active = true
                   AND symbol IS NOT NULL
                   AND symbol ~ '^[A-Z]{1,5}$'

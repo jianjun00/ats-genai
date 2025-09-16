@@ -5,7 +5,7 @@ import logging
 class DailyPricesDAO:
     def __init__(self, env: Environment):
         self.env = env
-        self.table_name = self.env.get_table_name('daily_prices')
+        self.table_name = self.env.get_table_name('daily_price_polygon')
         self.db_url = self.env.get_database_url()
         self.logger = logging.getLogger(__name__)
         self.logger.debug(f"DailyPricesDAO using db_url: {self.db_url}")

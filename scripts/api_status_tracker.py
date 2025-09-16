@@ -19,7 +19,7 @@ Usage:
     tracker = APIStatusTracker()
 
     # Track API calls
-    tracker.track_request("tiingo", "daily_prices", 200, latency_ms=150, response_size=1024)
+    tracker.track_request("tiingo", "daily_price_polygon", 200, latency_ms=150, response_size=1024)
     tracker.track_request("polygon", "fundamentals", 429, latency_ms=50)
 
     # Get metrics
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 class APIRequestRecord:
     """Record for a single API request."""
     vendor: str
-    api_endpoint: str  # e.g., "daily_prices", "fundamentals", "news"
+    api_endpoint: str  # e.g., "daily_price_polygon", "fundamentals", "news"
     status_code: int
     latency_ms: float
     response_size_bytes: Optional[int] = None
@@ -91,19 +91,19 @@ class APIStatusTracker:
         # Vendor configurations
         self.vendor_configs = {
             'tiingo': {
-                'endpoints': ['daily_prices', 'fundamentals', 'news', 'instruments'],
+                'endpoints': ['daily_price_polygon', 'fundamentals', 'news', 'instruments'],
                 'rate_limit_codes': [429],
                 'expected_success_codes': [200],
                 'base_url': 'api.tiingo.com'
             },
             'polygon': {
-                'endpoints': ['daily_prices', 'fundamentals', 'news', 'minute_bars'],
+                'endpoints': ['daily_price_polygon', 'fundamentals', 'news', 'minute_bars'],
                 'rate_limit_codes': [429],
                 'expected_success_codes': [200],
                 'base_url': 'api.polygon.io'
             },
             'eodhd': {
-                'endpoints': ['daily_prices', 'fundamentals', 'news', 'instruments'],
+                'endpoints': ['daily_price_polygon', 'fundamentals', 'news', 'instruments'],
                 'rate_limit_codes': [429, 403],
                 'expected_success_codes': [200],
                 'base_url': 'eodhd.com'
@@ -223,7 +223,7 @@ class APIStatusTracker:
 
         Args:
             vendor: Vendor name (tiingo, polygon, eodhd, etc.)
-            api_endpoint: API endpoint type (daily_prices, fundamentals, etc.)
+            api_endpoint: API endpoint type (daily_price_polygon, fundamentals, etc.)
             status_code: HTTP status code
             latency_ms: Request latency in milliseconds
             response_size_bytes: Response size in bytes

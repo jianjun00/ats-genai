@@ -56,7 +56,7 @@ async def collect_tiingo_data(lookback_days: int = 10, max_symbols: int = 100, d
         # Get active symbols
         symbols_result = await conn.fetch(f"""
             SELECT DISTINCT symbol, id
-            FROM intg_instruments
+            FROM intg_instrument
             WHERE active = true
               AND symbol IS NOT NULL
               AND symbol ~ '^[A-Z]{{1,5}}$'

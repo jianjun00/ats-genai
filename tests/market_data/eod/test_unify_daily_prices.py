@@ -3,6 +3,7 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 from domains.market_data.services.eod.unify_daily_prices import FileDailyPricesUnifier
+from domains.market_data.services.eod.unify_daily_price_polygon import FileDailyPricesUnifier, DailyPricesUnifierBase
 
 def load_fixture_prices(log_dir, symbol, provider):
     """
@@ -89,7 +90,7 @@ def test_unify_daily_prices_discrepancies(symbol, start_date, end_date):
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
     current_date = end_date_obj  # Use end_date as current_date for testing
-    results = asyncio.run(unifier.unify_daily_prices(symbol, (start_date_obj, end_date_obj), current_date))
+    results = asyncio.run(unifier.unify_daily_price_polygon(symbol, (start_date_obj, end_date_obj), current_date))
     # Analyze results
     import pandas as pd
     from pandas.tseries.holiday import USFederalHolidayCalendar

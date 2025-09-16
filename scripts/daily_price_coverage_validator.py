@@ -151,7 +151,7 @@ class DailyPriceCoverageValidator:
         async with self.db_pool.acquire() as conn:
             query = """
             SELECT id, symbol
-            FROM intg_instruments
+            FROM intg_instrument
             WHERE active = true
               AND symbol IS NOT NULL
               AND symbol != ''
@@ -169,7 +169,7 @@ class DailyPriceCoverageValidator:
                                      trading_days: List[date]) -> VendorCoverageSummary:
         """Validate daily price coverage for a specific vendor."""
         start_time = time.time()
-        table_name = f"intg_daily_prices_{vendor}"
+        table_name = f"intg_daily_price_polygon_{vendor}"
 
         logger.info(f"🔍 Validating {vendor} coverage for {len(instruments)} instruments across {len(trading_days)} trading days")
 
@@ -295,12 +295,12 @@ class DailyPriceCoverageValidator:
 
         async with self.db_pool.acquire() as conn:
             # Get total instruments
-            total_instruments_query = "SELECT COUNT(*) FROM intg_instruments WHERE active = true"
+            total_instruments_query = "SELECT COUNT(*) FROM intg_instrument WHERE active = true"
             total_instruments = await conn.fetchval(total_instruments_query)
 
             # Calculate per-vendor metrics
             for vendor, summary in self.vendor_summaries.items():
-                table_name = f"intg_daily_prices_{vendor}"
+                table_name = f"intg_daily_price_polygon_{vendor}"
 
                 try:
                     # Instruments with recent data (last 7 days)
@@ -324,7 +324,7 @@ class DailyPriceCoverageValidator:
                         latest_trading_day = trading_days_recent[-1]
                         missing_query = f"""
                         SELECT COUNT(*)
-                        FROM intg_instruments i
+                        FROM intg_instrument i
                         WHERE i.active = true
                           AND i.id NOT IN (
                               SELECT DISTINCT instrument_id

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class FrontfillConfig:
     """Configuration for frontfill jobs."""
     job_name: str
-    job_type: str  # instruments, daily_prices, news, economic_events
+    job_type: str  # instruments, daily_price_polygon, news, economic_events
     vendor: str
     checkpoint_type: CheckpointType
     batch_size: int = 100

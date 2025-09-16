@@ -110,7 +110,7 @@ async def test_daily_market_cap_dao_crud(unit_test_db):
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
-async def test_daily_prices_dao_crud(unit_test_db):
+async def test_daily_price_polygon_dao_crud(unit_test_db):
     from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Create test instrument

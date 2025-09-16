@@ -47,7 +47,7 @@ async def generate_aapl_2025_training_data():
         async with connection_pool.acquire() as connection:
             query = """
             SELECT date, open, high, low, close, volume
-            FROM intg_daily_prices
+            FROM intg_daily_price_polygon
             WHERE symbol = $1 AND date >= $2 AND date <= $3
             ORDER BY date
             """

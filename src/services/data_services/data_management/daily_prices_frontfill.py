@@ -282,7 +282,7 @@ class DailyPricesFrontfillJob(BaseFrontfillJob):
 
 
 # Factory function to create configured frontfill jobs
-async def create_daily_prices_frontfill_jobs(connection_pool: asyncpg.Pool,
+async def create_daily_price_polygon_frontfill_jobs(connection_pool: asyncpg.Pool,
                                            env: Environment,
                                            polygon_api_key: str,
                                            tiingo_api_key: str) -> List[DailyPricesFrontfillJob]:

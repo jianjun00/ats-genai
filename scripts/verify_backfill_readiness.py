@@ -37,7 +37,7 @@ async def test_database_connectivity():
             print(f"✅ Table {table}: accessible")
 
         # Check instrument data
-        instrument_count = await conn.fetchval("SELECT COUNT(*) FROM intg_instruments WHERE active = true")
+        instrument_count = await conn.fetchval("SELECT COUNT(*) FROM intg_instrument WHERE active = true")
         print(f"📊 Active instruments: {instrument_count}")
 
         if instrument_count == 0:

@@ -114,7 +114,7 @@ class DataQualityMonitor:
         # Tables to monitor
         self.monitored_tables = {
             'instruments': ['symbol', 'name', 'sector', 'market_cap'],
-            'daily_prices': ['instrument_id', 'date', 'open', 'high', 'low', 'close', 'volume'],
+            'daily_price_polygon': ['instrument_id', 'date', 'open', 'high', 'low', 'close', 'volume'],
             'economic_events': ['event_date', 'event_name', 'event_type', 'importance'],
             'universe_states': ['instrument_id', 'date', 'is_active'],
             'residual_returns': ['instrument_id', 'date', 'residual_return', 'r_squared']

@@ -155,7 +155,7 @@ class DashboardTemplateEngine:
                                 <h4>Select Table (Fallback)</h4>
                                 <select id="table-selector" onchange="loadTableData()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <option value="">Choose a table...</option>
-                                    <option value="dev_daily_prices">dev_daily_prices</option>
+                                    <option value="dev_daily_price">dev_daily_price</option>
                                     <option value="dev_training_datasets">dev_training_datasets</option>
                                     <option value="dev_instruments">dev_instruments</option>
                                     <option value="dev_daily_price_polygon">dev_daily_price_polygon</option>

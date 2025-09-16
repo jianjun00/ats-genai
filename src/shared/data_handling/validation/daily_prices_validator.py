@@ -142,7 +142,7 @@ class DailyPricesValidator:
                 )
             """)
 
-    async def validate_daily_prices(self, validation_date: date,
+    async def validate_daily_price_polygon(self, validation_date: date,
                                   vendors: List[str] = None) -> Dict[str, Any]:
         """
         Run comprehensive validation for daily prices on a specific date.
@@ -222,7 +222,7 @@ class DailyPricesValidator:
         all_records = []
 
         for vendor in vendors:
-            table_name = self.env.get_table_name(f"daily_prices_{vendor}")
+            table_name = self.env.get_table_name(f"daily_price_polygon_{vendor}")
             instruments_table = self.env.get_table_name("instruments")
 
             async with self.pool.acquire() as conn:
@@ -495,7 +495,7 @@ class DailyPricesValidator:
         prev_prices = {}
 
         for vendor in ["polygon", "tiingo"]:
-            table_name = self.env.get_table_name(f"daily_prices_{vendor}")
+            table_name = self.env.get_table_name(f"daily_price_polygon_{vendor}")
 
             async with self.pool.acquire() as conn:
                 rows = await conn.fetch(f"""
@@ -565,7 +565,7 @@ class DailyPricesValidator:
         cutoff_date = date.today() - timedelta(days=30)
 
         for vendor in ["polygon", "tiingo"]:
-            table_name = self.env.get_table_name(f"daily_prices_{vendor}")
+            table_name = self.env.get_table_name(f"daily_price_polygon_{vendor}")
 
             async with self.pool.acquire() as conn:
                 rows = await conn.fetch(f"""

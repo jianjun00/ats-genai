@@ -177,7 +177,7 @@ class Comprehensive30YearFundamentalPopulator:
             # Create database connection pool using the configured environment
             pool = await env.database.create_pool_with_retry(max_retries=3)
 
-            # Query for ALL active instruments from dev_instruments table
+            # Query for ALL active instruments from dev_instrument table
             query = f"""
             SELECT DISTINCT symbol
             FROM {env.get_table_name('instruments')}

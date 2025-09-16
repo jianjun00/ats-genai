@@ -32,9 +32,9 @@ async def simulate_api_requests(tracker: APIStatusTracker, num_requests: int = 1
 
     vendors = ['tiingo', 'polygon', 'eodhd', 'alpha_vantage', 'fmp', 'firstrate']
     endpoints = {
-        'tiingo': ['daily_prices', 'fundamentals', 'news', 'instruments'],
-        'polygon': ['daily_prices', 'fundamentals', 'news', 'minute_bars'],
-        'eodhd': ['daily_prices', 'fundamentals', 'news', 'instruments'],
+        'tiingo': ['daily_price_polygon', 'fundamentals', 'news', 'instruments'],
+        'polygon': ['daily_price_polygon', 'fundamentals', 'news', 'minute_bars'],
+        'eodhd': ['daily_price_polygon', 'fundamentals', 'news', 'instruments'],
         'alpha_vantage': ['fundamentals', 'economic_indicators'],
         'fmp': ['fundamentals', 'earnings'],
         'firstrate': ['minute_bars', 'daily_download']
@@ -101,15 +101,15 @@ async def test_all_vendors(tracker: APIStatusTracker):
     # Simulate different vendor behavior patterns
     test_scenarios = [
         # Tiingo - mostly successful with occasional rate limiting
-        {'vendor': 'tiingo', 'endpoint': 'daily_prices', 'requests': 20, 'success_rate': 0.85, 'rate_limit_rate': 0.10},
+        {'vendor': 'tiingo', 'endpoint': 'daily_price_polygon', 'requests': 20, 'success_rate': 0.85, 'rate_limit_rate': 0.10},
         {'vendor': 'tiingo', 'endpoint': 'fundamentals', 'requests': 15, 'success_rate': 0.90, 'rate_limit_rate': 0.05},
 
         # Polygon - good success rate but some rate limiting
-        {'vendor': 'polygon', 'endpoint': 'daily_prices', 'requests': 25, 'success_rate': 0.80, 'rate_limit_rate': 0.15},
+        {'vendor': 'polygon', 'endpoint': 'daily_price_polygon', 'requests': 25, 'success_rate': 0.80, 'rate_limit_rate': 0.15},
         {'vendor': 'polygon', 'endpoint': 'minute_bars', 'requests': 30, 'success_rate': 0.75, 'rate_limit_rate': 0.20},
 
         # EODHD - reliable but slower
-        {'vendor': 'eodhd', 'endpoint': 'daily_prices', 'requests': 18, 'success_rate': 0.95, 'rate_limit_rate': 0.02},
+        {'vendor': 'eodhd', 'endpoint': 'daily_price_polygon', 'requests': 18, 'success_rate': 0.95, 'rate_limit_rate': 0.02},
         {'vendor': 'eodhd', 'endpoint': 'instruments', 'requests': 10, 'success_rate': 0.90, 'rate_limit_rate': 0.05},
 
         # Alpha Vantage - limited requests, some failures

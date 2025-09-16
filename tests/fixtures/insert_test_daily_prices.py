@@ -3,10 +3,10 @@ import os
 from datetime import datetime
 import asyncio
 
-from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+from domains.market_data.repositories.daily_price_polygon_dao import DailyPricesDAO
 from shared.utils.environment import Environment, EnvironmentType
 
-async def insert_test_daily_prices(json_path, symbol, instrument_id, unit_test_db):
+async def insert_test_daily_price_polygon(json_path, symbol, instrument_id, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     dao = DailyPricesDAO(env=env)
     with open(json_path, 'r') as f:
@@ -28,8 +28,8 @@ async def main(unit_test_db):
     data_dir = os.path.join(base, '../data/daily_price_polygon')
     aapl_path = os.path.join(data_dir, 'polygon_aapl_response.json')
     tsla_path = os.path.join(data_dir, 'polygon_tsla_response.json')
-    await insert_test_daily_prices(aapl_path, 'AAPL', 1, unit_test_db)
-    await insert_test_daily_prices(tsla_path, 'TSLA', 2, unit_test_db)
+    await insert_test_daily_price_polygon(aapl_path, 'AAPL', 1, unit_test_db)
+    await insert_test_daily_price_polygon(tsla_path, 'TSLA', 2, unit_test_db)
 
 if __name__ == "__main__":
     import sys
