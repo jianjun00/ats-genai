@@ -35,9 +35,9 @@ Grafana Dashboard (ATS-INTG)
 ```
 
 ### **Database Tables Analyzed**
-- `intg_daily_prices_eodhd` - EODHD daily price data
-- `intg_daily_prices_tiingo` - Tiingo daily price data
-- `intg_daily_prices_polygon` - Polygon daily price data
+- `intg_daily_price_eodhd` - EODHD daily price data
+- `intg_daily_price_tiingo` - Tiingo daily price data
+- `intg_daily_price_polygon` - Polygon daily price data
 - `intg_daily_prices` - Unified daily prices (if applicable)
 
 ## Usage
@@ -212,7 +212,7 @@ Quality Score = 100% - Missing% - Abnormal%
 tail -50 /mnt/d/ats-logs/daily-prices-validation.log
 
 # Test database connectivity
-python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_daily_prices_tiingo WHERE date >= CURRENT_DATE - INTERVAL '7 days'"
+python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_daily_price_tiingo WHERE date >= CURRENT_DATE - INTERVAL '7 days'"
 
 # Test Prometheus metrics push
 curl -X POST http://localhost:9091/metrics/job/test-job/instance/test \

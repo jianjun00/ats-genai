@@ -224,7 +224,7 @@ class DynamicModelingUniverse:
         FROM recent_data
         ORDER BY avg_dollar_volume_millions DESC
         """.format(
-            prices_table=self.env.get_table_name("daily_price_polygon_polygon"),
+            prices_table=self.env.get_table_name("daily_price_polygon"),
             xrefs_table=self.env.get_table_name("instrument_xrefs"),
             vendors_table=self.env.get_table_name("vendors"),
             market_cap_table=self.env.get_table_name("daily_market_cap")

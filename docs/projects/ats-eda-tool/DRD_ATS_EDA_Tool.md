@@ -520,7 +520,7 @@ POST   /api/v1/training-datasets/{dataset_id}/compute-stats   # Recompute TFDV s
   "datasets": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "dev_daily_prices_tiingo_30year",
+      "name": "dev_daily_price_tiingo_30year",
       "display_name": "Tiingo 30-Year Daily Prices",
       "description": "30 years of daily OHLCV data from Tiingo",
       "dataset_type": "table",

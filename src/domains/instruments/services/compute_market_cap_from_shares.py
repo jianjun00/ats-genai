@@ -53,7 +53,7 @@ async def compute_and_populate_market_cap(
                 symbol_list = "', '".join(symbols)
                 instruments_query = f"""
                     SELECT DISTINCT p.instrument_id, x.vendor_symbol as symbol, i.symbol as base_symbol
-                    FROM {env.get_table_name('daily_price_polygon_polygon')} p
+                    FROM {env.get_table_name('daily_price_polygon')} p
                     JOIN {env.get_table_name('instruments')} i ON p.instrument_id = i.id
                     JOIN {env.get_table_name('instrument_xrefs')} x ON i.id = x.instrument_id
                     JOIN {env.get_table_name('vendors')} v ON x.vendor_id = v.id
@@ -68,7 +68,7 @@ async def compute_and_populate_market_cap(
                 limit_clause = f"LIMIT {limit}" if limit else ""
                 instruments_query = f"""
                     SELECT DISTINCT p.instrument_id, x.vendor_symbol as symbol, i.symbol as base_symbol
-                    FROM {env.get_table_name('daily_price_polygon_polygon')} p
+                    FROM {env.get_table_name('daily_price_polygon')} p
                     JOIN {env.get_table_name('instruments')} i ON p.instrument_id = i.id
                     JOIN {env.get_table_name('instrument_xrefs')} x ON i.id = x.instrument_id
                     JOIN {env.get_table_name('vendors')} v ON x.vendor_id = v.id
@@ -114,7 +114,7 @@ async def compute_and_populate_market_cap(
                         # Get daily prices for this instrument in our date range
                         prices_query = f"""
                             SELECT date, close
-                            FROM {env.get_table_name('daily_price_polygon_polygon')}
+                            FROM {env.get_table_name('daily_price_polygon')}
                             WHERE instrument_id = $1
                               AND date >= $2
                               AND date <= $3

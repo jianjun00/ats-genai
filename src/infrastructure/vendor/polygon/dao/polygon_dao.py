@@ -2,7 +2,7 @@
 Polygon.io data access operations.
 
 This module consolidates all Polygon-specific database operations that were
-previously scattered across multiple files like daily_price_polygon_polygon_dao.py,
+previously scattered across multiple files like daily_price_polygon_dao.py,
 dividend_polygon_dao.py, and stock_splits_polygon_dao.py.
 """
 
@@ -69,7 +69,7 @@ class PolygonDAO(MarketDataVendorDAO):
 
         return transformed
 
-    # Daily Prices Operations (replacing daily_price_polygon_polygon_dao.py)
+    # Daily Prices Operations (replacing daily_price_polygon_dao.py)
     def insert_daily_price(
         self,
         symbol: str,

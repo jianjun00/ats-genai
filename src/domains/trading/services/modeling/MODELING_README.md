@@ -17,7 +17,7 @@ The Modeling Universe Creator selects stocks that meet specific financial criter
 The system uses proper normalized database joins:
 
 ```
-dev_daily_prices_polygon (price/volume data)
+dev_daily_price_polygon (price/volume data)
     ↓ JOIN on instrument_id
 dev_instrument_xrefs (symbol mapping)
     ↓ vendor_id = 3 (ticker vendor)
@@ -33,7 +33,7 @@ dev_daily_market_cap (market cap data)
 
 ### Data Sources
 
-1. **Price/Volume Data**: `dev_daily_prices_polygon` (862k+ rows)
+1. **Price/Volume Data**: `dev_daily_price_polygon` (862k+ rows)
 2. **Symbol Mapping**: `dev_instrument_xrefs` via `vendor_symbol` column
 3. **Market Cap Data**: `dev_daily_market_cap` (10k rows)
 4. **Fallback Estimation**: `close_price × volume × 0.0001` when market cap unavailable

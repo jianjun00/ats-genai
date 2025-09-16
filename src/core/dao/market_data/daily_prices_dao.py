@@ -2,8 +2,8 @@
 Unified daily prices DAO that replaces vendor-specific implementations.
 
 This module consolidates all daily price operations across vendors,
-eliminating the duplication between daily_price_polygon_dao.py, daily_price_polygon_polygon_dao.py,
-and daily_price_polygon_tiingo_dao.py.
+eliminating the duplication between daily_prices_dao.py, daily_price_polygon_dao.py,
+and daily_price_tiingo_dao.py.
 """
 
 from typing import Any, Dict, List, Optional, Union

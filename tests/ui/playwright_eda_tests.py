@@ -202,7 +202,7 @@ class EDAPlaywrightTests:
         await page.wait_for_selector(".dataset-card")
 
         # Try to select a large dataset
-        large_dataset = page.locator(".dataset-card:has-text('daily_price_polygon_tiingo')")
+        large_dataset = page.locator(".dataset-card:has-text('daily_price_tiingo')")
         if await large_dataset.count() > 0:
             start_time = time.time()
             await large_dataset.click()

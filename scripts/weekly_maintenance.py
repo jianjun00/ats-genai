@@ -305,7 +305,7 @@ class WeeklyMaintenance:
 
                 # Update table statistics
                 tables_to_analyze = [
-                    'intg_instrument',
+                    'intg_instruments',
                     'intg_daily_price_tiingo',
                     'intg_daily_price_polygon',
                     'intg_daily_price_eodhd'

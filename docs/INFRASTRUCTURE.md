@@ -140,8 +140,8 @@ log_path = os.getenv('ATS_LOGS_PATH', '/logs')
 ### CRITICAL: Two-Stream Data Storage Architecture
 
 #### Real-Time Database Storage (Intraday Trading):
-- **📊 Polygon Real-Time**: Database table `dev_daily_prices_polygon` (partial day data, every 30min)
-- **📊 Tiingo Real-Time**: Database table `dev_daily_prices_tiingo` (partial day data, every 30min)
+- **📊 Polygon Real-Time**: Database table `dev_daily_price_polygon` (partial day data, every 30min)
+- **📊 Tiingo Real-Time**: Database table `dev_daily_price_tiingo` (partial day data, every 30min)
 - **Purpose**: Fast SQL queries for live trading systems, alerts, real-time analytics
 - **Update Frequency**: Every 30 minutes during market hours (9:30 AM - 4:00 PM EST)
 
@@ -206,7 +206,7 @@ conn = await asyncpg.connect(
 #### Real-Time Intraday Collection (Database Storage)
 **Polygon & Tiingo:** Every 30 minutes during market hours
 - **Purpose**: Real-time trading signals, live analytics
-- **Storage**: Database tables (`dev_daily_prices_polygon`, `dev_daily_prices_tiingo`)
+- **Storage**: Database tables (`dev_daily_price_polygon`, `dev_daily_price_tiingo`)
 - **Schedule**: 9:30 AM - 4:00 PM EST, every 30 minutes
 - **Data**: Current day's minute bars (partial day data)
 - **Use Case**: Live trading systems, real-time alerts

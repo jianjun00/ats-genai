@@ -88,8 +88,8 @@ class DatabaseTester:
             
             # Check for key tables
             key_tables = [
-                "intg_daily_price",
-                "intg_instrument", 
+                "intg_daily_prices",
+                "intg_instruments", 
                 "intg_daily_price_polygon",
                 "intg_daily_price_tiingo",
                 "intg_daily_price_eodhd"

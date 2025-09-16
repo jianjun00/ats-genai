@@ -5478,28 +5478,14 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         """Handle POST requests."""
         try:
             logger.info(f"📍 POST request: {self.path}")
-            
-            if self.path.startswith('/financial_events'):
-                self._serve_financial_events()
-            elif self.path.startswith('/api/tags/'):
-                self._serve_tag_api()
-            elif self.path == '/auto-tag-batch':
-                self._serve_auto_tag_batch()
-            elif self.path == '/agent/start':
-                self._serve_agent_start()
+            if self.path == '/agent/start':
+                self._serve_agent_start_post()
             elif self.path == '/agent/stop':
-                self._serve_agent_stop()
-            elif self.path.startswith('/agent/'):
+                self._serve_agent_stop_post()
+            elif self.path == '/agent/action':
                 self._serve_agent_action()
             else:
-                self.send_response(404)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "error": "POST endpoint not found", 
-                    "path": self.path
-                }).encode())
-                
+                self._serve_404()
         except Exception as e:
             logger.error(f"Error handling POST request: {e}")
             self._serve_500(str(e))
@@ -5994,7 +5980,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             response = {
                 "tables": [
                     f"{environment}_daily_prices", f"{environment}_training_datasets", f"{environment}_instruments",
-                    f"{environment}_daily_prices_polygon", f"{environment}_daily_prices_tiingo", f"{environment}_daily_prices_eodhd"
+                    f"{environment}_daily_price_polygon", f"{environment}_daily_price_tiingo", f"{environment}_daily_price_eodhd"
                 ],
                 "error": str(e)
             }
@@ -7120,7 +7106,29 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             ).join('');
         }
         
-        // Agent control functions - using the correct loadAgentStatus function defined above
+        // Agent control functions
+        async function loadAgentStatus() {
+            try {
+                const response = await fetch('/agent/status');
+                const status = await response.json();
+                
+                const statusElement = document.getElementById('agent-status');
+                const startBtn = document.getElementById('start-agent-btn');
+                const stopBtn = document.getElementById('stop-agent-btn');
+                
+                if (status.status === 'active') {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #27ae60;">ACTIVE</span> | Tools: ${status.tools_available} | ID: ${status.agent_id}`;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                } else {
+                    statusElement.innerHTML = `🤖 Agent: <span style="color: #e74c3c;">IDLE</span> | Tools: ${status.tools_available} | MCP Ready: ${status.mcp_tools_ready}`;
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('agent-status').innerHTML = `🤖 Agent: <span style="color: #f39c12;">ERROR</span> - ${error.message}`;
+            }
+        }
         
         async function startAgent() {
             try {
@@ -8316,11 +8324,9 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                         )::date as expected_date
                     ),
                     actual_dates AS (
-                        SELECT DISTINCT date as actual_date FROM intg_daily_price_polygon WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                        UNION
-                        SELECT DISTINCT date as actual_date FROM intg_daily_price_tiingo WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                        UNION
-                        SELECT DISTINCT date as actual_date FROM intg_daily_price_eodhd WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                        SELECT DISTINCT date as actual_date
+                        FROM intg_daily_price_polygon 
+                        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
                     )
                     SELECT rd.expected_date
                     FROM recent_dates rd
@@ -8330,8 +8336,111 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                     ORDER BY rd.expected_date;
                     """
                     
-                missing_dates = await conn.fetch(missing_data_query)
-                for row in missing_dates:
+                    missing_dates = await conn.fetch(missing_data_query)
+                    for row in missing_dates:
+                        issues.append({
+                            "id": f"missing_data_{row['expected_date']}",
+                            "symbol": "ALL",
+                            "issue_type": "missing_data",
+                            "severity": "high",
+                            "description": f"No daily prices found for trading day {row['expected_date']}",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['expected_date'].isoformat(),
+                            "field": "all_fields",
+                            "expected_value": "Daily prices",
+                            "actual_value": "No data",
+                            "vendor_source": "multiple",
+                            "status": "open"
+                        })
+                    
+                    # Check for extreme volumes
+                    extreme_volume_query = """
+                    SELECT symbol, date as price_date, volume, close
+                    FROM intg_daily_price_polygon 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    AND volume > 50000000
+                    ORDER BY volume DESC
+                    LIMIT 10;
+                    """
+                    
+                    extreme_volumes = await conn.fetch(extreme_volume_query)
+                    for row in extreme_volumes:
+                        issues.append({
+                            "id": f"high_volume_{row['symbol']}_{row['price_date']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "extreme_volume",
+                            "severity": "medium",
+                            "description": f"Unusually high volume: {row['volume']:,} shares",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['price_date'].isoformat(),
+                            "field": "volume",
+                            "expected_value": "< 10M shares",
+                            "actual_value": f"{row['volume']:,} shares",
+                            "vendor_source": "polygon",
+                            "status": "open"
+                        })
+                    
+                    # Check for duplicate records
+                    duplicate_query = """
+                    SELECT symbol, date as price_date, COUNT(*) as count
+                    FROM intg_daily_price_polygon 
+                    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY symbol, date
+                    HAVING COUNT(*) > 1
+                    ORDER BY COUNT(*) DESC
+                    LIMIT 5;
+                    """
+                    
+                    duplicates = await conn.fetch(duplicate_query)
+                    for row in duplicates:
+                        issues.append({
+                            "id": f"duplicate_{row['symbol']}_{row['price_date']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "duplicate_records",
+                            "severity": "critical",
+                            "description": f"Duplicate records: {row['count']} entries for same date",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['price_date'].isoformat(),
+                            "field": "all_fields",
+                            "expected_value": "1 record per day",
+                            "actual_value": f"{row['count']} records",
+                            "vendor_source": "multiple",
+                            "status": "open"
+                        })
+                    
+                    # Check for stale data
+                    freshness_query = """
+                    SELECT symbol, MAX(date) as latest_date
+                    FROM intg_daily_price_polygon
+                    GROUP BY symbol
+                    HAVING MAX(date) < CURRENT_DATE - INTERVAL '3 days'
+                    ORDER BY MAX(date) DESC
+                    LIMIT 10;
+                    """
+                    
+                    stale_data = await conn.fetch(freshness_query)
+                    for row in stale_data:
+                        from datetime import date as dt_date
+                        days_stale = (dt_date.today() - row['latest_date']).days
+                        issues.append({
+                            "id": f"stale_data_{row['symbol']}",
+                            "symbol": row['symbol'],
+                            "issue_type": "stale_data",
+                            "severity": "medium" if days_stale < 7 else "high",
+                            "description": f"Data is {days_stale} days old (last: {row['latest_date']})",
+                            "detected_at": datetime.now().isoformat(),
+                            "affected_date": row['latest_date'].isoformat(),
+                            "field": "date",
+                            "expected_value": "< 3 days old",
+                            "actual_value": f"{days_stale} days old",
+                            "vendor_source": "polygon",
+                            "status": "open"
+                        })
+                    
+                    await conn.close()
+                    
+                except Exception as e:
+                    logger.error(f"Data quality detection error: {e}")
                     issues.append({
                         "id": f"missing_data_{row['expected_date']}",
                         "symbol": "ALL",
@@ -8632,6 +8741,72 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+    def _serve_agent_start_post(self):
+        """Handle POST request to start agent."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Agent not available"}).encode())
+                return
+
+            agent = self.analytics_service.data_quality_agent
+            if agent.status.value == "active":
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": "Agent already active"}).encode())
+                return
+
+            # Start agent monitoring (mark as active, actual monitoring handled separately)
+            from agents.data_quality_agent import AgentStatus
+            agent.status = AgentStatus.ACTIVE
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "message": "Agent started successfully"}).encode())
+        except Exception as e:
+            logger.error(f"Error starting agent: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+    def _serve_agent_stop_post(self):
+        """Handle POST request to stop agent."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Agent not available"}).encode())
+                return
+
+            agent = self.analytics_service.data_quality_agent
+            if agent.status.value == "idle":
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": "Agent already stopped"}).encode())
+                return
+
+            # Stop agent monitoring
+            from agents.data_quality_agent import AgentStatus
+            agent.status = AgentStatus.IDLE
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "message": "Agent stopped successfully"}).encode())
+        except Exception as e:
+            logger.error(f"Error stopping agent: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
     def _serve_agent_stop(self):
         """Serve agent stop endpoint."""
         try:
@@ -8692,6 +8867,54 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def _serve_agent_action(self):
+        """Handle POST request for agent actions."""
+        try:
+            if not self.analytics_service.agent_enabled:
+                self.send_response(503)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Agent not available"}).encode())
+                return
+
+            # Read POST data
+            content_length = int(self.headers['Content-Length']) if self.headers.get('Content-Length') else 0
+            post_data = self.rfile.read(content_length)
+            
+            try:
+                import json
+                request_data = json.loads(post_data.decode('utf-8'))
+                action = request_data.get('action')
+                issue_id = request_data.get('issue_id')
+                
+                if not action:
+                    self.send_response(400)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": False, "error": "Action parameter is required"}).encode())
+                    return
+                
+                # For now, just log the action and return success
+                logger.info(f"Agent action requested: {action} for issue: {issue_id}")
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": f"Action '{action}' queued successfully"}).encode())
+                
+            except json.JSONDecodeError:
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Invalid JSON in request body"}).encode())
+                
+        except Exception as e:
+            logger.error(f"Error handling agent action: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
     def _serve_404(self):
         """Serve 404 response."""

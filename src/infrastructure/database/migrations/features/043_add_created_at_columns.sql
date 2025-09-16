@@ -11,13 +11,13 @@ ALTER TABLE dev_daily_prices
 ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 
--- Add created_at to dev_daily_prices_polygon
-ALTER TABLE dev_daily_prices_polygon 
+-- Add created_at to dev_daily_price_polygon
+ALTER TABLE dev_daily_price_polygon 
 ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 
--- Add created_at to dev_daily_prices_tiingo
-ALTER TABLE dev_daily_prices_tiingo 
+-- Add created_at to dev_daily_price_tiingo
+ALTER TABLE dev_daily_price_tiingo 
 ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 
@@ -84,12 +84,12 @@ CREATE TRIGGER update_dev_daily_prices_updated_at
     BEFORE UPDATE ON dev_daily_prices 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_dev_daily_prices_polygon_updated_at 
-    BEFORE UPDATE ON dev_daily_prices_polygon 
+CREATE TRIGGER update_dev_daily_price_polygon_updated_at 
+    BEFORE UPDATE ON dev_daily_price_polygon 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_dev_daily_prices_tiingo_updated_at 
-    BEFORE UPDATE ON dev_daily_prices_tiingo 
+CREATE TRIGGER update_dev_daily_price_tiingo_updated_at 
+    BEFORE UPDATE ON dev_daily_price_tiingo 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_dev_fundamentals_updated_at 
@@ -131,8 +131,8 @@ CREATE TRIGGER update_dev_universe_membership_updated_at
 -- Add index on created_at columns for performance
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_daily_market_cap_created_at ON dev_daily_market_cap(created_at);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_daily_prices_created_at ON dev_daily_prices(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_daily_prices_polygon_created_at ON dev_daily_prices_polygon(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_daily_prices_tiingo_created_at ON dev_daily_prices_tiingo(created_at);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_daily_price_polygon_created_at ON dev_daily_price_polygon(created_at);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_daily_price_tiingo_created_at ON dev_daily_price_tiingo(created_at);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_fundamentals_created_at ON dev_fundamentals(created_at);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_fundamentals_checkpoint_created_at ON dev_fundamentals_checkpoint(created_at);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_dev_instrument_aliases_created_at ON dev_instrument_aliases(created_at);

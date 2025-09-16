@@ -71,13 +71,13 @@ class FrontfillOrchestrator:
                 cron_expression="30 18 * * 1-5",  # 6:30 PM Monday-Friday
                 max_runtime_minutes=30
             ),
-            "daily_price_polygon_polygon": ScheduleConfig(
-                job_name="daily_price_polygon_polygon",
+            "daily_price_polygon": ScheduleConfig(
+                job_name="daily_price_polygon",
                 cron_expression="00 19 * * 1-5",  # 7:00 PM Monday-Friday
                 max_runtime_minutes=120
             ),
-            "daily_price_polygon_tiingo": ScheduleConfig(
-                job_name="daily_price_polygon_tiingo",
+            "daily_price_tiingo": ScheduleConfig(
+                job_name="daily_price_tiingo",
                 cron_expression="30 19 * * 1-5",  # 7:30 PM Monday-Friday
                 max_runtime_minutes=120
             ),

@@ -2,7 +2,7 @@
 Tiingo.com data access operations.
 
 This module consolidates all Tiingo-specific database operations that were
-previously scattered across multiple files like daily_price_polygon_tiingo_dao.py,
+previously scattered across multiple files like daily_price_tiingo_dao.py,
 dividend_tiingo_dao.py, and stock_splits_tiingo_dao.py.
 """
 
@@ -70,7 +70,7 @@ class TiingoDAO(MarketDataVendorDAO):
 
         return transformed
 
-    # Daily Prices Operations (replacing daily_price_polygon_tiingo_dao.py)
+    # Daily Prices Operations (replacing daily_price_tiingo_dao.py)
     def insert_daily_price(
         self,
         symbol: str,

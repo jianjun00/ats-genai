@@ -8,8 +8,8 @@ from domains.market_data.services.eod.file_daily_price_market_data_manager impor
 def vendors_dirs():
     # Use test data directories
     base = os.path.abspath(os.path.dirname(__file__))
-    polygon_dir = os.path.join(base, "../../../tests/data/daily_price_polygon_polygon")
-    tiingo_dir = os.path.join(base, "../../../tests/data/daily_price_polygon_tiingo")
+    polygon_dir = os.path.join(base, "../../../tests/data/daily_price_polygon")
+    tiingo_dir = os.path.join(base, "../../../tests/data/daily_price_tiingo")
     return {
         "polygon": polygon_dir,
         "tiingo": tiingo_dir,

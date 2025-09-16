@@ -46,7 +46,7 @@ async def insert_daily_price_polygon(pool, env, ticker, instrument_id, prices):
     if not prices:
         return 0
 
-    table_name = env.get_table_name('daily_price_polygon_polygon')
+    table_name = env.get_table_name('daily_price_polygon')
 
     async with pool.acquire() as conn:
         rows = []
@@ -114,7 +114,7 @@ async def get_instruments_to_backfill(pool, env, limit=None):
 
 async def check_existing_prices(pool, env, instrument_id, start_date, end_date):
     """Check how many price records already exist for an instrument."""
-    table_name = env.get_table_name('daily_price_polygon_polygon')
+    table_name = env.get_table_name('daily_price_polygon')
 
     async with pool.acquire() as conn:
         count = await conn.fetchval(f"""

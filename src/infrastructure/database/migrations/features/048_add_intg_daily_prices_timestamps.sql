@@ -1,43 +1,43 @@
 -- Migration 048: Add created_at and updated_at columns to intg_daily_prices tables
 -- This ensures intg environment has same schema as dev environment for data sync
 
--- Add created_at and updated_at to intg_daily_prices_polygon (if exists)
+-- Add created_at and updated_at to intg_daily_price_polygon (if exists)
 DO $$ 
 BEGIN
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_polygon') THEN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_polygon') THEN
         -- Check if columns already exist before adding
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                      WHERE table_name = 'intg_daily_prices_polygon' 
+                      WHERE table_name = 'intg_daily_price_polygon' 
                       AND column_name = 'created_at') THEN
-            ALTER TABLE intg_daily_prices_polygon 
+            ALTER TABLE intg_daily_price_polygon 
             ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             ADD COLUMN updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
         END IF;
     END IF;
 END $$;
 
--- Add created_at and updated_at to intg_daily_prices_tiingo (if exists)
+-- Add created_at and updated_at to intg_daily_price_tiingo (if exists)
 DO $$ 
 BEGIN
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_tiingo') THEN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_tiingo') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                      WHERE table_name = 'intg_daily_prices_tiingo' 
+                      WHERE table_name = 'intg_daily_price_tiingo' 
                       AND column_name = 'created_at') THEN
-            ALTER TABLE intg_daily_prices_tiingo 
+            ALTER TABLE intg_daily_price_tiingo 
             ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             ADD COLUMN updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
         END IF;
     END IF;
 END $$;
 
--- Add created_at and updated_at to intg_daily_prices_eodhd (if exists)
+-- Add created_at and updated_at to intg_daily_price_eodhd (if exists)
 DO $$ 
 BEGIN
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_eodhd') THEN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_eodhd') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                      WHERE table_name = 'intg_daily_prices_eodhd' 
+                      WHERE table_name = 'intg_daily_price_eodhd' 
                       AND column_name = 'created_at') THEN
-            ALTER TABLE intg_daily_prices_eodhd 
+            ALTER TABLE intg_daily_price_eodhd 
             ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             ADD COLUMN updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
         END IF;
@@ -56,32 +56,32 @@ $$ language 'plpgsql';
 -- Add triggers for automatic updated_at maintenance (if tables exist)
 DO $$
 BEGIN
-    -- Trigger for intg_daily_prices_polygon
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_polygon') THEN
+    -- Trigger for intg_daily_price_polygon
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_polygon') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.triggers 
-                      WHERE trigger_name = 'update_intg_daily_prices_polygon_updated_at') THEN
-            EXECUTE 'CREATE TRIGGER update_intg_daily_prices_polygon_updated_at 
-                     BEFORE UPDATE ON intg_daily_prices_polygon 
+                      WHERE trigger_name = 'update_intg_daily_price_polygon_updated_at') THEN
+            EXECUTE 'CREATE TRIGGER update_intg_daily_price_polygon_updated_at 
+                     BEFORE UPDATE ON intg_daily_price_polygon 
                      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()';
         END IF;
     END IF;
     
-    -- Trigger for intg_daily_prices_tiingo
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_tiingo') THEN
+    -- Trigger for intg_daily_price_tiingo
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_tiingo') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.triggers 
-                      WHERE trigger_name = 'update_intg_daily_prices_tiingo_updated_at') THEN
-            EXECUTE 'CREATE TRIGGER update_intg_daily_prices_tiingo_updated_at 
-                     BEFORE UPDATE ON intg_daily_prices_tiingo 
+                      WHERE trigger_name = 'update_intg_daily_price_tiingo_updated_at') THEN
+            EXECUTE 'CREATE TRIGGER update_intg_daily_price_tiingo_updated_at 
+                     BEFORE UPDATE ON intg_daily_price_tiingo 
                      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()';
         END IF;
     END IF;
     
-    -- Trigger for intg_daily_prices_eodhd
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_eodhd') THEN
+    -- Trigger for intg_daily_price_eodhd
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_eodhd') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.triggers 
-                      WHERE trigger_name = 'update_intg_daily_prices_eodhd_updated_at') THEN
-            EXECUTE 'CREATE TRIGGER update_intg_daily_prices_eodhd_updated_at 
-                     BEFORE UPDATE ON intg_daily_prices_eodhd 
+                      WHERE trigger_name = 'update_intg_daily_price_eodhd_updated_at') THEN
+            EXECUTE 'CREATE TRIGGER update_intg_daily_price_eodhd_updated_at 
+                     BEFORE UPDATE ON intg_daily_price_eodhd 
                      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()';
         END IF;
     END IF;
@@ -90,30 +90,30 @@ END $$;
 -- Add performance indexes on created_at columns (if tables exist)
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_polygon') THEN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_polygon') THEN
         IF NOT EXISTS (SELECT 1 FROM pg_indexes 
-                      WHERE tablename = 'intg_daily_prices_polygon' 
-                      AND indexname = 'idx_intg_daily_prices_polygon_created_at') THEN
-            CREATE INDEX CONCURRENTLY idx_intg_daily_prices_polygon_created_at 
-            ON intg_daily_prices_polygon(created_at);
+                      WHERE tablename = 'intg_daily_price_polygon' 
+                      AND indexname = 'idx_intg_daily_price_polygon_created_at') THEN
+            CREATE INDEX CONCURRENTLY idx_intg_daily_price_polygon_created_at 
+            ON intg_daily_price_polygon(created_at);
         END IF;
     END IF;
     
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_tiingo') THEN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_tiingo') THEN
         IF NOT EXISTS (SELECT 1 FROM pg_indexes 
-                      WHERE tablename = 'intg_daily_prices_tiingo' 
-                      AND indexname = 'idx_intg_daily_prices_tiingo_created_at') THEN
-            CREATE INDEX CONCURRENTLY idx_intg_daily_prices_tiingo_created_at 
-            ON intg_daily_prices_tiingo(created_at);
+                      WHERE tablename = 'intg_daily_price_tiingo' 
+                      AND indexname = 'idx_intg_daily_price_tiingo_created_at') THEN
+            CREATE INDEX CONCURRENTLY idx_intg_daily_price_tiingo_created_at 
+            ON intg_daily_price_tiingo(created_at);
         END IF;
     END IF;
     
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_prices_eodhd') THEN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'intg_daily_price_eodhd') THEN
         IF NOT EXISTS (SELECT 1 FROM pg_indexes 
-                      WHERE tablename = 'intg_daily_prices_eodhd' 
-                      AND indexname = 'idx_intg_daily_prices_eodhd_created_at') THEN
-            CREATE INDEX CONCURRENTLY idx_intg_daily_prices_eodhd_created_at 
-            ON intg_daily_prices_eodhd(created_at);
+                      WHERE tablename = 'intg_daily_price_eodhd' 
+                      AND indexname = 'idx_intg_daily_price_eodhd_created_at') THEN
+            CREATE INDEX CONCURRENTLY idx_intg_daily_price_eodhd_created_at 
+            ON intg_daily_price_eodhd(created_at);
         END IF;
     END IF;
 END $$;

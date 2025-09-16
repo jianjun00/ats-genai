@@ -29,10 +29,10 @@ class DailyPricesFrontfillJob(BaseFrontfillJob):
         # Vendor-specific configurations
         if config.vendor.lower() == "polygon":
             self.base_url = "https://api.polygon.io/v2/aggs/ticker"
-            self.table_name = env.get_table_name("daily_price_polygon_polygon")
+            self.table_name = env.get_table_name("daily_price_polygon")
         elif config.vendor.lower() == "tiingo":
             self.base_url = "https://api.tiingo.com/tiingo/daily"
-            self.table_name = env.get_table_name("daily_price_polygon_tiingo")
+            self.table_name = env.get_table_name("daily_price_tiingo")
         else:
             raise ValueError(f"Unsupported vendor: {config.vendor}")
 
@@ -291,8 +291,8 @@ async def create_daily_price_polygon_frontfill_jobs(connection_pool: asyncpg.Poo
 
     # Polygon daily prices job
     polygon_config = FrontfillConfig(
-        job_name="daily_price_polygon_polygon_frontfill",
-        job_type="daily_price_polygon",
+        job_name="daily_price_polygon_frontfill",
+        job_type="daily_prices",
         vendor="polygon",
         checkpoint_type=CheckpointType.TIMESTAMP,
         batch_size=50,  # 50 instruments per batch
@@ -305,8 +305,8 @@ async def create_daily_price_polygon_frontfill_jobs(connection_pool: asyncpg.Poo
 
     # Tiingo daily prices job
     tiingo_config = FrontfillConfig(
-        job_name="daily_price_polygon_tiingo_frontfill",
-        job_type="daily_price_polygon",
+        job_name="daily_price_tiingo_frontfill",
+        job_type="daily_prices",
         vendor="tiingo",
         checkpoint_type=CheckpointType.TIMESTAMP,
         batch_size=20,  # Smaller batch for Tiingo

@@ -109,7 +109,7 @@ http://localhost:4000  # Integration
 3. **Interface Load**: EDA interface loads with table selector dropdown
 
 #### **Step 3: Table Selection and Filter Discovery**
-1. **Table Selection**: Choose from available tables (dev_daily_prices_polygon, intg_daily_prices, etc.)
+1. **Table Selection**: Choose from available tables (dev_daily_price_polygon, intg_daily_prices, etc.)
 2. **Smart Filter Display**: Filter controls automatically appear for relevant tables
    - **Daily Prices Tables**: Show symbol, date range filters
    - **Event Tables**: Show symbol, date range filters
@@ -144,7 +144,7 @@ GET /api/table-sample/{table_name}?symbol={symbol}&date_from={date}&date_to={dat
 ```
 
 **Parameters:**
-- `table_name` (required): Database table name (e.g., "dev_daily_prices_polygon")
+- `table_name` (required): Database table name (e.g., "dev_daily_price_polygon")
 - `symbol` (optional): Symbol filter with partial matching
 - `date_from` (optional): Start date filter (YYYY-MM-DD format)
 - `date_to` (optional): End date filter (YYYY-MM-DD format)
@@ -154,13 +154,13 @@ GET /api/table-sample/{table_name}?symbol={symbol}&date_from={date}&date_to={dat
 
 **Example Request:**
 ```bash
-curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?symbol=A&date_from=2020-01-01&date_to=2020-12-31&sort_by=symbol&sort_dir=asc&limit=100"
+curl "http://localhost:3000/api/table-sample/dev_daily_price_polygon?symbol=A&date_from=2020-01-01&date_to=2020-12-31&sort_by=symbol&sort_dir=asc&limit=100"
 ```
 
 **Response Format:**
 ```json
 {
-  "table_name": "dev_daily_prices_polygon",
+  "table_name": "dev_daily_price_polygon",
   "rows": [
     {
       "date": "2020-01-02",
@@ -480,7 +480,7 @@ WITH volume_analysis AS (
         symbol,
         AVG(close * volume) as avg_dollar_volume_50d,
         COUNT(*) as trading_days
-    FROM {environment}_daily_prices_polygon
+    FROM {environment}_daily_price_polygon
     WHERE date >= CURRENT_DATE - INTERVAL '50 days'
     GROUP BY symbol
     HAVING COUNT(*) >= 30  -- Minimum trading days
@@ -1026,25 +1026,25 @@ PYTHONPATH=src python3 test_analytics_dashboard_buttons.py
 #### **API Testing**
 ```bash
 # Test table sample endpoint with filters
-curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?symbol=A&limit=10"
+curl "http://localhost:3000/api/table-sample/dev_daily_price_polygon?symbol=A&limit=10"
 
 # Test sorting functionality
-curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?sort_by=symbol&sort_dir=asc&limit=5"
+curl "http://localhost:3000/api/table-sample/dev_daily_price_polygon?sort_by=symbol&sort_dir=asc&limit=5"
 
 # Test combined filtering and sorting
-curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?symbol=AA&date_from=2020-01-01&sort_by=date&sort_dir=desc&limit=20"
+curl "http://localhost:3000/api/table-sample/dev_daily_price_polygon?symbol=AA&date_from=2020-01-01&sort_by=date&sort_dir=desc&limit=20"
 ```
 
 #### **Performance Validation**
 ```bash
 # Time global sort performance
-time curl -s "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?sort_by=symbol&sort_dir=asc&limit=1000" > /dev/null
+time curl -s "http://localhost:3000/api/table-sample/dev_daily_price_polygon?sort_by=symbol&sort_dir=asc&limit=1000" > /dev/null
 
 # Memory usage monitoring
 docker stats ats-dev-analytics --no-stream
 
 # Database connection testing
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices_polygon WHERE symbol ILIKE 'A%'"
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_price_polygon WHERE symbol ILIKE 'A%'"
 ```
 
 ### **Expected Test Results**
@@ -1104,7 +1104,7 @@ python scripts/run_dev.py run --script scripts/database/apply_migrations.py
 python scripts/run_dev.py stop --service analytics && python scripts/run_dev.py start --service analytics
 
 # 3. Test table access
-curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?limit=1"
+curl "http://localhost:3000/api/table-sample/dev_daily_price_polygon?limit=1"
 ```
 
 ### **Performance Monitoring**
@@ -1116,7 +1116,7 @@ docker stats ats-dev-analytics ats-intg-analytics
 python scripts/run_dev.py query --query "SELECT COUNT(*) FROM pg_stat_activity WHERE application_name LIKE '%analytics%'"
 
 # API response time monitoring
-time curl -s "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?limit=100" > /dev/null
+time curl -s "http://localhost:3000/api/table-sample/dev_daily_price_polygon?limit=100" > /dev/null
 ```
 
 ---
@@ -1158,22 +1158,22 @@ python scripts/run_dev.py stop --service analytics && python scripts/run_dev.py 
 #### **Issue: Filters Not Working**
 ```bash
 # 1. Verify table supports filtering
-curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?symbol=A&limit=1"
+curl "http://localhost:3000/api/table-sample/dev_daily_price_polygon?symbol=A&limit=1"
 
 # 2. Check database connectivity
-python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_prices_polygon"
+python scripts/run_dev.py query --query "SELECT COUNT(*) FROM dev_daily_price_polygon"
 
 # 3. Verify column names
-python scripts/run_dev.py query --query "SELECT column_name FROM information_schema.columns WHERE table_name = 'dev_daily_prices_polygon'"
+python scripts/run_dev.py query --query "SELECT column_name FROM information_schema.columns WHERE table_name = 'dev_daily_price_polygon'"
 ```
 
 #### **Issue: Sorting Not Working**
 ```bash
 # 1. Test sort API directly
-curl "http://localhost:3000/api/table-sample/dev_daily_prices_polygon?sort_by=symbol&sort_dir=asc&limit=5"
+curl "http://localhost:3000/api/table-sample/dev_daily_price_polygon?sort_by=symbol&sort_dir=asc&limit=5"
 
 # 2. Verify column exists
-python scripts/run_dev.py query --query "SELECT column_name FROM information_schema.columns WHERE table_name = 'dev_daily_prices_polygon' AND column_name = 'symbol'"
+python scripts/run_dev.py query --query "SELECT column_name FROM information_schema.columns WHERE table_name = 'dev_daily_price_polygon' AND column_name = 'symbol'"
 
 # 3. Check for JavaScript errors in browser console
 ```
@@ -1181,7 +1181,7 @@ python scripts/run_dev.py query --query "SELECT column_name FROM information_sch
 #### **Issue: Performance Problems**
 ```bash
 # 1. Check database performance
-python scripts/run_dev.py query --query "EXPLAIN ANALYZE SELECT * FROM dev_daily_prices_polygon WHERE symbol ILIKE 'A%' ORDER BY symbol LIMIT 50"
+python scripts/run_dev.py query --query "EXPLAIN ANALYZE SELECT * FROM dev_daily_price_polygon WHERE symbol ILIKE 'A%' ORDER BY symbol LIMIT 50"
 
 # 2. Monitor container resources
 docker stats ats-dev-analytics --no-stream

@@ -10,9 +10,9 @@ from shared.utils.environment import EnvironmentType
 
 # Import all DAOs
 from core.dao.daily_market_cap_dao import DailyMarketCapDAO
-from domains.market_data.repositories.daily_price_polygon_dao import DailyPricesDAO
-from vendor.polygon.core.dao.daily_price_polygon_polygon_dao import DailyPricesPolygonDAO
-from vendor.tiingo.core.dao.daily_price_polygon_tiingo_dao import DailyPricesTiingoDAO
+from domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+from vendor.polygon.core.dao.daily_price_polygon_dao import DailyPricesPolygonDAO
+from vendor.tiingo.core.dao.daily_price_tiingo_dao import DailyPricesTiingoDAO
 from core.dao.db_version_dao import DBVersionDAO
 
 
@@ -487,7 +487,7 @@ async def test_universe_membership_dao_crud(unit_test_db):
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
-async def test_daily_price_polygon_polygon_dao_crud(unit_test_db):
+async def test_daily_price_polygon_dao_crud(unit_test_db):
     from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Create test instrument
@@ -519,7 +519,7 @@ async def test_daily_price_polygon_polygon_dao_crud(unit_test_db):
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
-async def test_daily_price_polygon_tiingo_dao_crud(unit_test_db):
+async def test_daily_price_tiingo_dao_crud(unit_test_db):
     from shared.utils.environment import Environment
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     # Create test instrument

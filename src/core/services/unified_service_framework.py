@@ -223,7 +223,7 @@ class TradingPlatformService:
             # Initialize repositories
             self._orders_repo = RepositoryFactory.get_generic_repository('orders', self.config.environment)
             self._positions_repo = RepositoryFactory.get_generic_repository('positions', self.config.environment) 
-            self._market_data_repo = RepositoryFactory.get_vendor_data_repository('daily_prices_polygon', self.config.environment)
+            self._market_data_repo = RepositoryFactory.get_vendor_data_repository('daily_price_polygon', self.config.environment)
             
             # Initialize vendor adapters
             for vendor in self.config.default_vendors:

@@ -164,19 +164,19 @@ COMMENT ON COLUMN dev_instruments.delist_date IS 'Date when instrument was delis
 COMMENT ON COLUMN dev_instruments.active IS 'Whether instrument is currently active for trading';
 
 -- 4.2 Update daily prices tables with semantic types
-COMMENT ON TABLE dev_daily_prices_tiingo IS 'Daily OHLCV data from Tiingo with semantic vendor typing';
-COMMENT ON TABLE dev_daily_prices_eodhd IS 'Daily OHLCV data from EODHD with semantic vendor typing';
-COMMENT ON TABLE dev_daily_prices_polygon IS 'Daily OHLCV data from Polygon with semantic vendor typing';
+COMMENT ON TABLE dev_daily_price_tiingo IS 'Daily OHLCV data from Tiingo with semantic vendor typing';
+COMMENT ON TABLE dev_daily_price_eodhd IS 'Daily OHLCV data from EODHD with semantic vendor typing';
+COMMENT ON TABLE dev_daily_price_polygon IS 'Daily OHLCV data from Polygon with semantic vendor typing';
 
 -- Add vendor column to price tables
-ALTER TABLE dev_daily_prices_tiingo ADD COLUMN vendor_type vendor_enum DEFAULT 'TIINGO';
-ALTER TABLE dev_daily_prices_eodhd ADD COLUMN vendor_type vendor_enum DEFAULT 'EODHD'; 
-ALTER TABLE dev_daily_prices_polygon ADD COLUMN vendor_type vendor_enum DEFAULT 'POLYGON';
+ALTER TABLE dev_daily_price_tiingo ADD COLUMN vendor_type vendor_enum DEFAULT 'TIINGO';
+ALTER TABLE dev_daily_price_eodhd ADD COLUMN vendor_type vendor_enum DEFAULT 'EODHD'; 
+ALTER TABLE dev_daily_price_polygon ADD COLUMN vendor_type vendor_enum DEFAULT 'POLYGON';
 
 -- Add data quality status
-ALTER TABLE dev_daily_prices_tiingo ADD COLUMN data_status market_data_status_enum DEFAULT 'VALID';
-ALTER TABLE dev_daily_prices_eodhd ADD COLUMN data_status market_data_status_enum DEFAULT 'VALID';
-ALTER TABLE dev_daily_prices_polygon ADD COLUMN data_status market_data_status_enum DEFAULT 'VALID';
+ALTER TABLE dev_daily_price_tiingo ADD COLUMN data_status market_data_status_enum DEFAULT 'VALID';
+ALTER TABLE dev_daily_price_eodhd ADD COLUMN data_status market_data_status_enum DEFAULT 'VALID';
+ALTER TABLE dev_daily_price_polygon ADD COLUMN data_status market_data_status_enum DEFAULT 'VALID';
 
 -- 4.3 Update financial events (already has some ENUMs)
 COMMENT ON TABLE dev_financial_events IS 'Corporate and market events with semantic importance and sentiment typing';

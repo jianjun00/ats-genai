@@ -77,10 +77,10 @@ class DataQualityValidator:
 
         # Vendor tables configuration
         self.vendor_tables = {
-            'polygon': self.env.get_table_name('daily_price_polygon_polygon'),
-            'tiingo': self.env.get_table_name('daily_price_polygon_tiingo'),
-            'alphavantage': self.env.get_table_name('daily_price_polygon_alphavantage'),
-            'fmp': self.env.get_table_name('daily_price_polygon_fmp')
+            'polygon': self.env.get_table_name('daily_price_polygon'),
+            'tiingo': self.env.get_table_name('daily_price_tiingo'),
+            'alphavantage': self.env.get_table_name('daily_prices_alphavantage'),
+            'fmp': self.env.get_table_name('daily_prices_fmp')
         }
 
         # Quality thresholds

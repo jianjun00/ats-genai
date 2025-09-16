@@ -240,7 +240,7 @@ async def load_market_data_for_symbol(symbol: str, env: Environment) -> pd.DataF
 
     # Try Polygon first (has AAPL data)
     if symbol == 'AAPL':
-        table_name = f"{env.table_prefix}daily_price_polygon_polygon"
+        table_name = f"{env.table_prefix}daily_price_polygon"
         query = f"""
             SELECT date, symbol, open, high, low, close, volume
             FROM {table_name}
@@ -249,7 +249,7 @@ async def load_market_data_for_symbol(symbol: str, env: Environment) -> pd.DataF
         """
     else:
         # Try EODHD for TSLA
-        table_name = f"{env.table_prefix}daily_price_polygon_eodhd"
+        table_name = f"{env.table_prefix}daily_price_eodhd"
         query = f"""
             SELECT dp.date, dp.open, dp.high, dp.low, dp.close, dp.volume,
                    dp.adjusted_close, i.symbol

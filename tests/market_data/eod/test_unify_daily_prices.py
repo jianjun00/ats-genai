@@ -74,9 +74,9 @@ def compare_prices(tiingo, polygon, close_threshold=0.01):
     ("AAPL", "2024-01-01", "2025-07-31"),
     ("TSLA", "2024-01-01", "2025-07-31"),
 ])
-def test_unify_daily_price_polygon_discrepancies(symbol, start_date, end_date):
-    tiingo_dir = "tests/data/daily_price_polygon_tiingo"
-    polygon_dir = "tests/data/daily_price_polygon_polygon"
+def test_unify_daily_prices_discrepancies(symbol, start_date, end_date):
+    tiingo_dir = "tests/data/daily_price_tiingo"
+    polygon_dir = "tests/data/daily_price_polygon"
     tiingo = load_fixture_prices(tiingo_dir, symbol, "tiingo")
     polygon = load_fixture_prices(polygon_dir, symbol, "polygon")
     # Build data dicts for FileDailyPricesUnifier
