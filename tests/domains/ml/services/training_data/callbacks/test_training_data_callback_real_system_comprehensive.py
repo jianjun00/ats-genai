@@ -44,6 +44,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from shared.data_handling.utils.environment import Environment, EnvironmentType
 from services.core.app.runner import Runner
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from tests.utils.test_data_setup import setup_single_symbol_test
 
 
 @pytest.mark.asyncio
@@ -90,48 +91,25 @@ async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db
         environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
         print(f"   ✅ Real Environment created: {type(environment).__name__}")
         
-        # Insert minimal test data - REAL data only
+        # Insert minimal test data using shared utility - REAL data only
         print(f"   🔍 Setting up minimal test data for {test_symbol}...")
         import asyncpg
         conn = await asyncpg.connect(unit_test_db)
         
-        # Get table names from environment (tables created by migrations)
-        vendors_table = environment.get_table_name('vendors')
-        instruments_table = environment.get_table_name('instrument')
-        xrefs_table = environment.get_table_name('instrument_xrefs')
+        # Use shared test data setup utility
+        test_setup_result = await setup_single_symbol_test(
+            environment=environment,
+            db_connection=conn,
+            symbol=test_symbol,
+            instrument_id=999999,
+            universe_id=1
+        )
+        
+        print(f"   ✅ Test data setup complete for {test_symbol} using shared utility")
+        print(f"      📊 Setup result: {test_setup_result}")
+        
+        # Get table names for later use
         universe_state_table = environment.get_table_name('universe_state_interval')
-        
-        # Insert minimal test data
-        await conn.execute(f"""
-            INSERT INTO {vendors_table} (name) VALUES ('ticker') ON CONFLICT (name) DO NOTHING
-        """)
-        
-        await conn.execute(f"""
-            INSERT INTO {instruments_table} (id, symbol) VALUES (999999, '{test_symbol}') 
-            ON CONFLICT (symbol) DO NOTHING
-        """)
-        
-        await conn.execute(f"""
-            INSERT INTO {xrefs_table} (instrument_id, symbol, vendor_id) 
-            VALUES (999999, '{test_symbol}', (SELECT id FROM {vendors_table} WHERE name = 'ticker'))
-            ON CONFLICT (instrument_id, vendor_id, start_at) DO NOTHING
-        """)
-        
-        # Insert universe data - required for UniverseManager
-        universe_table = environment.get_table_name('universe')
-        universe_membership_table = environment.get_table_name('universe_membership')
-        
-        await conn.execute(f"""
-            INSERT INTO {universe_table} (id, name) VALUES (1, 'test_universe') 
-            ON CONFLICT (id) DO NOTHING
-        """)
-        
-        await conn.execute(f"""
-            INSERT INTO {universe_membership_table} (universe_id, instrument_id) 
-            VALUES (1, 999999) ON CONFLICT (universe_id, instrument_id, entered_at) DO NOTHING
-        """)
-        
-        print(f"   ✅ Test data setup complete for {test_symbol} (including universe membership)")
         
         # === STEP 2: CONFIGURE REAL RUNNER WITH BASE DURATION 1m ===
         print(f"\n📋 STEP 2: CONFIGURE REAL RUNNER WITH BASE DURATION 1m")

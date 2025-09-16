@@ -28,6 +28,7 @@ import asyncio
 import os
 import asyncpg
 from shared.data_handling.utils.environment import Environment, EnvironmentType
+from tests.utils.test_data_setup import setup_single_symbol_test
 
 @pytest.mark.asyncio
 async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db):
@@ -281,42 +282,18 @@ async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db
 
 
 async def setup_test_data(environment: Environment, test_symbol: str = 'AAPL'):
-    """Setup minimal test data for AAPL including universe membership."""
+    """Setup test data using shared utility."""
     conn = await asyncpg.connect(environment.get_database_url())
     
     try:
-        # Insert test instrument
-        instrument_table = environment.get_table_name('instrument')
-        await conn.execute(f"""
-            INSERT INTO {instrument_table} (id, symbol, name, active) 
-            VALUES (999999, '{test_symbol}', '{test_symbol} Inc Test', true) 
-            ON CONFLICT (id) DO UPDATE SET symbol = EXCLUDED.symbol, name = EXCLUDED.name
-        """)
-        
-        # Insert instrument xref with correct vendor
-        xrefs_table = environment.get_table_name('instrument_xrefs')
-        vendors_table = environment.get_table_name('vendors')
-        await conn.execute(f"""
-            INSERT INTO {xrefs_table} (instrument_id, symbol, vendor_id) 
-            VALUES (999999, '{test_symbol}', (SELECT id FROM {vendors_table} WHERE name = 'ticker'))
-            ON CONFLICT (instrument_id, vendor_id, start_at) DO UPDATE SET symbol = EXCLUDED.symbol
-        """)
-        
-        # Clear and insert clean universe data
-        universe_table = environment.get_table_name('universe')
-        universe_membership_table = environment.get_table_name('universe_membership')
-        
-        await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id = 1")
-        await conn.execute(f"DELETE FROM {universe_table} WHERE id = 1")
-        
-        await conn.execute(f"""
-            INSERT INTO {universe_table} (id, name) VALUES (1, 'test_universe')
-        """)
-        
-        await conn.execute(f"""
-            INSERT INTO {universe_membership_table} (universe_id, instrument_id) 
-            VALUES (1, 999999)
-        """)
+        # Use shared test data setup utility
+        await setup_single_symbol_test(
+            environment=environment,
+            db_connection=conn,
+            symbol=test_symbol,
+            instrument_id=999999,
+            universe_id=1
+        )
         
     finally:
         await conn.close()
