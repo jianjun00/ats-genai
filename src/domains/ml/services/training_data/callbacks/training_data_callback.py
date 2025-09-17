@@ -167,14 +167,14 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         PRD/DRD Timeframe Granularity Logic:
         - 5m: Generate every 5 minutes (05, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 00)
         - 15m: Generate every 15 minutes (00, 15, 30, 45)
-        - 1h: Generate every hour (00 minutes only)
+        - 60m: Generate every hour (00 minutes only)
         - 1d: Generate once per day (00:00 only)
         - 1w: Generate once per week (Monday 00:00 only)
         
         Examples:
         - At 35m: Generate only 5m timeframe
         - At 45m: Generate 5m and 15m timeframes  
-        - At 00m: Generate 5m, 15m, and 1h timeframes
+        - At 00m: Generate 5m, 15m, and 60m timeframes
         - At Monday 00:00: Generate all timeframes including 1d and 1w
         """
         if not self.training_generator:
@@ -386,7 +386,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
             # Initialize writers for each symbol/timeframe/month combination
             # PRD/DRD: Include all required timeframes including missing 1w
-            timeframes = ['5m', '15m', '1h', '1d', '1w']
+            timeframes = ['5m', '15m', '60m', '1d', '1w']
 
             for symbol in self.symbols:
                 print(f"   Initializing monthly writers for {symbol}")
@@ -675,7 +675,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         PRD/DRD Native Frequency Requirements:
         - 5m: Every 5 minutes (12 records/hour)
         - 15m: Every 15 minutes (4 records/hour)
-        - 1h: Every hour at 00 minutes (1 record/hour)
+        - 60m: Every hour at 00 minutes (1 record/hour)
         - 1d: Every day at 00:00 (1 record/day)
         - 1w: Every Monday at 00:00 (1 record/week)
         """
@@ -693,9 +693,9 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         if minute % 15 == 0:
             target_timeframes.append('15m')
         
-        # 1h: Generate every hour at 00 minutes
+        # 60m: Generate every hour at 00 minutes
         if minute == 0:
-            target_timeframes.append('1h')
+            target_timeframes.append('60m')
         
         # 1d: Generate once per day at 00:00
         if hour == 0 and minute == 0:

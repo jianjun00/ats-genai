@@ -277,8 +277,8 @@ def parse_args():
     # Processing options
     parser.add_argument('--debug', action='store_true',
                        help='Enable debug logging')
-    parser.add_argument('--base-duration', default='1h',
-                       help='Runner base duration (default: 1h)')
+    parser.add_argument('--base-duration', default='5m',
+                       help='Runner base duration (default: 5m)')
 
     return parser.parse_args()
 
@@ -299,7 +299,7 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
     # Calculate estimated feature count based on config
     # FIX: Use actual TrainingDataConfig attributes (timeframes, feature_types)
     total_features = 0
-    timeframes = config.timeframes if hasattr(config, 'timeframes') else ['5m', '15m', '1h', '1d']
+    timeframes = config.timeframes if hasattr(config, 'timeframes') else ['5m', '15m', '60m', '1d']
     feature_types = config.feature_types if hasattr(config, 'feature_types') else ['ohlcv', 'technical']
 
     # Rough estimation: features per timeframe * number of timeframes
@@ -753,12 +753,12 @@ async def main():
         config = MarketDataConfig(
             vendors=[VendorType.FIRSTRATE],  # Use FirstRate for minute data
             storage_backend=StorageBackend.FILE, 
-            file_storage_path="/mnt/d/ats-data/minute-bars/firstrate"
+            file_storage_path="/data/minute-bars/firstrate"  # FIXED: Use container path not host path
         )
         minute_data_manager = UnifiedMarketDataManager(config)
         logger.info(f"✅ Created UnifiedMarketDataManager for training data generation")
         logger.info(f"   Storage backend: file")
-        logger.info(f"   Base path: /mnt/d/ats-data/minute-bars/firstrate")
+        logger.info(f"   Base path: /data/minute-bars/firstrate")
 
         # ARCHITECTURE FIX: Add UniverseStateBuilder to populate universe state cache
         # UniverseStateBuilder calls get_minute_ohlc_batch to access cached data from FileBasedMinuteMarketDataManager
@@ -775,15 +775,32 @@ async def main():
             run_context=run_context if enable_run_isolation else None
         )
         
+        # DEBUG: Check what gin config values are being loaded
+        try:
+            gin_base_duration = gin.query_parameter('domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration')
+            gin_target_durations = gin.query_parameter('domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations')
+            logger.info(f"🔍 [DEBUG] Gin config values:")
+            logger.info(f"   gin_base_duration: {gin_base_duration}")
+            logger.info(f"   gin_target_durations: {gin_target_durations}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to query gin config: {e}")
+        
         universe_state_builder = UniverseStateIntervalBuilder(
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
-            target_durations=args.base_duration,  # Use same duration for simplicity
+            # target_durations will use gin config: '5m,15m,60m,1d' 
             universe_state_manager=universe_state_manager  # Pass shared cache manager
         )
+        
+        # DEBUG: Check what values were actually set
+        logger.info(f"🔍 [DEBUG] UniverseStateBuilder actual configuration:")
+        logger.info(f"   base_duration: {universe_state_builder.base_duration}")
+        logger.info(f"   target_durations: {universe_state_builder.target_durations}")
+        logger.info(f"   target_durations count: {len(universe_state_builder.target_durations)}")
+        
         logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
         logger.info(f"   Base duration: {args.base_duration}")
-        logger.info(f"   Target durations: {args.base_duration}")
+        logger.info(f"   Target durations: {len(universe_state_builder.target_durations)} timeframes")
         
         # 🚨 CRITICAL FIX: Create UniverseManager with proper symbols and initialize it
         from domains.trading.services.universe.universe_manager import UniverseManager

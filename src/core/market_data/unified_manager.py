@@ -280,9 +280,24 @@ class FirstRateAdapter(VendorAdapter):
                     year_month_dir = symbol_dir / str(current.year) / f"{current.month:02d}"
                     parquet_file = year_month_dir / f"{symbol}_{current.year}_{current.month:02d}.parquet"
                     
-                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: Checking file {parquet_file}")
+                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Checking file {parquet_file}")
+                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Parquet file absolute path: {parquet_file.absolute()}")
+                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Symbol dir {symbol_dir} exists: {symbol_dir.exists()}")
+                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Year-month dir {year_month_dir} exists: {year_month_dir.exists()}")
+                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: File {parquet_file} exists: {parquet_file.exists()}")
+                    
+                    # Additional debug to see what's actually in the directory
+                    if year_month_dir.exists():
+                        try:
+                            files_in_dir = list(year_month_dir.glob("*"))
+                            logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Files in {year_month_dir}: {files_in_dir}")
+                        except Exception as e:
+                            logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Error listing {year_month_dir}: {e}")
+                    else:
+                        logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Year-month dir {year_month_dir} does not exist")
+                    
                     if parquet_file.exists():
-                        logger.info(f"🔍 [DEBUG] Symbol {symbol}: File exists, reading parquet data")
+                        logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: File exists, reading parquet data")
                         try:
                             # Read monthly parquet file
                             monthly_df = pd.read_parquet(parquet_file)
@@ -369,7 +384,9 @@ class VendorAdapterRegistry:
     def register_adapter(self, adapter: VendorAdapter):
         """Register a vendor adapter."""
         self._adapters[adapter.vendor_type] = adapter
-        logger.info(f"Registered {adapter.vendor_type.value} adapter")
+        logger.info(f"🔍 [ULTRA DEBUG] Registered {adapter.vendor_type.value} adapter")
+        logger.info(f"🔍 [ULTRA DEBUG] Total registered adapters: {len(self._adapters)}")
+        logger.info(f"🔍 [ULTRA DEBUG] All adapter types: {[vt.value for vt in self._adapters.keys()]}")
         
     def get_adapter(self, vendor_type: VendorType) -> Optional[VendorAdapter]:
         """Get adapter for vendor type."""
@@ -588,10 +605,16 @@ class UnifiedMarketDataManager:
             timeframe = TimeframeType(timeframe)
             
         # Auto-select vendor if needed
+        logger.info(f"🔍 [ULTRA DEBUG] get_ohlcv vendor input: {vendor} (type: {type(vendor)})")
         if vendor == "auto":
             vendor = self._select_best_vendor(timeframe)
+            logger.info(f"🔍 [ULTRA DEBUG] Auto-selected vendor: {vendor.value}")
         elif isinstance(vendor, str):
+            logger.info(f"🔍 [ULTRA DEBUG] Converting string vendor '{vendor}' to VendorType")
             vendor = VendorType(vendor)
+            logger.info(f"🔍 [ULTRA DEBUG] Converted to: {vendor.value}")
+        
+        logger.info(f"🔍 [ULTRA DEBUG] Final vendor for request: {vendor.value}")
             
         # Check cache first
         cache_key = f"{','.join(symbols)}:{start_date}:{end_date}:{timeframe.value}:{vendor.value}"
@@ -609,13 +632,22 @@ class UnifiedMarketDataManager:
                 results[symbol] = stored_data
             else:
                 # Fetch from vendor
+                logger.info(f"🔍 [ULTRA DEBUG] Fetching from vendor for symbol {symbol}")
                 adapter = self.vendor_registry.get_adapter(vendor)
+                logger.info(f"🔍 [ULTRA DEBUG] Retrieved adapter: {adapter.__class__.__name__ if adapter else 'None'}")
                 if adapter:
+                    logger.info(f"🔍 [ULTRA DEBUG] Calling adapter.get_ohlcv for [{symbol}]")
                     vendor_data = await adapter.get_ohlcv([symbol], start_date, end_date, timeframe)
+                    logger.info(f"🔍 [ULTRA DEBUG] Adapter returned data for {len(vendor_data)} symbols: {list(vendor_data.keys())}")
                     if symbol in vendor_data:
                         results[symbol] = vendor_data[symbol]
+                        logger.info(f"🔍 [ULTRA DEBUG] Found data for {symbol}")
                         # Store for future use
                         await self.storage_manager.store_ohlcv(symbol, vendor_data[symbol], timeframe)
+                    else:
+                        logger.warning(f"🔍 [ULTRA DEBUG] No data returned for {symbol}")
+                else:
+                    logger.error(f"🔍 [ULTRA DEBUG] No adapter found for vendor {vendor.value}")
                         
         # Cache results
         if self.config.enable_cache:
@@ -636,6 +668,10 @@ class UnifiedMarketDataManager:
         Returns dict of symbol -> OHLC dict (open, high, low, close) for the time range.
         """
         logger.info(f"🔍 [DEBUG] get_minute_ohlc_batch called for symbols={symbols}, start={start}, end={end}")
+        logger.info(f"🔍 [ULTRA DEBUG] Registered vendor adapters: {[adapter.vendor_type.value for adapter in self.vendor_registry._adapters.values()]}")
+        logger.info(f"🔍 [ULTRA DEBUG] Available vendor adapters: {list(self.vendor_registry._adapters.keys())}")
+        logger.info(f"🔍 [ULTRA DEBUG] Config vendors: {[v.value for v in self.config.vendors]}")
+        logger.info(f"🔍 [ULTRA DEBUG] Will call get_ohlcv with vendor='auto' to see auto-selection logic")
         try:
             # Use get_ohlcv to fetch 1-minute data
             ohlcv_data = await self.get_ohlcv(
@@ -685,20 +721,32 @@ class UnifiedMarketDataManager:
         """Select best vendor based on timeframe and availability."""
         available_vendors = self.vendor_registry.get_available_vendors()
         
+        logger.info(f"🔍 [ULTRA DEBUG] _select_best_vendor called with timeframe={timeframe}")
+        logger.info(f"🔍 [ULTRA DEBUG] Available vendors: {[v.value for v in available_vendors]}")
+        
         if not available_vendors:
+            logger.error(f"🔍 [ULTRA DEBUG] No vendors available - raising ValueError")
             raise ValueError("No vendors available")
             
-        # Priority logic based on timeframe
+        # Priority logic based on timeframe - FIXED to include FIRSTRATE for minute data
         if timeframe in [TimeframeType.MINUTE_1, TimeframeType.MINUTE_5]:
-            for vendor in [VendorType.POLYGON, VendorType.TIINGO]:
+            priority_vendors = [VendorType.FIRSTRATE, VendorType.POLYGON, VendorType.TIINGO]
+            logger.info(f"🔍 [ULTRA DEBUG] Minute timeframe - checking priority vendors: {[v.value for v in priority_vendors]}")
+            for vendor in priority_vendors:
                 if vendor in available_vendors:
+                    logger.info(f"🔍 [ULTRA DEBUG] Selected vendor: {vendor.value}")
                     return vendor
         else:
-            for vendor in [VendorType.EODHD, VendorType.TIINGO, VendorType.POLYGON]:
+            priority_vendors = [VendorType.EODHD, VendorType.TIINGO, VendorType.POLYGON, VendorType.FIRSTRATE]
+            logger.info(f"🔍 [ULTRA DEBUG] Daily timeframe - checking priority vendors: {[v.value for v in priority_vendors]}")
+            for vendor in priority_vendors:
                 if vendor in available_vendors:
+                    logger.info(f"🔍 [ULTRA DEBUG] Selected vendor: {vendor.value}")
                     return vendor
                     
-        return available_vendors[0]
+        fallback_vendor = available_vendors[0]
+        logger.info(f"🔍 [ULTRA DEBUG] Fallback to first available vendor: {fallback_vendor.value}")
+        return fallback_vendor
         
     async def get_instruments(self, vendor: Optional[VendorType] = None) -> List[Dict[str, Any]]:
         """Get available instruments from specified vendor."""

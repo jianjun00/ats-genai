@@ -385,7 +385,12 @@ class SequenceWindowBuilder:
             is_future: Whether to get future data (lead) or current data (lag)
         """
         try:
-            print(f"🔍 DEBUG get_timeframe_data: Getting {timeframe} data for instrument_id={instrument_id} at {center_datetime}, is_future={is_future}")
+            print(f"\n🔍 [ULTRA DEBUG] get_timeframe_data STARTING")
+            print(f"   📝 Timeframe: {timeframe}")
+            print(f"   🔢 Instrument ID: {instrument_id}")
+            print(f"   🕐 Center datetime: {center_datetime}")
+            print(f"   🔮 Is future: {is_future}")
+            print(f"   🏗️ Universe manager: {self.universe_manager}")
 
             # 🚨 CRITICAL ARCHITECTURAL CHANGE: Fail-fast error handling with UniverseStateInterval
             # PREVIOUS: Initialized empty DataFrame and handled missing data gracefully
@@ -405,6 +410,9 @@ class SequenceWindowBuilder:
                 )
                 
                 if future_universe_state_interval is None:
+                    print(f"❌ [ULTRA DEBUG] No future UniverseStateInterval found for {timeframe} at {center_datetime}")
+                    print(f"   🔍 This indicates UniverseStateBuilder hasn't computed future intervals yet")
+                    print(f"   🚨 CRITICAL: Future universe manager method returned None")
                     raise RuntimeError(f"No future UniverseStateInterval found for {timeframe} at {center_datetime}. "
                                      f"This indicates UniverseStateBuilder hasn't computed future intervals yet. "
                                      f"System must fail fast - cannot generate training data without pre-computed intervals.")
@@ -455,6 +463,9 @@ class SequenceWindowBuilder:
                 )
                 
                 if universe_state_interval is None:
+                    print(f"❌ [ULTRA DEBUG] No UniverseStateInterval found for {timeframe} at {center_datetime}")
+                    print(f"   🔍 This indicates UniverseStateBuilder hasn't computed intervals yet")
+                    print(f"   🚨 CRITICAL: Universe manager method returned None")
                     raise RuntimeError(f"No UniverseStateInterval found for {timeframe} at {center_datetime}. "
                                      f"This indicates UniverseStateBuilder hasn't computed intervals yet. "
                                      f"System must fail fast - cannot generate training data without pre-computed intervals.")
@@ -500,21 +511,41 @@ class SequenceWindowBuilder:
                                  f"This indicates data corruption or incomplete interval computation. "
                                  f"System must fail fast - cannot generate features from empty data.")
 
-            print(f"📊 DEBUG: Final data sample before feature extraction:")
-            print(f"   Columns: {list(data_df.columns)}")
+            print(f"📊 [ULTRA DEBUG] Final data sample before feature extraction:")
+            print(f"   🗺️ DataFrame shape: {data_df.shape}")
+            print(f"   📊 Columns: {list(data_df.columns)}")
             if 'open' in data_df.columns and 'close' in data_df.columns:
-                print(f"   Final record: O={data_df['open'].iloc[-1]:.2f}, H={data_df['high'].iloc[-1]:.2f}, L={data_df['low'].iloc[-1]:.2f}, C={data_df['close'].iloc[-1]:.2f}")
+                print(f"   📉 Final record: O={data_df['open'].iloc[-1]:.2f}, H={data_df['high'].iloc[-1]:.2f}, L={data_df['low'].iloc[-1]:.2f}, C={data_df['close'].iloc[-1]:.2f}")
+            else:
+                print(f"   ❌ Missing OHLC columns - this will cause feature extraction to fail")
 
             # Extract features for the single data point
-            print(f"🔄 DEBUG: Extracting features from data")
+            print(f"\n🔄 [ULTRA DEBUG] About to extract features from DataFrame")
+            print(f"   📝 DataFrame info: {data_df.shape} rows, columns: {list(data_df.columns)}")
+            print(f"   🎯 Timeframe: {timeframe}")
+            print(f"   🔧 Feature extractor: {self.feature_extractor}")
+            
             single_point_features = self.feature_extractor.extract_all_features(
                 data_df, timeframe
             )
 
-            print(f"✅ DEBUG: Extracted {len(single_point_features)} features: {list(single_point_features.keys())}")
+            print(f"\n✅ [ULTRA DEBUG] Feature extraction completed")
+            print(f"   📈 Extracted {len(single_point_features)} features")
+            print(f"   🔑 Feature keys: {list(single_point_features.keys())[:10]}{'...' if len(single_point_features) > 10 else ''}")
+            
+            if not single_point_features:
+                print(f"   ⚠️ WARNING: Feature extraction returned empty dict - this contributes to sequences=0")
+            
             return single_point_features
 
         except Exception as e:
+            print(f"💥 [ULTRA DEBUG] Exception in get_timeframe_data:")
+            print(f"   🔥 Exception type: {type(e).__name__}")
+            print(f"   📝 Exception message: {e}")
+            print(f"   🎯 Timeframe: {timeframe}, Instrument: {instrument_id}")
+            print(f"   ⚠️ RETURNING EMPTY FEATURES - This is likely why sequences = 0")
+            import traceback
+            traceback.print_exc()
             self.logger.warning(f"Failed to get {timeframe} data for instrument {instrument_id}: {e}")
             return {}
 
@@ -665,18 +696,77 @@ class TimeSeriesSequenceTrainingGenerator:
             return None
 
     def generate_base_features(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, float]:
-        """Generate base scalar features for the prediction timestamp."""
-        prediction_date = prediction_timestamp.date()
-
-        # Get recent data for base features
+        """Generate base scalar features for the prediction timestamp.
+        
+        CRITICAL FIXES:
+        1. Dynamic lookback calculation based on feature requirements (not hardcoded 5)
+        2. Use prediction_timestamp precision (not prediction_date)
+        3. Strict future leakage prevention
+        4. Sufficient historical data for technical indicators
+        """
         try:
-            recent_data = self.universe_manager.get_lag_prices(instrument_id, prediction_date, 5)
-            base_features = self.feature_extractor.extract_all_features(recent_data, 'base')
+            # Calculate required lookback periods based on feature requirements
+            lookback_periods = self._calculate_lookback_periods()
+            
+            # Use timestamp-aware data retrieval (not just date)
+            # Get historical data that strictly ends BEFORE prediction_timestamp
+            recent_data = self.universe_manager.get_lag_prices(
+                instrument_id, 
+                prediction_timestamp, 
+                lookback_periods
+            )
+            
+            # Filter out any future leakage (data >= prediction_timestamp)
+            if not recent_data.empty and 'timestamp' in recent_data.columns:
+                recent_data = recent_data[recent_data['timestamp'] < prediction_timestamp]
+            
+            # Extract features using the cleaned historical data
+            if not recent_data.empty:
+                base_features = self.feature_extractor.extract_all_features(recent_data, 'base')
+            else:
+                self.logger.warning(f"No historical data available for instrument {instrument_id} before {prediction_timestamp}")
+                base_features = {}
+                
         except Exception as e:
-            self.logger.warning(f"Failed to generate base features for instrument {instrument_id}: {e}")
+            self.logger.error(f"Failed to generate base features for instrument {instrument_id} at {prediction_timestamp}: {e}")
             base_features = {}
-
+            
         return base_features
+    
+    def _calculate_lookback_periods(self) -> int:
+        """Calculate required lookback periods based on feature requirements.
+        
+        Returns sufficient periods for technical indicators:
+        - SMA_20/SMA_50: requires 20-50 periods
+        - EMA_12: requires ~24 periods (2x for stability)
+        - RSI_14: requires 14+ periods
+        - MACD: requires 26+ periods
+        
+        Plus buffer for calculation stability.
+        """
+        try:
+            # Parse signal names to find maximum period requirements
+            max_period = 20  # Default minimum for basic indicators
+            
+            if hasattr(self.config, 'signal_names') and self.config.signal_names:
+                for signal_name in self.config.signal_names:
+                    # Extract period from signal names like 'sma_20', 'ema_12', 'rsi_14'
+                    if '_' in signal_name:
+                        parts = signal_name.split('_')
+                        for part in parts:
+                            if part.isdigit():
+                                period = int(part)
+                                max_period = max(max_period, period)
+            
+            # Add 50% buffer for calculation stability and ensure minimum viable amount
+            lookback_periods = max(int(max_period * 1.5), 60)  # At least 60 periods
+            
+            # Cap at reasonable maximum to avoid excessive data retrieval
+            return min(lookback_periods, 200)
+            
+        except Exception as e:
+            self.logger.warning(f"Error calculating lookback periods: {e}")
+            return 60  # Safe default for most technical indicators
 
     def generate_timeframe_features(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, Dict[str, float]]:
         """Generate aggregated features across all timeframes."""
@@ -717,30 +807,74 @@ class TimeSeriesSequenceTrainingGenerator:
         Returns:
             Dict with single-point features per timeframe or None if insufficient data
         """
+        print(f"\n🚀 [ULTRA DEBUG] generate_training_example STARTING")
+        print(f"   📝 Symbol: {symbol}")
+        print(f"   🕐 Prediction timestamp: {prediction_timestamp}")
+        print(f"   🎯 Target timeframes: {target_timeframes}")
+        print(f"   🏗️ Universe manager available: {self.universe_manager is not None}")
+        print(f"   🔧 Sequence builder available: {self.sequence_builder is not None}")
+        
         instrument_id = await self.get_instrument_id(symbol)
+        print(f"   🔍 Resolved instrument_id: {instrument_id}")
+        
         if not instrument_id:
+            print(f"❌ [ULTRA DEBUG] Could not find instrument_id for symbol {symbol}")
             self.logger.warning(f"Could not find instrument_id for symbol {symbol}")
             return None
 
         try:
+            print(f"\n🔄 [ULTRA DEBUG] Generating base features...")
             # Generate base features
             base_features = self.generate_base_features(instrument_id, prediction_timestamp)
+            print(f"   ✅ Base features: {len(base_features)} items: {list(base_features.keys())[:5]}{'...' if len(base_features) > 5 else ''}")
 
+            print(f"\n🔄 [ULTRA DEBUG] Building timeframe features...")
             # Build single-point timeframe features for specific timeframes
             timeframe_features = await self.sequence_builder.build_timeframe_features(
                 instrument_id, 
                 prediction_timestamp,
                 target_timeframes=target_timeframes
             )
+            print(f"   ✅ Timeframe features result:")
+            for tf, features in timeframe_features.items():
+                print(f"      {tf}: {len(features)} features")
+                if features:
+                    sample_keys = list(features.keys())[:3]
+                    print(f"         Sample keys: {sample_keys}")
+                else:
+                    print(f"         ❌ EMPTY FEATURES for {tf}")
 
+            print(f"\n🔄 [ULTRA DEBUG] Building prediction targets...")
             # Build single-point prediction targets
             targets = await self.sequence_builder.build_prediction_targets(instrument_id, prediction_timestamp)
+            print(f"   ✅ Prediction targets: {len(targets)} timeframes")
+            for tf, target_features in targets.items():
+                print(f"      {tf}: {len(target_features)} features")
 
-            # Validate that we have data for at least one timeframe
-            if not any(timeframe_features.values()):
+            print(f"\n🔍 [ULTRA DEBUG] Validating timeframe data...")
+            # Count available timeframes (more flexible validation)
+            available_timeframes = [tf for tf, features in timeframe_features.items() if features]
+            available_count = len(available_timeframes)
+            total_requested = len(target_timeframes) if target_timeframes else len(self.timeframes)
+            
+            print(f"   📊 Available timeframes: {available_count}/{total_requested} - {available_timeframes}")
+            print(f"   📊 Missing timeframes: {[tf for tf, features in timeframe_features.items() if not features]}")
+            
+            # More flexible validation: Allow partial timeframe data
+            # Only require at least one timeframe to have data (much more permissive)
+            if available_count == 0:
+                print(f"❌ [ULTRA DEBUG] No timeframe data available for {symbol} at {prediction_timestamp}")
+                print(f"   Timeframe features detail:")
+                for tf, features in timeframe_features.items():
+                    print(f"      {tf}: {features}")
                 self.logger.warning(f"No timeframe data available for {symbol} at {prediction_timestamp}")
                 return None
+            else:
+                print(f"✅ [ULTRA DEBUG] Proceeding with partial timeframe data ({available_count} available)")
+                print(f"   📈 This is normal behavior - timeframes are only available when intervals are complete")
+                print(f"   🎯 Available timeframes: {available_timeframes}")
 
+            print(f"\n🎯 [ULTRA DEBUG] Creating training example...")
             # Create simple training example dict
             example = {
                 'instrument_id': instrument_id,
@@ -750,10 +884,18 @@ class TimeSeriesSequenceTrainingGenerator:
                 'timeframe_features': timeframe_features,
                 'prediction_targets': targets
             }
-
+            
+            print(f"✅ [ULTRA DEBUG] Training example created successfully!")
+            print(f"   📊 Example keys: {list(example.keys())}")
+            print(f"   📈 Timeframes with data: {[tf for tf, features in timeframe_features.items() if features]}")
+            print(f"   📉 Timeframes without data: {[tf for tf, features in timeframe_features.items() if not features]}")
+            
             return example
 
         except Exception as e:
+            print(f"💥 [ULTRA DEBUG] Exception in generate_training_example: {e}")
+            import traceback
+            traceback.print_exc()
             self.logger.error(f"Failed to generate training example for {symbol} at {prediction_timestamp}: {e}")
             return None
 

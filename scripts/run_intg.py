@@ -73,7 +73,8 @@ class IntgCLI:
         self.table_prefix = "intg"  # Integration environment uses intg_ prefix
 
         # ATS persistent volume paths (D: drive) - Integration specific
-        self.ats_data_path = "/mnt/d/ats-data/intg"
+        # FIXED: Mount parent data directory to access minute-bars data
+        self.ats_data_path = "/mnt/d/ats-data"  # Parent directory with minute-bars
         self.ats_backup_path = "/mnt/d/ats-backup/intg"
         self.ats_logs_path = "/mnt/d/ats-logs/intg"
 
@@ -146,13 +147,21 @@ class IntgCLI:
             print(f"❌ Exception running command: {e}")
             return None
 
-    def run_docker_job(self, script_path, job_name=None, gpu=False, environment=None):
+    def run_docker_job(self, script_path, job_name=None, gpu=False, environment=None, script_args=None):
         """Run a job using Docker instead of Kubernetes"""
-        if not os.path.exists(script_path):
-            print(f"❌ Script not found: {script_path}")
+        # Parse script path and arguments if provided as a single string
+        script_parts = script_path.split(' ', 1)
+        actual_script_path = script_parts[0]
+        if len(script_parts) > 1 and script_args is None:
+            script_args = script_parts[1]
+        
+        if not os.path.exists(actual_script_path):
+            print(f"❌ Script not found: {actual_script_path}")
             return False
 
-        print(f"🐳 Running Integration Docker job: {script_path}")
+        print(f"🐳 Running Integration Docker job: {actual_script_path}")
+        if script_args:
+            print(f"📝 Script arguments: {script_args}")
 
         # Build Docker command
         gpu_flag = "--gpus all" if gpu else ""
@@ -165,6 +174,12 @@ class IntgCLI:
 
         # Mount directories and set database connection
         volume_mounts = self.get_volume_mounts()
+        
+        # Build the python command with arguments
+        python_cmd = f"python {actual_script_path}"
+        if script_args:
+            python_cmd += f" {script_args}"
+            
         cmd = f"""docker run --rm --network host {gpu_flag} \\
             {volume_mounts} \\
             -w /workspace \\
@@ -178,11 +193,18 @@ class IntgCLI:
             -e ATS_BACKUP_PATH=/backup \\
             -e ATS_LOGS_PATH=/logs \\
             -e ENVIRONMENT=intg \\
+            -e ENVIRONMENT_TYPE=intg \\
             {env_vars} \\
             {image} \\
-            python {script_path}"""
+            {python_cmd}"""
 
-        print(f"🚀 Running: docker run ... python {script_path}")
+        print(f"🚀 Running: {cmd}")
+        print(f"📝 Volume mounts: {volume_mounts}")
+        print(f"📁 Checking host paths exist:")
+        print(f"  - /mnt/d/ats-data exists: {os.path.exists('/mnt/d/ats-data')}")
+        print(f"  - /mnt/d/ats-data/minute-bars exists: {os.path.exists('/mnt/d/ats-data/minute-bars')}")
+        print(f"  - /mnt/d/ats-data/minute-bars/firstrate exists: {os.path.exists('/mnt/d/ats-data/minute-bars/firstrate')}")
+        print(f"📝 Python command: {python_cmd}")
         result = subprocess.run(cmd, shell=True)
 
         if result.returncode == 0:
@@ -755,6 +777,7 @@ def main():
     # Original commands
     parser_run = subparsers.add_parser("run", help="Run a script")
     parser_run.add_argument("--script", "-s", required=True, help="Script to run")
+    parser_run.add_argument("--script-args", help="Arguments to pass to the script")
     parser_run.add_argument("--gpu", action="store_true", help="Enable GPU support")
     parser_run.add_argument("--env", help="Environment variables (JSON format)")
     
@@ -853,7 +876,7 @@ def main():
 
     # Handle commands
     if args.action == "run":
-        cli.run_docker_job(args.script, gpu=args.gpu, environment=environment)
+        cli.run_docker_job(args.script, gpu=args.gpu, environment=environment, script_args=args.script_args)
 
     elif args.action == "start":
         cli.start_service(args.service, args.port, args.gpu, environment)

@@ -79,6 +79,13 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         self.base_duration = TimeDuration(base_duration_str)
         target_durations_str = target_durations
         self.target_durations = [TimeDuration(d.strip()) for d in target_durations_str.split(',')]
+        
+        # 🔍 [ULTRA DEBUG] Log configuration at initialization
+        print(f"🔍 [ULTRA DEBUG] UniverseStateIntervalBuilder.__init__:")
+        print(f"   📝 base_duration input: '{base_duration}'")
+        print(f"   📝 target_durations input: '{target_durations}'") 
+        print(f"   🔧 Parsed base_duration: {self.base_duration}")
+        print(f"   🔧 Parsed target_durations: {len(self.target_durations)} timeframes: {[str(d) for d in self.target_durations]}")
 
         # Default business logic parameters (from test expectations)
         self.min_market_cap = 100_000_000
@@ -232,12 +239,25 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         # Only build universe state for timeframes whose intervals are now complete
         duration_to_state = {}
         
-        for duration in self.target_durations:
-            if self._should_process_timeframe(duration, current_time):
+        # 🔍 [ULTRA DEBUG] Log timeframe processing loop
+        print(f"🔍 [ULTRA DEBUG] handleInterval timeframe processing:")
+        print(f"   ⏰ Current time: {current_time}")
+        print(f"   🔧 Total target_durations: {len(self.target_durations)}")
+        print(f"   📋 Target durations: {[str(d) for d in self.target_durations]}")
+        
+        for i, duration in enumerate(self.target_durations):
+            should_process = self._should_process_timeframe(duration, current_time)
+            print(f"   🔍 Duration {i+1}/{len(self.target_durations)}: {duration} -> should_process: {should_process}")
+            
+            if should_process:
+                print(f"      ✅ Processing {duration.get_duration_string()} at {current_time}")
                 self.logger.debug(f"[TIMEFRAME] Processing {duration.get_duration_string()} at {current_time}")
                 duration_to_state.update(await self._build_universe_state_for_duration(duration, current_time, instrument_ids, runner))
             else:
+                print(f"      ❌ Skipping {duration.get_duration_string()} at {current_time} - not complete")
                 self.logger.debug(f"[TIMEFRAME] Skipping {duration.get_duration_string()} at {current_time} - not complete")
+        
+        print(f"🔍 [ULTRA DEBUG] Final duration_to_state: {len(duration_to_state)} entries")
         
         # Only save if we have states to save
         if duration_to_state and hasattr(runner, 'universe_state_manager'):

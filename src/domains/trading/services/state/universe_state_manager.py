@@ -549,6 +549,7 @@ class UniverseStateManager:
                 
                 # CRITICAL FIX: Populate rolling cache for aggregation logic
                 # Add InstrumentInterval objects to rolling cache so universe_state_builder can aggregate them
+                print(f"🔄 [USM.addUniverseState] Adding to rolling cache: timeframe={duration_str}, inst_id={inst_id}")
                 self.add_interval_to_rolling_cache(inst_id, duration_str, inst_interval)
             # Output indicator values in long format
             for indicator_type, inst_dict in universe_state.instrument_indicator_intervals.items():
@@ -936,10 +937,73 @@ class UniverseStateManager:
             # Query database for stored UniverseStateInterval - UniverseStateBuilder should have created these
             self.logger.debug(f"Querying database for UniverseStateInterval {timeframe} from {interval_start} to {interval_end}")
             
-            # TODO: Implement actual database query here
-            # For now, return None to expose the bug that no intervals are stored
-            self.logger.warning(f"No UniverseStateInterval found for {timeframe} at {current_time} - UniverseStateBuilder may not have run")
-            return None
+            # CRITICAL FIX: Build UniverseStateInterval from rolling cache data
+            # Check if we have cached data for this timeframe
+            print(f"🔍 [USM.get_universe_state_interval] Looking for {timeframe} at {current_time}")
+            print(f"🔍 [USM.get_universe_state_interval] Available timeframes in cache: {list(self._rolling_instrument_history.keys())}")
+            
+            if timeframe not in self._rolling_instrument_history:
+                print(f"❌ [USM.get_universe_state_interval] No rolling cache data for {timeframe} lookup")
+                return None
+                
+            print(f"📊 [USM.get_universe_state_interval] Cache debug for {timeframe}: {len(self._rolling_instrument_history[timeframe])} instruments cached")
+            for inst_id, intervals in self._rolling_instrument_history[timeframe].items():
+                print(f"   📈 Instrument {inst_id}: {len(intervals)} intervals cached")
+                for i, interval in enumerate(intervals):
+                    start_time = getattr(interval, 'start_date_time', None)
+                    print(f"      ⏰ Interval {i}: start_time={start_time}")
+                
+            # Import UniverseStateInterval here to avoid circular imports
+            from domains.trading.services.state.universe_state import UniverseStateInterval
+            
+            instrument_intervals = {}
+            
+            # Collect InstrumentInterval objects for all instruments at this specific time
+            for instrument_id, intervals in self._rolling_instrument_history[timeframe].items():
+                # Find interval that matches the target time range
+                for interval in intervals:
+                    interval_start_time = getattr(interval, 'start_date_time', None)
+                    if interval_start_time:
+                        # CRITICAL FIX: For a 5m interval, if training generator asks for 14:00, 
+                        # it wants the interval that ENDS at 14:00 (i.e., starts at 13:55)
+                        # So the interval_start_time should be (current_time - interval_duration)
+                        interval_end_time = interval_start_time + timedelta(minutes=interval_minutes)
+                        
+                        # Check if current_time falls within this interval OR is the end time
+                        is_within_interval = interval_start_time <= current_time <= interval_end_time
+                        is_end_time_match = abs((interval_end_time - current_time).total_seconds()) < 60
+                        
+                        print(f"         🔍 Checking interval: start={interval_start_time}, end={interval_end_time}")
+                        print(f"         🎯 Looking for: {current_time}")
+                        print(f"         📊 Within interval: {is_within_interval}, End time match: {is_end_time_match}")
+                        
+                        if is_within_interval or is_end_time_match:
+                            # Found matching interval for this instrument
+                            instrument_intervals[instrument_id] = interval
+                            print(f"         ✅ FOUND MATCH for instrument {instrument_id}")
+                            break
+            
+            if not instrument_intervals:
+                self.logger.debug(f"No cached instrument intervals found for {timeframe} at {interval_start}")
+                return None
+            
+            # Create UniverseStateInterval from cached InstrumentInterval objects
+            from core.business.calendars.time_duration import TimeDuration
+            
+            # Convert timeframe string to TimeDuration and calculate end time
+            duration = TimeDuration(timeframe)
+            end_time = interval_start + timedelta(minutes=interval_minutes)
+            
+            universe_interval = UniverseStateInterval(
+                duration=duration,
+                start_date_time=interval_start,
+                end_date_time=end_time,
+                factor_intervals=[],  # Empty for now, not needed by training generator
+                instrument_intervals=instrument_intervals
+            )
+            
+            self.logger.debug(f"✅ Built UniverseStateInterval from cache: {timeframe} at {interval_start} with {len(instrument_intervals)} instruments")
+            return universe_interval
             
         except Exception as e:
             self.logger.error(f"Failed to retrieve UniverseStateInterval for {timeframe} at {current_time}: {e}")
