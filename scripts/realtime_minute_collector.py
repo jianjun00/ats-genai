@@ -7,7 +7,9 @@ and stores in INTG database for real-time trading applications.
 
 Usage:
     python3 scripts/realtime_minute_collector.py --symbols AAPL,TSLA,SPY
+    python3 scripts/realtime_minute_collector.py --universe-id 2  # High volume large cap universe
     python3 scripts/realtime_minute_collector.py --production  # All symbols
+    python3 scripts/realtime_minute_collector.py --test  # Test symbols only
 """
 
 import asyncio
@@ -101,9 +103,10 @@ async def send_metrics_to_signoz(metrics_data: dict):
 class RealTimeMinuteCollector:
     """Real-time minute bar collector for ATS-INTG."""
 
-    def __init__(self, symbols: List[str], db_url: str):
+    def __init__(self, symbols: List[str], db_url: str, universe_id: Optional[int] = None):
         self.symbols = symbols
         self.db_url = db_url
+        self.universe_id = universe_id
         self.db_pool = None
         self.polygon_api_key = os.getenv('POLYGON_API_KEY')
         self.tiingo_api_key = os.getenv('TIINGO_API_KEY')
@@ -148,6 +151,30 @@ class RealTimeMinuteCollector:
             description="Number of active symbols being monitored"
         )
 
+    async def load_symbols_from_universe(self) -> List[str]:
+        """Load symbols from specified universe."""
+        if not self.universe_id:
+            return self.symbols
+
+        async with self.db_pool.acquire() as conn:
+            query = """
+            SELECT DISTINCT i.symbol
+            FROM intg_universe_membership um
+            JOIN intg_instrument i ON um.instrument_id = i.id
+            WHERE um.universe_id = $1
+            AND (um.end_at IS NULL OR um.end_at > CURRENT_DATE)
+            AND i.active = true
+            AND i.symbol IS NOT NULL
+            AND i.symbol != ''
+            ORDER BY i.symbol
+            """
+
+            rows = await conn.fetch(query, self.universe_id)
+            universe_symbols = [row['symbol'] for row in rows]
+
+            logger.info(f"📊 Loaded {len(universe_symbols)} symbols from universe {self.universe_id}")
+            return universe_symbols
+
     async def initialize(self):
         """Initialize database connections."""
         try:
@@ -161,6 +188,10 @@ class RealTimeMinuteCollector:
 
             # Ensure tables exist
             await self.create_tables()
+
+            # Load symbols from universe if specified
+            if self.universe_id:
+                self.symbols = await self.load_symbols_from_universe()
 
         except Exception as e:
             logger.error(f"❌ Failed to initialize collector: {e}")
@@ -580,6 +611,7 @@ async def main():
     parser = argparse.ArgumentParser(description='Real-Time Minute Bar Collector')
 
     parser.add_argument('--symbols', help='Comma-separated symbols (e.g., AAPL,TSLA,SPY)')
+    parser.add_argument('--universe-id', type=int, help='Universe ID to collect symbols from (e.g., 2 for high_volume_large_cap)')
     parser.add_argument('--production', action='store_true', help='Run with production symbol set')
     parser.add_argument('--test', action='store_true', help='Run test with limited symbols')
     parser.add_argument('--db-host', default='ats-intg-postgres', help='Database host')
@@ -597,10 +629,16 @@ async def main():
     )
 
     # Determine symbols to collect
-    if args.symbols:
+    if args.universe_id:
+        # Symbols will be loaded from universe during initialization
+        symbols = []  # Will be populated from universe
+        logger.info(f"📊 Will collect symbols from universe ID {args.universe_id}")
+    elif args.symbols:
         symbols = [s.strip().upper() for s in args.symbols.split(',')]
+        logger.info(f"📊 Collecting real-time data for {len(symbols)} symbols: {symbols}")
     elif args.test:
         symbols = ['AAPL', 'TSLA', 'SPY', 'QQQ']  # Test symbols
+        logger.info(f"📊 Test mode: collecting real-time data for {len(symbols)} symbols: {symbols}")
     elif args.production:
         # Production symbol set - major stocks and ETFs
         symbols = [
@@ -613,16 +651,16 @@ async def main():
             # Other major stocks
             'JNJ', 'PG', 'KO', 'PFE', 'WMT', 'HD', 'V', 'MA', 'UNH', 'DIS'
         ]
+        logger.info(f"📊 Production mode: collecting real-time data for {len(symbols)} symbols")
     else:
         symbols = ['AAPL', 'SPY']  # Default minimal set
-
-    logger.info(f"📊 Collecting real-time data for {len(symbols)} symbols: {symbols}")
+        logger.info(f"📊 Default mode: collecting real-time data for {len(symbols)} symbols: {symbols}")
 
     # Build database URL
     db_url = f"postgresql://{args.db_user}:{args.db_password}@{args.db_host}:{args.db_port}/{args.db_name}"
 
     # Create and run collector
-    collector = RealTimeMinuteCollector(symbols, db_url)
+    collector = RealTimeMinuteCollector(symbols, db_url, universe_id=args.universe_id)
 
     try:
         await collector.initialize()
