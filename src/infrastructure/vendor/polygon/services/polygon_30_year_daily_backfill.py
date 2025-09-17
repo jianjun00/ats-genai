@@ -102,22 +102,38 @@ class Polygon30YearBackfiller:
 
     async def get_instruments_for_backfill(self, conn, limit=None):
         """Get active instruments from instruments table."""
-        limit_clause = f"LIMIT {limit}" if limit else ""
-
         # Auto-detect table prefix based on environment
         env = os.getenv('ENV_TYPE', 'intg').lower()
         table_prefix = 'intg_' if env == 'intg' else 'dev_'
 
-        instruments = await conn.fetch(f"""
-            SELECT id, symbol, name, exchange, active
-            FROM {table_prefix}instrument
-            WHERE active = true
-              AND symbol IS NOT NULL
-              AND symbol != ''
-              AND exchange IN ('NASDAQ', 'NYSE', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
-            ORDER BY symbol
-            {limit_clause}
-        """)
+        # Check if TARGET_SYMBOLS is specified
+        target_symbols = os.getenv('TARGET_SYMBOLS')
+        if target_symbols:
+            target_list = [s.strip().upper() for s in target_symbols.split(',')]
+            symbols_clause = "AND symbol = ANY($1)"
+            instruments = await conn.fetch(f"""
+                SELECT id, symbol, name, exchange, active
+                FROM {table_prefix}instrument
+                WHERE active = true
+                  AND symbol IS NOT NULL
+                  AND symbol != ''
+                  AND exchange IN ('NASDAQ', 'NYSE', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
+                  {symbols_clause}
+                ORDER BY symbol
+            """, target_list)
+            logger.info(f"🎯 Targeted symbols: {target_list}")
+        else:
+            limit_clause = f"LIMIT {limit}" if limit else ""
+            instruments = await conn.fetch(f"""
+                SELECT id, symbol, name, exchange, active
+                FROM {table_prefix}instrument
+                WHERE active = true
+                  AND symbol IS NOT NULL
+                  AND symbol != ''
+                  AND exchange IN ('NASDAQ', 'NYSE', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
+                ORDER BY symbol
+                {limit_clause}
+            """)
 
         self.legacy_stats['total_instruments'] = len(instruments)
         logger.info(f"📊 Found {len(instruments)} instruments for 30-year backfill")
@@ -303,13 +319,6 @@ class Polygon30YearBackfiller:
                 logger.warning("❌ No instruments found for backfill")
                 return
 
-            # Filter for specific symbols if TARGET_SYMBOLS is provided
-            target_symbols = os.getenv('TARGET_SYMBOLS')
-            if target_symbols:
-                target_list = [s.strip().upper() for s in target_symbols.split(',')]
-                instruments = [inst for inst in instruments if inst['symbol'].upper() in target_list]
-                logger.info(f"🎯 Filtering to target symbols: {target_list}")
-
             logger.info(f"📊 Processing {len(instruments)} instruments")
 
             # Process each instrument
@@ -362,7 +371,7 @@ async def main():
                        help='Start date (YYYY-MM-DD), overrides --years')
     parser.add_argument('--end_date', type=str, default=None,
                        help='End date (YYYY-MM-DD), defaults to today')
-    parser.add_argument('--skip_existing', action='store_true', default=True,
+    parser.add_argument('--skip_existing', action='store_true', default=False,
                        help='Skip instruments that already have price data')
 
     args = parser.parse_args()
