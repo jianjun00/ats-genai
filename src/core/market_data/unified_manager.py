@@ -170,8 +170,8 @@ class VendorAdapter:
     async def get_ohlcv(
         self,
         symbols: List[str], 
-        start_date: datetime,
-        end_date: datetime,
+        start_datetime: datetime,
+        end_datetime: datetime,
         timeframe: TimeframeType
     ) -> Dict[str, pd.DataFrame]:
         """Get OHLCV data from vendor."""
@@ -191,8 +191,8 @@ class PolygonAdapter(VendorAdapter):
     async def get_ohlcv(
         self,
         symbols: List[str],
-        start_date: datetime, 
-        end_date: datetime,
+        start_datetime: datetime, 
+        end_datetime: datetime,
         timeframe: TimeframeType
     ) -> Dict[str, pd.DataFrame]:
         """Get OHLCV data from POLYGON API."""
@@ -219,8 +219,8 @@ class TiingoAdapter(VendorAdapter):
     async def get_ohlcv(
         self,
         symbols: List[str],
-        start_date: datetime,
-        end_date: datetime, 
+        start_datetime: datetime,
+        end_datetime: datetime, 
         timeframe: TimeframeType
     ) -> Dict[str, pd.DataFrame]:
         """Get OHLCV data from TIINGO API."""
@@ -251,12 +251,12 @@ class FirstRateAdapter(VendorAdapter):
     async def get_ohlcv(
         self,
         symbols: List[str],
-        start_date: datetime,
-        end_date: datetime,
+        start_datetime: datetime,
+        end_datetime: datetime,
         timeframe: TimeframeType
     ) -> Dict[str, pd.DataFrame]:
         """Get OHLCV data from FirstRate parquet files."""
-        logger.info(f"🔍 [DEBUG] FirstRateAdapter.get_ohlcv called for symbols={symbols}, start={start_date}, end={end_date}, timeframe={timeframe}")
+        logger.info(f"🔍 [DEBUG] FirstRateAdapter.get_ohlcv called for symbols={symbols}, start={start_datetime}, end={end_datetime}, timeframe={timeframe}")
         logger.info(f"🔍 [DEBUG] FirstRateAdapter base_path={self.base_path}")
         results = {}
         
@@ -271,11 +271,11 @@ class FirstRateAdapter(VendorAdapter):
                 import pandas as pd
                 from dateutil.relativedelta import relativedelta
                 
-                current = start_date.replace(day=1)  # First day of start month
-                end = end_date.replace(day=1)        # First day of end month
+                current = start_datetime.replace(day=1)  # First day of start month
+                end = end_datetime.replace(day=1)        # First day of end month
                 
                 all_data = []
-                
+                logger.info(f"start_datetime:{start_datetime}, end_datetime:{end_datetime}, current:{current}, end:{end}")
                 while current <= end:
                     year_month_dir = symbol_dir / str(current.year) / f"{current.month:02d}"
                     parquet_file = year_month_dir / f"{symbol}_{current.year}_{current.month:02d}.parquet"
@@ -319,21 +319,25 @@ class FirstRateAdapter(VendorAdapter):
                                 logger.warning(f"No timestamp column in {parquet_file}")
                                 continue
                             
-                            # Filter by date range - use EDT timezone for consistency with minute bar data
+                            # Filter by date range - use GMT timezone consistently
                             from zoneinfo import ZoneInfo
-                            edt_tz = ZoneInfo("America/New_York")
+                            gmt_tz = ZoneInfo("GMT")
                             
-                            start_dt = pd.to_datetime(start_date).tz_localize(edt_tz) if pd.to_datetime(start_date).tz is None else pd.to_datetime(start_date).tz_convert(edt_tz)
-                            end_dt = pd.to_datetime(end_date).tz_localize(edt_tz) if pd.to_datetime(end_date).tz is None else pd.to_datetime(end_date).tz_convert(edt_tz)
+                            # 🔧 SIMPLIFIED: Convert both start_datetime and end_datetime to GMT
+                            # Assumes both inputs are already GMT timezone-aware from runner
+                            start_dt = start_datetime.astimezone(gmt_tz) if start_datetime.tzinfo else start_datetime.replace(tzinfo=gmt_tz)
+                            end_dt = end_datetime.astimezone(gmt_tz) if end_datetime.tzinfo else end_datetime.replace(tzinfo=gmt_tz)
                             
                             logger.info(f"🔍 [DEBUG] Symbol {symbol}: Filtering data range {start_dt} to {end_dt}")
                             
-                            # Ensure monthly_df index is also in EDT
+                            # 🔧 SIMPLIFIED: Convert DataFrame index to GMT timezone consistently
                             original_index_tz = monthly_df.index.tz
                             if monthly_df.index.tz is None:
-                                monthly_df.index = monthly_df.index.tz_localize(edt_tz)
+                                # Naive index - localize to GMT
+                                monthly_df.index = monthly_df.index.tz_localize(gmt_tz)
                             else:
-                                monthly_df.index = monthly_df.index.tz_convert(edt_tz)
+                                # Timezone-aware index - convert to GMT
+                                monthly_df.index = monthly_df.index.tz_convert(gmt_tz)
                             
                             logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data index timezone converted from {original_index_tz} to {monthly_df.index.tz}")
                             logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data index range after timezone conversion: {monthly_df.index.min()} to {monthly_df.index.max()}")
@@ -366,7 +370,7 @@ class FirstRateAdapter(VendorAdapter):
                     logger.info(f"🔍 [DEBUG] Total loaded {len(combined_df)} rows for {symbol} across {len(all_data)} files")
                     logger.info(f"🔍 [DEBUG] Final combined data range: {combined_df.index.min()} to {combined_df.index.max()}")
                 else:
-                    logger.warning(f"🔍 [DEBUG] No FirstRate data found for {symbol} between {start_date} and {end_date}")
+                    logger.warning(f"🔍 [DEBUG] No FirstRate data found for {symbol} between {start_datetime} and {end_datetime}")
                     results[symbol] = pd.DataFrame()
                     
             except Exception as e:
@@ -581,8 +585,8 @@ class UnifiedMarketDataManager:
     async def get_ohlcv(
         self,
         symbols: Union[str, List[str]],
-        start_date: Union[str, datetime, date],
-        end_date: Union[str, datetime, date],
+        start_datetime: Union[str, datetime, date],
+        end_datetime: Union[str, datetime, date],
         timeframe: Union[str, TimeframeType] = TimeframeType.DAILY,
         vendor: Union[str, VendorType] = "auto"
     ) -> Dict[str, pd.DataFrame]:
@@ -597,10 +601,10 @@ class UnifiedMarketDataManager:
         # Normalize inputs
         if isinstance(symbols, str):
             symbols = [symbols]
-        if isinstance(start_date, str):
-            start_date = datetime.fromisoformat(start_date)
-        if isinstance(end_date, str):
-            end_date = datetime.fromisoformat(end_date)
+        if isinstance(start_datetime, str):
+            start_datetime = datetime.fromisoformat(start_datetime)
+        if isinstance(end_datetime, str):
+            end_datetime = datetime.fromisoformat(end_datetime)
         if isinstance(timeframe, str):
             timeframe = TimeframeType(timeframe)
             
@@ -617,7 +621,7 @@ class UnifiedMarketDataManager:
         logger.info(f"🔍 [ULTRA DEBUG] Final vendor for request: {vendor.value}")
             
         # Check cache first
-        cache_key = f"{','.join(symbols)}:{start_date}:{end_date}:{timeframe.value}:{vendor.value}"
+        cache_key = f"{','.join(symbols)}:{start_datetime}:{end_datetime}:{timeframe.value}:{vendor.value}"
         if self.config.enable_cache and cache_key in self._cache:
             return self._cache[cache_key]
             
@@ -625,7 +629,7 @@ class UnifiedMarketDataManager:
         results = {}
         for symbol in symbols:
             stored_data = await self.storage_manager.retrieve_ohlcv(
-                symbol, start_date, end_date, timeframe
+                symbol, start_datetime, end_datetime, timeframe
             )
             
             if not stored_data.empty:
@@ -637,7 +641,7 @@ class UnifiedMarketDataManager:
                 logger.info(f"🔍 [ULTRA DEBUG] Retrieved adapter: {adapter.__class__.__name__ if adapter else 'None'}")
                 if adapter:
                     logger.info(f"🔍 [ULTRA DEBUG] Calling adapter.get_ohlcv for [{symbol}]")
-                    vendor_data = await adapter.get_ohlcv([symbol], start_date, end_date, timeframe)
+                    vendor_data = await adapter.get_ohlcv([symbol], start_datetime, end_datetime, timeframe)
                     logger.info(f"🔍 [ULTRA DEBUG] Adapter returned data for {len(vendor_data)} symbols: {list(vendor_data.keys())}")
                     if symbol in vendor_data:
                         results[symbol] = vendor_data[symbol]
@@ -676,8 +680,8 @@ class UnifiedMarketDataManager:
             # Use get_ohlcv to fetch 1-minute data
             ohlcv_data = await self.get_ohlcv(
                 symbols=symbols,
-                start_date=start,
-                end_date=end,
+                start_datetime=start,
+                end_datetime=end,
                 timeframe=TimeframeType.MINUTE_1
             )
             

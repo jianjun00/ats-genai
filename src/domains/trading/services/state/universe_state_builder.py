@@ -114,13 +114,20 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         instrument_ids = runner.universe_manager.instrument_ids
         
         # --- 1. ALWAYS update rolling cache with 1-minute data ---
-        # ✅ CRITICAL FIX: Request FULL trading session data, not just current minute
+        # ✅ CRITICAL FIX: Request data from market open to current interval time only
         from shared.data_handling.utils.datetime_utils import get_session_times, to_utc
         
-        # Get full trading session times for the current date
+        # Get trading session start time and use current_time as end - ensure both are GMT
+        from zoneinfo import ZoneInfo
+        gmt_tz = ZoneInfo("GMT")
+        
         session_times = get_session_times(current_time.date())
         minute_start_time = to_utc(session_times['market_open'])  # 9:30 AM EDT -> 13:30 UTC
-        minute_end_time = to_utc(session_times['market_close'])   # 4:00 PM EDT -> 20:00 UTC
+        minute_end_time = current_time  # 🔧 FIXED: Use current_time to prevent data leakage
+        
+        # 🔧 ENSURE BOTH ARE GMT TIMEZONE-AWARE for consistent market data manager input
+        minute_start_time = minute_start_time.astimezone(gmt_tz) if minute_start_time.tzinfo else minute_start_time.replace(tzinfo=gmt_tz)
+        minute_end_time = minute_end_time.astimezone(gmt_tz) if minute_end_time.tzinfo else minute_end_time.replace(tzinfo=gmt_tz)
         
         self.logger.debug(f"[handleInterval] Fetching 1-minute data: [{minute_start_time}, {minute_end_time}]")
         
@@ -335,12 +342,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         Uses cached data if available, otherwise aggregates from 1-minute data.
         """
         timeframe_str = duration.get_duration_string()
-        
-        # Check if we already have this timeframe cached
-        timeframe_history = self._get_instrument_history_for_timeframe(inst_id, timeframe_str)
-        if timeframe_history:
-            return timeframe_history[-1]  # Return latest interval for this timeframe
-        
+                
         # If not cached, try to build from 1-minute data
         if timeframe_str == '1m':
             # For 1-minute, get from 1-minute cache
