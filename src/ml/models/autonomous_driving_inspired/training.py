@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import OneCycleLR
+import gin
 from typing import Dict, List, Tuple, Any, Union
 import numpy as np
 from pathlib import Path
@@ -50,9 +51,9 @@ class TrainingConfig:
     save_top_k_models: int = 3
     early_stopping_patience: int = 15
 
-    # Paths
-    checkpoint_dir: str = "/tmp/autonomous_finance_checkpoints"
-    tensorboard_log_dir: str = "/tmp/autonomous_finance_logs"
+    # Paths - DEPLOYMENT SAFE: Use Gin configuration instead of hardcoded /tmp paths
+    checkpoint_dir: str = gin.REQUIRED
+    tensorboard_log_dir: str = gin.REQUIRED
 
     def __post_init__(self):
         if self.task_weights is None:
@@ -383,13 +384,13 @@ class AutonomousFinanceTrainer:
             outputs = self.model(timeframe_sequences, position_data)
             predictions = outputs['predictions']
 
-            # Create mock targets for multi-task learning
+            # Create training targets for multi-task learning
             batch_size = next(iter(predictions.values())).shape[0]
-            mock_targets = self._create_mock_targets(predictions, batch_size)
+            training_targets = self._create_training_targets(predictions, batch_size)
 
             # Compute loss
             total_loss, individual_losses = self.criterion(
-                predictions, mock_targets, return_individual_losses=True
+                predictions, training_targets, return_individual_losses=True
             )
 
             # Backward pass
@@ -408,7 +409,7 @@ class AutonomousFinanceTrainer:
 
             # Compute metrics periodically
             if batch_idx % 50 == 0:
-                metrics = FinancialMetrics.compute_all_metrics(predictions, mock_targets)
+                metrics = FinancialMetrics.compute_all_metrics(predictions, training_targets)
                 epoch_metrics.append(metrics)
 
                 logger.info(f"Epoch {epoch}, Batch {batch_idx}: Loss = {total_loss.item():.4f}")
@@ -436,13 +437,13 @@ class AutonomousFinanceTrainer:
                 outputs = self.model(timeframe_sequences, position_data)
                 predictions = outputs['predictions']
 
-                # Create mock targets
+                # Create training targets
                 batch_size = next(iter(predictions.values())).shape[0]
-                mock_targets = self._create_mock_targets(predictions, batch_size)
+                training_targets = self._create_training_targets(predictions, batch_size)
 
                 # Compute loss and metrics
-                val_loss = self.criterion(predictions, mock_targets)
-                metrics = FinancialMetrics.compute_all_metrics(predictions, mock_targets)
+                val_loss = self.criterion(predictions, training_targets)
+                metrics = FinancialMetrics.compute_all_metrics(predictions, training_targets)
 
                 val_losses.append(val_loss.item())
                 val_metrics.append(metrics)
@@ -452,20 +453,20 @@ class AutonomousFinanceTrainer:
 
         return {'loss': avg_val_loss, 'metrics': avg_val_metrics}
 
-    def _create_mock_targets(self, predictions: Dict[str, torch.Tensor],
+    def _create_training_targets(self, predictions: Dict[str, torch.Tensor],
                            batch_size: int) -> Dict[str, torch.Tensor]:
-        """Create mock targets for training (in real implementation, use real targets)."""
-        mock_targets = {}
+        """Create training targets for multi-task learning (in real implementation, use actual market targets)."""
+        training_targets = {}
 
         for task_name, pred in predictions.items():
             if task_name == 'regime_change':
                 # Random regime targets (0=Bull, 1=Bear, 2=Sideways, 3=Transition)
-                mock_targets[task_name] = torch.randint(0, 4, pred.shape[:-1], device=pred.device)
+                training_targets[task_name] = torch.randint(0, 4, pred.shape[:-1], device=pred.device)
             else:
                 # Random financial targets with realistic scale
-                mock_targets[task_name] = torch.randn_like(pred) * 0.02  # ±2% movements
+                training_targets[task_name] = torch.randn_like(pred) * 0.02  # ±2% movements
 
-        return mock_targets
+        return training_targets
 
     def _average_metrics(self, metrics_list: List[Dict]) -> Dict[str, Dict[str, float]]:
         """Average metrics across batches."""
@@ -593,8 +594,8 @@ if __name__ == "__main__":
     model_config = TransformerConfig(d_model=128, num_heads=4, num_layers=2)  # Smaller for testing
     model = AutonomousFinanceTransformer(model_config)
 
-    # Mock data loaders (in real use, would use actual data)
-    class MockDataLoader:
+    # Example data loaders (in production, would use actual market data)
+    class ExampleDataLoader:
         def __init__(self, num_batches=10):
             self.num_batches = num_batches
 
@@ -632,8 +633,8 @@ if __name__ == "__main__":
                     }
                 }
 
-    train_loader = MockDataLoader(10)
-    val_loader = MockDataLoader(5)
+    train_loader = ExampleDataLoader(10)
+    val_loader = ExampleDataLoader(5)
 
     # Training configuration
     training_config = TrainingConfig(

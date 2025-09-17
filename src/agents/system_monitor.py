@@ -16,6 +16,14 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 import json
 
+class DatabaseConnectionError(Exception):
+    """Raised when database connection fails during monitoring"""
+    pass
+
+class SystemMonitorError(Exception):
+    """Raised when system monitoring encounters an error"""
+    pass
+
 @dataclass
 class SystemMetrics:
     """System resource metrics"""
@@ -162,23 +170,57 @@ class SystemHealthMonitor:
             )
     
     async def _count_database_connections(self) -> int:
-        """Estimate database connection count"""
+        """
+        Count database connections - FAIL FAST on errors
+        
+        This method no longer masks database connection failures.
+        If the database is unavailable, the monitoring system should fail
+        rather than return misleading metrics that could hide critical issues.
+        
+        Raises:
+            DatabaseConnectionError: If database connection fails
+            QueryError: If the metrics query fails
+        """
+        from src.core.config.secure_config_loader import secure_config
+        
+        # Load database configuration from Gin config (no hardcoded credentials)
+        db_params = secure_config.get_database_connection_params(environment="intg")
+        monitor_config = secure_config.get_system_monitor_config()
+        
+        import asyncpg
+        import asyncio
+        
         try:
-            import asyncpg
-            # Try to connect and check active connections
-            conn = await asyncpg.connect(
-                host='ats-intg-postgres', port=5432,
-                user='postgres', password='intg_password', database='intg_db'
+            # Connect with timeout from configuration
+            conn = await asyncio.wait_for(
+                asyncpg.connect(**db_params),
+                timeout=monitor_config.health_check_timeout_seconds
             )
             
+            # Query active connections
             result = await conn.fetchval(
                 "SELECT count(*) FROM pg_stat_activity WHERE state = 'active'"
             )
             await conn.close()
-            return result or 0
             
-        except Exception:
-            return 0
+            # Validate result (database should return a number >= 0)
+            if result is None:
+                raise ValueError("Database returned NULL for connection count query")
+                
+            return int(result)
+            
+        except asyncio.TimeoutError:
+            # FAIL FAST - Don't mask timeout errors
+            raise DatabaseConnectionError(
+                f"Database connection timeout after {monitor_config.health_check_timeout_seconds}s. "
+                f"Database may be down or overloaded."
+            )
+        except asyncpg.PostgresError as e:
+            # FAIL FAST - Don't mask database errors  
+            raise DatabaseConnectionError(f"PostgreSQL error: {e}")
+        except Exception as e:
+            # FAIL FAST - Don't mask any other errors
+            raise SystemMonitorError(f"Failed to count database connections: {e}")
     
     async def _store_metrics(self, metrics: SystemMetrics):
         """Store metrics to file and memory"""

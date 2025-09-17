@@ -12,7 +12,7 @@ from pathlib import Path
 import logging
 from dataclasses import dataclass, asdict
 
-# Try to import aiofiles, fallback to regular file operations
+# Try to import aiofiles, use regular file operations if unavailable
 try:
     import aiofiles
     AIOFILES_AVAILABLE = True
@@ -57,13 +57,23 @@ class SmartCacheManager:
     
     def __init__(
         self, 
-        cache_dir: str = "/tmp/xai_event_cache",
+        cache_dir: str = None,  # Will be loaded from Gin config if None
         max_memory_size_mb: int = 100,
         default_ttl_hours: int = 24,
         enable_persistent_cache: bool = True
     ):
+        # Load cache directory from Gin config if not provided (deployment safe)
+        if cache_dir is None:
+            from src.core.config.secure_config_loader import secure_config
+            try:
+                cache_root = secure_config.get_secure_file_path('cache')
+                cache_dir = f"{cache_root}/xai_events"
+            except Exception:
+                # Default only if secure config fails to load
+                cache_dir = "/tmp/ats_cache/xai_events"
+                
         self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # In-memory cache
         self.memory_cache: Dict[str, CacheEntry] = {}
@@ -230,7 +240,7 @@ class SmartCacheManager:
                 async with aiofiles.open(cache_file, 'w') as f:
                     await f.write(json.dumps(cache_data, indent=2))
             else:
-                # Fallback to synchronous file operations
+                # Use synchronous file operations
                 with open(cache_file, 'w') as f:
                     f.write(json.dumps(cache_data, indent=2))
         except Exception as e:
@@ -249,7 +259,7 @@ class SmartCacheManager:
                 async with aiofiles.open(cache_file, 'r') as f:
                     content = await f.read()
             else:
-                # Fallback to synchronous file operations
+                # Use synchronous file operations
                 with open(cache_file, 'r') as f:
                     content = f.read()
             

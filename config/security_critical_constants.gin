@@ -1,0 +1,102 @@
+# =============================================================================
+# CRITICAL SECURITY CONSTANTS - HIGHEST PRIORITY
+# =============================================================================
+# This file contains the most critical constants that pose immediate security 
+# and reliability risks. These MUST be loaded before any service starts.
+
+# =============================================================================
+# DATABASE SECURITY CONFIGURATION
+# =============================================================================
+
+# Database credentials - NEVER hardcode these in source code
+DatabaseConfig.default_user = "postgres"
+DatabaseConfig.default_host = "localhost" 
+DatabaseConfig.default_port = 5432
+DatabaseConfig.connection_timeout = 30
+DatabaseConfig.pool_min_size = 1
+DatabaseConfig.pool_max_size = 10
+DatabaseConfig.command_timeout = 60
+
+# Environment-specific overrides
+DatabaseConfig.dev_host = "ats-dev-postgres"
+DatabaseConfig.dev_port = 5432
+DatabaseConfig.intg_host = "ats-intg-postgres"
+DatabaseConfig.intg_port = 5432
+
+# =============================================================================
+# API RATE LIMITING - PREVENT VENDOR API ABUSE
+# =============================================================================
+
+# Polygon API limits
+PolygonRateConfig.requests_per_minute = 5
+PolygonRateConfig.requests_per_second = 0.083  # 5/60
+PolygonRateConfig.retry_delay_seconds = 12
+PolygonRateConfig.max_retries = 3
+PolygonRateConfig.timeout_seconds = 30
+
+# Tiingo API limits  
+TiingoRateConfig.requests_per_hour = 1000
+TiingoRateConfig.requests_per_minute = 16  # 1000/60
+TiingoRateConfig.retry_delay_seconds = 5
+TiingoRateConfig.max_retries = 3
+TiingoRateConfig.timeout_seconds = 30
+
+# EODHD API limits
+EODHDRateConfig.requests_per_minute = 20
+EODHDRateConfig.retry_delay_seconds = 3
+EODHDRateConfig.max_retries = 3
+EODHDRateConfig.timeout_seconds = 30
+
+# FirstRate processing limits
+FirstRateConfig.batch_size = 100
+FirstRateConfig.processing_delay_seconds = 0.1
+FirstRateConfig.max_concurrent_files = 5
+
+# =============================================================================
+# SYSTEM MONITORING - NO EXCEPTION MASKING
+# =============================================================================
+
+# System monitor fail-fast configuration
+SystemMonitorConfig.fail_on_db_connection_error = true
+SystemMonitorConfig.fail_on_metric_collection_error = true
+SystemMonitorConfig.max_consecutive_failures = 3
+SystemMonitorConfig.health_check_timeout_seconds = 10
+
+# Alert manager configuration
+AlertConfig.max_notifications_per_hour = 10
+AlertConfig.escalation_delay_minutes = 15
+AlertConfig.critical_alert_timeout_seconds = 60
+
+# =============================================================================
+# FILE SYSTEM PATHS - DEPLOYMENT SAFE
+# =============================================================================
+
+# Use environment variables for all paths
+FileSystemConfig.data_root_env_var = "ATS_DATA_ROOT"
+FileSystemConfig.log_root_env_var = "ATS_LOG_ROOT"
+FileSystemConfig.cache_root_env_var = "ATS_CACHE_ROOT"
+FileSystemConfig.backup_root_env_var = "ATS_BACKUP_ROOT"
+
+# Default fallback paths (container-safe)
+FileSystemConfig.default_data_root = "/data"
+FileSystemConfig.default_log_root = "/logs"
+FileSystemConfig.default_cache_root = "/tmp/ats_cache"
+FileSystemConfig.default_backup_root = "/backup"
+
+# Temporary file configuration
+TempFileConfig.cleanup_on_exit = true
+TempFileConfig.max_age_hours = 24
+TempFileConfig.max_size_mb = 1024
+
+# =============================================================================
+# MACHINE LEARNING TRAINING PATHS - DEPLOYMENT SAFE
+# =============================================================================
+
+# Training configuration - use secure paths from environment/config
+TrainingConfig.checkpoint_dir = "/data/ml/checkpoints"
+TrainingConfig.tensorboard_log_dir = "/data/ml/tensorboard_logs"
+
+# Cache management paths - deployment safe
+CacheConfig.default_cache_dir = "/tmp/ats_cache"
+CacheConfig.xai_event_cache_dir = "/tmp/ats_cache/xai_events"
+CacheConfig.grok_event_cache_dir = "/tmp/ats_cache/grok_events"
