@@ -361,7 +361,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             # Cache the aggregated interval for future use
             if interval:
                 self._add_interval_to_cache(inst_id, timeframe_str, interval)
-                self.logger.debug(f"[{timeframe_str.upper()} CACHE] instrument_id={inst_id}, cached new interval")
+                self.logger.info(f"[{timeframe_str.upper()} CACHE] instrument_id={inst_id}, cached new interval")
             
             return interval
     
