@@ -109,7 +109,7 @@ class DailyPricesValidator:
                 ),
                 active_symbols AS (
                     SELECT DISTINCT symbol
-                    FROM intg_daily_price_polygon_{vendor}
+                    FROM intg_daily_price_{vendor}
                     WHERE date >= $1
                 )
                 SELECT
@@ -131,7 +131,7 @@ class DailyPricesValidator:
                 ),
                 active_symbols AS (
                     SELECT DISTINCT symbol
-                    FROM intg_daily_price_polygon_{vendor}
+                    FROM intg_daily_price_{vendor}
                     WHERE date >= $1
                 ),
                 expected_prices AS (
@@ -141,7 +141,7 @@ class DailyPricesValidator:
                 ),
                 actual_prices AS (
                     SELECT symbol, date
-                    FROM intg_daily_price_polygon_{vendor}
+                    FROM intg_daily_price_{vendor}
                     WHERE date BETWEEN $1 AND $2
                 )
                 SELECT COUNT(*) as missing_count
@@ -160,7 +160,7 @@ class DailyPricesValidator:
                     COUNT(*) FILTER (WHERE volume = 0) as zero_volume_prices,
                     COUNT(*) FILTER (WHERE low > 0 AND high / low > 3.0) as price_spike_prices,
                     COUNT(*) as total_records
-                FROM intg_daily_price_polygon_{vendor}
+                FROM intg_daily_price_{vendor}
                 WHERE date BETWEEN $1 AND $2
                 """.replace("{vendor}", vendor)
 
@@ -261,8 +261,12 @@ class DailyPricesValidator:
 
         self.logger.info(f"📊 Validation Summary:")
         self.logger.info(f"   • Total Expected: {total_expected:,} price records")
-        self.logger.info(f"   • Total Missing: {total_missing:,} ({total_missing/total_expected*100:.2f}%)")
-        self.logger.info(f"   • Total Abnormal: {total_abnormal:,} ({total_abnormal/total_expected*100:.2f}%)")
+        if total_expected > 0:
+            self.logger.info(f"   • Total Missing: {total_missing:,} ({total_missing/total_expected*100:.2f}%)")
+            self.logger.info(f"   • Total Abnormal: {total_abnormal:,} ({total_abnormal/total_expected*100:.2f}%)")
+        else:
+            self.logger.info(f"   • Total Missing: {total_missing:,} (no expected data)")
+            self.logger.info(f"   • Total Abnormal: {total_abnormal:,} (no expected data)")
         self.logger.info(f"   • Metrics Export: {'✅ Success' if export_success else '❌ Failed'}")
 
         return metrics_list
