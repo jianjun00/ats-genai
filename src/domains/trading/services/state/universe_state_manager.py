@@ -549,7 +549,7 @@ class UniverseStateManager:
                 
                 # CRITICAL FIX: Populate rolling cache for aggregation logic
                 # Add InstrumentInterval objects to rolling cache so universe_state_builder can aggregate them
-                print(f"🔄 [USM.addUniverseState] Adding to rolling cache: timeframe={duration_str}, inst_id={inst_id}")
+                self.logger.info(f"🔄 [USM.addUniverseState] Adding to rolling cache: timeframe={duration_str}, inst_id={inst_id}")
                 self.add_interval_to_rolling_cache(inst_id, duration_str, inst_interval)
             # Output indicator values in long format
             for indicator_type, inst_dict in universe_state.instrument_indicator_intervals.items():
@@ -568,7 +568,7 @@ class UniverseStateManager:
         timestamp = current_time.strftime('%Y%m%d_%H%M%S')
         saved_any = False
         for duration, universe_state in duration_to_state.items():
-            self.logger.debug(f"[addUniverseState] duration={duration}, universe_state type={type(universe_state)}")
+            self.logger.info(f"[addUniverseState] duration={duration}, universe_state type={type(universe_state)}")
             if hasattr(universe_state, 'to_dataframe'):
                 df = universe_state.to_dataframe()
             else:
@@ -662,6 +662,7 @@ class UniverseStateManager:
             await self.save_universe_state(timestamp, metadata=metadata)
             self.logger.debug(f"addUniverseState: Saved universe state for duration {duration} at {timestamp} with {len(df)} records.")
             saved_any = True
+        
         if not saved_any:
             self.logger.warning(f"addUniverseState: No data saved for any duration at {current_time}")
 
@@ -704,7 +705,7 @@ class UniverseStateManager:
         return self._rolling_instrument_history.get(timeframe_str, {}).get(inst_id, [])
     
     def add_interval_to_rolling_cache(self, inst_id: int, timeframe_str: str, interval) -> None:
-        """Add interval to rolling cache with window management."""
+        """Add interval to rolling cache with window management and duplicate prevention."""
         # Import here to avoid circular imports
         from domains.trading.services.state.instrument_interval import InstrumentInterval
         
@@ -714,15 +715,29 @@ class UniverseStateManager:
         if inst_id not in self._rolling_instrument_history[timeframe_str]:
             self._rolling_instrument_history[timeframe_str][inst_id] = []
         
-        # Add new interval
-        self._rolling_instrument_history[timeframe_str][inst_id].append(interval)
+        cache_list = self._rolling_instrument_history[timeframe_str][inst_id]
+        self.logger.info(f"Before adding interval to rolling cache: {timeframe_str} inst_id={inst_id}, "
+                         f"cache_size={len(cache_list)}")
+        
+        # 🔧 DUPLICATION PREVENTION: Check if interval with same timestamp already exists
+        interval_timestamp = getattr(interval, 'start_date_time', getattr(interval, 'timestamp', None))
+        if interval_timestamp is not None:
+            # Check for existing interval with same timestamp
+            for existing_interval in cache_list:
+                existing_timestamp = getattr(existing_interval, 'start_date_time', getattr(existing_interval, 'timestamp', None))
+                if existing_timestamp is not None and existing_timestamp == interval_timestamp:
+                    self.logger.info(f"🔍 [DUPLICATE PREVENTION] Skipping duplicate interval for {timeframe_str} inst_id={inst_id} "
+                                   f"at timestamp {interval_timestamp} - already in cache")
+                    return
+        
+        # Add new interval (no duplicate found)
+        cache_list.append(interval)
         
         # Maintain rolling window size
-        if len(self._rolling_instrument_history[timeframe_str][inst_id]) > self.rolling_window:
-            self._rolling_instrument_history[timeframe_str][inst_id] = \
-                self._rolling_instrument_history[timeframe_str][inst_id][-self.rolling_window:]
+        if len(cache_list) > self.rolling_window:
+            self._rolling_instrument_history[timeframe_str][inst_id] = cache_list[-self.rolling_window:]
         
-        self.logger.debug(f"Added interval to rolling cache: {timeframe_str} inst_id={inst_id}, "
+        self.logger.info(f"Added interval to rolling cache: {timeframe_str} inst_id={inst_id}, "
                          f"cache_size={len(self._rolling_instrument_history[timeframe_str][inst_id])}")
     
     def get_rolling_cache_debug_info(self) -> Dict[str, Any]:
