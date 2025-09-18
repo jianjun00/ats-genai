@@ -6,7 +6,6 @@ from typing import List, Dict
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from core.shared.utils.environment import Environment
 
-
 class TestInstrumentsDAO:
     """Comprehensive test coverage for InstrumentsDAO."""
 
@@ -24,7 +23,7 @@ class TestInstrumentsDAO:
         return InstrumentsDAO(mock_environment)
 
     @pytest.mark.asyncio
-    @pytest.mark.asyncio
+
     async def test_count_instruments_success(self, dao):
         """Test successful instrument count retrieval."""
         mock_pool = MagicMock()

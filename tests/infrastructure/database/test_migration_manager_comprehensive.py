@@ -14,7 +14,6 @@ from db.migration_manager import MigrationManager
 
 from core.shared.utils.environment import Environment
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -27,7 +26,6 @@ async def test_migration_manager_initialization(unit_test_db_clean):
     assert manager.table_prefix == "test_"
     assert manager.migrations_dir.name == "migrations"
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -38,7 +36,6 @@ async def test_get_current_version_empty_database(unit_test_db_clean):
 
     version = await manager.get_current_version()
     assert version == -1
-
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -66,7 +63,6 @@ async def test_get_current_version_with_existing_data(unit_test_db_clean):
     version = await manager.get_current_version()
     assert version == 5
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -89,7 +85,6 @@ async def test_apply_table_prefixes(unit_test_db_clean):
     assert "INSERT INTO test_events" in prefixed_sql
     assert "SELECT * FROM test_daily_price_polygon" in prefixed_sql
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -104,7 +99,6 @@ async def test_apply_table_prefixes_no_double_prefixing(unit_test_db_clean):
     # Should not become test_test_events
     assert "test_test_events" not in prefixed_sql
     assert "test_events" in prefixed_sql
-
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -137,7 +131,6 @@ async def test_calculate_checksum(unit_test_db_clean):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -166,7 +159,6 @@ async def test_migration_file_parsing():
             assert migrations[0] == (1, "initial schema", migrations_dir / "001_initial_schema.sql")
             assert migrations[1] == (2, "add users", migrations_dir / "002_add_users.sql")
             assert migrations[2] == (10, "add indexes", migrations_dir / "010_add_indexes.sql")
-
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -214,7 +206,6 @@ async def test_apply_migration_success(unit_test_db_clean):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -248,7 +239,6 @@ async def test_apply_migration_sql_error(unit_test_db_clean):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -265,7 +255,6 @@ async def test_migrate_to_latest_no_migrations(unit_test_db_clean):
 
             success = await manager.migrate_to_latest()
             assert success is True
-
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -317,7 +306,6 @@ async def test_migrate_to_latest_with_migrations(unit_test_db_clean):
             finally:
                 await pool.close()
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -362,7 +350,6 @@ async def test_migrate_to_latest_partial_failure(unit_test_db_clean):
             finally:
                 await pool.close()
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -389,7 +376,6 @@ async def test_validate_migrations_success(unit_test_db_clean):
             # Validate should succeed
             is_valid = await manager.validate_migrations()
             assert is_valid is True
-
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -421,7 +407,6 @@ async def test_validate_migrations_modified_file(unit_test_db_clean):
             is_valid = await manager.validate_migrations()
             assert is_valid is False
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -450,7 +435,6 @@ async def test_validate_migrations_missing_file(unit_test_db_clean):
             # Validate should succeed (missing files are not validated)
             is_valid = await manager.validate_migrations()
             assert is_valid is True
-
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -528,7 +512,6 @@ async def test_migration_with_complex_sql(unit_test_db_clean):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -588,7 +571,6 @@ async def test_migration_rollback_on_error(unit_test_db_clean):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -628,7 +610,6 @@ async def test_migration_with_environment_variables(unit_test_db_clean):
 
         # Reload to restore original state
         reload(src.config.environment)
-
 
 @pytest.mark.unit
 @pytest.mark.database

@@ -16,7 +16,6 @@ import asyncio
 import asyncpg
 import os
 
-
 class TestDatabaseSchemaValidation:
     """Test database schema matches analytics service expectations."""
 
@@ -313,7 +312,6 @@ class TestDatabaseSchemaValidation:
 
         await run_concurrent_queries()
 
-
 class TestAnalyticsServiceQueries:
     """Test specific queries used by the analytics service."""
 
@@ -422,7 +420,6 @@ class TestAnalyticsServiceQueries:
                 )
                 assert len(sample['symbol']) > 0, "Should have real symbol data"
                 assert sample['price_date'] is not None, "Should have real price date"
-
 
 if __name__ == "__main__":
     # Run with: PYTHONPATH=src pytest tests/analytics/test_database_schema_validation.py -v

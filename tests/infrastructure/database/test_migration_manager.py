@@ -6,8 +6,6 @@ Each test gets its own isolated database.
 import pytest
 from src.db.migration_manager import MigrationManager
 
-
-
 @pytest.mark.database
 @pytest.mark.requires_external
 @pytest.mark.asyncio
@@ -20,7 +18,6 @@ async def test_migration_manager_initial_version(unit_test_db_clean):
     # After setup, all migrations are already applied by the fixture
     version = await manager.get_current_version()
     assert version >= 0
-
 
 @pytest.mark.database
 @pytest.mark.requires_external
@@ -37,7 +34,6 @@ async def test_migration_validation(unit_test_db_clean):
     # Validate migrations
     is_valid = await manager.validate_migrations()
     assert is_valid is True
-
 
 @pytest.mark.database
 @pytest.mark.requires_external

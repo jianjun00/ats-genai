@@ -8,7 +8,6 @@ from core.shared.utils.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_universe_state_interval_has_no_interval_blob_after_migrations(unit_test_db):
@@ -34,7 +33,6 @@ async def test_universe_state_interval_has_no_interval_blob_after_migrations(uni
         assert len(rows) == 0, "interval_blob column should not exist after migration"
     finally:
         await conn.close()
-
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

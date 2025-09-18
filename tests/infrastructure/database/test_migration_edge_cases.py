@@ -9,7 +9,7 @@ import asyncpg
 import tempfile
 from pathlib import Path
 from db.migration_manager import MigrationManager
-from infrastructure.database.test_db_manager import TestDatabaseManager
+from db.test_db_manager import TestDatabaseManager
 import pytest_asyncio
 
 @pytest_asyncio.fixture
@@ -88,7 +88,6 @@ async def isolated_test_db(request):
     yield test_db_url
     await db_manager.teardown_test_database()
 
-
 @pytest_asyncio.fixture
 async def isolated_test_db_migrate(request):
     """
@@ -143,7 +142,6 @@ async def test_migration_manager_basic_functionality(isolated_test_db):
     version = await manager.get_current_version()
     assert version == -1
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_table_prefix_application(isolated_test_db):
@@ -165,7 +163,6 @@ async def test_table_prefix_application(isolated_test_db):
     assert "INSERT INTO test_events" in prefixed_sql
     assert "SELECT * FROM test_daily_price_polygon" in prefixed_sql
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_table_prefix_no_double_prefixing(isolated_test_db):
@@ -179,7 +176,6 @@ async def test_table_prefix_no_double_prefixing(isolated_test_db):
     # Should not become test_test_events
     assert "test_test_events" not in prefixed_sql
     assert "test_events" in prefixed_sql
-
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -211,7 +207,6 @@ async def test_checksum_calculation(isolated_test_db):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migration_file_parsing():
@@ -237,7 +232,6 @@ async def test_migration_file_parsing():
         assert migrations[0] == (1, "initial schema", migrations_dir / "001_initial_schema.sql")
         assert migrations[1] == (2, "add users", migrations_dir / "002_add_users.sql")
         assert migrations[2] == (10, "add indexes", migrations_dir / "010_add_indexes.sql")
-
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -284,7 +278,6 @@ async def test_apply_migration_success(pristine_test_db):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_apply_migration_sql_error(pristine_test_db):
@@ -318,7 +311,6 @@ async def test_apply_migration_sql_error(pristine_test_db):
 
     finally:
         temp_file.unlink()
-
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -365,7 +357,6 @@ async def test_migration_rollback_on_error(isolated_test_db):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migrate_to_latest_with_multiple_migrations(isolated_test_db):
@@ -411,7 +402,6 @@ async def test_migrate_to_latest_with_multiple_migrations(isolated_test_db):
         finally:
             await pool.close()
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_migrate_to_latest_partial_failure(isolated_test_db):
@@ -451,7 +441,6 @@ async def test_migrate_to_latest_partial_failure(isolated_test_db):
         finally:
             await pool.close()
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_validation_with_modified_file(isolated_test_db):
@@ -476,7 +465,6 @@ async def test_validation_with_modified_file(isolated_test_db):
         # Validate should fail
         is_valid = await manager.validate_migrations()
         assert is_valid is False
-
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -524,7 +512,6 @@ async def test_migration_version_ordering(isolated_test_db):
         finally:
             await pool.close()
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_duplicate_version_handling(pristine_test_db):
@@ -559,7 +546,6 @@ async def test_duplicate_version_handling(pristine_test_db):
 
     finally:
         temp_file.unlink()
-
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -620,7 +606,6 @@ async def test_complex_sql_migration(pristine_test_db):
     finally:
         temp_file.unlink()
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_empty_migration_directory(isolated_test_db):
@@ -633,7 +618,6 @@ async def test_empty_migration_directory(isolated_test_db):
 
         success = await manager.migrate_to_latest()
         assert success is True
-
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

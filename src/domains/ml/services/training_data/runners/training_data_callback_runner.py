@@ -567,21 +567,21 @@ async def main():
         logger.debug(f"Got configurable constructor: {configurable_constructor}")
 
         # Create using gin-configured constructor
-        config = configurable_constructor()
+        training_config = configurable_constructor()
         logger.info("✅ Successfully created config with gin configurable constructor")
 
     except Exception as e:
         logger.warning(f"⚠️ Failed to use gin configurable constructor: {e}")
         logger.info("Falling back to manual TrainingDataConfig() creation")
-        config = TrainingDataConfig()
+        training_config = TrainingDataConfig()
 
     # Log configuration details
     config_details = {
-        'timeframes': getattr(config, 'timeframes', 'MISSING'),
-        'feature_types': getattr(config, 'feature_types', 'MISSING'),
-        'signal_names': getattr(config, 'signal_names', 'MISSING'),
-        'base_interval_minutes': getattr(config, 'base_interval_minutes', 'MISSING'),
-        'training_interval_minutes': getattr(config, 'training_interval_minutes', 'MISSING')
+        'timeframes': getattr(training_config, 'timeframes', 'MISSING'),
+        'feature_types': getattr(training_config, 'feature_types', 'MISSING'),
+        'signal_names': getattr(training_config, 'signal_names', 'MISSING'),
+        'base_interval_minutes': getattr(training_config, 'base_interval_minutes', 'MISSING'),
+        'training_interval_minutes': getattr(training_config, 'training_interval_minutes', 'MISSING')
     }
 
     logger.info(f"✅ TrainingDataConfig created with settings:")
@@ -673,7 +673,7 @@ async def main():
         logger.debug("Creating IntervalBasedTrainingDataCallback")
         training_callback = IntervalBasedTrainingDataCallback(
             symbols=args.symbols,
-            config=config,
+            config=training_config,
             output_dir=args.output_dir,
             storage_format=args.storage_format,
             start_date=args.start_date,  # Pass target date range (not collection window)
@@ -750,12 +750,12 @@ async def main():
         
         # Initialize unified market data manager with correct path for minute bar data
         from src.core.market_data.unified_manager import StorageBackend
-        config = MarketDataConfig(
+        market_data_config = MarketDataConfig(
             vendors=[VendorType.FIRSTRATE],  # Use FirstRate for minute data
             storage_backend=StorageBackend.FILE, 
             file_storage_path="/data/minute-bars/firstrate"  # FIXED: Use container path not host path
         )
-        minute_data_manager = UnifiedMarketDataManager(config)
+        minute_data_manager = UnifiedMarketDataManager(market_data_config)
         logger.info(f"✅ Created UnifiedMarketDataManager for training data generation")
         logger.info(f"   Storage backend: file")
         logger.info(f"   Base path: /data/minute-bars/firstrate")
@@ -906,7 +906,7 @@ async def main():
         if estimated_actual_sequences == 0:
             # Fallback estimation based on date range
             days_range = (end_date - start_date).days + 1
-            intervals_per_day = 24 * 60 // config.training_interval_minutes
+            intervals_per_day = 24 * 60 // training_config.training_interval_minutes
             estimated_actual_sequences = days_range * intervals_per_day * len(args.symbols)
             logger.warning(f"⚠️ Using fallback sequence estimation: {estimated_actual_sequences}")
         else:
@@ -960,7 +960,7 @@ async def main():
             symbols=args.symbols,
             start_date=start_date,
             end_date=end_date,
-            config=config,
+            config=training_config,
             output_dir=args.output_dir,
             storage_format=args.storage_format
         )

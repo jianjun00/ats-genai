@@ -69,7 +69,6 @@ async def test_universe_state_interval_dao_roundtrip(unit_test_db):
     # Clean up
     await dao.delete(id)
 
-
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_universe_state_interval_dao_list_filters(unit_test_db):

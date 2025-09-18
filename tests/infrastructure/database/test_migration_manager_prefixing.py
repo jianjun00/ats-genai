@@ -1,7 +1,6 @@
 import pytest
 from db.migration_manager import MigrationManager
 
-
 @pytest.mark.unit
 def test_select_statement_prefixing():
     """Test that SELECT statements are correctly prefixed."""
@@ -22,7 +21,6 @@ def test_select_statement_prefixing():
     prefixed_sql = manager._apply_table_prefixes(sql)
     assert "SELECT * FROM test_daily_price_polygon JOIN test_instruments" in prefixed_sql
     assert "test_daily_price_polygon.instrument_id = test_instruments.id" in prefixed_sql
-
 
 @pytest.mark.unit
 def test_foreign_key_references_prefixing():
@@ -53,7 +51,6 @@ def test_foreign_key_references_prefixing():
     assert "REFERENCES test_universe(id) ON DELETE CASCADE" in prefixed_sql
     assert "REFERENCES test_instruments(id) ON DELETE CASCADE" in prefixed_sql
 
-
 @pytest.mark.unit
 def test_regclass_cast_prefixing():
     """Test that regclass casts are correctly prefixed."""
@@ -77,7 +74,6 @@ def test_regclass_cast_prefixing():
     assert "'test_universe_state_interval'::regclass" in prefixed_sql
     assert "ALTER TABLE test_universe_state_interval" in prefixed_sql
 
-
 @pytest.mark.unit
 def test_no_double_prefixing():
     """Test that tables are not double-prefixed."""
@@ -92,7 +88,6 @@ def test_no_double_prefixing():
     assert "CREATE TABLE test_events" in prefixed_sql
     assert "INSERT INTO test_events" in prefixed_sql
     assert "test_test_events" not in prefixed_sql
-
 
 @pytest.mark.unit
 def test_complex_sql_prefixing():

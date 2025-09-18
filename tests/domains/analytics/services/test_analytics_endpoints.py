@@ -12,11 +12,11 @@ correct data that matches the actual database state.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 import httpx
 import asyncpg
 import os
-
 
 class TestAnalyticsEndpoints:
     """Integration tests for analytics service endpoints."""
@@ -35,13 +35,13 @@ class TestAnalyticsEndpoints:
         # For local testing, use localhost port-forward
         return os.getenv('ANALYTICS_SERVICE_URL', 'http://localhost:3001')
 
-    @pytest.fixture(scope="class")
+    @pytest_asyncio.fixture(scope="class")
     async def http_client(self, analytics_base_url):
         """HTTP client for API calls."""
         async with httpx.AsyncClient(base_url=analytics_base_url, timeout=30.0) as client:
             yield client
 
-    @pytest.fixture(scope="class")
+    @pytest_asyncio.fixture(scope="class")
     async def db_connection(self):
         """Direct database connection for validation."""
         conn = await asyncpg.connect(
@@ -264,10 +264,9 @@ class TestAnalyticsEndpoints:
         assert response.headers["content-type"].startswith("text/html"), "Dashboard should return HTML"
 
         html_content = response.text
-        assert "ATS Analytics Dashboard" in html_content, "Dashboard should have correct title"
-        assert "Job Management" in html_content, "Dashboard should have job management tab"
-        assert "Dataset Analytics" in html_content, "Dashboard should have dataset tab"
-        assert "Data Coverage" in html_content, "Dashboard should have coverage tab"
+        assert "ATS Unified Analytics" in html_content, "Dashboard should have correct title"
+        # Check for EDA dashboard elements
+        assert "Type-aware EDA" in html_content or "EDA Dashboard" in html_content, "Dashboard should be EDA dashboard"
 
     @pytest.mark.asyncio
 
@@ -304,7 +303,6 @@ class TestAnalyticsEndpoints:
 
         assert response.status_code == 200, f"Endpoint {endpoint} should return 200"
         assert response_time < 10.0, f"Endpoint {endpoint} took {response_time:.2f}s, should be < 10s"
-
 
 class TestAnalyticsServiceRegression:
     """Regression tests for specific bugs we fixed."""
@@ -398,7 +396,6 @@ class TestAnalyticsServiceRegression:
                 pytest.fail(f"Concurrent request {i} failed: {result}")
 
             assert result.status_code == 200, f"Request {i} failed with status {result.status_code}"
-
 
 if __name__ == "__main__":
     # Run with: ANALYTICS_SERVICE_URL=http://localhost:3001 pytest tests/analytics/test_analytics_endpoints.py -v

@@ -6,7 +6,6 @@ from typing import List, Dict
 from domains.instruments.repositories.secmaster_dao import SecMasterDAO
 from core.shared.utils.environment import Environment
 
-
 class TestSecMasterDAO:
     """Comprehensive test coverage for SecMasterDAO."""
 

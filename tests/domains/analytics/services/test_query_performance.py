@@ -11,7 +11,6 @@ import asyncpg
 import time
 import os
 
-
 class TestQueryPerformance:
     """Performance tests for analytics database queries."""
 
@@ -171,7 +170,6 @@ class TestQueryPerformance:
             assert query_time < 10.0, f"Query set {i} took {query_time:.2f}s, should be < 10s"
             assert all(r is not None for r in results), f"Query set {i} had None results"
 
-
 class TestDatabaseIndexes:
     """Test that proper database indexes exist for good performance."""
 
@@ -235,7 +233,6 @@ class TestDatabaseIndexes:
 
         # Should have primary key at minimum
         assert len(indexes) > 0, "dev_runs should have at least a primary key index"
-
 
 if __name__ == "__main__":
     # Run with: PYTHONPATH=src pytest tests/analytics/test_query_performance.py -v -s
