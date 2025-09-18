@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 
 class CacheStrategy(Enum):
     """HTTP caching strategy enumeration."""
-    CACHE_FIRST = "cache_first"          # Try cache first, fallback to origin
-    NETWORK_FIRST = "network_first"      # Try network first, fallback to cache
+    CACHE_FIRST = "cache_first"          # Try cache first, then origin on miss
+    NETWORK_FIRST = "network_first"      # Try network first, then cache on failure
     CACHE_ONLY = "cache_only"            # Only use cache, fail if not found
     NETWORK_ONLY = "network_only"        # Only use network, never cache
     STALE_WHILE_REVALIDATE = "swr"       # Return stale while updating in background
@@ -232,10 +232,7 @@ class APICacheManager:
             logger.debug(f"Cache hit for {request.method} {request.url.path}")
             return cached_response
 
-        except Exception as e:
-            logger.error(f"Error getting cached response: {e}")
-            self.stats['errors'] += 1
-            return None
+        # Let all cache access exceptions propagate - fail fast on cache infrastructure issues
 
     async def store_response(
         self,
@@ -343,9 +340,7 @@ class APICacheManager:
             self.stats['invalidations'] += count
             logger.info(f"Invalidated {count} cache entries for pattern: {pattern}")
             return count
-        except Exception as e:
-            logger.error(f"Error invalidating cache by pattern {pattern}: {e}")
-            return 0
+        # Let all cache invalidation exceptions propagate - fail fast on cache operation errors
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""

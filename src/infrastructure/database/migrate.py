@@ -69,9 +69,7 @@ class MigrationRunner:
                     cur.execute(f"SELECT version FROM {self.table_prefix}db_version ORDER BY version")
                     return [row[0] for row in cur.fetchall()]
                     
-        except Exception as e:
-            logger.warning(f"Could not get applied migrations: {e}")
-            return []
+        # Let all database exceptions propagate - fail fast on migration table access errors
     
     def get_available_migrations(self) -> List[Tuple[int, Path]]:
         """Get list of available migration files."""

@@ -185,9 +185,8 @@ class AlphaVantageEconomicClient:
                         logger.error(f"Alpha Vantage API error for {indicator_name}: {response.status}")
                         return []
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching {indicator_name} from Alpha Vantage: {e}")
-                return []
+            # Let all connection errors propagate - fail fast on network issues
+            # If API is unavailable, application should fail rather than return empty data
 
     def _parse_alpha_vantage_response(self, data: Dict[str, Any],
                                     indicator_name: str) -> List[Dict[str, Any]]:
@@ -231,8 +230,7 @@ class AlphaVantageEconomicClient:
                             try:
                                 actual_value = Decimal(str(values[value_key]))
                                 break
-                            except (ValueError, TypeError):
-                                continue
+                            # Let data parsing exceptions propagate - fail fast on malformed data
 
                     # If no standard key found, try the first numeric value
                     if actual_value is None:
@@ -240,8 +238,7 @@ class AlphaVantageEconomicClient:
                             try:
                                 actual_value = Decimal(str(val))
                                 break
-                            except (ValueError, TypeError):
-                                continue
+                            # Let data parsing exceptions propagate - fail fast on malformed data
 
                     parsed_event = {
                         "event_name": indicator_name,
@@ -270,14 +267,11 @@ class AlphaVantageEconomicClient:
                     parsed_events.append(parsed_event)
 
                 except ValueError as e:
-                    logger.warning(f"Error parsing date {date_str} for {indicator_name}: {e}")
-                    continue
+                    # Let date parsing exceptions propagate - fail fast on malformed dates
 
             return parsed_events
 
-        except Exception as e:
-            logger.error(f"Error parsing Alpha Vantage response for {indicator_name}: {e}")
-            return []
+        # Let all parsing exceptions propagate - fail fast on malformed API responses
 
     def _is_date_string(self, s: str) -> bool:
         """Check if a string looks like a date."""

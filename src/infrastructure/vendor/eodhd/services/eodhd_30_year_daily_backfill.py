@@ -335,10 +335,8 @@ class EODHD30YearBackfiller:
 
             return inserted_count
 
-        except Exception as e:
-            logger.error(f"❌ Failed to process {symbol}: {e}")
-            self.legacy_stats['errors'] += 1
-            return 0
+        # Let all instrument processing exceptions propagate
+        # If individual instrument processing fails, the entire operation should fail
 
     async def run_backfill(self, start_date, end_date, limit=None, skip_existing=True):
         """Run the complete 30-year backfill process."""
@@ -378,9 +376,8 @@ class EODHD30YearBackfiller:
                         logger.info(f"📊 Progress: {i:,}/{len(instruments):,} ({progress:.1f}%) - "
                                   f"{self.legacy_stats['total_records']:,} total records")
 
-                except Exception as e:
-                    logger.error(f"❌ Critical error processing instrument {instrument.get('symbol', 'unknown')}: {e}")
-                    continue
+                # Let instrument processing exceptions propagate
+                # If any instrument fails, the entire backfill should fail fast
 
         finally:
             await conn.close()

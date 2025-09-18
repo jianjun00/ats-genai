@@ -179,9 +179,7 @@ class FundamentalsPolygonDAO:
                     )
                 return None
 
-        except Exception as e:
-            self.logger.error(f"Error getting Polygon fundamental for {symbol}: {e}")
-            return None
+        # Let all database exceptions propagate - fail fast on database errors
         finally:
             await pool.close()
 
@@ -251,9 +249,7 @@ class FundamentalsPolygonDAO:
 
                 return fundamentals
 
-        except Exception as e:
-            self.logger.error(f"Error listing Polygon fundamentals for {symbol}: {e}")
-            return []
+        # Let all database exceptions propagate - fail fast on database errors
         finally:
             await pool.close()
 
@@ -314,8 +310,6 @@ class FundamentalsPolygonDAO:
                 rows = await conn.fetch(query, *params)
                 return [row['symbol'] for row in rows]
 
-        except Exception as e:
-            self.logger.error(f"Error getting Polygon symbols: {e}")
-            return []
+        # Let all database exceptions propagate - fail fast on database errors
         finally:
             await pool.close()

@@ -54,11 +54,8 @@ class PolygonMarketCapFetcher:
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch data for {symbol}: {e}")
             self.stats.record_api_call(success=False, response_time=time.time() - start_time)
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected error fetching {symbol}: {e}")
-            self.stats.record_api_call(success=False, response_time=time.time() - start_time)
-            return None
+            # Let all API exceptions propagate - fail fast on data retrieval issues
+        # Let all exceptions propagate - fail fast on unexpected errors
 
 async def populate_market_cap_from_polygon(
     env: Environment,
