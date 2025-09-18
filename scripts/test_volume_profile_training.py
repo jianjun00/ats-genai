@@ -10,7 +10,7 @@ import numpy as np
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from ml.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
 
 def test_volume_profile_features():
     """Test Volume Profile feature extraction."""
@@ -89,7 +89,7 @@ def test_volume_profile_features():
     print(f"   Volume Profile only: {len(vp_only_features)} features")
 
     # Test with different parameters
-    from signals.indicator import VolumeProfile
+    from domains.trading.signals.indicator import VolumeProfile
 
     test_params = [
         {'period': 10, 'bin_count': 20},

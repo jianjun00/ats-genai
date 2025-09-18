@@ -9,7 +9,7 @@ import sys
 import os
 
 from infrastructure.database.test_db_manager import DatabaseTestManager
-from shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.shared.data_handling.utils.environment import Environment, EnvironmentType
 import asyncpg
 
 async def analyze_test_results():
@@ -70,7 +70,7 @@ async def analyze_test_results():
         
         # Create components (simplified)
         from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
-        from services.core.app.runner import Runner
+        from domains.trading.services.core.app.runner import Runner
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         
         # Create UnifiedMarketDataManager

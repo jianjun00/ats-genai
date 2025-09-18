@@ -17,8 +17,8 @@ from unittest.mock import Mock, patch
 # Add src to path for imports
 sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 
-from services.core.app.runner import Runner
-from shared.utils.environment import Environment, EnvironmentType
+from domains.trading.services.core.app.runner import Runner
+from core.shared.utils.environment import Environment, EnvironmentType
 
 
 class MockTimeframeGranularityTest:

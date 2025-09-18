@@ -14,7 +14,7 @@ import asyncio
 import asyncpg
 from datetime import date, datetime, timedelta
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 class TestMarketCapResilience:

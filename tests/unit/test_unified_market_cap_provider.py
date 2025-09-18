@@ -25,7 +25,7 @@ from domains.market_data.services.eod.unified_daily_price_validator import (
     ValidationResult,
     ValidationStatus as PriceValidationStatus
 )
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 @pytest.fixture

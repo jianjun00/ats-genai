@@ -15,7 +15,7 @@ import tempfile
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig, TimeSeriesSequenceTrainingGenerator
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.shared.data_handling.utils.environment import Environment, EnvironmentType
 from tests.utils.test_data_setup import setup_single_symbol_test
 
 

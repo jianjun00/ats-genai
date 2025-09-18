@@ -14,13 +14,13 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from interfaces.rest_api.backtest_analytics_api import app
+from infrastructure.interfaces.rest_api.backtest_analytics_api import app
 from domains.analytics.services.portfolio_analytics import PortfolioMetrics, AttributionMetrics, ModelPerformanceMetrics
 
 @pytest.fixture
 def client(mock_analytics_engine):
     """Create test client for the FastAPI app"""
-    from interfaces.rest_api.backtest_analytics_api import get_analytics_engine
+    from infrastructure.interfaces.rest_api.backtest_analytics_api import get_analytics_engine
 
     # Override the dependency
     app.dependency_overrides[get_analytics_engine] = lambda: mock_analytics_engine

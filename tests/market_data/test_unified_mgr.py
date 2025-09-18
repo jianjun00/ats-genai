@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, date
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
 from vendor.tiingo.core.dao.daily_price_tiingo_dao import DailyPricesTiingoDAO
 from vendor.polygon.core.dao.daily_price_polygon_dao import DailyPricesPolygonDAO

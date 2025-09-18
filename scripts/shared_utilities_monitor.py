@@ -50,16 +50,16 @@ class SharedUtilitiesMonitor:
         for vendor in vendors:
             try:
                 if vendor == 'polygon':
-                    from shared.utils.vendor_api_keys import get_polygon_api_key
+                    from core.shared.utils.vendor_api_keys import get_polygon_api_key
                     key = get_polygon_api_key(required=False)
                 elif vendor == 'tiingo':
-                    from shared.utils.vendor_api_keys import get_tiingo_api_key
+                    from core.shared.utils.vendor_api_keys import get_tiingo_api_key
                     key = get_tiingo_api_key(required=False)
                 elif vendor == 'eodhd':
-                    from shared.utils.vendor_api_keys import get_eodhd_api_key
+                    from core.shared.utils.vendor_api_keys import get_eodhd_api_key
                     key = get_eodhd_api_key(required=False)
                 elif vendor == 'alpha_vantage':
-                    from shared.utils.vendor_api_keys import get_alpha_vantage_api_key
+                    from core.shared.utils.vendor_api_keys import get_alpha_vantage_api_key
                     key = get_alpha_vantage_api_key(required=False)
 
                 results["checks"][vendor] = {
@@ -117,7 +117,7 @@ class SharedUtilitiesMonitor:
         for env in environments:
             start_time = time.time()
             try:
-                from shared.utils.database_connections import get_database_pool, get_table_name
+                from core.shared.utils.database_connections import get_database_pool, get_table_name
 
                 # Test pool creation (without actually connecting in this demo)
                 table_name = get_table_name('test_monitoring', env)
@@ -168,7 +168,7 @@ class SharedUtilitiesMonitor:
         for vendor in vendors:
             start_time = time.time()
             try:
-                from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+                from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 
                 # Test statistics
                 stats = BackfillStats()

@@ -18,7 +18,7 @@ import asyncpg
 from dataclasses import dataclass
 import numpy as np
 
-from shared.exceptions.base import ATSBaseException
+from core.shared.exceptions.base import ATSBaseException
 from core.platform.config.environment import Environment
 
 

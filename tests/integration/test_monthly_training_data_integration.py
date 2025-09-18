@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from pathlib import Path
 import asyncpg
 
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.dao.monthly_training_data_dao import (
     MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
 )
@@ -246,7 +246,7 @@ class TestMonthlyTrainingDataEndpoints:
     @pytest.fixture
     def analytics_service(self):
         """Create analytics service for endpoint testing."""
-        from services.analytics_service import UnifiedAnalyticsService
+        from domains.analytics.services.analytics_service import UnifiedAnalyticsService
         return UnifiedAnalyticsService()
 
     def test_monthly_training_data_table_endpoint(self, analytics_service):
@@ -389,7 +389,7 @@ class TestEndToEndWorkflow:
             mock_dao.get_monthly_record.assert_called_with(999)
 
             # 5. Test visualization data preparation
-            from services.analytics_service import UnifiedAnalyticsService
+            from domains.analytics.services.analytics_service import UnifiedAnalyticsService
             analytics = UnifiedAnalyticsService()
 
             # Mock ArrayRecord reader for visualization

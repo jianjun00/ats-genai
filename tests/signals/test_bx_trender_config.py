@@ -9,8 +9,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from signals.enhanced_indicators import BXTrenderIndicator
-from signals.indicator import BXTrenderBasic, BXTrenderDirectional, BXTrenderVolumeWeighted
+from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
+from domains.trading.signals.indicator import BXTrenderBasic, BXTrenderDirectional, BXTrenderVolumeWeighted
 
 class TestBXTrenderConfiguration(unittest.TestCase):
     """Test cases for BX Trender indicator configuration."""

@@ -24,7 +24,7 @@ from unittest.mock import patch
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent / 'src'))
 
-from ml.training_data.utils.run_metadata_tracker import (
+from domains.ml.legacy.training_data.utils.run_metadata_tracker import (
     RunMetadataTracker, RunTracker, track_training_run, complete_training_run
 )
 

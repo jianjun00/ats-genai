@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from domains.market_data.services.news.comprehensive_news_backfill import ComprehensiveNewsBackfillSystem
-from events.economic_events_classifier import EconomicEventsProcessor
+from domains.analytics.events.economic_events_classifier import EconomicEventsProcessor
 from training.multimodal_dataset_generator import MultiModalDatasetGenerator
 
 

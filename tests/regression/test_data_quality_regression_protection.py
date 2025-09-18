@@ -27,8 +27,8 @@ class TestTiingoEndDateRegression:
     @pytest.mark.asyncio
     async def test_tiingo_active_instruments_ratio(self):
         """Test that Tiingo maintains proper ratio of active instruments"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -68,8 +68,8 @@ class TestTiingoEndDateRegression:
     @pytest.mark.asyncio
     async def test_tiingo_end_date_interpretation(self):
         """Test correct interpretation of Tiingo end_date field"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -223,8 +223,8 @@ class TestDatabaseSchemaRegression:
     @pytest.mark.asyncio
     async def test_price_table_schema_consistency(self):
         """Test that price tables have consistent, expected schemas"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -274,8 +274,8 @@ class TestDatabaseSchemaRegression:
     @pytest.mark.asyncio
     async def test_instrument_tables_compatibility(self):
         """Test compatibility between vendor-specific instrument tables"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -325,8 +325,8 @@ class TestEODHDPopulationRegression:
     @pytest.mark.asyncio
     async def test_eodhd_population_completeness(self):
         """Test that EODHD population reaches expected completeness levels"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -364,8 +364,8 @@ class TestEODHDPopulationRegression:
     @pytest.mark.asyncio
     async def test_eodhd_to_unified_population_flow(self):
         """Test that EODHD instruments flow properly into unified table"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -412,8 +412,8 @@ class TestReferentialIntegrityRegression:
     @pytest.mark.asyncio
     async def test_price_instrument_referential_integrity(self):
         """Test referential integrity between price data and instruments"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -468,8 +468,8 @@ class TestReferentialIntegrityRegression:
     @pytest.mark.asyncio
     async def test_news_data_integrity(self):
         """Test integrity of news data and symbol references"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -614,8 +614,8 @@ class TestSystemHealthRegression:
     @pytest.mark.asyncio
     async def test_overall_data_quality_metrics(self):
         """Test overall system data quality metrics"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)

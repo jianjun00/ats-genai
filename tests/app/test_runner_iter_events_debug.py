@@ -1,4 +1,4 @@
-from services.core.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 from core.platform.config.environment import Environment, EnvironmentType
 import pytest
 

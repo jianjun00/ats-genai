@@ -13,7 +13,7 @@ from unittest.mock import Mock, AsyncMock
 import pandas as pd
 
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.shared.data_handling.utils.environment import Environment, EnvironmentType
 
 
 class TestUniverseStateManagerMissingMethods:

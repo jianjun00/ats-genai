@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from core.dao.status_code_dao import StatusCodeDAO
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 class TestStatusCodeDAO:
     """Test cases for StatusCodeDAO class."""

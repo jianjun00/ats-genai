@@ -34,7 +34,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 @dataclass
 class MarketCapTestResult:

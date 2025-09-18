@@ -27,7 +27,7 @@ async def insert_event(event: EventIn):
 
 async def create_analytics_event(env: Environment, event_type: str, symbol: str, data: dict):
     """Create analytics event with instrument resolution via service"""
-    from shared.utils.database import Database
+    from core.shared.utils.database import Database
     import json
     from datetime import datetime
     

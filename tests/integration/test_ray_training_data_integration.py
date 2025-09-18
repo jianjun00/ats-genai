@@ -28,8 +28,8 @@ import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from ml.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
-from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
+from domains.ml.legacy.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
+from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Import the training data infrastructure
 from src.ml.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 async def generate_aapl_tsla_training_data():
     """Generate comprehensive training data for AAPL and TSLA."""

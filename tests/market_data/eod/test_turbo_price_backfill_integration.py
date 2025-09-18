@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from datetime import date
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 
 from domains.market_data.services.eod.turbo_price_backfill import (
     TurboDatabaseInserter

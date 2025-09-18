@@ -28,7 +28,7 @@ from domains.instruments.services.config.service_container import get_instrument
 from core.platform.config.environment import Environment, EnvironmentType
 
 # API imports
-from services.web_services.api.enhanced_instruments_api import app
+from infrastructure.web.api.enhanced_instruments_api import app
 
 
 class TestInstrumentServiceIntegration:

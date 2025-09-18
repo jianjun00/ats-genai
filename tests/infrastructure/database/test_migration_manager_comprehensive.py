@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 from db.migration_manager import MigrationManager
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 @pytest.mark.unit

@@ -333,7 +333,7 @@ class UniverseStateManager:
 
         # 🚨 CRITICAL FIX (September 10, 2025): Fixed database import path
         # ISSUE: ImportError: cannot import name 'get_raw_connection' from incorrect module
-        # ORIGINAL: from shared.data_handling.utils.database import get_raw_connection (BROKEN)
+        # ORIGINAL: from core.shared.data_handling.utils.database import get_raw_connection (BROKEN)
         # SOLUTION: Use correct import path from core.platform.database.connection_manager
         from core.platform.database.connection_manager import get_raw_connection
 
@@ -389,7 +389,7 @@ class UniverseStateManager:
                 record_count = len(getattr(universe_state, 'instrument_intervals', {})) if universe_state else 0
                 self.logger.debug(f"save_universe_state DB: {record_count} instrument intervals, ts={timestamp}")
                 # Parse dates using common utility
-                from shared.data_handling.utils.datetime_utils import parse_flexible_datetime
+                from core.shared.data_handling.utils.datetime_utils import parse_flexible_datetime
                 start_dt = parse_flexible_datetime(metadata['start_date_time'])
                 end_dt = parse_flexible_datetime(metadata['end_date_time'])
 

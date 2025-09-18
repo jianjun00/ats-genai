@@ -14,7 +14,7 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from ml.training_data.generators.training_data_metadata import (
+from domains.ml.legacy.training_data.generators.training_data_metadata import (
     FeatureMetadata, LabelMetadata, TrainingDataMetadataManager,
     FeatureType, VisualizationType
 )

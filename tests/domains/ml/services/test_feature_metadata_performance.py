@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from ml.training_data.generators.training_data_metadata import (
+from domains.ml.legacy.training_data.generators.training_data_metadata import (
     TrainingDataMetadataManager, FeatureType
 )
 from services.dataset_service import DatasetService

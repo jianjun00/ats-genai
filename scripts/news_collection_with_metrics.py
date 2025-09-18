@@ -45,7 +45,7 @@ from opentelemetry.sdk.resources import Resource
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Import the news backfill functionality
-from shared.utils.vendor_api_keys import get_polygon_api_key
+from core.shared.utils.vendor_api_keys import get_polygon_api_key
 
 # Configure logging
 logging.basicConfig(

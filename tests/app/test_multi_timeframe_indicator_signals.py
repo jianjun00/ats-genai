@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from services.core.app.indicator_runner import IndicatorRunner
+from domains.trading.services.core.app.indicator_runner import IndicatorRunner
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.indicator_interval import IndicatorInterval
 from core.platform.config.environment import Environment

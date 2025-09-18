@@ -241,7 +241,7 @@ class TestHTTPAPIIntegration:
 
     def test_ray_table_detection(self):
         """Test automatic Ray usage for large tables"""
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
 
         handler = AnalyticsHandler()
 
@@ -257,7 +257,7 @@ class TestHTTPAPIIntegration:
     def test_column_values_endpoint_ray_integration(self):
         """Test column values endpoint uses Ray for large tables"""
         import asyncio
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
 
         handler = AnalyticsHandler()
 
@@ -277,7 +277,7 @@ class TestHTTPAPIIntegration:
     @patch('services.analytics_service.RAY_AVAILABLE', True)
     def test_analyze_endpoint_ray_fallback(self):
         """Test analyze endpoint with Ray unavailable fallback"""
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
 
         handler = AnalyticsHandler()
 

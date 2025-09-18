@@ -42,10 +42,10 @@ import aiohttp
 from urllib.parse import urljoin
 import json
 
-from shared.utils.http_response_handlers import handle_vendor_response, ResponseStats
-from shared.utils.validation_utils import validate_stock_symbol, validate_date_range
-from shared.utils.data_transformers import transform_vendor_dividend, transform_vendor_instrument
-from shared.utils.math_utils import safe_divide, calculate_statistics
+from core.shared.utils.http_response_handlers import handle_vendor_response, ResponseStats
+from core.shared.utils.validation_utils import validate_stock_symbol, validate_date_range
+from core.shared.utils.data_transformers import transform_vendor_dividend, transform_vendor_instrument
+from core.shared.utils.math_utils import safe_divide, calculate_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -553,7 +553,7 @@ class VendorRegistry:
 
 def create_vendor_from_env(vendor_name: str) -> Optional[BaseVendor]:
     """Create vendor instance from environment configuration."""
-    from shared.utils.config_utils import load_vendor_config
+    from core.shared.utils.config_utils import load_vendor_config
     
     config_data = load_vendor_config(vendor_name)
     if not config_data:

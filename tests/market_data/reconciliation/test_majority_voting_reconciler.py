@@ -26,7 +26,7 @@ from domains.market_data.services.reconciliation.majority_voting_reconciler impo
     PriceConsensus,
     ReconciliationDecision
 )
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 @pytest.fixture
 def env():

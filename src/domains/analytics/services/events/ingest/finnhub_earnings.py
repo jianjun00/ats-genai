@@ -1,7 +1,7 @@
 import os
 import httpx
 from datetime import datetime
-from events.schemas import EventIn
+from domains.analytics.events.schemas import EventIn
 
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 

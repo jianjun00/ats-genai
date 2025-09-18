@@ -4,7 +4,7 @@ from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
 from typing import Optional, Dict
 from domains.trading.services.state.universe_state import UniverseStateInterval
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 from datetime import datetime
 
 class UniverseStateIntervalDAO:

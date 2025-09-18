@@ -19,7 +19,7 @@ from unittest.mock import patch
 import sys
 sys.path.insert(0, 'src')
 
-from shared.utils.feature_flags import feature_manager
+from core.shared.utils.feature_flags import feature_manager
 from llm.event_analysis import (
     EventAnalysisRequest, EventAnalysisResult, MockLLMInterface,
     OpenAIInterface, EventAnalysisCache, LLMEventAnalyzer,

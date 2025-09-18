@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent / 'src'))
 def test_environment_detection():
     """Test all environment detection methods"""
 
-    from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+    from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
     print("🔍 Testing environment detection methods...")
 
@@ -205,7 +205,7 @@ def test_environment_info_without_loading():
 
     print("\n🔍 Testing environment information retrieval...")
 
-    from shared.utils.environment_config import EnvironmentConfigLoader
+    from core.shared.utils.environment_config import EnvironmentConfigLoader
 
     with patch.dict(os.environ, {
         'ATS_ENVIRONMENT': 'dev',
@@ -233,7 +233,7 @@ def test_file_path_resolution():
 
     print("\n🔍 Testing file path resolution...")
 
-    from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+    from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
     loader = EnvironmentConfigLoader()
 

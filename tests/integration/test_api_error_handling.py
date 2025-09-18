@@ -17,7 +17,7 @@ from unittest.mock import patch, AsyncMock
 from datetime import datetime
 import json
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 class TestAPIErrorHandling:

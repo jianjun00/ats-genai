@@ -61,7 +61,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             target_durations: comma-separated str (e.g. '1m,5m,15m,1h,1d'), overrides Gin config if provided
             universe_state_manager: UniverseStateManager instance for shared rolling cache
         """
-        from shared.data_handling.utils.environment import Environment
+        from core.shared.data_handling.utils.environment import Environment
         from core.dao.security_reference.market_cap_dao import DailyMarketCapDAO
         from core.business.calendars.time_duration import TimeDuration
         import logging
@@ -115,7 +115,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         
         # --- 1. ALWAYS update rolling cache with 1-minute data ---
         # ✅ CRITICAL FIX: Request data from market open to current interval time only
-        from shared.data_handling.utils.datetime_utils import get_session_times, to_utc
+        from core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
         
         # Get trading session start time and use current_time as end - ensure both are GMT
         from zoneinfo import ZoneInfo

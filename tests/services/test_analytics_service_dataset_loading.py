@@ -20,7 +20,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 
-from services.analytics_service import AnalyticsJobManager, get_cached_datasets, DATASET_CACHE
+from domains.analytics.services.analytics_service import AnalyticsJobManager, get_cached_datasets, DATASET_CACHE
 
 class TestAnalyticsServiceDatasetLoading(unittest.TestCase):
     """Test dataset loading functionality in analytics service."""
@@ -246,7 +246,7 @@ class TestBrowserCacheHeaders(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
 
         # Mock HTTP components
         self.handler = AnalyticsHandler()

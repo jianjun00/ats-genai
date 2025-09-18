@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timedelta
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
 from domains.trading.repositories.factor_interval_dao import FactorIntervalDAO

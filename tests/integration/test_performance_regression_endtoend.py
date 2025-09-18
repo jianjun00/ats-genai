@@ -255,7 +255,7 @@ class TestRegressionDetection:
 
     def _test_imports_work(self):
         """Test critical imports still work."""
-        from services.core.app.runner import Runner
+        from domains.trading.services.core.app.runner import Runner
         from core.market_data.unified_manager import UnifiedMarketDataManager
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
@@ -346,7 +346,7 @@ class TestEndToEndIntegrationReal:
         
         try:
             # Step 1: Import all required modules
-            from services.core.app.runner import Runner
+            from domains.trading.services.core.app.runner import Runner
             from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
             from domains.trading.services.state.universe_state_manager import UniverseStateManager
             completed_components.append(pipeline_components[0])

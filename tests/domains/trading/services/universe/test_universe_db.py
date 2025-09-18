@@ -2,7 +2,7 @@ import pytest
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from domains.trading.services.universe_db import UniverseDB
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 
 TEST_DB_URL = "postgresql://test:test@localhost:5432/test_db_universe"
 
@@ -42,7 +42,7 @@ async def test_add_universe(monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_add_universe_membership(monkeypatch):
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url="postgresql://test:test@localhost:5432/test_db_universe")
     db = UniverseDB(env=env)
     db.universe_membership_dao = MagicMock()
@@ -50,12 +50,12 @@ async def test_add_universe_membership(monkeypatch):
     await db.add_universe_membership(1, 'AAPL', date(2025, 7, 24), None)
     db.universe_membership_core.dao.add_membership_full.assert_awaited_once_with(universe_id=1, symbol='AAPL', start_at=date(2025, 7, 24), end_at=None)
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_update_universe_membership_end(unit_test_db, monkeypatch):
-    from shared.utils.environment import EnvironmentType
+    from core.shared.utils.environment import EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     db = UniverseDB(env)
     db.universe_membership_dao = MagicMock()

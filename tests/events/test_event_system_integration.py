@@ -12,16 +12,16 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from events.proto.events_pb2 import (
+from domains.analytics.events.proto.events_pb2 import (
     Event, EventType, Priority, create_news_event,
     create_earnings_event, create_technical_signal_event, SignalType,
     SignalDirection
 )
-from events.producer import EventProducer
-from events.database import EventStorage
-from events.correlation import CorrelationEngine
-from events.monitoring import EventSystemMonitor
-from events.run_dev_integration import EventSystemManager
+from domains.analytics.events.producer import EventProducer
+from domains.analytics.events.database import EventStorage
+from domains.analytics.events.correlation import CorrelationEngine
+from domains.analytics.events.monitoring import EventSystemMonitor
+from domains.analytics.events.run_dev_integration import EventSystemManager
 
 @pytest.fixture
 def mock_redis():
@@ -451,7 +451,7 @@ class TestEventSystemIntegration:
 
     def test_api_integration(self):
         """Test API integration"""
-        from events.api import app
+        from domains.analytics.events.api import app
         from fastapi.testclient import TestClient
 
         with patch('events.api.EventStorage'), \

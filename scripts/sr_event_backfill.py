@@ -25,17 +25,17 @@ import traceback
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Import existing S/R infrastructure
-from events.analysis.support_resistance_detector import (
+from domains.analytics.events.analysis.support_resistance_detector import (
     SupportResistanceDetector, SRLevel, SRTest, SREvent,
     SRType, SRLevelType, SRTestOutcome, Timeframe
 )
-from events.processors.support_resistance_processor import SupportResistanceProcessor
+from domains.analytics.events.processors.support_resistance_processor import SupportResistanceProcessor
 
 # Import new event system components
-from events.producer import EventProducer
+from domains.analytics.events.producer import EventProducer
 
 # Import market data infrastructure
-from shared.data_handling.utils.environment import Environment
+from core.shared.data_handling.utils.environment import Environment
 from domains.market_data.services.core.minute.file_based_minute_market_data_manager import (
     FileBasedMinuteMarketDataManager
 )

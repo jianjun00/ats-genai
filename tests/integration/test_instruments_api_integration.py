@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from datetime import date
 
-from services.web_services.api.instruments_api import instruments_router
+from infrastructure.web.api.instruments_api import instruments_router
 from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentDTO,
     InstrumentXrefDTO,

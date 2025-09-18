@@ -29,7 +29,7 @@ from domains.trading.services.state.universe_state_manager import UniverseStateM
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 from core.config.environment import Environment
-from services.core.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 
 class MockRunner:
     """Mock runner to simulate the real training data generation environment."""

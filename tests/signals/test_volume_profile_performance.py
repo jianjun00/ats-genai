@@ -12,9 +12,9 @@ import gc
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from signals.enhanced_indicators import VolumeProfileIndicator
-from signals.indicator import VolumeProfile
-from signals.advanced_volume_profile import (
+from domains.trading.signals.enhanced_indicators import VolumeProfileIndicator
+from domains.trading.signals.indicator import VolumeProfile
+from domains.trading.signals.advanced_volume_profile import (
     SessionVolumeProfile, MultiTimeframeVolumeProfile,
     AdaptiveVolumeProfile, VolumeProfileComposite
 )

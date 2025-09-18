@@ -1,7 +1,7 @@
 import argparse
 import requests
 from datetime import datetime, date
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from infrastructure.database.repositories.dividend_tiingo_dao import DividendTiingoDAO
 
 

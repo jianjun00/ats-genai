@@ -15,7 +15,7 @@ from domains.market_data.services.fundamentals.unified_fundamental_provider impo
     UnifiedFundamentalProvider,
     ValidationStatus
 )
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 @pytest.fixture

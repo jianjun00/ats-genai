@@ -18,7 +18,7 @@ from domains.trading.services.dynamic_modeling_universe import (
     UniverseStock,
     QualificationMetrics
 )
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 @pytest.fixture
 async def mock_env():

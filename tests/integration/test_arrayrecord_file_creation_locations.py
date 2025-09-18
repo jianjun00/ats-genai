@@ -14,7 +14,7 @@ from datetime import datetime, date
 from unittest.mock import patch, MagicMock
 
 # Import the actual callback we're testing
-from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 
 class TestArrayRecordFileCreationLocations:

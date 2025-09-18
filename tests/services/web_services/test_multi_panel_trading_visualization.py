@@ -22,7 +22,7 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from visualization.multi_panel_trading_chart import MultiPanelTradingChart, create_sample_multi_panel_chart
-from ml.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
 
 class TestMultiPanelTradingChart:
     """Test multi-panel trading chart visualization."""
@@ -264,7 +264,7 @@ class TestMultiPanelTradingChart:
     def test_integration_with_training_features(self):
         """Test integration with actual training dataset features."""
         # Use real feature extraction to ensure compatibility
-        from ml.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+        from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
 
         # Add all required columns to price data
         enhanced_price_data = self.sample_price_data.copy()

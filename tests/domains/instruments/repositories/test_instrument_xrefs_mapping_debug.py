@@ -1,7 +1,7 @@
 import pytest
 import asyncpg
 from datetime import date
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
 @pytest.mark.asyncio

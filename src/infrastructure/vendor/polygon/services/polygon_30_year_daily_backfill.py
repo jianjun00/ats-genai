@@ -19,8 +19,8 @@ from datetime import datetime, timedelta, timezone
 import time
 import argparse
 
-from shared.utils.vendor_api_keys import get_polygon_api_key
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters, get_vendor_database_connection, get_vendor_table_name
+from core.shared.utils.vendor_api_keys import get_polygon_api_key
+from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters, get_vendor_database_connection, get_vendor_table_name
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

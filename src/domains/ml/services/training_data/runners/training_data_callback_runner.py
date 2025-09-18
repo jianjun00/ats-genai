@@ -26,8 +26,8 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 
-from services.core.app.runner import Runner
-from shared.utils.environment import Environment, EnvironmentType
+from domains.trading.services.core.app.runner import Runner
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 # Removed: SequenceStorageManager - not needed per PRD/DRD QR5 single-step architecture
@@ -689,7 +689,7 @@ async def main():
 
         # Create a run record for tracking monthly training data
         try:
-            from services.core.app.database_manager import DatabaseManager
+            from domains.trading.services.core.app.database_manager import DatabaseManager
             db_manager = DatabaseManager(environment)
 
             # Create run record for this training data generation

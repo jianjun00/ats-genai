@@ -157,7 +157,7 @@ class TestEDAUnifiedMetadataSystem:
 
     def test_job_manager_variable_scope_fixes(self):
         """Test that job_manager variable is properly defined in all scopes"""
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
         from unittest.mock import MagicMock
         import io
 
@@ -166,7 +166,7 @@ class TestEDAUnifiedMetadataSystem:
         handler.wfile = io.BytesIO()
 
         # Test that JobManager is imported and can be instantiated
-        from services.analytics_service import JobManager
+        from domains.analytics.services.analytics_service import JobManager
         job_manager = JobManager()
         assert job_manager is not None, "JobManager should be instantiable"
 
@@ -179,7 +179,7 @@ class TestEDAUnifiedMetadataSystem:
 
     def test_job_manager_error_handling(self):
         """Test that job_manager errors are properly handled"""
-        from services.analytics_service import JobManager
+        from domains.analytics.services.analytics_service import JobManager
 
         job_manager = JobManager()
 

@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import json
 from datetime import datetime
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 
 from domains.market_data.services.news.turbo_news_backfill import (
     TurboNewsDatabaseInserter

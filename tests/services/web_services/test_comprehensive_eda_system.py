@@ -297,7 +297,7 @@ class TestEDASystemComprehensive:
 
     def test_14_ray_usage_logic(self):
         """Test Ray is used appropriately based on dataset size"""
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
 
         # Create mock handler to test logic
         class MockHandler(AnalyticsHandler):

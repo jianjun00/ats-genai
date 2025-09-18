@@ -18,7 +18,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 # Disabled - legacy test for deprecated architecture
-# from services.analytics_service import UnifiedAnalyticsService, UnifiedAnalyticsRequestHandler
+# from domains.analytics.services.analytics_service import UnifiedAnalyticsService, UnifiedAnalyticsRequestHandler
 
 @pytest.mark.skip(reason="Legacy test for deprecated AnalyticsHandler/JobManager architecture - service has been refactored")
 class TestAnalyticsServiceVariableScope:
@@ -286,7 +286,7 @@ class TestAnalyticsServiceVariableScope:
         # rather than depending on a global variable that might not be in scope
 
         # Check that there's no global job_manager variable being used incorrectly
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
 
         # Get the source code
         import inspect

@@ -14,8 +14,8 @@ from typing import List
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from services.financial_events.xai_event_extractor import OptimizedXAIEventExtractor, FinancialEvent
-from services.financial_events.config import load_config, SAMPLE_SYMBOLS, COST_STRUCTURE
+from domains.analytics.services.financial_events.xai_event_extractor import OptimizedXAIEventExtractor, FinancialEvent
+from domains.analytics.services.financial_events.config import load_config, SAMPLE_SYMBOLS, COST_STRUCTURE
 
 class EventExtractorTester:
     """Comprehensive tester for the xAI event extraction prototype"""

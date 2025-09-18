@@ -128,7 +128,7 @@ class PhaseValidator:
 
         # Test 3: Event Integration
         try:
-            from events.event_integration import EventIntegrationLayer, EventConfig
+            from domains.analytics.events.event_integration import EventIntegrationLayer, EventConfig
 
             # Skip if PyTorch not available
             try:

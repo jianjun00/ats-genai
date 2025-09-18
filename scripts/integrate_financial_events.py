@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from services.financial_events.analytics_integration import AnalyticsEventIntegration
+from domains.analytics.services.financial_events.analytics_integration import AnalyticsEventIntegration
 
 async def setup_and_test_integration():
     """Set up and test the financial events integration"""

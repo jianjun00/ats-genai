@@ -11,7 +11,7 @@ import json
 import numpy as np
 from datetime import datetime, date
 
-from ml.training_data.generators.training_data_metadata import TrainingDataMetadataManager, FeatureType
+from domains.ml.legacy.training_data.generators.training_data_metadata import TrainingDataMetadataManager, FeatureType
 
 
 class TestTrainingDataSerialization:
@@ -152,7 +152,7 @@ class TestTrainingDataFailFast:
 
     def test_arrayrecord_save_failure_raises_exception(self):
         """Test that ArrayRecord save failures raise exceptions instead of logging and continuing."""
-        from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+        from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
         callback = IntervalBasedTrainingDataCallback(
             output_dir="/tmp/test_training_data",
@@ -175,7 +175,7 @@ class TestTrainingDataFailFast:
 
     def test_metadata_save_failure_raises_exception(self):
         """Test that metadata save failures raise exceptions instead of logging and continuing."""
-        from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+        from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
         callback = IntervalBasedTrainingDataCallback(
             output_dir="/tmp/test_training_data",

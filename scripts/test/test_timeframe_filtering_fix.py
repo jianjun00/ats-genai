@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 def test_timeframe_filtering():
     """Test that timeframe filtering works correctly."""

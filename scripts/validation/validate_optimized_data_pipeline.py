@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from config.environment import Environment
 from market_data.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from monitoring.data_pipeline_performance_monitor import get_performance_monitor, time_operation
+from infrastructure.monitoring.legacy.data_pipeline_performance_monitor import get_performance_monitor, time_operation
 import logging
 
 

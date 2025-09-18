@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from enum import Enum
 import pytz
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 from core.business.calendars.market_calendar_utils import get_trading_days
 
 logger = logging.getLogger(__name__)

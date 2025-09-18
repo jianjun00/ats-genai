@@ -17,7 +17,7 @@ def test_environment_detection_explicit_variable():
     """Test environment detection via ATS_ENVIRONMENT variable"""
 
     with patch.dict(os.environ, {'ATS_ENVIRONMENT': 'dev'}, clear=False):
-        from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+        from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
         loader = EnvironmentConfigLoader()
         detected_env = loader.detect_environment()
@@ -30,7 +30,7 @@ def test_environment_detection_database_indicators():
 
     # Test development environment detection
     with patch.dict(os.environ, {'DB_PORT': '3432', 'ATS_ENVIRONMENT': ''}, clear=False):
-        from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+        from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
         loader = EnvironmentConfigLoader()
         detected_env = loader.detect_environment()
@@ -40,7 +40,7 @@ def test_environment_detection_database_indicators():
 
     # Test integration environment detection
     with patch.dict(os.environ, {'DB_PORT': '4432', 'ATS_ENVIRONMENT': ''}, clear=False):
-        from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+        from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
         loader = EnvironmentConfigLoader()
         detected_env = loader.detect_environment()
@@ -53,7 +53,7 @@ def test_environment_detection_hostname_indicators():
 
     # Test development hostname
     with patch.dict(os.environ, {'HOSTNAME': 'dev-server-001', 'ATS_ENVIRONMENT': '', 'DB_PORT': ''}, clear=False):
-        from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+        from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
         loader = EnvironmentConfigLoader()
         detected_env = loader.detect_environment()
@@ -65,7 +65,7 @@ def test_environment_detection_test_indicators():
     """Test test environment detection"""
 
     with patch.dict(os.environ, {'PYTEST_CURRENT_TEST': 'test_something', 'ATS_ENVIRONMENT': ''}, clear=False):
-        from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+        from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
         loader = EnvironmentConfigLoader()
         detected_env = loader.detect_environment()
@@ -76,7 +76,7 @@ def test_environment_detection_test_indicators():
 def test_configuration_file_path_resolution():
     """Test that configuration file paths are resolved correctly"""
 
-    from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+    from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
     # Create temporary config directory structure
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -108,7 +108,7 @@ def test_configuration_file_path_resolution():
 def test_configuration_file_not_found():
     """Test handling of missing configuration files"""
 
-    from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+    from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
     # Create temporary empty config directory
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -128,7 +128,7 @@ def test_configuration_file_not_found():
 def test_configuration_loading_and_switching():
     """Test loading configuration and switching between environments"""
 
-    from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+    from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
     # Create temporary config files with different content
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -162,7 +162,7 @@ def test_environment_info_retrieval():
         'DB_PORT': '3432',
         'HOSTNAME': 'dev-server'
     }, clear=False):
-        from shared.utils.environment_config import Environment, EnvironmentConfigLoader
+        from core.shared.utils.environment_config import Environment, EnvironmentConfigLoader
 
         loader = EnvironmentConfigLoader()
 
@@ -184,7 +184,7 @@ def test_environment_info_retrieval():
 def test_configuration_validation():
     """Test configuration validation functionality"""
 
-    from shared.utils.validation import ConfigurationValidator, ValidationResult
+    from core.shared.utils.validation import ConfigurationValidator, ValidationResult
 
     validator = ConfigurationValidator()
 
@@ -294,7 +294,7 @@ def test_convenience_functions():
     """Test convenience functions for configuration access"""
 
     with patch.dict(os.environ, {'ATS_ENVIRONMENT': 'dev'}, clear=False):
-        from shared.utils.environment_config import load_gin_config, get_current_env, get_env_info
+        from core.shared.utils.environment_config import load_gin_config, get_current_env, get_env_info
 
         # Test load_gin_config convenience function
         env = load_gin_config(force_reload=True)
@@ -313,7 +313,7 @@ def test_convenience_functions():
 def test_comprehensive_validation():
     """Test comprehensive validation functionality"""
 
-    from shared.utils.validation import validate_current_config
+    from core.shared.utils.validation import validate_current_config
 
     # Run comprehensive validation
     result = validate_current_config()

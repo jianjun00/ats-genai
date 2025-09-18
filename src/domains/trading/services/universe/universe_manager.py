@@ -3,7 +3,7 @@ UniverseManager class for training data generation with proper database lookup.
 Replaces hardcoded mappings with dynamic instrument resolution.
 """
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
 
 

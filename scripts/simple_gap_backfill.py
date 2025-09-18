@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from infrastructure.storage.file_based_minute_manager import FileBasedMinuteManager
 from infrastructure.storage.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-from events.proto.events_pb2 import Event, create_gap_event
+from domains.analytics.events.proto.events_pb2 import Event, create_gap_event
 from infrastructure.database.connections import get_database_url
 from infrastructure.database.base_service import BaseService
 

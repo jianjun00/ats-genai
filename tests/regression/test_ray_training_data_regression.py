@@ -27,7 +27,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from ml.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
+from domains.ml.legacy.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

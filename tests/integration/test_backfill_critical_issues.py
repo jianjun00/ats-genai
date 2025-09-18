@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
 from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
-from shared.utils.database import Database
+from core.shared.utils.database import Database
 
 
 class TestPolygonDatetimeTimezoneIssue:

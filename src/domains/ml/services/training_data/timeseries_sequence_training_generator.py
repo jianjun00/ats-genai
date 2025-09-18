@@ -173,7 +173,7 @@ class MultiTimeframeFeatureExtractor:
         # Volume Profile features
         if len(data) >= 20 and all(col in data.columns for col in ['open', 'high', 'low', 'close', 'volume']):
             try:
-                from signals.indicator import VolumeProfile
+                from domains.trading.signals.indicator import VolumeProfile
 
                 # Create InstrumentInterval-compatible objects for Volume Profile
                 intervals = []

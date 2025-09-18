@@ -25,7 +25,7 @@ async def test_centralized_connection():
     os.environ["DB_NAME"] = "trading_db"
 
     # Import after setting environment variables to ensure they're picked up
-    from shared.utils.database import Database
+    from core.shared.utils.database import Database
 
     # Test only the test environment
     environments = ["test"]

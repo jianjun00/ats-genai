@@ -19,7 +19,7 @@ sys.path.insert(0, 'src')
 
 from datetime import datetime
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from shared.data_handling.utils.environment import Environment
+from core.shared.data_handling.utils.environment import Environment
 
 def test_cache_issue():
     print("🔍 Testing cache synchronization issue...")

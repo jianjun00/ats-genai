@@ -19,7 +19,7 @@ from domains.market_data.services.eod.unified_daily_price_validator import (
     UnifiedPrice
 )
 from domains.market_data.services.eod.unified_daily_price_pipeline import UnifiedDailyPricePipeline
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 class TestUnifiedDailyPriceValidator:

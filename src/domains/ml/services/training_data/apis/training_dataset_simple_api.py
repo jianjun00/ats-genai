@@ -10,7 +10,7 @@ import asyncpg
 from datetime import datetime, date
 import logging
 import json
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 logger = logging.getLogger(__name__)
 

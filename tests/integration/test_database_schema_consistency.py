@@ -56,7 +56,7 @@ def test_training_datasets_table_exists():
 def test_analytics_service_table_names():
     """Test that analytics service uses correct table names."""
     try:
-        from services.analytics_service import AnalyticsService
+        from domains.analytics.services.analytics_service import AnalyticsService
     except ImportError:
         pytest.skip("AnalyticsService not available")
 
@@ -139,7 +139,7 @@ def test_training_datasets_table_schema():
 def test_sequences_api_table_query():
     """Test that sequences API queries correct table."""
     try:
-        from services.analytics_service import AnalyticsService
+        from domains.analytics.services.analytics_service import AnalyticsService
     except ImportError:
         pytest.skip("AnalyticsService not available")
 

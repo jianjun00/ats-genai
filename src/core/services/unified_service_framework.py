@@ -54,8 +54,8 @@ import uuid
 
 from core.database import RepositoryFactory, ConnectionManager
 from core.vendor import VendorAdapterFactory
-from shared.utils.config_utils import load_database_config
-from shared.utils.validation_utils import ValidationResult
+from core.shared.utils.config_utils import load_database_config
+from core.shared.utils.validation_utils import ValidationResult
 
 logger = logging.getLogger(__name__)
 

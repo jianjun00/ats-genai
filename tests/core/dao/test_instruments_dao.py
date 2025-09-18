@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date
 from typing import List, Dict
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 class TestInstrumentsDAO:
     """Comprehensive test coverage for InstrumentsDAO."""

@@ -133,7 +133,7 @@ def test_training_data_callback_directly():
     """
     from state.training_data_callback import DateBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
 
     # Create test callback
     config = TrainingDataConfig(
@@ -195,7 +195,7 @@ async def test_training_data_generation_with_test_data():
         TrainingDataConfig,
         TimeSeriesSequenceTrainingGenerator
     )
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
     from state.universe_state_manager import UniverseStateManager
 
     # Create test environment
@@ -338,7 +338,7 @@ def test_callback_with_test_data_setup():
     import tempfile
     from state.training_data_callback import DateBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
     from datetime import datetime
 
     # Use minimal config for testing
@@ -410,7 +410,7 @@ def test_multi_symbol_callback_functionality():
     import tempfile
     from state.training_data_callback import DateBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
     from datetime import datetime
 
     config = TrainingDataConfig(
@@ -503,7 +503,7 @@ def test_error_handling_in_callback():
     import tempfile
     from state.training_data_callback import DateBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
     from datetime import datetime
 
     config = TrainingDataConfig(

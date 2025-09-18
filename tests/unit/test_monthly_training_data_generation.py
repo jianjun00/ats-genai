@@ -23,7 +23,7 @@ from domains.ml.services.training_data.dao.monthly_training_data_dao import (
 from domains.ml.services.training_data.callbacks.training_data_callback import (
     IntervalBasedTrainingDataCallback
 )
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 class TestMonthlyTrainingDataDAO:

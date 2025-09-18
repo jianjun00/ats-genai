@@ -21,7 +21,7 @@ from typing import Optional, List
 from datetime import datetime
 import asyncpg
 
-from shared.data_handling.utils.environment import Environment
+from core.shared.data_handling.utils.environment import Environment
 
 
 class TestDataSetup:

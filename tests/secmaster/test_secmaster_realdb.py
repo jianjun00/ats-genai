@@ -1,7 +1,7 @@
 import pytest
 from datetime import date
 from domains.instruments.services.secmaster import SecMaster
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

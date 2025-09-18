@@ -56,7 +56,7 @@ def main():
     logger.info("-" * 40)
 
     try:
-        from ml.models.autonomous_driving_inspired.data_preprocessing import AutonomousFinanceDataLoader
+        from domains.ml.legacy.models.autonomous_driving_inspired.data_preprocessing import AutonomousFinanceDataLoader
 
         # Create data loader with smaller batch size for testing
         data_loader_factory = AutonomousFinanceDataLoader(
@@ -107,10 +107,10 @@ def main():
     logger.info("-" * 40)
 
     try:
-        from ml.models.autonomous_driving_inspired.transformer_model import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.transformer_model import (
             AutonomousFinanceTransformer, TransformerConfig
         )
-        from ml.models.autonomous_driving_inspired.training import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.training import (
             AutonomousFinanceTrainer, TrainingConfig
         )
 
@@ -214,7 +214,7 @@ def main():
     logger.info("-" * 40)
 
     try:
-        from ml.models.autonomous_driving_inspired.training import FinancialMetrics
+        from domains.ml.legacy.models.autonomous_driving_inspired.training import FinancialMetrics
 
         # Evaluate model on validation data
         model.eval()

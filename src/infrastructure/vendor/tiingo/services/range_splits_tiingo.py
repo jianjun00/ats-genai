@@ -3,9 +3,9 @@ import asyncio
 import requests
 import time
 from datetime import datetime, date
-from shared.utils.environment import Environment, EnvironmentType
-from shared.utils.vendor_api_keys import get_tiingo_api_key
-from shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from core.shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.vendor_api_keys import get_tiingo_api_key
+from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 from infrastructure.database.repositories.stock_splits_tiingo_dao import StockSplitsTiingoDAO
 import asyncpg
 

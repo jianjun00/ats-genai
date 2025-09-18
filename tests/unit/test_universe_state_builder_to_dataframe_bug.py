@@ -14,7 +14,7 @@ from datetime import datetime
 from unittest.mock import Mock, AsyncMock
 import pandas as pd
 
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from core.business.calendars.time_duration import TimeDuration
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 

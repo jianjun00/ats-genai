@@ -27,7 +27,7 @@ class TestTrainingDataImportFixes:
         import_errors = []
         
         try:
-            from services.core.app.runner import Runner
+            from domains.trading.services.core.app.runner import Runner
             print("✅ Successfully imported Runner")
         except ImportError as e:
             import_errors.append(f"Runner import error: {e}")
@@ -104,7 +104,7 @@ class TestTrainingDataImportFixes:
         
         # Test if we can create a mock runner  
         try:
-            from services.core.app.runner import Runner
+            from domains.trading.services.core.app.runner import Runner
             print("✅ Runner can be imported without mocking needed")
             return True
         except ImportError as e:

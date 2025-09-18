@@ -27,7 +27,7 @@ try:
     from core.platform.config.environment import Environment
 except ImportError:
     try:
-        from shared.utils.environment import Environment
+        from core.shared.utils.environment import Environment
     except ImportError:
         # Emergency environment class for system stability
         class Environment:

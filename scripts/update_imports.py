@@ -32,17 +32,17 @@ class ImportUpdater:
             r'from secmaster\.(.+) import': r'from domains.instruments.services.\1 import',
 
             # Infrastructure imports
-            r'from config\.(.+) import': r'from shared.utils.\1 import',
-            r'from utils\.(.+) import': r'from shared.utils.\1 import',
+            r'from config\.(.+) import': r'from core.shared.utils.\1 import',
+            r'from utils\.(.+) import': r'from core.shared.utils.\1 import',
             r'from monitoring\.(.+) import': r'from infrastructure.monitoring.\1 import',
             r'from storage\.(.+) import': r'from infrastructure.storage.\1 import',
 
             # API imports to interfaces
-            r'from api\.(.+) import': r'from interfaces.rest_api.\1 import',
+            r'from api\.(.+) import': r'from infrastructure.interfaces.rest_api.\1 import',
 
             # Core imports to shared
-            r'from core\.utils\.(.+) import': r'from shared.utils.\1 import',
-            r'from core\.exceptions\.(.+) import': r'from shared.exceptions.\1 import',
+            r'from core\.utils\.(.+) import': r'from core.shared.utils.\1 import',
+            r'from core\.exceptions\.(.+) import': r'from core.shared.exceptions.\1 import',
         }
 
     def _map_dao_import(self, match):

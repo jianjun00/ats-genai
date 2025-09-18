@@ -19,14 +19,14 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from monitoring.data_quality_validator import (
+from infrastructure.monitoring.legacy.data_quality_validator import (
     DataQualityValidator,
     ValidationResult,
     ValidationSeverity,
     ValidationCategory,
     DataQualityReport
 )
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 @pytest.fixture
 def env():

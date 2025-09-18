@@ -56,11 +56,11 @@ class SharedUtilitiesMigrator:
         # Pattern 1: Replace vendor-specific imports
         vendor_imports = {
             r'from vendor\.polygon\.utils import.*POLYGON_API_KEY':
-                'from shared.utils.vendor_api_keys import get_polygon_api_key',
+                'from core.shared.utils.vendor_api_keys import get_polygon_api_key',
             r'from vendor\.tiingo\.utils import.*TIINGO_API_KEY':
-                'from shared.utils.vendor_api_keys import get_tiingo_api_key',
+                'from core.shared.utils.vendor_api_keys import get_tiingo_api_key',
             r'from vendor\.eodhd\.utils import.*EODHD_API_KEY':
-                'from shared.utils.vendor_api_keys import get_eodhd_api_key',
+                'from core.shared.utils.vendor_api_keys import get_eodhd_api_key',
         }
 
         for old_pattern, new_import in vendor_imports.items():
@@ -113,12 +113,12 @@ class SharedUtilitiesMigrator:
         # Pattern 1: Replace complex database imports
         db_import_patterns = {
             r'from shared\.data_handling\.utils\.database import Database':
-                'from shared.utils.database_connections import get_database_pool, get_table_name',
+                'from core.shared.utils.database_connections import get_database_pool, get_table_name',
         }
 
         for old_pattern, new_import in db_import_patterns.items():
             if re.search(old_pattern, content):
-                if 'from shared.utils.database_connections import' not in content:
+                if 'from core.shared.utils.database_connections import' not in content:
                     content = re.sub(old_pattern, new_import, content)
                     changes.append("Added shared database utilities import")
 

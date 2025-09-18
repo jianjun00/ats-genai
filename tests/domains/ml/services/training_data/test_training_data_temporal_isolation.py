@@ -31,7 +31,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from domains.trading.services.state.universe_state import UniverseStateInterval
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from core.business.calendars.time_duration import TimeDuration
-from shared.data_handling.utils.environment import Environment
+from core.shared.data_handling.utils.environment import Environment
 
 @pytest.mark.asyncio
 async def test_temporal_isolation_future_data_exclusion():

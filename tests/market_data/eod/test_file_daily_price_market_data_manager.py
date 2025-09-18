@@ -16,7 +16,7 @@ def vendors_dirs():
     }
 
 import pytest_asyncio
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from core.dao.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
@@ -142,7 +142,7 @@ async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
         print(f"[DEBUG][test_tiingo_list_date_parsing] Created test files in {tmp_path}")
 
         # Set up environment with test database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
         env.get_table_name = lambda table: f"test_{table}"
 

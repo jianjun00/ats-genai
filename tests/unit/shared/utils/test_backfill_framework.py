@@ -16,7 +16,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent / 'src'))
 
-from shared.utils.backfill_framework import (
+from core.shared.utils.backfill_framework import (
     BackfillStats,
     RateLimiter,
     ProgressReporter,

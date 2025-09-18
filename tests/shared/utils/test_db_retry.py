@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from shared.utils.db_retry import retry_async, retry_sync
+from core.shared.utils.db_retry import retry_async, retry_sync
 
 class TestRetryAsync:
     """Comprehensive test coverage for retry_async function."""

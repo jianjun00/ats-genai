@@ -3,7 +3,7 @@ import asyncpg
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 from vendor.polygon.core.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 class TestInstrumentPolygonDAO:

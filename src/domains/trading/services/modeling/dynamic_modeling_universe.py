@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import argparse
 import json
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 @dataclass

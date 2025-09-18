@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, timedelta
 
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from state.universe_state import UniverseStateInterval
 from core.calendars.time_duration import TimeDuration

@@ -27,8 +27,8 @@ sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 # Set environment to skip gin loading
 os.environ['GIN_LOAD_DEFAULT_CONFIG'] = '0'
 
-from shared.data_handling.utils.environment import Environment, EnvironmentType
-from services.core.app.runner import Runner
+from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+from domains.trading.services.core.app.runner import Runner
 from core.dao.trading.instrument_interval_dao import InstrumentIntervalDAO
 from core.dao.trading.universe_state_interval_dao import UniverseStateIntervalDAO
 from core.shared.run_context import RunContext, create_run_context

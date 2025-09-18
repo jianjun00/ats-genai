@@ -17,7 +17,7 @@ import os
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from services.analytics_service import UnifiedAnalyticsService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService
 
 class TestTimestampBasedNavigation(unittest.TestCase):
     """Test timestamp-based navigation API endpoints."""

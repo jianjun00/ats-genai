@@ -10,7 +10,7 @@ import pytest
 import asyncio
 import asyncpg
 import os
-from shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.shared.data_handling.utils.environment import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db):
@@ -53,7 +53,7 @@ async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db
     minute_manager = UnifiedMarketDataManager(config=config)
     
     # Create real Runner with callback architecture
-    from services.core.app.runner import Runner
+    from domains.trading.services.core.app.runner import Runner
     from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
     from domains.trading.services.universe.universe_manager import UniverseManager
     

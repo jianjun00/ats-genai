@@ -25,7 +25,7 @@ def pristine_test_db(request):
     """
     async def factory():
         test_name = request.node.name if hasattr(request, 'node') else None
-        from shared.utils.database import Database
+        from core.shared.utils.database import Database
         import uuid
         if test_name:
             hash_part = uuid.uuid4().hex[:8]
@@ -64,7 +64,7 @@ async def isolated_test_db(request):
     """
     # set_environment(EnvironmentType.TEST)  # Not needed, always use Environment(db_url=..., env_type=EnvironmentType.TEST)
     test_name = request.node.name if hasattr(request, 'node') else None
-    from shared.utils.database import Database
+    from core.shared.utils.database import Database
     import uuid
     if test_name:
         hash_part = uuid.uuid4().hex[:8]
@@ -103,7 +103,7 @@ async def isolated_test_db_migrate(request):
     """
     # set_environment(EnvironmentType.TEST)  # Not needed, always use Environment(db_url=..., env_type=EnvironmentType.TEST)
     test_name = request.node.name if hasattr(request, 'node') else None
-    from shared.utils.database import Database
+    from core.shared.utils.database import Database
     import uuid
     if test_name:
         hash_part = uuid.uuid4().hex[:8]

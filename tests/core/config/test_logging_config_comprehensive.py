@@ -1,5 +1,5 @@
 import gin
-from shared.utils.logging_config import LoggingConfig
+from core.shared.utils.logging_config import LoggingConfig
 
 class TestLoggingConfigComprehensive:
     """Comprehensive test coverage for LoggingConfig."""

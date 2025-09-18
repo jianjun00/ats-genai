@@ -88,7 +88,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
         )
 
         # Import and create analytics service with our test directory
-        from services.analytics_service import UnifiedAnalyticsService
+        from domains.analytics.services.analytics_service import UnifiedAnalyticsService
         service = UnifiedAnalyticsService()
 
         # Patch the training_base_paths to use our test directory
@@ -125,7 +125,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
             dataset_id=1, run_id=200, symbols=["TEST"]
         )
 
-        from services.analytics_service import UnifiedAnalyticsService
+        from domains.analytics.services.analytics_service import UnifiedAnalyticsService
         service = UnifiedAnalyticsService()
 
         # Mock the file search to track which directories were searched
@@ -171,7 +171,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
             dataset_id=2, run_id=300, symbols=["FALLBACK"]
         )
 
-        from services.analytics_service import UnifiedAnalyticsService
+        from domains.analytics.services.analytics_service import UnifiedAnalyticsService
         service = UnifiedAnalyticsService()
 
         with patch.object(service, 'training_base_paths', [self.training_data_dir]):
@@ -200,7 +200,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
             dataset_id=3, run_id=50, symbols=["aapl"]  # lowercase
         )
 
-        from services.analytics_service import UnifiedAnalyticsService
+        from domains.analytics.services.analytics_service import UnifiedAnalyticsService
         service = UnifiedAnalyticsService()
 
         with patch.object(service, 'training_base_paths', [self.training_data_dir]):
@@ -237,7 +237,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
             dataset_id=4, run_id=75, symbols=["MULTI"]
         )
 
-        from services.analytics_service import UnifiedAnalyticsService
+        from domains.analytics.services.analytics_service import UnifiedAnalyticsService
         service = UnifiedAnalyticsService()
 
         # Test with multiple search paths

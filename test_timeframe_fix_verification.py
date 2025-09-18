@@ -5,7 +5,7 @@ Simple test to verify the UniverseStateIntervalBuilder trading session fix.
 
 import asyncio
 from datetime import datetime, timedelta
-from shared.data_handling.utils.datetime_utils import get_session_times, to_utc
+from core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
 
 async def test_trading_session_fix():
     """Test that the fix correctly calculates trading session times."""

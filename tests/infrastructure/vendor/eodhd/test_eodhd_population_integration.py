@@ -19,8 +19,8 @@ from src.secmaster.populate_instrument_eodhd import (
     fetch_and_store_instruments,
     parse_date
 )
-from shared.utils.environment import Environment
-from shared.utils.database import Database
+from core.shared.utils.environment import Environment
+from core.shared.utils.database import Database
 
 
 @pytest.fixture

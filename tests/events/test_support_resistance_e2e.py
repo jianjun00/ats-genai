@@ -14,10 +14,10 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from events.analysis.support_resistance_detector import (
+from domains.analytics.events.analysis.support_resistance_detector import (
     Timeframe
 )
-from events.processors.support_resistance_processor import SupportResistanceProcessor
+from domains.analytics.events.processors.support_resistance_processor import SupportResistanceProcessor
 from config.environment import Environment
 
 class TestSupportResistanceE2E:

@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from signals.enhanced_indicators import (
+from domains.trading.signals.enhanced_indicators import (
     VolumeProfileIndicator,
     ResidualReturnIndicatorConfig,
     calculate_all_technical_indicators
@@ -159,7 +159,7 @@ class TestVolumeProfileIntegration(unittest.TestCase):
 
         # Import BX Trender for compatibility test
         try:
-            from signals.enhanced_indicators import BXTrenderIndicator
+            from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
             config.add_indicator('BXTrender_basic_14', lambda: BXTrenderIndicator(14, 'basic'))
 
             # Calculate all indicators

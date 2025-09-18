@@ -13,7 +13,7 @@ import asyncpg
 
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from modeling.factor_models import ResidualReturnCalculator
-from ml.training_data.generators.training_data_generator import ResidualReturnTrainingDataGenerator
+from domains.ml.legacy.training_data.generators.training_data_generator import ResidualReturnTrainingDataGenerator
 from modeling.interpretability_framework import ResidualReturnInterpreter
 
 logger = logging.getLogger(__name__)

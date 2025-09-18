@@ -16,8 +16,8 @@ from typing import Dict, List, Optional, Tuple
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from signals.indicator import VolumeProfile
-from signals.advanced_volume_profile import SessionVolumeProfile, AdaptiveVolumeProfile, MultiTimeframeVolumeProfile
+from domains.trading.signals.indicator import VolumeProfile
+from domains.trading.signals.advanced_volume_profile import SessionVolumeProfile, AdaptiveVolumeProfile, MultiTimeframeVolumeProfile
 
 class VolumeProfileMonitor:
     """Advanced Volume Profile monitoring system."""

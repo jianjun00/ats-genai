@@ -22,7 +22,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from scripts.polygon_news_backfill import PolygonNewsBackfill
-from shared.utils.database_connections import get_connection_pool
+from core.shared.utils.database_connections import get_connection_pool
 
 
 class TestPolygonAPIDateFormatting:

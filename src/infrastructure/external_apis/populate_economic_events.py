@@ -11,8 +11,8 @@ import argparse
 from datetime import datetime, date, timedelta
 from typing import Optional
 
-from shared.utils.environment import Environment, EnvironmentType
-from shared.utils.database import get_connection_pool
+from core.shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.database import get_connection_pool
 from economic_events.population_service import EconomicEventsPopulationService
 
 # Configure logging

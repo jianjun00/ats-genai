@@ -65,7 +65,7 @@ class TestEnvironmentAwareAPIs:
     @pytest.mark.asyncio
     async def test_training_datasets_api_uses_correct_table_names(self):
         """Test that API queries use environment-specific table names"""
-        from interfaces.rest_api.training_dataset_simple_api import list_training_datasets
+        from infrastructure.interfaces.rest_api.training_dataset_simple_api import list_training_datasets
 
         # Mock database connection and query execution
         with patch('src.api.training_dataset_simple_api.get_db_connection') as mock_get_conn:
@@ -169,7 +169,7 @@ class TestEnvironmentConfigurationValidation:
 
     def test_environment_detection_accuracy(self):
         """Test that environment is correctly detected from different sources"""
-        from shared.utils.environment import Environment
+        from core.shared.utils.environment import Environment
 
         # Test explicit environment variable
         with patch.dict(os.environ, {'ENVIRONMENT': 'intg'}, clear=False):
@@ -184,7 +184,7 @@ class TestEnvironmentConfigurationValidation:
 
     def test_missing_environment_config_handling(self):
         """Test graceful handling when environment config is missing"""
-        from shared.utils.environment import Environment
+        from core.shared.utils.environment import Environment
 
         # Test with missing environment variables
         with patch.dict(os.environ, {}, clear=True):

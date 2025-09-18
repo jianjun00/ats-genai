@@ -15,7 +15,7 @@ def test_job_manager_imports():
     # Test 1: JobManager import
     print("\n1️⃣ **Testing JobManager Import**")
     try:
-        from services.analytics_service import AnalyticsHandler, JobManager
+        from domains.analytics.services.analytics_service import AnalyticsHandler, JobManager
         print("✅ JobManager import successful")
 
         # Test instantiation
@@ -52,7 +52,7 @@ def test_job_manager_imports():
     # Test 2: AnalyticsHandler import
     print("\n2️⃣ **Testing AnalyticsHandler Import**")
     try:
-        from services.analytics_service import AnalyticsHandler
+        from domains.analytics.services.analytics_service import AnalyticsHandler
         print("✅ AnalyticsHandler import successful")
 
         # Test method existence (don't instantiate as it requires server setup)

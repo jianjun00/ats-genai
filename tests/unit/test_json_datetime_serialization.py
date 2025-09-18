@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 def test_custom_json_serializer():
     """Test custom JSON serializer handles datetime objects."""
     try:
-        from ml.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
+        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
 
@@ -55,7 +55,7 @@ def test_custom_json_serializer():
 def test_json_serializer_with_various_types():
     """Test JSON serializer handles various object types."""
     try:
-        from ml.storage.sequence_storage_manager import SequenceStorageManager
+        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
 
@@ -86,7 +86,7 @@ def test_json_serializer_with_various_types():
 async def test_datetime_objects_in_training_data():
     """Test that training data with datetime objects can be serialized."""
     try:
-        from ml.storage.sequence_storage_manager import SequenceStorageManager
+        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
 
@@ -127,7 +127,7 @@ async def test_datetime_objects_in_training_data():
 def test_datetime_serialization_edge_cases():
     """Test datetime serialization edge cases."""
     try:
-        from ml.storage.sequence_storage_manager import SequenceStorageManager
+        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
 
@@ -154,7 +154,7 @@ def test_datetime_serialization_edge_cases():
 def test_json_serializer_preserves_non_datetime_objects():
     """Test that non-datetime objects are handled correctly."""
     try:
-        from ml.storage.sequence_storage_manager import SequenceStorageManager
+        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
 
@@ -178,7 +178,7 @@ def test_json_serializer_preserves_non_datetime_objects():
 def test_sequence_record_serialization():
     """Test complete sequence record serialization with datetime objects."""
     try:
-        from ml.storage.sequence_storage_manager import SequenceStorageManager
+        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     except ImportError:
         pytest.skip("SequenceStorageManager not available")
 

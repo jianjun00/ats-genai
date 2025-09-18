@@ -36,11 +36,11 @@ import array_record.python.array_record_module as array_record
 import sys
 sys.path.insert(0, '/workspace/src')
 
-from services.core.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from shared.utils.database_connections import get_database_pool
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.database_connections import get_database_pool
+from core.shared.utils.environment import Environment, EnvironmentType
 
 
 class TrainingDataEndToEndTest:

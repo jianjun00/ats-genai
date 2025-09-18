@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 import pandas as pd
 from pathlib import Path
 from core.platform.config.environment import Environment, EnvironmentType
-from services.core.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.market_data.services.vendor_adapters.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager

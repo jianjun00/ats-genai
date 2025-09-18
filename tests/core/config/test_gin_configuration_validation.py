@@ -40,8 +40,8 @@ class TestGinConfigurationValidation:
         """Test a valid basic gin configuration."""
         config_content = """
 # Basic valid configuration
-import signals.feature_registry
-import signals.label_registry
+import domains.trading.signals.feature_registry
+import domains.trading.signals.label_registry
 import modeling.configurable_train_data_generator
 
 # Feature configuration
@@ -103,7 +103,7 @@ create_configurable_training_data_config.output_format = 'numpy'
     def test_invalid_feature_type_configuration(self):
         """Test gin configuration with invalid feature type."""
         config_content = """
-import signals.feature_registry
+import domains.trading.signals.feature_registry
 
 # Invalid feature type
 invalid_feature/create_feature_config.name = "invalid"
@@ -139,7 +139,7 @@ create_feature_registry.feature_configs = [@invalid_feature/create_feature_confi
     def test_missing_required_parameters(self):
         """Test gin configuration with missing required parameters."""
         config_content = """
-import signals.feature_registry
+import domains.trading.signals.feature_registry
 
 # Missing required parameters
 incomplete_feature/create_feature_config.name = "incomplete"
@@ -176,7 +176,7 @@ create_feature_registry.feature_configs = [@incomplete_feature/create_feature_co
     def test_invalid_parameter_types(self):
         """Test gin configuration with invalid parameter types."""
         config_content = """
-import signals.feature_registry
+import domains.trading.signals.feature_registry
 
 # Invalid parameter types
 bad_types_feature/create_feature_config.name = "bad_types"
@@ -213,7 +213,7 @@ create_feature_registry.feature_configs = [@bad_types_feature/create_feature_con
     def test_circular_dependency_detection(self):
         """Test detection of circular dependencies in gin configuration."""
         config_content = """
-import signals.feature_registry
+import domains.trading.signals.feature_registry
 
 # Create circular dependency
 circular_a/create_feature_config.name = "circular_a"
@@ -259,8 +259,8 @@ create_feature_registry.feature_configs = [
         """Test performance with large gin configuration."""
         # Generate large configuration programmatically
         config_lines = [
-            "import signals.feature_registry",
-            "import signals.label_registry",
+            "import domains.trading.signals.feature_registry",
+            "import domains.trading.signals.label_registry",
             "import modeling.configurable_train_data_generator",
             ""
         ]
@@ -345,8 +345,8 @@ create_feature_registry.feature_configs = [
     def test_configuration_inheritance_and_overrides(self):
         """Test gin configuration inheritance and parameter overrides."""
         base_config_content = """
-import signals.feature_registry
-import signals.label_registry
+import domains.trading.signals.feature_registry
+import domains.trading.signals.label_registry
 
 # Base feature configuration
 base_feature/create_feature_config.name = "base_returns"
@@ -438,7 +438,7 @@ class TestConfigurationErrorRecovery:
     def test_malformed_gin_syntax_recovery(self):
         """Test recovery from malformed gin syntax."""
         malformed_config = """
-import signals.feature_registry
+import domains.trading.signals.feature_registry
 
 # Missing closing brace
 bad_feature/create_feature_config.parameters = {

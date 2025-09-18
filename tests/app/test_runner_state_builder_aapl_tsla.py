@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 from datetime import date
-from services.core.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.services.universe_manager import UniverseManager
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
@@ -54,7 +54,7 @@ async def test_runner_state_builder_aapl_tsla(unit_test_db_clean, monkeypatch):
     symbols = UNIVERSE_SYMBOLS
     # Insert test data as needed (no backup/restore required)
     # Insert test data as needed (no backup/restore required)
-    from shared.utils.environment import Environment
+    from core.shared.utils.environment import Environment
     env = Environment(db_url=db_url)
     # DEBUG: Print all tables in the test DB after migrations and before any inserts
     async with asyncpg.create_pool(db_url) as pool:

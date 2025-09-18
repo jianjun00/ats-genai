@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.shared.data_handling.utils.environment import Environment, EnvironmentType
 from tests.utils.test_data_setup import setup_single_symbol_test
 
 

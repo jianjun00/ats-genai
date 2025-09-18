@@ -130,7 +130,7 @@ class PolygonVendor(BaseVendor):
 
 def create_polygon_config(api_key: Optional[str] = None) -> VendorConfig:
     """Create Polygon vendor configuration."""
-    from shared.utils.config_utils import get_api_key_with_fallback
+    from core.shared.utils.config_utils import get_api_key_with_fallback
     
     if not api_key:
         api_key = get_api_key_with_fallback('polygon')

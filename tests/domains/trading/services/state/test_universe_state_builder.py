@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 class TestUniverseStateIntervalBuilder:
     """Test suite for UniverseStateIntervalBuilder class."""

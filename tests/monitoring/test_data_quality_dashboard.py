@@ -15,7 +15,7 @@ with patch.dict('sys.modules', {
     'plotly.subplots': Mock(),
     'streamlit': Mock()
 }):
-    from monitoring.data_quality_dashboard import (
+    from infrastructure.monitoring.legacy.data_quality_dashboard import (
         DataQualityLevel,
         DataQualityMetric,
         DataQualityReport,

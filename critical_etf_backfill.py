@@ -14,8 +14,8 @@ import logging
 from datetime import datetime, date
 import time
 
-from shared.utils.vendor_api_keys import get_polygon_api_key, get_tiingo_api_key, get_eodhd_api_key
-from shared.utils.backfill_framework import get_vendor_database_connection, VendorRateLimiters
+from core.shared.utils.vendor_api_keys import get_polygon_api_key, get_tiingo_api_key, get_eodhd_api_key
+from core.shared.utils.backfill_framework import get_vendor_database_connection, VendorRateLimiters
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from core.config.environment import Environment, EnvironmentType
-from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from market_data.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
 import gin
 

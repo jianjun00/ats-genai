@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 # Import the classes we're testing
 try:
-    from ml.training_data.timeseries_sequence_training_generator import (
+    from domains.ml.legacy.training_data.timeseries_sequence_training_generator import (
         MultiTimeframeFeatureExtractor,
         TrainingDataConfig,
         SequenceWindowBuilder,

@@ -13,7 +13,7 @@ from datetime import date, datetime
 from dataclasses import dataclass
 import asyncpg
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 logger = logging.getLogger(__name__)
 

@@ -33,7 +33,7 @@ def test_critical_imports():
     
     # Core imports that failed before
     try:
-        from services.core.app.runner import Runner
+        from domains.trading.services.core.app.runner import Runner
     except ImportError as e:
         import_errors.append(f"Runner import failed: {e}")
     
@@ -365,7 +365,7 @@ class TestEndToEndIntegration:
         
         # Test core components
         try:
-            from services.core.app.runner import Runner
+            from domains.trading.services.core.app.runner import Runner
             from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
             from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
             

@@ -17,7 +17,7 @@ from tests.fixtures.setup_test_universe_data import setup_test_universe_data
 
 from state.training_data_callback import DateBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from state.universe_state_manager import UniverseStateManager
 
 class TestTrainingDataCallback:

@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.DEBUG)
 import pandas as pd
 from pathlib import Path
 from core.platform.config.environment import Environment, EnvironmentType
-from services.core.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.market_data.services.vendor_adapters.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
@@ -454,7 +454,7 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
 async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     import asyncpg
     async def insert_test_data():
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
         env.get_table_name = lambda table: f"test_{table}"
         conn = await asyncpg.connect(unit_test_db)
@@ -481,7 +481,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
         await conn.close()
     await insert_test_data()
     # Insert test data
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
     import asyncpg
@@ -531,7 +531,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     from datetime import datetime
     start_date = datetime.strptime('2025-07-20', '%Y-%m-%d').date()
     end_date = datetime.strptime('2025-07-27', '%Y-%m-%d').date()
-    from shared.utils.environment import Environment, EnvironmentType
+    from core.shared.utils.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
     df = await run_file_daily_price_ohlcv(

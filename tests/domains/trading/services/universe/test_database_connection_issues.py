@@ -7,7 +7,7 @@ These tests identify and reproduce the connection problems before fixing them.
 import pytest
 import asyncio
 from unittest.mock import Mock
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 from domains.trading.services.dynamic_modeling_universe import DynamicModelingUniverse
 
 class TestDatabaseConnectionIssues:

@@ -117,7 +117,7 @@ def validate_event_integration():
             print("⚠️  PyTorch not available, skipping event integration validation")
             return True
 
-        from events.event_integration import EventIntegrationLayer, EventConfig
+        from domains.analytics.events.event_integration import EventIntegrationLayer, EventConfig
 
         # Test basic initialization
         config = EventConfig(

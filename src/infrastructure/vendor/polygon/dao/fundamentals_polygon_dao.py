@@ -10,7 +10,7 @@ from datetime import date, datetime
 from dataclasses import dataclass
 import asyncpg
 import logging
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 @dataclass

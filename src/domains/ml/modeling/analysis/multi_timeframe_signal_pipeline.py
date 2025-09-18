@@ -14,7 +14,7 @@ from enum import Enum
 
 # Import the 15 ATS indicators
 try:
-    from signals.indicator import (
+    from domains.trading.signals.indicator import (
         # HLC Linear Regression Indicators (9)
         PL, L11, H11, Z1B, Z2B, EnvelopeBot, EnvelopeTop, Z5T, Z6T,
         # Five Nine Arithmetic Indicators (2)

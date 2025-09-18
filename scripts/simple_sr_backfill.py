@@ -24,13 +24,13 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Import existing S/R infrastructure
-from events.analysis.support_resistance_detector import (
+from domains.analytics.events.analysis.support_resistance_detector import (
     SupportResistanceDetector, SRLevel, SRTest, SREvent,
     SRType, SRLevelType, SRTestOutcome, Timeframe
 )
 
 # Import new event system components
-from events.producer import EventProducer
+from domains.analytics.events.producer import EventProducer
 
 # Configure logging
 logging.basicConfig(

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import json
 
 import asyncpg
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 @dataclass
 class MinuteBar:

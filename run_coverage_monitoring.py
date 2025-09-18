@@ -12,7 +12,7 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, 'src')
 
-from monitoring.coverage_monitor import CoverageMonitor
+from infrastructure.monitoring.legacy.coverage_monitor import CoverageMonitor
 
 async def run_monitoring_test():
     """Test the coverage monitoring system."""

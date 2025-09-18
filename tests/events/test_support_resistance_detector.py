@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from events.analysis.support_resistance_detector import (
+from domains.analytics.events.analysis.support_resistance_detector import (
     SupportResistanceDetector, SRLevel, SRTest, SREvent,
     SRType, SRLevelType, SRTestOutcome, Timeframe
 )

@@ -33,7 +33,7 @@ async def test_phase_2_enabled():
     print("-" * 40)
 
     try:
-        from shared.utils.feature_flags import is_enabled
+        from core.shared.utils.feature_flags import is_enabled
 
         # Check if features are properly enabled
         agent_enabled = is_enabled("enable_agent_networks")
@@ -76,7 +76,7 @@ async def test_phase_3_enabled():
     print("-" * 40)
 
     try:
-        from shared.utils.feature_flags import is_enabled
+        from core.shared.utils.feature_flags import is_enabled
 
         # Check if features are properly enabled
         llm_enabled = is_enabled("enable_llm_events")
@@ -148,7 +148,7 @@ def test_feature_flag_system():
     print("-" * 40)
 
     try:
-        from shared.utils.feature_flags import feature_manager, is_enabled
+        from core.shared.utils.feature_flags import feature_manager, is_enabled
 
         # Test all major features
         features_to_test = [

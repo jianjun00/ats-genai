@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from vendor.polygon.core.dao.daily_price_polygon_dao import DailyPricesPolygonDAO
 from domains.market_data.services.eod import daily_price_polygon
 

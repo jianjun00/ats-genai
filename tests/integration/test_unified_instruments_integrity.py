@@ -138,8 +138,8 @@ class TestUnifiedInstrumentCreation:
     async def test_unified_strategy_creation(self):
         """Test creation of comprehensive unification strategy"""
         from scripts.unified_instrument_population import UnifiedInstrumentPopulator
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -170,8 +170,8 @@ class TestDataIntegrityValidation:
     @pytest.mark.asyncio
     async def test_price_data_instrument_integrity(self):
         """Test referential integrity between price data and instruments"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -218,8 +218,8 @@ class TestDataIntegrityValidation:
     @pytest.mark.asyncio
     async def test_vendor_data_consistency(self):
         """Test consistency across vendor-specific instrument tables"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -292,8 +292,8 @@ class TestDataIntegrityValidation:
     @pytest.mark.asyncio
     async def test_unified_instrument_completeness(self):
         """Test completeness of unified instrument population"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -339,8 +339,8 @@ class TestDataQualityMetrics:
     @pytest.mark.asyncio
     async def test_instrument_data_completeness(self):
         """Test completeness of instrument data fields"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -381,8 +381,8 @@ class TestDataQualityMetrics:
     @pytest.mark.asyncio
     async def test_price_data_coverage(self):
         """Test coverage and quality of price data"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -435,8 +435,8 @@ class TestDataQualityMetrics:
     @pytest.mark.asyncio
     async def test_news_data_quality(self):
         """Test quality and coverage of news data"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -480,8 +480,8 @@ class TestSystemPerformance:
     @pytest.mark.asyncio
     async def test_query_performance(self):
         """Test performance of common queries"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -526,8 +526,8 @@ class TestSystemPerformance:
     @pytest.mark.asyncio
     async def test_index_effectiveness(self):
         """Test effectiveness of database indexes"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)
@@ -572,8 +572,8 @@ class TestEndToEndDataFlow:
     @pytest.mark.asyncio
     async def test_complete_data_pipeline(self):
         """Test end-to-end data pipeline functionality"""
-        from shared.utils.database import Database
-        from shared.utils.environment import Environment, EnvironmentType
+        from core.shared.utils.database import Database
+        from core.shared.utils.environment import Environment, EnvironmentType
 
         try:
             env = Environment(EnvironmentType.DEV)

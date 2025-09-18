@@ -19,7 +19,7 @@ from dataclasses import dataclass
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 @dataclass
 class TableSchema:

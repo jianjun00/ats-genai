@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.market_data.services.eod.unify_daily_price_polygon import DatabaseDailyPricesUnifier
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from core.dao.vendors_dao import VendorsDAO

@@ -90,7 +90,7 @@ class SharedUtilitiesValidator:
     def _check_api_key_migration(self, content: str) -> Dict[str, any]:
         """Check if API key patterns have been migrated"""
         shared_imports = [
-            'from shared.utils.vendor_api_keys import',
+            'from core.shared.utils.vendor_api_keys import',
             'get_polygon_api_key',
             'get_tiingo_api_key',
             'get_eodhd_api_key'
@@ -118,7 +118,7 @@ class SharedUtilitiesValidator:
     def _check_database_migration(self, content: str) -> Dict[str, any]:
         """Check if database connection patterns have been migrated"""
         shared_patterns = [
-            'from shared.utils.database_connections import',
+            'from core.shared.utils.database_connections import',
             'get_database_pool',
             'get_table_name'
         ]
@@ -141,7 +141,7 @@ class SharedUtilitiesValidator:
     def _check_statistics_migration(self, content: str) -> Dict[str, any]:
         """Check if statistics patterns have been migrated"""
         shared_patterns = [
-            'from shared.utils.backfill_framework import',
+            'from core.shared.utils.backfill_framework import',
             'BackfillStats',
             'VendorRateLimiters',
             'stats.log_final_summary'

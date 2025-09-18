@@ -35,8 +35,8 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from domains.trading.services.state.universe_state import UniverseStateInterval
-from shared.data_handling.utils.environment import Environment
-from services.core.app.runner import Runner
+from core.shared.data_handling.utils.environment import Environment
+from domains.trading.services.core.app.runner import Runner
 
 
 @pytest.mark.asyncio

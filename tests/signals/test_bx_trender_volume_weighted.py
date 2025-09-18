@@ -11,8 +11,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from signals.indicator import BXTrenderVolumeWeighted
-from signals.enhanced_indicators import BXTrenderIndicator
+from domains.trading.signals.indicator import BXTrenderVolumeWeighted
+from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
 
 class TestBXTrenderVolumeWeighted(unittest.TestCase):
     """Test cases for BX Trender Volume Weighted indicator."""

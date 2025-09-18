@@ -5,7 +5,7 @@ Tests for Environment configuration management.
 import os
 import pytest
 from unittest.mock import patch
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 
 @pytest.mark.unit
 class TestEnvironment:

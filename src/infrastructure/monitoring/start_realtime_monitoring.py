@@ -368,7 +368,7 @@ class MonitoringSystem:
 
         # Add vendor-specific metrics if available
         try:
-            from monitoring.vendor_metrics_service import VendorMetricsService
+            from infrastructure.monitoring.legacy.vendor_metrics_service import VendorMetricsService
             vendor_service = VendorMetricsService()
 
             # Get vendor health and collection stats

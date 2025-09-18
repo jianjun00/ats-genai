@@ -28,8 +28,8 @@ from pathlib import Path
 sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 
 from core.shared.run_context import RunIdGenerator, create_run_context
-from services.core.app.runner import Runner
-from shared.utils.environment import Environment, EnvironmentType
+from domains.trading.services.core.app.runner import Runner
+from core.shared.utils.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 

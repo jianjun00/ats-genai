@@ -8,7 +8,7 @@ import asyncio
 import json
 from datetime import datetime
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 from core.dao.instruments_dao import InstrumentsDAO
 from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
 from core.dao.instrument_polygon_dao import InstrumentPolygonDAO

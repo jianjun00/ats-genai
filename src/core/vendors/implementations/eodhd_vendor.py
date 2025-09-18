@@ -89,7 +89,7 @@ class EODHDVendor(BaseVendor):
 
 def create_eodhd_config(api_key: Optional[str] = None) -> VendorConfig:
     """Create EODHD vendor configuration."""
-    from shared.utils.config_utils import get_api_key_with_fallback
+    from core.shared.utils.config_utils import get_api_key_with_fallback
     
     if not api_key:
         api_key = get_api_key_with_fallback('eodhd')

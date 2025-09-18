@@ -41,8 +41,8 @@ sys.path.insert(0, 'src')
 # Real system imports - using actual production components
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-from shared.data_handling.utils.environment import Environment, EnvironmentType
-from services.core.app.runner import Runner
+from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+from domains.trading.services.core.app.runner import Runner
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from tests.utils.test_data_setup import setup_single_symbol_test
 

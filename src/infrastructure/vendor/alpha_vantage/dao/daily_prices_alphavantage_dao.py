@@ -1,4 +1,4 @@
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 import asyncpg
 
 class DailyPricesAlphaVantageDAO:

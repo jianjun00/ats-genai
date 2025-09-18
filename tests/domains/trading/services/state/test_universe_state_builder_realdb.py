@@ -5,7 +5,7 @@ from datetime import datetime, date
 
 from state.universe_state_builder import UniverseStateIntervalBuilder
 from state.universe_state_manager import UniverseStateManager
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

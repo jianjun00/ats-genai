@@ -13,7 +13,7 @@ from domains.market_data.services.market_cap.unified_market_cap_provider import 
     MarketCapValidationStatus,
     UnifiedMarketCap
 )
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 
 @pytest.fixture

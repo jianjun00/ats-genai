@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import statistics
 import aiohttp
 
-from shared.utils.environment import Environment
+from core.shared.utils.environment import Environment
 
 logger = logging.getLogger(__name__)
 

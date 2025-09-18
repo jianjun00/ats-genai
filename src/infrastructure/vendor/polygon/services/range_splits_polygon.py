@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import requests
 from datetime import datetime, date
-from shared.utils.environment import Environment, EnvironmentType
+from core.shared.utils.environment import Environment, EnvironmentType
 from infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
 
 # Table structure reference from migration:

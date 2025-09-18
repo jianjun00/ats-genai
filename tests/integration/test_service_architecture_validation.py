@@ -225,7 +225,7 @@ class TestServiceMigrationSuccess:
     def test_api_integration(self):
         """Test API integrates with service layer"""
         
-        from services.web_services.api.enhanced_instruments_api import app
+        from infrastructure.web.api.enhanced_instruments_api import app
         
         # Test API can be created
         assert app is not None

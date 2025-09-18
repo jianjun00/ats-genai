@@ -164,7 +164,7 @@ async def test_api_components():
     print("\n🌐 Testing API components...")
     
     try:
-        from services.web_services.api.enhanced_instruments_api import app
+        from infrastructure.web.api.enhanced_instruments_api import app
         print("✅ Enhanced API imports correctly")
         
         # Test app configuration

@@ -29,23 +29,23 @@ def test_imports():
     logger.info("Testing imports...")
 
     try:
-        from ml.models.autonomous_driving_inspired.data_preprocessing import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.data_preprocessing import (
             AutonomousFinanceDataLoader, MultiTimeframeProcessor,
             TimeframeConfig, AutonomousFinanceDataset
         )
         logger.info("✅ Data preprocessing imports successful")
 
-        from ml.models.autonomous_driving_inspired.transformer_model import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.transformer_model import (
             AutonomousFinanceTransformer, TransformerConfig
         )
         logger.info("✅ Transformer model imports successful")
 
-        from ml.models.autonomous_driving_inspired.attention_mechanisms import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.attention_mechanisms import (
             MultiScaleAttentionLayer, AttentionConfig
         )
         logger.info("✅ Attention mechanism imports successful")
 
-        from ml.models.autonomous_driving_inspired.training import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.training import (
             AutonomousFinanceTrainer, TrainingConfig, MultiTaskLoss
         )
         logger.info("✅ Training pipeline imports successful")
@@ -63,7 +63,7 @@ def test_data_loading():
     logger.info("Testing data loading components...")
 
     try:
-        from ml.models.autonomous_driving_inspired.data_preprocessing import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.data_preprocessing import (
             AutonomousFinanceDataLoader, MultiTimeframeProcessor,
             TimeframeConfig, AutonomousFinanceDataset
         )
@@ -146,7 +146,7 @@ def test_model_creation():
     logger.info("Testing model creation...")
 
     try:
-        from ml.models.autonomous_driving_inspired.transformer_model import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.transformer_model import (
             AutonomousFinanceTransformer, TransformerConfig
         )
 
@@ -183,7 +183,7 @@ def test_forward_pass():
     logger.info("Testing forward pass...")
 
     try:
-        from ml.models.autonomous_driving_inspired.transformer_model import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.transformer_model import (
             AutonomousFinanceTransformer, TransformerConfig
         )
 
@@ -240,10 +240,10 @@ def test_training_setup():
     logger.info("Testing training setup...")
 
     try:
-        from ml.models.autonomous_driving_inspired.transformer_model import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.transformer_model import (
             AutonomousFinanceTransformer, TransformerConfig
         )
-        from ml.models.autonomous_driving_inspired.training import (
+        from domains.ml.legacy.models.autonomous_driving_inspired.training import (
             AutonomousFinanceTrainer, TrainingConfig, MultiTaskLoss
         )
 

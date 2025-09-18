@@ -24,7 +24,7 @@ import pandas as pd
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.instrument_interval import InstrumentInterval
-from shared.data_handling.utils.environment import Environment
+from core.shared.data_handling.utils.environment import Environment
 from core.business.calendars.time_duration import TimeDuration
 
 
