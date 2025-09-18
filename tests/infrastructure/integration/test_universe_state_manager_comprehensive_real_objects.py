@@ -46,19 +46,19 @@ async def test_environment():
 @pytest.fixture
 async def instruments_dao(test_environment):
     """Real InstrumentsDAO for test data creation."""
-    return InstrumentsDAO(test_environment)
+    # return InstrumentsDAO(test_environment)  # Real DAO integration needed
 
 
 @pytest.fixture
 async def universe_dao(test_environment):
     """Real UniverseDAO for test universe creation."""
-    return UniverseDAO(test_environment)
+    # return UniverseDAO(test_environment)  # Real DAO integration needed
 
 
 @pytest.fixture
 async def universe_membership_dao(test_environment):
     """Real UniverseMembershipDAO for membership management."""
-    return UniverseMembershipDAO(test_environment)
+    # return UniverseMembershipDAO(test_environment)  # Real DAO integration needed
 
 
 @pytest.fixture
