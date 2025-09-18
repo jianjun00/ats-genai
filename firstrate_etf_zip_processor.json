@@ -30,15 +30,19 @@
     "etf_20250910_1min_adj_split.zip": true,
     "etf_20250911_1min_adj_split.zip": true,
     "etf_20250912_1min_adj_split.zip": true,
-    "etf_20250913_1min_adj_split.zip": true
+    "etf_20250913_1min_adj_split.zip": true,
+    "etf_20250914_1min_adj_split.zip": true,
+    "etf_20250915_1min_adj_split.zip": true,
+    "etf_20250916_1min_adj_split.zip": true,
+    "etf_20250917_1min_adj_split.zip": true
   },
   "etf_data_extracted": {},
   "parquet_files_created": {},
-  "last_run": "2025-09-13T13:38:30.001847",
+  "last_run": "2025-09-17T06:13:06.829050",
   "stats": {
-    "zip_files_scanned": 31,
-    "etf_records_extracted": 452750,
-    "parquet_files_written": 15,
-    "etfs_updated": 15
+    "zip_files_scanned": 35,
+    "etf_records_extracted": 512778,
+    "parquet_files_written": 30,
+    "etfs_updated": 30
   }
 }
