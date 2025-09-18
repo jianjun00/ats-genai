@@ -78,14 +78,12 @@ class TiingoEconomicEventsClient:
                     elif response.status == 429:
                         logger.warning("Tiingo API rate limit hit")
                         await asyncio.sleep(self.config.rate_limit_delay_seconds)  # Tiingo rate limit handling
-                        return []
+                        raise aiohttp.ClientError(f"Tiingo API rate limit exceeded (429). Service temporarily unavailable.")
                     else:
                         logger.error(f"Tiingo API error: {response.status}")
-                        return []
+                        raise aiohttp.ClientError(f"Tiingo API returned error status {response.status}")
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching Tiingo events: {e}")
-                return []
+            # Let aiohttp.ClientError and all other exceptions propagate - fail fast on errors
 
     async def fetch_crypto_economic_events(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """
@@ -126,11 +124,9 @@ class TiingoEconomicEventsClient:
                         return economic_events
                     else:
                         logger.error(f"Tiingo crypto API error: {response.status}")
-                        return []
+                        raise aiohttp.ClientError(f"Tiingo crypto API returned error status {response.status}")
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching Tiingo crypto events: {e}")
-                return []
+            # Let aiohttp.ClientError and all other exceptions propagate - fail fast on errors
 
     def _is_economic_event(self, article: Dict[str, Any]) -> bool:
         """
@@ -227,14 +223,8 @@ class TiingoEconomicEventsClient:
                 "raw_data": article_data
             }
 
-        except Exception as e:
-            logger.error(f"Error parsing Tiingo event data: {e}")
-            return {
-                "event_name": "Unknown Economic Event",
-                "source_vendor": "tiingo",
-                "raw_data": article_data,
-                "parse_error": str(e)
-            }
+        # Let all parsing exceptions propagate - fail fast on invalid data
+        # If data parsing fails, the application should fail rather than return incomplete data
 
     def _categorize_event(self, article_data: Dict[str, Any]) -> str:
         """

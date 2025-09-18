@@ -81,9 +81,8 @@ class EODHDEconomicEventsClient:
                         logger.error(f"EODHD API error: {response.status}")
                         return []
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching EODHD events: {e}")
-                return []
+            # Let all connection errors propagate - fail fast on network issues
+            # If API is unavailable, application should fail rather than return empty data
 
     async def fetch_macro_indicators(self, country: str = "US",
                                    indicators: Optional[List[str]] = None) -> List[Dict[str, Any]]:

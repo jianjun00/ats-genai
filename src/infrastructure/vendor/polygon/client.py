@@ -77,9 +77,8 @@ class PolygonEconomicEventsClient:
                         logger.error(f"Polygon API error: {response.status}")
                         return []
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching Polygon events: {e}")
-                return []
+            # Let all connection errors propagate - fail fast on network issues
+            # If API is unavailable, application should fail rather than return empty data
 
     async def fetch_specific_event(self, event_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -110,9 +109,8 @@ class PolygonEconomicEventsClient:
                         logger.error(f"Polygon API error for event {event_id}: {response.status}")
                         return None
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching Polygon event {event_id}: {e}")
-                return None
+            # Let all connection errors propagate - fail fast on network issues
+            # If API is unavailable, application should fail rather than return None
 
     def parse_polygon_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -163,22 +161,16 @@ class PolygonEconomicEventsClient:
             previous_change_percent = None
 
             if "actual_change_percent" in event_data:
-                try:
-                    actual_change_percent = Decimal(str(event_data["actual_change_percent"]))
-                except (ValueError, TypeError):
-                    pass
+                # Let data parsing exceptions propagate - fail fast on malformed data
+                actual_change_percent = Decimal(str(event_data["actual_change_percent"]))
 
             if "estimated_change_percent" in event_data:
-                try:
-                    estimated_change_percent = Decimal(str(event_data["estimated_change_percent"]))
-                except (ValueError, TypeError):
-                    pass
+                # Let data parsing exceptions propagate - fail fast on malformed data
+                estimated_change_percent = Decimal(str(event_data["estimated_change_percent"]))
 
             if "previous_change_percent" in event_data:
-                try:
-                    previous_change_percent = Decimal(str(event_data["previous_change_percent"]))
-                except (ValueError, TypeError):
-                    pass
+                # Let data parsing exceptions propagate - fail fast on malformed data
+                previous_change_percent = Decimal(str(event_data["previous_change_percent"]))
 
             return {
                 "event_name": event_data.get("name", "").strip(),

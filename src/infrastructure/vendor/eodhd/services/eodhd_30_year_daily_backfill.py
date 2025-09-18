@@ -207,10 +207,10 @@ class EODHD30YearBackfiller:
                     return data
                 else:
                     logger.debug(f"⚠️ Unexpected response format for {symbol}")
-                    return []
+                    raise ValueError(f"EODHD API returned unexpected response format for {symbol}")
             elif response.status_code == 404:
                 logger.debug(f"⚠️ No data available for {symbol}")
-                return []
+                raise ValueError(f"No data available for symbol {symbol} from EODHD API (404)")
             elif response.status_code == 429:
                 logger.warning(f"⚠️ Rate limit hit for {symbol}, waiting...")
                 time.sleep(60)  # Wait 1 minute
@@ -218,12 +218,9 @@ class EODHD30YearBackfiller:
             else:
                 logger.error(f"❌ EODHD API error for {symbol}: {response.status_code}")
                 self.legacy_stats['errors'] += 1
-                return []
+                raise ValueError(f"EODHD API error for {symbol}: HTTP {response.status_code}")
 
-        except Exception as e:
-            logger.error(f"❌ Error downloading {symbol}: {e}")
-            self.legacy_stats['errors'] += 1
-            return []
+        # Let all exceptions propagate - fail fast on API errors
 
     async def insert_daily_prices_idempotent(self, conn, instrument_id, symbol, prices):
         """Insert daily prices with idempotent UPSERT operations."""
@@ -248,9 +245,8 @@ class EODHD30YearBackfiller:
                     price.get('volume', 0),
                     instrument_id
                 ))
-            except Exception as e:
-                logger.error(f"❌ Error processing price record for {symbol}: {e}")
-                continue
+            # Let price record processing exceptions propagate
+            # If any price record is malformed, the entire batch should fail
 
         if not rows:
             return 0
@@ -278,10 +274,8 @@ class EODHD30YearBackfiller:
             self.legacy_stats['total_records'] += len(rows)
             return len(rows)
 
-        except Exception as e:
-            logger.error(f"❌ Database error inserting prices for {symbol}: {e}")
-            self.legacy_stats['errors'] += 1
-            return 0
+        # Let database exceptions propagate - fail fast on database errors
+        # If database insert fails, the application should halt rather than continue silently
 
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
