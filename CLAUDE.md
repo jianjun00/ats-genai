@@ -295,6 +295,79 @@ docker inspect ats-intg-analytics | grep NetworkMode # Verify network
 3. **Verify test passes**: `python scripts/run_dev.py test`
 4. **Integration testing**: `python scripts/run_dev.py test --test tests/integration/`
 
+### **🚨 CRITICAL: DEBUG-FIRST ISSUE RESOLUTION DISCIPLINE**
+
+**MANDATORY sequence for ALL bug fixes and issue resolution:**
+1. **Log inputs in the failing method FIRST**: Add detailed logging to capture actual inputs
+2. **Write failing test to reproduce the issue**: Create test with logged inputs that demonstrates the bug
+3. **Identify and fix the root cause**: Analyze test failure to find coding error
+4. **Verify test passes**: Ensure the fix resolves the issue completely
+
+**❌ NEVER fix issues without this sequence:**
+- **❌ NEVER apply workarounds without understanding root cause**
+- **❌ NEVER fix bugs based on assumptions about inputs**
+- **❌ NEVER skip logging step - inputs reveal the actual problem**
+- **❌ NEVER fix without a test that reproduces the exact failure**
+
+**✅ ALWAYS follow debug-first methodology:**
+- **✅ ALWAYS log actual inputs in the failing method first**
+- **✅ ALWAYS create a test that reproduces the exact failure scenario**
+- **✅ ALWAYS identify the specific coding error causing the issue**
+- **✅ ALWAYS verify your fix with the reproducing test**
+
+**Example Pattern:**
+```python
+# STEP 1: Add logging to failing method
+def process_training_data(data, timeframe, symbols):
+    logger.debug(f"INPUT DEBUG: data shape={data.shape}, timeframe={timeframe}, symbols={symbols}")
+    logger.debug(f"INPUT DEBUG: data types={data.dtypes}, first_row={data.iloc[0] if len(data) > 0 else 'EMPTY'}")
+    
+    # Method implementation that's failing
+    result = transform_data(data, timeframe)
+    return result
+
+# STEP 2: Write test with logged inputs that reproduces the issue
+def test_training_data_processing_bug_reproduction():
+    # Use exact inputs from debug logs that caused the failure
+    problematic_data = pd.DataFrame({
+        'timestamp': ['2024-01-01 09:30:00'],  # String instead of datetime
+        'symbol': ['AAPL'],
+        'price': [150.0]
+    })
+    
+    # This test MUST fail initially, demonstrating the bug
+    with pytest.raises(TypeError, match="cannot convert string to datetime"):
+        result = process_training_data(problematic_data, '5m', ['AAPL'])
+
+# STEP 3: Fix the identified coding error
+def process_training_data(data, timeframe, symbols):
+    # FIX: Convert string timestamps to datetime objects
+    if 'timestamp' in data.columns and data['timestamp'].dtype == 'object':
+        data['timestamp'] = pd.to_datetime(data['timestamp'])
+    
+    result = transform_data(data, timeframe)
+    return result
+
+# STEP 4: Verify test now passes
+def test_training_data_processing_fixed():
+    problematic_data = pd.DataFrame({
+        'timestamp': ['2024-01-01 09:30:00'],  # Same problematic input
+        'symbol': ['AAPL'],
+        'price': [150.0]
+    })
+    
+    # Now this should work without errors
+    result = process_training_data(problematic_data, '5m', ['AAPL'])
+    assert result is not None
+    assert len(result) > 0
+```
+
+**Why This Methodology Is Critical:**
+- **Logs reveal actual problematic inputs** (not assumed inputs)
+- **Tests with real failure cases** prevent regression
+- **Root cause identification** eliminates symptoms-only fixes
+- **Verification ensures** complete resolution
+
 ### **🎯 FOUR PILLARS OF TESTING EXCELLENCE**
 
 #### **1️⃣ TEST-FIRST DEVELOPMENT (MANDATORY TDD)**
