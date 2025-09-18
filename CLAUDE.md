@@ -368,6 +368,165 @@ def test_training_data_processing_fixed():
 - **Root cause identification** eliminates symptoms-only fixes
 - **Verification ensures** complete resolution
 
+### **🚨 CRITICAL: REAL OBJECTS AND FAIL-FAST REFACTORING**
+
+**MANDATORY systematic elimination of mock objects and exception masking across entire codebase**
+
+**Scope Identified:**
+- **277 files** with mock object usage requiring refactoring
+- **420 files** with exception handling in tests requiring cleanup
+- **Extensive exception handling** in source code masking real issues
+
+#### **🔧 MOCK OBJECT ELIMINATION (PHASE 1)**
+
+**❌ ANTI-PATTERN: Mock-Heavy Testing**
+```python
+@pytest.fixture
+def mock_instruments_dao(self):
+    dao = Mock()
+    dao.create_instrument = AsyncMock()
+    dao.get_instrument = AsyncMock()
+    return dao
+
+def test_service_logic(self, mock_instruments_dao):
+    service = InstrumentService(mock_instruments_dao)
+    # Test passes but may fail in production
+```
+
+**✅ REAL OBJECTS PATTERN: Database-Backed Testing**
+```python
+@pytest.fixture
+async def real_instruments_dao(self, test_environment):
+    return InstrumentsDAO(test_environment)
+
+@pytest.fixture
+async def clean_database(self, test_environment):
+    # Clean database state for each test
+    async with test_environment.get_connection() as conn:
+        await conn.execute("TRUNCATE TABLE instruments RESTART IDENTITY CASCADE")
+    yield test_environment
+
+async def test_service_logic(self, real_instruments_dao):
+    service = InstrumentService(real_instruments_dao)
+    # Test validates actual integration and database constraints
+```
+
+#### **🚨 EXCEPTION MASKING ELIMINATION (PHASE 2)**
+
+**❌ ANTI-PATTERN: Exception Masking in Tests**
+```python
+def test_service_health(self):
+    try:
+        result = service.check_health()
+        assert result is not None  # Weak assertion
+    except Exception as e:
+        pytest.fail(f"Error: {e}")  # Masks real issues
+```
+
+**✅ FAIL-FAST PATTERN: Clear Error Propagation**
+```python
+def test_service_health(self):
+    result = service.check_health()
+    assert result.status == 'healthy'
+    assert result.last_check_time is not None
+    assert result.error_count == 0
+    # Any exception propagates with clear stack trace
+```
+
+**❌ ANTI-PATTERN: Generic Exception Masking in Source Code**
+```python
+def get_market_data(symbol):
+    try:
+        data = api_client.fetch(symbol)
+        return data
+    except Exception as e:
+        logger.warning(f"API error: {e}")
+        return None  # Masks API issues
+```
+
+**✅ SPECIFIC EXCEPTION HANDLING: Actionable Error Management**
+```python
+def get_market_data(symbol):
+    try:
+        data = api_client.fetch(symbol)
+        return data
+    except APIRateLimitError as e:
+        raise MarketDataUnavailable(f"Rate limit exceeded for {symbol}: {e}")
+    except APIAuthenticationError as e:
+        raise ConfigurationError(f"Authentication failed for {symbol}: {e}")
+    # Let other exceptions propagate - they indicate real bugs
+```
+
+#### **📋 SYSTEMATIC REFACTORING APPROACH**
+
+**Priority Order:**
+1. **Core Business Logic Tests** (`tests/domains/*/services/`)
+2. **Integration Tests** (`tests/integration/`)  
+3. **Unit Tests** (`tests/unit/`)
+4. **UI/Browser Tests** (lowest priority)
+
+**Refactoring Steps per File:**
+1. **Replace Mock Fixtures** with real object fixtures
+2. **Remove Exception Masking** from test methods
+3. **Add Specific Assertions** that validate exact results
+4. **Run Tests** to identify real issues previously hidden
+5. **Fix Root Causes** revealed by real object testing
+
+#### **🔧 REAL OBJECT INFRASTRUCTURE REQUIRED**
+
+**Test Database Setup:**
+```python
+@pytest.fixture(scope="session")
+async def test_database():
+    db_url = "postgresql://test:test@localhost/test_db"
+    # Create test schema, run migrations
+    yield db_url
+
+@pytest.fixture
+async def clean_database(test_database):
+    # Truncate tables, reset sequences for each test
+    yield test_database
+```
+
+**Real Service Fixtures:**
+```python
+@pytest.fixture
+async def real_market_data_manager(test_environment):
+    manager = UnifiedMarketDataManager(
+        environment=test_environment,
+        data_path="/tmp/test_data"
+    )
+    await manager.initialize()
+    yield manager
+    await manager.cleanup()
+```
+
+#### **💥 EXPECTED IMPACT: INITIAL TEST FAILURES ARE GOOD**
+
+**When implementing real objects:**
+- **Many tests will initially fail** - this reveals hidden issues
+- **Database constraint violations** will surface real data problems  
+- **Integration issues** between components will be exposed
+- **Performance problems** with real data volumes will be discovered
+- **Configuration issues** with real services will be revealed
+
+**This is EXACTLY what we want** - real failures show real problems that were hidden by mocks.
+
+#### **📊 SUCCESS METRICS**
+
+**After Refactoring:**
+- ✅ **Zero Mock objects** in business logic tests
+- ✅ **Zero generic exception handling** in tests
+- ✅ **Specific exceptions** with actionable error messages in source code
+- ✅ **Real database integration** testing
+- ✅ **Clear failure propagation** revealing actual issues
+
+**Documentation References:**
+- **Full Methodology**: `REFACTORING_METHODOLOGY.md`
+- **Real Objects Example**: `tests/domains/instruments/services/test_instrument_service_impl_real_objects.py`
+- **Fail-Fast Tests Example**: `test_agent_comprehensive_playwright_fail_fast.py`
+- **Source Code Example**: `src/agents/system_monitor_fail_fast.py`
+
 ### **🎯 FOUR PILLARS OF TESTING EXCELLENCE**
 
 #### **1️⃣ TEST-FIRST DEVELOPMENT (MANDATORY TDD)**
