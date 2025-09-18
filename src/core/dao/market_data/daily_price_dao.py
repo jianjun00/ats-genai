@@ -11,9 +11,9 @@ from datetime import datetime, date
 import pandas as pd
 from sqlalchemy import text
 
-from core.dao.base.base_dao import BaseDAO
-from core.security.validation.data_validators import MarketDataValidator, ValidationResult
-from core.platform.logging.logger_config import get_logger
+from src.core.dao.base.base_dao import BaseDAO
+from src.core.security.validation.data_validators import MarketDataValidator, ValidationResult
+from src.core.platform.logging.logger_config import get_logger
 
 
 class DailyPriceDAO(BaseDAO):

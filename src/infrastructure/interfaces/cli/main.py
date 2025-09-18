@@ -6,14 +6,14 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from domains.analytics.events.api import router as events_router
+from src.domains.analytics.events.api import router as events_router
 from api.model_registry_endpoints import model_registry_bp
 from api.datasets_api import datasets_router
 import gin
 
 # Import environment-specific configuration system
-from core.config.environment_config import load_gin_config, get_current_env, get_env_info
-from core.config.validation import validate_current_config
+from src.core.config.environment_config import load_gin_config, get_current_env, get_env_info
+from src.core.config.validation import validate_current_config
 
 @gin.configurable
 @dataclass
@@ -184,7 +184,7 @@ async def get_configuration_info():
 async def check_db_connection() -> bool:
     try:
         # Import here to avoid circular imports
-        from core.platform.config.environment import Environment
+        from src.core.platform.config.environment import Environment
         import asyncpg
 
         # Create a new environment instance which will use the Gin config

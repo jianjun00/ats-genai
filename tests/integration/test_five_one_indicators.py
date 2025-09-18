@@ -4,7 +4,7 @@ import sys
 sys.path.append('src')
 
 import numpy as np
-from src.signals.indicator import FiveOneBuy, FiveOneSell
+from src.domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
 from src.storage.file_based_minute_manager import MinuteBar
 from datetime import datetime, timedelta
 
@@ -183,7 +183,7 @@ def test_integration_with_existing_indicators():
     """Test that Five One indicators work alongside existing indicators"""
     print("\n=== Testing Integration ===")
 
-    from src.signals.indicator import H11, L11, EBOT, ETOP
+    from src.domains.trading.signals.indicator import H11, L11, EBOT, ETOP
 
     # Create multiple indicators
     buy_indicator = FiveOneBuy()

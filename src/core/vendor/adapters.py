@@ -20,7 +20,7 @@ TOTAL CONSOLIDATION: 6,770 lines → 3,000 lines (56% reduction)
 USAGE:
 ======
 
-from core.vendor import VendorAdapterFactory, AdapterConfig
+from src.core.vendor import VendorAdapterFactory, AdapterConfig
 
 # Create adapter using factory
 adapter = VendorAdapterFactory.create_adapter(
@@ -51,8 +51,8 @@ import pandas as pd
 import requests
 import aiohttp
 
-from core.shared.utils.math_utils import calculate_vwap, calculate_returns
-from core.shared.utils.validation_utils import ValidationResult, validate_data_completeness
+from src.core.shared.utils.math_utils import calculate_vwap, calculate_returns
+from src.core.shared.utils.validation_utils import ValidationResult, validate_data_completeness
 
 logger = logging.getLogger(__name__)
 

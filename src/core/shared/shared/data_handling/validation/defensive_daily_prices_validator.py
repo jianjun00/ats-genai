@@ -26,10 +26,10 @@ import json
 
 # Defensive imports with graceful degradation
 try:
-    from core.platform.config.environment import Environment
+    from src.core.platform.config.environment import Environment
 except ImportError:
     try:
-        from core.shared.utils.environment import Environment
+        from src.core.shared.utils.environment import Environment
     except ImportError:
         # Emergency environment class for system stability
         class Environment:
@@ -37,7 +37,7 @@ except ImportError:
                 return f"dev_{name}"
 
 # Import our defensive components
-from core.defensive import (
+from src.core.defensive import (
     DefensiveFinancialValidator,
     SecurityLevel,
     SecureErrorHandler,

@@ -13,10 +13,10 @@ import time
 from datetime import date
 from typing import Optional, List, Dict, Any
 
-from core.shared.utils.environment import Environment, EnvironmentType
-from core.shared.utils.vendor_api_keys import get_polygon_api_key
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
+from src.core.shared.utils.environment import Environment, EnvironmentType
+from src.core.shared.utils.vendor_api_keys import get_polygon_api_key
+from src.core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from src.infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("populate_market_cap_polygon")
@@ -87,7 +87,7 @@ async def populate_market_cap_from_polygon(
         logger.info(f"Processing specific symbols: {instrument_symbols}")
     else:
         # Get instruments with Polygon vendor symbols
-        from core.shared.utils.database import Database
+        from src.core.shared.utils.database import Database
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=30.0)
 
         try:
@@ -127,7 +127,7 @@ async def populate_market_cap_from_polygon(
         logger.info(f"Processing batch {batch_start//batch_size + 1}: items {batch_start+1}-{batch_end} of {len(instrument_symbols)}")
 
         # Create connection pool for this batch
-        from core.shared.utils.database import Database
+        from src.core.shared.utils.database import Database
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=30.0)
         DailyMarketCapDAO(env)
         batch_records = []
@@ -216,7 +216,7 @@ async def resolve_instrument_id_by_polygon_vendor(env: Environment, symbol: str)
     """
     Resolve instrument_id for a symbol using the Polygon vendor.
     """
-    from core.shared.utils.database import Database
+    from src.core.shared.utils.database import Database
 
     pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
 

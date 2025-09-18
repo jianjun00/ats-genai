@@ -19,7 +19,7 @@ import logging
 # Import existing visualization components
 from visualization.volume_profile_chart import VolumeProfileChart
 try:
-    from domains.ml.legacy.evaluation.simple_trade_chart import SimpleTradeChart, TechnicalIndicators, MarketEvent
+    from src.domains.ml.legacy.evaluation.simple_trade_chart import SimpleTradeChart, TechnicalIndicators, MarketEvent
 except ImportError:
     # Create minimal classes if imports not available
     SimpleTradeChart = None

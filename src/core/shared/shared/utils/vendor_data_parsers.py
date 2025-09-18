@@ -8,7 +8,7 @@ Handles API response transformation, data validation, and standardization.
 USAGE:
 ======
 
-from core.shared.utils.vendor_data_parsers import (
+from src.core.shared.utils.vendor_data_parsers import (
     parse_polygon_price_data, 
     parse_eodhd_price_data,
     parse_tiingo_price_data,

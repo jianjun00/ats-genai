@@ -16,16 +16,16 @@ from dataclasses import dataclass
 import pickle
 from pathlib import Path
 
-from domains.ml.services.dynamic_training.adaptive_sr_model import (
+from src.domains.ml.services.dynamic_training.adaptive_sr_model import (
     AdaptiveSupportResistanceModel,
     AdaptiveModelConfig
 )
-from domains.ml.services.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
-from domains.ml.services.evaluation.sr_backtester import (
+from src.domains.ml.services.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
+from src.domains.ml.services.evaluation.sr_backtester import (
     SRBacktester,
     PredictionResult
 )
-from domains.ml.services.training_data.support_resistance_generator import SupportResistanceTrainingGenerator
+from src.domains.ml.services.training_data.support_resistance_generator import SupportResistanceTrainingGenerator
 
 @dataclass
 class AdaptiveBacktestConfig:

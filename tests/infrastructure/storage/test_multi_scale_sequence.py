@@ -20,7 +20,7 @@ from src.storage.multi_scale_sequence import (
     TimeScale,
     create_multi_scale_sequence
 )
-from src.events.event_integration import EventType
+from src.domains.analytics.events.event_integration import EventType
 
 class TestScaleFeatures:
     """Test ScaleFeatures data structure."""

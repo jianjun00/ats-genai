@@ -8,7 +8,7 @@ tracking, progress reporting, and rate limiting.
 USAGE:
 ======
 
-from core.shared.utils.backfill_framework import BackfillStats, RateLimiter
+from src.core.shared.utils.backfill_framework import BackfillStats, RateLimiter
 
 # Statistics tracking
 stats = BackfillStats()

@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from infrastructure.llm.local_model_client import (
+from src.infrastructure.llm.local_model_client import (
     LocalModelClient, LocalModelConfig, create_fingpt_config,
     create_llama_8b_config, create_llama_70b_config
 )

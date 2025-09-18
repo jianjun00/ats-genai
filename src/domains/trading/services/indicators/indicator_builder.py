@@ -1,8 +1,8 @@
 from typing import Dict, List
 from datetime import datetime
-from domains.trading.services.state.indicator_interval import IndicatorInterval
-from domains.trading.services.state.instrument_interval import InstrumentInterval
-from domains.trading.services.indicators.indicator_config import IndicatorConfig
+from src.domains.trading.services.state.indicator_interval import IndicatorInterval
+from src.domains.trading.services.state.instrument_interval import InstrumentInterval
+from src.domains.trading.services.indicators.indicator_config import IndicatorConfig
 
 class IndicatorBuilder:
     """

@@ -17,8 +17,8 @@ import schedule
 # Add src to PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-from core.shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.services.agent.instrument_data_agent import InstrumentDataAgent
+from src.core.shared.utils.environment import Environment, EnvironmentType
+from src.domains.market_data.services.agent.instrument_data_agent import InstrumentDataAgent
 
 # Configure logging
 logging.basicConfig(

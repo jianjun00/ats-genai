@@ -9,8 +9,8 @@ import logging
 from datetime import date
 from typing import List, Dict, Any, Optional
 
-from core.shared.utils.environment import Environment
-from domains.analytics.repositories.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
+from src.core.shared.utils.environment import Environment
+from src.domains.analytics.repositories.economic_events_dao import EconomicEventsDAO, EconomicEvent, EconomicEventType, EconomicEventVendorData
 from vendor.polygon.economic_events_client import PolygonEconomicEventsClient
 from vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
 from vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient

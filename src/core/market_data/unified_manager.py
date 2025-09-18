@@ -36,7 +36,7 @@ UnifiedMarketDataManager
 USAGE:
 ======
 
-from core.market_data import UnifiedMarketDataManager, MarketDataConfig
+from src.core.market_data import UnifiedMarketDataManager, MarketDataConfig
 
 # Initialize unified manager
 config = MarketDataConfig(

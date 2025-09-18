@@ -11,14 +11,14 @@ These tests verify that:
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock, MagicMock
-from src.agents.system_monitor import SystemMonitor, DatabaseConnectionError, SystemMonitorError
+from src.domains.data_quality.agents.system_monitor import SystemHealthMonitor, DatabaseConnectionError, SystemMonitorError
 
-class TestSystemMonitorFailFast:
+class TestSystemHealthMonitorFailFast:
     """Test fail-fast behavior in system monitoring"""
     
     def setup_method(self):
         """Setup test environment"""
-        self.monitor = SystemMonitor()
+        self.monitor = SystemHealthMonitor()
     
     @patch('src.core.config.secure_config_loader.secure_config')
     @patch('asyncpg.connect')
@@ -152,7 +152,7 @@ class TestSystemMonitorFailFast:
         mock_connect.side_effect = RuntimeError("Unexpected error")
         
         # Verify exception is raised instead of returning fake value
-        with pytest.raises(SystemMonitorError, match="Failed to count database connections"):
+        with pytest.raises(SystemHealthMonitorError, match="Failed to count database connections"):
             await self.monitor._count_database_connections()
     
     @patch('src.core.config.secure_config_loader.secure_config')
@@ -196,15 +196,15 @@ class TestSystemMonitorFailFast:
         
         # Verify the method contains proper exception raising
         assert "raise DatabaseConnectionError" in source
-        assert "raise SystemMonitorError" in source
+        assert "raise SystemHealthMonitorError" in source
         assert "return 0" not in source.split("return int(result)")[-1]  # No return 0 after the real return
 
-class TestSystemMonitorConfigurationUsage:
+class TestSystemHealthMonitorConfigurationUsage:
     """Test that system monitor properly uses Gin configuration"""
     
     def setup_method(self):
         """Setup test environment"""
-        self.monitor = SystemMonitor()
+        self.monitor = SystemHealthMonitor()
     
     @patch('src.core.config.secure_config_loader.secure_config')
     async def test_uses_gin_database_configuration(self, mock_config):
@@ -304,11 +304,11 @@ class TestLegacyVsNewBehavior:
         3. Track database availability separately from connection count
         4. Implement proper retry logic for transient failures
         """
-        from src.agents.system_monitor import DatabaseConnectionError, SystemMonitorError
+        from src.domains.data_quality.agents.system_monitor import DatabaseConnectionError, SystemHealthMonitorError
         
         # Verify proper exception types exist for monitoring
         assert issubclass(DatabaseConnectionError, Exception)
-        assert issubclass(SystemMonitorError, Exception)
+        assert issubclass(SystemHealthMonitorError, Exception)
         
         # These exceptions enable monitoring systems to:
         # - Log specific failure types

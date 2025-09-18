@@ -2,10 +2,10 @@ import os
 import requests
 from dotenv import load_dotenv
 from datetime import datetime
-from core.shared.utils.environment import Environment, EnvironmentType
-from core.shared.utils.vendor_api_keys import get_polygon_api_key
-from core.shared.utils.database_connections import get_database_pool, get_table_name
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from src.core.shared.utils.environment import Environment, EnvironmentType
+from src.core.shared.utils.vendor_api_keys import get_polygon_api_key
+from src.core.shared.utils.database_connections import get_database_pool, get_table_name
+from src.core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 import time
 from requests.exceptions import ConnectionError
 import ray
@@ -75,7 +75,7 @@ async def fetch_and_upsert_direct(symbols, env_type, table_name, polygon_api_key
             results.append((symbol, 'fail'))
 
     # Use the centralized database connection logic
-    from core.shared.utils.database import Database
+    from src.core.shared.utils.database import Database
     if details:
         try:
             # Set environment type in os.environ for Database class to use
@@ -181,7 +181,7 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
     # Use the centralized database connection logic
     import asyncio
     async def process_details():
-        from core.shared.utils.database import Database
+        from src.core.shared.utils.database import Database
         if details:
             try:
                 # Set environment type in os.environ for Database class to use
@@ -245,7 +245,7 @@ def fetch_and_upsert_ray(symbols, env_type, table_name, polygon_api_key):
     return results
 
 async def fetch_and_store_instruments(start_ticker='', ticker=None):
-    from core.shared.utils.database import Database
+    from src.core.shared.utils.database import Database
 
     # Use centralized database connection logic
     try:

@@ -8,7 +8,7 @@ Provides standardized error handling, retry logic, and response parsing.
 USAGE:
 ======
 
-from core.shared.utils.http_response_handlers import (
+from src.core.shared.utils.http_response_handlers import (
     handle_vendor_response,
     should_retry_response,
     parse_json_response

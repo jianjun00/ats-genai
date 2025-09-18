@@ -8,23 +8,23 @@ This is the only place where service implementations are wired to their dependen
 from typing import Dict, Any
 import logging
 
-from core.platform.config.environment import Environment, EnvironmentType
+from src.core.platform.config.environment import Environment, EnvironmentType
 
 # Service interfaces
-from domains.instruments.services.interfaces.instrument_service_interface import InstrumentServiceInterface
+from src.domains.instruments.services.interfaces.instrument_service_interface import InstrumentServiceInterface
 
 # Service implementations
-from domains.instruments.services.impl.instrument_service_impl import InstrumentServiceImpl
-# from domains.instruments.services.impl.cached_instrument_service_impl import CachedInstrumentServiceImpl  # TODO: Re-enable when dependencies resolved
+from src.domains.instruments.services.impl.instrument_service_impl import InstrumentServiceImpl
+# from src.domains.instruments.services.impl.cached_instrument_service_impl import CachedInstrumentServiceImpl  # TODO: Re-enable when dependencies resolved
 
 # DAO dependencies
-from core.dao.instruments.instruments_dao import InstrumentsDAO
-from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
-from core.dao.infrastructure.vendors_dao import VendorsDAO
-from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from src.core.dao.instruments.instruments_dao import InstrumentsDAO
+from src.core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
+from src.core.dao.infrastructure.vendors_dao import VendorsDAO
+from src.infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 # Vendor DAOs are imported dynamically as needed to avoid import errors
-# from infrastructure.vendor.tiingo.dao.instruments_tiingo_dao import InstrumentsTiingoDAO  # If exists
-# from infrastructure.vendor.eodhd.dao.instruments_eodhd_dao import InstrumentsEodhdDAO  # If exists
+# from src.infrastructure.vendor.tiingo.dao.instruments_tiingo_dao import InstrumentsTiingoDAO  # If exists
+# from src.infrastructure.vendor.eodhd.dao.instruments_eodhd_dao import InstrumentsEodhdDAO  # If exists
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +203,7 @@ async def provide_instrument_service() -> InstrumentServiceInterface:
 async def initialize_monitoring():
     """Initialize service monitoring"""
     try:
-        from infrastructure.monitoring.instrument_service_monitor import initialize_instrument_service_monitoring
+        from src.infrastructure.monitoring.instrument_service_monitor import initialize_instrument_service_monitoring
         await initialize_instrument_service_monitoring()
         logger.info("Service monitoring initialized successfully")
     except Exception as e:
@@ -213,7 +213,7 @@ async def initialize_monitoring():
 async def shutdown_monitoring():
     """Shutdown service monitoring"""
     try:
-        from infrastructure.monitoring.instrument_service_monitor import shutdown_instrument_service_monitoring
+        from src.infrastructure.monitoring.instrument_service_monitor import shutdown_instrument_service_monitoring
         await shutdown_instrument_service_monitoring()
         logger.info("Service monitoring shutdown complete")
     except Exception as e:

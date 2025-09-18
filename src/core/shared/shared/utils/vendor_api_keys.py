@@ -12,7 +12,7 @@ USAGE:
 # polygon_api_key = os.environ.get("POLYGON_API_KEY") or env.get_api_key('polygon')
 
 # Use this:
-from core.shared.utils.vendor_api_keys import get_vendor_api_key
+from src.core.shared.utils.vendor_api_keys import get_vendor_api_key
 
 polygon_api_key = get_vendor_api_key('polygon')
 eodhd_api_key = get_vendor_api_key('eodhd')
@@ -77,17 +77,17 @@ def get_vendor_api_key(vendor: str, env=None, required: bool = True) -> Optional
     # Method 2: Vendor utils system
     try:
         if vendor == 'polygon':
-            from infrastructure.vendor.polygon.utils import POLYGON_API_KEY
+            from src.infrastructure.vendor.polygon.utils import POLYGON_API_KEY
             if POLYGON_API_KEY:
                 logger.debug(f"Using {env_var_name} from polygon utils system")
                 return POLYGON_API_KEY
         elif vendor == 'eodhd':
-            from infrastructure.vendor.eodhd.utils import EODHD_API_KEY
+            from src.infrastructure.vendor.eodhd.utils import EODHD_API_KEY
             if EODHD_API_KEY:
                 logger.debug(f"Using {env_var_name} from eodhd utils system")
                 return EODHD_API_KEY
         elif vendor == 'tiingo':
-            from infrastructure.vendor.tiingo.utils import TIINGO_API_KEY
+            from src.infrastructure.vendor.tiingo.utils import TIINGO_API_KEY
             if TIINGO_API_KEY:
                 logger.debug(f"Using {env_var_name} from tiingo utils system")
                 return TIINGO_API_KEY

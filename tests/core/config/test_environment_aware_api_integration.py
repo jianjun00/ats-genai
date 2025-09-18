@@ -20,7 +20,7 @@ class TestEnvironmentAwareAPIs:
     @pytest.mark.asyncio
     async def test_training_datasets_api_uses_environment_config(self):
         """Test that training datasets API uses environment-specific database config"""
-        from src.ml.training_data.apis.training_dataset_simple_api import get_db_connection
+        from src.domains.ml.legacy.training_data.apis.training_dataset_simple_api import get_db_connection
 
         # Test DEV environment
         with patch.dict(os.environ, {
@@ -101,7 +101,7 @@ class TestEnvironmentAwareAPIs:
 
     def test_training_datasets_api_endpoint_responds_in_both_environments(self):
         """Integration test: API endpoint works in both environments"""
-        from src.services.analytics.unified_analytics_app import app
+        from src.infrastructure.services_legacy.analytics.unified_analytics_app import app
 
         client = TestClient(app)
 

@@ -11,7 +11,7 @@ from typing import List, Optional, Dict, Any
 from datetime import date
 import logging
 
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from src.domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
@@ -87,7 +87,7 @@ class OperationResponse(BaseModel):
     skipped_count: Optional[int] = None
 
 # Import dependency injection from service container
-from domains.instruments.services.config.service_container import provide_instrument_service
+from src.domains.instruments.services.config.service_container import provide_instrument_service
 
 # Use the proper dependency injection
 async def get_instrument_service() -> InstrumentServiceInterface:

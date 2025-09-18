@@ -13,7 +13,7 @@ import os
 import asyncio
 import logging
 from prometheus_client import start_http_server, Gauge, Counter, Histogram
-from core.config.environment import Environment, EnvironmentType
+from src.core.config.environment import Environment, EnvironmentType
 import gin
 
 # Configure logging
@@ -52,7 +52,7 @@ class DataQualityExporter:
 
     async def get_database_connection(self):
         """Get database connection using centralized config"""
-        from core.config.database import Database
+        from src.core.config.database import Database
         pool = await Database.create_connection_pool(env=self.env, max_retries=3, timeout=10.0)
         return pool
 

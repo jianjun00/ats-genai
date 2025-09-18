@@ -31,10 +31,10 @@ class EnvironmentType(Enum):
 
 # Conditional import for indicator config to avoid circular dependencies
 try:
-    from domains.trading.services.indicators.indicator_config import IndicatorConfig
+    from src.domains.trading.services.indicators.indicator_config import IndicatorConfig
 except ImportError:
     try:
-        from domains.trading.services.indicator_config import IndicatorConfig
+        from src.domains.trading.services.indicator_config import IndicatorConfig
     except ImportError:
         # Create a minimal IndicatorConfig for when the full module isn't available
         class IndicatorConfig:
@@ -47,10 +47,10 @@ except ImportError:
 
 # Defensive import handling for LoggingConfig
 try:
-    from core.config.logging_config import LoggingConfig
+    from src.core.config.logging_config import LoggingConfig
 except ImportError:
     try:
-        from core.logging.logger_config import LoggingConfig
+        from src.core.logging.logger_config import LoggingConfig
     except ImportError:
         # Emergency: Create a minimal LoggingConfig class for system stability
         import logging
@@ -174,16 +174,16 @@ class Environment:
         # Import Database before parsing Gin config to register it as a configurable
         # Try both old and new database import locations
         try:
-            from core.shared.data_handling.utils.database import Database
+            from src.core.shared.data_handling.utils.database import Database
         except ImportError:
             try:
-                from core.shared.utils.database import Database
+                from src.core.shared.utils.database import Database
             except ImportError:
-                from infrastructure.database.database import Database
+                from src.infrastructure.database.database import Database
 
         # Try to import polygon utils, make it optional
         try:
-            from infrastructure.vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
+            from src.infrastructure.vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
         except ImportError:
             try:
                 from vendor.polygon.utils import set_polygon_api_key, POLYGON_API_KEY
@@ -194,11 +194,11 @@ class Environment:
 
         # Defensive logging config initialization BEFORE gin parsing
         try:
-            from core.config.logging_config import LoggingConfig as ImportedLoggingConfig
+            from src.core.config.logging_config import LoggingConfig as ImportedLoggingConfig
             self.logging_config = ImportedLoggingConfig()
         except ImportError:
             try:
-                from core.logging.logger_config import LoggingConfig as ImportedLoggingConfig
+                from src.core.logging.logger_config import LoggingConfig as ImportedLoggingConfig
                 self.logging_config = ImportedLoggingConfig()
             except ImportError:
                 # Use the global fallback LoggingConfig defined at module level
@@ -455,12 +455,12 @@ class Environment:
     # --- Duration-related methods migrated from UniverseStateBuilder ---
     def get_base_duration(self) -> 'TimeDuration':
         # Default to 5 minutes if not set in config
-        from core.calendars.time_duration import TimeDuration
+        from src.core.calendars.time_duration import TimeDuration
         duration_str = self.get('universe.base_duration', '5m')
         return TimeDuration(duration_str)
 
     def get_target_durations(self) -> 'List[TimeDuration]':
-        from core.calendars.time_duration import TimeDuration
+        from src.core.calendars.time_duration import TimeDuration
         durations_str = self.get('universe.target_durations', '5m')
         durations = [d.strip() for d in durations_str.split(',')]
         return [TimeDuration(d) for d in durations]

@@ -9,8 +9,8 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, date
 from sqlalchemy import text
 
-from core.dao.base.base_dao import BaseDAO
-from core.platform.logging.logger_config import get_logger
+from src.core.dao.base.base_dao import BaseDAO
+from src.core.platform.logging.logger_config import get_logger
 
 
 class StockSplitsDAO(BaseDAO):

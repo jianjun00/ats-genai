@@ -20,7 +20,7 @@ TOTAL CONSOLIDATION: 30,000+ lines → 8,000 lines (73% reduction)
 USAGE:
 ======
 
-from core.ml import MLPipeline, ModelRegistry, FeatureStore
+from src.core.ml import MLPipeline, ModelRegistry, FeatureStore
 
 # Create unified pipeline
 pipeline = MLPipeline('price_prediction')
@@ -49,9 +49,9 @@ from typing import Any, Dict, List, Optional, Union, Type, Callable, Tuple
 import numpy as np
 import pandas as pd
 
-from core.database import RepositoryFactory, ConnectionManager
-from core.shared.utils.math_utils import calculate_statistics, calculate_returns
-from core.shared.utils.file_operations import ensure_directory_exists, safe_write_json, safe_read_json
+from src.core.database import RepositoryFactory, ConnectionManager
+from src.core.shared.utils.math_utils import calculate_statistics, calculate_returns
+from src.core.shared.utils.file_operations import ensure_directory_exists, safe_write_json, safe_read_json
 
 logger = logging.getLogger(__name__)
 

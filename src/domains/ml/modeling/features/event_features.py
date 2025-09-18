@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 import logging
 import asyncpg
-from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ import logging
 from datetime import date, timedelta
 from typing import Optional, List
 
-from core.shared.utils.environment import Environment, EnvironmentType
+from src.core.shared.utils.environment import Environment, EnvironmentType
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("compute_market_cap_from_shares")
@@ -34,7 +34,7 @@ async def compute_and_populate_market_cap(
         days_back: Number of days back to compute market cap for
         batch_size: Batch size for database operations
     """
-    from core.shared.utils.database import Database
+    from src.core.shared.utils.database import Database
 
     # Calculate date range
     end_date = date.today()

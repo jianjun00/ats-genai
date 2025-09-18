@@ -5,7 +5,7 @@ Provides consolidated analytics functionality split from the monolithic service.
 """
 
 try:
-    from core.analytics.service import AnalyticsService
+    from src.core.analytics.service import AnalyticsService
 except ImportError:
     AnalyticsService = None
 

@@ -19,7 +19,7 @@ TOTAL CONSOLIDATION: 11,135+ lines → 2,500 lines (78% reduction)
 USAGE:
 ======
 
-from core.database import Repository, ConnectionManager
+from src.core.database import Repository, ConnectionManager
 
 # Generic repository for any table
 repo = Repository[DailyPrice]('daily_prices')
@@ -41,8 +41,8 @@ import asyncpg
 import json
 from urllib.parse import urlparse
 
-from core.shared.utils.config_utils import DatabaseConfig, load_database_config
-from core.shared.utils.validation_utils import ValidationResult, validate_data_completeness
+from src.core.shared.utils.config_utils import DatabaseConfig, load_database_config
+from src.core.shared.utils.validation_utils import ValidationResult, validate_data_completeness
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +248,7 @@ class QueryBuilder:
     
     def _get_table_name(self) -> str:
         """Get environment-specific table name."""
-        from core.shared.utils.config_utils import get_table_name
+        from src.core.shared.utils.config_utils import get_table_name
         return get_table_name(self.table_name, self.environment)
 
 # =============================================================================

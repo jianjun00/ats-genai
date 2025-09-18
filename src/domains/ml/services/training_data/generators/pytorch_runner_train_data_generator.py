@@ -7,8 +7,8 @@ Train Data Generator using IndicatorRunner
 - Intended for integration with pytorch_multi_instrument_train.py
 """
 from app.indicator_runner import IndicatorRunner
-from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-from core.shared.utils.environment import Environment, EnvironmentType
+from src.domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+from src.core.shared.utils.environment import Environment, EnvironmentType
 
 # --- CONFIG ---
 LAG_STEPS = 10
@@ -20,8 +20,8 @@ TARGET_COL = 'close'
 # --- DATA GENERATOR ---
 async def generate_train_data_async(start_date, end_date, environment, universe_id, symbols=None, vendor='polygon', output_path="train_data.pt"):
     from modeling.train_data_callback import TrainDataCallback
-    from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-    from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
+    from src.domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
+    from src.domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
     callback = TrainDataCallback(
         lag_steps=LAG_STEPS,
         lead_steps=LEAD_STEPS,

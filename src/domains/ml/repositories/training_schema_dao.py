@@ -52,7 +52,7 @@ import asyncpg
 import json
 from typing import Dict, List, Optional, Any
 
-from core.platform.config.environment import Environment
+from src.core.platform.config.environment import Environment
 from src.schema.training_schema import TrainingDatasetSchema, ValidationResult
 
 

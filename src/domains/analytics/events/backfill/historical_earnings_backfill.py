@@ -18,7 +18,7 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from config.environment import Environment
-from core.logging.logger_config import get_logger
+from src.core.logging.logger_config import get_logger
 
 logger = get_logger(__name__)
 

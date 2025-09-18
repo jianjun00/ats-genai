@@ -15,7 +15,7 @@ import numpy as np
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.services.dataset_service import (
+from src.infrastructure.services_legacy.dataset_service import (
     DatasetService, DatasetMetadata, DatasetFileIterator
 )
 

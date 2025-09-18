@@ -6,7 +6,7 @@ for the shared utilities framework.
 """
 
 # Import the main Environment and EnvironmentType from the main location
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+from src.core.shared.data_handling.utils.environment import Environment, EnvironmentType
 
 # Re-export for backwards compatibility
 __all__ = ['Environment', 'EnvironmentType']

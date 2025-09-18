@@ -29,10 +29,10 @@ from collections import defaultdict
 import re
 
 import asyncpg
-from core.platform.config.environment import Environment
-from domains.market_data.services.llm.enhanced_news_llm_processor import EnhancedLLMNewsProcessor, NewsAnalysisResult
-from domains.market_data.services.llm.news_llm_processor import NewsArticle
-from infrastructure.llm.multi_provider_client import MultiProviderLLMClient
+from src.core.platform.config.environment import Environment
+from src.domains.market_data.services.llm.enhanced_news_llm_processor import EnhancedLLMNewsProcessor, NewsAnalysisResult
+from src.domains.market_data.services.llm.news_llm_processor import NewsArticle
+from src.infrastructure.llm.multi_provider_client import MultiProviderLLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -937,7 +937,7 @@ async def create_realtime_news_service(
     """Create and configure the real-time news ingestion service."""
 
     # Create enhanced LLM processor
-    from domains.market_data.services.llm.enhanced_news_llm_processor import create_enhanced_llm_processor
+    from src.domains.market_data.services.llm.enhanced_news_llm_processor import create_enhanced_llm_processor
     llm_processor = await create_enhanced_llm_processor(llm_client, db_pool, env)
 
     # Create service

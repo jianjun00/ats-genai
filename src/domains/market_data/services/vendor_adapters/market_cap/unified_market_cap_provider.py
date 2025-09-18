@@ -24,11 +24,11 @@ import asyncpg
 import logging
 import statistics
 
-from core.shared.utils.environment import Environment
-from domains.market_data.services.fundamentals.unified_fundamental_provider import (
+from src.core.shared.utils.environment import Environment
+from src.domains.market_data.services.fundamentals.unified_fundamental_provider import (
     UnifiedFundamentalProvider
 )
-from domains.market_data.services.eod.unified_daily_price_validator import (
+from src.domains.market_data.services.eod.unified_daily_price_validator import (
     UnifiedDailyPriceValidator
 )
 

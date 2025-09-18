@@ -20,8 +20,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.database.connection_manager import get_connection_manager
-from core.config.settings import get_settings
+from src.core.database.connection_manager import get_connection_manager
+from src.core.config.settings import get_settings
 
 
     # ==============================================
@@ -31,7 +31,7 @@ from core.config.settings import get_settings
     def get_training_dataset_sequences(self, dataset_id: int) -> Dict[str, Any]:
         """Get available sequences for a training dataset."""
         try:
-            from core.database.connection_manager import get_raw_connection
+            from src.core.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
 
@@ -174,7 +174,7 @@ from core.config.settings import get_settings
     def get_training_dataset_visualization_data(self, dataset_id: int, start_idx: int = 0, sequence_id: str = None, target_symbol: str = None) -> Dict[str, Any]:
         """Get visualization data for training dataset sequences (OHLC + indicators for Plotly charts)."""
         try:
-            from core.database.connection_manager import get_raw_connection
+            from src.core.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
             import json
@@ -398,7 +398,7 @@ from core.config.settings import get_settings
 
                             # Sanitize response to prevent NaN/Infinity JSON serialization errors
                             try:
-                                from core.sanitizers.json_sanitizer import validate_api_response
+                                from src.core.sanitizers.json_sanitizer import validate_api_response
                                 response = validate_api_response(response)
                                 logger.info("✅ Visualization API response sanitized for JSON safety")
                             except Exception as sanitizer_error:
@@ -427,7 +427,7 @@ from core.config.settings import get_settings
     def get_training_dataset_sequence_multi_timeframe(self, dataset_id: int, sequence_id: str, row_index: int = 50) -> Dict[str, Any]:
         """Get multi-timeframe OHLC data for a specific sequence, showing 21 bars centered around row_index."""
         try:
-            from core.database.connection_manager import get_raw_connection
+            from src.core.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
             import json
@@ -620,7 +620,7 @@ from core.config.settings import get_settings
 
                     # Sanitize response to prevent NaN/Infinity JSON serialization errors
                     try:
-                        from core.sanitizers.json_sanitizer import validate_api_response
+                        from src.core.sanitizers.json_sanitizer import validate_api_response
                         response = validate_api_response(response)
                         logger.info("✅ API response sanitized for JSON safety")
                     except Exception as sanitizer_error:
@@ -769,7 +769,7 @@ from core.config.settings import get_settings
     def get_bar_collection_metrics(self) -> Dict[str, Any]:
         """Get metrics about bars collected organized by collection time and bar time."""
         try:
-            from core.database.connection_manager import get_raw_connection
+            from src.core.database.connection_manager import get_raw_connection
             import psycopg2.extras
 
             with get_raw_connection() as conn:

@@ -8,7 +8,7 @@ Provides standardized file operations, path management, and data persistence uti
 USAGE:
 ======
 
-from core.shared.utils.file_operations import (
+from src.core.shared.utils.file_operations import (
     ensure_directory_exists,
     safe_write_json,
     safe_read_json,

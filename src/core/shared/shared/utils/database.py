@@ -7,10 +7,10 @@ while the codebase transitions to the new shared.utils.database_connections modu
 
 # Import the main Database class from its actual location
 try:
-    from infrastructure.database.database import Database
+    from src.infrastructure.database.database import Database
 except ImportError:
     try:
-        from core.shared.data_handling.utils.database import Database
+        from src.core.shared.data_handling.utils.database import Database
     except ImportError:
         # Create a minimal Database class for compatibility
         class Database:
@@ -18,7 +18,7 @@ except ImportError:
 
 # Import new utilities from database_connections module
 try:
-    from core.shared.utils.database_connections import get_database_pool, get_table_name
+    from src.core.shared.utils.database_connections import get_database_pool, get_table_name
 except ImportError:
     # Provide minimal implementations if not available
     async def get_database_pool(*args, **kwargs):
@@ -31,7 +31,7 @@ except ImportError:
 
 # Legacy function name compatibility
 try:
-    from infrastructure.database.database import get_connection_pool
+    from src.infrastructure.database.database import get_connection_pool
 except ImportError:
     # Alias get_database_pool to get_connection_pool for backward compatibility
     get_connection_pool = get_database_pool

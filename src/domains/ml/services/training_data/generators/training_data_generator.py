@@ -50,12 +50,12 @@ import asyncpg
 import json
 import os
 
-from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.services.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig
+from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
+from src.domains.trading.services.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig
 from modeling.factor_models import ResidualReturnCalculator
 from modeling.event_features import EventSequenceExtractor, EventCalendar, flatten_event_features_for_model
 from src.schema.training_schema import TrainingDatasetSchema, FeatureSchema, LabelSchema, DatasetMetadata, FeatureType, DataType, ValidationResult
-from core.dao.training_schema_dao import TrainingSchemaDAO
+from src.core.dao.training_schema_dao import TrainingSchemaDAO
 
 logger = logging.getLogger(__name__)
 

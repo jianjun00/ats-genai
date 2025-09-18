@@ -8,7 +8,7 @@ Provides standardized financial calculations, statistical analysis, and numerica
 USAGE:
 ======
 
-from core.shared.utils.math_utils import (
+from src.core.shared.utils.math_utils import (
     calculate_returns,
     calculate_vwap,
     calculate_moving_average,

@@ -1,7 +1,7 @@
 import os
 import httpx
 from datetime import datetime
-from domains.analytics.events.schemas import EventIn
+from src.domains.analytics.events.schemas import EventIn
 
 IEX_API_KEY = os.getenv("IEX_API_KEY")
 

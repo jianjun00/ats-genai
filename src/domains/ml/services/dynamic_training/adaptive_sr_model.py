@@ -16,8 +16,8 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import logging
 
-from domains.ml.services.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
-from domains.ml.services.training_data.support_resistance_generator import (
+from src.domains.ml.services.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
+from src.domains.ml.services.training_data.support_resistance_generator import (
     SupportResistanceTrainingGenerator,
     TrainingExample
 )

@@ -17,10 +17,10 @@ import torch.nn as nn
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.services.model_registry_service import (
+from src.infrastructure.services_legacy.model_registry_service import (
     ModelRegistryService, ModelMetadata, create_input_signature_from_dataset_config
 )
-from src.services.model_tracker import ModelTracker
+from src.infrastructure.services_legacy.model_tracker import ModelTracker
 
 class SimpleTestModel(nn.Module):
     """Simple PyTorch model for testing."""
@@ -356,7 +356,7 @@ class TestModelTrackerDecorator(unittest.TestCase):
     def test_decorator_functionality(self):
         """Test the @track_model_training decorator."""
 
-        from src.services.model_tracker import track_model_training
+        from src.infrastructure.services_legacy.model_tracker import track_model_training
 
         @track_model_training
         def sample_training_function(model_name='test_decorated_model',

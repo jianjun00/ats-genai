@@ -254,7 +254,7 @@ class SystemHealthMonitor:
         
         # Trigger alert manager evaluation
         try:
-            from domains.data_quality.agents.alert_manager import get_alert_manager
+            from src.domains.data_quality.agents.alert_manager import get_alert_manager
             alert_manager = get_alert_manager(self.agent_id)
             await alert_manager.evaluate_alert_rules(alert_data, "system_monitor")
         except Exception as e:

@@ -7,7 +7,7 @@ import json
 from unittest.mock import patch
 import re
 
-from src.services.analytics_service import UnifiedAnalyticsService as AnalyticsService
+from src.domains.analytics.services.analytics_service import UnifiedAnalyticsService as AnalyticsService
 
 
 class TestSequenceSelectionCriticalFixes:

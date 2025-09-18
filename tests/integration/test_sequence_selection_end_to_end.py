@@ -6,7 +6,7 @@ import pytest
 import json
 from unittest.mock import patch
 
-from src.services.analytics_service import AnalyticsService
+from src.domains.analytics.services.analytics_service import AnalyticsService
 
 
 class TestSequenceSelectionEndToEnd:

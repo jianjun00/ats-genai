@@ -1,7 +1,7 @@
 import asyncio
 import requests
 from datetime import datetime, date
-from infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
+from src.infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
 
 
 # get_all_spy_tickers is obsolete, use InstrumentPolygonDAO.get_all_symbols instead.
@@ -18,7 +18,7 @@ def fetch_splits_polygon(ticker, api_key):
 async def insert_splits_polygon(splits, ticker, dao=None):
     if dao is None:
 
-        from infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
+        from src.infrastructure.database.repositories.stock_splits_polygon_dao import StockSplitsPolygonDAO
         env = Environment()
         dao = StockSplitsPolygonDAO(env)
     if not splits:

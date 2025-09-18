@@ -6,7 +6,7 @@ Example: Multi-instrument Time Series Forecasting with Transformer (darts)
 """
 from darts import TimeSeries
 from darts.models import TransformerModel
-from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 # --- Config ---
 LAG_DAYS = 30      # Number of past days to use as features

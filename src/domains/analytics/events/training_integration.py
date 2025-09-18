@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any, Iterator
 from pathlib import Path
 
-from domains.analytics.events.proto.events_pb2 import Event, EventType, MessageToDict
-from domains.analytics.events.database import EventStorage
+from src.domains.analytics.events.proto.events_pb2 import Event, EventType, MessageToDict
+from src.domains.analytics.events.database import EventStorage
 
 logger = logging.getLogger(__name__)
 

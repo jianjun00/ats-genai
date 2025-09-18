@@ -8,7 +8,7 @@ Provides standardized validation for symbols, dates, data quality, and business 
 USAGE:
 ======
 
-from core.shared.utils.validation_utils import (
+from src.core.shared.utils.validation_utils import (
     validate_stock_symbol,
     validate_date_range,
     validate_dividend_data,

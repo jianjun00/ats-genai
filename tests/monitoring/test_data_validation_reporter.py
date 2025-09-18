@@ -9,7 +9,7 @@ from datetime import date, datetime
 from unittest.mock import Mock, patch, AsyncMock
 import json
 
-from src.monitoring.data_validation_reporter import (
+from src.infrastructure.monitoring.legacy.data_validation_reporter import (
     DataValidationReporter,
     ValidationIssue,
     ValidationReport,

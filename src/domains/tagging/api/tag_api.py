@@ -6,14 +6,14 @@ from fastapi import APIRouter, HTTPException, Query, Depends, Body
 from pydantic import BaseModel
 import logging
 
-from domains.tagging.models.tag_models import (
+from src.domains.tagging.models.tag_models import (
     Tag, TagCategory, EntityTag, TagFilter, TaggedEntity, TagUsageStats,
     TagAnalytics, CreateTagRequest, ApplyTagRequest, BulkTagRequest,
     TagSuggestion, TagSource
 )
-from domains.tagging.services.tag_service import TagService
-from domains.tagging.repositories.tag_repository import TagRepository
-from infrastructure.database.connection_manager import get_database_connection
+from src.domains.tagging.services.tag_service import TagService
+from src.domains.tagging.repositories.tag_repository import TagRepository
+from src.infrastructure.database.connection_manager import get_database_connection
 
 logger = logging.getLogger(__name__)
 

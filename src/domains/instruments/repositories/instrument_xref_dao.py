@@ -8,8 +8,8 @@ history with temporal data for migration analysis.
 from typing import Dict, Any, List, Optional, Union
 from datetime import date
 
-from core.dao.base.base_dao import BaseDAO
-from core.security.validation.data_validators import ValidationResult
+from src.core.dao.base.base_dao import BaseDAO
+from src.core.security.validation.data_validators import ValidationResult
 
 
 class InstrumentXrefDAO(BaseDAO):
@@ -332,7 +332,7 @@ class InstrumentXrefDAO(BaseDAO):
         """Close an active exchange entry by setting end_date."""
         try:
             # Use raw connection for UPDATE operations
-            from core.platform.database.connection_manager import get_raw_connection
+            from src.core.platform.database.connection_manager import get_raw_connection
 
             with get_raw_connection() as conn:
                 with conn.cursor() as cursor:

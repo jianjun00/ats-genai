@@ -5,7 +5,7 @@ Example: Time Series Forecasting with Transformer (darts)
 """
 from darts import TimeSeries
 from darts.models import TransformerModel
-from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 # --- Config ---
 INSTRUMENT_ID = 1  # Example instrument

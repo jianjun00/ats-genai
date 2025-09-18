@@ -31,7 +31,7 @@ class EnvironmentType(Enum):
 
 # Conditional import for IndicatorConfig to avoid breaking tests
 try:
-    from domains.trading.services.indicators.indicator_config import IndicatorConfig
+    from src.domains.trading.services.indicators.indicator_config import IndicatorConfig
 except ImportError:
     # Create a minimal placeholder for testing
     class IndicatorConfig:
@@ -44,10 +44,10 @@ except ImportError:
 
 # Defensive import handling for LoggingConfig
 try:
-    from core.platform.config.logging_config import LoggingConfig
+    from src.core.platform.config.logging_config import LoggingConfig
 except ImportError:
     try:
-        from core.platform.logging.logger_config import LoggingConfig
+        from src.core.platform.logging.logger_config import LoggingConfig
     except ImportError:
         # Emergency: Create a minimal LoggingConfig class for system stability
         import logging
@@ -160,14 +160,14 @@ class Environment:
         print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
-        from core.platform.config.database import Database
+        from src.core.platform.config.database import Database
         from vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
 
         import gin
         if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
             if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
                 gin.parse_config_file(config_path)
-        from core.platform.config.logging_config import LoggingConfig
+        from src.core.platform.config.logging_config import LoggingConfig
         self.logging_config = LoggingConfig()
         set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config
         print(f"[DEBUG] POLYGON_API_KEY after Gin load: {POLYGON_API_KEY}")
@@ -430,12 +430,12 @@ class Environment:
     # --- Duration-related methods migrated from UniverseStateBuilder ---
     def get_base_duration(self) -> 'TimeDuration':
         # Default to 5 minutes if not set in config
-        from core.business.calendars.time_duration import TimeDuration
+        from src.core.business.calendars.time_duration import TimeDuration
         duration_str = self.get('universe.base_duration', '5m')
         return TimeDuration(duration_str)
 
     def get_target_durations(self) -> 'List[TimeDuration]':
-        from core.business.calendars.time_duration import TimeDuration
+        from src.core.business.calendars.time_duration import TimeDuration
         durations_str = self.get('universe.target_durations', '5m')
         durations = [d.strip() for d in durations_str.split(',')]
         return [TimeDuration(d) for d in durations]

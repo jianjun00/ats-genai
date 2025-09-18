@@ -33,10 +33,10 @@ from datetime import datetime, timedelta
 
 
 import gin
-from core.dao.trading.universe_state_interval_dao import UniverseStateIntervalDAO
-from core.dao.trading.instrument_interval_dao import InstrumentIntervalDAO
-from core.dao.trading.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
-from core.dao.trading.factor_interval_dao import FactorIntervalDAO
+from src.core.dao.trading.universe_state_interval_dao import UniverseStateIntervalDAO
+from src.core.dao.trading.instrument_interval_dao import InstrumentIntervalDAO
+from src.core.dao.trading.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+from src.core.dao.trading.factor_interval_dao import FactorIntervalDAO
 
 @gin.configurable
 class UniverseStateManager:
@@ -333,9 +333,9 @@ class UniverseStateManager:
 
         # 🚨 CRITICAL FIX (September 10, 2025): Fixed database import path
         # ISSUE: ImportError: cannot import name 'get_raw_connection' from incorrect module
-        # ORIGINAL: from core.shared.data_handling.utils.database import get_raw_connection (BROKEN)
-        # SOLUTION: Use correct import path from core.platform.database.connection_manager
-        from core.platform.database.connection_manager import get_raw_connection
+        # ORIGINAL: from src.core.shared.data_handling.utils.database import get_raw_connection (BROKEN)
+        # SOLUTION: Use correct import path from src.core.platform.database.connection_manager
+        from src.core.platform.database.connection_manager import get_raw_connection
 
         table_name = f"{self.env.table_prefix}instruments"
 
@@ -389,7 +389,7 @@ class UniverseStateManager:
                 record_count = len(getattr(universe_state, 'instrument_intervals', {})) if universe_state else 0
                 self.logger.debug(f"save_universe_state DB: {record_count} instrument intervals, ts={timestamp}")
                 # Parse dates using common utility
-                from core.shared.data_handling.utils.datetime_utils import parse_flexible_datetime
+                from src.core.shared.data_handling.utils.datetime_utils import parse_flexible_datetime
                 start_dt = parse_flexible_datetime(metadata['start_date_time'])
                 end_dt = parse_flexible_datetime(metadata['end_date_time'])
 
@@ -707,7 +707,7 @@ class UniverseStateManager:
     def add_interval_to_rolling_cache(self, inst_id: int, timeframe_str: str, interval) -> None:
         """Add interval to rolling cache with window management and duplicate prevention."""
         # Import here to avoid circular imports
-        from domains.trading.services.state.instrument_interval import InstrumentInterval
+        from src.domains.trading.services.state.instrument_interval import InstrumentInterval
         
         self.ensure_timeframe_cache(timeframe_str)
         
@@ -925,7 +925,7 @@ class UniverseStateManager:
                 return None
             
             # Query the database for universe state intervals matching the criteria
-            from core.business.calendars.time_duration import TimeDuration
+            from src.core.business.calendars.time_duration import TimeDuration
             duration = TimeDuration(timeframe)
             
             # Convert current_time to start_date_time and end_date_time for the interval
@@ -969,7 +969,7 @@ class UniverseStateManager:
                     print(f"      ⏰ Interval {i}: start_time={start_time}")
                 
             # Import UniverseStateInterval here to avoid circular imports
-            from domains.trading.services.state.universe_state import UniverseStateInterval
+            from src.domains.trading.services.state.universe_state import UniverseStateInterval
             
             instrument_intervals = {}
             
@@ -1003,7 +1003,7 @@ class UniverseStateManager:
                 return None
             
             # Create UniverseStateInterval from cached InstrumentInterval objects
-            from core.business.calendars.time_duration import TimeDuration
+            from src.core.business.calendars.time_duration import TimeDuration
             
             # Convert timeframe string to TimeDuration and calculate end time
             duration = TimeDuration(timeframe)
@@ -1049,7 +1049,7 @@ class UniverseStateManager:
                 return None
             
             # Calculate future time for the target interval
-            from core.business.calendars.time_duration import TimeDuration
+            from src.core.business.calendars.time_duration import TimeDuration
             duration = TimeDuration(timeframe)
             interval_minutes = duration.get_duration_minutes()
             if interval_minutes is None:
@@ -1082,8 +1082,8 @@ class UniverseStateManager:
         This is a fallback method when database retrieval is not implemented.
         It reconstructs a UniverseStateInterval from cached InstrumentInterval objects for future time.
         """
-        from domains.trading.services.state.universe_state import UniverseStateInterval
-        from core.business.calendars.time_duration import TimeDuration
+        from src.domains.trading.services.state.universe_state import UniverseStateInterval
+        from src.core.business.calendars.time_duration import TimeDuration
         
         try:
             # Check if we have cached data for this timeframe
@@ -1148,7 +1148,7 @@ if __name__ == "__main__":
     import pandas as pd
     from datetime import datetime, timedelta
     import matplotlib.pyplot as plt
-    from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+    from src.domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
     # Assume Universe and other dependencies are available or stubbed for now
 
     parser = argparse.ArgumentParser(description="Universe State Manager CLI")
@@ -1200,7 +1200,7 @@ if __name__ == "__main__":
             builder_mod = importlib.import_module(module_name)
             BuilderClass = getattr(builder_mod, class_name)
         else:
-            from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+            from src.domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
             BuilderClass = UniverseStateIntervalBuilder
         # TODO: Load actual Universe object by universe_id
         universe = None  # Replace with actual loading logic

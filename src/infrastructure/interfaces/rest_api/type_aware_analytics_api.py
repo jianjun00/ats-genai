@@ -10,9 +10,9 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import type system components
-from domains.ml.schema.registry import schema_registry
-from domains.ml.schema.types import FieldSemantics
-from domains.analytics.services.analytics_service import AnalyticsService
+from src.domains.ml.schema.registry import schema_registry
+from src.domains.ml.schema.types import FieldSemantics
+from src.domains.analytics.services.analytics_service import AnalyticsService
 
 logger = logging.getLogger(__name__)
 

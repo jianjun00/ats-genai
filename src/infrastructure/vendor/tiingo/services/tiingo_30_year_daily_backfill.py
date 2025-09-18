@@ -27,8 +27,8 @@ except ImportError:
     PROMETHEUS_AVAILABLE = False
     logging.warning("prometheus_client not installed. Metrics will not be pushed to Prometheus.")
 
-from core.shared.utils.vendor_api_keys import get_tiingo_api_key
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters, get_vendor_database_connection, get_vendor_table_name
+from src.core.shared.utils.vendor_api_keys import get_tiingo_api_key
+from src.core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters, get_vendor_database_connection, get_vendor_table_name
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

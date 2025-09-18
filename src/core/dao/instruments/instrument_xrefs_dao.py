@@ -1,8 +1,8 @@
-from core.platform.config.environment import Environment
+from src.core.platform.config.environment import Environment
 import asyncpg
 from typing import Optional, List, Dict, Any
 
-from core.dao.infrastructure.vendors_dao import VendorsDAO
+from src.core.dao.infrastructure.vendors_dao import VendorsDAO
 
 class InstrumentXrefsDAO:
     async def count_xrefs(self) -> int:
@@ -37,7 +37,7 @@ class InstrumentXrefsDAO:
         """
         Lookup symbol from instrument_xrefs using instrument_id and vendor_id (looked up by vendor_name).
         """
-        from core.dao.infrastructure.vendors_dao import VendorsDAO
+        from src.core.dao.infrastructure.vendors_dao import VendorsDAO
         vendors_dao = VendorsDAO(self.env)
         vendor_row = await vendors_dao.get_vendor_by_name(vendor_name)
         print(f"[DEBUG][get_symbol_by_instrument_id_vendor_name] instrument_id={instrument_id}, vendor_name={vendor_name}, vendor_row={vendor_row}")
@@ -252,7 +252,7 @@ class InstrumentXrefsDAO:
         if not instrument_ids:
             return {}
 
-        from core.dao.infrastructure.vendors_dao import VendorsDAO
+        from src.core.dao.infrastructure.vendors_dao import VendorsDAO
         vendors_dao = VendorsDAO(self.env)
         vendor_row = await vendors_dao.get_vendor_by_name(vendor_name)
 

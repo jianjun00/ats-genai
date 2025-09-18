@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 async def regenerate_training_data():
     """Regenerate training data for both AAPL and TSLA."""
 
-    from domains.ml.services.training_data.runners.training_data_callback_runner import run_training_data_job_for_symbol
+    from src.domains.ml.services.training_data.runners.training_data_callback_runner import run_training_data_job_for_symbol
 
     print("🚀 Regenerating Training Data with Fixed Indicators")
     print("=" * 55)

@@ -97,7 +97,7 @@ class UniverseMembershipDAO:
         try:
             async with pool.acquire() as conn:
                 if instrument_id is None and symbol is not None:
-                    from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+                    from src.domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
                     xrefs_dao = InstrumentXrefsDAO(self.env)
                     instrument_id = await xrefs_dao.resolve_instrument_id(symbol, vendor_id, start_at)
                 print(f"[DEBUG] add_membership: instrument_id={instrument_id} type={type(instrument_id)} symbol={symbol} vendor_id={vendor_id} start_at={start_at}")

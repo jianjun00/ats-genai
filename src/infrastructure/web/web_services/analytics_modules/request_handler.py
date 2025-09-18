@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from core.sanitizers.json_sanitizer import JSONSanitizer
+from src.core.sanitizers.json_sanitizer import JSONSanitizer
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .analytics_service_core import UnifiedAnalyticsService
 
@@ -546,7 +546,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from src.core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             with get_raw_connection() as conn:
@@ -583,7 +583,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from src.core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             from psycopg2 import sql
 
@@ -634,7 +634,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from src.core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
 
             with get_raw_connection() as conn:
@@ -671,7 +671,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from src.core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             with get_raw_connection() as conn:
@@ -707,7 +707,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from src.core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from psycopg2 import sql
 

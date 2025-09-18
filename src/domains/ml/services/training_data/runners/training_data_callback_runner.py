@@ -26,13 +26,13 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 
-from domains.trading.services.core.app.runner import Runner
-from core.shared.utils.environment import Environment, EnvironmentType
-from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+from src.domains.trading.services.core.app.runner import Runner
+from src.core.shared.utils.environment import Environment, EnvironmentType
+from src.domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from src.domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 # Removed: SequenceStorageManager - not needed per PRD/DRD QR5 single-step architecture
-from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
-from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+from src.domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+from src.domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 
 
 @gin.configurable
@@ -514,7 +514,7 @@ async def main():
             # Fetch symbols from universe membership
             logger.info(f"🌍 Fetching instruments from universe_id={args.universe_id}")
             try:
-                from core.platform.database.connection_manager import get_raw_connection
+                from src.core.platform.database.connection_manager import get_raw_connection
                 with get_raw_connection() as conn:
                     with conn.cursor() as cursor:
                         cursor.execute("""
@@ -689,7 +689,7 @@ async def main():
 
         # Create a run record for tracking monthly training data
         try:
-            from domains.trading.services.core.app.database_manager import DatabaseManager
+            from src.domains.trading.services.core.app.database_manager import DatabaseManager
             db_manager = DatabaseManager(environment)
 
             # Create run record for this training data generation
@@ -746,10 +746,10 @@ async def main():
 
         # CRITICAL FIX: Use UnifiedMarketDataManager for training data generation  
         # Supports multiple data sources including FirstRate minute bar data
-        from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType
+        from src.core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType
         
         # Initialize unified market data manager with correct path for minute bar data
-        from core.market_data.unified_manager import StorageBackend
+        from src.core.market_data.unified_manager import StorageBackend
         config = MarketDataConfig(
             vendors=[VendorType.FIRSTRATE],  # Use FirstRate for minute data
             storage_backend=StorageBackend.FILE, 
@@ -763,8 +763,8 @@ async def main():
         # ARCHITECTURE FIX: Add UniverseStateBuilder to populate universe state cache
         # UniverseStateBuilder calls get_minute_ohlc_batch to access cached data from FileBasedMinuteMarketDataManager
         # This populates the universe state cache that training data generator needs
-        from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-        from domains.trading.services.state.universe_state_manager import UniverseStateManager
+        from src.domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+        from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
         
         # Create universe state manager for shared cache
         # Set enable_run_isolation to False for training data generation (no need for isolation)
@@ -803,7 +803,7 @@ async def main():
         logger.info(f"   Target durations: {len(universe_state_builder.target_durations)} timeframes")
         
         # 🚨 CRITICAL FIX: Create UniverseManager with proper symbols and initialize it
-        from domains.trading.services.universe.universe_manager import UniverseManager
+        from src.domains.trading.services.universe.universe_manager import UniverseManager
         universe_manager = UniverseManager(
             env=environment,
             universe_id=args.universe_id or 1,

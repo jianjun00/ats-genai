@@ -1,5 +1,5 @@
 import asyncpg
-from core.platform.config.environment import Environment
+from src.core.platform.config.environment import Environment
 
 class DividendTiingoDAO:
     def __init__(self, env: Environment):

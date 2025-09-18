@@ -16,17 +16,17 @@ import logging
 sys.path.append(str(Path(__file__).parent.parent.parent.parent.parent))
 
 try:
-    from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
+    from src.domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
 except ImportError:
     print("Warning: Could not import MonthlyTrainingDataDAO - using mock data")
     MonthlyTrainingDataDAO = None
 
-from domains.ml.services.training_data.quality.data_quality_analyzer import AdvancedDataQualityAnalyzer
-from domains.ml.services.training_data.bulk.bulk_generator import BulkTrainingDataGenerator
-from domains.ml.services.training_data.search.advanced_search import TrainingDataSearchEngine, AdvancedSearchQuery, SearchFilter, SearchOperator
+from src.domains.ml.services.training_data.quality.data_quality_analyzer import AdvancedDataQualityAnalyzer
+from src.domains.ml.services.training_data.bulk.bulk_generator import BulkTrainingDataGenerator
+from src.domains.ml.services.training_data.search.advanced_search import TrainingDataSearchEngine, AdvancedSearchQuery, SearchFilter, SearchOperator
 
 try:
-    from domains.ml.services.training_data.monitoring.real_time_monitor import RealTimeMonitor
+    from src.domains.ml.services.training_data.monitoring.real_time_monitor import RealTimeMonitor
 except ImportError:
     print("Warning: Could not import RealTimeMonitor - monitoring features disabled")
     RealTimeMonitor = None

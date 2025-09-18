@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 try:
-    from src.signals.indicator import FiveTwoBuy, FiveTwoSell
+    from src.domains.trading.signals.indicator import FiveTwoBuy, FiveTwoSell
 except ImportError as e:
     print(f"❌ Cannot import indicators: {e}")
     print("Make sure to run: PYTHONPATH=src python test_five_two_indicators.py")
@@ -147,7 +147,7 @@ def test_five_two_opposite_conditions():
     """Test that Five Two indicators work opposite to Five One indicators"""
     print("\n=== Testing Five Two vs Five One Opposite Conditions ===")
 
-    from src.signals.indicator import FiveOneBuy, FiveOneSell
+    from src.domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
 
     # Test scenario: declining lows (102 -> 100)
     print("\nScenario: Declining lows (102 -> 100)")

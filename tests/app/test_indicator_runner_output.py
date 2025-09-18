@@ -6,7 +6,7 @@ import asyncio
 
 import importlib.util
 
-from tests.fixtures.insert_test_daily_price_polygon import insert_test_daily_price_polygon
+from tests.fixtures.insert_test_daily_prices import insert_test_daily_price_polygon
 
 def test_indicator_runner_df(unit_test_db, setup_test_universe_data):
     """

@@ -19,7 +19,7 @@ from datetime import datetime
 import logging
 from pathlib import Path
 
-from infrastructure.monitoring.service_metrics import (
+from src.infrastructure.monitoring.service_metrics import (
     ServiceMetricsCollector,
     ServiceHealthMonitor,
     ResourceMonitor,
@@ -816,7 +816,7 @@ USAGE EXAMPLES:
 
 1. Running the Dashboard:
     import uvicorn
-    from infrastructure.monitoring.dashboard import dashboard_app
+    from src.infrastructure.monitoring.dashboard import dashboard_app
 
     uvicorn.run(dashboard_app, host="0.0.0.0", port=8080)
 
@@ -831,7 +831,7 @@ USAGE EXAMPLES:
     http://localhost:8080/api/alerts/active
 
 3. Integrating with Services:
-    from infrastructure.monitoring.service_metrics import monitor_performance
+    from src.infrastructure.monitoring.service_metrics import monitor_performance
 
     @monitor_performance('MyService', 'my_operation')
     async def my_service_method(self):
@@ -839,7 +839,7 @@ USAGE EXAMPLES:
         pass
 
 4. Custom Health Checks:
-    from infrastructure.monitoring.dashboard import health_monitor
+    from src.infrastructure.monitoring.dashboard import health_monitor
 
     async def my_health_check():
         # Check service health
@@ -848,7 +848,7 @@ USAGE EXAMPLES:
     health_monitor.register_health_check('MyService', my_health_check)
 
 5. Custom Benchmarks:
-    from infrastructure.monitoring.service_metrics import get_global_metrics_collector, PerformanceBenchmark
+    from src.infrastructure.monitoring.service_metrics import get_global_metrics_collector, PerformanceBenchmark
 
     collector = get_global_metrics_collector()
     collector.add_benchmark(PerformanceBenchmark(

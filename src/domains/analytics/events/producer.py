@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Dict
 
-from domains.analytics.events.proto.events_pb2 import (
+from src.domains.analytics.events.proto.events_pb2 import (
     Event, EventType, create_news_event, create_earnings_event,
     create_technical_signal_event
 )
@@ -172,7 +172,7 @@ class EventProducer:
         Returns:
             str: Event ID of published event
         """
-        from domains.analytics.events.proto.events_pb2 import SignalType, SignalDirection
+        from src.domains.analytics.events.proto.events_pb2 import SignalType, SignalDirection
 
         # Convert string enums to proper enum values
         signal_type_enum = getattr(SignalType, f"SIGNAL_TYPE_{signal_type.upper()}", SignalType.SIGNAL_TYPE_UNSPECIFIED)

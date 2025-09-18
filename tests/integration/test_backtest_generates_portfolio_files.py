@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import date
 import asyncpg
 
-from src.ml.evaluation.sr_backtester import SRBacktester
+from src.domains.ml.legacy.evaluation.sr_backtester import SRBacktester
 
 class TestBacktestGeneratesPortfolioFiles:
     """Test that running actual backtests generates portfolio files"""

@@ -3,8 +3,8 @@ from .instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
 from typing import Optional, Dict
-from domains.trading.services.state.universe_state import UniverseStateInterval
-from core.shared.utils.environment import Environment
+from src.domains.trading.services.state.universe_state import UniverseStateInterval
+from src.core.shared.utils.environment import Environment
 from datetime import datetime
 
 class UniverseStateIntervalDAO:
@@ -16,11 +16,11 @@ class UniverseStateIntervalDAO:
         instrument_indicator_intervals, and factor_intervals from the DB and construct a
         fully populated UniverseStateInterval.
         """
-        from core.calendars.time_duration import TimeDuration
-        from domains.trading.services.state.universe_state import UniverseStateInterval
-        from domains.trading.services.state.instrument_interval import InstrumentInterval
-        from domains.trading.services.state.indicator_interval import IndicatorInterval
-        from domains.trading.services.state.factor_interval import FactorInterval
+        from src.core.calendars.time_duration import TimeDuration
+        from src.domains.trading.services.state.universe_state import UniverseStateInterval
+        from src.domains.trading.services.state.instrument_interval import InstrumentInterval
+        from src.domains.trading.services.state.indicator_interval import IndicatorInterval
+        from src.domains.trading.services.state.factor_interval import FactorInterval
         duration = TimeDuration(row['duration'])
         start_date_time = row['start_date_time']
         end_date_time = row['end_date_time']
@@ -89,8 +89,8 @@ class UniverseStateIntervalDAO:
             instrument_indicator_intervals=instrument_indicator_intervals
         )
     def _row_to_interval(self, row: dict):
-        from core.calendars.time_duration import TimeDuration
-        from domains.trading.services.state.universe_state import UniverseStateInterval
+        from src.core.calendars.time_duration import TimeDuration
+        from src.domains.trading.services.state.universe_state import UniverseStateInterval
         from datetime import datetime
         # Parse duration
         duration = TimeDuration(row['duration'])

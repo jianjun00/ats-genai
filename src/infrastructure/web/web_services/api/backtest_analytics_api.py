@@ -20,8 +20,8 @@ import uvicorn
 import gin
 
 # Import environment-specific configuration system
-from core.config.environment_config import load_gin_config, get_current_env, get_env_info
-from core.config.validation import validate_current_config
+from src.core.config.environment_config import load_gin_config, get_current_env, get_env_info
+from src.core.config.validation import validate_current_config
 
 from analytics.portfolio_analytics import (
     PortfolioAnalyticsEngine,
@@ -317,7 +317,7 @@ async def list_backtests(
     """List available backtest runs with filtering"""
     try:
         # Query the database for actual backtest runs
-        from core.platform.database.connection_manager import get_raw_connection
+        from src.core.platform.database.connection_manager import get_raw_connection
         import psycopg2.extras
 
         with get_raw_connection() as conn:
@@ -465,7 +465,7 @@ async def get_forecasts(
     """Get support/resistance forecasts with confidence levels"""
     try:
         # Fetch actual forecast data from the database
-        from core.platform.database.connection_manager import get_raw_connection
+        from src.core.platform.database.connection_manager import get_raw_connection
         import psycopg2.extras
 
         with get_raw_connection() as conn:

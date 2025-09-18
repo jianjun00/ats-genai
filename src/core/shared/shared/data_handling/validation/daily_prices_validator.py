@@ -13,7 +13,7 @@ from enum import Enum
 import statistics
 from decimal import Decimal
 
-from core.platform.config.environment import Environment
+from src.core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

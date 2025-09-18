@@ -14,17 +14,17 @@ import gin
 
 # Optional imports - will be None if not available
 try:
-    from domains.trading.services.state.universe_state_manager import UniverseStateManager
+    from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
 except ImportError:
     UniverseStateManager = None
 
 try:
-    from core.business.calendars.time_duration import TimeDuration
+    from src.core.business.calendars.time_duration import TimeDuration
 except ImportError:
     TimeDuration = None
 
 try:
-    from core.platform.config.environment import Environment
+    from src.core.platform.config.environment import Environment
 except ImportError:
     Environment = None
 
@@ -74,7 +74,7 @@ class MultiTimeframeFeatureExtractor:
         # Initialize S/R feature extractor if support_resistance is in feature_types
         if hasattr(config, 'feature_types') and 'support_resistance' in config.feature_types:
             try:
-                from domains.ml.services.training_data.features.support_resistance_features import (
+                from src.domains.ml.services.training_data.features.support_resistance_features import (
                     SupportResistanceFeatureExtractor
                 )
                 self.sr_extractor = SupportResistanceFeatureExtractor()
@@ -173,7 +173,7 @@ class MultiTimeframeFeatureExtractor:
         # Volume Profile features
         if len(data) >= 20 and all(col in data.columns for col in ['open', 'high', 'low', 'close', 'volume']):
             try:
-                from domains.trading.signals.indicator import VolumeProfile
+                from src.domains.trading.signals.indicator import VolumeProfile
 
                 # Create InstrumentInterval-compatible objects for Volume Profile
                 intervals = []
@@ -671,7 +671,7 @@ class TimeSeriesSequenceTrainingGenerator:
 
             # Fallback: Use InstrumentXrefsDAO directly
             if self.universe_manager and self.universe_manager.env:
-                from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
+                from src.core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
                 dao = InstrumentXrefsDAO(self.universe_manager.env)
                 instrument_id = await dao.resolve_instrument_id_by_symbol(symbol)
                 if instrument_id:

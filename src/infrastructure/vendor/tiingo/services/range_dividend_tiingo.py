@@ -3,14 +3,14 @@ import asyncio
 import requests
 import time
 from datetime import datetime, date
-from core.shared.utils.environment import Environment, EnvironmentType
-from core.shared.utils.vendor_api_keys import get_tiingo_api_key
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-from core.shared.utils.http_response_handlers import handle_vendor_response
-from core.shared.utils.data_transformers import transform_vendor_dividend, parse_vendor_date
-from core.shared.utils.validation_utils import validate_dividend_data, validate_date_range
-from core.shared.utils.config_utils import get_api_key_with_fallback
-from infrastructure.database.repositories.dividend_tiingo_dao import DividendTiingoDAO
+from src.core.shared.utils.environment import Environment, EnvironmentType
+from src.core.shared.utils.vendor_api_keys import get_tiingo_api_key
+from src.core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from src.core.shared.utils.http_response_handlers import handle_vendor_response
+from src.core.shared.utils.data_transformers import transform_vendor_dividend, parse_vendor_date
+from src.core.shared.utils.validation_utils import validate_dividend_data, validate_date_range
+from src.core.shared.utils.config_utils import get_api_key_with_fallback
+from src.infrastructure.database.repositories.dividend_tiingo_dao import DividendTiingoDAO
 import asyncpg
 
 def fetch_tiingo_dividends(symbol, api_key, start_date, end_date, stats=None, rate_limiter=None):

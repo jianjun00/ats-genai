@@ -3,7 +3,7 @@ from typing import Dict, List, Any
 import torch
 import torch.nn as nn
 
-from domains.trading.services.state.forecast_interval import ForecastInterval
+from src.domains.trading.services.state.forecast_interval import ForecastInterval
 
 
 class MultiInstrumentTransformer(nn.Module):

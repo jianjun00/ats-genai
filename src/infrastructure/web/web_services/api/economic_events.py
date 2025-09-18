@@ -9,9 +9,9 @@ from typing import List, Dict, Any, Optional
 from datetime import date, datetime, timedelta
 from pydantic import BaseModel
 
-from core.platform.config.environment import Environment
-from core.config.database import get_connection_pool
-from core.dao.economic_events_dao import EconomicEventsDAO
+from src.core.platform.config.environment import Environment
+from src.core.config.database import get_connection_pool
+from src.core.dao.economic_events_dao import EconomicEventsDAO
 
 router = APIRouter(prefix="/economic-events", tags=["Economic Events"])
 
@@ -63,7 +63,7 @@ async def get_economic_events_dao() -> EconomicEventsDAO:
     """Dependency to get Economic Events DAO."""
     # In a real application, this would be injected via dependency injection
     # For now, we'll create it here
-    from core.platform.config.environment import EnvironmentType
+    from src.core.platform.config.environment import EnvironmentType
     env = Environment(EnvironmentType.DEV)  # Adjust as needed
     pool = await get_connection_pool(env)
     return EconomicEventsDAO(pool, env)

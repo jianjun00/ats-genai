@@ -24,10 +24,10 @@ from enum import Enum
 
 # Defensive imports with graceful degradation
 try:
-    from core.platform.config.environment import Environment
+    from src.core.platform.config.environment import Environment
 except ImportError:
     try:
-        from core.shared.utils.environment import Environment
+        from src.core.shared.utils.environment import Environment
     except ImportError:
         # Emergency environment class for system stability
         class Environment:

@@ -19,8 +19,8 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from storage.file_based_minute_manager import FileBasedMinuteManager, MinuteBar
-from core.platform.config.environment import Environment
-from core.platform.logging.logger_config import get_logger
+from src.core.platform.config.environment import Environment
+from src.core.platform.logging.logger_config import get_logger
 
 # Configure Gin
 try:

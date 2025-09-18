@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from collections import deque
-from core.business.calendars.market_calendar_utils import get_market_calendar, get_last_open_close
+from src.core.business.calendars.market_calendar_utils import get_market_calendar, get_last_open_close
 import pandas as pd
 
 class MarketDataStreamer:

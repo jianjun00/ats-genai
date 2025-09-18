@@ -8,7 +8,7 @@ Handles complex import dependencies gracefully.
 USAGE:
 ======
 
-from core.shared.utils.database_connections import get_database_pool, get_table_name
+from src.core.shared.utils.database_connections import get_database_pool, get_table_name
 
 # Get database connection with automatic fallbacks
 pool = await get_database_pool(environment='dev')
@@ -49,8 +49,8 @@ async def get_database_pool(environment: str = 'dev', max_retries: int = 3, time
 
     # Method 1: Try advanced Database class from codebase
     try:
-        from core.shared.data_handling.utils.database import Database
-        from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+        from src.core.shared.data_handling.utils.database import Database
+        from src.core.shared.data_handling.utils.environment import Environment, EnvironmentType
 
         env = Environment(env_type=EnvironmentType(environment))
         pool = await Database.create_connection_pool(env=env, max_retries=max_retries, timeout=timeout)
@@ -142,7 +142,7 @@ def get_table_name(base_name: str, environment: str = 'dev') -> str:
     """
     # Try to use Environment class first
     try:
-        from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+        from src.core.shared.data_handling.utils.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType(environment))
         return env.get_table_name(base_name)
     except (ImportError, Exception):

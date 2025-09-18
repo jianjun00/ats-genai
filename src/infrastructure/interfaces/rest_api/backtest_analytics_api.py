@@ -20,10 +20,10 @@ import uvicorn
 import gin
 
 # Import environment-specific configuration system
-from core.platform.config.environment_config import load_gin_config, get_current_env, get_env_info
-from core.shared.data_handling.utils.validation import validate_current_config
+from src.core.platform.config.environment_config import load_gin_config, get_current_env, get_env_info
+from src.core.shared.data_handling.utils.validation import validate_current_config
 
-from domains.analytics.services.portfolio_analytics import (
+from src.domains.analytics.services.portfolio_analytics import (
     PortfolioAnalyticsEngine,
     PortfolioMetrics,
     AttributionMetrics,

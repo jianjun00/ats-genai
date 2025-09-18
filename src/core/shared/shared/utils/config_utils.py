@@ -9,7 +9,7 @@ and environment-specific overrides.
 USAGE:
 ======
 
-from core.shared.utils.config_utils import (
+from src.core.shared.utils.config_utils import (
     ConfigManager,
     load_vendor_config,
     get_api_key_with_fallback,

@@ -18,7 +18,7 @@ from typing import Dict, Any
 
 sys.path.append('/home/jianjun/ats-genai-admin/src')
 
-from domains.trading.services.universe_membership_manager import UniverseMembershipManager
+from src.domains.trading.services.universe_membership_manager import UniverseMembershipManager
 
 # Configure logging
 logging.basicConfig(

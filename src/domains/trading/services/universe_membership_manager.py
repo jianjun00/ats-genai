@@ -12,7 +12,7 @@ import logging
 
 sys.path.append('/home/jianjun/ats-genai-admin/src')
 
-from core.platform.database.connection_manager import get_raw_connection
+from src.core.platform.database.connection_manager import get_raw_connection
 from psycopg2.extras import RealDictCursor
 
 logger = logging.getLogger(__name__)

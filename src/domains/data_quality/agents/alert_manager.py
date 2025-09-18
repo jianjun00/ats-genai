@@ -16,7 +16,7 @@ from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 import aiohttp
 
-from domains.data_quality.agents.agent_config import get_config_manager
+from src.domains.data_quality.agents.agent_config import get_config_manager
 
 logger = logging.getLogger(__name__)
 

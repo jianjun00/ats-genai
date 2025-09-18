@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 try:
-    from src.signals.indicator import FiveOneBuy, FiveOneSell
+    from src.domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
 except ImportError as e:
     print(f"❌ Cannot import indicators: {e}")
     print("Make sure to run: PYTHONPATH=src python test_five_one_indicators_simple.py")

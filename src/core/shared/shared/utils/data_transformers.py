@@ -8,7 +8,7 @@ Provides standardized data mapping, field extraction, and type conversion utilit
 USAGE:
 ======
 
-from core.shared.utils.data_transformers import (
+from src.core.shared.utils.data_transformers import (
     transform_vendor_dividend,
     transform_vendor_instrument,
     extract_price_fields,

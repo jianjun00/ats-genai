@@ -11,9 +11,9 @@ from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from domains.analytics.events.database import EventStorage
-from domains.analytics.events.correlation import CorrelationEngine
-from domains.analytics.events.producer import EventProducer
+from src.domains.analytics.events.database import EventStorage
+from src.domains.analytics.events.correlation import CorrelationEngine
+from src.domains.analytics.events.producer import EventProducer
 
 logger = logging.getLogger(__name__)
 
