@@ -77,6 +77,11 @@ docker ps | grep -E "(ats-dev|intg)"  # Container status
 30 2 * * *    FirstRate daily download (stock, etf, fx)
 0 8 * * *     FirstRate retry job (if morning failed)
 
+# 9:30 AM - Real-time minute bar collection
+30 9 * * 1-5  Start real-time collection (market open)
+0 16 * * 1-5  Stop real-time collection (market close)
+*/30 9-16 * * 1-5  Health checks during market hours
+
 # 4:00 AM - Data backups
 0 1 * * 0     Full snapshot backup (Sundays)
 0 4 * * *     Incremental data sync backup
@@ -110,6 +115,25 @@ tail -50 /mnt/d/ats-logs/health-check.log
 
 ## 📊 Real-Time Minute Bar Collection
 
+### Universe-Based Real-Time Collection
+**✅ AUTOMATED: Real-time minute bar collection for high volume large cap universe (877 symbols)**
+
+**Target Universe:** Universe ID 2 (high_volume_large_cap)
+- 877 active symbols from major exchanges (NYSE, NASDAQ)
+- Includes major stocks: AAPL, MSFT, GOOGL, TSLA, NVDA, etc.
+- Data collected from Polygon, Tiingo, and EODHD APIs
+
+### Automated Collection Schedule
+```bash
+# Market Hours Collection (Monday-Friday)
+9:30 AM EST/EDT    - Start real-time collection (market open)
+4:00 PM EST/EDT    - Stop real-time collection (market close)
+
+# Health Monitoring
+Every 30 minutes   - Health checks during market hours (9:30 AM - 4:00 PM)
+11:30 PM daily     - Log cleanup (retain 7 days)
+```
+
 ### Primary Dashboards
 
 **SigNoz Observability:**
@@ -126,44 +150,120 @@ tail -50 /mnt/d/ats-logs/health-check.log
 
 ### Service Management
 ```bash
-# Check service status
-python3 scripts/run_intg.py status
-docker ps | grep realtime-minute-collector
+# Production service management
+./scripts/production_realtime_universe2.sh start     # Start collection
+./scripts/production_realtime_universe2.sh stop      # Stop collection
+./scripts/production_realtime_universe2.sh status    # Check status
+./scripts/production_realtime_universe2.sh logs      # View logs
+./scripts/production_realtime_universe2.sh restart   # Restart service
 
-# View logs
-docker logs ats-intg-realtime-minute-collector --tail 20 -f
-
-# Restart service
-docker restart ats-intg-realtime-minute-collector
+# Check service PID and health
+cat /var/run/ats-realtime-universe2.pid
+ps -p $(cat /var/run/ats-realtime-universe2.pid 2>/dev/null) 2>/dev/null && echo "✅ Running" || echo "❌ Stopped"
 ```
 
 ### Database Monitoring
 ```bash
-# Check collected data
-python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_one_minute_live_polygon"
-python3 scripts/run_intg.py query --query "SELECT COUNT(*) FROM intg_one_minute_live_tiingo"
+# Check universe configuration
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT u.id, u.name, COUNT(um.instrument_id) as symbols
+FROM intg_universe u
+LEFT JOIN intg_universe_membership um ON u.id = um.universe_id
+WHERE u.id = 2 AND (um.end_at IS NULL OR um.end_at > CURRENT_DATE)
+GROUP BY u.id, u.name"
 
-# Latest bars
-python3 scripts/run_intg.py query --query "
+# Check collected data by vendor
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT
+  'polygon' as vendor,
+  COUNT(*) as total_records,
+  COUNT(DISTINCT symbol) as unique_symbols,
+  MAX(created_at) as latest_collection
+FROM intg_one_minute_live_polygon
+UNION ALL
+SELECT
+  'tiingo' as vendor,
+  COUNT(*) as total_records,
+  COUNT(DISTINCT symbol) as unique_symbols,
+  MAX(created_at) as latest_collection
+FROM intg_one_minute_live_tiingo
+UNION ALL
+SELECT
+  'eodhd' as vendor,
+  COUNT(*) as total_records,
+  COUNT(DISTINCT symbol) as unique_symbols,
+  MAX(created_at) as latest_collection
+FROM intg_one_minute_live_eodhd
+ORDER BY vendor"
+
+# Latest bars by vendor
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
 SELECT vendor, symbol, timestamp, created_at
 FROM (
   SELECT 'polygon' as vendor, symbol, timestamp, created_at FROM intg_one_minute_live_polygon
   UNION ALL
   SELECT 'tiingo' as vendor, symbol, timestamp, created_at FROM intg_one_minute_live_tiingo
+  UNION ALL
+  SELECT 'eodhd' as vendor, symbol, timestamp, created_at FROM intg_one_minute_live_eodhd
 ) combined
 ORDER BY created_at DESC LIMIT 10"
+
+# Today's collection activity
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT
+  vendor,
+  COUNT(*) as bars_today,
+  COUNT(DISTINCT symbol) as symbols_today,
+  MIN(created_at) as first_collection,
+  MAX(created_at) as last_collection
+FROM (
+  SELECT 'polygon' as vendor, symbol, created_at FROM intg_one_minute_live_polygon WHERE DATE(created_at) = CURRENT_DATE
+  UNION ALL
+  SELECT 'tiingo' as vendor, symbol, created_at FROM intg_one_minute_live_tiingo WHERE DATE(created_at) = CURRENT_DATE
+  UNION ALL
+  SELECT 'eodhd' as vendor, symbol, created_at FROM intg_one_minute_live_eodhd WHERE DATE(created_at) = CURRENT_DATE
+) today
+GROUP BY vendor
+ORDER BY vendor"
 ```
 
 ### Troubleshooting
 ```bash
-# API authentication errors
-docker inspect ats-intg-realtime-minute-collector | grep -A 20 "Env"
+# Check service status and logs
+./scripts/production_realtime_universe2.sh status
+./scripts/production_realtime_universe2.sh logs
+tail -50 /var/log/ats-realtime-universe2.log
+
+# API authentication errors (check for 401/403 errors)
+tail -100 /var/log/ats-realtime-universe2.log | grep -E "(401|403|ERROR.*API)"
 
 # Database connection issues
-docker exec ats-intg-realtime-minute-collector ping ats-intg-postgres
+PGPASSWORD=intg_password pg_isready -h localhost -p 4432 -U postgres -d intg_db
 
-# Check error logs
-docker logs ats-intg-realtime-minute-collector --tail 50 | grep -E "(ERROR|422|401|403)"
+# Check universe symbol loading
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "
+SELECT COUNT(*) as total_symbols
+FROM intg_universe_membership um
+JOIN intg_instrument i ON um.instrument_id = i.id
+WHERE um.universe_id = 2
+AND (um.end_at IS NULL OR um.end_at > CURRENT_DATE)
+AND i.active = true"
+
+# Rate limiting issues (look for 429 errors)
+tail -100 /var/log/ats-realtime-universe2.log | grep -E "(429|rate.*limit|Rate.*limit)"
+
+# Check cron job execution
+grep "realtime" /var/log/syslog | tail -10
+crontab -l | grep "production_realtime_universe2"
+
+# Manual service recovery
+./scripts/production_realtime_universe2.sh stop
+sleep 5
+./scripts/production_realtime_universe2.sh start
+
+# Emergency kill (if service won't stop)
+pkill -f "realtime_minute_collector"
+rm -f /var/run/ats-realtime-universe2.pid
 ```
 
 ---
@@ -459,6 +559,10 @@ ps aux | grep simple_wsl_monitor | grep -v grep && echo "✅ Active" || echo "�
 # Minute bars health (ATS-INTG)
 curl -s http://localhost:4080/metrics | grep "ats_daily_minute_backfill"
 ls -la /mnt/d/ats-data/firstrate-data/daily/$(date +%Y/%m/%d)/ | wc -l
+
+# Real-time collection health
+./scripts/production_realtime_universe2.sh status
+PGPASSWORD=intg_password psql -h localhost -p 4432 -U postgres -d intg_db -c "SELECT COUNT(*) FROM intg_one_minute_live_polygon WHERE DATE(created_at) = CURRENT_DATE"
 
 # News ingestion health (ATS-INTG)
 curl -s http://localhost:8081/metrics | grep "ats_news"
