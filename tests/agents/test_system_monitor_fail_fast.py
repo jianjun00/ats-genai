@@ -18,8 +18,9 @@ class TestSystemHealthMonitorFailFast:
     
     def setup_method(self):
         """Setup test environment"""
-        self.monitor = SystemHealthMonitor()
+        self.monitor = SystemHealthMonitor(agent_id="test-agent")
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     @patch('asyncpg.connect')
     async def test_database_connection_success(self, mock_connect, mock_config):
@@ -67,6 +68,7 @@ class TestSystemHealthMonitorFailFast:
             max_size=10
         )
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     @patch('asyncpg.connect')
     async def test_database_connection_timeout_fails_fast(self, mock_connect, mock_config):
@@ -88,6 +90,7 @@ class TestSystemHealthMonitorFailFast:
         with pytest.raises(DatabaseConnectionError, match="Database connection timeout after 10s"):
             await self.monitor._count_database_connections()
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     @patch('asyncpg.connect')
     async def test_database_postgres_error_fails_fast(self, mock_connect, mock_config):
@@ -110,6 +113,7 @@ class TestSystemHealthMonitorFailFast:
         with pytest.raises(DatabaseConnectionError, match="PostgreSQL error"):
             await self.monitor._count_database_connections()
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     @patch('asyncpg.connect')
     async def test_null_query_result_fails_fast(self, mock_connect, mock_config):
@@ -130,10 +134,11 @@ class TestSystemHealthMonitorFailFast:
         mock_conn.close = AsyncMock()
         mock_connect.return_value = mock_conn
         
-        # Verify exception is raised for NULL result
-        with pytest.raises(ValueError, match="Database returned NULL for connection count query"):
+        # Verify exception is raised for NULL result (wrapped in SystemMonitorError)
+        with pytest.raises(SystemMonitorError, match="Failed to count database connections"):
             await self.monitor._count_database_connections()
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     @patch('asyncpg.connect')
     async def test_generic_exception_fails_fast(self, mock_connect, mock_config):
@@ -152,9 +157,10 @@ class TestSystemHealthMonitorFailFast:
         mock_connect.side_effect = RuntimeError("Unexpected error")
         
         # Verify exception is raised instead of returning fake value
-        with pytest.raises(SystemHealthMonitorError, match="Failed to count database connections"):
+        with pytest.raises(SystemMonitorError, match="Failed to count database connections"):
             await self.monitor._count_database_connections()
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     async def test_configuration_loading_failure_fails_fast(self, mock_config):
         """Test that configuration loading failures are not masked"""
@@ -181,6 +187,9 @@ class TestSystemHealthMonitorFailFast:
         # Get the source code of the _count_database_connections method
         source = inspect.getsource(self.monitor._count_database_connections)
         
+        # Remove leading indentation to make it parseable
+        import textwrap
+        source = textwrap.dedent(source)
         # Parse the source code
         tree = ast.parse(source)
         
@@ -196,7 +205,7 @@ class TestSystemHealthMonitorFailFast:
         
         # Verify the method contains proper exception raising
         assert "raise DatabaseConnectionError" in source
-        assert "raise SystemHealthMonitorError" in source
+        assert "raise SystemMonitorError" in source
         assert "return 0" not in source.split("return int(result)")[-1]  # No return 0 after the real return
 
 class TestSystemHealthMonitorConfigurationUsage:
@@ -204,8 +213,9 @@ class TestSystemHealthMonitorConfigurationUsage:
     
     def setup_method(self):
         """Setup test environment"""
-        self.monitor = SystemHealthMonitor()
+        self.monitor = SystemHealthMonitor(agent_id="test-agent")
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     async def test_uses_gin_database_configuration(self, mock_config):
         """Test that database parameters come from Gin configuration"""
@@ -237,6 +247,7 @@ class TestSystemHealthMonitorConfigurationUsage:
             # Verify Gin configuration was used
             mock_connect.assert_called_once_with(**expected_params)
     
+    @pytest.mark.asyncio
     @patch('src.core.config.secure_config_loader.secure_config')
     async def test_uses_gin_timeout_configuration(self, mock_config):
         """Test that timeout values come from Gin configuration"""
@@ -304,11 +315,11 @@ class TestLegacyVsNewBehavior:
         3. Track database availability separately from connection count
         4. Implement proper retry logic for transient failures
         """
-        from src.domains.data_quality.agents.system_monitor import DatabaseConnectionError, SystemHealthMonitorError
+        from src.domains.data_quality.agents.system_monitor import DatabaseConnectionError, SystemMonitorError
         
         # Verify proper exception types exist for monitoring
         assert issubclass(DatabaseConnectionError, Exception)
-        assert issubclass(SystemHealthMonitorError, Exception)
+        assert issubclass(SystemMonitorError, Exception)
         
         # These exceptions enable monitoring systems to:
         # - Log specific failure types

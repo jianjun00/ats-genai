@@ -1,4 +1,4 @@
-from src.core.shared.utils.environment import Environment
+from src.core.shared.shared.data_handling.utils.environment import Environment
 import asyncpg
 import logging
 

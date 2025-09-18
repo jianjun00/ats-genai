@@ -3,12 +3,12 @@ import os
 from datetime import datetime
 import asyncio
 
-from src.domains.market_data.repositories.daily_prices_dao import DailyPricesDAO
+from src.domains.market_data.repositories.daily_prices_dao import DailyPriceDAO
 from src.core.shared.shared.data_handling.utils.environment import Environment, EnvironmentType
 
 async def insert_test_daily_price_polygon(json_path, symbol, instrument_id, unit_test_db):
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-    dao = DailyPricesDAO(env=env)
+    dao = DailyPriceDAO(env=env)
     with open(json_path, 'r') as f:
         data = json.load(f)
     for row in data['results']:
