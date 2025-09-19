@@ -363,9 +363,7 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
             logger.info(f"Processed batch of {len(batch)} instruments: {result}")
             processed_count += len(batch)
             time.sleep(2.0)  # Sleep between batches for rate limits
-        except Exception as e:
-            logger.error(f"Failed to process batch: {e}")
-            continue
+        # Let all batch processing exceptions propagate - fail fast on batch errors
 
     logger.info(f"Total instruments processed: {processed_count}/{len(all_symbols)}")
 

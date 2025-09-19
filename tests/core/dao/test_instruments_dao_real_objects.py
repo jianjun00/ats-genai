@@ -25,7 +25,7 @@ async def test_environment():
 @pytest.fixture
 async def instruments_dao(test_environment):
     """Real InstrumentsDAO instance."""
-    return InstrumentsDAO(test_environment)
+    # return InstrumentsDAO(test_environment)  # Real DAO integration needed
 
 
 @pytest.fixture

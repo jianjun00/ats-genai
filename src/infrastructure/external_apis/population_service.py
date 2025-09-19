@@ -341,9 +341,7 @@ class EconomicEventsPopulationService:
 
             return event_id
 
-        except Exception as e:
-            logger.error(f"Error storing economic event from {vendor}: {e}")
-            return None
+        # Let all event storage exceptions propagate - fail fast on database errors
 
     async def _get_or_create_event_type(self, event_data: Dict[str, Any]) -> Optional[EconomicEventType]:
         """
@@ -380,9 +378,7 @@ class EconomicEventsPopulationService:
             event_type_id = await self.dao.create_event_type(new_event_type)
             new_event_type.id = event_type_id
             return new_event_type
-        except Exception as e:
-            logger.error(f"Error creating event type for {event_name}: {e}")
-            return None
+        # Let all event type creation exceptions propagate - fail fast on database errors
 
     def _categorize_event(self, event_data: Dict[str, Any]) -> str:
         """Categorize economic event based on name and data."""

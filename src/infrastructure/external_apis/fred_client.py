@@ -106,9 +106,7 @@ class FREDEconomicClient:
                         logger.error(f"FRED API error for series {series_id}: {response.status}")
                         return []
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching FRED series {series_id}: {e}")
-                return []
+            # Let all connection errors propagate - fail fast on FRED API issues
 
     async def _fetch_series_info(self, session: aiohttp.ClientSession,
                                series_id: str) -> Dict[str, Any]:
@@ -139,9 +137,7 @@ class FREDEconomicClient:
                     logger.warning(f"Could not fetch FRED series info for {series_id}")
                     return {}
 
-        except aiohttp.ClientError as e:
-            logger.warning(f"Error fetching FRED series info for {series_id}: {e}")
-            return {}
+        # Let all connection errors propagate - fail fast on FRED API issues
 
     def parse_fred_observation(self, observation: Dict[str, Any],
                              series_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -205,9 +201,7 @@ class FREDEconomicClient:
                 }
             }
 
-        except Exception as e:
-            logger.error(f"Error parsing FRED observation: {e}")
-            return None
+        # Let all parsing exceptions propagate - fail fast on data format issues
 
     def _standardize_units(self, fred_units: str) -> str:
         """

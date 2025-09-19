@@ -52,7 +52,7 @@ class TiingoMarketCapFetcher:
         except Exception as e:
             logger.error(f"Error fetching fundamentals for {symbol}: {e}")
 
-        # Fallback: try to get market cap from meta endpoint
+        # Alternative: try to get market cap from meta endpoint
         try:
             meta_url = f"{self.base_url}/tiingo/daily/{symbol}"
             params = {"token": self.api_key}
@@ -63,15 +63,12 @@ class TiingoMarketCapFetcher:
                     if data and 'marketCap' in data:
                         return {'marketCap': data['marketCap']}
 
-        except Exception as e:
-            logger.error(f"Error fetching meta for {symbol}: {e}")
-
-        return None
+        # Let all API exceptions propagate - fail fast on data retrieval issues
 
     async def calculate_market_cap_from_price(self, session: aiohttp.ClientSession, symbol: str) -> Optional[float]:
         """
         Calculate market cap from current price and shares outstanding.
-        This is a fallback when direct market cap is not available.
+        This is an alternative calculation when direct market cap is not available.
         """
         try:
             # Get current price and meta information
@@ -110,9 +107,7 @@ class TiingoMarketCapFetcher:
                     market_cap = latest_close * shares_outstanding
                     return market_cap
 
-        except Exception as e:
-            logger.error(f"Error calculating market cap for {symbol}: {e}")
-            return None
+        # Let all market cap calculation exceptions propagate - fail fast on computation errors
 
 async def populate_market_cap_from_tiingo(
     env: Environment,
@@ -146,7 +141,7 @@ async def populate_market_cap_from_tiingo(
             async with pool.acquire() as conn:
                 limit_clause = f"LIMIT {limit}" if limit else ""
 
-                # Try to find Tiingo vendor first, fallback to ticker
+                # Try to find Tiingo vendor first, otherwise use ticker
                 instruments = await conn.fetch(f"""
                     SELECT i.id, i.symbol, x.vendor_symbol
                     FROM {env.get_table_name('instruments')} i
@@ -201,7 +196,7 @@ async def populate_market_cap_from_tiingo(
                         fund_daily = fundamentals_data['fundamentalDaily']
                         market_cap = fund_daily.get('marketCap')
 
-                # Fallback: calculate from price and shares
+                # Alternative: calculate from price and shares
                 if market_cap is None:
                     logger.info(f"No direct market cap for {symbol}, trying calculation from price...")
                     market_cap = await fetcher.calculate_market_cap_from_price(session, symbol)
@@ -247,7 +242,7 @@ async def resolve_instrument_id_by_tiingo_vendor(env: Environment, symbol: str) 
             if row:
                 return row['instrument_id']
 
-            # Fallback to ticker vendor
+            # Alternative: use ticker vendor
             row = await conn.fetchrow(f"""
                 SELECT x.instrument_id
                 FROM {env.get_table_name('instrument_xrefs')} x

@@ -83,9 +83,8 @@ class TiingoEconomicEventsClient:
                         logger.error(f"Tiingo API error: {response.status}")
                         return []
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching Tiingo events: {e}")
-                return []
+            # Let all connection errors propagate - fail fast on network issues
+            # If API is unavailable, application should fail rather than return empty data
 
     async def fetch_crypto_economic_events(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """
@@ -128,9 +127,8 @@ class TiingoEconomicEventsClient:
                         logger.error(f"Tiingo crypto API error: {response.status}")
                         return []
 
-            except aiohttp.ClientError as e:
-                logger.error(f"Connection error fetching Tiingo crypto events: {e}")
-                return []
+            # Let all connection errors propagate - fail fast on network issues
+            # If API is unavailable, application should fail rather than return empty data
 
     def _is_economic_event(self, article: Dict[str, Any]) -> bool:
         """

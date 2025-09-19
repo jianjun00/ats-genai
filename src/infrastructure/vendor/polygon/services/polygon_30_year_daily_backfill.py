@@ -216,9 +216,8 @@ class Polygon30YearBackfiller:
                     price.get('v', 0),  # volume
                     instrument_id
                 ))
-            except Exception as e:
-                logger.error(f"❌ Error processing price record for {symbol}: {e}")
-                continue
+            # Let price record processing exceptions propagate
+            # If any price record is malformed, the entire batch should fail
 
         if not rows:
             return 0
@@ -245,10 +244,8 @@ class Polygon30YearBackfiller:
             self.legacy_stats['total_records'] += len(rows)
             return len(rows)
 
-        except Exception as e:
-            logger.error(f"❌ Database error inserting prices for {symbol}: {e}")
-            self.legacy_stats['errors'] += 1
-            return 0
+        # Let database exceptions propagate - fail fast on database errors
+        # If database insert fails, the application should halt rather than continue silently
 
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
         """Check if instrument already has data in the date range."""
@@ -296,10 +293,8 @@ class Polygon30YearBackfiller:
 
             return inserted_count
 
-        except Exception as e:
-            logger.error(f"❌ Failed to process {symbol}: {e}")
-            self.legacy_stats['errors'] += 1
-            return 0
+        # Let all instrument processing exceptions propagate
+        # If individual instrument processing fails, the entire operation should fail
 
     async def run_backfill(self, start_date, end_date, limit=None, skip_existing=True):
         """Run the complete 30-year backfill process."""
@@ -332,9 +327,8 @@ class Polygon30YearBackfiller:
                         logger.info(f"📊 Progress: {i:,}/{len(instruments):,} ({progress:.1f}%) - "
                                   f"{self.legacy_stats['total_records']:,} total records")
 
-                except Exception as e:
-                    logger.error(f"❌ Critical error processing instrument {instrument.get('symbol', 'unknown')}: {e}")
-                    continue
+                # Let instrument processing exceptions propagate
+                # If any instrument fails, the entire backfill should fail fast
 
         finally:
             await conn.close()

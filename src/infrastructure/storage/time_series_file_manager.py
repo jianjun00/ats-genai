@@ -213,9 +213,7 @@ class TimeSeriesFileManager:
 
             return records
 
-        except Exception as e:
-            self.logger.error(f"❌ Error reading {compressed_file}: {e}")
-            return []
+        # Let all file reading exceptions propagate - fail fast on storage errors
 
     async def get_file_metadata(self, instrument_id: int, year: int, month: int) -> Optional[FileMetadata]:
         """Read just the metadata from a file (fast operation)"""
@@ -235,9 +233,7 @@ class TimeSeriesFileManager:
 
             return metadata
 
-        except Exception as e:
-            self.logger.error(f"❌ Error reading metadata from {compressed_file}: {e}")
-            return None
+        # Let all metadata reading exceptions propagate - fail fast on metadata corruption
 
     async def list_available_data(self, instrument_id: int,
                                 start_year: int = 2005, end_year: int = 2025) -> List[Tuple[int, int]]:

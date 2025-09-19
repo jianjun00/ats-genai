@@ -390,9 +390,7 @@ class AccuracyValidator:
 
                 return (current - previous) / previous
 
-        except Exception as e:
-            logger.error(f"Failed to get price reaction for {symbol}: {e}")
-            return None
+        # Let all price reaction exceptions propagate - fail fast on market data errors
 
     def _calculate_directional_accuracy(self, sentiment: float, price_reaction: float) -> float:
         """
