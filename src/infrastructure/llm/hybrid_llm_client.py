@@ -55,7 +55,7 @@ class ModelTier(Enum):
 class RoutingStrategy:
     """Configuration for intelligent model routing."""
     primary_tier: ModelTier
-    fallback_tiers: List[ModelTier]
+    alternative_tiers: List[ModelTier]
     task_type: TaskType
     max_latency_ms: Optional[int] = None
     max_cost_usd: Optional[float] = None
@@ -93,49 +93,49 @@ class HybridLLMClient:
         return {
             TaskType.SENTIMENT_ANALYSIS: RoutingStrategy(
                 primary_tier=ModelTier.LOCAL_SPECIALIZED,
-                fallback_tiers=[ModelTier.LOCAL_GENERAL, ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
+                alternative_tiers=[ModelTier.LOCAL_GENERAL, ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
                 task_type=TaskType.SENTIMENT_ANALYSIS,
                 max_latency_ms=5000,
                 max_cost_usd=0.01
             ),
             TaskType.ENTITY_RECOGNITION: RoutingStrategy(
                 primary_tier=ModelTier.LOCAL_GENERAL,
-                fallback_tiers=[ModelTier.LOCAL_SPECIALIZED, ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
+                alternative_tiers=[ModelTier.LOCAL_SPECIALIZED, ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
                 task_type=TaskType.ENTITY_RECOGNITION,
                 max_latency_ms=8000,
                 max_cost_usd=0.015
             ),
             TaskType.EVENT_DETECTION: RoutingStrategy(
                 primary_tier=ModelTier.LOCAL_GENERAL,
-                fallback_tiers=[ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
+                alternative_tiers=[ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
                 task_type=TaskType.EVENT_DETECTION,
                 max_latency_ms=10000,
                 max_cost_usd=0.02
             ),
             TaskType.RISK_ASSESSMENT: RoutingStrategy(
                 primary_tier=ModelTier.LOCAL_GENERAL,
-                fallback_tiers=[ModelTier.CLOUD_PREMIUM, ModelTier.CLOUD_FAST],
+                alternative_tiers=[ModelTier.CLOUD_PREMIUM, ModelTier.CLOUD_FAST],
                 task_type=TaskType.RISK_ASSESSMENT,
                 max_latency_ms=15000,
                 max_cost_usd=0.03
             ),
             TaskType.MARKET_IMPACT: RoutingStrategy(
                 primary_tier=ModelTier.LOCAL_GENERAL,
-                fallback_tiers=[ModelTier.CLOUD_PREMIUM, ModelTier.CLOUD_FAST],
+                alternative_tiers=[ModelTier.CLOUD_PREMIUM, ModelTier.CLOUD_FAST],
                 task_type=TaskType.MARKET_IMPACT,
                 max_latency_ms=15000,
                 max_cost_usd=0.03
             ),
             TaskType.SIGNAL_GENERATION: RoutingStrategy(
                 primary_tier=ModelTier.LOCAL_GENERAL,
-                fallback_tiers=[ModelTier.CLOUD_PREMIUM, ModelTier.LOCAL_SPECIALIZED, ModelTier.CLOUD_FAST],
+                alternative_tiers=[ModelTier.CLOUD_PREMIUM, ModelTier.LOCAL_SPECIALIZED, ModelTier.CLOUD_FAST],
                 task_type=TaskType.SIGNAL_GENERATION,
                 max_latency_ms=20000,
                 max_cost_usd=0.05
             ),
             TaskType.GENERAL_ANALYSIS: RoutingStrategy(
                 primary_tier=ModelTier.LOCAL_GENERAL,
-                fallback_tiers=[ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
+                alternative_tiers=[ModelTier.CLOUD_FAST, ModelTier.CLOUD_PREMIUM],
                 task_type=TaskType.GENERAL_ANALYSIS,
                 max_latency_ms=12000,
                 max_cost_usd=0.025
@@ -231,7 +231,7 @@ class HybridLLMClient:
         strategy = self.routing_strategies.get(task_type, self.routing_strategies[TaskType.GENERAL_ANALYSIS])
 
         # Try each tier in order
-        tiers_to_try = [strategy.primary_tier] + strategy.fallback_tiers
+        tiers_to_try = [strategy.primary_tier] + strategy.alternative_tiers
 
         for tier in tiers_to_try:
             try:
@@ -254,10 +254,7 @@ class HybridLLMClient:
 
                 return response
 
-            except Exception as e:
-                logger.warning(f"Failed to get response from tier {tier.value}: {e}")
-                self._record_failure_metrics(tier)
-                continue
+            # Let all LLM tier exceptions propagate - fail fast on model access errors
 
         raise Exception(f"All model tiers failed for task type {task_type.value}")
 
@@ -277,7 +274,7 @@ class HybridLLMClient:
                     prompt, model_name="fingpt-sentiment", **kwargs
                 )
             else:
-                # Fallback to general local model
+                # Alternative: use general local model
                 return await self._route_to_tier(ModelTier.LOCAL_GENERAL, prompt, task_type, **kwargs)
 
         elif tier == ModelTier.LOCAL_GENERAL:

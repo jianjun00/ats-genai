@@ -59,9 +59,7 @@ async def get_exchange_symbols(exchange='US', api_key=None):
         logger.info(f"Retrieved {len(symbols)} symbols from {exchange} exchange")
         return symbols
 
-    except Exception as e:
-        logger.error(f"Failed to fetch symbols from exchange {exchange}: {e}")
-        return []
+    # Let all API exceptions propagate - fail fast on symbol retrieval errors
 
 async def fetch_fundamental_data(symbol, api_key=None):
     """Fetch fundamental data including IPO date for a symbol"""
@@ -96,9 +94,7 @@ async def fetch_fundamental_data(symbol, api_key=None):
             'full_response': data
         }
 
-    except Exception as e:
-        logger.warning(f"Error fetching fundamentals for {symbol}: {e}")
-        return None
+    # Let all fundamental data exceptions propagate - fail fast on data retrieval errors
 
 async def fetch_and_store_instruments(start_ticker='', ticker=None, bulk_mode=False, exchange='US'):
     from src.core.shared.utils.database import Database
