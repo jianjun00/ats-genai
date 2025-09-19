@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import pandas as pd
-from src.domains.trading.services.state.runner_callback import RunnerCallback
+from domains.trading.services.state.runner_callback import RunnerCallback
 
 class TrainDataCallback(RunnerCallback):
     def __init__(self, lag_steps, lead_steps, feature_cols, target_col, output_path):

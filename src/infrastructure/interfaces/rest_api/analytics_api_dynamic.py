@@ -15,8 +15,8 @@ from fastapi import FastAPI, Depends, Query, Path, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from src.core.shared.utils.environment import Environment
-from src.core.shared.utils.database import Database
+from core.platform.config.environment import Environment
+from core.shared.utils.database import Database
 
 # All configuration must use real database connections
 
@@ -1339,7 +1339,7 @@ def create_analytics_app() -> FastAPI:
     
     # Initialize Data Quality Agent (singleton)
     try:
-        from src.domains.data_quality.agents.data_quality_agent import DataQualityAgent
+        from domains.data_quality.agents.data_quality_agent import DataQualityAgent
         
         # Global agent instance
         data_quality_agent = DataQualityAgent()
@@ -1534,7 +1534,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_config import get_config_manager
+                from domains.data_quality.agents.agent_config import get_config_manager
                 config_manager = get_config_manager()
                 
                 return {
@@ -1553,7 +1553,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_config import get_config_manager
+                from domains.data_quality.agents.agent_config import get_config_manager
                 config_manager = get_config_manager()
                 
                 success = config_manager.update_config(config_updates)
@@ -1578,7 +1578,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_config import get_config_manager
+                from domains.data_quality.agents.agent_config import get_config_manager
                 config_manager = get_config_manager()
                 
                 config_manager.reset_to_defaults()
@@ -1600,7 +1600,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_config import get_config_manager
+                from domains.data_quality.agents.agent_config import get_config_manager
                 config_manager = get_config_manager()
                 
                 path = export_path.get("path", "config/agent_config_export.json")
@@ -1625,7 +1625,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_config import get_config_manager
+                from domains.data_quality.agents.agent_config import get_config_manager
                 config_manager = get_config_manager()
                 
                 path = import_path.get("path")
@@ -1654,7 +1654,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_config import apply_environment_config
+                from domains.data_quality.agents.agent_config import apply_environment_config
                 apply_environment_config(environment)
                 
                 return {
@@ -1675,7 +1675,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_logger import get_agent_logger
+                from domains.data_quality.agents.agent_logger import get_agent_logger
                 agent_logger = get_agent_logger(data_quality_agent.agent_id)
                 
                 return {
@@ -1695,7 +1695,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.agent_logger import get_agent_logger
+                from domains.data_quality.agents.agent_logger import get_agent_logger
                 agent_logger = get_agent_logger(data_quality_agent.agent_id)
                 
                 # Get comprehensive performance data
@@ -1733,7 +1733,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.system_monitor import get_system_monitor
+                from domains.data_quality.agents.system_monitor import get_system_monitor
                 system_monitor = get_system_monitor(data_quality_agent.agent_id)
                 
                 health_summary = await system_monitor.get_health_summary()
@@ -1766,7 +1766,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.alert_manager import get_alert_manager
+                from domains.data_quality.agents.alert_manager import get_alert_manager
                 alert_manager = get_alert_manager(data_quality_agent.agent_id)
                 
                 summary = await alert_manager.get_alert_summary()
@@ -1807,7 +1807,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.alert_manager import get_alert_manager
+                from domains.data_quality.agents.alert_manager import get_alert_manager
                 alert_manager = get_alert_manager(data_quality_agent.agent_id)
                 
                 success = await alert_manager.acknowledge_alert(alert_id, "dashboard_user")
@@ -1831,7 +1831,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.alert_manager import get_alert_manager
+                from domains.data_quality.agents.alert_manager import get_alert_manager
                 alert_manager = get_alert_manager(data_quality_agent.agent_id)
                 
                 success = await alert_manager.resolve_alert(alert_id, "dashboard_user")
@@ -1855,7 +1855,7 @@ def create_analytics_app() -> FastAPI:
                 if not AGENT_AVAILABLE:
                     raise HTTPException(status_code=503, detail="Data Quality Agent not available")
                 
-                from src.domains.data_quality.agents.alert_manager import get_alert_manager
+                from domains.data_quality.agents.alert_manager import get_alert_manager
                 alert_manager = get_alert_manager(data_quality_agent.agent_id)
                 
                 results = await alert_manager.test_notification_channels()

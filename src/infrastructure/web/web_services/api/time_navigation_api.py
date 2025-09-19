@@ -11,7 +11,7 @@ import os
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from src.domains.analytics.services.analytics_service import AnalyticsService
+from domains.analytics.services.analytics_service import AnalyticsService
 
 time_navigation_bp = Blueprint('time_navigation', __name__)
 

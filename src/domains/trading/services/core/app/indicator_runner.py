@@ -13,10 +13,10 @@ print('[DEBUG_IMPORT] imported asyncio (again)')
 print('[DEBUG_IMPORT] about to import pathlib')
 print('[DEBUG_IMPORT] imported pathlib')
 print('[DEBUG_IMPORT] about to import src.domains.trading.signals.indicator_config')
-from src.domains.trading.services.indicators.indicator_config import IndicatorConfig
+from domains.trading.services.indicators.indicator_config import IndicatorConfig
 print('[DEBUG_IMPORT] imported signals.indicator_config')
 print('[DEBUG_IMPORT] about to import src.domains.trading.signals.indicator')
-from src.domains.trading.services.indicators.indicator import EnvelopeTop, EnvelopeBot, PL
+from domains.trading.services.indicators.indicator import EnvelopeTop, EnvelopeBot, PL
 print('[DEBUG_IMPORT] imported signals.indicator')
 print('[DEBUG_IMPORT] about to import datetime/date/timedelta')
 print('[DEBUG_IMPORT] imported datetime/date/timedelta')
@@ -42,7 +42,7 @@ def parse_args():
 
 import gin
 
-from src.domains.trading.services.core.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 
 @gin.configurable
 class IndicatorRunner(Runner):
@@ -126,7 +126,7 @@ class IndicatorRunner(Runner):
                 if ohlc is None:
                     continue
                 # Construct InstrumentInterval for this day
-                from src.domains.trading.services.state.instrument_interval import InstrumentInterval
+                from domains.trading.services.state.instrument_interval import InstrumentInterval
                 interval = InstrumentInterval(
                     instrument_id=instrument_id,
                     start_date_time=datetime.combine(d, datetime.min.time()),
@@ -265,7 +265,7 @@ class IndicatorRunner(Runner):
             Dict mapping instrument_id to list of minute intervals
         """
         from datetime import datetime, timedelta
-        from src.domains.trading.services.state.instrument_interval import InstrumentInterval
+        from domains.trading.services.state.instrument_interval import InstrumentInterval
 
         print("[DEBUG_MULTI_TF] Collecting base 1-minute data")
         base_data = {}
@@ -351,7 +351,7 @@ class IndicatorRunner(Runner):
             indicator_intervals = []
             for agg_interval in aggregated_intervals:
                 # Create IndicatorInterval with computed signals
-                from src.domains.trading.services.state.indicator_interval import IndicatorInterval
+                from domains.trading.services.state.indicator_interval import IndicatorInterval
 
                 indicator_interval = IndicatorInterval(
                     instrument_id=instrument_id,
@@ -531,7 +531,7 @@ if __name__ == "__main__":
         'PL': PL
     })
     print('[DEBUG_ULTRA] after IndicatorConfig')
-    from src.core.platform.config.environment import Environment, EnvironmentType
+    from core.platform.config.environment import Environment, EnvironmentType
     print('[DEBUG_ULTRA] after import Environment, EnvironmentType')
     env_map = {
         'test': EnvironmentType.TEST,

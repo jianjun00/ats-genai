@@ -12,10 +12,10 @@ import aiohttp
 from datetime import date
 from typing import Optional, List, Dict, Any
 
-from src.core.shared.utils.environment import Environment, EnvironmentType
-from src.core.shared.utils.vendor_api_keys import get_tiingo_api_key
-from src.core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-from src.core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from core.shared.utils.vendor_api_keys import get_tiingo_api_key
+from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("populate_market_cap_tiingo")
@@ -139,7 +139,7 @@ async def populate_market_cap_from_tiingo(
         logger.info(f"Processing specific symbols: {instrument_symbols}")
     else:
         # Get instruments with Tiingo vendor symbols
-        from src.core.shared.utils.database import Database
+        from core.shared.utils.database import Database
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
 
         try:
@@ -230,7 +230,7 @@ async def resolve_instrument_id_by_tiingo_vendor(env: Environment, symbol: str) 
     """
     Resolve instrument_id for a symbol using the Tiingo vendor.
     """
-    from src.core.shared.utils.database import Database
+    from core.shared.utils.database import Database
 
     pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
 

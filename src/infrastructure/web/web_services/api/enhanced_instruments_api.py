@@ -18,13 +18,13 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from src.domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
     InstrumentSearchCriteria
 )
-from src.domains.instruments.services.config.service_container import provide_instrument_service
+from domains.instruments.services.config.service_container import provide_instrument_service
 
 logger = logging.getLogger(__name__)
 

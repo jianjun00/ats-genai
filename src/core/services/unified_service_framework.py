@@ -20,7 +20,7 @@ TOTAL CONSOLIDATION: 10,479+ lines → 5,000 lines (52% reduction)
 USAGE:
 ======
 
-from src.core.services import TradingPlatformService, ServiceConfig
+from core.services import TradingPlatformService, ServiceConfig
 
 # Single unified service for all trading platform functionality
 config = ServiceConfig(environment='dev')
@@ -52,10 +52,10 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union, Callable
 import uuid
 
-from src.core.database import RepositoryFactory, ConnectionManager
-from src.core.vendor import VendorAdapterFactory
-from src.core.shared.utils.config_utils import load_database_config
-from src.core.shared.utils.validation_utils import ValidationResult
+from core.database import RepositoryFactory, ConnectionManager
+from core.vendor import VendorAdapterFactory
+from core.shared.utils.config_utils import load_database_config
+from core.shared.utils.validation_utils import ValidationResult
 
 logger = logging.getLogger(__name__)
 

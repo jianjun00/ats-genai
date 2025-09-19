@@ -9,8 +9,8 @@ import json
 import os
 from datetime import datetime
 
-from src.core.shared.utils.environment import Environment
-from src.market_data.agent.instrument_data_agent import InstrumentDataAgent
+from core.platform.config.environment import Environment
+from market_data.agent.instrument_data_agent import InstrumentDataAgent
 
 
 async def test_agent_stats():

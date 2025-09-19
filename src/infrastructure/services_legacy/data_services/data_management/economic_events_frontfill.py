@@ -10,9 +10,9 @@ from typing import Dict, Any, List, Tuple, Optional
 
 from frontfill.base_frontfill_job import BaseFrontfillJob, FrontfillConfig, CheckpointType
 from core.platform.config.environment import Environment
-from vendor.polygon.economic_events_client import PolygonEconomicEventsClient
-from vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
-from vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient
+from infrastructure.vendor.polygon.economic_events_client import PolygonEconomicEventsClient
+from infrastructure.vendor.tiingo.economic_events_client import TiingoEconomicEventsClient
+from infrastructure.vendor.alpha_vantage.economic_events_client import AlphaVantageEconomicClient
 from economic_events.fred_client import FREDEconomicClient
 from economic_events.population_service import EconomicEventsPopulationService
 import asyncpg

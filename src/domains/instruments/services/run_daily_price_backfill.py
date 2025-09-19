@@ -11,7 +11,7 @@ import gin
 import sys
 import logging
 import datetime as dt
-from src.core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -28,9 +28,9 @@ async def run_backfill(env, start_date, end_date, limit=None, tickers=None):
         limit: Optional limit on number of instruments to process
         tickers: Optional list of specific tickers to process
     """
-    from vendor.polygon.dao.daily_price_polygon_dao import DailyPricesPolygonDAO
-    from src.domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-    from src.domains.market_data.services.eod.daily_price_polygon import download_prices_polygon, insert_prices
+    from infrastructure.vendor.polygon.dao.daily_price_polygon_dao import DailyPricesPolygonDAO
+    from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+    from domains.market_data.services.eod.daily_price_polygon import download_prices_polygon, insert_prices
 
     # Initialize DAOs
     prices_dao = DailyPricesPolygonDAO(env)
@@ -51,7 +51,7 @@ async def run_backfill(env, start_date, end_date, limit=None, tickers=None):
         logger.info(f"Processing specific tickers: {ticker_list}")
     else:
         # Get instruments from database
-        from src.core.shared.utils.database import Database
+        from core.shared.utils.database import Database
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
 
         try:
@@ -125,7 +125,7 @@ async def resolve_instrument_id_by_polygon_vendor(env, symbol):
     Resolve instrument_id for a symbol using the Polygon vendor.
     This fixes the issue where xrefs_dao looks for 'ticker' vendor but we have 'polygon'.
     """
-    from src.core.shared.utils.database import Database
+    from core.shared.utils.database import Database
 
     pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
 

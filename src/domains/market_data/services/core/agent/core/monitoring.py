@@ -13,13 +13,13 @@ from typing import Dict, Any, List, Optional, Union
 import asyncio
 import json
 
-from src.market_data.agent.alert_handlers import (
+from market_data.agent.alert_handlers import (
     AlertHandler, AlertSeverity, LoggingAlertHandler,
     SlackAlertHandler, EmailAlertHandler, CompositeAlertHandler
 )
 
 try:
-    from src.market_data.agent.prometheus_metrics import (
+    from market_data.agent.prometheus_metrics import (
         setup_prometheus_monitoring
     )
     PROMETHEUS_AVAILABLE = True

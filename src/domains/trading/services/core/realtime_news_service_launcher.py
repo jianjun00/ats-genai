@@ -21,14 +21,14 @@ from typing import Dict, Any, Optional
 import os
 
 import asyncpg
-from src.core.platform.config.environment import Environment
-from src.core.config.logging import setup_logging
-from src.infrastructure.llm.multi_provider_client import MultiProviderLLMClient
-from src.domains.market_data.services.news.realtime_news_ingestion import (
+from core.platform.config.environment import Environment
+from core.config.logging import setup_logging
+from infrastructure.llm.multi_provider_client import MultiProviderLLMClient
+from domains.market_data.services.news.realtime_news_ingestion import (
     create_realtime_news_service,
     RealTimeNewsIngestionService
 )
-from src.domains.market_data.services.signals.signal_broadcasting_system import (
+from domains.market_data.services.signals.signal_broadcasting_system import (
     create_signal_broadcasting_system,
     TradingSignalBroadcastingSystem
 )

@@ -7,10 +7,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from src.domains.analytics.events.database import EventStorage
-from src.domains.analytics.events.producer import EventProducer
-from src.domains.analytics.events.consumer import celery_app, process_event_from_queue
-from src.domains.analytics.events.monitoring import EventSystemMonitor
+from domains.analytics.events.database import EventStorage
+from domains.analytics.events.producer import EventProducer
+from domains.analytics.events.consumer import celery_app, process_event_from_queue
+from domains.analytics.events.monitoring import EventSystemMonitor
 
 logger = logging.getLogger(__name__)
 

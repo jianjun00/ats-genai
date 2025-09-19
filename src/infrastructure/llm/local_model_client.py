@@ -34,7 +34,7 @@ from transformers import (
 from peft import PeftModel
 import numpy as np
 
-from src.infrastructure.llm.multi_provider_client import LLMResponse
+from infrastructure.llm.multi_provider_client import LLMResponse
 
 logger = logging.getLogger(__name__)
 

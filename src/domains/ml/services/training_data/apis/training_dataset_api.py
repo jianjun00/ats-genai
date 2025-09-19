@@ -13,8 +13,8 @@ from datetime import datetime, date
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
-from src.domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO
-from src.core.shared.utils.environment import Environment
+from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO
+from core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

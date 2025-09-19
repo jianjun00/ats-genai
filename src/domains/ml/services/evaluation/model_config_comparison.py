@@ -22,10 +22,10 @@ from pathlib import Path
 from enum import Enum
 import numpy as np
 
-from src.domains.ml.services.models.support_resistance_model import SRModelConfig
-from src.domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveModelConfig
+from domains.ml.services.models.support_resistance_model import SRModelConfig
+from domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveModelConfig
 from models.temporal_fusion_transformer import TFTConfig
-from src.domains.ml.services.evaluation.adaptive_backtester import AdaptiveBacktester, AdaptiveBacktestConfig
+from domains.ml.services.evaluation.adaptive_backtester import AdaptiveBacktester, AdaptiveBacktestConfig
 
 
 class ModelType(Enum):

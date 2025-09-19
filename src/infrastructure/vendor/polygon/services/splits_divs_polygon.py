@@ -60,7 +60,7 @@ async def insert_dividends(dividends, ticker):
         )
     await pool.close()
 
-from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 
 
 async def main():

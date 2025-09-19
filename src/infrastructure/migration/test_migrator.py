@@ -295,8 +295,8 @@ from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
 from typing import List, Optional
 
-from src.domains.instruments.services.implementations.instrument_service import InstrumentService
-from src.domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.implementations.instrument_service import InstrumentService
+from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentServiceInterface,
     InstrumentDTO,
     VendorInstrumentDTO,
@@ -539,8 +539,8 @@ from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from src.domains.market_data.services.implementations.market_data_service import MarketDataService
-from src.domains.market_data.services.interfaces.market_data_service_interface import (
+from domains.market_data.services.implementations.market_data_service import MarketDataService
+from domains.market_data.services.interfaces.market_data_service_interface import (
     MarketDataServiceInterface,
     PriceDataDTO,
     VolumeDataDTO,
@@ -686,13 +686,13 @@ import asyncio
 from datetime import datetime
 from typing import List
 
-from src.domains.instruments.services.implementations.instrument_service import InstrumentService
-from src.domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.implementations.instrument_service import InstrumentService
+from domains.instruments.services.interfaces.instrument_service_interface import (
     CreateInstrumentRequest,
     UpdateInstrumentRequest
 )
-from src.domains.instruments.repositories.instrument_repository import InstrumentRepository
-from src.infrastructure.caching import MemoryCache, CacheConfig
+from domains.instruments.repositories.instrument_repository import InstrumentRepository
+from infrastructure.caching import MemoryCache, CacheConfig
 from tests.fixtures.database_fixtures import test_database, cleanup_test_data
 
 
@@ -859,7 +859,7 @@ import json
 from httpx import AsyncClient
 from fastapi.testclient import TestClient
 
-from src.api.main import app
+from api.main import app
 from tests.fixtures.database_fixtures import test_database, cleanup_test_data
 
 
@@ -1033,7 +1033,7 @@ import statistics
 from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src.domains.instruments.services.implementations.instrument_service import InstrumentService
+from domains.instruments.services.implementations.instrument_service import InstrumentService
 from tests.fixtures.performance_fixtures import performance_test_data, load_test_instruments
 
 
@@ -1186,7 +1186,7 @@ class TestInstrumentServicePerformance:
         # Create instruments concurrently
         create_tasks = []
         for i in range(50):
-            from src.domains.instruments.services.interfaces.instrument_service_interface import CreateInstrumentRequest
+            from domains.instruments.services.interfaces.instrument_service_interface import CreateInstrumentRequest
             request = CreateInstrumentRequest(
                 symbol=f"PERF_WRITE_{i:03d}",
                 name=f"Performance Test Write {i}",
@@ -1522,8 +1522,8 @@ import asyncio
 from typing import Dict, Any, Optional
 from unittest.mock import Mock, AsyncMock
 
-from src.infrastructure.caching import MemoryCache, CacheConfig
-from src.infrastructure.service_container import ServiceContainer
+from infrastructure.caching import MemoryCache, CacheConfig
+from infrastructure.service_container import ServiceContainer
 
 
 @pytest.fixture(scope="session")
@@ -1892,7 +1892,7 @@ fi
         # Update imports to use service interfaces
         content = re.sub(
             r'from src\.domains\.(\w+)\.dao',
-            r'from src.domains.\1.services.interfaces',
+            r'from domains.\1.services.interfaces',
             content
         )
 
@@ -1905,8 +1905,8 @@ fi
 
         # Add service fixture imports
         service_import = f"""
-from src.domains.{service_name}.services.implementations.{service_name}_service import {service_name.title()}Service
-from src.domains.{service_name}.services.interfaces.{service_name}_service_interface import {service_name.title()}ServiceInterface
+from domains.{service_name}.services.implementations.{service_name}_service import {service_name.title()}Service
+from domains.{service_name}.services.interfaces.{service_name}_service_interface import {service_name.title()}ServiceInterface
 """
 
         # Insert imports after existing imports

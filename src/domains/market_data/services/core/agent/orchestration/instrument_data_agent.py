@@ -15,15 +15,15 @@ import traceback
 from datetime import datetime, date, time, timedelta
 from pathlib import Path
 
-from src.core.shared.utils.environment import Environment, EnvironmentType
-from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from src.domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from src.domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from src.infrastructure.database.repositories.vendors_dao import VendorsDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+from infrastructure.database.repositories.vendors_dao import VendorsDAO
 
 # Import the existing populate functions
-from vendor.polygon.services.populate_instrument_polygon import fetch_and_store_instruments
-from src.domains.instruments.services.populate_unified_instruments import populate_unified_instruments
+from infrastructure.vendor.polygon.services.populate_instrument_polygon import fetch_and_store_instruments
+from domains.instruments.services.populate_unified_instruments import populate_unified_instruments
 
 # Add src to PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))

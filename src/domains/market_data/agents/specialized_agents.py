@@ -16,9 +16,9 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 
-from src.infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
-from src.domains.market_data.services.llm.news_llm_processor import NewsArticle
-from src.domains.market_data.agents.multi_agent_framework import (
+from infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
+from domains.market_data.services.llm.news_llm_processor import NewsArticle
+from domains.market_data.agents.multi_agent_framework import (
     BaseFinancialAgent, AgentType, RiskAssessmentAnalysis,
     MarketImpactAnalysis, SignalGenerationAnalysis
 )
@@ -433,7 +433,7 @@ class EnhancedMultiAgentOrchestrator:
         self.llm_client = llm_client
 
         # Initialize all specialized agents
-        from src.domains.market_data.agents.multi_agent_framework import (
+        from domains.market_data.agents.multi_agent_framework import (
             SentimentAgent, EntityRecognitionAgent, EventDetectionAgent
         )
 

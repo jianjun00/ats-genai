@@ -9,8 +9,8 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from src.core.platform.config.environment import Environment, EnvironmentType
-from src.core.services.unified_service_framework import TradingPlatformService
+from core.platform.config.environment import Environment, EnvironmentType
+from core.services.unified_service_framework import TradingPlatformService
 from ...repositories.universe_dao import UniverseDAO
 from ...repositories.universe_membership_dao import UniverseMembershipDAO
 from ...repositories.factor_interval_dao import FactorIntervalDAO
@@ -23,7 +23,7 @@ except ImportError:
 
 # Optional market data service import with fallback
 try:
-    from src.domains.market_data.services.config.market_data_service_container import get_market_data_service
+    from domains.market_data.services.config.market_data_service_container import get_market_data_service
 except ImportError:
     get_market_data_service = None
 

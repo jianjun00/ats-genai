@@ -12,7 +12,7 @@ from .monitoring import DataAgentMetrics, DataAgentMonitor
 from .alert_handlers import AlertHandler
 from .resilience import with_resilience, CircuitBreakerError
 from .health_api import setup_health_api
-from .logging_config import setup_logging
+from domains.market_data.services.core.agent.config.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 

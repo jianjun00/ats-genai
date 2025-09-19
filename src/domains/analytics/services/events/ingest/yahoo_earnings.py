@@ -1,6 +1,6 @@
 import requests
 from datetime import datetime
-from src.domains.analytics.events.schemas import EventIn
+from domains.analytics.events.schemas import EventIn
 
 def fetch_yahoo_earnings(symbol: str):
     url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}?modules=calendarEvents"

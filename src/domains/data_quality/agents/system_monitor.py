@@ -181,7 +181,7 @@ class SystemHealthMonitor:
             DatabaseConnectionError: If database connection fails
             QueryError: If the metrics query fails
         """
-        from src.core.config.secure_config_loader import secure_config
+        from core.config.secure_config_loader import secure_config
         
         # Load database configuration from Gin config (no hardcoded credentials)
         db_params = secure_config.get_database_connection_params(environment="intg")
@@ -254,7 +254,7 @@ class SystemHealthMonitor:
         
         # Trigger alert manager evaluation
         try:
-            from src.domains.data_quality.agents.alert_manager import get_alert_manager
+            from domains.data_quality.agents.alert_manager import get_alert_manager
             alert_manager = get_alert_manager(self.agent_id)
             await alert_manager.evaluate_alert_rules(alert_data, "system_monitor")
         except Exception as e:

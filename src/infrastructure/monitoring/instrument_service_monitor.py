@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
-from src.infrastructure.monitoring.service_metrics import (
+from infrastructure.monitoring.service_metrics import (
     ServiceHealthMonitor,
     ResourceMonitor, 
     ServiceMetric,
@@ -178,7 +178,7 @@ class InstrumentServiceMonitor:
             """Comprehensive InstrumentService health check"""
             try:
                 # Dynamic import to avoid circular dependency
-                from src.domains.instruments.services.config.service_container import get_service_container
+                from domains.instruments.services.config.service_container import get_service_container
                 
                 # Get service container and instrument service
                 container = await get_service_container()
@@ -211,7 +211,7 @@ class InstrumentServiceMonitor:
                 
                 # 3. Test list operation (with small limit)
                 try:
-                    from src.domains.instruments.services.interfaces.instrument_service_interface import InstrumentSearchCriteria
+                    from domains.instruments.services.interfaces.instrument_service_interface import InstrumentSearchCriteria
                     criteria = InstrumentSearchCriteria(limit=1)
                     instruments = await service.list_instruments(criteria)
                     health_results['list_operation'] = True
@@ -270,7 +270,7 @@ class InstrumentServiceMonitor:
             """Health check for database connection pool"""
             try:
                 # Dynamic import to avoid circular dependency
-                from src.domains.instruments.services.config.service_container import get_service_container
+                from domains.instruments.services.config.service_container import get_service_container
                 
                 # Check database pool health
                 container = await get_service_container()
@@ -474,7 +474,7 @@ def monitor_instrument_operation(operation: str):
 @asynccontextmanager
 async def instrument_performance_monitor(operation: str):
     """Context manager for InstrumentService performance monitoring"""
-    from src.infrastructure.monitoring.service_metrics import ServicePerformanceMonitor
+    from infrastructure.monitoring.service_metrics import ServicePerformanceMonitor
     async with ServicePerformanceMonitor("InstrumentService", operation):
         yield
 

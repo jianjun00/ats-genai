@@ -20,7 +20,7 @@ Features:
 - Database connection health checks
 
 Usage:
-    from src.market_data.realtime.monitoring.realtime_collection_monitor import RealtimeCollectionMonitor
+    from market_data.realtime.monitoring.realtime_collection_monitor import RealtimeCollectionMonitor
 
     monitor = RealtimeCollectionMonitor()
     await monitor.start_monitoring()

@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from decimal import Decimal
 
-from src.core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 @dataclass

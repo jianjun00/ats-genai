@@ -14,7 +14,7 @@ import app.indicator_runner
 import core.config.environment
 import core.config.database
 import core.config.logging_config
-import signals.indicator
+import domains.trading.signals.indicator
 
 # Configure the environment for Docker
 # Define macros for environment types

@@ -20,7 +20,7 @@ Features:
 - Rich formatting for different platforms
 
 Usage:
-    from src.market_data.realtime.monitoring.alert_channels import AlertChannelManager
+    from market_data.realtime.monitoring.alert_channels import AlertChannelManager
 
     manager = AlertChannelManager()
     await manager.send_alert(alert, channels=['slack', 'email'])

@@ -1,5 +1,5 @@
 import asyncpg
-from src.core.platform.config.environment import Environment
+from core.platform.config.environment import Environment
 
 class StockSplitsPolygonDAO:
     def __init__(self, env: Environment):

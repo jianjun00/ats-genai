@@ -11,9 +11,9 @@ from typing import List, Dict, Any
 from celery import Celery, Task
 from celery.signals import worker_ready, worker_shutdown
 
-from src.domains.analytics.events.proto.events_pb2 import Event, MessageToDict
-from src.domains.analytics.events.database import EventStorage
-from src.domains.analytics.events.correlation import CorrelationEngine
+from domains.analytics.events.proto.events_pb2 import Event, MessageToDict
+from domains.analytics.events.database import EventStorage
+from domains.analytics.events.correlation import CorrelationEngine
 
 logger = logging.getLogger(__name__)
 

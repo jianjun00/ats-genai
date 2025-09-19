@@ -18,7 +18,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 import uvicorn
 
-from src.core.config.database import Database
+from core.config.database import Database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

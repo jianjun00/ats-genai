@@ -402,7 +402,7 @@ async def health_check(
 ):
     """Comprehensive health check endpoint"""
     try:
-        from src.infrastructure.service_discovery import get_health_manager
+        from infrastructure.service_discovery import get_health_manager
 
         health_manager = get_health_manager()
         overall_health = await health_manager.perform_all_checks()

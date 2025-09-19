@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 # Agent imports
-from src.domains.data_quality.agents.data_quality_agent import DataQualityAgent
+from domains.data_quality.agents.data_quality_agent import DataQualityAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -61,9 +61,9 @@ logger.info("✅ Simple Data Quality Agent initialized")
 
 # Import Tagging System
 try:
-    from src.domains.tagging.services.tag_service import TagService
-    from src.domains.tagging.repositories.tag_repository import TagRepository
-    from src.domains.tagging.api.tag_api import tag_router
+    from domains.tagging.services.tag_service import TagService
+    from domains.tagging.repositories.tag_repository import TagRepository
+    from domains.tagging.api.tag_api import tag_router
     TAGGING_AVAILABLE = True
     logger.info("✅ Tagging System loaded successfully")
 except ImportError as e:
@@ -72,11 +72,11 @@ except ImportError as e:
 
 # Import core components
 try:
-    from src.core.platform.database.connection_manager import get_connection_manager
+    from core.platform.database.connection_manager import get_connection_manager
     CORE_PLATFORM_AVAILABLE = True
 except ImportError:
     try:
-        from src.infrastructure.database.connection_manager import DatabaseConnectionManager
+        from infrastructure.database.connection_manager import DatabaseConnectionManager
         get_connection_manager = lambda: DatabaseConnectionManager()
         CORE_PLATFORM_AVAILABLE = True
     except ImportError:
@@ -86,7 +86,7 @@ except ImportError:
 # Import visualization components
 try:
     from visualization.multi_panel_trading_chart import MultiPanelTradingChart
-    from src.domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+    from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
     VISUALIZATION_AVAILABLE = True
     logger.info("✅ Multi-panel trading visualization loaded")
 except ImportError as e:
@@ -95,8 +95,8 @@ except ImportError as e:
 
 # Import type system components (from analytics_service_class.py)
 try:
-    from src.domains.ml.schema.registry import schema_registry
-    from src.domains.ml.schema.types import FieldSemantics
+    from domains.ml.schema.registry import schema_registry
+    from domains.ml.schema.types import FieldSemantics
     TYPE_SYSTEM_AVAILABLE = True
     logger.info("✅ Type system components loaded")
 except ImportError as e:
@@ -326,7 +326,7 @@ class UnifiedAnalyticsService:
     def get_training_datasets(self):
         """Get training datasets from database for dual-tab functionality."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
 
             environment = os.getenv('ENVIRONMENT', 'dev')
             table_name = f"{environment}_training_datasets"
@@ -385,7 +385,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_sequence(self, dataset_id: int, row_index: int, timeframe: str = "5m") -> Dict[str, Any]:
         """Get training dataset sequence data for OHLC visualization."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             import numpy as np
             from pathlib import Path
@@ -600,7 +600,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_sequences(self, dataset_id: int) -> Dict[str, Any]:
         """Get available sequences for a training dataset."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             import os
 
@@ -743,7 +743,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_visualization_data(self, dataset_id: int, start_idx: int = 0, sequence_id: str = None, target_symbol: str = None) -> Dict[str, Any]:
         """Get visualization data for training dataset sequences (OHLC + indicators for Plotly charts)."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
             import os
@@ -967,7 +967,7 @@ class UnifiedAnalyticsService:
 
                             # Sanitize response to prevent NaN/Infinity JSON serialization errors
                             try:
-                                from src.core.sanitizers.json_sanitizer import validate_api_response
+                                from core.sanitizers.json_sanitizer import validate_api_response
                                 response = validate_api_response(response)
                                 logger.info("✅ Visualization API response sanitized for JSON safety")
                             except Exception as sanitizer_error:
@@ -996,7 +996,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_sequence_multi_timeframe(self, dataset_id: int, sequence_id: str, row_index: int = 50) -> Dict[str, Any]:
         """Get multi-timeframe OHLC data for a specific sequence, showing 21 bars centered around row_index."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
             import os
@@ -1189,7 +1189,7 @@ class UnifiedAnalyticsService:
 
                     # Sanitize response to prevent NaN/Infinity JSON serialization errors
                     try:
-                        from src.core.sanitizers.json_sanitizer import validate_api_response
+                        from core.sanitizers.json_sanitizer import validate_api_response
                         response = validate_api_response(response)
                         logger.info("✅ API response sanitized for JSON safety")
                     except Exception as sanitizer_error:
@@ -1338,7 +1338,7 @@ class UnifiedAnalyticsService:
     def get_bar_collection_metrics(self) -> Dict[str, Any]:
         """Get metrics about bars collected organized by collection time and bar time."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
 
             with get_raw_connection() as conn:
@@ -1485,7 +1485,7 @@ class UnifiedAnalyticsService:
     def get_news_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
         """Get recent news events from Polygon and Tiingo sources with optional filters."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime
 
@@ -1652,7 +1652,7 @@ class UnifiedAnalyticsService:
     def get_earnings_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
         """Get recent earnings events from environment-specific earnings_events table with optional filters."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime
             import os
@@ -1780,7 +1780,7 @@ class UnifiedAnalyticsService:
     def get_gap_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
         """Get gap events from environment-specific gap_events table with optional filters."""
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime
             import os
@@ -1930,8 +1930,8 @@ class UnifiedAnalyticsService:
         """Get consolidated economic events from multiple event tables."""
         logger.info(f"NEW get_economic_events method called with limit={limit}, vendor={vendor}")
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
-            from src.core.platform.config.environment import Environment
+            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.config.environment import Environment
             import psycopg2.extras
             from datetime import datetime
             import os
@@ -2307,7 +2307,7 @@ class UnifiedAnalyticsService:
         logger.info(f"🔍 Validating environment setup for: {environment}")
 
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
 
             # Get expected configuration
@@ -5951,7 +5951,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             import os
 
@@ -5996,7 +5996,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             from psycopg2 import sql
 
@@ -6047,7 +6047,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
 
             with get_raw_connection() as conn:
@@ -6089,7 +6089,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             from psycopg2 import sql
 
@@ -6193,7 +6193,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from psycopg2 import sql
 
@@ -8271,7 +8271,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 import sys
                 import os
                 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-                from src.domains.data_quality.services.ray_data_quality_agent import RayDataQualityAgent
+                from domains.data_quality.services.ray_data_quality_agent import RayDataQualityAgent
                 
                 agent = RayDataQualityAgent(db_config, num_workers=4)
                 result = await agent.get_issues_page(
@@ -8760,7 +8760,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 return
 
             # Start agent monitoring (mark as active, actual monitoring handled separately)
-            from src.domains.data_quality.agents.data_quality_agent import AgentStatus
+            from domains.data_quality.agents.data_quality_agent import AgentStatus
             agent.status = AgentStatus.ACTIVE
             
             self.send_response(200)
@@ -8793,7 +8793,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 return
 
             # Stop agent monitoring
-            from src.domains.data_quality.agents.data_quality_agent import AgentStatus
+            from domains.data_quality.agents.data_quality_agent import AgentStatus
             agent.status = AgentStatus.IDLE
             
             self.send_response(200)
@@ -8818,7 +8818,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 return
 
             agent = self.analytics_service.data_quality_agent
-            from src.domains.data_quality.agents.data_quality_agent import AgentStatus
+            from domains.data_quality.agents.data_quality_agent import AgentStatus
             agent.status = AgentStatus.IDLE
             
             self.send_response(200)
@@ -8958,7 +8958,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
         try:
             import os
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             # Get environment-aware table name
@@ -9007,7 +9007,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         try:
             import os
             from urllib.parse import urlparse, parse_qs
-            from src.core.platform.database.connection_manager import get_raw_connection
+            from core.platform.database.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             # Get environment-aware table names
@@ -9132,8 +9132,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             asyncio.set_event_loop(loop)
 
             try:
-                from src.domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
-                from src.core.shared.utils.environment import Environment
+                from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
+                from core.platform.config.environment import Environment
 
                 # Create environment and DAO
                 environment = Environment()
@@ -9238,8 +9238,8 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             asyncio.set_event_loop(loop)
 
             try:
-                from src.domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
-                from src.core.shared.utils.environment import Environment
+                from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
+                from core.platform.config.environment import Environment
                 import array_record.python.array_record_module as array_record
 
                 # Create environment and DAO
@@ -9394,7 +9394,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         try:
             # Initialize unified financial events integration if not already done
             if not hasattr(self, 'financial_events_integration'):
-                from src.domains.analytics.services.financial_events.multi_source_events_orchestrator import UnifiedFinancialEventsIntegration
+                from domains.analytics.services.financial_events.multi_source_events_orchestrator import UnifiedFinancialEventsIntegration
                 self.financial_events_integration = UnifiedFinancialEventsIntegration(
                     xai_api_key=os.getenv('XAI_API_KEY'),
                     grok_api_key=os.getenv('GROK_API_KEY', os.getenv('XAI_API_KEY')),
@@ -9476,7 +9476,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             params = json.loads(post_data.decode('utf-8'))
             
             import asyncio
-            from src.domains.analytics.services.financial_events.multi_source_events_orchestrator import EventSource
+            from domains.analytics.services.financial_events.multi_source_events_orchestrator import EventSource
             
             # Determine preferred source
             preferred_source = params.get('source', 'combined').lower()
@@ -9837,7 +9837,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             
             # Get tag service instance
             async def get_tag_service():
-                from src.infrastructure.database.connection_manager import get_database_connection
+                from infrastructure.database.connection_manager import get_database_connection
                 connection = await get_database_connection("dev")  # TODO: Make configurable
                 repository = TagRepository(connection)
                 return TagService(repository)
@@ -10005,7 +10005,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             
             if endpoint == '':
                 # POST /api/tags/ - Create new tag
-                from src.domains.tagging.models.tag_models import CreateTagRequest
+                from domains.tagging.models.tag_models import CreateTagRequest
                 create_request = CreateTagRequest(
                     name=request_data['name'],
                     description=request_data.get('description'),
@@ -10018,7 +10018,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 
             elif endpoint == 'apply':
                 # POST /api/tags/apply - Apply tag to entity
-                from src.domains.tagging.models.tag_models import ApplyTagRequest, TagSource
+                from domains.tagging.models.tag_models import ApplyTagRequest, TagSource
                 apply_request = ApplyTagRequest(
                     entity_type=request_data['entity_type'],
                     entity_id=request_data['entity_id'],
@@ -10045,7 +10045,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 
             elif endpoint == 'bulk-apply':
                 # POST /api/tags/bulk-apply - Bulk apply tags
-                from src.domains.tagging.models.tag_models import BulkTagRequest, TagSource
+                from domains.tagging.models.tag_models import BulkTagRequest, TagSource
                 bulk_request = BulkTagRequest(
                     entity_type=request_data['entity_type'],
                     entity_ids=request_data['entity_ids'],
@@ -10068,7 +10068,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
                 
             elif endpoint == 'search-entities':
                 # POST /api/tags/search-entities - Search entities by tags
-                from src.domains.tagging.models.tag_models import TagFilter
+                from domains.tagging.models.tag_models import TagFilter
                 from datetime import datetime
                 
                 tag_filter = TagFilter(
@@ -10404,7 +10404,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
     async def _get_basic_data_quality_issues(self, limit=50, offset=0):
         """Get basic data quality issues without tag filtering (fallback)"""
         try:
-            from src.infrastructure.database.connection_manager import get_database_connection
+            from infrastructure.database.connection_manager import get_database_connection
             
             connection = await get_database_connection("dev")
             

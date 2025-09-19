@@ -24,9 +24,9 @@ from dataclasses import dataclass
 import traceback
 
 import asyncpg
-from src.core.platform.config.environment import Environment
-from src.infrastructure.llm.hybrid_llm_client import HybridLLMClient
-from src.infrastructure.llm.local_model_client import LocalModelClient
+from core.platform.config.environment import Environment
+from infrastructure.llm.hybrid_llm_client import HybridLLMClient
+from infrastructure.llm.local_model_client import LocalModelClient
 
 # Configure logging
 logging.basicConfig(

@@ -14,14 +14,14 @@ from typing import Dict, Any
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Core imports
-from src.core.platform.database.connection_manager import get_connection_manager
+from core.platform.database.connection_manager import get_connection_manager
 
 # Visualization imports
 from visualization.multi_panel_trading_chart import MultiPanelTradingChart
-from src.domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
 
 # Services
-from src.core.analytics.service import AnalyticsService as UnifiedAnalyticsService
+from core.analytics.service import AnalyticsService as UnifiedAnalyticsService
 
 logger = logging.getLogger(__name__)
 

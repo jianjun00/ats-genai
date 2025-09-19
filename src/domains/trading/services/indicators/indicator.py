@@ -2,9 +2,9 @@ import gin
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict
-from src.domains.trading.services.state.factor_interval import FactorInterval
-from src.domains.trading.services.state.instrument_interval import InstrumentInterval
-from src.domains.trading.services.state.indicator_interval import IndicatorInterval
+from domains.trading.services.state.factor_interval import FactorInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
+from domains.trading.services.state.indicator_interval import IndicatorInterval
 
 @dataclass
 class UniverseState:

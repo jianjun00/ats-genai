@@ -1,7 +1,7 @@
 import asyncio
 import requests
 from datetime import datetime, date
-from src.infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
+from infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
 
 
 # get_all_spy_tickers is obsolete, use InstrumentPolygonDAO.get_all_symbols instead.
@@ -18,7 +18,7 @@ def fetch_dividends_polygon(ticker, api_key):
 async def insert_dividends_polygon(dividends, ticker, dao=None):
     if dao is None:
 
-        from src.infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
+        from infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
         env = Environment()
         dao = DividendPolygonDAO(env)
     if not dividends:
@@ -44,8 +44,8 @@ async def insert_dividends_polygon(dividends, ticker, dao=None):
         if dividend_row['ex_dividend_date'] and dividend_row['cash_amount'] is not None:
             await dao.insert_dividend(dividend_row)
 
-from vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from src.core.shared.utils.environment import Environment, EnvironmentType
+from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from core.platform.config.environment import Environment, EnvironmentType
 import argparse
 
 async def main():

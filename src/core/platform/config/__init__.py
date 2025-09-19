@@ -5,7 +5,7 @@ This module provides environment-specific configuration management with support 
 test, integration, and production environments. Now consolidated under core.config.
 """
 
-from .environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from .gin_loader import GinConfigLoader
 from .settings import Settings
 

@@ -13,7 +13,7 @@ from dataclasses import dataclass, asdict
 sys.path.insert(0, '/home/jianjun/ats-genai-model/src')
 
 from flask import Flask, jsonify
-from src.infrastructure.database.connection_manager import get_database_connection
+from infrastructure.database.connection_manager import get_database_connection
 
 app = Flask(__name__)
 

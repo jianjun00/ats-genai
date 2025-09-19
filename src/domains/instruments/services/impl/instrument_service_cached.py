@@ -9,7 +9,7 @@ import asyncio
 from typing import List, Optional, Dict, Any
 import logging
 
-from src.infrastructure.caching import (
+from infrastructure.caching import (
     MultiLayerCache,
     cached,
     CacheInvalidationManager,

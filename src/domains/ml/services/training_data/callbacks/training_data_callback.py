@@ -11,9 +11,9 @@ from datetime import datetime, date
 from typing import Any, Optional, List, Dict, Union
 from pathlib import Path
 
-from src.domains.trading.services.state.runner_callback import RunnerCallback
+from domains.trading.services.state.runner_callback import RunnerCallback
 # TrainingDataConfig is imported from the specific runner that uses this callback
-from src.domains.ml.services.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator
+from domains.ml.services.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator
 # Removed: SequenceStorageManager - using simple ArrayRecord storage per PRD/DRD QR5
 
 
@@ -77,7 +77,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
         # 🚨 NEW: Dynamic Binary Record Schema System
         # Replaces hardcoded OHLCV format with configurable technical indicators
-        from src.domains.ml.services.training_data.schemas.binary_record_schema import SchemaTemplates
+        from domains.ml.services.training_data.schemas.binary_record_schema import SchemaTemplates
 
         # Default to auto-detect mode for maximum flexibility
         # Users can override by passing schema_config in config
@@ -447,7 +447,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         Called at the end of processing to register all generated monthly files.
         """
         try:
-            from src.domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
+            from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
 
             # Get environment and run info
             environment = runner.get_environment()

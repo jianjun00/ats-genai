@@ -18,7 +18,7 @@ import json
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-from src.core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 import asyncpg
 
 class MultiTimeframeFeatureExtractor:

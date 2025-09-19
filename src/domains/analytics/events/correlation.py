@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
-from src.domains.analytics.events.proto.events_pb2 import Event, EventType
+from domains.analytics.events.proto.events_pb2 import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -490,8 +490,8 @@ if __name__ == "__main__":
 
         if command == "test":
             # Test correlation engine
-            from src.domains.analytics.events.database import EventStorage
-            from src.domains.analytics.events.proto.events_pb2 import create_news_event
+            from domains.analytics.events.database import EventStorage
+            from domains.analytics.events.proto.events_pb2 import create_news_event
 
             storage = EventStorage()
             engine = CorrelationEngine(storage)

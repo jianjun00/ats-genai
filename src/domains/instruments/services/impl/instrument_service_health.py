@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, Any
 import logging
 
-from src.infrastructure.service_discovery import (
+from infrastructure.service_discovery import (
     ServiceInstance,
     ServiceEndpoint,
     HealthCheck as ServiceHealthCheck,

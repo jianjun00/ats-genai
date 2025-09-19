@@ -26,17 +26,17 @@ import json
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.domains.analytics.events.analysis.support_resistance_detector import (
+from domains.analytics.events.analysis.support_resistance_detector import (
     SupportResistanceDetector, SRLevel, SRTest, SREvent,
     SRType, SRLevelType, SRTestOutcome, Timeframe
 )
-from src.core.shared.data_handling.utils.environment import Environment
-from src.domains.market_data.services.core.minute.file_based_minute_market_data_manager import (
+from core.platform.config.environment import Environment
+from domains.market_data.services.core.minute.file_based_minute_market_data_manager import (
     FileBasedMinuteMarketDataManager
 )
 # Optional logging import
 try:
-    from src.core.logging.logger_config import get_logger
+    from core.logging.logger_config import get_logger
     logger = get_logger(__name__)
 except ImportError:
     import logging

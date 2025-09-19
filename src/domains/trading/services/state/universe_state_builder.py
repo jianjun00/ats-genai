@@ -28,7 +28,7 @@ INTERACTIONS:
 import pandas as pd
 import gin
 try:
-    from src.domains.trading.services.state.runner_callback import RunnerCallback
+    from domains.trading.services.state.runner_callback import RunnerCallback
 except Exception:
     # Fallback minimal base when runner_callback is not available in test context
     class RunnerCallback:
@@ -36,15 +36,15 @@ except Exception:
 from typing import Dict, List
 import logging
 from datetime import datetime, timedelta
-from src.core.platform.config.environment import Environment
-from src.domains.trading.services.state.instrument_interval import InstrumentInterval
+from core.platform.config.environment import Environment
+from domains.trading.services.state.instrument_interval import InstrumentInterval
 from .factor_interval import FactorInterval
-from src.domains.trading.services.state.indicator_interval import IndicatorInterval
-from src.core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
+from domains.trading.services.state.indicator_interval import IndicatorInterval
+from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 
 try:
-    from src.domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-    from src.domains.trading.services.indicators.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
+    from domains.trading.services.indicators.indicator_config import IndicatorConfig
 except ImportError:
     # Fallback - these may not be available in all environments
     IndicatorBuilder = None
@@ -61,9 +61,9 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             target_durations: comma-separated str (e.g. '1m,5m,15m,1h,1d'), overrides Gin config if provided
             universe_state_manager: UniverseStateManager instance for shared rolling cache
         """
-        from src.core.shared.data_handling.utils.environment import Environment
-        from src.core.dao.security_reference.market_cap_dao import DailyMarketCapDAO
-        from src.core.business.calendars.time_duration import TimeDuration
+        from core.platform.config.environment import Environment
+        from core.dao.security_reference.market_cap_dao import DailyMarketCapDAO
+        from core.business.calendars.time_duration import TimeDuration
         import logging
         
         # Inject DailyMarketCapDAO for market_cap sourcing
@@ -104,7 +104,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         Called once per minute, but universe state is built separately for each timeframe
         (5m, 15m, 1h, 1d, etc.) only when that timeframe's interval is complete.
         """
-        from src.domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         self.logger.debug(f"[handleInterval] Called at {current_time} - processing 1-minute interval")
         
         if not self.target_durations:
@@ -115,7 +115,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         
         # --- 1. ALWAYS update rolling cache with 1-minute data ---
         # ✅ CRITICAL FIX: Request data from market open to current interval time only
-        from src.core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
+        from core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
         
         # Get trading session start time and use current_time as end - ensure both are GMT
         from zoneinfo import ZoneInfo
@@ -132,7 +132,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         self.logger.debug(f"[handleInterval] Fetching 1-minute data: [{minute_start_time}, {minute_end_time}]")
         
         # Convert instrument_ids to symbols for FileBasedMinuteMarketDataManager
-        from src.core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(runner.get_environment())
         inst_id_to_symbol = await xrefs_dao.get_symbols_by_instrument_ids_batch(instrument_ids, "ticker")
         
@@ -458,7 +458,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         """
         Build universe state for a single duration - extracted from original logic.
         """
-        from src.domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         
         duration_to_state = {}
         d_end_time = duration.get_end_time(current_time)
@@ -596,7 +596,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             self.indicator_builder = None
 
         # Durations
-        from src.core.business.calendars.time_duration import TimeDuration
+        from core.business.calendars.time_duration import TimeDuration
         base_duration_str = base_duration
         self.base_duration = TimeDuration(base_duration_str)
         target_durations_str = target_durations
