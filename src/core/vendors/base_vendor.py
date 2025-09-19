@@ -16,7 +16,7 @@ REPLACES:
 USAGE:
 ======
 
-from src.core.vendors import BaseVendor, VendorRegistry
+from core.vendors import BaseVendor, VendorRegistry
 
 # Register vendor
 @VendorRegistry.register('polygon')
@@ -42,10 +42,10 @@ import aiohttp
 from urllib.parse import urljoin
 import json
 
-from src.core.shared.utils.http_response_handlers import handle_vendor_response, ResponseStats
-from src.core.shared.utils.validation_utils import validate_stock_symbol, validate_date_range
-from src.core.shared.utils.data_transformers import transform_vendor_dividend, transform_vendor_instrument
-from src.core.shared.utils.math_utils import safe_divide, calculate_statistics
+from core.shared.utils.http_response_handlers import handle_vendor_response, ResponseStats
+from core.shared.utils.validation_utils import validate_stock_symbol, validate_date_range
+from core.shared.utils.data_transformers import transform_vendor_dividend, transform_vendor_instrument
+from core.shared.utils.math_utils import safe_divide, calculate_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -553,7 +553,7 @@ class VendorRegistry:
 
 def create_vendor_from_env(vendor_name: str) -> Optional[BaseVendor]:
     """Create vendor instance from environment configuration."""
-    from src.core.shared.utils.config_utils import load_vendor_config
+    from core.shared.utils.config_utils import load_vendor_config
     
     config_data = load_vendor_config(vendor_name)
     if not config_data:

@@ -22,7 +22,7 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 import hashlib
 
-from src.core.config.feature_flags import require_feature, feature_gate, is_enabled
+from core.config.feature_flags import require_feature, feature_gate, is_enabled
 
 logger = logging.getLogger(__name__)
 

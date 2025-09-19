@@ -19,7 +19,7 @@ TOTAL CONSOLIDATION: 36,513+ lines → 12,000 lines (67% reduction)
 USAGE:
 ======
 
-from src.core.services import ServiceContainer, Service, Injectable
+from core.services import ServiceContainer, Service, Injectable
 
 @Injectable
 class PriceService(Service):

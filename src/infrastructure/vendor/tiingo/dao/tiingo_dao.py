@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, date
 from sqlalchemy import text
 
-from src.core.dao.base.vendor_dao import MarketDataVendorDAO, VendorType
-from src.core.dao.market_data.daily_price_polygon_dao import DailyPriceDAO
-from src.core.platform.logging.logger_config import get_logger
+from core.dao.base.vendor_dao import MarketDataVendorDAO, VendorType
+from core.dao.market_data.daily_price_polygon_dao import DailyPriceDAO
+from core.platform.logging.logger_config import get_logger
 
 
 class TiingoDAO(MarketDataVendorDAO):

@@ -1,6 +1,6 @@
 from typing import List, Optional
-from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
-from src.domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from market_data.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 from app.runner import Runner
 
@@ -46,7 +46,7 @@ async def run_file_daily_price_ohlcv(
     await runner.run()
 
     # Fetch universe state intervals from DB using DAO
-    from src.core.dao.universe_state_interval_dao import UniverseStateIntervalDAO
+    from core.dao.universe_state_interval_dao import UniverseStateIntervalDAO
     dao = UniverseStateIntervalDAO(env)
     universe_id = env.get_universe_id()
 

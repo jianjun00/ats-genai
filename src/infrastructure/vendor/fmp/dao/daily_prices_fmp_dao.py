@@ -1,4 +1,4 @@
-from src.core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 import asyncpg
 
 class DailyPricesFmpDAO:

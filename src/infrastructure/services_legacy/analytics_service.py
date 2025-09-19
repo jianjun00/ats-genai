@@ -9133,7 +9133,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
             try:
                 from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
-                from shared.utils.environment import Environment
+                from core.platform.config.environment import Environment
 
                 # Create environment and DAO
                 environment = Environment()
@@ -9239,7 +9239,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
             try:
                 from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
-                from shared.utils.environment import Environment
+                from core.platform.config.environment import Environment
                 import array_record.python.array_record_module as array_record
 
                 # Create environment and DAO

@@ -39,12 +39,12 @@ import seaborn as sns
 from scipy import stats
 
 # Import existing components
-from src.domains.ml.services.evaluation.adaptive_backtester import (
+from domains.ml.services.evaluation.adaptive_backtester import (
     AdaptiveBacktester, AdaptiveBacktestConfig, DailyBacktestResult
 )
-from src.domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveModelConfig
-from src.domains.trading.services.recommendation_engine import TradingUniverse
-from src.domains.trading.services.performance_metrics import PerformanceAnalyzer
+from domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveModelConfig
+from domains.trading.services.recommendation_engine import TradingUniverse
+from domains.trading.services.performance_metrics import PerformanceAnalyzer
 
 
 class FeatureFlag(Enum):
@@ -532,8 +532,8 @@ class ModelExperimentFramework:
 
     def _create_adaptive_config(self, config: ExperimentConfig) -> AdaptiveModelConfig:
         """Create adaptive model config from experiment config"""
-        from src.domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveModelConfig
-        from src.domains.ml.services.models.support_resistance_model import SRModelConfig
+        from domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveModelConfig
+        from domains.ml.services.models.support_resistance_model import SRModelConfig
 
         # Create base model config with experiment parameters
         base_model_config = SRModelConfig(

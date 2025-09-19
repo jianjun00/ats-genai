@@ -14,7 +14,7 @@ Features:
 - Alert manager integration
 
 Usage:
-    from src.market_data.realtime.monitoring.prometheus_integration import RealtimePrometheusIntegration
+    from market_data.realtime.monitoring.prometheus_integration import RealtimePrometheusIntegration
 
     integration = RealtimePrometheusIntegration()
     await integration.start_metrics_server(port=8091)

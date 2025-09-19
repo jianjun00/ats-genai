@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from src.core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from ..interfaces.market_data_service_interface import MarketDataServiceInterface
 from ..impl.market_data_service_impl import MarketDataServiceImpl
 from ...repositories.daily_price_polygon_dao import DailyPriceDAO
@@ -17,7 +17,7 @@ from ...repositories.fundamentals_dao import FundamentalsDAO
 
 # Optional instruments DAO import with fallback
 try:
-    from src.domains.instruments.repositories.instruments_dao import InstrumentsDAO
+    from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 except ImportError:
     InstrumentsDAO = None
 

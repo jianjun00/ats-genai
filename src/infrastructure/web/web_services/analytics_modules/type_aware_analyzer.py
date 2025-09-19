@@ -20,8 +20,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from src.core.database.connection_manager import get_connection_manager
-from src.core.config.settings import get_settings
+from core.database.connection_manager import get_connection_manager
+from core.config.settings import get_settings
 
 
     # ==============================================

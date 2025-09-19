@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from dataclasses import asdict
 import hashlib
 
-from src.core.platform.config.environment import Environment
+from core.platform.config.environment import Environment
 
 logger = logging.getLogger(__name__)
 

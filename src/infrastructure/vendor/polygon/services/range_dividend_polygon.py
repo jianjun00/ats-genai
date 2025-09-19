@@ -2,8 +2,8 @@ import argparse
 import asyncio
 import requests
 from datetime import datetime, date, timedelta
-from src.core.shared.utils.environment import Environment, EnvironmentType
-from src.infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from infrastructure.database.repositories.dividend_polygon_dao import DividendPolygonDAO
 
 def fetch_dividends_polygon(start_date, end_date, api_key):
     url = (

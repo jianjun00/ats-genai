@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 
-from src.domains.trading.services.state.universe_state_manager import UniverseStateManager
-from src.domains.trading.signals.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from domains.trading.signals.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig
 from modeling.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis, LLMProvider
 
 logger = logging.getLogger(__name__)

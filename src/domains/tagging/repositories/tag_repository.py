@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 import logging
 
-from src.domains.tagging.models.tag_models import (
+from domains.tagging.models.tag_models import (
     Tag, TagCategory, EntityType, EntityTag, TagUsageStats,
     TagFilter, TagSuggestion, TagAnalytics, TaggedIssue,
     CreateTagRequest, ApplyTagRequest, BulkTagRequest, TagSource

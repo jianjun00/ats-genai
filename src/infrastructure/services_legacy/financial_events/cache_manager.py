@@ -64,7 +64,7 @@ class SmartCacheManager:
     ):
         # Load cache directory from Gin config if not provided (deployment safe)
         if cache_dir is None:
-            from src.core.config.secure_config_loader import secure_config
+            from core.config.secure_config_loader import secure_config
             try:
                 cache_root = secure_config.get_secure_file_path('cache')
                 cache_dir = f"{cache_root}/xai_events"

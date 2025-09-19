@@ -22,10 +22,10 @@ from datetime import datetime
 import json
 import os
 
-from src.domains.trading.services.feature_registry import FeatureRegistry
-from src.domains.trading.services.label_registry import LabelRegistry
-from src.domains.trading.services.indicator_factory import IndicatorFactory
-from src.domains.trading.services.state.runner_callback import RunnerCallback
+from domains.trading.services.feature_registry import FeatureRegistry
+from domains.trading.services.label_registry import LabelRegistry
+from domains.trading.services.indicator_factory import IndicatorFactory
+from domains.trading.services.state.runner_callback import RunnerCallback
 from modeling.training_data_metadata import (
     TrainingDataMetadataManager,
     TrainingDataMetadata

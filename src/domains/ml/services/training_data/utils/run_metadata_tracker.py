@@ -15,7 +15,7 @@ METADATA CAPTURED:
 - Execution timestamps and performance metrics
 
 USAGE:
-    from src.ml.training_data.utils.run_metadata_tracker import RunMetadataTracker
+    from ml.training_data.utils.run_metadata_tracker import RunMetadataTracker
 
     # Initialize tracker
     tracker = RunMetadataTracker(

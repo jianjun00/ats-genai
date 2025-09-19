@@ -13,19 +13,19 @@ import os
 from datetime import datetime
 
 # Import existing components to consolidate
-from src.infrastructure.monitoring.legacy.coverage_monitor import CoverageMonitor
-from src.domains.data_quality.agents.data_quality_agent import DataQualityAgent, AgentConfig
-from src.infrastructure.monitoring.legacy.alert_system import AlertManager
-from src.infrastructure.monitoring.data_quality_validator import DataQualityValidator
-from src.infrastructure.monitoring.legacy.prometheus_exporter import PrometheusExporter
+from infrastructure.monitoring.legacy.coverage_monitor import CoverageMonitor
+from domains.data_quality.agents.data_quality_agent import DataQualityAgent, AgentConfig
+from infrastructure.monitoring.legacy.alert_system import AlertManager
+from infrastructure.monitoring.data_quality_validator import DataQualityValidator
+from infrastructure.monitoring.legacy.prometheus_exporter import PrometheusExporter
 
 # Import unified components
 from ..interfaces.unified_data_quality_service_interface import UnifiedDataQualityServiceInterface
 from ..impl.unified_data_quality_service_impl import UnifiedDataQualityServiceImpl
 
 # Import MCP tools
-from src.infrastructure.tools.mcp.quality_scan_tool import QualityScanTool
-from src.infrastructure.tools.mcp.backfill_orchestrator_tool import BackfillOrchestratorTool
+from infrastructure.tools.mcp.quality_scan_tool import QualityScanTool
+from infrastructure.tools.mcp.backfill_orchestrator_tool import BackfillOrchestratorTool
 
 logger = logging.getLogger(__name__)
 

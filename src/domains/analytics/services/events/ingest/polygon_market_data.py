@@ -1,7 +1,7 @@
 import os
 import httpx
 from datetime import datetime
-from src.domains.analytics.events.schemas import EventIn
+from domains.analytics.events.schemas import EventIn
 
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
 

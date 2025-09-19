@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, List
 from datetime import datetime
-from src.core.business.calendars.time_duration import TimeDuration
+from core.business.calendars.time_duration import TimeDuration
 from .factor_interval import FactorInterval
 from .instrument_interval import InstrumentInterval
 from .indicator_interval import IndicatorInterval

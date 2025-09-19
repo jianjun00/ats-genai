@@ -6,12 +6,12 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from src.domains.tagging.models.tag_models import (
+from domains.tagging.models.tag_models import (
     Tag, TagCategory, EntityTag, TagFilter, TaggedEntity, TagUsageStats,
     TagAnalytics, CreateTagRequest, ApplyTagRequest, BulkTagRequest,
     TagSuggestion, TagSource
 )
-from src.domains.tagging.repositories.tag_repository import TagRepository
+from domains.tagging.repositories.tag_repository import TagRepository
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +303,7 @@ class TagService:
     def get_auto_tagging_service(self):
         """Get auto-tagging service instance (lazy initialization)"""
         if self._auto_tagging_service is None:
-            from src.domains.tagging.services.auto_tagging_service import AutoTaggingService
+            from domains.tagging.services.auto_tagging_service import AutoTaggingService
             self._auto_tagging_service = AutoTaggingService(self)
         return self._auto_tagging_service
     

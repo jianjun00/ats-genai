@@ -31,7 +31,7 @@ class EnvironmentType(Enum):
 
 # Conditional import for IndicatorConfig to avoid breaking tests
 try:
-    from src.domains.trading.services.indicators.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators.indicator_config import IndicatorConfig
 except ImportError:
     # Create a minimal placeholder for testing
     class IndicatorConfig:
@@ -44,10 +44,10 @@ except ImportError:
 
 # Defensive import handling for LoggingConfig
 try:
-    from src.core.platform.config.logging_config import LoggingConfig
+    from core.platform.config.logging_config import LoggingConfig
 except ImportError:
     try:
-        from src.core.platform.logging.logger_config import LoggingConfig
+        from core.platform.logging.logger_config import LoggingConfig
     except ImportError:
         # Emergency: Create a minimal LoggingConfig class for system stability
         import logging
@@ -98,76 +98,50 @@ class Environment:
     All config values are bound as module-level variables.
     """
     def __init__(self, gin_config_path: Optional[str] = None, env_type: Optional[object] = None, db_url: Optional[str] = None, logging_config: LoggingConfig = LoggingConfig()):
-        print(f"[GIN DEBUG] Environment.__init__ received db_url: {db_url}")
-        # Accept either a gin config path or an environment type (enum or str)
-        config_path = None
-        # If gin_config_path is actually an EnvironmentType or str, treat as env_type
-        if gin_config_path is not None and not isinstance(gin_config_path, str):
-            env_type = gin_config_path
-            gin_config_path = None
-        # Set self.env_type based on env_type or config
+        # Determine environment type - MUST be explicit, no fallbacks
         if env_type is not None:
             if isinstance(env_type, EnvironmentType):
                 self.env_type = env_type
             else:
-                # Try to coerce to EnvironmentType
                 try:
                     self.env_type = EnvironmentType(env_type)
-                except Exception:
-                    self.env_type = EnvironmentType.TEST
+                except ValueError:
+                    raise RuntimeError(f"Invalid env_type '{env_type}'. Valid options: dev, test, intg, prod")
         else:
-            # Try to infer from GIN_CONFIG or default
-            config_dir = Path(__file__).parent.parent.parent / "config"
-            gin_cfg = gin_config_path or os.getenv("GIN_CONFIG", str(config_dir / "app.gin"))
-            if "intg" in gin_cfg:
-                self.env_type = EnvironmentType.INTEGRATION
-            elif "prod" in gin_cfg:
-                self.env_type = EnvironmentType.PRODUCTION
-            elif "dev" in gin_cfg:
-                self.env_type = EnvironmentType.DEV
-            else:
-                # Check ENVIRONMENT environment variable
-                env_str = os.getenv("ENVIRONMENT", "test").lower()
-                try:
-                    self.env_type = EnvironmentType(env_str)
-                except Exception:
-                    self.env_type = EnvironmentType.TEST
-
-        # --- BEGIN PATCH: allow custom gin config path ---
-        import gin
+            # Check ENVIRONMENT variable - REQUIRED
+            env_str = os.getenv("ENVIRONMENT")
+            if not env_str:
+                raise RuntimeError("ENVIRONMENT variable must be set. Valid options: dev, test, intg, prod")
+            
+            try:
+                self.env_type = EnvironmentType(env_str.lower())
+            except ValueError:
+                raise RuntimeError(f"Invalid ENVIRONMENT '{env_str}'. Valid options: dev, test, intg, prod")
+        
+        # Simple config path mapping - no complex logic
         if gin_config_path:
             config_path = gin_config_path
-        elif env_type is not None:
-            if isinstance(env_type, EnvironmentType):
-                env_type_str = env_type.value
-            else:
-                env_type_str = str(env_type)
-            # Get absolute path to config directory
-            config_dir = Path(__file__).parent.parent.parent / "config"
-
-            if env_type_str in ("test", "TEST"):
-                config_path = str(config_dir / "app.gin")
-            elif env_type_str in ("dev", "DEV"):
-                config_path = str(config_dir / "app_docker.gin")
-            elif env_type_str in ("intg", "integration", "INTEGRATION"):
-                config_path = str(config_dir / "app_intg.gin")
-            elif env_type_str in ("prod", "production", "PRODUCTION"):
-                config_path = str(config_dir / "app_prod.gin")
-            else:
-                config_path = str(config_dir / "app.gin")
         else:
-            raise RuntimeError("Environment type could not be determined. Valid options: dev, test, intg, prod, production")
-        print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={getattr(self, 'env_type', None)}")
+            config_dir = Path(__file__).parent.parent.parent.parent.parent / "config"
+            config_map = {
+                EnvironmentType.TEST: "app.gin",
+                EnvironmentType.DEV: "app_docker.gin", 
+                EnvironmentType.INTEGRATION: "app_intg.gin",
+                EnvironmentType.PRODUCTION: "app_prod.gin"
+            }
+            config_path = str(config_dir / config_map[self.env_type])
+        
+        print(f"[GIN DEBUG] Using Gin config: {config_path}, env_type={self.env_type}")
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
-        from src.core.platform.config.database import Database
-        from vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
+        from core.config.database import Database
+        from infrastructure.vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
 
         import gin
         if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
             if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
                 gin.parse_config_file(config_path)
-        from src.core.platform.config.logging_config import LoggingConfig
+        from core.platform.config.logging_config import LoggingConfig
         self.logging_config = LoggingConfig()
         set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config
         print(f"[DEBUG] POLYGON_API_KEY after Gin load: {POLYGON_API_KEY}")
@@ -265,7 +239,7 @@ class Environment:
         return None
 
     def get_polygon_api_key(self) -> str:
-        from vendor.polygon.config import POLYGON_API_KEY
+        from infrastructure.vendor.polygon.config import POLYGON_API_KEY
         return POLYGON_API_KEY
 
     def _setup_logging(self) -> logging.Logger:
@@ -430,12 +404,12 @@ class Environment:
     # --- Duration-related methods migrated from UniverseStateBuilder ---
     def get_base_duration(self) -> 'TimeDuration':
         # Default to 5 minutes if not set in config
-        from src.core.business.calendars.time_duration import TimeDuration
+        from core.business.calendars.time_duration import TimeDuration
         duration_str = self.get('universe.base_duration', '5m')
         return TimeDuration(duration_str)
 
     def get_target_durations(self) -> 'List[TimeDuration]':
-        from src.core.business.calendars.time_duration import TimeDuration
+        from core.business.calendars.time_duration import TimeDuration
         durations_str = self.get('universe.target_durations', '5m')
         durations = [d.strip() for d in durations_str.split(',')]
         return [TimeDuration(d) for d in durations]
@@ -499,19 +473,5 @@ class Environment:
         return f"Environment(type={self.env_type.value}, db_url={self.db_url})"
 
 
-# Global environment instance for easy access
-# Only initialize if ENVIRONMENT_TYPE is set to avoid runtime errors
-env = None
-if os.getenv('ENVIRONMENT_TYPE'):
-    try:
-        env = Environment()
-    except RuntimeError:
-        # Environment type could not be determined, will be initialized later
-        pass
-else:
-    try:
-        env = Environment()
-    except RuntimeError:
-        # Environment instance will be created when needed
-        env = None
+# No global Environment instance - must be created explicitly with valid env_type
 

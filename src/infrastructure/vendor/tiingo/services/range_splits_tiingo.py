@@ -3,10 +3,10 @@ import asyncio
 import requests
 import time
 from datetime import datetime, date
-from src.core.shared.utils.environment import Environment, EnvironmentType
-from src.core.shared.utils.vendor_api_keys import get_tiingo_api_key
-from src.core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-from src.infrastructure.database.repositories.stock_splits_tiingo_dao import StockSplitsTiingoDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from core.shared.utils.vendor_api_keys import get_tiingo_api_key
+from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from infrastructure.database.repositories.stock_splits_tiingo_dao import StockSplitsTiingoDAO
 import asyncpg
 
 def parse_date(val):

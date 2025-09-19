@@ -1,10 +1,10 @@
 import argparse
 import asyncio
-from src.core.shared.utils.environment import Environment, EnvironmentType
-from src.infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from src.domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from src.domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-from src.domains.instruments.repositories.vendors_dao import VendorsDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+from domains.instruments.repositories.vendors_dao import VendorsDAO
 from datetime import datetime, date
 import ray
 
@@ -150,11 +150,11 @@ async def populate_unified_instruments(polygon_dao, instruments_dao, xrefs_dao, 
         import asyncio
         import nest_asyncio
         nest_asyncio.apply()
-        from src.core.shared.utils.environment import Environment
-        from src.infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-        from src.domains.instruments.repositories.instruments_dao import InstrumentsDAO
-        from src.domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-        from src.domains.instruments.repositories.vendors_dao import VendorsDAO
+        from core.platform.config.environment import Environment
+        from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
+        from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+        from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
+        from domains.instruments.repositories.vendors_dao import VendorsDAO
         # Recreate DAOs in Ray worker
         env = Environment(*env_args)
         polygon_dao = InstrumentPolygonDAO(env)

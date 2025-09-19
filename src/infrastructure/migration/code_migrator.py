@@ -325,7 +325,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.domains.{domain_name.lower()}.dtos.{domain_name.lower()}_dtos import (
+from domains.{domain_name.lower()}.dtos.{domain_name.lower()}_dtos import (
     {domain_name.title()}DTO,
     SearchCriteria,
     OperationResult,
@@ -441,7 +441,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 from .interfaces.{domain_name.lower()}_service_interface import {interface_name}
-from src.domains.{domain_name.lower()}.dtos.{domain_name.lower()}_dtos import (
+from domains.{domain_name.lower()}.dtos.{domain_name.lower()}_dtos import (
     {domain_name.title()}DTO,
     SearchCriteria,
     OperationResult,
@@ -604,7 +604,7 @@ Auto-generated cached service wrapper with intelligent caching strategies.
 from typing import List, Optional, Dict, Any
 import logging
 
-from src.infrastructure.caching import cached, MultiLayerCache, CacheInvalidationManager
+from infrastructure.caching import cached, MultiLayerCache, CacheInvalidationManager
 from .interfaces.{domain_name.lower()}_service_interface import {interface_name}
 from .impl.{domain_name.lower()}_service_impl import {domain_name.title()}ServiceImpl
 

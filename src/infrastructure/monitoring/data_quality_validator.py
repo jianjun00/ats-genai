@@ -26,7 +26,7 @@ from enum import Enum
 from statistics import mean
 
 # Add src to path for imports
-from src.core.platform.config.environment import Environment
+from core.platform.config.environment import Environment
 
 class ValidationSeverity(Enum):
     CRITICAL = "critical"

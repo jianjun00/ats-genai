@@ -10,9 +10,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any
 from dataclasses import dataclass, asdict
 
-from src.domains.analytics.events.database import EventStorage
-from src.domains.analytics.events.producer import EventProducer
-from src.domains.analytics.events.correlation import CorrelationEngine
+from domains.analytics.events.database import EventStorage
+from domains.analytics.events.producer import EventProducer
+from domains.analytics.events.correlation import CorrelationEngine
 
 logger = logging.getLogger(__name__)
 

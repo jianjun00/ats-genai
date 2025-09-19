@@ -7,8 +7,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import re
 
-from src.domains.tagging.models.tag_models import TagSource, ApplyTagRequest
-from src.domains.tagging.services.tag_service import TagService
+from domains.tagging.models.tag_models import TagSource, ApplyTagRequest
+from domains.tagging.services.tag_service import TagService
 
 logger = logging.getLogger(__name__)
 

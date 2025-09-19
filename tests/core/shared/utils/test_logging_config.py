@@ -1,4 +1,4 @@
-from core.shared.utils.logging_config import LoggingConfig
+from core.config.logging_config import LoggingConfig
 import gin
 def test_logging_config_defaults():
     gin.clear_config()  # Clear any existing gin configuration

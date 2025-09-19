@@ -12,9 +12,9 @@ import argparse
 import json
 
 import asyncpg
-from src.core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
-from src.market_data.agent.mcp_integration import MCPToolRegistry
+from market_data.agent.mcp_integration import MCPToolRegistry
 
 # Configure logging
 logging.basicConfig(

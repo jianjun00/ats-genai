@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 import gin
 
-from src.core.config.environment import env
+from core.platform.config.environment import env
 
 logger = logging.getLogger(__name__)
 

@@ -14,10 +14,10 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.domains.ml.services.evaluation.model_config_comparison import ModelConfigDefinition
+from domains.ml.services.evaluation.model_config_comparison import ModelConfigDefinition
 from scripts.analytics.production_backtest_runner import ProductionBacktestRunner
-from src.domains.ml.services.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
-from src.domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveSupportResistanceModel, AdaptiveModelConfig
+from domains.ml.services.models.support_resistance_model import SupportResistanceEnsemble, SRModelConfig
+from domains.ml.services.dynamic_training.adaptive_sr_model import AdaptiveSupportResistanceModel, AdaptiveModelConfig
 
 
 @dataclass
@@ -641,7 +641,7 @@ async def run_production_comparison_from_configs(
     This function provides easy integration with your CLI scripts
     """
 
-    from src.domains.ml.services.evaluation.model_config_comparison import ModelConfigManager
+    from domains.ml.services.evaluation.model_config_comparison import ModelConfigManager
 
     manager = ModelConfigManager()
 

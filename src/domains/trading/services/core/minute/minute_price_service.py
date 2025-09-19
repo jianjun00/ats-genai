@@ -12,13 +12,13 @@ from fastapi import FastAPI, BackgroundTasks
 from dataclasses import dataclass
 
 # Import environment-specific configuration system
-from src.core.config.environment_config import load_gin_config, get_current_env, get_env_info
-from src.core.config.validation import validate_current_config
+from core.config.environment_config import load_gin_config, get_current_env, get_env_info
+from core.config.validation import validate_current_config
 
 # Reuse existing ATS framework
-from src.core.platform.config.environment import Environment
-from src.core.dao.base.base_dao import BaseDAO
-from src.core.platform.logging.logger_config import get_logger
+from core.platform.config.environment import Environment
+from core.dao.base.base_dao import BaseDAO
+from core.platform.logging.logger_config import get_logger
 from market_data.eod.daily_price_tiingo import TIINGO_API_KEY
 from market_data.eod.daily_price_fmp import *  # Reuse FMP patterns
 
@@ -105,7 +105,7 @@ class MinutePriceDAO(BaseDAO):
         full_table_name = self.env.get_table_name(self.table_name)
 
         # Use existing instrument resolution
-        from src.core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+        from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
         instrument_dao = InstrumentXrefsDAO(self.env)
 
         inserted_count = 0
@@ -167,7 +167,7 @@ class PolygonMinuteCollector(VendorCollector):
 
     def __init__(self, env: Environment):
         super().__init__('polygon', env)
-        from vendor.polygon.config import POLYGON_API_KEY
+        from infrastructure.vendor.polygon.config import POLYGON_API_KEY
         self.api_key = POLYGON_API_KEY
 
     async def collect_minute_data(self, symbols: List[str]) -> List[MinutePrice]:

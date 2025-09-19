@@ -14,7 +14,7 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 from dataclasses import dataclass
-from src.core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 import gin
 
 @dataclass

@@ -11,7 +11,7 @@ from typing import List, Optional, Dict, Any
 from datetime import date
 import logging
 
-from src.domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.interfaces.instrument_service_interface import (
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
@@ -87,7 +87,7 @@ class OperationResponse(BaseModel):
     skipped_count: Optional[int] = None
 
 # Import dependency injection from service container
-from src.domains.instruments.services.config.service_container import provide_instrument_service
+from domains.instruments.services.config.service_container import provide_instrument_service
 
 # Use the proper dependency injection
 async def get_instrument_service() -> InstrumentServiceInterface:
@@ -402,7 +402,7 @@ async def health_check(
 ):
     """Comprehensive health check endpoint"""
     try:
-        from src.infrastructure.service_discovery import get_health_manager
+        from infrastructure.service_discovery import get_health_manager
 
         health_manager = get_health_manager()
         overall_health = await health_manager.perform_all_checks()

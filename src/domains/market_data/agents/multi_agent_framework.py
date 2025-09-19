@@ -26,8 +26,8 @@ from enum import Enum
 import json
 from abc import ABC, abstractmethod
 
-from src.infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
-from src.domains.market_data.services.llm.news_llm_processor import NewsArticle
+from infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
+from domains.market_data.services.llm.news_llm_processor import NewsArticle
 
 logger = logging.getLogger(__name__)
 

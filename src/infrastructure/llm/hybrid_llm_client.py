@@ -21,10 +21,10 @@ from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass
 
-from src.infrastructure.llm.multi_provider_client import (
+from infrastructure.llm.multi_provider_client import (
     MultiProviderLLMClient, LLMResponse
 )
-from src.infrastructure.llm.local_model_client import (
+from infrastructure.llm.local_model_client import (
     LocalModelOrchestrator, create_fingpt_config, create_llama_8b_config,
     create_llama_70b_config
 )

@@ -13,7 +13,7 @@ import logging
 import datetime as dt
 import time
 import requests
-from src.core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -248,7 +248,7 @@ async def main():
 
     try:
         # Import Database before parsing Gin config
-        from src.core.platform.config.database import Database
+        from core.config.database import Database
 
         gin.parse_config_file(gin_config_path)
         logger.info(f"Successfully parsed Gin config: {gin_config_path}")

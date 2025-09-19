@@ -1,8 +1,8 @@
 import argparse
 import requests
 from datetime import datetime, date
-from src.core.shared.utils.environment import Environment, EnvironmentType
-from src.infrastructure.database.repositories.dividend_tiingo_dao import DividendTiingoDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from infrastructure.database.repositories.dividend_tiingo_dao import DividendTiingoDAO
 
 
 def parse_date(val):

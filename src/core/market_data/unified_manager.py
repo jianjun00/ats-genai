@@ -36,7 +36,7 @@ UnifiedMarketDataManager
 USAGE:
 ======
 
-from src.core.market_data import UnifiedMarketDataManager, MarketDataConfig
+from core.market_data import UnifiedMarketDataManager, MarketDataConfig
 
 # Initialize unified manager
 config = MarketDataConfig(
@@ -174,11 +174,11 @@ class VendorAdapter:
         end_datetime: datetime,
         timeframe: TimeframeType
     ) -> Dict[str, pd.DataFrame]:
-        """Get OHLCV data from vendor."""
+        """Get OHLCV data from infrastructure.vendor."""
         raise NotImplementedError("Subclasses must implement get_ohlcv")
     
     async def get_instruments(self) -> List[Dict[str, Any]]:
-        """Get available instruments from vendor."""
+        """Get available instruments from infrastructure.vendor."""
         raise NotImplementedError("Subclasses must implement get_instruments")
 
 class PolygonAdapter(VendorAdapter):

@@ -15,7 +15,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-from src.core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 import asyncpg
 
 async def load_market_data_from_polygon(symbols: list, start_date: date, end_date: date, env: Environment):
@@ -235,7 +235,7 @@ async def generate_tsla_aapl_training_data():
     prediction_horizon = 5  # 5-day prediction horizon from gin config
 
     # Create environment-based output directory
-    from src.core.shared.utils.environment import EnvironmentType
+    from core.platform.config.environment import EnvironmentType
 
     if env.env_type == EnvironmentType.DEV:
         env_name = "ats-dev"

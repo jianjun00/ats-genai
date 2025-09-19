@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 from ..base_vendor import BaseVendor, VendorRegistry, VendorConfig, VendorRequest, DataType, VendorCapability
-from src.core.shared.utils.data_transformers import transform_vendor_dividend, transform_vendor_instrument, parse_vendor_date
+from core.shared.utils.data_transformers import transform_vendor_dividend, transform_vendor_instrument, parse_vendor_date
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +283,7 @@ def create_tiingo_config(
     timeout: int = 30
 ) -> VendorConfig:
     """Create Tiingo vendor configuration."""
-    from src.core.shared.utils.config_utils import get_api_key_with_fallback
+    from core.shared.utils.config_utils import get_api_key_with_fallback
     
     if not api_key:
         api_key = get_api_key_with_fallback('tiingo')

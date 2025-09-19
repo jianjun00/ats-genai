@@ -18,20 +18,20 @@ from typing import Dict, List, Optional, Any
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Core data quality components
-from src.domains.data_quality.services.production_quality_orchestrator import (
+from domains.data_quality.services.production_quality_orchestrator import (
     ProductionDataQualityOrchestrator,
     QualityAssessmentLevel,
     DataQualityDecision
 )
-from src.domains.data_quality.services.hitl_orchestrator import HITLOrchestrator
-from src.domains.data_quality.ml.anomaly_detection_ensemble import DataQualityAnomalyEnsemble
+from domains.data_quality.services.hitl_orchestrator import HITLOrchestrator
+from domains.data_quality.ml.anomaly_detection_ensemble import DataQualityAnomalyEnsemble
 
 # Infrastructure components
-from src.infrastructure.vendor.real_api_client import RealVendorAPIClient
-from src.infrastructure.regulatory.compliance_validator import ProductionComplianceValidator
-from src.infrastructure.regulatory.real_regulatory_sources import RealRegulatoryDataIntegrator
-from src.infrastructure.streaming.real_time_quality_engine import RealTimeQualityEngine
-from src.infrastructure.caching.advanced_cache_manager import AdvancedCacheManager
+from infrastructure.vendor.real_api_client import RealVendorAPIClient
+from infrastructure.regulatory.compliance_validator import ProductionComplianceValidator
+from infrastructure.regulatory.real_regulatory_sources import RealRegulatoryDataIntegrator
+from infrastructure.streaming.real_time_quality_engine import RealTimeQualityEngine
+from infrastructure.caching.advanced_cache_manager import AdvancedCacheManager
 
 # Set up logging
 logging.basicConfig(

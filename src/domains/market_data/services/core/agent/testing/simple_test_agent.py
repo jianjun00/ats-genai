@@ -8,10 +8,10 @@ import asyncio
 import json
 from datetime import datetime
 
-from src.core.shared.utils.environment import Environment
-from src.core.dao.instruments_dao import InstrumentsDAO
-from src.core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from src.core.dao.instrument_polygon_dao import InstrumentPolygonDAO
+from core.platform.config.environment import Environment
+from core.dao.instruments_dao import InstrumentsDAO
+from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.dao.instrument_polygon_dao import InstrumentPolygonDAO
 
 
 async def test_dao_methods():

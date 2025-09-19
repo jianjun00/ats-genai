@@ -20,8 +20,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import core components
-from src.core.database.connection_manager import get_connection_manager
-from src.core.config.settings import get_settings
+from core.database.connection_manager import get_connection_manager
+from core.config.settings import get_settings
 
 
     # ==============================================
@@ -31,7 +31,7 @@ from src.core.config.settings import get_settings
     def get_earnings_events(self, limit: int = 100, symbol: str = None) -> Dict[str, Any]:
         """Get recent earnings events from dev_earnings_events table."""
         try:
-            from src.core.database.connection_manager import get_raw_connection
+            from core.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime, timedelta
 
@@ -140,7 +140,7 @@ from src.core.config.settings import get_settings
     def get_news_events(self, limit: int = 100, symbol: str = None) -> Dict[str, Any]:
         """Get recent news events from Polygon and Tiingo sources."""
         try:
-            from src.core.database.connection_manager import get_raw_connection
+            from core.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime, timedelta
 

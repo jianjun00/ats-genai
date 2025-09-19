@@ -230,7 +230,7 @@ class TimeDuration:
         """
         if not intervals:
             raise ValueError("No intervals to aggregate")
-        from src.domains.trading.services.state.instrument_interval import InstrumentInterval
+        from domains.trading.services.state.instrument_interval import InstrumentInterval
         instrument_id = intervals[0].instrument_id
         start_date_time = intervals[0].start_date_time
         end_date_time = intervals[-1].end_date_time

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import json
 
 import asyncpg
-from src.core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 @dataclass
 class MinuteBar:
@@ -541,7 +541,7 @@ class BaseRealtimeCollector(ABC):
 
     @abstractmethod
     async def collect_realtime_data(self) -> AsyncGenerator[MinuteBar, None]:
-        """Collect real-time data from vendor. Must be implemented by subclasses."""
+        """Collect real-time data from infrastructure.vendor. Must be implemented by subclasses."""
 
     async def start_collection(self):
         """Start real-time data collection."""
