@@ -11,6 +11,8 @@ async def run_file_daily_price_ohlcv(
     end_date: str,
     env,
     universe_id: int = 1,
+    base_duration: str = '1d',
+    target_durations: str = '1d',
     output_dir: Optional[str] = None,
     indicator_config=None,
     print_ohlcv: bool = True,
@@ -33,14 +35,14 @@ async def run_file_daily_price_ohlcv(
         environment=env,
         universe_id=universe_id,
         callbacks=[],  # Will add builder after configuring it
-        base_duration='1d'
+        base_duration=base_duration
     )
     
     # Now create builder and connect it to runner's properly configured universe_state_manager
     builder = UniverseStateIntervalBuilder(
         env=env,
-        base_duration='1d',
-        target_durations='1d'
+        base_duration=base_duration,
+        target_durations=target_durations
     )
     builder.universe_state_manager = runner.universe_state_manager  # Use runner's manager with proper run_context
     
