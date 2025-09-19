@@ -15,7 +15,14 @@ TRAIN_RATIO = 0.8
 TARGET_COL = 'close'  # or 'high', 'low', etc.
 
 # --- Data Preparation ---
-manager = UniverseStateManager()
+# CRITICAL: Create UniverseStateManager with proper run_context to avoid constraint violations
+from domains.trading.services.state.run_aware_universe_state_manager import create_run_aware_universe_state_manager
+from core.infrastructure.run_context import RunContext
+import uuid
+
+# Create proper run_context with unique run_id to prevent constraint violations
+run_context = RunContext(run_id=f"forecast_single_{uuid.uuid4().hex[:8]}")
+manager = create_run_aware_universe_state_manager(env=None, run_context=run_context)
 
 # Get full instrument history DataFrame
 df = manager._get_instrument_history(INSTRUMENT_ID)
