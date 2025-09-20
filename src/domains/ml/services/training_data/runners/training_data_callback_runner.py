@@ -377,7 +377,7 @@ async def update_training_dataset_completion_with_status(environment: Environmen
     conn = await asyncpg.connect(environment.get_database_url())
 
     try:
-        table_name = environment.get_table_name("training_datasets")
+        table_name = environment.get_table_name("training_dataset")
 
         update_query = f"""
         UPDATE {table_name}
@@ -771,15 +771,6 @@ async def main():
         # Let Runner create its own with proper run_context and unique run_id
         # This prevents duplicate key violations from multiple runners using same run_id
         
-        # DEBUG: Check what gin config values are being loaded
-        try:
-            gin_base_duration = gin.query_parameter('domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration')
-            gin_target_durations = gin.query_parameter('domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations')
-            logger.info(f"🔍 [DEBUG] Gin config values:")
-            logger.info(f"   gin_base_duration: {gin_base_duration}")
-            logger.info(f"   gin_target_durations: {gin_target_durations}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to query gin config: {e}")
         
         # 🚨 CRITICAL FIX: Create UniverseStateBuilder without universe_state_manager
         # It will get the proper manager from Runner after Runner is created
@@ -790,11 +781,6 @@ async def main():
             # universe_state_manager will be set from Runner after it's created
         )
         
-        # DEBUG: Check what values were actually set
-        logger.info(f"🔍 [DEBUG] UniverseStateBuilder actual configuration:")
-        logger.info(f"   base_duration: {universe_state_builder.base_duration}")
-        logger.info(f"   target_durations: {universe_state_builder.target_durations}")
-        logger.info(f"   target_durations count: {len(universe_state_builder.target_durations)}")
         
         logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
         logger.info(f"   Base duration: {args.base_duration}")
