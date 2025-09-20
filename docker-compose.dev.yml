@@ -53,7 +53,7 @@ services:
       - /mnt/d/ats-backup:/backup
       - /mnt/d/ats-logs:/logs
     working_dir: /workspace
-    command: python3 src/services/analytics_service.py
+    command: python3 src/domains/analytics/services/analytics_service.py
     depends_on:
       postgres-dev:
         condition: service_healthy
@@ -102,7 +102,7 @@ services:
       - /mnt/d/ats-data:/data
       - /mnt/d/ats-logs:/logs
     working_dir: /workspace
-    command: uvicorn services.web_services.api.enhanced_instruments_api:app --host 0.0.0.0 --port 8000
+    command: uvicorn infrastructure.web.web_services.api.enhanced_instruments_api:app --host 0.0.0.0 --port 8000
     depends_on:
       postgres-dev:
         condition: service_healthy

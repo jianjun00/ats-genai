@@ -17,7 +17,6 @@ def test_function_signatures_have_duration_parameters():
     
     files_to_check = [
         'src/domains/trading/services/core/app/runner_utils.py',
-        'src/infrastructure/services_legacy/core/app/runner_utils.py'
     ]
     
     all_good = True
@@ -77,7 +76,6 @@ def test_builder_calls_use_parameters():
     
     files_to_check = [
         'src/domains/trading/services/core/app/runner_utils.py',
-        'src/infrastructure/services_legacy/core/app/runner_utils.py'
     ]
     
     all_good = True
@@ -132,7 +130,6 @@ def test_runner_calls_use_parameters():
     
     files_to_check = [
         'src/domains/trading/services/core/app/runner_utils.py',
-        'src/infrastructure/services_legacy/core/app/runner_utils.py'
     ]
     
     all_good = True

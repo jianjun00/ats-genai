@@ -16,7 +16,6 @@ def test_identify_hardcoded_duration_locations():
     # Files to check for hardcoded durations
     files_to_check = [
         'src/domains/trading/services/core/app/runner_utils.py',
-        'src/infrastructure/services_legacy/core/app/runner_utils.py'
     ]
     
     for file_path in files_to_check:

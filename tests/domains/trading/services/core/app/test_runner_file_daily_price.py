@@ -63,7 +63,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     })
     env.get_indicator_config = lambda: indicator_config
     # Use shared runner_utils
-    from app.runner_utils import run_file_daily_price_ohlcv
+    from domains.trading.services.core.app.runner_utils import run_file_daily_price_ohlcv
     polygon_dir = os.path.join(os.path.dirname(__file__), '../data/daily_price_polygon')
     polygon_dir = os.path.abspath(polygon_dir)
     tiingo_dir = os.path.join(os.path.dirname(__file__), '../data/daily_price_tiingo')
@@ -518,7 +518,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     })
     env.get_indicator_config = lambda: indicator_config
     # Use shared runner_utils
-    from app.runner_utils import run_file_daily_price_ohlcv
+    from domains.trading.services.core.app.runner_utils import run_file_daily_price_ohlcv
     polygon_dir = os.path.join(os.path.dirname(__file__), '../data/daily_price_polygon')
     polygon_dir = os.path.abspath(polygon_dir)
     tiingo_dir = os.path.join(os.path.dirname(__file__), '../data/daily_price_tiingo')

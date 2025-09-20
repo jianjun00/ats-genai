@@ -26,11 +26,9 @@ def test_function_signatures_accept_duration_parameters():
     # Import functions from both runner_utils files
     try:
         from domains.trading.services.core.app.runner_utils import run_file_daily_price_ohlcv as main_func
-        from infrastructure.services_legacy.core.app.runner_utils import run_file_daily_price_ohlcv as legacy_func
         
         functions_to_test = [
-            ('main runner_utils', main_func),
-            ('legacy runner_utils', legacy_func)
+            ('domains runner_utils', main_func)
         ]
         
         all_good = True
@@ -163,11 +161,9 @@ def test_default_duration_values():
     
     try:
         from domains.trading.services.core.app.runner_utils import run_file_daily_price_ohlcv as main_func
-        from infrastructure.services_legacy.core.app.runner_utils import run_file_daily_price_ohlcv as legacy_func
         
         functions_to_test = [
-            ('main runner_utils', main_func),
-            ('legacy runner_utils', legacy_func)
+            ('domains runner_utils', main_func)
         ]
         
         all_consistent = True
