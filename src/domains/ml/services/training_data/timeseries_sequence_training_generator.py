@@ -303,61 +303,31 @@ class MultiTimeframeFeatureExtractor:
 
     def extract_all_features(self, data: pd.DataFrame, timeframe: str) -> Dict[str, float]:
         """Extract all configured feature types for a timeframe."""
-        print(f"🔍 DEBUG extract_all_features: Starting feature extraction for timeframe '{timeframe}'")
-        print(f"📊 DEBUG extract_all_features: Input data shape: {data.shape}")
-        print(f"📊 DEBUG extract_all_features: Input data columns: {list(data.columns)}")
-        if not data.empty:
-            print(f"📊 DEBUG extract_all_features: Sample data:")
-            if 'open' in data.columns and 'close' in data.columns:
-                print(f"   Latest record: O={data['open'].iloc[-1]:.2f}, H={data['high'].iloc[-1]:.2f}, L={data['low'].iloc[-1]:.2f}, C={data['close'].iloc[-1]:.2f}")
-
         all_features = {}
 
-        print(f"🔄 DEBUG extract_all_features: Processing {len(self.config.feature_types)} feature types: {self.config.feature_types}")
-
         for feature_type in self.config.feature_types:
-            print(f"🔄 DEBUG: Processing feature_type '{feature_type}'")
-
             if feature_type == 'ohlcv':
                 ohlcv_features = self.extract_ohlcv_features(data, timeframe)
-                print(f"   ✅ OHLCV features: {len(ohlcv_features)} items: {list(ohlcv_features.keys())}")
-                for key, value in ohlcv_features.items():
-                    print(f"      {key}: {value} (type: {type(value)})")
                 all_features.update(ohlcv_features)
             elif feature_type == 'returns':
                 returns_features = self.extract_returns_features(data, timeframe)
-                print(f"   ✅ Returns features: {len(returns_features)} items")
                 all_features.update(returns_features)
             elif feature_type == 'volume_profile':
                 volume_features = self.extract_volume_features(data, timeframe)
-                print(f"   ✅ Volume features: {len(volume_features)} items")
                 all_features.update(volume_features)
             elif feature_type == 'technical':
                 technical_features = self.extract_technical_features(data, timeframe)
-                print(f"   ✅ Technical features: {len(technical_features)} items")
                 all_features.update(technical_features)
             elif feature_type == 'indicators':
-                # Extract pre-computed indicators from IndicatorBuilder (via UniverseStateManager)
                 indicator_features = self.extract_technical_indicators(data, timeframe)
-                print(f"   ✅ Indicator features: {len(indicator_features)} items")
                 all_features.update(indicator_features)
             elif feature_type == 'support_resistance':
-                # Extract post-facto S/R features
                 sr_features = self.extract_support_resistance_features(data, timeframe)
-                print(f"   ✅ S/R features: {len(sr_features)} items")
                 all_features.update(sr_features)
 
         # Always include technical indicators from UniverseStateManager if available
-        print(f"🔄 DEBUG: Adding additional technical indicators")
         additional_indicators = self.extract_technical_indicators(data, timeframe)
-        print(f"   ✅ Additional indicators: {len(additional_indicators)} items")
         all_features.update(additional_indicators)
-
-        print(f"✅ DEBUG extract_all_features: Final result: {len(all_features)} features")
-        print(f"📊 DEBUG extract_all_features: Final feature keys: {list(all_features.keys())}")
-        for key, value in all_features.items():
-            if key in ['open', 'high', 'low', 'close', 'volume']:
-                print(f"   {key}: {value} (type: {type(value)})")
 
         return all_features
 
@@ -384,12 +354,6 @@ class SequenceWindowBuilder:
             timeframe: Timeframe string (e.g., '5m', '60m', '1d')
             is_future: Whether to get future data (lead) or current data (lag)
         """
-        print(f"\n🔍 [ULTRA DEBUG] get_timeframe_data STARTING")
-        print(f"   📝 Timeframe: {timeframe}")
-        print(f"   🔢 Instrument ID: {instrument_id}")
-        print(f"   🕐 Center datetime: {center_datetime}")
-        print(f"   🔮 Is future: {is_future}")
-        print(f"   🏗️ Universe manager: {self.universe_manager}")
 
         # 🚨 CRITICAL ARCHITECTURAL CHANGE: Fail-fast error handling with UniverseStateInterval
         # PREVIOUS: Initialized empty DataFrame and handled missing data gracefully
@@ -401,7 +365,6 @@ class SequenceWindowBuilder:
             # OLD APPROACH: Called get_lead_prices() to rebuild future data that was already computed
             # NEW APPROACH: Retrieve pre-computed future UniverseStateInterval from UniverseStateBuilder
             # BENEFIT: Uses the same future OHLCV and indicator data that was already computed
-            print(f"🔮 DEBUG: Getting pre-computed future UniverseStateInterval for {timeframe}")
             future_universe_state_interval = self.universe_manager.get_future_universe_state_interval(
                 timeframe=timeframe,
                 current_time=center_datetime,
@@ -409,21 +372,13 @@ class SequenceWindowBuilder:
             )
             
             if future_universe_state_interval is None:
-                print(f"❌ [ULTRA DEBUG] No future UniverseStateInterval found for {timeframe} at {center_datetime}")
-                print(f"   🔍 This indicates UniverseStateBuilder hasn't computed future intervals yet")
-                print(f"   🚨 CRITICAL: Future universe manager method returned None")
                 raise RuntimeError(f"No future UniverseStateInterval found for {timeframe} at {center_datetime}. "
                                  f"This indicates UniverseStateBuilder hasn't computed future intervals yet. "
                                  f"System must fail fast - cannot generate training data without pre-computed intervals.")
             else:
-                print(f"✅ DEBUG: Found future UniverseStateInterval with {len(future_universe_state_interval.instrument_intervals)} instruments")
-                
                 # Extract future InstrumentInterval for the target instrument
                 if instrument_id in future_universe_state_interval.instrument_intervals:
                     future_instrument_interval = future_universe_state_interval.instrument_intervals[instrument_id]
-                    print(f"📊 DEBUG: Found future InstrumentInterval for instrument_id={instrument_id}")
-                    print(f"   Future OHLCV: O={future_instrument_interval.open:.2f}, H={future_instrument_interval.high:.2f}, L={future_instrument_interval.low:.2f}, C={future_instrument_interval.close:.2f}")
-                    print(f"   Future Volume: {future_instrument_interval.traded_volume}")
                     
                     # Convert future InstrumentInterval to DataFrame format
                     data_df = pd.DataFrame([{
@@ -437,15 +392,10 @@ class SequenceWindowBuilder:
                     
                     # Add future technical indicators from UniverseStateInterval
                     if future_universe_state_interval.instrument_indicator_intervals:
-                        print(f"📊 DEBUG: Adding future technical indicators from UniverseStateInterval")
                         for indicator_name, indicator_dict in future_universe_state_interval.instrument_indicator_intervals.items():
                             if instrument_id in indicator_dict:
                                 future_indicator_interval = indicator_dict[instrument_id]
-                                # Add future indicator value to DataFrame
                                 data_df[indicator_name] = future_indicator_interval.value
-                                print(f"   Added future {indicator_name}: {future_indicator_interval.value}")
-                    
-                    print(f"✅ DEBUG: Created DataFrame from future UniverseStateInterval: {len(data_df)} records")
                 else:
                     raise RuntimeError(f"Instrument {instrument_id} not found in future UniverseStateInterval for {timeframe} at {center_datetime}. "
                                      f"This indicates UniverseStateBuilder hasn't computed instrument data for this symbol. "
@@ -455,28 +405,19 @@ class SequenceWindowBuilder:
             # OLD APPROACH: Called get_lag_prices() to rebuild data that was already computed
             # NEW APPROACH: Retrieve pre-computed UniverseStateInterval from UniverseStateBuilder
             # BENEFIT: Uses the same OHLCV and indicator data that was already computed
-            print(f"🏗️ DEBUG: Getting pre-computed UniverseStateInterval for {timeframe}")
             universe_state_interval = self.universe_manager.get_universe_state_interval(
                 timeframe=timeframe,
                 current_time=center_datetime
             )
             
             if universe_state_interval is None:
-                print(f"❌ [ULTRA DEBUG] No UniverseStateInterval found for {timeframe} at {center_datetime}")
-                print(f"   🔍 This indicates UniverseStateBuilder hasn't computed intervals yet")
-                print(f"   🚨 CRITICAL: Universe manager method returned None")
                 raise RuntimeError(f"No UniverseStateInterval found for {timeframe} at {center_datetime}. "
                                  f"This indicates UniverseStateBuilder hasn't computed intervals yet. "
                                  f"System must fail fast - cannot generate training data without pre-computed intervals.")
             else:
-                print(f"✅ DEBUG: Found UniverseStateInterval with {len(universe_state_interval.instrument_intervals)} instruments")
-                
                 # Extract InstrumentInterval for the target instrument
                 if instrument_id in universe_state_interval.instrument_intervals:
                     instrument_interval = universe_state_interval.instrument_intervals[instrument_id]
-                    print(f"📊 DEBUG: Found InstrumentInterval for instrument_id={instrument_id}")
-                    print(f"   OHLCV: O={instrument_interval.open:.2f}, H={instrument_interval.high:.2f}, L={instrument_interval.low:.2f}, C={instrument_interval.close:.2f}")
-                    print(f"   Volume: {instrument_interval.traded_volume}")
                     
                     # Convert InstrumentInterval to DataFrame format
                     data_df = pd.DataFrame([{
@@ -490,50 +431,27 @@ class SequenceWindowBuilder:
                     
                     # Add technical indicators from UniverseStateInterval
                     if universe_state_interval.instrument_indicator_intervals:
-                        print(f"📊 DEBUG: Adding technical indicators from UniverseStateInterval")
                         for indicator_name, indicator_dict in universe_state_interval.instrument_indicator_intervals.items():
                             if instrument_id in indicator_dict:
                                 indicator_interval = indicator_dict[instrument_id]
-                                # Add indicator value to DataFrame
                                 data_df[indicator_name] = indicator_interval.value
-                                print(f"   Added {indicator_name}: {indicator_interval.value}")
-                    
-                    print(f"✅ DEBUG: Created DataFrame from UniverseStateInterval: {len(data_df)} records")
                 else:
                     raise RuntimeError(f"Instrument {instrument_id} not found in UniverseStateInterval for {timeframe} at {center_datetime}. "
                                      f"This indicates UniverseStateBuilder hasn't computed instrument data for this symbol. "
                                      f"System must fail fast - cannot generate training data without complete instrument coverage.")
 
-        print(f"📊 DEBUG: Final data_df: {len(data_df) if not data_df.empty else 0} records")
         if data_df.empty:
             raise RuntimeError(f"UniverseStateInterval found but contains no valid data for instrument {instrument_id} in {timeframe} at {center_datetime}. "
                              f"This indicates data corruption or incomplete interval computation. "
                              f"System must fail fast - cannot generate features from empty data.")
 
-        print(f"📊 [ULTRA DEBUG] Final data sample before feature extraction:")
-        print(f"   🗺️ DataFrame shape: {data_df.shape}")
-        print(f"   📊 Columns: {list(data_df.columns)}")
-        if 'open' in data_df.columns and 'close' in data_df.columns:
-            print(f"   📉 Final record: O={data_df['open'].iloc[-1]:.2f}, H={data_df['high'].iloc[-1]:.2f}, L={data_df['low'].iloc[-1]:.2f}, C={data_df['close'].iloc[-1]:.2f}")
-        else:
-            print(f"   ❌ Missing OHLC columns - this will cause feature extraction to fail")
 
         # Extract features for the single data point
-        print(f"\n🔄 [ULTRA DEBUG] About to extract features from DataFrame")
-        print(f"   📝 DataFrame info: {data_df.shape} rows, columns: {list(data_df.columns)}")
-        print(f"   🎯 Timeframe: {timeframe}")
-        print(f"   🔧 Feature extractor: {self.feature_extractor}")
         
         single_point_features = self.feature_extractor.extract_all_features(
             data_df, timeframe
         )
 
-        print(f"\n✅ [ULTRA DEBUG] Feature extraction completed")
-        print(f"   📈 Extracted {len(single_point_features)} features")
-        print(f"   🔑 Feature keys: {list(single_point_features.keys())[:10]}{'...' if len(single_point_features) > 10 else ''}")
-        
-        if not single_point_features:
-            print(f"   ⚠️ WARNING: Feature extraction returned empty dict - this contributes to sequences=0")
         
         return single_point_features
 
@@ -553,7 +471,6 @@ class SequenceWindowBuilder:
         # Use target timeframes if specified, otherwise use all configured timeframes
         timeframes_to_build = target_timeframes if target_timeframes is not None else self.timeframes
         
-        print(f"🔧 DEBUG: Building features for timeframes: {timeframes_to_build} (target: {target_timeframes})")
 
         # Build current features for each specified timeframe
         for timeframe in timeframes_to_build:
@@ -574,9 +491,6 @@ class SequenceWindowBuilder:
 
         # REMOVED: Future target generation to fix immediate blocking issue
         # TODO: Add back future features after fixing architectural dependencies
-        print(f"🚨 [TEMPORARY] Future targets disabled - returning empty targets dict")
-        print(f"   This allows training data generation to complete successfully")
-        print(f"   Future features will be added back after fixing UniverseStateBuilder dependencies")
 
         return targets
 
@@ -624,15 +538,6 @@ class TimeSeriesSequenceTrainingGenerator:
             # Fallback if gin query fails
             self.timeframes = ['5m', '15m', '60m', '1d']
 
-        # DEBUG: Check what config we received
-        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: received config = {config}")
-        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: hasattr feature_types = {hasattr(self.config, 'feature_types')}")
-        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: hasattr signal_names = {hasattr(self.config, 'signal_names')}")
-        print(f"DEBUG TimeSeriesSequenceTrainingGenerator: timeframes = {self.timeframes}")
-        if hasattr(self.config, 'feature_types'):
-            print(f"DEBUG TimeSeriesSequenceTrainingGenerator: feature_types = {self.config.feature_types}")
-        if hasattr(self.config, 'signal_names'):
-            print(f"DEBUG TimeSeriesSequenceTrainingGenerator: signal_names = {self.config.signal_names}")
 
         if universe_manager is None and UniverseStateManager is not None and self.env is not None:
             self.universe_manager = UniverseStateManager(env=self.env)
@@ -666,7 +571,6 @@ class TimeSeriesSequenceTrainingGenerator:
                     if symbol_index < len(self.universe_manager.instrument_ids):
                         instrument_id = self.universe_manager.instrument_ids[symbol_index]
                         self._symbol_to_id_cache[symbol] = instrument_id
-                        print(f"🔍 DEBUG: Found instrument_id={instrument_id} for symbol={symbol} from universe manager")
                         return instrument_id
 
             # Fallback: Use InstrumentXrefsDAO directly
@@ -676,14 +580,11 @@ class TimeSeriesSequenceTrainingGenerator:
                 instrument_id = await dao.resolve_instrument_id_by_symbol(symbol)
                 if instrument_id:
                     self._symbol_to_id_cache[symbol] = instrument_id
-                    print(f"🔍 DEBUG: Found instrument_id={instrument_id} for symbol={symbol} via DAO")
                     return instrument_id
 
-            print(f"⚠️ WARNING: Symbol {symbol} not found in universe manager or DAO")
             return None
 
         except Exception as e:
-            print(f"❌ ERROR: Failed to lookup instrument_id for {symbol}: {e}")
             return None
 
     def generate_base_features(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, float]:
@@ -798,80 +699,36 @@ class TimeSeriesSequenceTrainingGenerator:
         Returns:
             Dict with single-point features per timeframe or None if insufficient data
         """
-        # Only print detailed debug for key timeframes or specific times
-        is_debug_time = (
-            prediction_timestamp.minute in [30, 35, 40, 45, 50, 55, 0, 15] or
-            '15m' in (target_timeframes or []) or '60m' in (target_timeframes or [])
-        )
-        
-        if is_debug_time:
-            print(f"\n🚀 [ULTRA DEBUG] generate_training_example STARTING")
-            print(f"   📝 Symbol: {symbol}")
-            print(f"   🕐 Prediction timestamp: {prediction_timestamp}")
-            print(f"   🎯 Target timeframes: {target_timeframes}")
-            print(f"   🏗️ Universe manager available: {self.universe_manager is not None}")
-            print(f"   🔧 Sequence builder available: {self.sequence_builder is not None}")
         
         instrument_id = await self.get_instrument_id(symbol)
-        print(f"   🔍 Resolved instrument_id: {instrument_id}")
         
         if not instrument_id:
-            print(f"❌ [ULTRA DEBUG] Could not find instrument_id for symbol {symbol}")
             self.logger.warning(f"Could not find instrument_id for symbol {symbol}")
             return None
 
-        print(f"\n🔄 [ULTRA DEBUG] Generating base features...")
         # Generate base features
         base_features = self.generate_base_features(instrument_id, prediction_timestamp)
-        print(f"   ✅ Base features: {len(base_features)} items: {list(base_features.keys())[:5]}{'...' if len(base_features) > 5 else ''}")
 
-        print(f"\n🔄 [ULTRA DEBUG] Building timeframe features...")
         # Build single-point timeframe features for specific timeframes
         timeframe_features = await self.sequence_builder.build_timeframe_features(
             instrument_id, 
             prediction_timestamp,
             target_timeframes=target_timeframes
         )
-        print(f"   ✅ Timeframe features result:")
-        for tf, features in timeframe_features.items():
-            print(f"      {tf}: {len(features)} features")
-            if features:
-                sample_keys = list(features.keys())[:3]
-                print(f"         Sample keys: {sample_keys}")
-            else:
-                print(f"         ❌ EMPTY FEATURES for {tf}")
 
-        print(f"\n🔄 [ULTRA DEBUG] Building prediction targets...")
         # Build single-point prediction targets
         targets = await self.sequence_builder.build_prediction_targets(instrument_id, prediction_timestamp)
-        print(f"   ✅ Prediction targets: {len(targets)} timeframes")
-        for tf, target_features in targets.items():
-            print(f"      {tf}: {len(target_features)} features")
 
-        print(f"\n🔍 [ULTRA DEBUG] Validating timeframe data...")
         # Count available timeframes (more flexible validation)
         available_timeframes = [tf for tf, features in timeframe_features.items() if features]
         available_count = len(available_timeframes)
-        total_requested = len(target_timeframes) if target_timeframes else len(self.timeframes)
-        
-        print(f"   📊 Available timeframes: {available_count}/{total_requested} - {available_timeframes}")
-        print(f"   📊 Missing timeframes: {[tf for tf, features in timeframe_features.items() if not features]}")
         
         # More flexible validation: Allow partial timeframe data
         # Only require at least one timeframe to have data (much more permissive)
         if available_count == 0:
-            print(f"❌ [ULTRA DEBUG] No timeframe data available for {symbol} at {prediction_timestamp}")
-            print(f"   Timeframe features detail:")
-            for tf, features in timeframe_features.items():
-                print(f"      {tf}: {features}")
             self.logger.warning(f"No timeframe data available for {symbol} at {prediction_timestamp}")
             return None
-        else:
-            print(f"✅ [ULTRA DEBUG] Proceeding with partial timeframe data ({available_count} available)")
-            print(f"   📈 This is normal behavior - timeframes are only available when intervals are complete")
-            print(f"   🎯 Available timeframes: {available_timeframes}")
 
-        print(f"\n🎯 [ULTRA DEBUG] Creating training example...")
         # Create simple training example dict
         example = {
             'instrument_id': instrument_id,
@@ -881,11 +738,6 @@ class TimeSeriesSequenceTrainingGenerator:
             'timeframe_features': timeframe_features,
             'prediction_targets': targets
         }
-        
-        print(f"✅ [ULTRA DEBUG] Training example created successfully!")
-        print(f"   📊 Example keys: {list(example.keys())}")
-        print(f"   📈 Timeframes with data: {[tf for tf, features in timeframe_features.items() if features]}")
-        print(f"   📉 Timeframes without data: {[tf for tf, features in timeframe_features.items() if not features]}")
         
         return example
 

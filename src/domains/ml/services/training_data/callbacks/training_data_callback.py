@@ -118,17 +118,12 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         if not hasattr(self, 'array_record_writers') or not self.array_record_writers:
             return
 
-        print(f"\n🚨 CRITICAL CLEANUP: Closing {len(self.array_record_writers)} ArrayRecord writers")
-
         for file_key, writer in self.array_record_writers.items():
             try:
                 if writer and hasattr(writer, 'close'):
                     writer.close()
-                    print(f"   ✅ Emergency closed writer: {file_key}")
             except Exception as e:
-                print(f"   ⚠️ Error closing writer {file_key}: {e}")
-
-        print("🔒 ArrayRecord writers cleanup completed")
+                self.logger.error(f"Error closing writer {file_key}: {e}")
 
     def __enter__(self):
         """Context manager entry."""
@@ -204,14 +199,10 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
             # Save immediately if we have examples
             if examples_generated:
-                print(f"📤 DEBUG: Saving {len(examples_generated)} examples for timeframes {target_timeframes}")
                 await self._save_simple_arrayrecord(examples_generated, current_time)
-                print(f"✅ DEBUG: Save completed for {len(examples_generated)} examples")
-            else:
-                print(f"⏭️ DEBUG: No examples to save at {current_time}")
 
         except Exception as e:
-            print(f"🚨 CRITICAL ERROR in handleInterval: {e}")
+            self.logger.error(f"CRITICAL ERROR in handleInterval: {e}")
             import traceback
             traceback.print_exc()
             # Ensure cleanup even on critical errors
@@ -291,7 +282,6 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 monthly_file_key = f"{symbol}_{timeframe}_{year_month_str}"
                 if monthly_file_key in self.array_record_writers:
                     writer = self.array_record_writers[monthly_file_key]
-                    print(f"📝 DEBUG: Writing {timeframe} record for {symbol} month {year_month_str} with {len(interval_record)} fields")
                     await self._write_interval_to_writer(writer, symbol, interval_record)
 
                     # Track record count for database storage
@@ -300,8 +290,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     self.monthly_record_counts[monthly_file_key] += 1
 
                 else:
-                    print(f"❌ DEBUG: No monthly writer found for {monthly_file_key}")
-                    print(f"   Available writers: {list(self.array_record_writers.keys())[:5]}...")
+                    self.logger.warning(f"No monthly writer found for {monthly_file_key}")
 
 
     async def _initialize_dataset_structure(self):

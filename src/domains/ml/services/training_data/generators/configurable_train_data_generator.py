@@ -94,9 +94,6 @@ class ConfigurableTrainingDataGenerator:
                              symbols: Optional[List[str]] = None) -> Dict[str, Any]:
         """Generate training data from market data."""
 
-        print(f"[ConfigurableTrainingDataGenerator] Generating training data for {len(data)} rows")
-        print(f"[ConfigurableTrainingDataGenerator] Data columns: {list(data.columns)}")
-        print(f"[ConfigurableTrainingDataGenerator] Date range: {data.index.min()} to {data.index.max()}")
 
         # Ensure data is properly indexed by date
         if not isinstance(data.index, pd.DatetimeIndex):
@@ -118,7 +115,6 @@ class ConfigurableTrainingDataGenerator:
                 symbol_data = data.copy()
 
             if len(symbol_data) < self.config.sequence_length + self.config.prediction_horizon:
-                print(f"[Warning] Insufficient data for symbol {symbol}: {len(symbol_data)} rows")
                 continue
 
             # Sort by date to ensure proper time ordering
@@ -128,7 +124,6 @@ class ConfigurableTrainingDataGenerator:
             features_df, labels_df = self._generate_features_and_labels(symbol_data)
 
             if features_df.empty or labels_df.empty:
-                print(f"[Warning] No features or labels generated for symbol {symbol}")
                 continue
 
             # Create sequences
@@ -142,7 +137,6 @@ class ConfigurableTrainingDataGenerator:
         if not all_features:
             raise ValueError("No training sequences generated. Check data quality and configuration.")
 
-        print(f"[ConfigurableTrainingDataGenerator] Generated {len(all_features)} training sequences")
 
         # Extract data information for metadata
         data_info = self.update_data_info(data, symbol_list)
@@ -162,14 +156,11 @@ class ConfigurableTrainingDataGenerator:
         # Add volume if missing (set to 0)
         if 'volume' not in data.columns:
             data['volume'] = 0.0
-            print("[Warning] Volume column missing, using 0.0")
 
         # Generate features
-        print(f"[ConfigurableTrainingDataGenerator] Generating features...")
         features_df = self.feature_registry.generate_features(data)
 
         # Generate labels
-        print(f"[ConfigurableTrainingDataGenerator] Generating labels...")
         labels_df = self.label_registry.generate_labels(data)
 
         # Store feature and label names
@@ -178,8 +169,6 @@ class ConfigurableTrainingDataGenerator:
         if self.label_names is None:
             self.label_names = list(labels_df.columns)
 
-        print(f"[ConfigurableTrainingDataGenerator] Generated {len(features_df.columns)} features: {list(features_df.columns)[:5]}...")
-        print(f"[ConfigurableTrainingDataGenerator] Generated {len(labels_df.columns)} labels: {list(labels_df.columns)}")
 
         # Handle missing values
         features_df = self._handle_missing_values(features_df, 'features')
@@ -209,7 +198,6 @@ class ConfigurableTrainingDataGenerator:
         labels_aligned = labels_df.loc[common_index]
 
         if len(common_index) < self.config.sequence_length + self.config.prediction_horizon:
-            print(f"[Warning] Insufficient aligned data for {symbol}: {len(common_index)} rows")
             return sequences
 
         # Convert to numpy arrays
@@ -246,7 +234,6 @@ class ConfigurableTrainingDataGenerator:
                 sequences['labels'].append(label_seq)
                 sequences['masks'].append({'features': feature_mask, 'labels': label_mask})
 
-        print(f"[ConfigurableTrainingDataGenerator] Created {len(sequences['features'])} sequences for {symbol}")
         return sequences
 
     def _handle_missing_values(self, df: pd.DataFrame, data_type: str) -> pd.DataFrame:
@@ -260,9 +247,6 @@ class ConfigurableTrainingDataGenerator:
         missing_after = df_filled.isnull().sum().sum()
 
         if missing_before > 0:
-            print(f"[ConfigurableTrainingDataGenerator] {data_type}: Filled {missing_before - missing_after} missing values")
-            if missing_after > 0:
-                print(f"[Warning] {missing_after} missing values remain after filling")
 
         return df_filled
 

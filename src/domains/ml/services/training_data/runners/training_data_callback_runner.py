@@ -348,11 +348,7 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
     # Register in database
     dataset_id = await dao.create_training_dataset(record)
 
-    print(f"📝 Registered training dataset: {dataset_name}")
-    print(f"   Dataset ID: {dataset_id}")
-    print(f"   Estimated sequences: {estimated_sequences:,}")
-    print(f"   Total features: {total_features:,}")
-    print(f"   Symbols: {', '.join(symbols)}")
+    print(f"📝 Registered training dataset: {dataset_name} (ID: {dataset_id})")
 
     return dataset_id
 
@@ -400,12 +396,7 @@ async def update_training_dataset_completion_with_status(environment: Environmen
             dataset_id
         )
 
-        print(f"✅ Updated dataset {dataset_id} completion status:")
-        print(f"   Status: {status}")
-        print(f"   Actual sequences: {actual_sequences:,}")
-        print(f"   Duration: {generation_duration_seconds}s")
-        print(f"   File size: {file_size_mb:.2f} MB")
-        print(f"   Quality score: {data_quality_score:.2f}")
+        print(f"✅ Dataset {dataset_id} completed: {actual_sequences:,} sequences, {file_size_mb:.1f}MB, {generation_duration_seconds}s")
 
     finally:
         await conn.close()
