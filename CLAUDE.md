@@ -114,6 +114,101 @@ def fetch_market_data():
 - **✅ ALWAYS enhance existing services** - add features to current code
 - **✅ ALWAYS consolidate functionality** - reduce complexity, don't add it
 
+### **🌿 MANDATORY BRANCH WORKFLOW - NO DIRECT MAIN COMMITS**
+- **❌ NEVER push commits directly to main branch**
+- **❌ NEVER merge changes without code review**
+- **❌ NEVER bypass the branch → PR → review → merge workflow**
+- **❌ NEVER commit incomplete work or experimental changes to main**
+- **✅ ALWAYS create feature/fix branches for ALL changes**
+- **✅ ALWAYS submit pull requests for code review**
+- **✅ ALWAYS wait for review approval before merging**
+
+**Why Direct Main Commits Are Dangerous:**
+- Bypasses code review and quality gates
+- Introduces unreviewed bugs into production code
+- Breaks collaborative development workflows
+- Prevents proper testing and validation
+- Creates merge conflicts and integration issues
+- Violates team accountability and knowledge sharing
+
+**Mandatory Git Workflow:**
+
+**1️⃣ Always Create Branches:**
+```bash
+git checkout -b fix/descriptive-issue-name        # Bug fixes
+git checkout -b feat/new-feature-name            # New features  
+git checkout -b test/test-description            # Test additions
+git checkout -b docs/documentation-update       # Documentation
+```
+
+**2️⃣ Branch Naming Conventions:**
+- **fix/**: Bug fixes and error corrections
+- **feat/**: New features and enhancements
+- **test/**: Test additions and test improvements
+- **docs/**: Documentation updates
+- **refactor/**: Code refactoring without behavior changes
+- **chore/**: Maintenance tasks and tooling updates
+
+**3️⃣ Commit Message Standards:**
+- Use conventional commit format: `type: description`
+- Include comprehensive body explaining the change
+- Add test results and verification steps
+- Reference related issues or tickets
+- Include co-author attribution for Claude Code
+
+**4️⃣ Pull Request Process:**
+```bash
+git add .
+git commit -m "fix: resolve run_id type mismatch in training callback
+
+## Problem
+- Production error: 'str' object cannot be interpreted as an integer
+- MonthlyTrainingDataDAO expects integer run_id, got string from runner context
+
+## Solution  
+- Use RunMetadataTracker for proper integer database run_id generation
+- Replace string runner.run_context.run_id with integer database run_id
+
+## Testing
+- Added comprehensive test reproducing exact production error
+- Verified fix works with real database integration
+- Confirms type safety and foreign key constraints
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+git push origin fix/run-id-type-mismatch-verification
+```
+
+**5️⃣ Code Review Requirements:**
+- **All changes must be reviewed** before merging to main
+- **Include test verification** in PR description
+- **Document breaking changes** and migration steps
+- **Verify CI/CD passes** before requesting review
+- **Wait for approval** before merging
+
+**Example Proper Workflow:**
+```bash
+# ❌ WRONG: Direct to main
+git add .
+git commit -m "fix bug"
+git push origin main  # FORBIDDEN
+
+# ✅ RIGHT: Branch workflow
+git checkout -b fix/training-data-callback-bug
+git add .
+git commit -m "fix: resolve run_id type mismatch in training callback"
+git push origin fix/training-data-callback-bug
+# Create PR, wait for review, then merge
+```
+
+**Emergency Hotfixes:**
+- Even urgent production fixes must go through branch → PR → review
+- Use expedited review process but never bypass code review
+- Create hotfix branch, fix issue, immediate PR, fast review, merge
+- Document emergency rationale in PR description
+
 ## 🧠 **MCP Knowledge Graph - Persistent Memory (2025-09-13)**
 
 **CRITICAL: MCP Knowledge Graph is ACTIVE and MANDATORY for all development sessions**
