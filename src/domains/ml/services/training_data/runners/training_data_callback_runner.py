@@ -292,9 +292,12 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
     # Create DAO
     dao = TrainingDatasetDAO(environment)
 
-    # Generate dataset name
+    # Generate unique dataset name - MUST have run_id for uniqueness
+    if not run_id:
+        raise ValueError("run_id is required for dataset registration to ensure unique dataset names and prevent constraint violations")
+    
     symbols_str = "_".join(symbols) if symbols else "multi_symbol"
-    dataset_name = f"callback_training_{symbols_str}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
+    dataset_name = f"callback_training_{symbols_str}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{run_id}"
 
     # Calculate estimated feature count based on config
     # FIX: Use actual TrainingDataConfig attributes (timeframes, feature_types)
@@ -942,7 +945,8 @@ async def main():
             end_date=end_date,
             config=training_config,
             output_dir=args.output_dir,
-            storage_format=args.storage_format
+            storage_format=args.storage_format,
+            run_id=runner.run_context.run_id if runner.run_context else None
         )
 
         logger.info(f"✅ Dataset registered in database with ID: {db_dataset_id}")
