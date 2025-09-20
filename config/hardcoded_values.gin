@@ -113,12 +113,12 @@ market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.rate_limit_de
 market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.batch_size = 100
 
 # Response Tracking Settings
-market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_response_sizes = true
-market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_latency = true
-market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.log_api_errors = true
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_response_sizes = True
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_latency = True
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.log_api_errors = True
 
 # Data Validation Settings
-market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.validate_prices = true
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.validate_prices = True
 market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.min_price = 0.01
 market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.max_price = 100000.0
 

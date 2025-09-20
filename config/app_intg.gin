@@ -62,7 +62,7 @@ database.connection.command_timeout = 90
 # Integration API Configuration
 api.backtest_analytics_api.BacktestServerConfig.host = "0.0.0.0"
 api.backtest_analytics_api.BacktestServerConfig.port = 4000
-api.backtest_analytics_api.BacktestServerConfig.reload = false
+api.backtest_analytics_api.BacktestServerConfig.reload = False
 api.backtest_analytics_api.BacktestServerConfig.log_level = "info"
 
 # Integration CORS - Allow CI/CD and staging frontend access
