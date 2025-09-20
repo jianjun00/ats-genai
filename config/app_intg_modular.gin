@@ -1,0 +1,64 @@
+# =============================================================================
+# INTEGRATION ENVIRONMENT - MODULAR CONFIGURATION
+# =============================================================================
+# Composed integration environment configuration using modular gin files.
+
+# Include Core Universal Constants
+include 'config/core/business.gin'
+include 'config/core/symbols.gin'
+include 'config/core/timeouts.gin'
+
+# Include Domain-Specific Configurations
+include 'config/domains/ml.gin'
+include 'config/domains/trading.gin'
+include 'config/domains/analytics.gin'
+
+# Include External Service Configurations
+include 'config/external/apis.gin'
+include 'config/external/vendors.gin'
+
+# Include Infrastructure Configuration for Integration
+include 'config/infrastructure/intg.gin'
+
+# Integration-Specific Overrides
+# Full universe for comprehensive testing
+symbols.default_universe = [
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+    'META', 'NVDA', 'JPM', 'V', 'JNJ'
+]
+
+# Production-like timeouts
+timeouts.api.default = 45
+timeouts.database.query = 300
+
+# Integration ML settings for realistic training
+ml.training.batch_size = 32
+ml.training.epochs = 20
+ml.model.checkpoint_frequency = 5
+
+# Integration trading settings
+trading.expected_bars_per_day = 390      # Full trading day
+portfolio.max_positions = 15             # Realistic portfolio size
+
+# Integration analytics settings
+dashboard.refresh_interval_seconds = 30  # Production-like refresh rate
+
+# Integration external API settings (production-like)
+external.polygon.rate_limit_per_minute = 5     # Full rate limit
+external.tiingo.rate_limit_per_hour = 1000     # Full rate limit
+
+# Selective feature enablement for integration testing
+features.experimental_models = False     # Stable models only
+features.debug_mode = False             # No debug mode in integration
+features.hot_reload = False             # No hot reload
+features.advanced_analytics = True      # Enable advanced features
+features.real_time_alerts = True        # Test alert systems
+
+# Integration-specific validation
+validation.strict_mode = True
+validation.price_data.max_change_percent = 20  # Reasonable production limits
+
+# CI/CD specific configurations
+ci_cd.automated_testing = True
+ci_cd.deployment_validation = True
+ci_cd.performance_benchmarks = True

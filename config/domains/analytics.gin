@@ -1,0 +1,77 @@
+# =============================================================================
+# ANALYTICS DOMAIN CONFIGURATION
+# =============================================================================
+# Analytics service and reporting configuration.
+# Dashboard, visualization, and analytics computation parameters.
+
+# Dashboard Configuration
+dashboard.refresh_interval_seconds = 30
+dashboard.max_charts_per_page = 12
+dashboard.default_timeframe = "1d"
+dashboard.chart_height = 400
+dashboard.chart_width = 800
+
+# Performance Analytics
+analytics.portfolio.rolling_windows = [1, 7, 30, 90, 252]  # Days
+analytics.portfolio.benchmark_symbols = ["SPY", "QQQ", "IWM"]
+analytics.portfolio.risk_metrics = [
+    "sharpe_ratio", "sortino_ratio", "max_drawdown", "var_95", "cvar_95",
+    "beta", "alpha", "tracking_error", "information_ratio"
+]
+
+# Visualization Configuration
+viz.candlestick.up_color = "green"
+viz.candlestick.down_color = "red"
+viz.volume.color = "blue"
+viz.indicators.sma_color = "orange"
+viz.indicators.ema_color = "purple"
+viz.indicators.bollinger_color = "gray"
+
+# Report Generation
+reports.daily.generation_hour = 17    # 5 PM
+reports.daily.generation_minute = 30
+reports.weekly.generation_day = 6     # Saturday
+reports.monthly.generation_day = 1    # First day of month
+
+# Data Aggregation
+aggregation.ohlcv.supported_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
+aggregation.volume_profile.bins = 20
+aggregation.order_book.levels = 10
+
+# Alert Configuration
+alerts.price_change_threshold = 0.05   # 5% price change alert
+alerts.volume_spike_threshold = 2.0    # 2x average volume
+alerts.volatility_threshold = 2.0      # 2x average volatility
+alerts.correlation_break_threshold = 0.3  # Correlation change > 0.3
+
+# Cache Configuration for Analytics
+cache.portfolio_metrics_ttl = 300      # 5 minutes
+cache.market_summary_ttl = 60          # 1 minute
+cache.technical_indicators_ttl = 180   # 3 minutes
+cache.news_sentiment_ttl = 900         # 15 minutes
+
+# Data Quality Monitoring  
+quality.price_validation.max_price_change = 0.20    # 20% max price change
+quality.price_validation.min_volume = 1000          # Minimum volume
+quality.price_validation.price_range_check = True
+quality.data_freshness.max_delay_minutes = 5        # 5-minute max delay
+
+# ML Model Analytics
+ml_analytics.model_drift_threshold = 0.1    # 10% performance drift
+ml_analytics.prediction_confidence_min = 0.6  # 60% minimum confidence
+ml_analytics.model_retrain_frequency_days = 7  # Retrain weekly
+ml_analytics.feature_importance_top_n = 10    # Top 10 features
+
+# Portfolio Attribution Analysis
+attribution.factor_models = ["fama_french_3", "fama_french_5", "capm"]
+attribution.sector_analysis = True
+attribution.style_analysis = True
+attribution.risk_attribution = True
+
+# Stress Testing
+stress_test.scenarios = [
+    "market_crash_20", "interest_rate_spike", "sector_rotation",
+    "volatility_spike", "liquidity_crisis", "correlation_breakdown"
+]
+stress_test.confidence_levels = [0.95, 0.99, 0.999]
+stress_test.monte_carlo_simulations = 10000

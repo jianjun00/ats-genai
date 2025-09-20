@@ -1,0 +1,87 @@
+# =============================================================================
+# VENDOR-SPECIFIC CONFIGURATIONS
+# =============================================================================
+# Detailed configuration for specific data vendors and their adapters.
+# These contain vendor-specific implementation details and tracking settings.
+
+# Polygon Adapter Configuration
+market_data.agent.polygon_adapter.PolygonAdapterConfig.api_limit = 50000
+market_data.agent.polygon_adapter.PolygonAdapterConfig.base_url = "https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start}/{end}?adjusted=true&sort=asc&limit={limit}&apiKey={api_key}"
+market_data.agent.polygon_adapter.PolygonAdapterConfig.request_timeout = 45
+market_data.agent.polygon_adapter.PolygonAdapterConfig.max_retries = 3
+market_data.agent.polygon_adapter.PolygonAdapterConfig.rate_limit_delay = 12.0
+
+# Tiingo Adapter with Response Tracking
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.base_url = "https://api.tiingo.com/tiingo/daily/{ticker}/prices"
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.request_timeout = 30
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.max_retries = 3
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.rate_limit_delay = 1.0
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.batch_size = 100
+
+# Response Tracking Settings
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_response_sizes = True
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.track_latency = True
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.log_api_errors = True
+
+# Data Validation Settings
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.validate_prices = True
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.min_price = 0.01
+market_data.agent.tiingo_adapter_with_tracking.TiingoAdapterConfig.max_price = 100000.0
+
+# Alpha Vantage Adapter Configuration
+market_data.agent.alpha_vantage_adapter.AlphaVantageConfig.output_size = "compact"
+market_data.agent.alpha_vantage_adapter.AlphaVantageConfig.data_type = "json"
+market_data.agent.alpha_vantage_adapter.AlphaVantageConfig.adjusted = True
+market_data.agent.alpha_vantage_adapter.AlphaVantageConfig.rate_limit_calls_per_minute = 5
+
+# Yahoo Finance Adapter (Unofficial)
+market_data.agent.yahoo_adapter.YahooConfig.auto_adjust = True
+market_data.agent.yahoo_adapter.YahooConfig.prepost = True
+market_data.agent.yahoo_adapter.YahooConfig.threads = True
+market_data.agent.yahoo_adapter.YahooConfig.proxy = None
+
+# IEX Cloud Configuration
+market_data.agent.iex_adapter.IEXConfig.version = "stable"
+market_data.agent.iex_adapter.IEXConfig.format = "json"
+market_data.agent.iex_adapter.IEXConfig.chart_range = "1d"
+market_data.agent.iex_adapter.IEXConfig.chart_interval = 1
+
+# FRED Adapter Configuration
+market_data.agent.fred_adapter.FREDConfig.file_type = "json"
+market_data.agent.fred_adapter.FREDConfig.observation_start = "1970-01-01"
+market_data.agent.fred_adapter.FREDConfig.units = "lin"
+market_data.agent.fred_adapter.FREDConfig.frequency = "d"
+
+# Finnhub Configuration
+market_data.agent.finnhub_adapter.FinnhubConfig.resolution = "D"
+market_data.agent.finnhub_adapter.FinnhubConfig.format = "json"
+market_data.agent.finnhub_adapter.FinnhubConfig.adjusted = True
+
+# News Vendor Configuration
+news.vendor.news_api.NewsAPIConfig.language = "en"
+news.vendor.news_api.NewsAPIConfig.sort_by = "relevancy"
+news.vendor.news_api.NewsAPIConfig.page_size = 100
+
+news.vendor.finnhub_news.FinnhubNewsConfig.category = "general"
+news.vendor.finnhub_news.FinnhubNewsConfig.min_id = 0
+
+# Sentiment Analysis Vendor Configuration
+sentiment.vendor.textblob.TextBlobConfig.model = "base"
+sentiment.vendor.textblob.TextBlobConfig.language = "en"
+
+sentiment.vendor.vader.VADERConfig.compound_threshold = 0.05
+sentiment.vendor.vader.VADERConfig.normalize_scores = True
+
+# Crypto Data Vendor Configuration (if applicable)
+crypto.vendor.coinbase.CoinbaseConfig.granularity = 3600  # 1 hour
+crypto.vendor.coinbase.CoinbaseConfig.product_type = "spot"
+
+crypto.vendor.binance.BinanceConfig.interval = "1h"
+crypto.vendor.binance.BinanceConfig.limit = 1000
+
+# Alternative Data Vendors
+alt_data.vendor.quiver.QuiverConfig.data_types = ["congress", "insider", "options"]
+alt_data.vendor.quiver.QuiverConfig.lookback_days = 30
+
+alt_data.vendor.whale_wisdom.WhaleWisdomConfig.filing_types = ["13F", "13D", "13G"]
+alt_data.vendor.whale_wisdom.WhaleWisdomConfig.min_value_threshold = 1000000  # $1M minimum

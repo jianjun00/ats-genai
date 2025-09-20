@@ -118,16 +118,16 @@ class Environment:
             except ValueError:
                 raise RuntimeError(f"Invalid ENVIRONMENT '{env_str}'. Valid options: dev, test, intg, prod")
         
-        # Simple config path mapping - no complex logic
+        # Simple config path mapping - now using modular configuration structure
         if gin_config_path:
             config_path = gin_config_path
         else:
             config_dir = Path(__file__).parent.parent.parent.parent.parent / "config"
             config_map = {
-                EnvironmentType.TEST: "app.gin",
-                EnvironmentType.DEV: "app_docker.gin", 
-                EnvironmentType.INTEGRATION: "app_intg.gin",
-                EnvironmentType.PRODUCTION: "app_prod.gin"
+                EnvironmentType.TEST: "app.gin",  # Keep legacy for test
+                EnvironmentType.DEV: "app_dev_modular.gin",  # Use new modular config
+                EnvironmentType.INTEGRATION: "app_intg_modular.gin",  # Use new modular config
+                EnvironmentType.PRODUCTION: "app_prod.gin"  # Keep legacy until prod migration
             }
             config_path = str(config_dir / config_map[self.env_type])
         
