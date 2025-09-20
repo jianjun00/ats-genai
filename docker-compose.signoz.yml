@@ -14,7 +14,7 @@ services:
         max-size: 50m
         max-file: "3"
     healthcheck:
-      test: ['CMD', 'wget', '--spider', '-q', 'localhost:8123/ping']
+      test: ['CMD', 'clickhouse-client', '--query', 'SELECT 1']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -61,6 +61,7 @@ services:
     volumes:
       - ./config/prometheus.yml:/root/config/prometheus.yml
       - ../logs/signoz/:/var/tmp/
+      - signoz-data:/var/lib/signoz/
     environment:
       - ClickHouseUrl=tcp://clickhouse:9000/?database=signoz_traces
       - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
@@ -148,6 +149,7 @@ services:
 volumes:
   clickhouse-data:
   zookeeper-1-data:
+  signoz-data:
 
 networks:
   ats-network:

@@ -139,7 +139,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     env.get_indicator_config = lambda: indicator_config
 
     # Rest of the test remains the same as the original file
-    from app.runner_utils import run_file_daily_price_ohlcv
+    from domains.trading.services.core.app.runner_utils import run_file_daily_price_ohlcv
 
     print('\n' + '='*80)
     print('[DEBUG][TEST] Before create_async call')

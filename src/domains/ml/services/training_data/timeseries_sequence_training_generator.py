@@ -540,7 +540,14 @@ class TimeSeriesSequenceTrainingGenerator:
 
 
         if universe_manager is None and UniverseStateManager is not None and self.env is not None:
-            self.universe_manager = UniverseStateManager(env=self.env)
+            # CRITICAL: Create UniverseStateManager with proper run_context to avoid constraint violations
+            from domains.trading.services.state.run_aware_universe_state_manager import create_run_aware_universe_state_manager
+            import uuid
+            from core.infrastructure.run_context import RunContext
+            
+            # Create proper run_context with unique run_id to prevent constraint violations
+            run_context = RunContext(run_id=f"training_generator_{uuid.uuid4().hex[:8]}")
+            self.universe_manager = create_run_aware_universe_state_manager(env=self.env, run_context=run_context)
         else:
             self.universe_manager = universe_manager
 

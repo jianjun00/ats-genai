@@ -757,11 +757,9 @@ async def main():
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
         
-        # Create universe state manager for shared cache
-        # 🚨 CRITICAL FIX: Do NOT create UniverseStateManager manually
-        # Let Runner create its own with proper run_context and unique run_id
-        # This prevents duplicate key violations from multiple runners using same run_id
-        
+        # REMOVED: Manual UniverseStateManager creation without run_context
+        # This was causing constraint violations because all managers used the same 'no_run_context' run_id
+        # Let the Runner create its own properly configured manager with unique run_id
         
         # 🚨 CRITICAL FIX: Create UniverseStateBuilder without universe_state_manager
         # It will get the proper manager from Runner after Runner is created
@@ -769,7 +767,7 @@ async def main():
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
             # target_durations will use gin config: '5m,15m,60m,1d' 
-            # universe_state_manager will be set from Runner after it's created
+            # universe_state_manager will be set from Runner's properly configured manager
         )
         
         
@@ -792,21 +790,24 @@ async def main():
         
         logger.info(f"✅ UniverseManager and UniverseStateBuilder ready for callback execution")
         
+        # Create runner first so it can initialize its own universe_state_manager with proper run_context
         runner = Runner(
             start_date=collection_start_date.strftime("%Y-%m-%d"),
             end_date=collection_end_date.strftime("%Y-%m-%d"),
             environment=environment,
             universe_id=args.universe_id or 1,
-            callbacks=[universe_state_builder, training_callback],  # UniverseStateBuilder builds cache during offset period, training generates data from start_date
+            callbacks=[],  # Will add callbacks after configuring them
             market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
             universe_manager=universe_manager,  # 🚨 CRITICAL FIX: Use custom universe manager with proper symbols
-            # 🚨 CRITICAL FIX: Do NOT pass universe_state_manager - let Runner create its own with unique run_id
+            # DO NOT override universe_state_manager - it has proper run_context and unique run_id
             base_duration=args.base_duration
         )
         
-        # 🚨 CRITICAL FIX: Set the universe_state_manager on the builder AFTER Runner creates it
-        # This ensures the builder uses the Runner's properly configured manager with unique run_id
-        universe_state_builder.universe_state_manager = runner.universe_state_manager
+        # Now connect builder to runner's properly configured universe_state_manager
+        universe_state_builder.universe_state_manager = runner.universe_state_manager  # Use runner's manager with proper run_context
+        
+        # Add callbacks to runner
+        runner.callbacks.extend([universe_state_builder, training_callback])
 
         logger.info(f"✅ Runner created successfully")
         logger.info(f"   Target date range: {start_date} to {end_date}")

@@ -49,11 +49,165 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - Mask real-world object behavior and edge cases
 - Lead to false confidence in system integration
 
+### **🚫 NO EXCEPTION CATCHING - FAIL FAST POLICY**
+- **❌ NEVER use try/except blocks** to silence or mask errors
+- **❌ NEVER catch Exception, BaseException, or bare except:**
+- **❌ NEVER provide fallback logic** when core systems fail
+- **❌ NEVER log errors and continue** - let the application crash
+- **✅ ALWAYS let exceptions propagate** with full stack traces
+- **✅ ALWAYS fix root causes** revealed by crashes
+- **✅ ALWAYS ensure proper cleanup** using context managers and finally blocks
+
+**Why Exception Catching Is Dangerous:**
+- Masks configuration problems and dependency failures  
+- Hides database connection issues and query failures
+- Creates silent failures that corrupt data integrity
+- Prevents proper error monitoring and alerting
+- Results in production issues that are difficult to diagnose
+- Leads to false system health indicators
+
+**Allowed Exception Handling (Very Limited):**
+- **Specific exceptions only**: `except FileNotFoundError:` for optional files
+- **Resource cleanup**: `finally:` blocks for closing connections  
+- **Context managers**: `with` statements for automatic cleanup
+- **Input validation**: `except ValueError:` for user input parsing only
+
+**Example Patterns:**
+
+❌ **WRONG - Silent Error Masking:**
+```python
+try:
+    result = critical_business_logic()
+    return result
+except Exception as e:
+    logger.error(f"Error: {e}")
+    return None  # Masks the real problem
+```
+
+✅ **RIGHT - Fail Fast:**
+```python
+def critical_business_logic():
+    # Let any exception propagate - crash immediately
+    result = database.get_critical_data()
+    return result
+```
+
+❌ **WRONG - Fallback to Mock Data:**
+```python
+try:
+    data = fetch_real_market_data()
+except Exception:
+    data = generate_mock_data()  # Dangerous fallback
+```
+
+✅ **RIGHT - Crash on Data Unavailability:**
+```python
+def fetch_market_data():
+    # If real data is unavailable, the application should crash
+    # This forces immediate attention to fix the real issue
+    return api_client.get_market_data()
+```
+
 ### **🔄 ENHANCE EXISTING BEFORE CREATING NEW**
 - **❌ NEVER create new files/services** without checking if existing can be enhanced
 - **❌ NEVER duplicate functionality** in new files
 - **✅ ALWAYS enhance existing services** - add features to current code
 - **✅ ALWAYS consolidate functionality** - reduce complexity, don't add it
+
+### **🌿 MANDATORY BRANCH WORKFLOW - NO DIRECT MAIN COMMITS**
+- **❌ NEVER push commits directly to main branch**
+- **❌ NEVER merge changes without code review**
+- **❌ NEVER bypass the branch → PR → review → merge workflow**
+- **❌ NEVER commit incomplete work or experimental changes to main**
+- **✅ ALWAYS create feature/fix branches for ALL changes**
+- **✅ ALWAYS submit pull requests for code review**
+- **✅ ALWAYS wait for review approval before merging**
+
+**Why Direct Main Commits Are Dangerous:**
+- Bypasses code review and quality gates
+- Introduces unreviewed bugs into production code
+- Breaks collaborative development workflows
+- Prevents proper testing and validation
+- Creates merge conflicts and integration issues
+- Violates team accountability and knowledge sharing
+
+**Mandatory Git Workflow:**
+
+**1️⃣ Always Create Branches:**
+```bash
+git checkout -b fix/descriptive-issue-name        # Bug fixes
+git checkout -b feat/new-feature-name            # New features  
+git checkout -b test/test-description            # Test additions
+git checkout -b docs/documentation-update       # Documentation
+```
+
+**2️⃣ Branch Naming Conventions:**
+- **fix/**: Bug fixes and error corrections
+- **feat/**: New features and enhancements
+- **test/**: Test additions and test improvements
+- **docs/**: Documentation updates
+- **refactor/**: Code refactoring without behavior changes
+- **chore/**: Maintenance tasks and tooling updates
+
+**3️⃣ Commit Message Standards:**
+- Use conventional commit format: `type: description`
+- Include comprehensive body explaining the change
+- Add test results and verification steps
+- Reference related issues or tickets
+- Include co-author attribution for Claude Code
+
+**4️⃣ Pull Request Process:**
+```bash
+git add .
+git commit -m "fix: resolve run_id type mismatch in training callback
+
+## Problem
+- Production error: 'str' object cannot be interpreted as an integer
+- MonthlyTrainingDataDAO expects integer run_id, got string from runner context
+
+## Solution  
+- Use RunMetadataTracker for proper integer database run_id generation
+- Replace string runner.run_context.run_id with integer database run_id
+
+## Testing
+- Added comprehensive test reproducing exact production error
+- Verified fix works with real database integration
+- Confirms type safety and foreign key constraints
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+git push origin fix/run-id-type-mismatch-verification
+```
+
+**5️⃣ Code Review Requirements:**
+- **All changes must be reviewed** before merging to main
+- **Include test verification** in PR description
+- **Document breaking changes** and migration steps
+- **Verify CI/CD passes** before requesting review
+- **Wait for approval** before merging
+
+**Example Proper Workflow:**
+```bash
+# ❌ WRONG: Direct to main
+git add .
+git commit -m "fix bug"
+git push origin main  # FORBIDDEN
+
+# ✅ RIGHT: Branch workflow
+git checkout -b fix/training-data-callback-bug
+git add .
+git commit -m "fix: resolve run_id type mismatch in training callback"
+git push origin fix/training-data-callback-bug
+# Create PR, wait for review, then merge
+```
+
+**Emergency Hotfixes:**
+- Even urgent production fixes must go through branch → PR → review
+- Use expedited review process but never bypass code review
+- Create hotfix branch, fix issue, immediate PR, fast review, merge
+- Document emergency rationale in PR description
 
 ## 🧠 **MCP Knowledge Graph - Persistent Memory (2025-09-13)**
 

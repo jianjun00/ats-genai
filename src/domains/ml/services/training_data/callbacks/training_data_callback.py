@@ -388,102 +388,111 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         Save monthly training data records to database using MonthlyTrainingDataDAO.
         Called at the end of processing to register all generated monthly files.
         """
-        try:
-            from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
+        from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
+        from domains.ml.services.training_data.utils.run_metadata_tracker import RunMetadataTracker
 
-            # Get environment and run info
-            environment = runner.get_environment()
-            
-            # 🚨 CRITICAL FIX: Use Runner's run_context.run_id instead of separate database run_id
-            # This ensures all database insertions use the unique Runner run_id, preventing duplicate key violations
-            run_id = None
-            if hasattr(runner, 'run_context') and runner.run_context:
-                run_id = runner.run_context.run_id
-                print(f"✅ Using Runner's run_context.run_id: {run_id}")
-            else:
-                # Fallback to self.run_id (database integer) only if no run_context available
-                run_id = getattr(self, 'run_id', None)
-                if run_id:
-                    print(f"⚠️ Using fallback database run_id: {run_id}")
-                
-            if not run_id:
-                print("⚠️ WARNING: No run_id available for monthly training data records")
-                return
+        # Get environment 
+        environment = runner.get_environment()
+        
+        # Create a proper database run entry using RunMetadataTracker
+        # This returns an integer run_id that's compatible with the database schema
+        tracker = RunMetadataTracker(
+            run_type="training_data_generation",
+            created_by="IntervalBasedTrainingDataCallback"
+        )
+        
+        # Get runner context for metadata
+        runner_run_id = None
+        if hasattr(runner, 'run_context') and runner.run_context:
+            runner_run_id = runner.run_context.run_id
+            print(f"📋 Runner context run_id: {runner_run_id}")
 
-            dao = MonthlyTrainingDataDAO(environment)
+        # Create database run entry with comprehensive metadata
+        parameters = {
+            "symbols": self.symbols,
+            "start_date": str(self.start_date),
+            "end_date": str(self.end_date),
+            "timeframes": ['5m', '15m', '60m', '1d', '1w'],
+            "storage_format": self.storage_format,
+            "output_dir": str(self.output_dir),
+            "runner_context_id": runner_run_id  # Link to runner's string ID
+        }
+        
+        database_run_id = await tracker.start_run(parameters)
+        print(f"✅ Created database run entry: {database_run_id}")
 
-            # Group files by symbol and month for database records
-            symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
+        dao = MonthlyTrainingDataDAO(environment)
 
-            for file_key, file_path in self.monthly_file_paths.items():
-                # Parse file_key: symbol_timeframe_YYYY_MM
-                parts = file_key.split('_')
-                if len(parts) < 4:
-                    continue
+        # Group files by symbol and month for database records
+        symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
 
-                symbol = parts[0]
-                timeframe = parts[1]
-                year_month = f"{parts[2]}_{parts[3]}"  # YYYY_MM
+        for file_key, file_path in self.monthly_file_paths.items():
+            # Parse file_key: symbol_timeframe_YYYY_MM
+            parts = file_key.split('_')
+            if len(parts) < 4:
+                continue
 
-                # Convert YYYY_MM to date object (first day of month)
-                year = int(parts[2])
-                month = int(parts[3])
-                month_date = date(year, month, 1)
+            symbol = parts[0]
+            timeframe = parts[1]
+            year_month = f"{parts[2]}_{parts[3]}"  # YYYY_MM
 
-                # Group by symbol and month
-                key = (symbol, year_month)
-                if key not in symbol_month_records:
-                    symbol_month_records[key] = {
-                        'symbol': symbol,
-                        'year_month': month_date,
-                        'timeframe_paths': {},
-                        'total_records': 0,
-                        'file_size_mb': 0.0
-                    }
+            # Convert YYYY_MM to date object (first day of month)
+            year = int(parts[2])
+            month = int(parts[3])
+            month_date = date(year, month, 1)
 
-                # Add timeframe path
-                symbol_month_records[key]['timeframe_paths'][timeframe] = file_path
+            # Group by symbol and month
+            key = (symbol, year_month)
+            if key not in symbol_month_records:
+                symbol_month_records[key] = {
+                    'symbol': symbol,
+                    'year_month': month_date,
+                    'timeframe_paths': {},
+                    'total_records': 0,
+                    'file_size_mb': 0.0
+                }
 
-                # Add record count and file size
-                record_count = self.monthly_record_counts.get(file_key, 0)
-                symbol_month_records[key]['total_records'] += record_count
+            # Add timeframe path
+            symbol_month_records[key]['timeframe_paths'][timeframe] = file_path
 
-                # Calculate file size
-                try:
-                    file_size_bytes = Path(file_path).stat().st_size
-                    file_size_mb = file_size_bytes / (1024 * 1024)
-                    symbol_month_records[key]['file_size_mb'] += file_size_mb
-                except FileNotFoundError:
-                    print(f"⚠️ File not found for size calculation: {file_path}")
+            # Add record count and file size
+            record_count = self.monthly_record_counts.get(file_key, 0)
+            symbol_month_records[key]['total_records'] += record_count
 
-            # Create database records
-            for (symbol, year_month), record_data in symbol_month_records.items():
-                try:
-                    # Create monthly training data record
-                    monthly_record = MonthlyTrainingDataRecord(
-                        run_id=run_id,
-                        symbol=symbol,
-                        instrument_id=None,  # Could be filled later with instrument lookup
-                        year_month=record_data['year_month'],
-                        timeframe_paths=record_data['timeframe_paths'],
-                        total_records=record_data['total_records'],
-                        file_size_mb=record_data['file_size_mb'],
-                        data_quality_score=1.0,  # Default quality score
-                        status="completed"
-                    )
+            # Calculate file size
+            file_size_bytes = Path(file_path).stat().st_size
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            symbol_month_records[key]['file_size_mb'] += file_size_mb
 
-                    record_id = await dao.create_monthly_record(monthly_record)
-                    print(f"✅ Saved monthly training data record: {symbol} {year_month} (ID: {record_id})")
+        # Create database records
+        for (symbol, year_month), record_data in symbol_month_records.items():
+            # Create monthly training data record
+            monthly_record = MonthlyTrainingDataRecord(
+                run_id=database_run_id,  # Use integer database run_id, not string
+                symbol=symbol,
+                instrument_id=None,  # Could be filled later with instrument lookup
+                year_month=record_data['year_month'],
+                timeframe_paths=record_data['timeframe_paths'],
+                total_records=record_data['total_records'],
+                file_size_mb=record_data['file_size_mb'],
+                data_quality_score=1.0,  # Default quality score
+                status="completed"
+            )
 
-                except Exception as e:
-                    print(f"❌ Failed to save monthly record for {symbol} {year_month}: {e}")
+            record_id = await dao.create_monthly_record(monthly_record)
+            print(f"✅ Saved monthly training data record: {symbol} {year_month} (ID: {record_id})")
 
-            print(f"✅ Saved {len(symbol_month_records)} monthly training data records to database")
+        print(f"✅ Saved {len(symbol_month_records)} monthly training data records to database")
 
-        except Exception as e:
-            print(f"❌ Error saving monthly training data records: {e}")
-            import traceback
-            traceback.print_exc()
+        # Complete the run tracking
+        results = {
+            "total_months_processed": len(symbol_month_records),
+            "symbols": self.symbols,
+            "timeframes": ['5m', '15m', '60m', '1d', '1w'],
+            "total_intervals": self.interval_counter
+        }
+        await tracker.complete_run(database_run_id, results)
+        await tracker.close()
 
 
 

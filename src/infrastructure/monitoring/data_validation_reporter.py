@@ -147,40 +147,22 @@ class DataValidationReporter:
 
     def is_trading_day(self, check_date: date) -> bool:
         """Check if a date is a valid trading day using NYSE calendar."""
-        try:
-            # Convert date to pandas Timestamp for exchange-calendars
-            pd_date = pd.Timestamp(check_date)
-            # Check if it's a valid trading session
-            return self.trading_calendar.is_session(pd_date)
-        except Exception as e:
-            logger.warning(f"Error checking trading day for {check_date}: {e}")
-            # Fallback to simple weekend check
-            return check_date.weekday() < 5
+        # Convert date to pandas Timestamp for exchange-calendars
+        pd_date = pd.Timestamp(check_date)
+        # Check if it's a valid trading session
+        return self.trading_calendar.is_session(pd_date)
 
     def get_expected_trading_days(self, start_date: date, end_date: date) -> List[date]:
         """Get list of expected trading days in date range using NYSE calendar."""
-        try:
-            # Convert to pandas Timestamps
-            start_ts = pd.Timestamp(start_date)
-            end_ts = pd.Timestamp(end_date)
+        # Convert to pandas Timestamps
+        start_ts = pd.Timestamp(start_date)
+        end_ts = pd.Timestamp(end_date)
 
-            # Get trading sessions from NYSE calendar
-            sessions = self.trading_calendar.sessions_in_range(start_ts, end_ts)
+        # Get trading sessions from NYSE calendar
+        sessions = self.trading_calendar.sessions_in_range(start_ts, end_ts)
 
-            # Convert back to dates
-            return [session.date() for session in sessions]
-        except Exception as e:
-            logger.warning(f"Error getting trading days: {e}, falling back to simple method")
-            # Fallback to simple method
-            trading_days = []
-            current_date = start_date
-
-            while current_date <= end_date:
-                if current_date.weekday() < 5:  # Simple weekday check
-                    trading_days.append(current_date)
-                current_date += timedelta(days=1)
-
-            return trading_days
+        # Convert back to dates
+        return [session.date() for session in sessions]
 
     async def get_stock_info(self, symbol: str) -> StockInfo:
         """Get stock listing information from database."""
