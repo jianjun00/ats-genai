@@ -519,10 +519,6 @@ class UniverseStateManager:
         import pandas as pd
         # Promote to INFO and add print to ensure visibility during tests
         self.logger.info(f"addUniverseState: Adding UniverseStates for {len(duration_to_state)} durations at {current_time}")
-        try:
-            print(f"[USM.addUniverseState] durations={len(duration_to_state)} at {current_time}")
-        except Exception:
-            pass
         rows = []
         seen_keys = set()
         long_rows = []
@@ -954,19 +950,14 @@ class UniverseStateManager:
             
             # CRITICAL FIX: Build UniverseStateInterval from rolling cache data
             # Check if we have cached data for this timeframe
-            print(f"🔍 [USM.get_universe_state_interval] Looking for {timeframe} at {current_time}")
-            print(f"🔍 [USM.get_universe_state_interval] Available timeframes in cache: {list(self._rolling_instrument_history.keys())}")
+            self.logger.debug(f"Looking for {timeframe} at {current_time}")
+            self.logger.debug(f"Available timeframes in cache: {list(self._rolling_instrument_history.keys())}")
             
             if timeframe not in self._rolling_instrument_history:
-                print(f"❌ [USM.get_universe_state_interval] No rolling cache data for {timeframe} lookup")
+                self.logger.debug(f"No rolling cache data for {timeframe} lookup")
                 return None
                 
-            print(f"📊 [USM.get_universe_state_interval] Cache debug for {timeframe}: {len(self._rolling_instrument_history[timeframe])} instruments cached")
-            for inst_id, intervals in self._rolling_instrument_history[timeframe].items():
-                print(f"   📈 Instrument {inst_id}: {len(intervals)} intervals cached")
-                for i, interval in enumerate(intervals):
-                    start_time = getattr(interval, 'start_date_time', None)
-                    print(f"      ⏰ Interval {i}: start_time={start_time}")
+            self.logger.debug(f"Cache debug for {timeframe}: {len(self._rolling_instrument_history[timeframe])} instruments cached")
                 
             # Import UniverseStateInterval here to avoid circular imports
             from domains.trading.services.state.universe_state import UniverseStateInterval
@@ -988,14 +979,12 @@ class UniverseStateManager:
                         is_within_interval = interval_start_time <= current_time <= interval_end_time
                         is_end_time_match = abs((interval_end_time - current_time).total_seconds()) < 60
                         
-                        print(f"         🔍 Checking interval: start={interval_start_time}, end={interval_end_time}")
-                        print(f"         🎯 Looking for: {current_time}")
-                        print(f"         📊 Within interval: {is_within_interval}, End time match: {is_end_time_match}")
+                        self.logger.debug(f"Checking interval: start={interval_start_time}, end={interval_end_time}, target={current_time}")
                         
                         if is_within_interval or is_end_time_match:
                             # Found matching interval for this instrument
                             instrument_intervals[instrument_id] = interval
-                            print(f"         ✅ FOUND MATCH for instrument {instrument_id}")
+                            self.logger.debug(f"Found matching interval for instrument {instrument_id}")
                             break
             
             if not instrument_intervals:
