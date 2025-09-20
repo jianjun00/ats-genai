@@ -11,6 +11,8 @@ async def run_file_daily_price_ohlcv(
     end_date: str,
     env,
     universe_id: int = 1,
+    base_duration: str = '1d',
+    target_durations: str = '1d',
     output_dir: Optional[str] = None,
     indicator_config=None,
     print_ohlcv: bool = True,
@@ -25,24 +27,31 @@ async def run_file_daily_price_ohlcv(
         env.get_indicator_config = lambda: indicator_config
 
     market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
-    universe_state_manager = UniverseStateManager(env=env, base_path=output_dir)
-    builder = UniverseStateIntervalBuilder(
-        env=env,
-        base_duration='1d',
-        target_durations='1d'
-    )
-    builder.universe_state_manager = universe_state_manager
+    
+    # Create runner first so it can initialize its own universe_state_manager with proper run_context
     runner = Runner(
         start_date=start_date,
         end_date=end_date,
         environment=env,
         universe_id=universe_id,
-        callbacks=[builder],
-        base_duration='1d'
+        callbacks=[],  # Will add builder after configuring it
+        base_duration=base_duration
     )
+    
+    # Now create builder and connect it to runner's properly configured universe_state_manager
+    builder = UniverseStateIntervalBuilder(
+        env=env,
+        base_duration=base_duration,
+        target_durations=target_durations
+    )
+    builder.universe_state_manager = runner.universe_state_manager  # Use runner's manager with proper run_context
+    
+    # Add builder to runner callbacks
+    runner.callbacks.append(builder)
+    
     runner.market_data_manager = market_data_manager
     runner.universe_manager.instrument_ids = instrument_ids
-    runner.universe_state_manager = universe_state_manager
+    # DO NOT override runner.universe_state_manager - it has proper run_context and unique run_id
     await runner.run()
 
     # Fetch universe state intervals from DB using DAO
