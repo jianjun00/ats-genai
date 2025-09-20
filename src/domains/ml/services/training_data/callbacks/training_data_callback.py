@@ -118,17 +118,12 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         if not hasattr(self, 'array_record_writers') or not self.array_record_writers:
             return
 
-        print(f"\n🚨 CRITICAL CLEANUP: Closing {len(self.array_record_writers)} ArrayRecord writers")
-
         for file_key, writer in self.array_record_writers.items():
             try:
                 if writer and hasattr(writer, 'close'):
                     writer.close()
-                    print(f"   ✅ Emergency closed writer: {file_key}")
             except Exception as e:
-                print(f"   ⚠️ Error closing writer {file_key}: {e}")
-
-        print("🔒 ArrayRecord writers cleanup completed")
+                self.logger.error(f"Error closing writer {file_key}: {e}")
 
     def __enter__(self):
         """Context manager entry."""
@@ -184,10 +179,8 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         target_timeframes = self._get_target_timeframes_for_interval(current_time)
         
         if not target_timeframes:
-            print(f"⏭️ DEBUG: No timeframes to generate at {current_time} (minute={current_time.minute})")
             return
 
-        print(f"🎯 DEBUG: Generating timeframes {target_timeframes} at {current_time} (minute={current_time.minute})")
 
         self.interval_counter += 1
         examples_generated = []
@@ -196,34 +189,20 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             # Generate examples for each symbol and timeframe combination
             for symbol in self.symbols:
                 for timeframe in target_timeframes:
-                    try:
-                        print(f"🔄 DEBUG: Generating training example for {symbol} timeframe {timeframe}")
-                        example = await self.training_generator.generate_training_example(
-                            symbol=symbol,
-                            prediction_timestamp=current_time,
-                            target_timeframes=[timeframe]  # Generate for single timeframe only
-                        )
+                    example = await self.training_generator.generate_training_example(
+                        symbol=symbol,
+                        prediction_timestamp=current_time,
+                        target_timeframes=[timeframe]  # Generate for single timeframe only
+                    )
 
-                        if example and example.get('timeframe_features', {}).get(timeframe):
-                            print(f"✅ DEBUG: Generated example for {symbol} {timeframe}")
-                            examples_generated.append(example)
-                        else:
-                            print(f"❌ DEBUG: No example generated for {symbol} {timeframe}")
-
-                    except Exception as e:
-                        print(f"💥 DEBUG: Exception generating example for {symbol} {timeframe}: {e}")
-                        self.logger.error(f"Failed to generate example for {symbol} {timeframe}: {e}")
+                    examples_generated.append(example)
 
             # Save immediately if we have examples
             if examples_generated:
-                print(f"📤 DEBUG: Saving {len(examples_generated)} examples for timeframes {target_timeframes}")
                 await self._save_simple_arrayrecord(examples_generated, current_time)
-                print(f"✅ DEBUG: Save completed for {len(examples_generated)} examples")
-            else:
-                print(f"⏭️ DEBUG: No examples to save at {current_time}")
 
         except Exception as e:
-            print(f"🚨 CRITICAL ERROR in handleInterval: {e}")
+            self.logger.error(f"CRITICAL ERROR in handleInterval: {e}")
             import traceback
             traceback.print_exc()
             # Ensure cleanup even on critical errors
@@ -242,33 +221,13 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
         This prevents OOM by never holding all data in memory simultaneously.
         """
-        print(f"🔧 DEBUG: Starting ArrayRecord save with {len(examples)} examples at {current_time}")
-        for i, example in enumerate(examples):
-            if isinstance(example, dict):
-                print(f"  📝 Example {i}: keys={list(example.keys())}")
-                if 'timeframe_features' in example:
-                    tf_features = example['timeframe_features']
-                    if isinstance(tf_features, dict):
-                        print(f"    ⏰ Timeframes: {list(tf_features.keys())}")
-                        for tf, features in tf_features.items():
-                            if isinstance(features, dict):
-                                print(f"      {tf}: {len(features)} features")
+        # Initialize dataset structure on first call
+        if not self.dataset_initialized:
+            await self._initialize_dataset_structure()
+            self.dataset_initialized = True
 
-        try:
-            # Initialize dataset structure on first call
-            if not self.dataset_initialized:
-                await self._initialize_dataset_structure()
-                self.dataset_initialized = True
-
-            # Stream current interval data to appropriate writers
-            print(f"📤 DEBUG: About to stream {len(examples)} examples to ArrayRecord writers")
-            await self._stream_training_examples_to_writers(examples, current_time)
-            print(f"✅ DEBUG: Successfully streamed {len(examples)} examples to ArrayRecord writers")
-
-        except Exception as e:
-            print(f"❌ Error in streaming ArrayRecord save: {e}")
-            import traceback
-            traceback.print_exc()
+        # Stream current interval data to appropriate writers
+        await self._stream_training_examples_to_writers(examples, current_time)
 
     async def _stream_training_examples_to_writers(self, examples: List[Dict], current_time: datetime):
         """
@@ -279,77 +238,60 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         - Route data to appropriate monthly ArrayRecord files
         - Use new file key structure: symbol_timeframe_YYYY_MM
         """
-        print(f"🔄 DEBUG: Processing {len(examples)} training examples for monthly streaming")
 
         # CRITICAL: Only save data within target date range, not collection window
         current_date = current_time.date()
         if current_date < self.start_date or current_date > self.end_date:
-            print(f"⏭️ DEBUG: Skipping {current_time} - outside target range ({self.start_date} to {self.end_date})")
             return
 
         # Determine which month this data belongs to
         year_month_str = current_date.strftime('%Y_%m')
-        print(f"📅 DEBUG: Saving data for month {year_month_str}")
 
-        try:
-            for example_idx, example in enumerate(examples):
-                if not isinstance(example, dict):
-                    print(f"⚠️ DEBUG: Skipping example {example_idx} - not a dict: {type(example)}")
+        for example_idx, example in enumerate(examples):
+            if not isinstance(example, dict):
+                continue
+
+            symbol = example.get('symbol', 'UNKNOWN')
+            timeframe_features = example.get('timeframe_features', {})
+
+            # Stream each timeframe to its respective monthly ArrayRecord file
+            for timeframe, features in timeframe_features.items():
+                if not isinstance(features, dict) or not features:
                     continue
 
-                symbol = example.get('symbol', 'UNKNOWN')
-                timeframe_features = example.get('timeframe_features', {})
+                # Create interval record from timeframe features
+                interval_record = {
+                    'timestamp': current_time.timestamp(),
+                    'symbol': symbol,
+                    # Extract OHLCV from features (with timeframe prefix)
+                    'open': features.get(f'{timeframe}_open', 0.0),
+                    'high': features.get(f'{timeframe}_high', 0.0),
+                    'low': features.get(f'{timeframe}_low', 0.0),
+                    'close': features.get(f'{timeframe}_close', 0.0),
+                    'volume': features.get(f'{timeframe}_volume', 0.0),
+                }
 
-                print(f"🎯 DEBUG: Processing example {example_idx} for symbol {symbol}")
-                print(f"📊 DEBUG: Available timeframes: {list(timeframe_features.keys())}")
+                # Add all other features as technical indicators
+                for key, value in features.items():
+                    if not key.startswith(f'{timeframe}_') or key.split('_', 1)[1] in ['open', 'high', 'low', 'close', 'volume']:
+                        continue  # Skip OHLCV and non-prefixed keys
+                    indicator_name = key.split('_', 1)[1]  # Remove timeframe prefix
+                    interval_record[indicator_name] = value
 
-                # Stream each timeframe to its respective monthly ArrayRecord file
-                for timeframe, features in timeframe_features.items():
-                    if not isinstance(features, dict) or not features:
-                        print(f"⚠️ DEBUG: Skipping {timeframe} - empty or invalid features")
-                        continue
+                # Write to appropriate monthly ArrayRecord file
+                monthly_file_key = f"{symbol}_{timeframe}_{year_month_str}"
+                if monthly_file_key in self.array_record_writers:
+                    writer = self.array_record_writers[monthly_file_key]
+                    await self._write_interval_to_writer(writer, symbol, interval_record)
 
-                    # Create interval record from timeframe features
-                    interval_record = {
-                        'timestamp': current_time.timestamp(),
-                        'symbol': symbol,
-                        # Extract OHLCV from features (with timeframe prefix)
-                        'open': features.get(f'{timeframe}_open', 0.0),
-                        'high': features.get(f'{timeframe}_high', 0.0),
-                        'low': features.get(f'{timeframe}_low', 0.0),
-                        'close': features.get(f'{timeframe}_close', 0.0),
-                        'volume': features.get(f'{timeframe}_volume', 0.0),
-                    }
+                    # Track record count for database storage
+                    if monthly_file_key not in self.monthly_record_counts:
+                        self.monthly_record_counts[monthly_file_key] = 0
+                    self.monthly_record_counts[monthly_file_key] += 1
 
-                    # Add all other features as technical indicators
-                    for key, value in features.items():
-                        if not key.startswith(f'{timeframe}_') or key.split('_', 1)[1] in ['open', 'high', 'low', 'close', 'volume']:
-                            continue  # Skip OHLCV and non-prefixed keys
-                        indicator_name = key.split('_', 1)[1]  # Remove timeframe prefix
-                        interval_record[indicator_name] = value
+                else:
+                    self.logger.warning(f"No monthly writer found for {monthly_file_key}")
 
-                    # Write to appropriate monthly ArrayRecord file
-                    monthly_file_key = f"{symbol}_{timeframe}_{year_month_str}"
-                    if monthly_file_key in self.array_record_writers:
-                        writer = self.array_record_writers[monthly_file_key]
-                        print(f"📝 DEBUG: Writing {timeframe} record for {symbol} month {year_month_str} with {len(interval_record)} fields")
-                        await self._write_interval_to_writer(writer, symbol, interval_record)
-
-                        # Track record count for database storage
-                        if monthly_file_key not in self.monthly_record_counts:
-                            self.monthly_record_counts[monthly_file_key] = 0
-                        self.monthly_record_counts[monthly_file_key] += 1
-
-                    else:
-                        print(f"❌ DEBUG: No monthly writer found for {monthly_file_key}")
-                        print(f"   Available writers: {list(self.array_record_writers.keys())[:5]}...")
-
-            print(f"✅ DEBUG: Completed streaming {len(examples)} examples to ArrayRecord files")
-
-        except Exception as e:
-            print(f"❌ ERROR streaming training examples: {e}")
-            import traceback
-            traceback.print_exc()
 
     async def _initialize_dataset_structure(self):
         """

@@ -348,11 +348,7 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
     # Register in database
     dataset_id = await dao.create_training_dataset(record)
 
-    print(f"📝 Registered training dataset: {dataset_name}")
-    print(f"   Dataset ID: {dataset_id}")
-    print(f"   Estimated sequences: {estimated_sequences:,}")
-    print(f"   Total features: {total_features:,}")
-    print(f"   Symbols: {', '.join(symbols)}")
+    print(f"📝 Registered training dataset: {dataset_name} (ID: {dataset_id})")
 
     return dataset_id
 
@@ -377,7 +373,7 @@ async def update_training_dataset_completion_with_status(environment: Environmen
     conn = await asyncpg.connect(environment.get_database_url())
 
     try:
-        table_name = environment.get_table_name("training_datasets")
+        table_name = environment.get_table_name("training_dataset")
 
         update_query = f"""
         UPDATE {table_name}
@@ -400,12 +396,7 @@ async def update_training_dataset_completion_with_status(environment: Environmen
             dataset_id
         )
 
-        print(f"✅ Updated dataset {dataset_id} completion status:")
-        print(f"   Status: {status}")
-        print(f"   Actual sequences: {actual_sequences:,}")
-        print(f"   Duration: {generation_duration_seconds}s")
-        print(f"   File size: {file_size_mb:.2f} MB")
-        print(f"   Quality score: {data_quality_score:.2f}")
+        print(f"✅ Dataset {dataset_id} completed: {actual_sequences:,} sequences, {file_size_mb:.1f}MB, {generation_duration_seconds}s")
 
     finally:
         await conn.close()
@@ -766,21 +757,12 @@ async def main():
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
         
-        # Create universe state manager for shared cache
         # REMOVED: Manual UniverseStateManager creation without run_context
         # This was causing constraint violations because all managers used the same 'no_run_context' run_id
         # Let the Runner create its own properly configured manager with unique run_id
         
-        # DEBUG: Check what gin config values are being loaded
-        try:
-            gin_base_duration = gin.query_parameter('domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration')
-            gin_target_durations = gin.query_parameter('domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations')
-            logger.info(f"🔍 [DEBUG] Gin config values:")
-            logger.info(f"   gin_base_duration: {gin_base_duration}")
-            logger.info(f"   gin_target_durations: {gin_target_durations}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to query gin config: {e}")
-        
+        # 🚨 CRITICAL FIX: Create UniverseStateBuilder without universe_state_manager
+        # It will get the proper manager from Runner after Runner is created
         universe_state_builder = UniverseStateIntervalBuilder(
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
@@ -788,11 +770,6 @@ async def main():
             # universe_state_manager will be set from Runner's properly configured manager
         )
         
-        # DEBUG: Check what values were actually set
-        logger.info(f"🔍 [DEBUG] UniverseStateBuilder actual configuration:")
-        logger.info(f"   base_duration: {universe_state_builder.base_duration}")
-        logger.info(f"   target_durations: {universe_state_builder.target_durations}")
-        logger.info(f"   target_durations count: {len(universe_state_builder.target_durations)}")
         
         logger.info(f"✅ Created UniverseStateBuilder to populate universe state cache")
         logger.info(f"   Base duration: {args.base_duration}")

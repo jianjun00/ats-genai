@@ -85,7 +85,7 @@ class TrainingDatasetDAO:
 
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
-            table_name = self.env.get_table_name("training_datasets")
+            table_name = self.env.get_table_name("training_dataset")
 
             query = f"""
             INSERT INTO {table_name} (
@@ -129,7 +129,7 @@ class TrainingDatasetDAO:
 
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
-            table_name = self.env.get_table_name("training_datasets")
+            table_name = self.env.get_table_name("training_dataset")
 
             query = f"SELECT * FROM {table_name} WHERE id = $1"
             row = await conn.fetchrow(query, dataset_id)
@@ -149,7 +149,7 @@ class TrainingDatasetDAO:
 
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
-            table_name = self.env.get_table_name("training_datasets")
+            table_name = self.env.get_table_name("training_dataset")
 
             query = f"""
             SELECT * FROM {table_name}
@@ -173,7 +173,7 @@ class TrainingDatasetDAO:
 
         conn = await asyncpg.connect(self.env.get_database_url())
         try:
-            table_name = self.env.get_table_name("training_datasets")
+            table_name = self.env.get_table_name("training_dataset")
 
             query = f"""
             UPDATE {table_name}

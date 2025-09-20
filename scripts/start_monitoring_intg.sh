@@ -23,14 +23,14 @@ if ! docker info &> /dev/null; then
 fi
 
 echo "📦 Starting INTG monitoring services..."
-docker-compose -f docker-compose.monitoring-intg.yml up -d
+docker-compose -f deployment/docker-compose.monitoring-intg.yml up -d
 
 echo "⏳ Waiting for services to start..."
 sleep 10
 
 # Check service health
 echo "🔍 Checking service status..."
-docker-compose -f docker-compose.monitoring-intg.yml ps
+docker-compose -f deployment/docker-compose.monitoring-intg.yml ps
 
 # Get external URLs
 echo ""
@@ -75,6 +75,6 @@ echo "3. Create Slack channels: #ats-intg-alerts, #ats-intg-critical, #ats-intg-
 echo "4. Monitor the ATS Data Quality Dashboard"
 echo ""
 echo "🛠️  Management Commands:"
-echo "Stop monitoring:  docker-compose -f docker-compose.monitoring-intg.yml down"
-echo "View logs:        docker-compose -f docker-compose.monitoring-intg.yml logs -f"
-echo "Restart services: docker-compose -f docker-compose.monitoring-intg.yml restart"
+echo "Stop monitoring:  docker-compose -f deployment/docker-compose.monitoring-intg.yml down"
+echo "View logs:        docker-compose -f deployment/docker-compose.monitoring-intg.yml logs -f"
+echo "Restart services: docker-compose -f deployment/docker-compose.monitoring-intg.yml restart"

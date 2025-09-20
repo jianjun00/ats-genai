@@ -9,7 +9,7 @@ cd /home/jianjun/ats-genai-pm
 echo "🚀 Starting ATS Data Coverage Monitoring Stack..."
 
 # Start the monitoring stack
-docker-compose -f docker-compose.monitoring.yml up -d
+docker-compose -f deployment/docker-compose.monitoring.yml up -d
 
 echo "⏳ Waiting for services to start..."
 sleep 15

@@ -63,7 +63,7 @@ async def list_training_datasets():
 
         # Use environment-aware table name
         env = Environment()
-        table_name = env.get_table_name("training_datasets")
+        table_name = env.get_table_name("training_dataset")
         query = f"""
         SELECT id, dataset_name, total_sequences, feature_count, label_count,
                data_quality_score, feature_completeness, label_completeness,
@@ -113,7 +113,7 @@ async def get_training_dataset_distributions(dataset_id: int):
 
         # Use environment-aware table name
         env = Environment()
-        table_name = env.get_table_name("training_datasets")
+        table_name = env.get_table_name("training_dataset")
         query = f"""
         SELECT data_quality_score, feature_completeness, label_completeness,
                tfdv_statistics, feature_distributions, label_distributions, tfdv_anomalies
