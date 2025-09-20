@@ -1,0 +1,51 @@
+# =============================================================================
+# DEVELOPMENT ENVIRONMENT - MODULAR CONFIGURATION
+# =============================================================================
+# Composed development environment configuration using modular gin files.
+
+# Include Core Universal Constants
+include 'config/core/business.gin'
+include 'config/core/symbols.gin'
+include 'config/core/timeouts.gin'
+
+# Include Domain-Specific Configurations
+include 'config/domains/ml.gin'
+include 'config/domains/trading.gin'
+include 'config/domains/analytics.gin'
+
+# Include External Service Configurations
+include 'config/external/apis.gin'
+include 'config/external/vendors.gin'
+
+# Include Infrastructure Configuration for Development
+include 'config/infrastructure/dev.gin'
+
+# Development-Specific Overrides
+# Smaller universe for faster development iteration
+symbols.default_universe = ['AAPL', 'TSLA']
+symbols.priority_symbols = ['AAPL', 'TSLA']
+
+# Faster API timeouts for quicker failure detection in dev
+timeouts.api.default = 15
+timeouts.database.query = 60
+
+# Development ML settings for faster experimentation
+ml.training.batch_size = 16
+ml.training.epochs = 5
+ml.model.checkpoint_frequency = 2
+
+# Development trading settings
+trading.expected_bars_per_day = 100  # Reduced for dev data
+portfolio.max_positions = 5          # Smaller portfolio for testing
+
+# Development analytics refresh
+dashboard.refresh_interval_seconds = 10  # Faster refresh for development
+
+# Development external API settings (more aggressive rate limiting)
+external.polygon.rate_limit_per_minute = 2    # Slower in dev to avoid hitting limits
+external.tiingo.rate_limit_per_hour = 100     # Reduced for dev
+
+# Enable all development features
+features.experimental_models = True
+features.debug_mode = True
+features.hot_reload = True

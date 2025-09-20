@@ -1,0 +1,97 @@
+# =============================================================================
+# MACHINE LEARNING DOMAIN CONFIGURATION  
+# =============================================================================
+# ML-specific parameters for neural networks, training, and model configuration.
+# These can be tuned but remain consistent across environments.
+
+# Neural Network Architecture Configuration
+agents.agent_networks.AgentConfig.hidden_dim = 256
+agents.agent_networks.AgentConfig.action_dim = 3
+agents.agent_networks.AgentConfig.learning_rate = 0.001
+agents.agent_networks.AgentConfig.dropout_rate = 0.1
+agents.agent_networks.AgentConfig.activation = "relu"
+agents.agent_networks.AgentConfig.batch_norm = True
+
+# Multi-Agent Network Configuration
+agents.agent_networks.NetworkConfig.num_agents = 10
+agents.agent_networks.NetworkConfig.interaction_type = "graph_attention"
+agents.agent_networks.NetworkConfig.consensus_threshold = 0.7
+agents.agent_networks.NetworkConfig.communication_rounds = 5
+
+# Attention Mechanism Configuration
+models.attention.cross_scale_attention.AttentionConfig.d_model = 64
+models.attention.cross_scale_attention.AttentionConfig.n_heads = 4
+models.attention.cross_scale_attention.AttentionConfig.dropout = 0.1
+models.attention.cross_scale_attention.AttentionConfig.temperature = 1.0
+models.attention.cross_scale_attention.AttentionConfig.max_sequence_length = 512
+
+# Training Configuration
+training.batch_size = 32
+training.epochs = 100
+training.validation_split = 0.2
+training.early_stopping_patience = 10
+training.learning_rate_schedule = "cosine_annealing"
+training.weight_decay = 0.0001
+training.gradient_clip_norm = 1.0
+
+# Model Architecture Hyperparameters
+models.lstm.hidden_size = 128
+models.lstm.num_layers = 2
+models.lstm.bidirectional = True
+
+models.transformer.d_model = 256
+models.transformer.n_heads = 8
+models.transformer.n_layers = 6
+models.transformer.d_ff = 1024
+
+models.cnn.filters = [32, 64, 128]
+models.cnn.kernel_sizes = [3, 5, 7]
+models.cnn.pool_sizes = [2, 2, 2]
+
+# Feature Engineering
+features.technical_indicators = [
+    "sma_10", "sma_20", "sma_50", "ema_12", "ema_26",
+    "rsi_14", "macd", "bollinger_bands", "stochastic",
+    "williams_r", "atr", "adx", "cci", "momentum"
+]
+
+features.price_features = [
+    "open", "high", "low", "close", "volume", "vwap"
+]
+
+features.derived_features = [
+    "returns", "log_returns", "volatility", "price_change",
+    "volume_ratio", "high_low_ratio", "open_close_ratio"
+]
+
+# Data Preprocessing
+preprocessing.normalization_method = "z_score"
+preprocessing.handle_missing = "forward_fill"
+preprocessing.outlier_method = "iqr"
+preprocessing.outlier_threshold = 3.0
+
+# Model Evaluation Metrics
+evaluation.regression_metrics = [
+    "mse", "rmse", "mae", "r2", "mape"
+]
+
+evaluation.classification_metrics = [
+    "accuracy", "precision", "recall", "f1", "auc_roc"
+]
+
+evaluation.trading_metrics = [
+    "sharpe_ratio", "sortino_ratio", "max_drawdown", 
+    "total_return", "win_rate", "profit_factor"
+]
+
+# Hyperparameter Optimization
+hyperopt.search_algorithm = "bayesian"
+hyperopt.max_evaluations = 100
+hyperopt.cv_folds = 5
+hyperopt.scoring_metric = "sharpe_ratio"
+
+# Model Persistence
+models.save_frequency = 10  # Save every 10 epochs
+models.checkpoint_best_only = True
+models.model_registry_path = "models/registry/"
+models.experiment_tracking = True

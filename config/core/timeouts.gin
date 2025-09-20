@@ -1,0 +1,71 @@
+# =============================================================================
+# UNIVERSAL TIMEOUT & TIMING CONSTANTS
+# =============================================================================
+# Base timeout values that are adjusted per environment in infrastructure configs.
+# These represent universal timing constants for the platform.
+
+# Base API Timeout Values (seconds)
+timeouts.api.base = 30
+timeouts.api.long_running_base = 60
+timeouts.api.critical_base = 120
+timeouts.api.file_upload_base = 300
+
+# Database Operation Timeouts (seconds)
+timeouts.database.connection_base = 30
+timeouts.database.query_base = 60
+timeouts.database.long_query_base = 300
+timeouts.database.bulk_operation_base = 600
+
+# External Service Timeouts (seconds)
+timeouts.external.market_data_base = 45
+timeouts.external.news_api_base = 30
+timeouts.external.webhook_base = 15
+
+# Retry Configuration
+delays.retry.initial = 1
+delays.retry.backoff_multiplier = 2
+delays.retry.max_delay = 60
+delays.retry.max_attempts = 3
+
+# Rate Limiting Base Delays (seconds)
+delays.rate_limit.conservative = 2.0
+delays.rate_limit.default = 1.0
+delays.rate_limit.aggressive = 0.5
+
+# Cache TTL Values (seconds)
+cache.ttl.market_data_base = 300      # 5 minutes
+cache.ttl.static_data_base = 3600     # 1 hour  
+cache.ttl.user_session_base = 1800    # 30 minutes
+cache.ttl.api_response_base = 60      # 1 minute
+
+# Monitoring and Health Check Intervals (seconds)
+monitoring.intervals.health_check_base = 300      # 5 minutes
+monitoring.intervals.metrics_collection_base = 60 # 1 minute
+monitoring.intervals.alert_check_base = 600       # 10 minutes
+monitoring.intervals.cleanup_base = 3600          # 1 hour
+
+# Data Retention Periods (days)
+retention.logs_base = 30
+retention.metrics_base = 90
+retention.audit_trail_base = 365
+retention.cache_base = 7
+
+# Market Hours and Timing
+market.session.premarket_start_hour = 4
+market.session.premarket_start_minute = 0
+market.session.regular_start_hour = 9
+market.session.regular_start_minute = 30
+market.session.regular_end_hour = 16
+market.session.regular_end_minute = 0
+market.session.afterhours_end_hour = 20
+market.session.afterhours_end_minute = 0
+
+# Trading Timeframes (minutes)
+timeframes.tick = 0
+timeframes.one_minute = 1
+timeframes.five_minute = 5
+timeframes.fifteen_minute = 15
+timeframes.thirty_minute = 30
+timeframes.one_hour = 60
+timeframes.four_hour = 240
+timeframes.daily = 1440

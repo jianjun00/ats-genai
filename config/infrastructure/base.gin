@@ -1,0 +1,99 @@
+# =============================================================================
+# BASE INFRASTRUCTURE CONFIGURATION
+# =============================================================================
+# Universal infrastructure defaults that are overridden per environment.
+# These provide sensible defaults for all service configurations.
+
+# Base Service Configuration
+FastAPIConfig.title = "ATS GenAI API"
+FastAPIConfig.description = "Algorithmic Trading System with GenAI"
+FastAPIConfig.version = "0.1.0"
+
+# Base CORS Configuration
+CORSConfig.allow_credentials = True
+CORSConfig.allow_methods = ["*"]
+CORSConfig.allow_headers = ["*"]
+
+# Base Backtest API Configuration
+BacktestAPIConfig.title = "Backtest Analytics API"
+BacktestAPIConfig.description = "Advanced portfolio analytics and model performance analysis"
+BacktestAPIConfig.version = "1.0.0"
+
+# Base Backtest CORS Configuration
+BacktestCORSConfig.allow_credentials = True
+BacktestCORSConfig.allow_methods = ["*"]
+BacktestCORSConfig.allow_headers = ["*"]
+
+# Base Server Configuration
+BacktestServerConfig.host = "0.0.0.0"
+BacktestServerConfig.log_level = "info"
+
+# Base Monitoring Configuration
+monitoring.intervals.metrics_collection_base = 60      # 1 minute
+monitoring.intervals.alert_check_base = 600            # 10 minutes
+monitoring.intervals.health_check_base = 300           # 5 minutes
+monitoring.intervals.cleanup_base = 3600               # 1 hour
+
+# Base Retention Policies (days)
+monitoring.retention.logs = 30
+monitoring.retention.metrics = 90
+monitoring.retention.audit_trail = 365
+monitoring.retention.cache = 7
+
+# Base Batch Processing Configuration
+batch.sizes.default_base = 100
+batch.sizes.large_base = 1000
+batch.sizes.small_base = 10
+
+# Base Database Configuration
+database.pool.min_connections_base = 5
+database.pool.max_connections_base = 20
+database.pool.connection_timeout_base = 30
+database.query_timeout_base = 300
+
+# Base Cache Configuration
+cache.default_ttl_base = 300           # 5 minutes
+cache.memory_limit_mb_base = 512       # 512 MB
+cache.eviction_policy_base = "lru"     # Least Recently Used
+
+# Base Security Configuration
+security.session_timeout_base = 3600           # 1 hour
+security.max_login_attempts_base = 5
+security.password_reset_timeout_base = 900     # 15 minutes
+security.api_rate_limit_base = 1000            # Requests per hour
+
+# Base Logging Configuration
+logging.level_base = "INFO"
+logging.format_base = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+logging.max_file_size_mb_base = 100
+logging.backup_count_base = 5
+
+# Base Queue Configuration
+queue.default_worker_count_base = 4
+queue.max_queue_size_base = 10000
+queue.task_timeout_base = 300
+queue.retry_attempts_base = 3
+
+# Base Feature Flags
+features.experimental_models_base = False
+features.advanced_analytics_base = True
+features.real_time_alerts_base = True
+features.api_versioning_base = True
+
+# Base Resource Limits
+resources.max_cpu_percent_base = 80
+resources.max_memory_percent_base = 85
+resources.max_disk_percent_base = 90
+resources.max_file_handles_base = 1000
+
+# Base Notification Configuration
+notifications.email_enabled_base = True
+notifications.slack_enabled_base = False
+notifications.sms_enabled_base = False
+notifications.webhook_enabled_base = True
+
+# Base Backup Configuration
+backup.frequency_hours_base = 24
+backup.retention_days_base = 30
+backup.compression_enabled_base = True
+backup.encryption_enabled_base = True

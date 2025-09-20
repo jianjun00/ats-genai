@@ -1,0 +1,118 @@
+# =============================================================================
+# INTEGRATION ENVIRONMENT INFRASTRUCTURE  
+# =============================================================================
+# Integration-specific overrides for production-like testing and CI/CD.
+
+include 'config/infrastructure/base.gin'
+
+# Integration CORS (Allow CI/CD and staging frontend access)
+CORSConfig.allow_origins = ["http://localhost:4000", "http://staging.ats.local", "http://ci-runner:*"]
+
+# Integration Server Configuration (Production-like settings)
+BacktestServerConfig.port = 4000
+BacktestServerConfig.reload = False         # No auto-reload in integration
+BacktestServerConfig.log_level = "info"     # Standard logging level
+
+# Integration Monitoring (Production-like intervals)
+monitoring.intervals.health_check = 120         # 2 minutes
+monitoring.intervals.metrics_collection = 60    # 1 minute
+monitoring.intervals.alert_check = 600          # 10 minutes
+monitoring.intervals.cleanup = 3600             # 1 hour
+
+# Integration Batch Sizes (Production-like for comprehensive testing)
+batch.sizes.default = 50           # Medium batches for thorough testing
+batch.sizes.large = 200            # Larger batches to test scalability
+batch.sizes.small = 10             # Small batches for edge case testing
+
+# Integration Timeouts (Balanced for reliability)
+timeouts.api.default = 45          # Production-like timeouts
+timeouts.database.connection = 30  # Standard connection timeout
+timeouts.database.query = 300      # Allow for complex queries
+
+# Integration Database Pool (Production-like sizing)
+database.pool.min_connections = 5
+database.pool.max_connections = 15
+database.pool.connection_timeout = 30
+
+# Integration Cache (Moderate TTL for testing)
+cache.default_ttl = 300            # 5 minutes (standard)
+cache.memory_limit_mb = 512        # Standard cache size
+cache.eviction_policy = "lru"
+
+# Integration Security (Production-like security)
+security.session_timeout = 3600             # 1 hour (standard)
+security.max_login_attempts = 5             # Standard security
+security.api_rate_limit = 5000              # Moderate rate limiting
+
+# Integration Logging (Balanced verbosity)
+logging.level = "INFO"
+logging.format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+logging.max_file_size_mb = 100
+logging.backup_count = 5
+
+# Integration Queue Configuration (Balanced performance)
+queue.default_worker_count = 4
+queue.max_queue_size = 5000
+queue.task_timeout = 300            # Standard timeout
+queue.retry_attempts = 3            # Standard retry count
+
+# Integration Feature Flags (Selective experimental features)
+features.experimental_models = False        # Stable models only
+features.advanced_analytics = True
+features.real_time_alerts = True
+features.api_versioning = True
+features.debug_mode = False                 # No debug in integration
+features.hot_reload = False                 # No hot reload
+
+# Integration Resource Limits (Production-like)
+resources.max_cpu_percent = 80
+resources.max_memory_percent = 85
+resources.max_disk_percent = 90
+resources.max_file_handles = 1000
+
+# Integration Notifications (Selective notifications for testing)
+notifications.email_enabled = False         # No email in integration
+notifications.slack_enabled = True          # Enable for integration alerts
+notifications.sms_enabled = False          # No SMS in integration  
+notifications.webhook_enabled = True        # Enable for CI/CD integration
+
+# Integration Backup (Regular backups for data integrity testing)
+backup.frequency_hours = 24          # Daily backups
+backup.retention_days = 14           # Keep for 2 weeks
+backup.compression_enabled = True    # Test compression
+backup.encryption_enabled = True     # Test encryption
+
+# Integration Data Validation (Strict validation for testing)
+validation.strict_mode = True
+validation.price_data.max_change_percent = 50   # Reasonable limits
+validation.timeout_on_validation_failure = True
+
+# Integration ML Configuration (Production-like training)
+ml.training.batch_size = 32          # Standard batch size
+ml.training.epochs = 50              # Moderate training for testing
+ml.training.early_stopping_patience = 10    # Standard patience
+ml.model.checkpoint_frequency = 10   # Regular checkpoints
+
+# Integration API Configuration (Production-like)
+api.request_logging = False          # Don't log all requests
+api.response_logging = False         # Don't log all responses  
+api.detailed_errors = False          # Don't expose detailed errors
+api.cors_debug = False              # No CORS debugging
+
+# Integration Performance Testing
+performance.load_test_enabled = True
+performance.stress_test_enabled = True
+performance.benchmark_enabled = True
+performance.profiling_enabled = True
+
+# Integration CI/CD Configuration
+ci_cd.automated_testing = True
+ci_cd.deployment_validation = True
+ci_cd.rollback_enabled = True
+ci_cd.blue_green_deployment = True
+
+# Integration External Service Configuration
+external.service_discovery = True
+external.health_check_dependencies = True
+external.circuit_breaker_enabled = True
+external.retry_with_backoff = True
