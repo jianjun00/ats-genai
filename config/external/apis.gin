@@ -1,0 +1,101 @@
+# =============================================================================
+# EXTERNAL API CONFIGURATION
+# =============================================================================
+# Third-party service API configurations, rate limits, and integration settings.
+# These are vendor-imposed limits and API specifications.
+
+# Polygon.io Configuration
+external.polygon.rate_limit_per_minute = 5
+external.polygon.max_results_per_page = 1000
+external.polygon.base_url = "https://api.polygon.io"
+external.polygon.timeout_seconds = 45
+external.polygon.retry_attempts = 3
+
+# Tiingo API Configuration  
+external.tiingo.rate_limit_per_hour = 1000
+external.tiingo.max_symbols_per_request = 100
+external.tiingo.base_url = "https://api.tiingo.com"
+external.tiingo.timeout_seconds = 30
+external.tiingo.retry_attempts = 3
+
+# Alpha Vantage Configuration
+external.alpha_vantage.rate_limit_per_minute = 5
+external.alpha_vantage.rate_limit_per_day = 500
+external.alpha_vantage.base_url = "https://www.alphavantage.co"
+external.alpha_vantage.timeout_seconds = 30
+
+# FRED (Federal Reserve Economic Data) Configuration
+external.fred.rate_limit_per_minute = 120
+external.fred.max_series_per_request = 100
+external.fred.base_url = "https://api.stlouisfed.org/fred"
+external.fred.timeout_seconds = 30
+
+# Yahoo Finance Configuration (Unofficial)
+external.yahoo.rate_limit_per_minute = 60
+external.yahoo.timeout_seconds = 15
+external.yahoo.retry_attempts = 2
+external.yahoo.max_symbols_per_request = 50
+
+# IEX Cloud Configuration
+external.iex.rate_limit_per_second = 10
+external.iex.rate_limit_per_month = 1000000
+external.iex.base_url = "https://cloud.iexapis.com"
+external.iex.timeout_seconds = 30
+
+# Quandl Configuration
+external.quandl.rate_limit_per_day = 50000
+external.quandl.base_url = "https://www.quandl.com/api/v3"
+external.quandl.timeout_seconds = 45
+
+# News API Configuration
+external.news_api.rate_limit_per_hour = 1000
+external.news_api.max_articles_per_request = 100
+external.news_api.base_url = "https://newsapi.org/v2"
+external.news_api.timeout_seconds = 30
+
+# Finnhub Configuration
+external.finnhub.rate_limit_per_minute = 60
+external.finnhub.base_url = "https://finnhub.io/api/v1"
+external.finnhub.timeout_seconds = 30
+
+# Twitter API Configuration (for sentiment)
+external.twitter.rate_limit_per_15min = 900
+external.twitter.max_tweets_per_request = 100
+external.twitter.timeout_seconds = 30
+
+# Batch Processing Limits
+batch.api.polygon_limit = 1000
+batch.api.fred_limit = 100000
+batch.api.tiingo_limit = 500
+batch.api.alpha_vantage_limit = 100
+batch.api.default_limit = 50
+
+# Webhook Configuration
+webhooks.timeout_seconds = 15
+webhooks.retry_attempts = 3
+webhooks.retry_delay_seconds = 2
+webhooks.max_payload_size_mb = 10
+
+# API Response Caching
+cache.api_responses.default_ttl = 300      # 5 minutes
+cache.api_responses.market_data_ttl = 60   # 1 minute
+cache.api_responses.static_data_ttl = 3600 # 1 hour
+cache.api_responses.news_ttl = 900         # 15 minutes
+
+# Error Handling
+errors.rate_limit.backoff_multiplier = 2.0
+errors.rate_limit.max_backoff_seconds = 300
+errors.network.timeout_multiplier = 1.5
+errors.network.max_retry_delay = 60
+
+# Health Check Endpoints
+health_checks.polygon.endpoint = "/v1/meta/symbols"
+health_checks.tiingo.endpoint = "/api/test"
+health_checks.fred.endpoint = "/series"
+health_checks.check_interval_minutes = 5
+
+# Data Validation Rules
+validation.price_data.max_change_percent = 50  # 50% max price change
+validation.price_data.min_volume = 0
+validation.price_data.require_ohlc = True
+validation.timestamp.max_delay_minutes = 15

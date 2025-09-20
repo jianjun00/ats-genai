@@ -118,16 +118,16 @@ class Environment:
             except ValueError:
                 raise RuntimeError(f"Invalid ENVIRONMENT '{env_str}'. Valid options: dev, test, intg, prod")
         
-        # Simple config path mapping - no complex logic
+        # Simple config path mapping - now using modular configuration structure
         if gin_config_path:
             config_path = gin_config_path
         else:
             config_dir = Path(__file__).parent.parent.parent.parent.parent / "config"
             config_map = {
-                EnvironmentType.TEST: "app.gin",
-                EnvironmentType.DEV: "app_docker.gin", 
-                EnvironmentType.INTEGRATION: "app_intg.gin",
-                EnvironmentType.PRODUCTION: "app_prod.gin"
+                EnvironmentType.TEST: "app.gin",  # Keep legacy for test
+                EnvironmentType.DEV: "app_dev_modular.gin",  # Use new modular config
+                EnvironmentType.INTEGRATION: "app_intg_modular.gin",  # Use new modular config
+                EnvironmentType.PRODUCTION: "app_prod.gin"  # Keep legacy until prod migration
             }
             config_path = str(config_dir / config_map[self.env_type])
         
@@ -136,11 +136,80 @@ class Environment:
         # Import Database before parsing Gin config to register it as a configurable
         from core.config.database import Database
         from infrastructure.vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
-
+        
+        # Register FastAPI and CORS config classes as gin configurables to avoid import issues
         import gin
+        from dataclasses import dataclass
+        from typing import List
+        
+        # Enter interactive mode to allow re-registration of configurables
+        gin.enter_interactive_mode()
+        
+        @gin.configurable
+        @dataclass
+        class FastAPIConfig:
+            """Configuration for FastAPI application"""
+            title: str = "ATS GenAI API"
+            description: str = "Algorithmic Trading System with GenAI"
+            version: str = "0.1.0"
+
+        @gin.configurable
+        @dataclass
+        class CORSConfig:
+            """Configuration for CORS middleware"""
+            allow_origins: List[str] = None
+            allow_credentials: bool = True
+            allow_methods: List[str] = None
+            allow_headers: List[str] = None
+
+            def __post_init__(self):
+                if self.allow_origins is None:
+                    self.allow_origins = ["*"]
+                if self.allow_methods is None:
+                    self.allow_methods = ["*"]
+                if self.allow_headers is None:
+                    self.allow_headers = ["*"]
+
+        @gin.configurable
+        @dataclass
+        class BacktestAPIConfig:
+            """Configuration for Backtest Analytics API"""
+            title: str = "Backtest Analytics API"
+            description: str = "Advanced portfolio analytics and model performance analysis"
+            version: str = "1.0.0"
+
+        @gin.configurable
+        @dataclass
+        class BacktestCORSConfig:
+            """Configuration for Backtest CORS middleware"""
+            allow_origins: List[str] = None
+            allow_credentials: bool = True
+            allow_methods: List[str] = None
+            allow_headers: List[str] = None
+
+            def __post_init__(self):
+                if self.allow_origins is None:
+                    self.allow_origins = ["http://localhost:3000", "http://localhost:8080"]
+                if self.allow_methods is None:
+                    self.allow_methods = ["*"]
+                if self.allow_headers is None:
+                    self.allow_headers = ["*"]
+
+        @gin.configurable
+        @dataclass 
+        class BacktestServerConfig:
+            """Configuration for Backtest Server"""
+            host: str = "0.0.0.0"
+            port: int = 8000
+            reload: bool = True
+            log_level: str = "info"
+        
+        print(f"[GIN DEBUG] Registered basic config classes as gin configurables")
         if config_path and os.environ.get('GIN_LOAD_DEFAULT_CONFIG', '1') == '1':
             if not (hasattr(gin.config, '_CONFIG') and gin.config._CONFIG.get('was_configured', False)):
-                gin.parse_config_file(config_path)
+                # Parse config file with skip_unknown=True to ignore missing configurables
+                gin.parse_config_file(config_path, skip_unknown=True)
+                print(f"[GIN DEBUG] Parsed config file with skip_unknown=True")
         from core.platform.config.logging_config import LoggingConfig
         self.logging_config = LoggingConfig()
         set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config

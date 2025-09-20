@@ -1,0 +1,79 @@
+# =============================================================================
+# TRADING SYMBOLS & UNIVERSES
+# =============================================================================
+# Universal trading symbol definitions and market universe configurations.
+# These are consistent across all environments.
+
+# Core Trading Universe - Most Liquid Large Cap Stocks
+symbols.default_universe = [
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+    'META', 'NVDA', 'JPM', 'V', 'JNJ'
+]
+
+# Extended Large Cap Universe for Full Market Coverage
+symbols.large_cap_universe = [
+    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'META', 'NVDA',
+    'JPM', 'V', 'JNJ', 'WMT', 'PG', 'MA', 'UNH', 'HD', 'BAC', 'ABBV',
+    'KO', 'PFE', 'TMO', 'COST', 'DIS', 'ABT', 'NFLX', 'XOM', 'VZ', 'MRK',
+    'ORCL', 'CSCO', 'ACN', 'CVX', 'DHR', 'INTC', 'TXN', 'WFC', 'BRK.B',
+    'INTU', 'AMD', 'IBM', 'QCOM', 'T', 'GE', 'PYPL', 'NOW', 'SBUX', 'MDT'
+]
+
+# ETF Universe for Market Exposure and Hedging
+symbols.etf_universe = [
+    'SPY',   # S&P 500
+    'QQQ',   # NASDAQ 100
+    'IWM',   # Russell 2000
+    'VTI',   # Total Stock Market
+    'VOO',   # Vanguard S&P 500
+    'TLT',   # 20+ Year Treasury
+    'GLD',   # Gold
+    'XLF',   # Financial Sector
+    'XLK',   # Technology Sector
+    'XLE',   # Energy Sector
+    'VIX'    # Volatility Index
+]
+
+# Priority Symbols for Development and Testing
+symbols.priority_symbols = ['AAPL', 'TSLA', 'SPY']
+
+# Sector Classification Mapping
+symbols.sector_mapping = {
+    'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology',
+    'GOOG': 'Technology', 'META': 'Technology', 'NVDA': 'Technology',
+    'ORCL': 'Technology', 'CSCO': 'Technology', 'INTC': 'Technology',
+    'AMD': 'Technology', 'IBM': 'Technology', 'QCOM': 'Technology',
+    'TXN': 'Technology', 'NOW': 'Technology', 'INTU': 'Technology',
+    
+    'AMZN': 'Consumer Discretionary', 'TSLA': 'Consumer Discretionary',
+    'HD': 'Consumer Discretionary', 'DIS': 'Consumer Discretionary',
+    'NFLX': 'Consumer Discretionary', 'SBUX': 'Consumer Discretionary',
+    
+    'JPM': 'Financial', 'V': 'Financial', 'MA': 'Financial',
+    'BAC': 'Financial', 'WFC': 'Financial', 'BRK.B': 'Financial',
+    'PYPL': 'Financial',
+    
+    'JNJ': 'Healthcare', 'PFE': 'Healthcare', 'UNH': 'Healthcare',
+    'ABT': 'Healthcare', 'TMO': 'Healthcare', 'MDT': 'Healthcare',
+    'MRK': 'Healthcare',
+    
+    'WMT': 'Consumer Staples', 'PG': 'Consumer Staples', 
+    'KO': 'Consumer Staples', 'COST': 'Consumer Staples',
+    
+    'XOM': 'Energy', 'CVX': 'Energy',
+    'T': 'Telecommunications', 'VZ': 'Telecommunications',
+    'GE': 'Industrial', 'ACN': 'Industrial', 'DHR': 'Industrial'
+}
+
+# Market Cap Classifications (in billions USD)
+symbols.market_cap_thresholds = {
+    'mega_cap': 200.0,      # >$200B
+    'large_cap': 10.0,      # $10B-$200B  
+    'mid_cap': 2.0,         # $2B-$10B
+    'small_cap': 0.3        # $300M-$2B
+}
+
+# Currency and International Symbols
+symbols.currency_pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCAD']
+symbols.crypto_universe = ['BTCUSD', 'ETHUSD', 'ADAUSD', 'SOLUSD']
+symbols.commodity_universe = ['GC=F', 'SI=F', 'CL=F', 'NG=F']

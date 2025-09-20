@@ -1,0 +1,100 @@
+# =============================================================================
+# DEVELOPMENT ENVIRONMENT INFRASTRUCTURE
+# =============================================================================
+# Development-specific overrides for faster feedback, debugging, and testing.
+
+include 'config/infrastructure/base.gin'
+
+# Development-Specific CORS (Allow local frontend development)
+CORSConfig.allow_origins = ["http://localhost:3000", "http://localhost:8080", "http://localhost:3001"]
+
+# Development Server Configuration (Faster reload, more verbose logging)
+BacktestServerConfig.port = 3000
+BacktestServerConfig.reload = True
+BacktestServerConfig.log_level = "debug"
+
+# Development Monitoring (Faster intervals for immediate feedback)
+monitoring.intervals.health_check = 60         # 1 minute (faster)
+monitoring.intervals.metrics_collection = 30   # 30 seconds (faster)
+monitoring.intervals.alert_check = 300         # 5 minutes (faster)
+monitoring.intervals.cleanup = 1800            # 30 minutes (more frequent)
+
+# Development Batch Sizes (Smaller for faster iteration)
+batch.sizes.default = 10           # Small batches for quick feedback
+batch.sizes.large = 100            # Reduced for dev environment
+batch.sizes.small = 5              # Very small for debugging
+
+# Development Timeouts (Shorter for faster failure detection)
+timeouts.api.default = 15          # Shorter API timeouts
+timeouts.database.connection = 15  # Quick database connection timeout
+timeouts.database.query = 60       # Shorter query timeout
+
+# Development Database Pool (Smaller pool for resource efficiency)
+database.pool.min_connections = 2
+database.pool.max_connections = 10
+database.pool.connection_timeout = 15
+
+# Development Cache (Shorter TTL for fresh data during development)
+cache.default_ttl = 60             # 1 minute (shorter for fresh data)
+cache.memory_limit_mb = 256        # Smaller cache for dev
+cache.eviction_policy = "lru"
+
+# Development Security (More permissive for testing)
+security.session_timeout = 7200             # 2 hours (longer for dev work)
+security.max_login_attempts = 10            # More attempts for dev
+security.api_rate_limit = 10000             # Higher rate limit
+
+# Development Logging (More verbose)
+logging.level = "DEBUG"
+logging.format = "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+logging.max_file_size_mb = 50
+logging.backup_count = 3
+
+# Development Queue Configuration (Faster processing)
+queue.default_worker_count = 2
+queue.max_queue_size = 1000
+queue.task_timeout = 60             # Shorter timeout for dev
+queue.retry_attempts = 2            # Fewer retries for faster failure
+
+# Development Feature Flags (Enable experimental features)
+features.experimental_models = True
+features.advanced_analytics = True
+features.real_time_alerts = True
+features.api_versioning = True
+features.debug_mode = True
+features.hot_reload = True
+
+# Development Resource Limits (More relaxed)
+resources.max_cpu_percent = 90
+resources.max_memory_percent = 90
+resources.max_disk_percent = 95
+resources.max_file_handles = 500
+
+# Development Notifications (Reduced noise)
+notifications.email_enabled = False         # Disable email in dev
+notifications.slack_enabled = False         # Disable Slack in dev
+notifications.sms_enabled = False          # Disable SMS in dev
+notifications.webhook_enabled = False       # Disable webhooks in dev
+
+# Development Backup (Less frequent, shorter retention)
+backup.frequency_hours = 48          # Every 2 days
+backup.retention_days = 7            # Keep for 1 week
+backup.compression_enabled = False   # Faster backup without compression
+backup.encryption_enabled = False    # Skip encryption for speed
+
+# Development Data Validation (More lenient)
+validation.strict_mode = False
+validation.price_data.max_change_percent = 100  # Allow larger price changes
+validation.timeout_on_validation_failure = False
+
+# Development ML Configuration (Faster training)
+ml.training.batch_size = 16          # Smaller batch size
+ml.training.epochs = 10              # Fewer epochs for faster iteration
+ml.training.early_stopping_patience = 3  # Stop earlier
+ml.model.checkpoint_frequency = 5    # Save checkpoints more frequently
+
+# Development API Configuration
+api.request_logging = True           # Log all requests
+api.response_logging = True          # Log all responses
+api.detailed_errors = True           # Return detailed error messages
+api.cors_debug = True               # Enable CORS debugging

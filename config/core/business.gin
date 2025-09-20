@@ -1,0 +1,40 @@
+# =============================================================================
+# CORE BUSINESS CONSTANTS
+# =============================================================================
+# Universal financial and business logic constants that never change across environments.
+# These represent fundamental business rules and thresholds.
+
+# Financial Performance Thresholds
+thresholds.sharpe_ratio.base = 1.2
+thresholds.sharpe_ratio.good = 1.5  
+thresholds.sharpe_ratio.excellent = 2.0
+
+thresholds.max_drawdown.warning = 0.08
+thresholds.max_drawdown.critical = 0.15
+thresholds.max_drawdown.maximum = 0.25
+
+thresholds.volatility.low = 0.10
+thresholds.volatility.medium = 0.16
+thresholds.volatility.high = 0.25
+
+# Success Rate Criteria - Universal Business Rules
+thresholds.success_rate = 0.90
+thresholds.data_coverage = 0.95
+thresholds.api_success = 0.80
+
+# Portfolio Performance Criteria
+thresholds.return.minimum_annual = 0.05
+thresholds.return.target_annual = 0.15
+thresholds.return.excellent_annual = 0.25
+
+# Risk Management Constants
+risk.position_size.maximum = 0.10  # Max 10% position size
+risk.portfolio.correlation_limit = 0.70
+risk.stop_loss.default = 0.05  # 5% stop loss
+risk.profit_target.default = 0.15  # 15% profit target
+
+# Data Quality Thresholds
+quality.completeness.minimum = 0.95
+quality.accuracy.minimum = 0.99
+quality.timeliness.max_delay_minutes = 15
+quality.consistency.tolerance = 0.01

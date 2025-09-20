@@ -1,0 +1,97 @@
+# =============================================================================
+# TRADING DOMAIN CONFIGURATION
+# =============================================================================
+# Trading-specific settings for market data, execution, and portfolio management.
+# These represent trading business logic constants.
+
+# Market Session Configuration
+trading.market_open_hour = 9
+trading.market_open_minute = 30
+trading.market_close_hour = 16
+trading.market_close_minute = 0
+trading.expected_bars_per_day = 390  # 6.5 hours * 60 minutes
+
+# Pre-market and After-hours Trading
+trading.premarket_start_hour = 4
+trading.premarket_start_minute = 0
+trading.afterhours_end_hour = 20
+trading.afterhours_end_minute = 0
+
+# Training Data Sequence Lengths
+training.sequence_lengths = {
+    '5m': 52,   # Past 52 x 5-minute intervals (4.3 hours)
+    '15m': 52,  # Past 52 x 15-minute intervals (13 hours) 
+    '60m': 24,  # Past 24 x 60-minute intervals (1 day)
+    '1d': 20,   # Past 20 x daily intervals (4 weeks)
+}
+
+# Prediction Horizons
+trading.prediction_horizons = {
+    '60m': 6,   # Next 6 hours
+    '1d': 5,    # Next 5 days
+    '1w': 4,    # Next 4 weeks
+}
+
+# Portfolio Management
+portfolio.max_positions = 20
+portfolio.max_sector_concentration = 0.30  # Max 30% in any sector
+portfolio.max_position_size = 0.10         # Max 10% per position
+portfolio.min_position_size = 0.01         # Min 1% per position
+portfolio.cash_reserve = 0.05              # Keep 5% cash
+
+# Risk Management
+risk.stop_loss_percent = 0.05      # 5% stop loss
+risk.take_profit_percent = 0.15    # 15% take profit
+risk.trailing_stop_percent = 0.03  # 3% trailing stop
+risk.max_daily_loss = 0.02         # Max 2% daily portfolio loss
+risk.max_leverage = 1.0            # No leverage
+
+# Order Management
+orders.default_order_type = "market"
+orders.slippage_tolerance = 0.005   # 0.5% slippage tolerance
+orders.partial_fill_threshold = 0.95  # Accept 95%+ fills
+orders.order_timeout_minutes = 5
+
+# Market Data Requirements
+data.min_volume_filter = 100000    # Minimum daily volume
+data.min_price_filter = 5.0        # Minimum stock price
+data.market_cap_filter = 1000000000  # Minimum $1B market cap
+
+# Technical Analysis Parameters
+technical.sma_periods = [10, 20, 50, 200]
+technical.ema_periods = [12, 26, 50]
+technical.rsi_period = 14
+technical.macd_fast = 12
+technical.macd_slow = 26
+technical.macd_signal = 9
+technical.bollinger_period = 20
+technical.bollinger_std = 2.0
+
+# Backtesting Configuration  
+backtest.initial_capital = 100000
+backtest.commission_per_trade = 1.0
+backtest.commission_percent = 0.001  # 0.1% commission
+backtest.slippage_model = "linear"
+backtest.benchmark = "SPY"
+
+# Performance Metrics Calculation
+metrics.rolling_window_days = 252  # 1 year rolling window
+metrics.risk_free_rate = 0.02      # 2% risk-free rate
+metrics.benchmark_symbol = "SPY"
+
+# Market Regime Detection
+regime.volatility_lookback = 21    # 21-day volatility
+regime.trend_lookback = 50         # 50-day trend  
+regime.volume_lookback = 10        # 10-day volume
+regime.correlation_lookback = 60   # 60-day correlation
+
+# Alternative Data Integration
+alt_data.sentiment_weight = 0.1    # 10% weight for sentiment
+alt_data.news_lookback_hours = 24  # 24-hour news lookback
+alt_data.social_media_weight = 0.05 # 5% weight for social media
+alt_data.earnings_window_days = 5   # 5-day earnings window
+
+# Execution Algorithms
+execution.twap_duration_minutes = 30  # 30-minute TWAP
+execution.vwap_participation_rate = 0.1  # 10% of volume
+execution.implementation_shortfall_risk_aversion = 0.5
