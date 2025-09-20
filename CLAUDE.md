@@ -49,6 +49,65 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - Mask real-world object behavior and edge cases
 - Lead to false confidence in system integration
 
+### **🚫 NO EXCEPTION CATCHING - FAIL FAST POLICY**
+- **❌ NEVER use try/except blocks** to silence or mask errors
+- **❌ NEVER catch Exception, BaseException, or bare except:**
+- **❌ NEVER provide fallback logic** when core systems fail
+- **❌ NEVER log errors and continue** - let the application crash
+- **✅ ALWAYS let exceptions propagate** with full stack traces
+- **✅ ALWAYS fix root causes** revealed by crashes
+- **✅ ALWAYS ensure proper cleanup** using context managers and finally blocks
+
+**Why Exception Catching Is Dangerous:**
+- Masks configuration problems and dependency failures  
+- Hides database connection issues and query failures
+- Creates silent failures that corrupt data integrity
+- Prevents proper error monitoring and alerting
+- Results in production issues that are difficult to diagnose
+- Leads to false system health indicators
+
+**Allowed Exception Handling (Very Limited):**
+- **Specific exceptions only**: `except FileNotFoundError:` for optional files
+- **Resource cleanup**: `finally:` blocks for closing connections  
+- **Context managers**: `with` statements for automatic cleanup
+- **Input validation**: `except ValueError:` for user input parsing only
+
+**Example Patterns:**
+
+❌ **WRONG - Silent Error Masking:**
+```python
+try:
+    result = critical_business_logic()
+    return result
+except Exception as e:
+    logger.error(f"Error: {e}")
+    return None  # Masks the real problem
+```
+
+✅ **RIGHT - Fail Fast:**
+```python
+def critical_business_logic():
+    # Let any exception propagate - crash immediately
+    result = database.get_critical_data()
+    return result
+```
+
+❌ **WRONG - Fallback to Mock Data:**
+```python
+try:
+    data = fetch_real_market_data()
+except Exception:
+    data = generate_mock_data()  # Dangerous fallback
+```
+
+✅ **RIGHT - Crash on Data Unavailability:**
+```python
+def fetch_market_data():
+    # If real data is unavailable, the application should crash
+    # This forces immediate attention to fix the real issue
+    return api_client.get_market_data()
+```
+
 ### **🔄 ENHANCE EXISTING BEFORE CREATING NEW**
 - **❌ NEVER create new files/services** without checking if existing can be enhanced
 - **❌ NEVER duplicate functionality** in new files
