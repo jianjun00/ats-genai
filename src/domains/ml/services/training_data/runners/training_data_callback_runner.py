@@ -767,13 +767,9 @@ async def main():
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
         
         # Create universe state manager for shared cache
-        # Set enable_run_isolation to False for training data generation (no need for isolation)
-        enable_run_isolation = False
-        run_context = None
-        universe_state_manager = UniverseStateManager(
-            env=environment, 
-            run_context=run_context if enable_run_isolation else None
-        )
+        # 🚨 CRITICAL FIX: Do NOT create UniverseStateManager manually
+        # Let Runner create its own with proper run_context and unique run_id
+        # This prevents duplicate key violations from multiple runners using same run_id
         
         # DEBUG: Check what gin config values are being loaded
         try:
@@ -785,11 +781,13 @@ async def main():
         except Exception as e:
             logger.warning(f"⚠️ Failed to query gin config: {e}")
         
+        # 🚨 CRITICAL FIX: Create UniverseStateBuilder without universe_state_manager
+        # It will get the proper manager from Runner after Runner is created
         universe_state_builder = UniverseStateIntervalBuilder(
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
             # target_durations will use gin config: '5m,15m,60m,1d' 
-            universe_state_manager=universe_state_manager  # Pass shared cache manager
+            # universe_state_manager will be set from Runner after it's created
         )
         
         # DEBUG: Check what values were actually set
@@ -825,9 +823,13 @@ async def main():
             callbacks=[universe_state_builder, training_callback],  # UniverseStateBuilder builds cache during offset period, training generates data from start_date
             market_data_manager=minute_data_manager,  # CRITICAL: Use minute data manager instead of daily price manager
             universe_manager=universe_manager,  # 🚨 CRITICAL FIX: Use custom universe manager with proper symbols
-            universe_state_manager=universe_state_manager,  # Use shared cache manager
+            # 🚨 CRITICAL FIX: Do NOT pass universe_state_manager - let Runner create its own with unique run_id
             base_duration=args.base_duration
         )
+        
+        # 🚨 CRITICAL FIX: Set the universe_state_manager on the builder AFTER Runner creates it
+        # This ensures the builder uses the Runner's properly configured manager with unique run_id
+        universe_state_builder.universe_state_manager = runner.universe_state_manager
 
         logger.info(f"✅ Runner created successfully")
         logger.info(f"   Target date range: {start_date} to {end_date}")
