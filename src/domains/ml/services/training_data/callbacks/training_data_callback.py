@@ -74,6 +74,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.array_record_writers = {}  # Dict[file_path_str, writer]
         self.dataset_initialized = False
         self._cleanup_attempted = False  # Track cleanup to prevent double-close
+        self._feature_dao = None  # Lazy initialization of FeatureExtractionDAO
 
         # 🚨 NEW: Dynamic Binary Record Schema System
         # Replaces hardcoded OHLCV format with configurable technical indicators
@@ -227,9 +228,9 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             self.dataset_initialized = True
 
         # Stream current interval data to appropriate writers
-        await self._stream_training_examples_to_writers(examples, current_time)
+        await self._stream_training_examples_to_writers(examples, current_time, runner)
 
-    async def _stream_training_examples_to_writers(self, examples: List[Dict], current_time: datetime):
+    async def _stream_training_examples_to_writers(self, examples: List[Dict], current_time: datetime, runner: Any):
         """
         NEW FEATURE GROUP STREAMING: Filter by target date range and write to feature group files.
 
@@ -260,8 +261,9 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 if not isinstance(features, dict) or not features:
                     continue
 
-                # Separate features into feature groups
-                feature_groups_data = self._categorize_features_by_group(features, timeframe)
+                # Separate features into feature groups using database-driven mapping
+                feature_dao = await self._get_feature_dao(runner)
+                feature_groups_data = await self._categorize_features_by_group(features, timeframe, feature_dao)
                 
                 # Write each feature group to its respective ArrayRecord file
                 for feature_group, feature_data in feature_groups_data.items():
@@ -289,38 +291,27 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     else:
                         self.logger.warning(f"No monthly writer found for {monthly_file_key}")
 
-    def _categorize_features_by_group(self, features: Dict[str, Any], timeframe: str) -> Dict[str, Dict[str, Any]]:
+    async def _categorize_features_by_group(self, features: Dict[str, Any], timeframe: str, 
+                                          feature_dao: FeatureExtractionDAO) -> Dict[str, Dict[str, Any]]:
         """
-        Categorize features into feature groups based on PRD/DRD specification.
+        Categorize features into feature groups using database-driven mapping.
         
-        Feature Groups:
-        - ohlcv_basic: timestamp, symbol, open, high, low, close, volume, vwap
-        - technical_momentum: sma_20, ema_12, rsi_14, macd, macd_signal, momentum_1d, momentum_5d
-        - technical_volatility: bb_upper, bb_lower, bb_width, atr_14, realized_vol_20d, garch_vol
-        - fundamental_quarterly: pe_ratio, pb_ratio, roe, debt_equity, revenue_growth, eps_growth
+        This method replaces hardcoded categorization with dynamic mapping from the feature catalog.
+        It supports exact matches, pattern matching, and intelligent fallbacks.
         
         Args:
             features: Dictionary of feature name -> value pairs (with timeframe prefixes)
             timeframe: Timeframe string (e.g., '5m', '15m', '1h', '1d')
+            feature_dao: FeatureExtractionDAO instance for database lookups
             
         Returns:
             Dictionary mapping feature group name to feature data for that group
         """
         feature_groups_data = {}
+        feature_names_for_batch = []
         
-        # Initialize all feature groups
-        feature_groups_data['ohlcv_basic'] = {}
-        feature_groups_data['technical_momentum'] = {}
-        feature_groups_data['technical_volatility'] = {}
-        feature_groups_data['fundamental_quarterly'] = {}
-        
-        # Define feature mappings (remove timeframe prefix for classification)
-        ohlcv_features = {'open', 'high', 'low', 'close', 'volume', 'vwap'}
-        momentum_features = {'sma', 'ema', 'rsi', 'macd', 'momentum', 'etop', 'ebot', 'pldot'}
-        volatility_features = {'bb_upper', 'bb_lower', 'bb_width', 'atr', 'realized_vol', 'garch_vol', 'bollinger', 'bands'}
-        fundamental_features = {'pe_ratio', 'pb_ratio', 'roe', 'debt_equity', 'revenue_growth', 'eps_growth'}
-        
-        # Categorize each feature
+        # Extract base feature names and prepare for batch lookup
+        feature_key_to_base_name = {}
         for feature_key, value in features.items():
             # Remove timeframe prefix to get base feature name
             if feature_key.startswith(f'{timeframe}_'):
@@ -328,39 +319,91 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             else:
                 base_feature = feature_key
             
-            # Determine which feature group this belongs to
-            feature_assigned = False
+            feature_key_to_base_name[feature_key] = base_feature
+            feature_names_for_batch.append(base_feature)
+        
+        # Get all feature mappings in one batch operation for efficiency
+        try:
+            feature_mappings = await feature_dao.get_feature_mappings_batch(feature_names_for_batch)
+            feature_mapping_dict = {mapping.feature_name: mapping for mapping in feature_mappings}
+        except Exception as e:
+            self.logger.warning(f"Database feature mapping failed, falling back to basic categorization: {e}")
+            # Fallback to basic categorization if database fails
+            return await self._categorize_features_by_group_fallback(features, timeframe)
+        
+        # Group features by their mapped feature groups
+        for feature_key, value in features.items():
+            base_feature = feature_key_to_base_name[feature_key]
+            mapping = feature_mapping_dict.get(base_feature)
             
-            # Check OHLCV features
-            if base_feature in ohlcv_features:
-                feature_groups_data['ohlcv_basic'][base_feature] = value
-                feature_assigned = True
-            
-            # Check momentum features (also check partial matches for complex indicators)
-            elif (base_feature in momentum_features or 
-                  any(momentum_feat in base_feature for momentum_feat in momentum_features)):
-                feature_groups_data['technical_momentum'][base_feature] = value
-                feature_assigned = True
-            
-            # Check volatility features (also check partial matches)
-            elif (base_feature in volatility_features or 
-                  any(vol_feat in base_feature for vol_feat in volatility_features)):
-                feature_groups_data['technical_volatility'][base_feature] = value
-                feature_assigned = True
-            
-            # Check fundamental features (also check partial matches)
-            elif (base_feature in fundamental_features or 
-                  any(fund_feat in base_feature for fund_feat in fundamental_features)):
-                feature_groups_data['fundamental_quarterly'][base_feature] = value
-                feature_assigned = True
-            
-            # Default: assign to technical_momentum if unrecognized but seems technical
-            if not feature_assigned:
-                # Most unrecognized features are likely technical indicators
-                feature_groups_data['technical_momentum'][base_feature] = value
+            if mapping and mapping.feature_group_name != "unknown":
+                group_name = mapping.feature_group_name
+                
+                # Initialize group if needed
+                if group_name not in feature_groups_data:
+                    feature_groups_data[group_name] = {}
+                
+                # Add feature to appropriate group
+                feature_groups_data[group_name][base_feature] = value
+                
+                # Log mapping decision for debugging (only for non-obvious mappings)
+                if mapping.match_type != "exact" or mapping.confidence < 1.0:
+                    self.logger.debug(f"Feature '{base_feature}' mapped to '{group_name}' via {mapping.match_type} "
+                                    f"(confidence: {mapping.confidence:.2f})")
+            else:
+                # Unknown feature - log and assign to default group
+                self.logger.warning(f"Unknown feature '{base_feature}' assigned to ohlcv_basic as fallback")
+                if "ohlcv_basic" not in feature_groups_data:
+                    feature_groups_data["ohlcv_basic"] = {}
+                feature_groups_data["ohlcv_basic"][base_feature] = value
+        
+        # Log final categorization summary
+        group_counts = {group: len(data) for group, data in feature_groups_data.items()}
+        self.logger.info(f"Database-driven feature categorization complete: {group_counts}")
         
         # Remove empty feature groups
         return {group: data for group, data in feature_groups_data.items() if data}
+
+    async def _categorize_features_by_group_fallback(self, features: Dict[str, Any], timeframe: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Fallback feature categorization when database mapping fails.
+        
+        This preserves the original hardcoded logic as a safety net.
+        """
+        feature_groups_data = {}
+        
+        # Initialize basic feature groups
+        feature_groups_data['ohlcv_basic'] = {}
+        feature_groups_data['technical_momentum'] = {}
+        
+        # Basic fallback mapping
+        ohlcv_features = {'open', 'high', 'low', 'close', 'volume', 'vwap', 'timestamp', 'symbol'}
+        
+        # Categorize each feature with basic logic
+        for feature_key, value in features.items():
+            # Remove timeframe prefix to get base feature name
+            if feature_key.startswith(f'{timeframe}_'):
+                base_feature = feature_key.replace(f'{timeframe}_', '')
+            else:
+                base_feature = feature_key
+            
+            # Basic categorization
+            if base_feature in ohlcv_features:
+                feature_groups_data['ohlcv_basic'][base_feature] = value
+            else:
+                # Default to technical_momentum for unknown features
+                feature_groups_data['technical_momentum'][base_feature] = value
+        
+        self.logger.warning("Used fallback feature categorization due to database mapping failure")
+        return {group: data for group, data in feature_groups_data.items() if data}
+
+    async def _get_feature_dao(self, runner) -> FeatureExtractionDAO:
+        """Get or initialize FeatureExtractionDAO lazily."""
+        if self._feature_dao is None:
+            from domains.ml.services.training_data.dao.feature_extraction_dao import FeatureExtractionDAO
+            environment = runner.get_environment()
+            self._feature_dao = FeatureExtractionDAO(environment)
+        return self._feature_dao
 
 
     async def _initialize_dataset_structure(self):
@@ -471,6 +514,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         Called at the end of processing to register all generated monthly files.
         """
         from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
+        from domains.ml.services.training_data.dao.feature_extraction_dao import FeatureExtractionDAO, FeatureMappingResult
         from domains.ml.services.training_data.utils.run_metadata_tracker import RunMetadataTracker
 
         # Get environment 
@@ -504,6 +548,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         print(f"✅ Created database run entry: {database_run_id}")
 
         dao = MonthlyTrainingDataDAO(environment)
+        feature_dao = FeatureExtractionDAO(environment)
 
         # Group files by symbol and month for database records
         symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
