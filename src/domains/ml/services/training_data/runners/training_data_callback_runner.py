@@ -938,6 +938,15 @@ async def main():
         logger.debug("Registering dataset in database...")
 
         # Register the dataset in the database
+        # Convert string UUID run_id to integer for database compatibility
+        integer_run_id = None
+        if runner.run_context and runner.run_context.run_id:
+            import hashlib
+            # Create deterministic integer from string UUID for database storage
+            hash_str = hashlib.md5(str(runner.run_context.run_id).encode()).hexdigest()[:8]
+            integer_run_id = int(hash_str, 16)
+            logger.debug(f"🔄 Converted run_id: '{runner.run_context.run_id}' → {integer_run_id}")
+        
         db_dataset_id = await register_training_dataset(
             environment=environment,
             symbols=args.symbols,
@@ -946,7 +955,7 @@ async def main():
             config=training_config,
             output_dir=args.output_dir,
             storage_format=args.storage_format,
-            run_id=runner.run_context.run_id if runner.run_context else None
+            run_id=integer_run_id
         )
 
         logger.info(f"✅ Dataset registered in database with ID: {db_dataset_id}")
