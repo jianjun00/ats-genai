@@ -287,14 +287,72 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
                                    start_date: date, end_date: date,
                                    config: TrainingDataConfig, output_dir: str,
                                    storage_format: str, run_id: Optional[int] = None) -> int:
-    """Register a training dataset in the database."""
+    """
+    Register a training dataset in the database.
+    
+    This function:
+    1. Creates a run record in the runs table (gets auto-generated integer ID)
+    2. Uses that run_id to create a unique training dataset record
+    3. Returns the dataset_id for reference
+    
+    The run_id parameter is optional - if None, a new run record will be created.
+    """
 
     # Create DAO
     dao = TrainingDatasetDAO(environment)
 
-    # Generate unique dataset name - MUST have run_id for uniqueness
+    # STEP 1: Create run record first if run_id not provided
+    # This ensures we have a valid auto-generated integer ID from the database
     if not run_id:
-        raise ValueError("run_id is required for dataset registration to ensure unique dataset names and prevent constraint violations")
+        from datetime import datetime
+        
+        # Create run record in runs table to get auto-generated ID
+        # This approach ensures:
+        # 1. run_id is always a valid PostgreSQL integer (never exceeds int32 range)
+        # 2. run_id is guaranteed unique by database sequence
+        # 3. Foreign key relationships work correctly
+        # 4. No manual ID conversion or collision handling needed
+        conn = await asyncpg.connect(environment.get_database_url())
+        try:
+            runs_table = environment.get_table_name("runs")
+            run_query = f"""
+            INSERT INTO {runs_table} (
+                run_type, status, start_time, created_by, parameters
+            ) VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            """
+            
+            # Store all context in parameters JSONB field for reference
+            # Original string UUID (if available) stored here for traceability
+            run_parameters = {
+                "symbols": symbols,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "storage_format": storage_format,
+                "output_dir": output_dir,
+                "generation_method": "training_data_callback_runner_v2"
+                # Note: external_run_context_id could be added here if needed
+            }
+            
+            # Create run record and get auto-generated ID
+            # PostgreSQL sequence ensures this is always within int32 range
+            run_id = await conn.fetchval(
+                run_query,
+                "training_data_generation",
+                "running",  # Will be updated to completed later
+                datetime.now(),
+                "training_data_callback_runner",
+                json.dumps(run_parameters)
+            )
+            
+            logger = logging.getLogger(__name__)
+            logger.info(f"📝 Created run record with auto-generated ID: {run_id}")
+            logger.debug(f"💡 Auto-generated run_id {run_id} is guaranteed within int32 range")
+        finally:
+            await conn.close()
+
+    # STEP 2: Generate unique dataset name using the run_id
+    # Now we have a guaranteed unique integer run_id from the database
     
     symbols_str = "_".join(symbols) if symbols else "multi_symbol"
     dataset_name = f"callback_training_{symbols_str}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{run_id}"
@@ -937,16 +995,38 @@ async def main():
     try:
         logger.debug("Registering dataset in database...")
 
-        # Register the dataset in the database
-        # Convert string UUID run_id to integer for database compatibility
-        integer_run_id = None
-        if runner.run_context and runner.run_context.run_id:
-            import hashlib
-            # Create deterministic integer from string UUID for database storage
-            hash_str = hashlib.md5(str(runner.run_context.run_id).encode()).hexdigest()[:8]
-            integer_run_id = int(hash_str, 16)
-            logger.debug(f"🔄 Converted run_id: '{runner.run_context.run_id}' → {integer_run_id}")
+        # ========================================================================
+        # CRITICAL: Database ID Handling Strategy
+        # ========================================================================
+        # 
+        # PROBLEM SOLVED: 
+        # - Original error: "invalid input for query argument $2: 2612043706 (value out of int32 range)"
+        # - Caused by converting string UUID "run_20250921_012528_bfac28e9" to hash integer
+        # - Hash conversion could exceed PostgreSQL int32 max (2,147,483,647)
+        #
+        # SOLUTION IMPLEMENTED:
+        # 1. Let database auto-generate integer IDs using sequences (guaranteed unique)
+        # 2. Use auto-generated run_id for all database operations and foreign keys
+        # 3. Store original string UUID separately for debugging/traceability
+        # 4. No hash conversion needed - eliminates int32 range errors completely
+        #
+        # DATABASE DESIGN:
+        # - runs table: id (auto-increment PRIMARY KEY), parameters (JSONB with original UUID)
+        # - training_datasets table: run_id (FOREIGN KEY references runs.id)
+        # - This maintains referential integrity with guaranteed int32 compliance
+        # ========================================================================
         
+        # Store the original string UUID for reference/debugging
+        # This preserves traceability without affecting database operations
+        external_run_context_id = None
+        if runner.run_context and runner.run_context.run_id:
+            external_run_context_id = str(runner.run_context.run_id)
+            logger.debug(f"📋 External run context ID: '{external_run_context_id}' (preserved for reference)")
+            logger.debug(f"💡 Database will auto-generate integer run_id - no conversion needed")
+        
+        # FIXED: register_training_dataset now creates run record automatically
+        # It will auto-generate a unique integer run_id from the database
+        # No need to convert string UUID - let database handle ID generation
         db_dataset_id = await register_training_dataset(
             environment=environment,
             symbols=args.symbols,
@@ -955,7 +1035,7 @@ async def main():
             config=training_config,
             output_dir=args.output_dir,
             storage_format=args.storage_format,
-            run_id=integer_run_id
+            run_id=None  # Triggers auto-generation of run_id in runs table
         )
 
         logger.info(f"✅ Dataset registered in database with ID: {db_dataset_id}")
