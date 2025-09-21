@@ -100,40 +100,72 @@ class Polygon30YearBackfiller:
             logger.error(f"❌ Failed to ensure table exists: {e}")
             raise
 
-    async def get_instruments_for_backfill(self, conn, limit=None):
-        """Get active instruments from instruments table."""
+    async def get_instruments_for_backfill(self, conn, limit=None, universe_id=None, as_of_date=None):
+        """Get active instruments from instruments table, optionally filtered by universe."""
         # Auto-detect table prefix based on environment
         env = os.getenv('ENV_TYPE', 'intg').lower()
         table_prefix = 'intg_' if env == 'intg' else 'dev_'
+
+        # Build universe filter clause
+        universe_join = ""
+        universe_where = ""
+        query_params = []
+        
+        if universe_id:
+            universe_join = f"""
+            JOIN {table_prefix}universe_membership um ON i.id = um.instrument_id
+            """
+            if as_of_date:
+                # Convert string date to date object if needed
+                if isinstance(as_of_date, str):
+                    from datetime import datetime
+                    as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
+                
+                param_idx_1 = len(query_params) + 1
+                param_idx_2 = len(query_params) + 2
+                universe_where = f"AND um.universe_id = ${param_idx_1} AND um.start_at <= ${param_idx_2} AND (um.end_at IS NULL OR um.end_at > ${param_idx_2})"
+                query_params.extend([universe_id, as_of_date])
+            else:
+                param_idx = len(query_params) + 1
+                universe_where = f"AND um.universe_id = ${param_idx} AND um.start_at <= CURRENT_DATE AND (um.end_at IS NULL OR um.end_at > CURRENT_DATE)"
+                query_params.append(universe_id)
+            
+            logger.info(f"🌌 Filtering by universe ID {universe_id}" + (f" as of {as_of_date}" if as_of_date else " as of current date"))
 
         # Check if TARGET_SYMBOLS is specified
         target_symbols = os.getenv('TARGET_SYMBOLS')
         if target_symbols:
             target_list = [s.strip().upper() for s in target_symbols.split(',')]
-            symbols_clause = "AND symbol = ANY($1)"
+            symbols_clause = f"AND i.symbol = ANY(${len(query_params) + 1})"
+            query_params.append(target_list)
+            
             instruments = await conn.fetch(f"""
-                SELECT id, symbol, name, exchange, active
-                FROM {table_prefix}instrument
-                WHERE active = true
-                  AND symbol IS NOT NULL
-                  AND symbol != ''
-                  AND exchange IN ('NASDAQ', 'NYSE', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
+                SELECT i.id, i.symbol, i.name, i.exchange, i.active
+                FROM {table_prefix}instrument i
+                {universe_join}
+                WHERE i.active = true
+                  AND i.symbol IS NOT NULL
+                  AND i.symbol != ''
+                  AND i.exchange IN ('NASDAQ', 'NYSE', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
                   {symbols_clause}
-                ORDER BY symbol
-            """, target_list)
+                  {universe_where}
+                ORDER BY i.symbol
+            """, *query_params)
             logger.info(f"🎯 Targeted symbols: {target_list}")
         else:
             limit_clause = f"LIMIT {limit}" if limit else ""
             instruments = await conn.fetch(f"""
-                SELECT id, symbol, name, exchange, active
-                FROM {table_prefix}instrument
-                WHERE active = true
-                  AND symbol IS NOT NULL
-                  AND symbol != ''
-                  AND exchange IN ('NASDAQ', 'NYSE', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
-                ORDER BY symbol
+                SELECT i.id, i.symbol, i.name, i.exchange, i.active
+                FROM {table_prefix}instrument i
+                {universe_join}
+                WHERE i.active = true
+                  AND i.symbol IS NOT NULL
+                  AND i.symbol != ''
+                  AND i.exchange IN ('NASDAQ', 'NYSE', 'NYSE ARCA', 'BATS', 'XNYS', 'NYSE MKT', 'XNAS', 'AMEX', 'NYSE NAT')
+                  {universe_where}
+                ORDER BY i.symbol
                 {limit_clause}
-            """)
+            """, *query_params)
 
         self.legacy_stats['total_instruments'] = len(instruments)
         logger.info(f"📊 Found {len(instruments)} instruments for 30-year backfill")
@@ -199,23 +231,22 @@ class Polygon30YearBackfiller:
         # Prepare data for insertion
         rows = []
         for price in prices:
-            try:
-                # Convert Polygon timestamp to date
-                if 't' in price:
-                    date_val = datetime.fromtimestamp(price['t']/1000, tz=timezone.utc).date()
-                else:
-                    continue
+            # Convert Polygon timestamp to date
+            if 't' in price:
+                date_val = datetime.fromtimestamp(price['t']/1000, tz=timezone.utc).date()
+            else:
+                continue
 
-                rows.append((
-                    date_val,
-                    symbol,
-                    price.get('o'),  # open
-                    price.get('h'),  # high
-                    price.get('l'),  # low
-                    price.get('c'),  # close
-                    price.get('v', 0),  # volume
-                    instrument_id
-                ))
+            rows.append((
+                date_val,
+                symbol,
+                price.get('o'),  # open
+                price.get('h'),  # high
+                price.get('l'),  # low
+                price.get('c'),  # close
+                price.get('v', 0),  # volume
+                instrument_id
+            ))
             # Let price record processing exceptions propagate
             # If any price record is malformed, the entire batch should fail
 
@@ -225,80 +256,96 @@ class Polygon30YearBackfiller:
         # Insert with idempotent UPSERT
         table_name = get_vendor_table_name('daily_price', 'polygon')
 
-        try:
-            result = await conn.executemany(f"""
-                INSERT INTO {table_name}
-                (date, symbol, open, high, low, close, volume, market_cap, instrument_id, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, NOW(), NOW())
-                ON CONFLICT (date, instrument_id) DO UPDATE SET
-                    symbol = EXCLUDED.symbol,
-                    open = EXCLUDED.open,
-                    high = EXCLUDED.high,
-                    low = EXCLUDED.low,
-                    close = EXCLUDED.close,
-                    volume = EXCLUDED.volume,
-                    updated_at = NOW()
-            """, rows)
+        result = await conn.executemany(f"""
+            INSERT INTO {table_name}
+            (date, symbol, open, high, low, close, volume, market_cap, instrument_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, NOW(), NOW())
+            ON CONFLICT (date, instrument_id) DO UPDATE SET
+                symbol = EXCLUDED.symbol,
+                open = EXCLUDED.open,
+                high = EXCLUDED.high,
+                low = EXCLUDED.low,
+                close = EXCLUDED.close,
+                volume = EXCLUDED.volume,
+                updated_at = NOW()
+        """, rows)
 
-            logger.info(f"💾 Inserted {len(rows)} price records for {symbol}")
-            self.legacy_stats['total_records'] += len(rows)
-            return len(rows)
-
+        logger.info(f"💾 Inserted {len(rows)} price records for {symbol}")
+        self.legacy_stats['total_records'] += len(rows)
+        return len(rows)
         # Let database exceptions propagate - fail fast on database errors
         # If database insert fails, the application should halt rather than continue silently
 
     async def check_existing_data(self, conn, instrument_id, start_date, end_date):
-        """Check if instrument already has data in the date range."""
+        """Check if instrument already has data for ALL trading days in the date range."""
         env = os.getenv('ENV_TYPE', 'intg').lower()
         table_name = 'intg_daily_price_polygon' if env == 'intg' else 'dev_daily_price_polygon'
 
-        count = await conn.fetchval(f"""
+        # Calculate expected trading days (excluding weekends)
+        expected_trading_days = await conn.fetchval("""
+            WITH date_series AS (
+                SELECT generate_series($1::date, $2::date, '1 day'::interval)::date as date_val
+            ),
+            trading_days AS (
+                SELECT date_val as trading_date
+                FROM date_series
+                WHERE EXTRACT(DOW FROM date_val) NOT IN (0, 6)
+            )
+            SELECT COUNT(*) FROM trading_days
+        """, start_date, end_date)
+
+        # Count actual records for this instrument
+        actual_count = await conn.fetchval(f"""
             SELECT COUNT(*) FROM {table_name}
             WHERE instrument_id = $1 AND date BETWEEN $2 AND $3
         """, instrument_id, start_date, end_date)
 
-        return count
+        # Return the number of missing trading days (0 means complete coverage)
+        missing_days = expected_trading_days - actual_count
+        return missing_days
 
     async def backfill_instrument(self, conn, instrument, start_date, end_date, skip_existing=True):
         """Backfill daily prices for a single instrument."""
         instrument_id = instrument['id']
         symbol = instrument['symbol']
 
-        try:
-            # Check if we should skip existing data
-            if skip_existing:
-                existing_count = await self.check_existing_data(conn, instrument_id, start_date, end_date)
-                if existing_count > 0:
-                    logger.info(f"⏭️ Skipping {symbol} - already has {existing_count} records")
-                    self.legacy_stats['skipped_instruments'] += 1
-                    return 0
-
-            logger.info(f"📈 Processing {symbol} (ID: {instrument_id}) for 30-year backfill...")
-
-            # Download data from Polygon
-            prices = await self.download_polygon_daily_prices(symbol, start_date, end_date)
-
-            if not prices:
-                logger.warning(f"⚠️ No price data for {symbol}")
+        # Check if we should skip existing data
+        if skip_existing:
+            missing_days = await self.check_existing_data(conn, instrument_id, start_date, end_date)
+            if missing_days == 0:
+                logger.info(f"⏭️ Skipping {symbol} - complete coverage for all trading days")
+                self.legacy_stats['skipped_instruments'] += 1
                 return 0
+            elif missing_days > 0:
+                logger.info(f"📊 {symbol} missing {missing_days} trading days - proceeding with backfill")
 
-            # Insert data idempotently
-            inserted_count = await self.insert_daily_prices_idempotent(conn, instrument_id, symbol, prices)
+        logger.info(f"📈 Processing {symbol} (ID: {instrument_id}) for 30-year backfill...")
 
-            logger.info(f"✅ Completed {symbol}: {inserted_count} records inserted")
-            self.legacy_stats['processed_instruments'] += 1
+        # Download data from Polygon
+        prices = await self.download_polygon_daily_prices(symbol, start_date, end_date)
 
-            # Use shared rate limiter for consistent behavior
-            await self.rate_limiter.wait_if_needed()
+        if not prices:
+            logger.warning(f"⚠️ No price data for {symbol}")
+            return 0
 
-            return inserted_count
+        # Insert data idempotently
+        inserted_count = await self.insert_daily_prices_idempotent(conn, instrument_id, symbol, prices)
 
+        logger.info(f"✅ Completed {symbol}: {inserted_count} records inserted")
+        self.legacy_stats['processed_instruments'] += 1
+
+        # Use shared rate limiter for consistent behavior
+        await self.rate_limiter.wait_if_needed()
+
+        return inserted_count
         # Let all instrument processing exceptions propagate
         # If individual instrument processing fails, the entire operation should fail
 
-    async def run_backfill(self, start_date, end_date, limit=None, skip_existing=True):
+    async def run_backfill(self, start_date, end_date, limit=None, skip_existing=True, universe_id=None, as_of_date=None):
         """Run the complete 30-year backfill process."""
         logger.info("🚀 Starting Polygon 30-year daily price backfill...")
+        if universe_id:
+            logger.info(f"🌌 Filtering by universe ID {universe_id} as of {as_of_date or start_date}")
         logger.info(f"📅 Date range: {start_date} to {end_date}")
 
         conn = await self.get_database_connection()
@@ -308,7 +355,7 @@ class Polygon30YearBackfiller:
             await self.ensure_table_exists(conn)
 
             # Get instruments to process
-            instruments = await self.get_instruments_for_backfill(conn, limit)
+            instruments = await self.get_instruments_for_backfill(conn, limit, universe_id, as_of_date)
 
             if not instruments:
                 logger.warning("❌ No instruments found for backfill")
@@ -318,14 +365,13 @@ class Polygon30YearBackfiller:
 
             # Process each instrument
             for i, instrument in enumerate(instruments, 1):
-                try:
-                    await self.backfill_instrument(conn, instrument, start_date, end_date, skip_existing)
+                await self.backfill_instrument(conn, instrument, start_date, end_date, skip_existing)
 
-                    # Progress logging
-                    if i % 100 == 0 or i == len(instruments):
-                        progress = (i / len(instruments)) * 100
-                        logger.info(f"📊 Progress: {i:,}/{len(instruments):,} ({progress:.1f}%) - "
-                                  f"{self.legacy_stats['total_records']:,} total records")
+                # Progress logging
+                if i % 100 == 0 or i == len(instruments):
+                    progress = (i / len(instruments)) * 100
+                    logger.info(f"📊 Progress: {i:,}/{len(instruments):,} ({progress:.1f}%) - "
+                              f"{self.legacy_stats['total_records']:,} total records")
 
                 # Let instrument processing exceptions propagate
                 # If any instrument fails, the entire backfill should fail fast
@@ -367,6 +413,10 @@ async def main():
                        help='End date (YYYY-MM-DD), defaults to today')
     parser.add_argument('--skip_existing', action='store_true', default=False,
                        help='Skip instruments that already have price data')
+    parser.add_argument('--universe_id', type=int, 
+                       help='Universe ID to filter instruments (only backfill instruments in this universe)')
+    parser.add_argument('--as_of_date', type=str,
+                       help='Date to determine universe membership (YYYY-MM-DD), defaults to start_date')
 
     args = parser.parse_args()
 
@@ -404,7 +454,9 @@ async def main():
         await backfiller.run_backfill(
             start_date, end_date,
             limit=args.limit,
-            skip_existing=args.skip_existing
+            skip_existing=args.skip_existing,
+            universe_id=args.universe_id,
+            as_of_date=args.as_of_date
         )
 
         # Log final summary
