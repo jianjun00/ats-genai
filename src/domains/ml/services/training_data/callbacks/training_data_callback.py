@@ -231,12 +231,13 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
     async def _stream_training_examples_to_writers(self, examples: List[Dict], current_time: datetime):
         """
-        NEW MONTHLY STREAMING: Filter by target date range and write to monthly files.
+        NEW FEATURE GROUP STREAMING: Filter by target date range and write to feature group files.
 
         CHANGES:
         - Only save data within target date range (not expanded collection window)
-        - Route data to appropriate monthly ArrayRecord files
-        - Use new file key structure: symbol_timeframe_YYYY_MM
+        - Route data to appropriate feature group ArrayRecord files
+        - Categorize features into groups: ohlcv_basic, technical_momentum, technical_volatility, fundamental_quarterly
+        - Use new file key structure: symbol_featuregroup_timeframe_YYYY_MM
         """
 
         # CRITICAL: Only save data within target date range, not collection window
@@ -254,52 +255,122 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             symbol = example.get('symbol', 'UNKNOWN')
             timeframe_features = example.get('timeframe_features', {})
 
-            # Stream each timeframe to its respective monthly ArrayRecord file
+            # Stream each timeframe to respective feature group files
             for timeframe, features in timeframe_features.items():
                 if not isinstance(features, dict) or not features:
                     continue
 
-                # Create interval record from timeframe features
-                interval_record = {
-                    'timestamp': current_time.timestamp(),
-                    'symbol': symbol,
-                    # Extract OHLCV from features (with timeframe prefix)
-                    'open': features.get(f'{timeframe}_open', 0.0),
-                    'high': features.get(f'{timeframe}_high', 0.0),
-                    'low': features.get(f'{timeframe}_low', 0.0),
-                    'close': features.get(f'{timeframe}_close', 0.0),
-                    'volume': features.get(f'{timeframe}_volume', 0.0),
-                }
+                # Separate features into feature groups
+                feature_groups_data = self._categorize_features_by_group(features, timeframe)
+                
+                # Write each feature group to its respective ArrayRecord file
+                for feature_group, feature_data in feature_groups_data.items():
+                    if not feature_data:  # Skip empty feature groups
+                        continue
+                        
+                    # Create interval record for this feature group
+                    interval_record = {
+                        'timestamp': current_time.timestamp(),
+                        'symbol': symbol,
+                        **feature_data  # Include all features for this group
+                    }
 
-                # Add all other features as technical indicators
-                for key, value in features.items():
-                    if not key.startswith(f'{timeframe}_') or key.split('_', 1)[1] in ['open', 'high', 'low', 'close', 'volume']:
-                        continue  # Skip OHLCV and non-prefixed keys
-                    indicator_name = key.split('_', 1)[1]  # Remove timeframe prefix
-                    interval_record[indicator_name] = value
+                    # Write to appropriate monthly ArrayRecord file with feature group
+                    monthly_file_key = f"{symbol}_{feature_group}_{timeframe}_{year_month_str}"
+                    if monthly_file_key in self.array_record_writers:
+                        writer = self.array_record_writers[monthly_file_key]
+                        await self._write_interval_to_writer(writer, symbol, interval_record)
 
-                # Write to appropriate monthly ArrayRecord file
-                monthly_file_key = f"{symbol}_{timeframe}_{year_month_str}"
-                if monthly_file_key in self.array_record_writers:
-                    writer = self.array_record_writers[monthly_file_key]
-                    await self._write_interval_to_writer(writer, symbol, interval_record)
+                        # Track record count for database storage
+                        if monthly_file_key not in self.monthly_record_counts:
+                            self.monthly_record_counts[monthly_file_key] = 0
+                        self.monthly_record_counts[monthly_file_key] += 1
 
-                    # Track record count for database storage
-                    if monthly_file_key not in self.monthly_record_counts:
-                        self.monthly_record_counts[monthly_file_key] = 0
-                    self.monthly_record_counts[monthly_file_key] += 1
+                    else:
+                        self.logger.warning(f"No monthly writer found for {monthly_file_key}")
 
-                else:
-                    self.logger.warning(f"No monthly writer found for {monthly_file_key}")
+    def _categorize_features_by_group(self, features: Dict[str, Any], timeframe: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Categorize features into feature groups based on PRD/DRD specification.
+        
+        Feature Groups:
+        - ohlcv_basic: timestamp, symbol, open, high, low, close, volume, vwap
+        - technical_momentum: sma_20, ema_12, rsi_14, macd, macd_signal, momentum_1d, momentum_5d
+        - technical_volatility: bb_upper, bb_lower, bb_width, atr_14, realized_vol_20d, garch_vol
+        - fundamental_quarterly: pe_ratio, pb_ratio, roe, debt_equity, revenue_growth, eps_growth
+        
+        Args:
+            features: Dictionary of feature name -> value pairs (with timeframe prefixes)
+            timeframe: Timeframe string (e.g., '5m', '15m', '1h', '1d')
+            
+        Returns:
+            Dictionary mapping feature group name to feature data for that group
+        """
+        feature_groups_data = {}
+        
+        # Initialize all feature groups
+        feature_groups_data['ohlcv_basic'] = {}
+        feature_groups_data['technical_momentum'] = {}
+        feature_groups_data['technical_volatility'] = {}
+        feature_groups_data['fundamental_quarterly'] = {}
+        
+        # Define feature mappings (remove timeframe prefix for classification)
+        ohlcv_features = {'open', 'high', 'low', 'close', 'volume', 'vwap'}
+        momentum_features = {'sma', 'ema', 'rsi', 'macd', 'momentum', 'etop', 'ebot', 'pldot'}
+        volatility_features = {'bb_upper', 'bb_lower', 'bb_width', 'atr', 'realized_vol', 'garch_vol', 'bollinger', 'bands'}
+        fundamental_features = {'pe_ratio', 'pb_ratio', 'roe', 'debt_equity', 'revenue_growth', 'eps_growth'}
+        
+        # Categorize each feature
+        for feature_key, value in features.items():
+            # Remove timeframe prefix to get base feature name
+            if feature_key.startswith(f'{timeframe}_'):
+                base_feature = feature_key.replace(f'{timeframe}_', '')
+            else:
+                base_feature = feature_key
+            
+            # Determine which feature group this belongs to
+            feature_assigned = False
+            
+            # Check OHLCV features
+            if base_feature in ohlcv_features:
+                feature_groups_data['ohlcv_basic'][base_feature] = value
+                feature_assigned = True
+            
+            # Check momentum features (also check partial matches for complex indicators)
+            elif (base_feature in momentum_features or 
+                  any(momentum_feat in base_feature for momentum_feat in momentum_features)):
+                feature_groups_data['technical_momentum'][base_feature] = value
+                feature_assigned = True
+            
+            # Check volatility features (also check partial matches)
+            elif (base_feature in volatility_features or 
+                  any(vol_feat in base_feature for vol_feat in volatility_features)):
+                feature_groups_data['technical_volatility'][base_feature] = value
+                feature_assigned = True
+            
+            # Check fundamental features (also check partial matches)
+            elif (base_feature in fundamental_features or 
+                  any(fund_feat in base_feature for fund_feat in fundamental_features)):
+                feature_groups_data['fundamental_quarterly'][base_feature] = value
+                feature_assigned = True
+            
+            # Default: assign to technical_momentum if unrecognized but seems technical
+            if not feature_assigned:
+                # Most unrecognized features are likely technical indicators
+                feature_groups_data['technical_momentum'][base_feature] = value
+        
+        # Remove empty feature groups
+        return {group: data for group, data in feature_groups_data.items() if data}
 
 
     async def _initialize_dataset_structure(self):
         """
         Initialize ArrayRecord writers for MONTHLY storage.
 
-        NEW MONTHLY APPROACH:
-        - Create separate files for each month within target date range
-        - File structure: /data/training_data/{dataset_id}/SYMBOL_YYYY_MM/{timeframe}/SYMBOL_YYYY_MM.arrayrecord
+        NEW FEATURE GROUP APPROACH:
+        - Create separate files for each feature group, month, and timeframe within target date range  
+        - File structure: /data/training_data/{dataset_id}/{feature_group}/{symbol_date_range}/{timeframe}/{symbol_date_range}_{feature_group}.arrayrecord
+        - Feature groups: ohlcv_basic, technical_momentum, technical_volatility, fundamental_quarterly
         - Only save data within target date range (not collection window)
         """
         import array_record.python.array_record_module as array_record
@@ -326,36 +397,47 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             for month_date in months_in_range:
                 print(f"     - {month_date.strftime('%Y-%m')}")
 
-            # Initialize writers for each symbol/timeframe/month combination
+            # Initialize writers for each symbol/feature_group/timeframe/month combination
             # PRD/DRD: Include all required timeframes including missing 1w
             timeframes = ['5m', '15m', '60m', '1d', '1w']
+            
+            # PRD/DRD: Define feature groups per specification
+            feature_groups = [
+                'ohlcv_basic',           # Basic OHLCV features: open, high, low, close, volume, vwap
+                'technical_momentum',    # Technical momentum indicators: SMA, EMA, RSI, MACD
+                'technical_volatility',  # Volatility indicators: Bollinger Bands, ATR, realized volatility
+                'fundamental_quarterly'  # Fundamental metrics: P/E, P/B, ROE, debt ratios
+            ]
 
             for symbol in self.symbols:
                 print(f"   Initializing monthly writers for {symbol}")
 
                 for month_date in months_in_range:
                     year_month_str = f"{symbol}_{month_date.strftime('%Y_%m')}"
-                    dataset_dir = self.output_dir / str(dataset_id) / year_month_str
+                    
+                    for feature_group in feature_groups:
+                        # NEW PATH STRUCTURE: /data/training_data/{dataset_id}/{feature_group}/{symbol_date}/{timeframe}/
+                        feature_group_dir = self.output_dir / str(dataset_id) / feature_group / year_month_str
+                        
+                        for timeframe in timeframes:
+                            # Create timeframe directory
+                            timeframe_dir = feature_group_dir / timeframe
+                            timeframe_dir.mkdir(parents=True, exist_ok=True)
 
-                    for timeframe in timeframes:
-                        # Create timeframe directory
-                        timeframe_dir = dataset_dir / timeframe
-                        timeframe_dir.mkdir(parents=True, exist_ok=True)
+                            # NEW FILENAME: Include feature group in filename
+                            arrayrecord_file = timeframe_dir / f"{year_month_str}_{feature_group}.arrayrecord"
 
-                        # Create ArrayRecord file path for this month
-                        arrayrecord_file = timeframe_dir / f"{year_month_str}.arrayrecord"
+                            # Create writer ONCE and store for streaming
+                            writer = array_record.ArrayRecordWriter(str(arrayrecord_file), 'group_size:1')
 
-                        # Create writer ONCE and store for streaming
-                        writer = array_record.ArrayRecordWriter(str(arrayrecord_file), 'group_size:1')
+                            # NEW FILE KEY: Include feature group for proper routing
+                            file_key = f"{symbol}_{feature_group}_{timeframe}_{month_date.strftime('%Y_%m')}"
+                            self.array_record_writers[file_key] = writer
 
-                        # Store writer by symbol_timeframe_month for later access
-                        file_key = f"{symbol}_{timeframe}_{month_date.strftime('%Y_%m')}"
-                        self.array_record_writers[file_key] = writer
+                            # Track file path for database storage
+                            self.monthly_file_paths[file_key] = str(arrayrecord_file)
 
-                        # Track file path for database storage
-                        self.monthly_file_paths[file_key] = str(arrayrecord_file)
-
-                        print(f"     ✅ Created monthly writer: {symbol} {timeframe} {month_date.strftime('%Y-%m')}")
+                            print(f"     ✅ Created monthly writer: {symbol} {feature_group} {timeframe} {month_date.strftime('%Y-%m')}")
 
             print(f"✅ Initialized {len(self.array_record_writers)} monthly ArrayRecord writers")
 

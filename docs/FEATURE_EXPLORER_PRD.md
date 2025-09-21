@@ -26,6 +26,26 @@ Transform training data generation into feature extraction system. Track which f
 **technical_volatility**: bb_upper, bb_lower, bb_width, atr_14, realized_vol_20d, garch_vol
 **fundamental_quarterly**: pe_ratio, pb_ratio, roe, debt_equity, revenue_growth, eps_growth
 
+## Storage Convention
+
+Feature extraction outputs are organized by feature group with the following path structure:
+
+```
+/data/training_data/{dataset_id}/{feature_group}/{symbol_date_range}/{timeframe}/{symbol_date_range}_{feature_group}.arrayrecord
+```
+
+**Example**: 
+```
+/data/training_data/dataset_20250921_072901/ohlcv_basic/AAPL_2025_07/5m/AAPL_2025_07_ohlcv_basic.arrayrecord
+/data/training_data/dataset_20250921_072901/technical_momentum/AAPL_2025_07/5m/AAPL_2025_07_technical_momentum.arrayrecord
+```
+
+This enables:
+- **Feature Group Isolation**: Each group stored separately for modular access
+- **Symbol-Date Organization**: Efficient retrieval for specific instruments/periods  
+- **Timeframe Separation**: Multiple aggregation levels per symbol
+- **Clear Naming**: File names include all key identifiers
+
 ## Implementation
 
 **Phase 1**: Database schema, feature extraction runner, ArrayRecord storage

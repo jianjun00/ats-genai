@@ -247,24 +247,45 @@ Schema: timestamp, symbol, open, high, low, close, volume, vwap, trade_count
 
 ### 3. Output Storage Structure
 ```
-/data/features/
-├── 2024/
-│   ├── 01/                                    # January 2024
-│   │   ├── ohlcv_basic/
-│   │   │   ├── AAPL_202401.arrayrecord        # 24x7x31 = ~5200 records
-│   │   │   ├── MSFT_202401.arrayrecord
-│   │   │   ├── metadata.json                  # Schema + stats
-│   │   │   └── quality_report.json            # Quality metrics
-│   │   ├── technical_momentum/
-│   │   │   ├── AAPL_202401.arrayrecord        # RSI, MACD, SMA, EMA
-│   │   │   ├── MSFT_202401.arrayrecord
-│   │   │   └── metadata.json
-│   │   └── technical_volatility/
-│   │       ├── AAPL_202401.arrayrecord        # Bollinger, ATR, Vol
-│   │       └── metadata.json
-│   └── 02/                                    # February 2024
-├── 2025/
-└── archive/                                   # Files older than retention period
+/data/training_data/
+├── dataset_20250921_072901/                   # Run-specific dataset directory
+│   ├── ohlcv_basic/                          # Feature group directory
+│   │   ├── AAPL_2025_07/                     # Symbol and date range
+│   │   │   ├── 5m/                           # Timeframe directory
+│   │   │   │   └── AAPL_2025_07_ohlcv_basic.arrayrecord
+│   │   │   ├── 15m/
+│   │   │   │   └── AAPL_2025_07_ohlcv_basic.arrayrecord
+│   │   │   ├── 1h/
+│   │   │   │   └── AAPL_2025_07_ohlcv_basic.arrayrecord
+│   │   │   └── 1d/
+│   │   │       └── AAPL_2025_07_ohlcv_basic.arrayrecord
+│   │   ├── TSLA_2025_07/
+│   │   │   ├── 5m/
+│   │   │   │   └── TSLA_2025_07_ohlcv_basic.arrayrecord
+│   │   │   └── 15m/
+│   │   │       └── TSLA_2025_07_ohlcv_basic.arrayrecord
+│   │   └── metadata.json                     # OHLCV feature group metadata
+│   ├── technical_momentum/                   # Technical indicators feature group
+│   │   ├── AAPL_2025_07/
+│   │   │   ├── 5m/
+│   │   │   │   └── AAPL_2025_07_technical_momentum.arrayrecord
+│   │   │   └── 15m/
+│   │   │       └── AAPL_2025_07_technical_momentum.arrayrecord
+│   │   ├── TSLA_2025_07/
+│   │   │   └── 5m/
+│   │   │       └── TSLA_2025_07_technical_momentum.arrayrecord
+│   │   └── metadata.json                     # Technical momentum metadata
+│   ├── technical_volatility/                 # Volatility indicators feature group
+│   │   └── metadata.json                     # Technical volatility metadata
+│   └── dataset_metadata.json                 # Overall dataset metadata
+└── dataset_20250921_073045/                  # Another extraction run
+    └── ohlcv_basic/
+        └── MSFT_2025_08/
+            └── 5m/
+                └── MSFT_2025_08_ohlcv_basic.arrayrecord
+
+# Path Convention:
+# /data/training_data/{dataset_id}/{feature_group}/{symbol_date_range}/{timeframe}/{symbol_date_range}_{feature_group}.arrayrecord
 ```
 
 ## ArrayRecord File Format
