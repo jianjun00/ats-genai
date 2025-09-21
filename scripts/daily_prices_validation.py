@@ -67,13 +67,15 @@ class DailyPricesValidator:
 
     def __init__(self, db_host: str = "localhost", db_port: int = 4432,
                  db_user: str = "postgres", db_password: str = "intg_password",
-                 db_name: str = "intg_db"):
+                 db_name: str = "intg_db", universe_id: Optional[int] = None):
         self.db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
         self.logger = logging.getLogger(__name__)
         self.vendors = ['eodhd', 'tiingo', 'polygon']
         self.prometheus_gateway_url = "http://localhost:9091"
+        self.universe_id = universe_id
 
-        self.logger.info(f"🔧 Initialized DailyPricesValidator for {db_host}:{db_port}/{db_name}")
+        universe_info = f" (universe {universe_id})" if universe_id else ""
+        self.logger.info(f"🔧 Initialized DailyPricesValidator for {db_host}:{db_port}/{db_name}{universe_info}")
 
     async def get_active_instruments_count(self) -> int:
         """Get count of active instruments across all vendors"""
@@ -90,15 +92,26 @@ class DailyPricesValidator:
 
     async def validate_vendor_prices(self, vendor: str, days: int = 90) -> ValidationMetrics:
         """Validate prices for a specific vendor over the past N days"""
-        self.logger.info(f"📊 Validating {vendor} prices for past {days} days...")
+        universe_info = f" (universe {self.universe_id})" if self.universe_id else ""
+        self.logger.info(f"📊 Validating {vendor} prices for past {days} days{universe_info}...")
 
         start_date = date.today() - timedelta(days=days)
         end_date = date.today()
 
         async with asyncpg.create_pool(self.db_url) as pool:
             async with pool.acquire() as conn:
+                # Build universe filter clause
+                universe_join = ""
+                universe_where = ""
+                if self.universe_id:
+                    universe_join = """
+                    JOIN intg_instrument i ON p.instrument_id = i.id
+                    JOIN intg_universe_membership um ON i.id = um.instrument_id
+                    """
+                    universe_where = f"AND um.universe_id = {self.universe_id} AND um.start_at <= $1 AND (um.end_at IS NULL OR um.end_at > $1)"
+
                 # Get expected number of price records (trading days * active symbols)
-                expected_query = """
+                expected_query = f"""
                 WITH date_series AS (
                     SELECT generate_series($1::date, $2::date, '1 day'::interval)::date as date_val
                 ),
@@ -108,19 +121,20 @@ class DailyPricesValidator:
                     WHERE EXTRACT(DOW FROM date_val) NOT IN (0, 6)
                 ),
                 active_symbols AS (
-                    SELECT DISTINCT symbol
-                    FROM intg_daily_price_{vendor}
-                    WHERE date >= $1
+                    SELECT DISTINCT p.symbol
+                    FROM intg_daily_price_{vendor} p
+                    {universe_join}
+                    WHERE p.date >= $1 {universe_where}
                 )
                 SELECT
                     (SELECT COUNT(*) FROM trading_days) * (SELECT COUNT(*) FROM active_symbols) as expected_total
-                """.replace("{vendor}", vendor)
+                """
 
                 expected_result = await conn.fetchrow(expected_query, start_date, end_date)
                 total_expected = expected_result['expected_total'] if expected_result else 0
 
                 # Count missing prices (expected but not found)
-                missing_query = """
+                missing_query = f"""
                 WITH date_series AS (
                     SELECT generate_series($1::date, $2::date, '1 day'::interval)::date as date_val
                 ),
@@ -130,9 +144,10 @@ class DailyPricesValidator:
                     WHERE EXTRACT(DOW FROM date_val) NOT IN (0, 6)
                 ),
                 active_symbols AS (
-                    SELECT DISTINCT symbol
-                    FROM intg_daily_price_{vendor}
-                    WHERE date >= $1
+                    SELECT DISTINCT p.symbol
+                    FROM intg_daily_price_{vendor} p
+                    {universe_join}
+                    WHERE p.date >= $1 {universe_where}
                 ),
                 expected_prices AS (
                     SELECT s.symbol, d.trading_date as date
@@ -140,29 +155,31 @@ class DailyPricesValidator:
                     CROSS JOIN trading_days d
                 ),
                 actual_prices AS (
-                    SELECT symbol, date
-                    FROM intg_daily_price_{vendor}
-                    WHERE date BETWEEN $1 AND $2
+                    SELECT p.symbol, p.date
+                    FROM intg_daily_price_{vendor} p
+                    {universe_join}
+                    WHERE p.date BETWEEN $1 AND $2 {universe_where}
                 )
                 SELECT COUNT(*) as missing_count
                 FROM expected_prices e
                 LEFT JOIN actual_prices a ON e.symbol = a.symbol AND e.date = a.date
                 WHERE a.symbol IS NULL
-                """.replace("{vendor}", vendor)
+                """
 
                 missing_result = await conn.fetchrow(missing_query, start_date, end_date)
                 missing_count = missing_result['missing_count'] if missing_result else 0
 
                 # Count abnormal prices
-                abnormal_query = """
+                abnormal_query = f"""
                 SELECT
-                    COUNT(*) FILTER (WHERE close <= 0 OR high <= 0 OR low <= 0) as negative_prices,
-                    COUNT(*) FILTER (WHERE volume = 0) as zero_volume_prices,
-                    COUNT(*) FILTER (WHERE low > 0 AND high / low > 3.0) as price_spike_prices,
+                    COUNT(*) FILTER (WHERE p.close <= 0 OR p.high <= 0 OR p.low <= 0) as negative_prices,
+                    COUNT(*) FILTER (WHERE p.volume = 0) as zero_volume_prices,
+                    COUNT(*) FILTER (WHERE p.low > 0 AND p.high / p.low > 3.0) as price_spike_prices,
                     COUNT(*) as total_records
-                FROM intg_daily_price_{vendor}
-                WHERE date BETWEEN $1 AND $2
-                """.replace("{vendor}", vendor)
+                FROM intg_daily_price_{vendor} p
+                {universe_join}
+                WHERE p.date BETWEEN $1 AND $2 {universe_where}
+                """
 
                 abnormal_result = await conn.fetchrow(abnormal_query, start_date, end_date)
 
@@ -277,6 +294,7 @@ async def main():
     parser.add_argument("--days", type=int, default=90, help="Number of days to analyze (default: 90)")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--dry-run", action="store_true", help="Run without exporting metrics")
+    parser.add_argument("--universe-id", type=int, help="Universe ID to filter instruments (validate only instruments in this universe)")
 
     args = parser.parse_args()
 
@@ -289,10 +307,12 @@ async def main():
     logger.info(f"📅 Analysis period: {args.days} days")
     logger.info(f"🔧 Debug mode: {args.debug}")
     logger.info(f"🧪 Dry run mode: {args.dry_run}")
+    if args.universe_id:
+        logger.info(f"🌌 Universe filter: {args.universe_id}")
 
     try:
         # Initialize validator
-        validator = DailyPricesValidator()
+        validator = DailyPricesValidator(universe_id=args.universe_id)
 
         if args.dry_run:
             logger.info("🧪 DRY RUN: Running validation without metrics export")
