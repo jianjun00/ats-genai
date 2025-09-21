@@ -14,8 +14,9 @@ that replaces the training data generation system. It handles:
 
 import asyncio
 import logging
+import re
 from datetime import date, datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass, field
 
 from core.platform.config.environment import Environment, EnvironmentType
@@ -119,6 +120,31 @@ class FeatureCatalog:
     updated_at: Optional[datetime] = None
 
 
+@dataclass
+class FeaturePattern:
+    """Feature pattern record matching dev_feature_patterns schema."""
+    
+    id: Optional[int] = None
+    pattern: str = ""
+    feature_group_id: int = 0
+    pattern_type: str = "contains"
+    priority: int = 100
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+@dataclass
+class FeatureMappingResult:
+    """Result of feature name to feature group mapping."""
+    
+    feature_name: str = ""
+    feature_group_name: str = ""
+    feature_group_id: int = 0
+    match_type: str = "unknown"  # exact, pattern, default
+    pattern_matched: Optional[str] = None
+    confidence: float = 1.0
+
+
 class FeatureExtractionDAO:
     """Data Access Object for feature extraction system."""
 
@@ -127,6 +153,12 @@ class FeatureExtractionDAO:
         self.environment = environment
         self.logger = logging.getLogger(__name__)
         self.table_prefix = environment.env_type.value
+        
+        # Cache for performance optimization
+        self._feature_groups_cache: Optional[Dict[int, FeatureGroup]] = None
+        self._feature_catalog_cache: Optional[Dict[str, FeatureCatalog]] = None
+        self._feature_patterns_cache: Optional[List[FeaturePattern]] = None
+        self._cache_loaded = False
 
     async def create_feature_extraction_run(self, run: FeatureExtractionRun) -> int:
         """Create a new feature extraction run record."""
@@ -378,3 +410,155 @@ class FeatureExtractionDAO:
                 )
                 for row in rows
             ]
+
+    async def get_feature_group_mapping(self, feature_name: str) -> FeatureMappingResult:
+        """Map feature name to feature group using database patterns."""
+        await self._ensure_cache_loaded()
+        
+        # Try exact match first
+        if feature_name in self._feature_catalog_cache:
+            catalog_entry = self._feature_catalog_cache[feature_name]
+            group = self._feature_groups_cache.get(catalog_entry.feature_group_id)
+            if group:
+                return FeatureMappingResult(
+                    feature_name=feature_name,
+                    feature_group_name=group.group_name,
+                    feature_group_id=group.id,
+                    match_type="exact",
+                    confidence=1.0
+                )
+        
+        # Try pattern matching
+        for pattern in self._feature_patterns_cache:
+            match_result = self._test_pattern_match(feature_name, pattern)
+            if match_result:
+                group = self._feature_groups_cache.get(pattern.feature_group_id)
+                if group:
+                    return FeatureMappingResult(
+                        feature_name=feature_name,
+                        feature_group_name=group.group_name,
+                        feature_group_id=pattern.feature_group_id,
+                        match_type="pattern",
+                        pattern_matched=pattern.pattern,
+                        confidence=max(0.6, 1.0 - (pattern.priority / 1000.0))
+                    )
+        
+        # Default fallback to ohlcv_basic
+        default_group = next(
+            (g for g in self._feature_groups_cache.values() if g.group_name == "ohlcv_basic"),
+            None
+        )
+        if default_group:
+            return FeatureMappingResult(
+                feature_name=feature_name,
+                feature_group_name=default_group.group_name,
+                feature_group_id=default_group.id,
+                match_type="default",
+                confidence=0.3
+            )
+        
+        # Ultimate fallback
+        return FeatureMappingResult(
+            feature_name=feature_name,
+            feature_group_name="unknown",
+            feature_group_id=0,
+            match_type="unknown",
+            confidence=0.0
+        )
+
+    async def get_feature_mappings_batch(self, feature_names: List[str]) -> List[FeatureMappingResult]:
+        """Get feature group mappings for multiple features efficiently."""
+        await self._ensure_cache_loaded()
+        
+        results = []
+        for feature_name in feature_names:
+            mapping = await self.get_feature_group_mapping(feature_name)
+            results.append(mapping)
+        
+        return results
+
+    async def _ensure_cache_loaded(self) -> None:
+        """Ensure all caches are loaded."""
+        if not self._cache_loaded:
+            await self._load_feature_groups_cache()
+            await self._load_feature_catalog_cache()
+            await self._load_feature_patterns_cache()
+            self._cache_loaded = True
+
+    async def _load_feature_groups_cache(self) -> None:
+        """Load feature groups into cache."""
+        groups = await self.get_feature_groups(active_only=True)
+        self._feature_groups_cache = {group.id: group for group in groups}
+        self.logger.debug(f"Loaded {len(groups)} feature groups into cache")
+
+    async def _load_feature_catalog_cache(self) -> None:
+        """Load feature catalog into cache."""
+        async with self.environment.get_connection() as conn:
+            query = f"""
+            SELECT feature_name, feature_group_id, data_type, column_position,
+                   description, computation_method, dependencies, validation_rules
+            FROM {self.table_prefix}_feature_catalog
+            WHERE is_active = true
+            """
+            
+            rows = await conn.fetch(query)
+            self._feature_catalog_cache = {}
+            
+            for row in rows:
+                catalog_entry = FeatureCatalog(
+                    feature_name=row['feature_name'],
+                    feature_group_id=row['feature_group_id'],
+                    data_type=row['data_type'],
+                    column_position=row['column_position'],
+                    description=row['description'],
+                    computation_method=row['computation_method'],
+                    dependencies=row['dependencies'] or [],
+                    validation_rules=row['validation_rules']
+                )
+                self._feature_catalog_cache[row['feature_name']] = catalog_entry
+        
+        self.logger.debug(f"Loaded {len(self._feature_catalog_cache)} features into catalog cache")
+
+    async def _load_feature_patterns_cache(self) -> None:
+        """Load feature patterns into cache, sorted by priority."""
+        async with self.environment.get_connection() as conn:
+            query = f"""
+            SELECT id, pattern, feature_group_id, pattern_type, priority, description
+            FROM {self.table_prefix}_feature_patterns
+            ORDER BY priority ASC
+            """
+            
+            rows = await conn.fetch(query)
+            self._feature_patterns_cache = [
+                FeaturePattern(
+                    id=row['id'],
+                    pattern=row['pattern'],
+                    feature_group_id=row['feature_group_id'],
+                    pattern_type=row['pattern_type'],
+                    priority=row['priority'],
+                    description=row['description']
+                )
+                for row in rows
+            ]
+        
+        self.logger.debug(f"Loaded {len(self._feature_patterns_cache)} feature patterns into cache")
+
+    def _test_pattern_match(self, feature_name: str, pattern: FeaturePattern) -> bool:
+        """Test if feature name matches pattern."""
+        try:
+            if pattern.pattern_type == "exact":
+                return feature_name == pattern.pattern
+            elif pattern.pattern_type == "starts_with":
+                return feature_name.startswith(pattern.pattern)
+            elif pattern.pattern_type == "ends_with":
+                return feature_name.endswith(pattern.pattern)
+            elif pattern.pattern_type == "contains":
+                return pattern.pattern in feature_name
+            elif pattern.pattern_type == "regex":
+                return bool(re.match(pattern.pattern, feature_name))
+            else:
+                self.logger.warning(f"Unknown pattern type: {pattern.pattern_type}")
+                return False
+        except Exception as e:
+            self.logger.warning(f"Pattern matching error for {feature_name} with {pattern.pattern}: {e}")
+            return False
