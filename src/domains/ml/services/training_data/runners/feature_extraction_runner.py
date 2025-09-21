@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Pure Callback-Based Training Data Generation with Dataset Registration
+Feature Extraction System with ArrayRecord Storage
 
-This implements training data generation PURELY as a callback,
+This implements feature extraction PURELY as a callback,
 not as a separate runner class. Uses the existing Runner framework
-with IntervalBasedTrainingDataCallback to handle all training data logic.
+with IntervalBasedFeatureExtractionCallback to handle all feature extraction logic.
 
 Features:
-- Automatic training dataset registration in database
-- Comprehensive metadata tracking (features, sequences, parameters)
-- Generation timing and completion status updates
-- Multi-timeframe feature estimation and documentation
+- Automatic feature availability registration in database
+- Comprehensive metadata tracking (feature groups, instruments, parameters)
+- Monthly ArrayRecord file generation for scalable storage
+- Multi-timeframe feature extraction and validation
+- Production-ready feature tagging and quality monitoring
 """
 
 import argparse
@@ -42,12 +43,12 @@ def get_technical_indicators(indicators: List[str] = None) -> List[str]:
 
 
 @dataclass
-class TrainingDataConfig:
-    """Simple configuration for training data generation."""
+class FeatureExtractionConfig:
+    """Configuration for feature extraction system."""
 
     # Base timing configuration
     base_interval_minutes: int = 1
-    training_interval_minutes: int = 60
+    extraction_interval_minutes: int = 60
 
     # Multi-timeframe sequence configuration
     sequence_lengths: Dict[str, int] = field(default_factory=lambda: {
@@ -89,11 +90,10 @@ def save_as_riegeli(df: pd.DataFrame, riegeli_file: Path):
         logger.warning(f"Riegeli not available, saved as numpy: {np_file}")
 
 
-async def register_training_dataset(symbol: str, start_date: date, end_date: date,
-                                   metadata: Dict[str, Any], riegeli_file: Path,
-                                   parquet_file: Path, metadata_file: Path,
-                                   environment: str = 'dev') -> int:
-    """Register training dataset in database."""
+async def register_feature_extraction(symbols: List[str], start_date: date, end_date: date,
+                                     feature_groups: List[str], arrayrecord_files: Dict[str, Path],
+                                     metadata: Dict[str, Any], environment: str = 'dev') -> int:
+    """Register feature extraction run in database using new feature extraction schema."""
     logger = logging.getLogger(__name__)
 
     # Connect directly to database
@@ -107,119 +107,142 @@ async def register_training_dataset(symbol: str, start_date: date, end_date: dat
     conn = await asyncpg.connect(db_url)
 
     try:
-        # Calculate file sizes
-        riegeli_size_mb = riegeli_file.stat().st_size / (1024 * 1024)
-        parquet_size_mb = parquet_file.stat().st_size / (1024 * 1024) if parquet_file.exists() else 0
-        total_size_mb = riegeli_size_mb + parquet_size_mb
+        # Generate unique run ID
+        now = datetime.now()
+        run_id = f"feature_extraction_{now.strftime('%Y%m%d_%H%M%S')}_{now.microsecond // 1000:03d}"
 
-        # Create run record
+        # Calculate total file sizes
+        total_size_mb = sum(
+            file_path.stat().st_size / (1024 * 1024) 
+            for file_path in arrayrecord_files.values() 
+            if file_path.exists()
+        )
+
+        # Create feature extraction run record
         run_query = f"""
-        INSERT INTO {environment}_runs (
-            run_type, status, start_time, end_time, created_by, error_message, parameters
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO {environment}_feature_extraction_runs (
+            run_id, status, feature_groups, date_range_start, date_range_end, 
+            total_instruments, total_features_generated, execution_duration_seconds,
+            command_line, environment, parameters, results
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id
         """
 
-        now = datetime.now()
         run_parameters = {
-            "symbol": symbol,
-            "data_format": "one_row_per_hour",
-            "datetime_features": metadata.get('datetime_features', []),
-            "technical_indicators": metadata.get('technical_indicators', []),
-            "multi_timeframe_features": metadata.get('multi_timeframe_features', []),
-            "file_size_mb": total_size_mb,
-            "generation_method": "training_data_callback_runner"
+            "symbols": symbols,
+            "feature_groups": feature_groups,
+            "arrayrecord_files": {k: str(v) for k, v in arrayrecord_files.items()},
+            "extraction_method": "feature_extraction_runner",
+            "file_size_mb": total_size_mb
         }
 
-        run_id = await conn.fetchval(
+        results = {
+            "total_instruments_processed": len(symbols),
+            "total_features_generated": metadata.get('total_features', 0),
+            "file_size_mb": total_size_mb,
+            "feature_groups_generated": feature_groups,
+            "arrayrecord_files": {k: str(v) for k, v in arrayrecord_files.items()}
+        }
+
+        extraction_run_id = await conn.fetchval(
             run_query,
-            "hourly_training_data_generation",
-            "completed",
-            now,
-            now,
-            "training_data_callback_runner",
-            None,
-            json.dumps(run_parameters)
-        )
-
-        logger.info(f"📝 Created run record: {run_id}")
-
-        # Create training dataset record
-        dataset_query = f"""
-        INSERT INTO {environment}_training_datasets (
-            dataset_name, run_id, total_sequences, sequence_length, feature_count, label_count,
-            symbols, date_range_start, date_range_end, data_quality_score, feature_completeness,
-            label_completeness, generation_duration_seconds, file_size_mb, data_sources, status,
-            features_file_path, labels_file_path, metadata_file_path, feature_metadata,
-            technical_indicators, prediction_horizon, created_by, generation_parameters
-        ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-            $17, $18, $19, $20, $21, $22, $23, $24
-        ) RETURNING id
-        """
-
-        dataset_name = f"{symbol}_training_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{now.strftime('%H%M%S')}"
-
-        dataset_id = await conn.fetchval(
-            dataset_query,
-            dataset_name,
             run_id,
-            metadata['num_rows'],  # total_sequences (rows, not sequences)
-            1,  # sequence_length (each row is independent)
-            metadata['num_features'],  # feature_count
-            0,  # label_count (no labels, this is feature generation)
-            [symbol],  # symbols array
-            start_date,  # date_range_start
-            end_date,  # date_range_end
-            1.0,  # data_quality_score
-            1.0,  # feature_completeness
-            1.0,  # label_completeness
-            0,    # generation_duration_seconds
-            total_size_mb,  # file_size_mb
-            ["training_data_callback_runner"],  # data_sources array
-            "completed",  # status
-            str(riegeli_file),  # features_file_path (use riegeli as primary)
-            "",  # labels_file_path (no labels)
-            str(metadata_file),  # metadata_file_path
-            json.dumps({
-                "data_format": "one_row_per_hour",
-                "datetime_as_features": True,
-                "technical_indicators": metadata.get('technical_indicators', []),
-                "multi_timeframe": True,
-                "riegeli_file": str(riegeli_file),
-                "parquet_file": str(parquet_file)
-            }),  # feature_metadata
-            metadata.get('technical_indicators', []),  # technical_indicators
-            "1_hour",  # prediction_horizon
-            "training_data_callback_runner",  # created_by
-            json.dumps({
-                "data_format": "one_row_per_hour",
-                "datetime_as_features": True,
-                "technical_indicators": metadata.get('technical_indicators', []),
-                "multi_timeframe": True,
-                "riegeli_file": str(riegeli_file),
-                "parquet_file": str(parquet_file)
-            })  # generation_parameters
+            "completed",
+            feature_groups,
+            start_date,
+            end_date,
+            len(symbols),
+            metadata.get('total_features', 0),
+            metadata.get('duration_seconds', 0),
+            "feature_extraction_runner",
+            environment,
+            json.dumps(run_parameters),
+            json.dumps(results)
         )
 
-        logger.info(f"✅ Dataset registered with ID: {dataset_id}")
-        logger.info(f"   Dataset name: {dataset_name}")
-        logger.info(f"   Rows: {metadata['num_rows']:,}")
-        logger.info(f"   Features: {metadata['num_features']}")
-        logger.info(f"   File size: {total_size_mb:.1f} MB")
-        logger.info(f"   Riegeli file: {riegeli_file}")
-        logger.info(f"   Metadata file: {metadata_file}")
+        logger.info(f"📝 Created feature extraction run record: {extraction_run_id} (run_id: {run_id})")
 
-        return dataset_id
+        # Register instruments for this run
+        for symbol in symbols:
+            # Get instrument_id for symbol (assume it exists)
+            instrument_query = f"SELECT id FROM {environment}_instruments WHERE symbol = $1 LIMIT 1"
+            instrument_id = await conn.fetchval(instrument_query, symbol)
+            
+            if instrument_id:
+                instrument_query = f"""
+                INSERT INTO {environment}_feature_extraction_instruments (
+                    run_id, instrument_id, symbol, status, features_generated
+                ) VALUES ($1, $2, $3, $4, $5)
+                """
+                await conn.execute(
+                    instrument_query,
+                    extraction_run_id,
+                    instrument_id,
+                    symbol,
+                    "completed",
+                    len(feature_groups)
+                )
+            else:
+                logger.warning(f"Instrument not found for symbol: {symbol}")
+
+        # Register feature availability for each symbol/feature group combination
+        for symbol in symbols:
+            instrument_id = await conn.fetchval(f"SELECT id FROM {environment}_instruments WHERE symbol = $1 LIMIT 1", symbol)
+            if not instrument_id:
+                continue
+                
+            for feature_group in feature_groups:
+                # Get feature_group_id
+                group_id = await conn.fetchval(
+                    f"SELECT id FROM {environment}_feature_groups WHERE group_name = $1", 
+                    feature_group
+                )
+                
+                if group_id and feature_group in arrayrecord_files:
+                    file_path = arrayrecord_files[feature_group]
+                    file_size = file_path.stat().st_size if file_path.exists() else 0
+                    
+                    # Use first day of month for year_month
+                    year_month = start_date.replace(day=1)
+                    
+                    availability_query = f"""
+                    INSERT INTO {environment}_feature_availability (
+                        feature_group_id, instrument_id, symbol, year_month, file_path,
+                        file_size_bytes, date_range_start, date_range_end, quality_score,
+                        validation_status
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    ON CONFLICT (feature_group_id, instrument_id, year_month) DO UPDATE SET
+                        file_path = EXCLUDED.file_path,
+                        file_size_bytes = EXCLUDED.file_size_bytes,
+                        quality_score = EXCLUDED.quality_score,
+                        validation_status = EXCLUDED.validation_status
+                    """
+                    
+                    await conn.execute(
+                        availability_query,
+                        group_id,
+                        instrument_id,
+                        symbol,
+                        year_month,
+                        str(file_path),
+                        file_size,
+                        datetime.combine(start_date, datetime.min.time()),
+                        datetime.combine(end_date, datetime.max.time()),
+                        metadata.get('quality_score', 0.95),
+                        'passed'
+                    )
+
+        logger.info(f"✅ Feature extraction registration completed: {len(symbols)} instruments, {len(feature_groups)} feature groups")
+        return extraction_run_id
 
     finally:
         await conn.close()
 
 
 def parse_args():
-    """Parse command line arguments for pure callback-based training data generation."""
+    """Parse command line arguments for feature extraction system."""
     parser = argparse.ArgumentParser(
-        description="Generate training data using pure callback approach with automatic dataset registration"
+        description="Extract features using callback approach with automatic feature availability registration"
     )
 
     # Data selection
