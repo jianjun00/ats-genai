@@ -92,6 +92,92 @@ class UniverseStateIntervalBuilder(RunnerCallback):
     def handleEndOfDay(self, runner, current_time):
         self.logger.debug(f"UniverseStateIntervalBuilder.handleEndOfDay called at {current_time}")
 
+    async def handleTradingDayEnd(self, runner, current_time):
+        """
+        Handle trading day end events (market close) to build 1d universe state intervals.
+        
+        This method is called by Runner at market close time (e.g., 4 PM ET for NYSE)
+        and is responsible for building daily timeframe universe state.
+        """
+        self.logger.debug(f"handleTradingDayEnd called at {current_time}")
+        
+        try:
+            # Get active instrument IDs
+            instrument_ids = await runner.universe_manager.getUniverse(runner.universe_id)
+            
+            if instrument_ids:
+                # Build universe state for 1d timeframe
+                duration_1d = None
+                for duration in self.target_durations:
+                    if duration.get_duration_string() == '1d':
+                        duration_1d = duration
+                        break
+                
+                if duration_1d:
+                    self.logger.info(f"Building 1d universe state for {len(instrument_ids)} instruments at {current_time}")
+                    duration_to_state = await self._build_universe_state_for_duration(
+                        duration_1d, current_time, instrument_ids, runner
+                    )
+                    
+                    # Save the 1d universe state
+                    if duration_to_state and hasattr(runner, 'universe_state_manager'):
+                        await runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
+                        self.logger.info(f"✅ Saved 1d universe state for {len(instrument_ids)} instruments")
+                    else:
+                        self.logger.warning(f"No 1d universe state to save at {current_time}")
+                else:
+                    self.logger.warning("1d duration not found in target_durations")
+            else:
+                self.logger.warning(f"No active instruments for universe {runner.universe_id}")
+                
+        except Exception as e:
+            self.logger.error(f"CRITICAL ERROR in handleTradingDayEnd: {e}")
+            import traceback
+            traceback.print_exc()
+
+    async def handleTradingWeekEnd(self, runner, current_time):
+        """
+        Handle trading week end events (last trading day of week) to build 1w universe state intervals.
+        
+        This method is called by Runner at the end of the last trading day of each week
+        and is responsible for building weekly timeframe universe state.
+        """
+        self.logger.debug(f"handleTradingWeekEnd called at {current_time}")
+        
+        try:
+            # Get active instrument IDs
+            instrument_ids = await runner.universe_manager.getUniverse(runner.universe_id)
+            
+            if instrument_ids:
+                # Build universe state for 1w timeframe
+                duration_1w = None
+                for duration in self.target_durations:
+                    if duration.get_duration_string() == '1w':
+                        duration_1w = duration
+                        break
+                
+                if duration_1w:
+                    self.logger.info(f"Building 1w universe state for {len(instrument_ids)} instruments at {current_time}")
+                    duration_to_state = await self._build_universe_state_for_duration(
+                        duration_1w, current_time, instrument_ids, runner
+                    )
+                    
+                    # Save the 1w universe state
+                    if duration_to_state and hasattr(runner, 'universe_state_manager'):
+                        await runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
+                        self.logger.info(f"✅ Saved 1w universe state for {len(instrument_ids)} instruments")
+                    else:
+                        self.logger.warning(f"No 1w universe state to save at {current_time}")
+                else:
+                    self.logger.warning("1w duration not found in target_durations")
+            else:
+                self.logger.warning(f"No active instruments for universe {runner.universe_id}")
+                
+        except Exception as e:
+            self.logger.error(f"CRITICAL ERROR in handleTradingWeekEnd: {e}")
+            import traceback
+            traceback.print_exc()
+
     async def handleInterval(self, runner, current_time):
         """
         Handle 1-minute intervals. Updates rolling cache with 1-minute data on every call,
@@ -284,11 +370,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         elif duration_str == '60m' or duration_str == '1h':
             return minute == 0
         elif duration_str == '1d':
-            # Process daily at market close or specific hour (e.g., 4 PM ET = 16:00)
-            return hour == 16 and minute == 0
+            # 1d intervals now handled by handleTradingDayEnd event, not clock time
+            return False  # Remove clock-based 1d generation
         elif duration_str == '1w':
-            # Process weekly on Friday at market close
-            return current_time.weekday() == 4 and hour == 16 and minute == 0  # Friday
+            # 1w intervals now handled by handleTradingWeekEnd event, not clock time
+            return False  # Remove clock-based 1w generation
         else:
             # Default: process every interval for unknown durations
             return True
