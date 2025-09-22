@@ -42,7 +42,7 @@ class TestTradingCalendarArchitecture:
     def mock_universe_manager(self):
         """Mock universe manager."""
         manager = Mock()
-        manager.getUniverse = AsyncMock(return_value=[1, 2, 3])  # 3 test instruments
+        manager.instrument_ids = [1, 2, 3]  # 3 test instruments
         return manager
 
     @pytest.fixture
@@ -228,7 +228,7 @@ class TestTradingCalendarArchitecture:
         mock_runner = Mock()
         mock_runner.universe_id = 1
         mock_runner.universe_manager = Mock()
-        mock_runner.universe_manager.getUniverse = AsyncMock(return_value=[1, 2, 3])
+        mock_runner.universe_manager.instrument_ids = [1, 2, 3]
         mock_runner.universe_state_manager = Mock()
         mock_runner.universe_state_manager.addUniverseState = AsyncMock()
         

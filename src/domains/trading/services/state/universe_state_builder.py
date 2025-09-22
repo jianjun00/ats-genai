@@ -103,7 +103,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         
         try:
             # Get active instrument IDs
-            instrument_ids = await runner.universe_manager.getUniverse(runner.universe_id)
+            instrument_ids = runner.universe_manager.instrument_ids
             
             if instrument_ids:
                 # Build universe state for 1d timeframe
@@ -146,7 +146,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         
         try:
             # Get active instrument IDs
-            instrument_ids = await runner.universe_manager.getUniverse(runner.universe_id)
+            instrument_ids = runner.universe_manager.instrument_ids
             
             if instrument_ids:
                 # Build universe state for 1w timeframe
