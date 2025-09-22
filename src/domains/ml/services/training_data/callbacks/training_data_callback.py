@@ -200,7 +200,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
             # Save immediately if we have examples
             if examples_generated:
-                await self._save_simple_arrayrecord(examples_generated, current_time)
+                await self._save_simple_arrayrecord(examples_generated, current_time, runner)
 
         except Exception as e:
             self.logger.error(f"CRITICAL ERROR in handleInterval: {e}")
@@ -210,7 +210,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             self._ensure_writers_closed()
             raise  # Re-raise to maintain error propagation
 
-    async def _save_simple_arrayrecord(self, examples: List[Dict], current_time: datetime):
+    async def _save_simple_arrayrecord(self, examples: List[Dict], current_time: datetime, runner: Any):
         """
         STREAMING APPROACH: Initialize writers once, stream intervals as they're processed.
 
@@ -292,7 +292,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                         self.logger.warning(f"No monthly writer found for {monthly_file_key}")
 
     async def _categorize_features_by_group(self, features: Dict[str, Any], timeframe: str, 
-                                          feature_dao: FeatureExtractionDAO) -> Dict[str, Dict[str, Any]]:
+                                          feature_dao: Any) -> Dict[str, Dict[str, Any]]:
         """
         Categorize features into feature groups using database-driven mapping.
         
@@ -397,7 +397,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.logger.warning("Used fallback feature categorization due to database mapping failure")
         return {group: data for group, data in feature_groups_data.items() if data}
 
-    async def _get_feature_dao(self, runner) -> FeatureExtractionDAO:
+    async def _get_feature_dao(self, runner) -> Any:
         """Get or initialize FeatureExtractionDAO lazily."""
         if self._feature_dao is None:
             from domains.ml.services.training_data.dao.feature_extraction_dao import FeatureExtractionDAO
@@ -638,6 +638,40 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         Compatible with Google ArrayRecord standard for ML training data pipelines.
         """
 
+        # 🔍 DEBUG LOGGING: Capture inputs to identify 1d vs 5m timeframe differences
+        writer_info = getattr(writer, '_file_path', 'unknown') if hasattr(writer, '_file_path') else str(writer)
+        timeframe = "unknown"
+        if hasattr(writer, '_file_path'):
+            file_path = str(writer._file_path)
+            if '/5m/' in file_path:
+                timeframe = "5m"
+            elif '/1d/' in file_path:
+                timeframe = "1d" 
+            elif '/15m/' in file_path:
+                timeframe = "15m"
+            elif '/1h/' in file_path:
+                timeframe = "1h"
+            elif '/1w/' in file_path:
+                timeframe = "1w"
+
+        # Log detailed input analysis for debugging 1d empty issue
+        self.logger.debug(f"🔍 ARRAYRECORD WRITE DEBUG [{timeframe}]: symbol={symbol}")
+        self.logger.debug(f"🔍 ARRAYRECORD WRITE DEBUG [{timeframe}]: interval_keys={list(interval.keys())}")
+        self.logger.debug(f"🔍 ARRAYRECORD WRITE DEBUG [{timeframe}]: interval_values={interval}")
+        self.logger.debug(f"🔍 ARRAYRECORD WRITE DEBUG [{timeframe}]: writer={writer}")
+        self.logger.debug(f"🔍 ARRAYRECORD WRITE DEBUG [{timeframe}]: writer_type={type(writer)}")
+        
+        # Log critical OHLCV values for debugging
+        ohlcv_debug = {
+            'timestamp': interval.get('timestamp', 'MISSING'),
+            'open': interval.get('open', 'MISSING'),
+            'high': interval.get('high', 'MISSING'), 
+            'low': interval.get('low', 'MISSING'),
+            'close': interval.get('close', 'MISSING'),
+            'volume': interval.get('volume', 'MISSING')
+        }
+        self.logger.debug(f"🔍 ARRAYRECORD WRITE DEBUG [{timeframe}]: ohlcv_data={ohlcv_debug}")
+
         try:
             # 🚨 PROPER ARRAYRECORD FORMAT: Use efficient binary serialization
             # Research shows custom binary format is 3x more efficient than JSON
@@ -689,6 +723,9 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
             # Write binary record to ArrayRecord
             writer.write(binary_record)
+            
+            # 🔍 DEBUG LOGGING: Confirm successful write for debugging 1d empty issue
+            self.logger.debug(f"✅ ARRAYRECORD WRITE SUCCESS [{timeframe}]: {len(binary_record)} bytes written")
 
             # Log schema details on first write (for debugging)
             if not hasattr(self, '_schema_logged'):
@@ -705,6 +742,10 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                 self._schema_logged = True
 
         except Exception as e:
+            # 🔍 DEBUG LOGGING: Capture write failures for debugging 1d empty issue  
+            self.logger.error(f"❌ ARRAYRECORD WRITE FAILURE [{timeframe}]: {e}")
+            self.logger.error(f"❌ ARRAYRECORD WRITE FAILURE [{timeframe}]: symbol={symbol}")
+            self.logger.error(f"❌ ARRAYRECORD WRITE FAILURE [{timeframe}]: interval={interval}")
             print(f"❌ Error writing interval to writer: {e}")
             raise
 
@@ -775,16 +816,40 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         if minute == 0:
             target_timeframes.append('60m')
         
-        # 1d: Generate once per day at 00:00
-        if hour == 0 and minute == 0:
+        # 1d: For historical training data, generate daily data at ANY time within the target date range
+        # In real-time mode, this would be restricted to 00:00, but for training data we need 
+        # data for all days in the range regardless of the specific time
+        if self._is_historical_training_mode():
             target_timeframes.append('1d')
+        else:
+            # Real-time mode: Generate once per day at 00:00
+            if hour == 0 and minute == 0:
+                target_timeframes.append('1d')
         
-        # 1w: Generate once per week on Monday at 00:00
-        if weekday == 0 and hour == 0 and minute == 0:  # Monday 00:00
-            target_timeframes.append('1w')
+        # 1w: For historical training data, generate weekly data for any Monday
+        # In real-time mode, this would be restricted to Monday 00:00
+        if self._is_historical_training_mode():
+            if weekday == 0:  # Any time on Monday
+                target_timeframes.append('1w')
+        else:
+            # Real-time mode: Generate once per week on Monday at 00:00
+            if weekday == 0 and hour == 0 and minute == 0:  # Monday 00:00
+                target_timeframes.append('1w')
         
         return target_timeframes
     
+    def _is_historical_training_mode(self) -> bool:
+        """
+        Determine if this is historical training data generation vs real-time processing.
+        
+        Historical mode: Generate data for past dates (start_date/end_date are set)
+        Real-time mode: Generate data for current time only (no date range specified)
+        
+        For historical training data, we need to generate 1d/1w data for ALL relevant
+        intervals in the date range, not just at specific times like midnight.
+        """
+        # If start_date and end_date are explicitly set, this is historical training mode
+        return self.start_date is not None and self.end_date is not None
 
 
 # Backward compatibility alias
