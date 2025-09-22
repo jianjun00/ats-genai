@@ -554,18 +554,26 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
 
         for file_key, file_path in self.monthly_file_paths.items():
-            # Parse file_key: symbol_timeframe_YYYY_MM
+            # Parse file_key: symbol_featuregroup_timeframe_YYYY_MM
             parts = file_key.split('_')
-            if len(parts) < 4:
-                continue
-
-            symbol = parts[0]
-            timeframe = parts[1]
-            year_month = f"{parts[2]}_{parts[3]}"  # YYYY_MM
-
-            # Convert YYYY_MM to date object (first day of month)
-            year = int(parts[2])
-            month = int(parts[3])
+            if len(parts) < 5:
+                # Handle legacy format: symbol_timeframe_YYYY_MM
+                if len(parts) >= 4:
+                    symbol = parts[0]
+                    timeframe = parts[1]
+                    year_month = f"{parts[2]}_{parts[3]}"
+                    year = int(parts[2])
+                    month = int(parts[3])
+                else:
+                    continue
+            else:
+                # Handle new format: symbol_featuregroup_timeframe_YYYY_MM
+                symbol = parts[0]
+                feature_group = parts[1]  # 'basic', 'advanced', etc.
+                timeframe = parts[2]
+                year_month = f"{parts[3]}_{parts[4]}"  # YYYY_MM
+                year = int(parts[3])
+                month = int(parts[4])
             month_date = date(year, month, 1)
 
             # Group by symbol and month
