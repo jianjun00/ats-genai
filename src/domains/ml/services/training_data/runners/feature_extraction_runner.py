@@ -762,50 +762,8 @@ async def main():
         # Pass dataset_id to callback for completion tracking
         training_callback.dataset_id = dataset_id
 
-        # Create a run record for tracking monthly training data
-        try:
-            from domains.trading.services.core.app.database_manager import DatabaseManager
-            db_manager = DatabaseManager(environment)
-
-            # Create run record for this training data generation
-            run_parameters = {
-                "symbols": args.symbols,
-                "start_date": str(start_date),
-                "end_date": str(end_date),
-                "start_day_offset": args.start_day_offset,
-                "end_day_offset": args.end_day_offset,
-                "storage_format": args.storage_format,
-                "monthly_storage": True,
-                "dataset_id": dataset_id
-            }
-
-            async with db_manager.get_connection() as conn:
-                runs_table = environment.get_table_name("runs")
-                run_query = f"""
-                INSERT INTO {runs_table} (
-                    run_type, status, start_time, created_by, parameters
-                ) VALUES ($1, $2, $3, $4, $5)
-                RETURNING id
-                """
-
-                run_id = await conn.fetchval(
-                    run_query,
-                    "monthly_training_data_generation",
-                    "running",
-                    datetime.now(),
-                    "training_data_callback_runner",
-                    json.dumps(run_parameters)
-                )
-
-            # 🚨 REMOVED PROBLEMATIC LINE: training_callback.run_id = run_id  
-            # ISSUE: This was setting a database integer run_id, but the callback should use Runner's run_context.run_id
-            # FIX: Callback now gets run_id from runner.run_context.run_id in handleInterval method
-            logger.info(f"✅ Created run record for monthly training data tracking: {run_id}")
-            logger.info("✅ Callback will use Runner's run_context.run_id for database insertions")
-
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to create run record: {e}")
-            # Continue without run_id - monthly records won't be saved but training data will still be generated
+        # Run metadata tracking is handled by RunMetadataTracker inside the training callback
+        # No need for duplicate database operations here - keep it simple and fail-fast
         logger.info(f"✅ Training callback created successfully")
         logger.info(f"   Callback type: {type(training_callback).__name__}")
         logger.info(f"   Dataset ID: {dataset_id}")
