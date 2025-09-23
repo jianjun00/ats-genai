@@ -13,16 +13,16 @@ bind = ['enable_metrics', False]
 bind = ['strict_validation', True]
 
 # import app.indicator_runner  # Temporarily disabled due to protobuf dependency issues
-# Use the correct environment import path
-import src.core.shared.shared.data_handling.utils.environment
+# Use the correct environment import path  
+import src.core.platform.config.environment
 # import signals.indicator  # Temporarily disabled due to dependency on app.indicator_runner
 
 # Configure the environment for testing
 # Define macros for environment types
 TEST = "TEST"
 
-src.core.shared.shared.data_handling.utils.environment.Environment.env_type = %TEST
-src.core.shared.shared.data_handling.utils.environment.Environment.db_url = "postgresql://test_user:test_password@localhost:5432/test_db"
+src.core.platform.config.environment.Environment.env_type = %TEST
+src.core.platform.config.environment.Environment.db_url = "postgresql://test_user:test_password@localhost:5432/test_db"
 
 # Logging config - make it optional since it causes import issues
 # shared.data_handling.utils.environment.Environment.logging_config = @core.config.logging_config.LoggingConfig()

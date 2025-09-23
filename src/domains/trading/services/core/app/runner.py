@@ -168,6 +168,8 @@ class Runner:
         yield (start_time, "start")
         last_eod_date = None
         last_sod_date = None
+        last_trading_week_end_date = None
+        
         for day in trading_days:
             sod_time = datetime.combine(day, datetime.min.time())
             logging.debug(f"[Runner.iter_events] Yielding sod: {sod_time}")
@@ -189,7 +191,38 @@ class Runner:
                     logging.debug(f"[Runner.iter_events] Skipping interval outside trading hours: {current_interval_time}")
 
                 current_interval_time = self._advance_time(current_interval_time)
-            # EOD event
+            # Trading day end event (at market close, not midnight)
+            trading_day_end_time = sod_time.replace(
+                hour=self.trading_end_hour, 
+                minute=self.trading_end_minute, 
+                second=0, 
+                microsecond=0
+            )
+            logging.debug(f"[Runner.iter_events] Yielding trading_day_end: {trading_day_end_time}")
+            if last_eod_date != day:
+                yield (trading_day_end_time, "trading_day_end")
+                
+                # Check if this is the last trading day of the week
+                # Find next trading day to determine if this is week end
+                current_day_index = trading_days.index(day)
+                is_last_trading_day_of_week = True
+                
+                # Look ahead for next trading day
+                if current_day_index + 1 < len(trading_days):
+                    next_trading_day = trading_days[current_day_index + 1]
+                    # If next trading day is in the same calendar week, this is not week end
+                    current_week = day.isocalendar()[1]  # ISO week number
+                    next_week = next_trading_day.isocalendar()[1]
+                    is_last_trading_day_of_week = (current_week != next_week)
+                
+                # Yield trading week end event
+                if is_last_trading_day_of_week and last_trading_week_end_date != day:
+                    trading_week_end_time = trading_day_end_time  # Same time as trading day end
+                    logging.debug(f"[Runner.iter_events] Yielding trading_week_end: {trading_week_end_time}")
+                    yield (trading_week_end_time, "trading_week_end")
+                    last_trading_week_end_date = day
+                
+            # Traditional EOD event (at end of calendar day for system cleanup)
             eod_time = sod_time.replace(hour=23, minute=59, second=59, microsecond=0)
             logging.debug(f"[Runner.iter_events] Yielding eod: {eod_time}")
             if last_eod_date != day:
@@ -229,6 +262,20 @@ class Runner:
                             await result
                     else:
                         print(f"[PRINT][Runner.run] Callback {cb} has no handleInterval")
+            elif event_type == "trading_day_end":
+                # Handle trading day end (market close) - for 1d data generation
+                for cb in self.callbacks:
+                    if hasattr(cb, 'handleTradingDayEnd'):
+                        result = cb.handleTradingDayEnd(self, event_time)
+                        if hasattr(result, '__await__'):
+                            await result
+            elif event_type == "trading_week_end":
+                # Handle trading week end (last trading day of week) - for 1w data generation
+                for cb in self.callbacks:
+                    if hasattr(cb, 'handleTradingWeekEnd'):
+                        result = cb.handleTradingWeekEnd(self, event_time)
+                        if hasattr(result, '__await__'):
+                            await result
             elif event_type == "eod":
                 update = self.update_for_eod(event_time)
                 if hasattr(update, '__await__'):

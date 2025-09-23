@@ -554,18 +554,46 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
 
         for file_key, file_path in self.monthly_file_paths.items():
-            # Parse file_key: symbol_timeframe_YYYY_MM
+            # Parse file_key with robust year/month detection
+            # Expected format: various_components_YYYY_MM (year and month are always last 2 parts)
             parts = file_key.split('_')
             if len(parts) < 4:
                 continue
-
-            symbol = parts[0]
-            timeframe = parts[1]
-            year_month = f"{parts[2]}_{parts[3]}"  # YYYY_MM
-
-            # Convert YYYY_MM to date object (first day of month)
-            year = int(parts[2])
-            month = int(parts[3])
+            
+            # The year and month are always the last two parts
+            try:
+                month_str = parts[-1]
+                year_str = parts[-2]
+                
+                # Validate that these look like year/month
+                year = int(year_str)
+                month = int(month_str)
+                
+                # Basic validation
+                if year < 2000 or year > 2100 or month < 1 or month > 12:
+                    continue
+                
+                year_month = f"{year_str}_{month_str}"
+                
+                # Extract symbol (always first part)
+                symbol = parts[0]
+                
+                # Find timeframe by looking for specific patterns like '5m', '15m', '60m', '1h', '1d', '1w'
+                timeframe = None
+                import re
+                timeframe_pattern = re.compile(r'^\d+[mhdw]$')  # digit(s) followed by m/h/d/w
+                for part in parts[1:-2]:  # Exclude symbol and year/month
+                    if timeframe_pattern.match(part):
+                        timeframe = part
+                        break
+                
+                if not timeframe:
+                    # Fallback: assume second part is timeframe (legacy behavior)
+                    timeframe = parts[1] if len(parts) > 1 else 'unknown'
+                
+            except (ValueError, IndexError) as e:
+                # Skip files that don't match expected format
+                continue
             month_date = date(year, month, 1)
 
             # Group by symbol and month
@@ -816,40 +844,105 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         if minute == 0:
             target_timeframes.append('60m')
         
-        # 1d: For historical training data, generate daily data at ANY time within the target date range
-        # In real-time mode, this would be restricted to 00:00, but for training data we need 
-        # data for all days in the range regardless of the specific time
-        if self._is_historical_training_mode():
-            target_timeframes.append('1d')
-        else:
-            # Real-time mode: Generate once per day at 00:00
-            if hour == 0 and minute == 0:
-                target_timeframes.append('1d')
-        
-        # 1w: For historical training data, generate weekly data for any Monday
-        # In real-time mode, this would be restricted to Monday 00:00
-        if self._is_historical_training_mode():
-            if weekday == 0:  # Any time on Monday
-                target_timeframes.append('1w')
-        else:
-            # Real-time mode: Generate once per week on Monday at 00:00
-            if weekday == 0 and hour == 0 and minute == 0:  # Monday 00:00
-                target_timeframes.append('1w')
+        # 1d and 1w intervals should be handled by dedicated trading calendar events
+        # handleTradingDayEnd and handleTradingWeekEnd, not by clock time
+        # Remove hardcoded time logic - this will be event-driven
         
         return target_timeframes
     
-    def _is_historical_training_mode(self) -> bool:
+    async def handleTradingDayEnd(self, runner, current_time):
         """
-        Determine if this is historical training data generation vs real-time processing.
+        Handle trading day end events (market close) to generate 1d training data.
         
-        Historical mode: Generate data for past dates (start_date/end_date are set)
-        Real-time mode: Generate data for current time only (no date range specified)
-        
-        For historical training data, we need to generate 1d/1w data for ALL relevant
-        intervals in the date range, not just at specific times like midnight.
+        This method is called by Runner at market close time (e.g., 4 PM ET for NYSE)
+        and is responsible for generating daily timeframe training data.
         """
-        # If start_date and end_date are explicitly set, this is historical training mode
-        return self.start_date is not None and self.end_date is not None
+        self.logger.debug(f"handleTradingDayEnd called at {current_time}")
+        
+        if not self.training_generator:
+            return
+            
+        try:
+            # Generate 1d training examples for all symbols
+            examples_generated = []
+            
+            for symbol in self.symbols:
+                try:
+                    self.logger.debug(f"Generating 1d training example for {symbol} at {current_time}")
+                    example = await self.training_generator.generate_training_example(
+                        symbol=symbol,
+                        prediction_timestamp=current_time,
+                        target_timeframes=['1d']  # Generate daily timeframe only
+                    )
+                    
+                    if example and example.get('timeframe_features', {}).get('1d'):
+                        self.logger.debug(f"Generated 1d example for {symbol}")
+                        examples_generated.append(example)
+                    else:
+                        self.logger.warning(f"No 1d example generated for {symbol}")
+                        
+                except Exception as e:
+                    self.logger.error(f"Failed to generate 1d example for {symbol}: {e}")
+            
+            # Save daily training data if we have examples
+            if examples_generated:
+                self.logger.info(f"Saving {len(examples_generated)} daily examples at {current_time}")
+                await self._save_simple_arrayrecord(examples_generated, current_time, runner)
+                self.logger.info(f"✅ Daily training data saved for {len(examples_generated)} symbols")
+            else:
+                self.logger.warning(f"No daily examples to save at {current_time}")
+                
+        except Exception as e:
+            self.logger.error(f"CRITICAL ERROR in handleTradingDayEnd: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def handleTradingWeekEnd(self, runner, current_time):
+        """
+        Handle trading week end events (last trading day of week) to generate 1w training data.
+        
+        This method is called by Runner at the end of the last trading day of each week
+        and is responsible for generating weekly timeframe training data.
+        """
+        self.logger.debug(f"handleTradingWeekEnd called at {current_time}")
+        
+        if not self.training_generator:
+            return
+            
+        try:
+            # Generate 1w training examples for all symbols
+            examples_generated = []
+            
+            for symbol in self.symbols:
+                try:
+                    self.logger.debug(f"Generating 1w training example for {symbol} at {current_time}")
+                    example = await self.training_generator.generate_training_example(
+                        symbol=symbol,
+                        prediction_timestamp=current_time,
+                        target_timeframes=['1w']  # Generate weekly timeframe only
+                    )
+                    
+                    if example and example.get('timeframe_features', {}).get('1w'):
+                        self.logger.debug(f"Generated 1w example for {symbol}")
+                        examples_generated.append(example)
+                    else:
+                        self.logger.warning(f"No 1w example generated for {symbol}")
+                        
+                except Exception as e:
+                    self.logger.error(f"Failed to generate 1w example for {symbol}: {e}")
+            
+            # Save weekly training data if we have examples
+            if examples_generated:
+                self.logger.info(f"Saving {len(examples_generated)} weekly examples at {current_time}")
+                await self._save_simple_arrayrecord(examples_generated, current_time, runner)
+                self.logger.info(f"✅ Weekly training data saved for {len(examples_generated)} symbols")
+            else:
+                self.logger.warning(f"No weekly examples to save at {current_time}")
+                
+        except Exception as e:
+            self.logger.error(f"CRITICAL ERROR in handleTradingWeekEnd: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 # Backward compatibility alias
