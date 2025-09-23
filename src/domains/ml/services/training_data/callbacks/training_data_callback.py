@@ -554,26 +554,46 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
 
         for file_key, file_path in self.monthly_file_paths.items():
-            # Parse file_key: symbol_featuregroup_timeframe_YYYY_MM
+            # Parse file_key with robust year/month detection
+            # Expected format: various_components_YYYY_MM (year and month are always last 2 parts)
             parts = file_key.split('_')
-            if len(parts) < 5:
-                # Handle legacy format: symbol_timeframe_YYYY_MM
-                if len(parts) >= 4:
-                    symbol = parts[0]
-                    timeframe = parts[1]
-                    year_month = f"{parts[2]}_{parts[3]}"
-                    year = int(parts[2])
-                    month = int(parts[3])
-                else:
+            if len(parts) < 4:
+                continue
+            
+            # The year and month are always the last two parts
+            try:
+                month_str = parts[-1]
+                year_str = parts[-2]
+                
+                # Validate that these look like year/month
+                year = int(year_str)
+                month = int(month_str)
+                
+                # Basic validation
+                if year < 2000 or year > 2100 or month < 1 or month > 12:
                     continue
-            else:
-                # Handle new format: symbol_featuregroup_timeframe_YYYY_MM
+                
+                year_month = f"{year_str}_{month_str}"
+                
+                # Extract symbol (always first part)
                 symbol = parts[0]
-                feature_group = parts[1]  # 'basic', 'advanced', etc.
-                timeframe = parts[2]
-                year_month = f"{parts[3]}_{parts[4]}"  # YYYY_MM
-                year = int(parts[3])
-                month = int(parts[4])
+                
+                # Find timeframe by looking for specific patterns like '5m', '15m', '60m', '1h', '1d', '1w'
+                timeframe = None
+                import re
+                timeframe_pattern = re.compile(r'^\d+[mhdw]$')  # digit(s) followed by m/h/d/w
+                for part in parts[1:-2]:  # Exclude symbol and year/month
+                    if timeframe_pattern.match(part):
+                        timeframe = part
+                        break
+                
+                if not timeframe:
+                    # Fallback: assume second part is timeframe (legacy behavior)
+                    timeframe = parts[1] if len(parts) > 1 else 'unknown'
+                
+            except (ValueError, IndexError) as e:
+                # Skip files that don't match expected format
+                continue
             month_date = date(year, month, 1)
 
             # Group by symbol and month
