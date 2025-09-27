@@ -21,8 +21,8 @@ from pathlib import Path
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from market_data.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
-from core.run_aware_logging import setup_run_aware_logging
+from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
+from core.shared.run_aware_logging import setup_run_aware_logging
 
 
 async def run_daily_download(
