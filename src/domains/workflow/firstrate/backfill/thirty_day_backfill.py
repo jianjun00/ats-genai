@@ -247,7 +247,7 @@ class FirstRate30DayBackfill:
 
             logger.info(f"📥 Downloading {job.asset_type} data...")
             try:
-                success = await self.downloader.download_daily_data([job], download_date=None)
+                success = await self.downloader.download_daily_data([job], date_override=None)
                 results[job.asset_type] = success[job.asset_type] if success else False
                 
                 if results[job.asset_type]:
@@ -277,8 +277,8 @@ class FirstRate30DayBackfill:
             logger.error(f"❌ Daily download directory not found: {daily_dir}")
             return []
 
-        stock_files = list(daily_dir.glob('stock_*.zip'))
-        etf_files = list(daily_dir.glob('etf_*.zip'))
+        stock_files = list((daily_dir / 'stock').glob('stock_*.zip')) if (daily_dir / 'stock').exists() else []
+        etf_files = list((daily_dir / 'etf').glob('etf_*.zip')) if (daily_dir / 'etf').exists() else []
 
         logger.info(f"📁 Found {len(stock_files)} stock files, {len(etf_files)} ETF files")
 
@@ -297,58 +297,103 @@ class FirstRate30DayBackfill:
         logger.info(f"📊 Total symbols to process: {len(symbol_list)}")
         return symbol_list
 
-    async def process_symbol_month(
+    def get_daily_zip_files_for_date_range(self, start_date: date, end_date: date) -> List[Path]:
+        """Get all daily zip files within date range"""
+        zip_files = []
+        daily_stock_dir = self.data_path / 'daily' / 'stock'
+        daily_etf_dir = self.data_path / 'daily' / 'etf'
+        
+        for asset_dir in [daily_stock_dir, daily_etf_dir]:
+            if not asset_dir.exists():
+                continue
+            
+            for zip_file in sorted(asset_dir.glob('*_1min_adj_split.zip')):
+                zip_files.append(zip_file)
+        
+        return zip_files
+
+    async def process_symbol_from_daily_zips(
         self,
         symbol: str,
-        year: int,
-        month: int,
+        zip_files: List[Path],
         start_date: date,
         end_date: date
     ) -> int:
-        """Process one month of data for a symbol"""
-        month_key = f"{year}-{month:02d}"
+        """Process symbol from daily zip files and merge with existing monthly data"""
+        import pandas as pd
+        import zipfile
+        import io
         
-        if symbol in self.checkpoint_data.get('processing_completed', {}) and \
-           month_key in self.checkpoint_data['processing_completed'][symbol]:
+        logger.info(f"Processing {symbol} from {len(zip_files)} daily zip files")
+        
+        new_records = []
+        
+        for zip_file in zip_files:
+            try:
+                with zipfile.ZipFile(zip_file, 'r') as zf:
+                    txt_file = f"{symbol}_day_1min_adjsplit.txt"
+                    if txt_file not in zf.namelist():
+                        continue
+                    
+                    with zf.open(txt_file) as f:
+                        content = f.read()
+                        if len(content) < 50:
+                            continue
+                        
+                        df = pd.read_csv(
+                            io.BytesIO(content),
+                            header=None,
+                            names=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                        )
+                        
+                        df['timestamp'] = pd.to_datetime(df['timestamp'])
+                        df = df[(df['timestamp'].dt.date >= start_date) & (df['timestamp'].dt.date <= end_date)]
+                        
+                        if len(df) > 0:
+                            df['symbol'] = symbol
+                            df['vendor'] = 'firstrate'
+                            df['vwap'] = df['close']
+                            df['trade_count'] = 0
+                            df['quality_score'] = 1.0
+                            new_records.append(df)
+                            
+            except Exception as e:
+                logger.debug(f"Could not process {symbol} from {zip_file.name}: {e}")
+                continue
+        
+        if not new_records:
+            logger.debug(f"No new data for {symbol}")
             return 0
-
-        try:
-            existing_data = await self.minute_manager.get_minute_data(symbol, start_date, end_date)
+        
+        new_df = pd.concat(new_records, ignore_index=True)
+        new_df = new_df.drop_duplicates(subset=['timestamp'], keep='last')
+        new_df = new_df.sort_values('timestamp')
+        
+        monthly_groups = new_df.groupby([new_df['timestamp'].dt.year, new_df['timestamp'].dt.month])
+        
+        total_written = 0
+        for (year, month), month_df in monthly_groups:
+            symbol_dir = self.output_path / symbol[0] / symbol / str(year) / f"{month:02d}"
+            parquet_path = symbol_dir / f"{symbol}_{year}_{month:02d}.parquet"
             
-            new_bars = []
-            async for bar in self.adapter.get_minute_bars(symbol, start_date, end_date):
-                new_bars.append(MinuteBar(
-                    symbol=bar.symbol,
-                    timestamp=bar.timestamp,
-                    open_price=bar.open,
-                    high_price=bar.high,
-                    low_price=bar.low,
-                    close_price=bar.close,
-                    volume=bar.volume
-                ))
-
-            if new_bars:
-                all_bars = existing_data + new_bars
-                all_bars.sort(key=lambda x: x.timestamp)
+            if parquet_path.exists():
+                existing_df = pd.read_parquet(parquet_path)
+                merged_df = pd.concat([existing_df, month_df], ignore_index=True)
+                merged_df = merged_df.drop_duplicates(subset=['timestamp'], keep='last')
+                merged_df = merged_df.sort_values('timestamp')
                 
-                await self.minute_manager.store_minute_data(symbol, all_bars)
-                
-                if symbol not in self.checkpoint_data['processing_completed']:
-                    self.checkpoint_data['processing_completed'][symbol] = []
-                self.checkpoint_data['processing_completed'][symbol].append(month_key)
-                
-                self.checkpoint_data['stats']['records_written'] += len(new_bars)
-                if existing_data:
-                    self.checkpoint_data['stats']['merges_performed'] += 1
-                
-                logger.info(f"✅ {symbol} {month_key}: {len(new_bars)} new records, {len(all_bars)} total")
-                return len(new_bars)
-
-            return 0
-
-        except Exception as e:
-            logger.error(f"❌ {symbol} {month_key} failed: {e}")
-            return 0
+                new_count = len(merged_df) - len(existing_df)
+                logger.info(f"✅ {symbol} {year}-{month:02d}: merged {new_count} new records (was {len(existing_df)}, now {len(merged_df)})")
+                self.checkpoint_data['stats']['merges_performed'] += 1
+            else:
+                merged_df = month_df
+                logger.info(f"✅ {symbol} {year}-{month:02d}: created with {len(merged_df)} records")
+            
+            symbol_dir.mkdir(parents=True, exist_ok=True)
+            merged_df.to_parquet(parquet_path, engine='pyarrow', compression='snappy', index=False)
+            total_written += len(month_df)
+        
+        return total_written
 
     async def process_all_symbols(
         self,
@@ -357,24 +402,22 @@ class FirstRate30DayBackfill:
         end_date: date
     ) -> Dict:
         """Process all symbols for the date range"""
-        logger.info(f"🚀 Processing {len(symbols)} symbols...")
+        logger.info(f"🚀 Processing {len(symbols)} symbols from daily zip files...")
 
-        monthly_ranges = self.get_monthly_ranges(start_date, end_date)
-        logger.info(f"📅 Processing {len(monthly_ranges)} month ranges")
+        zip_files = self.get_daily_zip_files_for_date_range(start_date, end_date)
+        logger.info(f"📁 Found {len(zip_files)} daily zip files to process")
 
         total_records = 0
         for i, symbol in enumerate(symbols, 1):
             logger.info(f"🔄 Processing {symbol} ({i}/{len(symbols)})")
 
-            symbol_records = 0
-            for year, month, month_start, month_end in monthly_ranges:
-                records = await self.process_symbol_month(
-                    symbol, year, month, month_start, month_end
-                )
-                symbol_records += records
-
-            total_records += symbol_records
+            records = await self.process_symbol_from_daily_zips(
+                symbol, zip_files, start_date, end_date
+            )
+            
+            total_records += records
             self.checkpoint_data['stats']['symbols_processed'] += 1
+            self.checkpoint_data['stats']['records_written'] += records
             self.checkpoint_data['symbols_completed'] += 1
 
             if (i % 10) == 0:
@@ -390,6 +433,7 @@ class FirstRate30DayBackfill:
     async def run_full_backfill(
         self,
         download: bool = True,
+        symbols: Optional[List[str]] = None,
         limit: Optional[int] = None
     ) -> Dict:
         """Run complete 30-day backfill"""
@@ -405,11 +449,15 @@ class FirstRate30DayBackfill:
         else:
             logger.info("⏭️  Skipping download step")
 
-        symbols = await self.get_symbols_to_process(limit=limit)
+        if symbols:
+            symbol_list = symbols
+            logger.info(f"🎯 Specific symbols requested: {symbol_list}")
+        else:
+            symbol_list = await self.get_symbols_to_process(limit=limit)
         
         start_date, end_date = self.get_30_day_date_range()
         
-        process_results = await self.process_all_symbols(symbols, start_date, end_date)
+        process_results = await self.process_all_symbols(symbol_list, start_date, end_date)
 
         elapsed_time = time.time() - start_time
 
@@ -438,6 +486,8 @@ def main():
                         help="Output directory for processed files")
     parser.add_argument("--checkpoint-file", default="firstrate_30day_backfill.json",
                         help="Checkpoint file for resumable processing")
+    parser.add_argument("--symbols", type=str,
+                        help="Specific symbols to process (comma-separated)")
     parser.add_argument("--limit", type=int,
                         help="Limit number of symbols for testing")
     parser.add_argument("--debug", action="store_true",
@@ -462,8 +512,13 @@ def main():
     )
 
     try:
+        symbols = None
+        if args.symbols:
+            symbols = [s.strip() for s in args.symbols.split(',')]
+        
         result = asyncio.run(processor.run_full_backfill(
             download=args.full or not args.process_only,
+            symbols=symbols,
             limit=args.limit
         ))
 
