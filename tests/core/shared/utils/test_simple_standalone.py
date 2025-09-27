@@ -114,9 +114,3 @@ if __name__ == "__main__":
     print("  • analytics_api_dynamic.MockDataConfig - gin configurable mock data")
     print("  • polygon_adapter.PolygonAdapterConfig - gin configurable adapter settings")
     print("\n🚀 Our refactoring changes work independently of other system issues")
-
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
