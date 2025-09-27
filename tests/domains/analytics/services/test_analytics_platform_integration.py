@@ -30,15 +30,8 @@ class TestAnalyticsPlatformIntegration:
     def teardown_method(self):
         """Cleanup after each test"""
         for process in getattr(self, 'processes', []):
-            try:
-                process.terminate()
-                process.wait(timeout=5)
-            except:
-                try:
-                    process.kill()
-                except:
-                    pass
-
+            process.terminate()
+            process.wait(timeout=5)
     def test_check_port_availability(self):
         """Test if required ports are available"""
         ports_to_check = [3000, 8000]
@@ -66,30 +59,17 @@ class TestAnalyticsPlatformIntegration:
 
         # Check for Grafana
         if self._is_port_in_use(3000):
-            try:
-                response = requests.get('http://localhost:3000', timeout=2)
-                if 'grafana' in response.text.lower() or 'Grafana' in response.text:
-                    existing_services[3000] = "Grafana"
-                else:
-                    existing_services[3000] = "Unknown web service"
-            except:
-                existing_services[3000] = "Service (connection failed)"
-
-        # Check for existing API on 8000
+            response = requests.get('http://localhost:3000', timeout=2)
+            if 'grafana' in response.text.lower() or 'Grafana' in response.text:
+                existing_services[3000] = "Grafana"
+            else:
+                existing_services[3000] = "Unknown web service"
         if self._is_port_in_use(8000):
-            try:
-                response = requests.get('http://localhost:8000/health', timeout=2)
-                if response.status_code == 200:
-                    existing_services[8000] = "API service"
-                else:
-                    existing_services[8000] = "Unknown service"
-            except:
-                try:
-                    response = requests.get('http://localhost:8000', timeout=2)
-                    existing_services[8000] = "Web service"
-                except:
-                    existing_services[8000] = "Service (connection failed)"
-
+            response = requests.get('http://localhost:8000/health', timeout=2)
+            if response.status_code == 200:
+                existing_services[8000] = "API service"
+            else:
+                existing_services[8000] = "Unknown service"
         if existing_services:
             print(f"\n⚠️ Existing services detected:")
             for port, service in existing_services.items():
@@ -114,19 +94,15 @@ class TestAnalyticsPlatformIntegration:
             pytest.fail(f"❌ package.json not found: {package_json}")
 
         # Check if it's a React app and validate dependencies
-        try:
-            with open(package_json) as f:
-                package_data = json.load(f)
+        with open(package_json) as f:
+            package_data = json.load(f)
 
-            dependencies = package_data.get('dependencies', {})
-            if 'react' not in dependencies:
-                pytest.fail(f"❌ React not found in dependencies: {list(dependencies.keys())}")
+        dependencies = package_data.get('dependencies', {})
+        if 'react' not in dependencies:
+            pytest.fail(f"❌ React not found in dependencies: {list(dependencies.keys())}")
 
-            print(f"✅ Frontend directory is a React app")
-            print(f"   Dependencies: {list(dependencies.keys())[:5]}...")
-
-        except Exception as e:
-            pytest.fail(f"❌ Failed to parse package.json: {e}")
+        print(f"✅ Frontend directory is a React app")
+        print(f"   Dependencies: {list(dependencies.keys())[:5]}...")
 
     def test_frontend_dependencies_can_install(self):
         """Test if frontend dependencies can actually be installed - CRITICAL TEST"""
@@ -145,35 +121,29 @@ class TestAnalyticsPlatformIntegration:
             shutil.rmtree(node_modules)
 
         # Try to install dependencies
-        try:
-            result = subprocess.run(
-                ['npm', 'install'],
-                cwd=frontend_dir,
-                capture_output=True,
-                text=True,
-                timeout=120  # 2 minutes max
-            )
+        result = subprocess.run(
+            ['npm', 'install'],
+            cwd=frontend_dir,
+            capture_output=True,
+            text=True,
+            timeout=120  # 2 minutes max
+        )
 
-            if result.returncode == 0:
-                print(f"✅ npm install succeeded")
+        if result.returncode == 0:
+            print(f"✅ npm install succeeded")
 
-                # Verify critical dependencies were installed
-                critical_deps = ['react', 'react-dom', 'react-scripts']
-                for dep in critical_deps:
-                    dep_dir = node_modules / dep
-                    if not dep_dir.exists():
-                        pytest.fail(f"❌ Critical dependency {dep} not installed properly")
+            # Verify critical dependencies were installed
+            critical_deps = ['react', 'react-dom', 'react-scripts']
+            for dep in critical_deps:
+                dep_dir = node_modules / dep
+                if not dep_dir.exists():
+                    pytest.fail(f"❌ Critical dependency {dep} not installed properly")
 
-                print(f"✅ All critical dependencies installed")
+            print(f"✅ All critical dependencies installed")
 
-            else:
-                # This should FAIL the test to catch dependency issues
-                pytest.fail(f"❌ npm install failed: {result.stderr}")
-
-        except subprocess.TimeoutExpired:
-            pytest.fail(f"❌ npm install timed out after 2 minutes")
-        except Exception as e:
-            pytest.fail(f"❌ npm install failed with exception: {e}")
+        else:
+            # This should FAIL the test to catch dependency issues
+            pytest.fail(f"❌ npm install failed: {result.stderr}")
 
     def test_frontend_can_compile(self):
         """Test if React app can actually compile - CRITICAL TEST"""
@@ -194,41 +164,35 @@ class TestAnalyticsPlatformIntegration:
         env['CI'] = 'true'  # Prevent interactive prompts
         env['GENERATE_SOURCEMAP'] = 'false'  # Faster build
 
-        try:
-            result = subprocess.run(
-                ['npm', 'run', 'build'],
-                cwd=frontend_dir,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=180  # 3 minutes max
-            )
+        result = subprocess.run(
+            ['npm', 'run', 'build'],
+            cwd=frontend_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=180  # 3 minutes max
+        )
 
-            if result.returncode == 0:
-                print(f"✅ React app compiled successfully")
+        if result.returncode == 0:
+            print(f"✅ React app compiled successfully")
 
-                # Check if build directory was created
-                build_dir = frontend_dir / "build"
-                if build_dir.exists():
-                    print(f"✅ Build directory created")
+            # Check if build directory was created
+            build_dir = frontend_dir / "build"
+            if build_dir.exists():
+                print(f"✅ Build directory created")
 
-                    # Check for critical build files
-                    index_html = build_dir / "index.html"
-                    if index_html.exists():
-                        print(f"✅ index.html generated")
-                    else:
-                        pytest.fail(f"❌ index.html not generated in build")
+                # Check for critical build files
+                index_html = build_dir / "index.html"
+                if index_html.exists():
+                    print(f"✅ index.html generated")
                 else:
-                    pytest.fail(f"❌ Build directory not created")
-
+                    pytest.fail(f"❌ index.html not generated in build")
             else:
-                # This should FAIL the test to catch compilation issues
-                pytest.fail(f"❌ React compilation failed: {result.stderr}")
+                pytest.fail(f"❌ Build directory not created")
 
-        except subprocess.TimeoutExpired:
-            pytest.fail(f"❌ React compilation timed out after 3 minutes")
-        except Exception as e:
-            pytest.fail(f"❌ React compilation failed with exception: {e}")
+        else:
+            # This should FAIL the test to catch compilation issues
+            pytest.fail(f"❌ React compilation failed: {result.stderr}")
 
     def test_backend_api_can_start(self):
         """Test if backend API can start on an alternative port - ACTUALLY TEST STARTUP"""
@@ -253,50 +217,42 @@ class TestAnalyticsPlatformIntegration:
             '--log-level', 'warning'
         ]
 
-        try:
-            process = subprocess.Popen(
-                cmd,
-                cwd=self.root_dir,
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True
-            )
-            self.processes.append(process)
+        process = subprocess.Popen(
+            cmd,
+            cwd=self.root_dir,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        self.processes.append(process)
 
-            # Wait for startup and capture actual errors
-            startup_success = False
-            startup_error = None
+        # Wait for startup and capture actual errors
+        startup_success = False
+        startup_error = None
 
-            for i in range(20):  # Wait up to 20 seconds
-                # Check if process died
-                if process.poll() is not None:
-                    stdout, stderr = process.communicate()
-                    startup_error = f"Process died during startup. STDERR: {stderr}"
-                    print(f"❌ Backend process died: {stderr}")
-                    break
+        for i in range(20):  # Wait up to 20 seconds
+            # Check if process died
+            if process.poll() is not None:
+                stdout, stderr = process.communicate()
+                startup_error = f"Process died during startup. STDERR: {stderr}"
+                print(f"❌ Backend process died: {stderr}")
+                break
 
-                try:
-                    response = requests.get(f'http://localhost:{test_port}/health', timeout=1)
-                    if response.status_code == 200:
-                        startup_success = True
-                        print(f"✅ Backend started successfully on port {test_port}")
-                        print(f"   Health check: {response.json()}")
-                        break
-                except requests.RequestException:
-                    time.sleep(1)
+            response = requests.get(f'http://localhost:{test_port}/health', timeout=1)
+            if response.status_code == 200:
+                startup_success = True
+                print(f"✅ Backend started successfully on port {test_port}")
+                print(f"   Health check: {response.json()}")
+                break
+        if not startup_success:
+            if not startup_error:
+                # Process still running but not responding
+                stdout, stderr = process.communicate(timeout=5)
+                startup_error = f"Backend not responding after 20s. STDERR: {stderr}"
 
-            if not startup_success:
-                if not startup_error:
-                    # Process still running but not responding
-                    stdout, stderr = process.communicate(timeout=5)
-                    startup_error = f"Backend not responding after 20s. STDERR: {stderr}"
-
-                # This should FAIL the test to detect issues
-                pytest.fail(f"❌ Backend startup failed: {startup_error}")
-
-        except Exception as e:
-            pytest.fail(f"❌ Failed to start backend: {e}")
+            # This should FAIL the test to detect issues
+            pytest.fail(f"❌ Backend startup failed: {startup_error}")
 
     def test_api_endpoints_respond(self):
         """Test that API endpoints respond correctly"""
@@ -315,13 +271,9 @@ class TestAnalyticsPlatformIntegration:
         ]
 
         for endpoint, expected_status in endpoints_to_test:
-            try:
-                response = requests.get(f'http://localhost:{test_port}{endpoint}', timeout=5)
-                assert response.status_code == expected_status, f"Endpoint {endpoint} returned {response.status_code}, expected {expected_status}"
-                print(f"✅ {endpoint} responds correctly ({response.status_code})")
-            except requests.RequestException as e:
-                pytest.fail(f"❌ Failed to connect to {endpoint}: {e}")
-
+            response = requests.get(f'http://localhost:{test_port}{endpoint}', timeout=5)
+            assert response.status_code == expected_status, f"Endpoint {endpoint} returned {response.status_code}, expected {expected_status}"
+            print(f"✅ {endpoint} responds correctly ({response.status_code})")
     def test_production_backtest_runner_exists(self):
         """Test that production backtest runner exists and is executable"""
         runner_path = self.root_dir / "scripts/analytics/production_backtest_runner.py"
@@ -336,12 +288,8 @@ class TestAnalyticsPlatformIntegration:
         print(f"✅ Production backtest runner exists and is accessible")
 
         # Test if it can be imported
-        try:
-            sys.path.insert(0, str(runner_path.parent))
-            print(f"✅ Production backtest runner can be imported")
-        except ImportError as e:
-            pytest.fail(f"❌ Failed to import production backtest runner: {e}")
-
+        sys.path.insert(0, str(runner_path.parent))
+        print(f"✅ Production backtest runner can be imported")
     def test_setup_script_exists(self):
         """Test that setup script exists"""
         setup_path = self.root_dir / "scripts/analytics/setup_dev_web_interface.py"
@@ -411,32 +359,24 @@ class TestAnalyticsPlatformIntegration:
     def _is_port_in_use(self, port: int) -> bool:
         """Check if a port is in use"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(('localhost', port))
-                return False
-            except OSError:
-                return True
-
+            s.bind(('localhost', port))
+            return False
     def _get_service_on_port(self, port: int) -> str:
         """Try to identify what service is running on a port"""
-        try:
-            response = requests.get(f'http://localhost:{port}', timeout=2)
+        response = requests.get(f'http://localhost:{port}', timeout=2)
 
-            # Check for common services
-            content = response.text.lower()
-            if 'grafana' in content:
-                return "Grafana dashboard"
-            elif 'fastapi' in content or 'openapi' in content:
-                return "FastAPI application"
-            elif 'react' in content or 'webpack' in content:
-                return "React development server"
-            elif 'nginx' in content:
-                return "Nginx web server"
-            else:
-                return f"Web service (HTTP {response.status_code})"
-
-        except requests.RequestException:
-            return "Service (no HTTP response)"
+        # Check for common services
+        content = response.text.lower()
+        if 'grafana' in content:
+            return "Grafana dashboard"
+        elif 'fastapi' in content or 'openapi' in content:
+            return "FastAPI application"
+        elif 'react' in content or 'webpack' in content:
+            return "React development server"
+        elif 'nginx' in content:
+            return "Nginx web server"
+        else:
+            return f"Web service (HTTP {response.status_code})"
 
     def _find_free_port(self, start_port: int, end_port: int) -> int:
         """Find a free port in the given range"""
@@ -474,77 +414,63 @@ class TestRealWorldScenarios:
         """Test the specific Grafana conflict scenario"""
         if self._is_port_in_use(3000):
             # Try to detect if it's actually Grafana
-            try:
-                response = requests.get('http://localhost:3000', timeout=3)
-                is_grafana = 'grafana' in response.text.lower() or 'Grafana' in response.text
+            response = requests.get('http://localhost:3000', timeout=3)
+            is_grafana = 'grafana' in response.text.lower() or 'Grafana' in response.text
 
-                if is_grafana:
-                    print(f"✅ Confirmed: Grafana is running on port 3000")
-                    print(f"   Title: {response.text[:100]}...")
+            if is_grafana:
+                print(f"✅ Confirmed: Grafana is running on port 3000")
+                print(f"   Title: {response.text[:100]}...")
 
-                    # This is the exact issue we need to solve
-                    assert True, "Grafana conflict detected as expected"
-                else:
-                    print(f"⚠️ Something else is on port 3000 (not Grafana)")
-                    print(f"   Content preview: {response.text[:100]}...")
+                # This is the exact issue we need to solve
+                assert True, "Grafana conflict detected as expected"
+            else:
+                print(f"⚠️ Something else is on port 3000 (not Grafana)")
+                print(f"   Content preview: {response.text[:100]}...")
 
-            except Exception as e:
-                print(f"⚠️ Port 3000 is in use but couldn't identify service: {e}")
-        else:
             pytest.skip("Port 3000 is not in use - cannot test Grafana conflict")
 
     def test_database_connectivity(self):
         """Test if database is accessible - CRITICAL FOR BACKEND"""
-        try:
-            import asyncpg
+        import asyncpg
 
-            # Try different connection parameters that the backend might use
-            db_configs = [
-                {"host": "localhost", "port": 5432, "user": "postgres", "password": "postgres", "database": "dev_db"},
-                {"host": "localhost", "port": 5432, "user": "postgres", "password": "dev_password", "database": "dev_db"},
-                {"host": "localhost", "port": 5433, "user": "postgres", "password": "postgres", "database": "dev_db"},
-                {"host": "localhost", "port": 5433, "user": "postgres", "password": "dev_password", "database": "dev_db"},
-            ]
+        # Try different connection parameters that the backend might use
+        db_configs = [
+            {"host": "localhost", "port": 5432, "user": "postgres", "password": "postgres", "database": "dev_db"},
+            {"host": "localhost", "port": 5432, "user": "postgres", "password": "dev_password", "database": "dev_db"},
+            {"host": "localhost", "port": 5433, "user": "postgres", "password": "postgres", "database": "dev_db"},
+            {"host": "localhost", "port": 5433, "user": "postgres", "password": "dev_password", "database": "dev_db"},
+        ]
 
-            connected = False
-            successful_config = None
-            connection_errors = []
+        connected = False
+        successful_config = None
+        connection_errors = []
 
-            print(f"🧪 Testing database connectivity (required for backend)")
+        print(f"🧪 Testing database connectivity (required for backend)")
 
-            for config in db_configs:
-                try:
-                    # Test connection
-                    import asyncio
+        for config in db_configs:
+            # Test connection
+            import asyncio
 
-                    @pytest.mark.asyncio
+            @pytest.mark.asyncio
 
-                    async def test_connection():
-                        conn = await asyncpg.connect(**config)
-                        await conn.close()
-                        return True
+            async def test_connection():
+                conn = await asyncpg.connect(**config)
+                await conn.close()
+                return True
 
-                    asyncio.run(test_connection())
-                    print(f"✅ Database connection successful: {config['host']}:{config['port']} user={config['user']}")
-                    connected = True
-                    successful_config = config
-                    break
+            asyncio.run(test_connection())
+            print(f"✅ Database connection successful: {config['host']}:{config['port']} user={config['user']}")
+            connected = True
+            successful_config = config
+            break
 
-                except Exception as e:
-                    error_msg = f"{config['host']}:{config['port']} user={config['user']} - {e}"
-                    connection_errors.append(error_msg)
-                    print(f"❌ Database connection failed: {error_msg}")
-
-            if not connected:
-                # This should FAIL to catch database auth issues that break backend
-                full_error = "\\n".join(connection_errors)
-                pytest.fail(f"❌ Could not connect to database with any configuration:\\n{full_error}\\nThis will cause backend startup to fail!")
-            else:
-                # Store successful config for other tests
-                self.db_config = successful_config
-
-        except ImportError:
-            pytest.fail("❌ asyncpg not available - this is required for backend database connectivity")
+        if not connected:
+            # This should FAIL to catch database auth issues that break backend
+            full_error = "\\n".join(connection_errors)
+            pytest.fail(f"❌ Could not connect to database with any configuration:\\n{full_error}\\nThis will cause backend startup to fail!")
+        else:
+            # Store successful config for other tests
+            self.db_config = successful_config
 
     def test_backend_database_integration(self):
         """Test if backend can connect to database - CRITICAL INTEGRATION TEST"""
@@ -554,42 +480,32 @@ class TestRealWorldScenarios:
         print(f"🧪 Testing backend database integration")
 
         # Test if the analytics engine can initialize with database
-        try:
-            import sys
-            from pathlib import Path
-            sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-            from domains.analytics.services.portfolio_analytics import PortfolioAnalyticsEngine
-            import asyncio
+        from domains.analytics.services.portfolio_analytics import PortfolioAnalyticsEngine
+        import asyncio
 
-            @pytest.mark.asyncio
+        @pytest.mark.asyncio
 
-            async def test_analytics_engine():
-                # Try to create engine with database connection
-                db_url = f"postgresql://{self.db_config['user']}:{self.db_config['password']}@{self.db_config['host']}:{self.db_config['port']}/{self.db_config['database']}"
+        async def test_analytics_engine():
+            # Try to create engine with database connection
+            db_url = f"postgresql://{self.db_config['user']}:{self.db_config['password']}@{self.db_config['host']}:{self.db_config['port']}/{self.db_config['database']}"
 
-                engine = PortfolioAnalyticsEngine(db_url=db_url)
-                await engine.initialize()
-                await engine.close()
-                return True
+            engine = PortfolioAnalyticsEngine(db_url=db_url)
+            await engine.initialize()
+            await engine.close()
+            return True
 
-            asyncio.run(test_analytics_engine())
-            print(f"✅ Analytics engine can connect to database")
-
-        except Exception as e:
-            # This should FAIL to catch analytics engine issues
-            pytest.fail(f"❌ Analytics engine cannot connect to database: {e}\\nThis will cause backend startup to fail!")
+        asyncio.run(test_analytics_engine())
+        print(f"✅ Analytics engine can connect to database")
 
     def _is_port_in_use(self, port: int) -> bool:
         """Check if a port is in use"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(('localhost', port))
-                return False
-            except OSError:
-                return True
-
-
+            s.bind(('localhost', port))
+            return False
 if __name__ == "__main__":
     # Run the tests
     pytest.main([__file__, "-v", "--tb=short"])

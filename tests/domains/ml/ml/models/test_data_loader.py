@@ -12,7 +12,7 @@ import torch
 from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock, patch
 
-from models.data_loader import (
+from domains.ml.models.data_loader import (
     TFTDataConfig,
     FeatureNormalizer,
     TFTDataset,

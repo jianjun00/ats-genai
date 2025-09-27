@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsDatasetService:
@@ -55,13 +49,7 @@ class TestRealObjectsDatasetService:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_service_initialization_success_real_objects(self, real_service, test_data):
         """Real objects version of test_service_initialization_success"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.service_initialization_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.service_initialization_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_service_initialization_db_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_service_initialization_db_failure"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.service_initialization_db_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.service_initialization_db_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_dataset_metadata_success_real_objects(self, real_service, test_data):
         """Real objects version of test_get_dataset_metadata_success"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_dataset_metadata_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_dataset_metadata_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_dataset_metadata_not_found_real_objects(self, real_service, test_data):
         """Real objects version of test_get_dataset_metadata_not_found"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_dataset_metadata_not_found_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_dataset_metadata_not_found_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_list_datasets_with_filters_real_objects(self, real_service, test_data):
         """Real objects version of test_list_datasets_with_filters"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.list_datasets_with_filters_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.list_datasets_with_filters_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_file_iterator_with_memory_estimation_real_objects(self, real_service, test_data):
         """Real objects version of test_create_file_iterator_with_memory_estimation"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_file_iterator_with_memory_estimation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_file_iterator_with_memory_estimation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_dataset_availability_all_accessible_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_dataset_availability_all_accessible"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_dataset_availability_all_accessible_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_dataset_availability_all_accessible_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_dataset_availability_partial_accessible_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_dataset_availability_partial_accessible"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_dataset_availability_partial_accessible_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_dataset_availability_partial_accessible_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_file_iterators_success_real_objects(self, real_service, test_data):
         """Real objects version of test_get_file_iterators_success"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_file_iterators_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_file_iterators_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_dataset_statistics_comprehensive_real_objects(self, real_service, test_data):
         """Real objects version of test_get_dataset_statistics_comprehensive"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_dataset_statistics_comprehensive_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_dataset_statistics_comprehensive_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_file_iterator_config_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_file_iterator_config_generation"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.file_iterator_config_generation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.file_iterator_config_generation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_search_datasets_by_name_real_objects(self, real_service, test_data):
         """Real objects version of test_search_datasets_by_name"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.search_datasets_by_name_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.search_datasets_by_name_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_database_error_handling"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_memory_estimation_accuracy_real_objects(self, real_service, test_data):
         """Real objects version of test_memory_estimation_accuracy"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.memory_estimation_accuracy_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.memory_estimation_accuracy_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_iterator_config_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_iterator_config_generation"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.iterator_config_generation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.iterator_config_generation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_small_dataset_recommendations_real_objects(self, real_service, test_data):
         """Real objects version of test_small_dataset_recommendations"""
         # Test with real database integration
@@ -406,15 +304,8 @@ class TestRealObjectsDatasetService:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.small_dataset_recommendations_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.small_dataset_recommendations_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

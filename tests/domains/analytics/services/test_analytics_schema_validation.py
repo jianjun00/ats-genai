@@ -139,68 +139,50 @@ class TestDatabaseSchemaValidation:
         """Test that all analytics service queries have correct syntax."""
 
         # Test jobs query (this was failing with wrong column names)
-        try:
-            jobs = await db_connection.fetch("""
-                SELECT
-                    id,
-                    run_type,
-                    status,
-                    start_time,
-                    symbols
-                FROM dev_runs
-                ORDER BY start_time DESC NULLS LAST, id DESC
-                LIMIT 5
-            """)
-            assert True, "Jobs query should execute without syntax errors"
-        except Exception as e:
-            pytest.fail(f"Jobs query failed with syntax error: {e}")
-
-        # Test dataset query
-        try:
-            datasets = await db_connection.fetch("""
-                SELECT
-                    id as dataset_id,
-                    dataset_name,
-                    symbols,
-                    total_sequences,
-                    feature_count,
-                    sequence_length,
-                    file_size_mb,
-                    status,
-                    creation_timestamp as created_at
-                FROM dev_training_dataset
-                ORDER BY creation_timestamp DESC
-                LIMIT 5
-            """)
-            assert True, "Dataset query should execute without syntax errors"
-        except Exception as e:
-            pytest.fail(f"Dataset query failed with syntax error: {e}")
-
-        # Test coverage queries (these were failing with wrong column names)
+        jobs = await db_connection.fetch("""
+            SELECT
+                id,
+                run_type,
+                status,
+                start_time,
+                symbols
+            FROM dev_runs
+            ORDER BY start_time DESC NULLS LAST, id DESC
+            LIMIT 5
+        """)
+        assert True, "Jobs query should execute without syntax errors"
+        datasets = await db_connection.fetch("""
+            SELECT
+                id as dataset_id,
+                dataset_name,
+                symbols,
+                total_sequences,
+                feature_count,
+                sequence_length,
+                file_size_mb,
+                status,
+                creation_timestamp as created_at
+            FROM dev_training_dataset
+            ORDER BY creation_timestamp DESC
+            LIMIT 5
+        """)
+        assert True, "Dataset query should execute without syntax errors"
         polygon_exists = await db_connection.fetchval(
             "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_polygon_prices')"
         )
         if polygon_exists:
-            try:
-                polygon_count = await db_connection.fetchval(
-                    "SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'"
-                )
-                assert polygon_count is not None, "Polygon coverage query should return a result"
-            except Exception as e:
-                pytest.fail(f"Polygon coverage query failed: {e}")
-
+            polygon_count = await db_connection.fetchval(
+                "SELECT COUNT(DISTINCT symbol) FROM dev_polygon_prices WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'"
+            )
+            assert polygon_count is not None, "Polygon coverage query should return a result"
         tiingo_exists = await db_connection.fetchval(
             "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'dev_tiingo_prices')"
         )
         if tiingo_exists:
-            try:
-                tiingo_count = await db_connection.fetchval(
-                    "SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'"
-                )
-                assert tiingo_count is not None, "Tiingo coverage query should return a result"
-            except Exception as e:
-                pytest.fail(f"Tiingo coverage query failed: {e}")
-
+            tiingo_count = await db_connection.fetchval(
+                "SELECT COUNT(DISTINCT symbol) FROM dev_tiingo_prices WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'"
+            )
+            assert tiingo_count is not None, "Tiingo coverage query should return a result"
     @pytest.mark.asyncio
 
     async def test_separate_coverage_queries_avoid_union_issues(self, db_connection):
@@ -214,63 +196,51 @@ class TestDatabaseSchemaValidation:
         )
 
         if polygon_exists:
-            try:
-                # Test polygon query separately
-                polygon_data = await db_connection.fetch("""
-                    SELECT
-                        'polygon' as vendor,
-                        symbol,
-                        COUNT(*) as data_points
-                    FROM dev_polygon_prices
-                    WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
-                    GROUP BY symbol
-                    ORDER BY data_points DESC
-                    LIMIT 3
-                """)
-                assert isinstance(polygon_data, list), "Polygon query should return a list"
-            except Exception as e:
-                pytest.fail(f"Separate polygon query failed: {e}")
-
+            # Test polygon query separately
+            polygon_data = await db_connection.fetch("""
+                SELECT
+                    'polygon' as vendor,
+                    symbol,
+                    COUNT(*) as data_points
+                FROM dev_polygon_prices
+                WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
+                GROUP BY symbol
+                ORDER BY data_points DESC
+                LIMIT 3
+            """)
+            assert isinstance(polygon_data, list), "Polygon query should return a list"
         if tiingo_exists:
-            try:
-                # Test tiingo query separately
-                tiingo_data = await db_connection.fetch("""
-                    SELECT
-                        'tiingo' as vendor,
-                        symbol,
-                        COUNT(*) as data_points
-                    FROM dev_tiingo_prices
-                    WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'
-                    GROUP BY symbol
-                    ORDER BY data_points DESC
-                    LIMIT 3
-                """)
-                assert isinstance(tiingo_data, list), "Tiingo query should return a list"
-            except Exception as e:
-                pytest.fail(f"Separate tiingo query failed: {e}")
-
+            # Test tiingo query separately
+            tiingo_data = await db_connection.fetch("""
+                SELECT
+                    'tiingo' as vendor,
+                    symbol,
+                    COUNT(*) as data_points
+                FROM dev_tiingo_prices
+                WHERE collected_at >= CURRENT_DATE - INTERVAL '1 day'
+                GROUP BY symbol
+                ORDER BY data_points DESC
+                LIMIT 3
+            """)
+            assert isinstance(tiingo_data, list), "Tiingo query should return a list"
     @pytest.mark.asyncio
 
     async def test_job_statistics_queries(self, db_connection):
         """Test job statistics queries work with correct column names."""
-        try:
-            # These were failing because of concurrent connection usage
-            total = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs")
-            running = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'running'")
-            completed = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'completed'")
-            failed = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'failed'")
+        # These were failing because of concurrent connection usage
+        total = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs")
+        running = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'running'")
+        completed = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'completed'")
+        failed = await db_connection.fetchval("SELECT COUNT(*) FROM dev_runs WHERE status = 'failed'")
 
-            assert total is not None, "Total jobs count should not be None"
-            assert running is not None, "Running jobs count should not be None"
-            assert completed is not None, "Completed jobs count should not be None"
-            assert failed is not None, "Failed jobs count should not be None"
+        assert total is not None, "Total jobs count should not be None"
+        assert running is not None, "Running jobs count should not be None"
+        assert completed is not None, "Completed jobs count should not be None"
+        assert failed is not None, "Failed jobs count should not be None"
 
-            # Basic sanity check
-            assert total >= 0, "Job counts should be non-negative"
-            assert running + completed + failed <= total, "Status counts should not exceed total"
-
-        except Exception as e:
-            pytest.fail(f"Job statistics query failed: {e}")
+        # Basic sanity check
+        assert total >= 0, "Job counts should be non-negative"
+        assert running + completed + failed <= total, "Status counts should not exceed total"
 
     @pytest.mark.asyncio
 

@@ -51,29 +51,24 @@ class DeploymentOptimizer:
 
         # Analyze each Docker Compose file
         for compose_file in self.docker_compose_files:
-            try:
-                with open(compose_file, 'r') as f:
-                    compose_data = yaml.safe_load(f)
+            with open(compose_file, 'r') as f:
+                compose_data = yaml.safe_load(f)
 
-                services = compose_data.get('services', {})
-                analysis['total_services'] += len(services)
+            services = compose_data.get('services', {})
+            analysis['total_services'] += len(services)
 
-                # Track all services
-                for service_name, service_config in services.items():
-                    all_services[f"{compose_file.name}:{service_name}"] = service_config
+            # Track all services
+            for service_name, service_config in services.items():
+                all_services[f"{compose_file.name}:{service_name}"] = service_config
 
-                    # Analyze environment variables
-                    env_vars = service_config.get('environment', [])
-                    if isinstance(env_vars, list):
-                        for env_var in env_vars:
-                            if isinstance(env_var, str) and '=' in env_var:
-                                key = env_var.split('=')[0]
-                                common_env_vars[key] = common_env_vars.get(key, 0) + 1
+                # Analyze environment variables
+                env_vars = service_config.get('environment', [])
+                if isinstance(env_vars, list):
+                    for env_var in env_vars:
+                        if isinstance(env_var, str) and '=' in env_var:
+                            key = env_var.split('=')[0]
+                            common_env_vars[key] = common_env_vars.get(key, 0) + 1
 
-            except Exception as e:
-                print(f"⚠️  Error analyzing {compose_file}: {e}")
-
-        # Identify common configurations
         analysis['common_env_vars'] = {
             key: count for key, count in common_env_vars.items()
             if count > 1

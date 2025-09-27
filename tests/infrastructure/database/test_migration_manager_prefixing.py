@@ -1,5 +1,5 @@
 import pytest
-from db.migration_manager import MigrationManager
+from infrastructure.database.migration_manager import MigrationManager
 
 @pytest.mark.unit
 def test_select_statement_prefixing():

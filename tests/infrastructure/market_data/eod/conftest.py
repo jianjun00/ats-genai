@@ -1,8 +1,8 @@
 import os
 import json
 import pytest
-from shared.utils.environment import Environment
-from core.dao.vendors_dao import VendorsDAO
+from core.platform.config.environment import Environment
+from core.dao.infrastructure.vendors_dao import VendorsDAO
 
 @pytest.fixture(scope="function")
 async def polygon_vendor_id(unit_test_db):

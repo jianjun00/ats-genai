@@ -11,7 +11,7 @@ import json
 import numpy as np
 from datetime import datetime, date
 
-from domains.ml.legacy.training_data.generators.training_data_metadata import TrainingDataMetadataManager, FeatureType
+from domains.ml.services.training_data.generators.training_data_metadata import TrainingDataMetadataManager, FeatureType
 
 
 class TestTrainingDataSerialization:
@@ -31,21 +31,17 @@ class TestTrainingDataSerialization:
         }
 
         # This should NOT raise "Object of type datetime is not JSON serializable"
-        try:
-            serialized = json.dumps(test_data, default=manager._json_serializer)
-            # Verify it's valid JSON
-            deserialized = json.loads(serialized)
+        serialized = json.dumps(test_data, default=manager._json_serializer)
+        # Verify it's valid JSON
+        deserialized = json.loads(serialized)
 
-            # Verify datetime objects were converted to ISO format strings
-            assert isinstance(deserialized["start_time"], str)
-            assert deserialized["start_time"] == "2025-09-05T10:30:00"
-            assert isinstance(deserialized["end_time"], str)
-            assert deserialized["end_time"] == "2025-09-05T16:00:00"
-            assert isinstance(deserialized["creation_date"], str)
-            assert deserialized["creation_date"] == "2025-09-05"
-
-        except TypeError as e:
-            pytest.fail(f"Datetime serialization failed: {e}")
+        # Verify datetime objects were converted to ISO format strings
+        assert isinstance(deserialized["start_time"], str)
+        assert deserialized["start_time"] == "2025-09-05T10:30:00"
+        assert isinstance(deserialized["end_time"], str)
+        assert deserialized["end_time"] == "2025-09-05T16:00:00"
+        assert isinstance(deserialized["creation_date"], str)
+        assert deserialized["creation_date"] == "2025-09-05"
 
     def test_numpy_array_serialization(self):
         """Test that numpy arrays can be properly serialized."""
@@ -57,18 +53,14 @@ class TestTrainingDataSerialization:
             "floats": np.array([1.1, 2.2, 3.3], dtype=np.float32)
         }
 
-        try:
-            serialized = json.dumps(test_data, default=manager._json_serializer)
-            deserialized = json.loads(serialized)
+        serialized = json.dumps(test_data, default=manager._json_serializer)
+        deserialized = json.loads(serialized)
 
-            # Verify numpy arrays were converted to lists
-            assert isinstance(deserialized["features"], list)
-            assert deserialized["features"] == [1.0, 2.5, 3.7]
-            assert isinstance(deserialized["integers"], list)
-            assert deserialized["integers"] == [1, 2, 3]
-
-        except TypeError as e:
-            pytest.fail(f"Numpy array serialization failed: {e}")
+        # Verify numpy arrays were converted to lists
+        assert isinstance(deserialized["features"], list)
+        assert deserialized["features"] == [1.0, 2.5, 3.7]
+        assert isinstance(deserialized["integers"], list)
+        assert deserialized["integers"] == [1, 2, 3]
 
     def test_enum_serialization(self):
         """Test that enum objects can be properly serialized."""
@@ -79,16 +71,12 @@ class TestTrainingDataSerialization:
             "another_type": FeatureType.PRICE_INDICATOR
         }
 
-        try:
-            serialized = json.dumps(test_data, default=manager._json_serializer)
-            deserialized = json.loads(serialized)
+        serialized = json.dumps(test_data, default=manager._json_serializer)
+        deserialized = json.loads(serialized)
 
-            # Verify enums were converted to their values
-            assert deserialized["feature_type"] == "ohlc"
-            assert deserialized["another_type"] == "price_indicator"
-
-        except TypeError as e:
-            pytest.fail(f"Enum serialization failed: {e}")
+        # Verify enums were converted to their values
+        assert deserialized["feature_type"] == "ohlc"
+        assert deserialized["another_type"] == "price_indicator"
 
     def test_unsupported_object_raises_error(self):
         """Test that unsupported objects still raise proper errors."""
@@ -133,26 +121,21 @@ class TestTrainingDataSerialization:
         }
 
         # This should serialize without errors
-        try:
-            serialized = json.dumps(real_metadata, default=manager._json_serializer)
-            deserialized = json.loads(serialized)
+        serialized = json.dumps(real_metadata, default=manager._json_serializer)
+        deserialized = json.loads(serialized)
 
-            # Spot check key conversions
-            assert isinstance(deserialized["start_time"], str)
-            assert isinstance(deserialized["creation_timestamp"], str)
-            assert isinstance(deserialized["feature_arrays"]["ohlc_data"], list)
-            assert isinstance(deserialized["technical_indicators"][0]["type"], str)
-
-        except TypeError as e:
-            pytest.fail(f"Real-world metadata serialization failed: {e}")
-
+        # Spot check key conversions
+        assert isinstance(deserialized["start_time"], str)
+        assert isinstance(deserialized["creation_timestamp"], str)
+        assert isinstance(deserialized["feature_arrays"]["ohlc_data"], list)
+        assert isinstance(deserialized["technical_indicators"][0]["type"], str)
 
 class TestTrainingDataFailFast:
     """Test that training data generation fails fast on errors."""
 
     def test_arrayrecord_save_failure_raises_exception(self):
         """Test that ArrayRecord save failures raise exceptions instead of logging and continuing."""
-        from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+        from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
         callback = IntervalBasedTrainingDataCallback(
             output_dir="/tmp/test_training_data",
@@ -175,7 +158,7 @@ class TestTrainingDataFailFast:
 
     def test_metadata_save_failure_raises_exception(self):
         """Test that metadata save failures raise exceptions instead of logging and continuing."""
-        from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+        from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
         callback = IntervalBasedTrainingDataCallback(
             output_dir="/tmp/test_training_data",

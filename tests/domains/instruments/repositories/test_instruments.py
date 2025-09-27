@@ -1,7 +1,7 @@
 import pytest
 import asyncpg
 from dotenv import load_dotenv
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 load_dotenv()
 

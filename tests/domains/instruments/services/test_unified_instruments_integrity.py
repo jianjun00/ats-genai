@@ -139,29 +139,25 @@ class TestUnifiedInstrumentCreation:
         """Test creation of comprehensive unification strategy"""
         from scripts.unified_instrument_population import UnifiedInstrumentPopulator
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            populator = UnifiedInstrumentPopulator()
+        populator = UnifiedInstrumentPopulator()
 
-            # Test strategy creation (limited scope for testing)
-            instruments = await populator.create_unified_strategy(pool)
+        # Test strategy creation (limited scope for testing)
+        instruments = await populator.create_unified_strategy(pool)
 
-            assert isinstance(instruments, list), "Should return list of instruments"
+        assert isinstance(instruments, list), "Should return list of instruments"
 
-            if instruments:  # Only test if we have data
-                sample_instrument = instruments[0]
-                assert 'symbol' in sample_instrument, "Each instrument should have symbol"
-                assert 'vendor_count' in sample_instrument, "Should track vendor count"
-                assert 'vendor_metadata' in sample_instrument, "Should include metadata"
+        if instruments:  # Only test if we have data
+            sample_instrument = instruments[0]
+            assert 'symbol' in sample_instrument, "Each instrument should have symbol"
+            assert 'vendor_count' in sample_instrument, "Should track vendor count"
+            assert 'vendor_metadata' in sample_instrument, "Should include metadata"
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
 class TestDataIntegrityValidation:
     """Test referential integrity and data consistency"""
@@ -171,166 +167,154 @@ class TestDataIntegrityValidation:
     async def test_price_data_instrument_integrity(self):
         """Test referential integrity between price data and instruments"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                # Check for price records without corresponding instruments
-                orphaned_prices = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_daily_price_polygon p
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM dev_instrument i WHERE i.id = p.instrument_id
-                    )
-                """)
+        async with pool.acquire() as conn:
+            # Check for price records without corresponding instruments
+            orphaned_prices = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_daily_price_polygon p
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM dev_instrument i WHERE i.id = p.instrument_id
+                )
+            """)
 
-                # Check for instruments without any price data
-                instruments_without_prices = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_instrument i
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM dev_daily_price_polygon p WHERE p.instrument_id = i.id
-                    )
-                """)
+            # Check for instruments without any price data
+            instruments_without_prices = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_instrument i
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM dev_daily_price_polygon p WHERE p.instrument_id = i.id
+                )
+            """)
 
-                total_price_records = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
-                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
+            total_price_records = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
+            total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
-                # Calculate integrity percentages
-                price_integrity = ((total_price_records - orphaned_prices) / total_price_records * 100) if total_price_records > 0 else 0
+            # Calculate integrity percentages
+            price_integrity = ((total_price_records - orphaned_prices) / total_price_records * 100) if total_price_records > 0 else 0
 
-                assert orphaned_prices == 0, f"Found {orphaned_prices} orphaned price records"
-                assert price_integrity > 95.0, f"Price integrity too low: {price_integrity:.1f}%"
+            assert orphaned_prices == 0, f"Found {orphaned_prices} orphaned price records"
+            assert price_integrity > 95.0, f"Price integrity too low: {price_integrity:.1f}%"
 
-                # Log metrics for monitoring
-                print(f"📊 Price Data Integrity: {price_integrity:.1f}%")
-                print(f"📊 Instruments without prices: {instruments_without_prices}")
-                print(f"📊 Total instruments: {total_instruments}")
-                print(f"📊 Total price records: {total_price_records}")
+            # Log metrics for monitoring
+            print(f"📊 Price Data Integrity: {price_integrity:.1f}%")
+            print(f"📊 Instruments without prices: {instruments_without_prices}")
+            print(f"📊 Total instruments: {total_instruments}")
+            print(f"📊 Total price records: {total_price_records}")
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_vendor_data_consistency(self):
         """Test consistency across vendor-specific instrument tables"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                # Get symbols that exist in multiple vendor tables
-                overlapping_symbols = await conn.fetch("""
-                    WITH vendor_symbols AS (
-                        SELECT symbol, 'polygon' as vendor FROM dev_instrument_polygon
-                        UNION ALL
-                        SELECT symbol, 'tiingo' as vendor FROM dev_instrument_tiingo WHERE active = true
-                        UNION ALL
-                        SELECT symbol, 'eodhd' as vendor FROM dev_instrument_eodhd
-                    ),
-                    symbol_counts AS (
-                        SELECT symbol, COUNT(DISTINCT vendor) as vendor_count
-                        FROM vendor_symbols
-                        GROUP BY symbol
-                        HAVING COUNT(DISTINCT vendor) > 1
-                    )
-                    SELECT symbol, vendor_count FROM symbol_counts
-                    ORDER BY vendor_count DESC, symbol
-                    LIMIT 10
-                """)
+        async with pool.acquire() as conn:
+            # Get symbols that exist in multiple vendor tables
+            overlapping_symbols = await conn.fetch("""
+                WITH vendor_symbols AS (
+                    SELECT symbol, 'polygon' as vendor FROM dev_instrument_polygon
+                    UNION ALL
+                    SELECT symbol, 'tiingo' as vendor FROM dev_instrument_tiingo WHERE active = true
+                    UNION ALL
+                    SELECT symbol, 'eodhd' as vendor FROM dev_instrument_eodhd
+                ),
+                symbol_counts AS (
+                    SELECT symbol, COUNT(DISTINCT vendor) as vendor_count
+                    FROM vendor_symbols
+                    GROUP BY symbol
+                    HAVING COUNT(DISTINCT vendor) > 1
+                )
+                SELECT symbol, vendor_count FROM symbol_counts
+                ORDER BY vendor_count DESC, symbol
+                LIMIT 10
+            """)
 
-                assert len(overlapping_symbols) > 0, "Should have symbols across multiple vendors"
+            assert len(overlapping_symbols) > 0, "Should have symbols across multiple vendors"
 
-                # Test consistency for a sample of overlapping symbols
-                for symbol_record in overlapping_symbols[:5]:
-                    symbol = symbol_record['symbol']
-                    vendor_count = symbol_record['vendor_count']
+            # Test consistency for a sample of overlapping symbols
+            for symbol_record in overlapping_symbols[:5]:
+                symbol = symbol_record['symbol']
+                vendor_count = symbol_record['vendor_count']
 
-                    # Get data from each vendor for this symbol
-                    polygon_data = await conn.fetchrow("""
-                        SELECT name, exchange, active FROM dev_instrument_polygon
-                        WHERE symbol = $1
-                    """, symbol)
+                # Get data from each vendor for this symbol
+                polygon_data = await conn.fetchrow("""
+                    SELECT name, exchange, active FROM dev_instrument_polygon
+                    WHERE symbol = $1
+                """, symbol)
 
-                    tiingo_data = await conn.fetchrow("""
-                        SELECT name, exchange, active FROM dev_instrument_tiingo
-                        WHERE symbol = $1 AND active = true
-                    """, symbol)
+                tiingo_data = await conn.fetchrow("""
+                    SELECT name, exchange, active FROM dev_instrument_tiingo
+                    WHERE symbol = $1 AND active = true
+                """, symbol)
 
-                    eodhd_data = await conn.fetchrow("""
-                        SELECT name, exchange FROM dev_instrument_eodhd
-                        WHERE symbol = $1
-                    """, symbol)
+                eodhd_data = await conn.fetchrow("""
+                    SELECT name, exchange FROM dev_instrument_eodhd
+                    WHERE symbol = $1
+                """, symbol)
 
-                    # Validate data consistency (allowing for format differences)
-                    vendor_names = []
-                    if polygon_data: vendor_names.append(polygon_data['name'])
-                    if tiingo_data: vendor_names.append(tiingo_data['name'])
-                    if eodhd_data: vendor_names.append(eodhd_data['name'])
+                # Validate data consistency (allowing for format differences)
+                vendor_names = []
+                if polygon_data: vendor_names.append(polygon_data['name'])
+                if tiingo_data: vendor_names.append(tiingo_data['name'])
+                if eodhd_data: vendor_names.append(eodhd_data['name'])
 
-                    # Names should be similar (allowing for minor variations)
-                    if len(vendor_names) > 1:
-                        base_name = vendor_names[0].lower().replace(' inc.', '').replace(' inc', '').strip()
-                        for name in vendor_names[1:]:
-                            compare_name = name.lower().replace(' inc.', '').replace(' inc', '').strip()
-                            similarity = len(set(base_name.split()) & set(compare_name.split())) / max(len(base_name.split()), len(compare_name.split()))
-                            assert similarity > 0.5, f"Names too different for {symbol}: {vendor_names}"
+                # Names should be similar (allowing for minor variations)
+                if len(vendor_names) > 1:
+                    base_name = vendor_names[0].lower().replace(' inc.', '').replace(' inc', '').strip()
+                    for name in vendor_names[1:]:
+                        compare_name = name.lower().replace(' inc.', '').replace(' inc', '').strip()
+                        similarity = len(set(base_name.split()) & set(compare_name.split())) / max(len(base_name.split()), len(compare_name.split()))
+                        assert similarity > 0.5, f"Names too different for {symbol}: {vendor_names}"
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_unified_instrument_completeness(self):
         """Test completeness of unified instrument population"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                # Get counts from each vendor table
-                polygon_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_polygon WHERE active = true")
-                tiingo_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_tiingo WHERE active = true")
-                eodhd_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_eodhd")
-                unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
+        async with pool.acquire() as conn:
+            # Get counts from each vendor table
+            polygon_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_polygon WHERE active = true")
+            tiingo_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_tiingo WHERE active = true")
+            eodhd_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument_eodhd")
+            unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
-                # Get unique symbol counts
-                unique_symbols = await conn.fetchval("""
-                    SELECT COUNT(DISTINCT symbol) FROM (
-                        SELECT symbol FROM dev_instrument_polygon WHERE active = true
-                        UNION
-                        SELECT symbol FROM dev_instrument_tiingo WHERE active = true
-                        UNION
-                        SELECT symbol FROM dev_instrument_eodhd
-                    ) all_symbols
-                """)
+            # Get unique symbol counts
+            unique_symbols = await conn.fetchval("""
+                SELECT COUNT(DISTINCT symbol) FROM (
+                    SELECT symbol FROM dev_instrument_polygon WHERE active = true
+                    UNION
+                    SELECT symbol FROM dev_instrument_tiingo WHERE active = true
+                    UNION
+                    SELECT symbol FROM dev_instrument_eodhd
+                ) all_symbols
+            """)
 
-                # Unified table should have close to the number of unique symbols
-                coverage_ratio = unified_count / unique_symbols if unique_symbols > 0 else 0
+            # Unified table should have close to the number of unique symbols
+            coverage_ratio = unified_count / unique_symbols if unique_symbols > 0 else 0
 
-                assert coverage_ratio > 0.90, f"Unified coverage too low: {coverage_ratio:.1%} ({unified_count}/{unique_symbols})"
+            assert coverage_ratio > 0.90, f"Unified coverage too low: {coverage_ratio:.1%} ({unified_count}/{unique_symbols})"
 
-                # Log metrics
-                print(f"📊 Vendor Counts - Polygon: {polygon_count}, Tiingo: {tiingo_count}, EODHD: {eodhd_count}")
-                print(f"📊 Unique symbols: {unique_symbols}, Unified: {unified_count}")
-                print(f"📊 Coverage: {coverage_ratio:.1%}")
+            # Log metrics
+            print(f"📊 Vendor Counts - Polygon: {polygon_count}, Tiingo: {tiingo_count}, EODHD: {eodhd_count}")
+            print(f"📊 Unique symbols: {unique_symbols}, Unified: {unified_count}")
+            print(f"📊 Coverage: {coverage_ratio:.1%}")
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
 class TestDataQualityMetrics:
     """Test data quality and completeness metrics"""
@@ -340,138 +324,117 @@ class TestDataQualityMetrics:
     async def test_instrument_data_completeness(self):
         """Test completeness of instrument data fields"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
+        async with pool.acquire() as conn:
+            total_instruments = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
 
-                if total_instruments == 0:
-                    pytest.skip("No instruments in unified table to test")
+            if total_instruments == 0:
+                pytest.skip("No instruments in unified table to test")
 
-                # Test completeness of key fields
-                completeness_metrics = {}
+            # Test completeness of key fields
+            completeness_metrics = {}
 
-                key_fields = ['name', 'exchange', 'type', 'currency']
-                for field in key_fields:
-                    non_null_count = await conn.fetchval(f"""
-                        SELECT COUNT(*) FROM dev_instrument
-                        WHERE {field} IS NOT NULL AND {field} != ''
-                    """)
+            key_fields = ['name', 'exchange', 'type', 'currency']
+            for field in key_fields:
+                non_null_count = await conn.fetchval(f"""
+                    SELECT COUNT(*) FROM dev_instrument
+                    WHERE {field} IS NOT NULL AND {field} != ''
+                """)
 
-                    completeness_metrics[field] = non_null_count / total_instruments
+                completeness_metrics[field] = non_null_count / total_instruments
 
-                # Assert minimum completeness thresholds
-                assert completeness_metrics['name'] > 0.95, f"Name completeness too low: {completeness_metrics['name']:.1%}"
-                assert completeness_metrics['exchange'] > 0.80, f"Exchange completeness too low: {completeness_metrics['exchange']:.1%}"
+            # Assert minimum completeness thresholds
+            assert completeness_metrics['name'] > 0.95, f"Name completeness too low: {completeness_metrics['name']:.1%}"
+            assert completeness_metrics['exchange'] > 0.80, f"Exchange completeness too low: {completeness_metrics['exchange']:.1%}"
 
-                # Log metrics
-                for field, ratio in completeness_metrics.items():
-                    print(f"📊 {field.title()} completeness: {ratio:.1%}")
+            # Log metrics
+            for field, ratio in completeness_metrics.items():
+                print(f"📊 {field.title()} completeness: {ratio:.1%}")
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_price_data_coverage(self):
         """Test coverage and quality of price data"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                # Test recent price data availability
-                recent_cutoff = datetime.now().date() - timedelta(days=7)
+        async with pool.acquire() as conn:
+            # Test recent price data availability
+            recent_cutoff = datetime.now().date() - timedelta(days=7)
 
-                recent_price_symbols = await conn.fetchval("""
-                    SELECT COUNT(DISTINCT instrument_id)
-                    FROM dev_daily_price_polygon
-                    WHERE date >= $1
-                """, recent_cutoff)
+            recent_price_symbols = await conn.fetchval("""
+                SELECT COUNT(DISTINCT instrument_id)
+                FROM dev_daily_price_polygon
+                WHERE date >= $1
+            """, recent_cutoff)
 
-                total_active_instruments = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_instrument WHERE active = true
-                """)
+            total_active_instruments = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_instrument WHERE active = true
+            """)
 
-                recent_coverage = recent_price_symbols / total_active_instruments if total_active_instruments > 0 else 0
+            recent_coverage = recent_price_symbols / total_active_instruments if total_active_instruments > 0 else 0
 
-                # Test for data quality issues
-                zero_volume_ratio = await conn.fetchval("""
-                    SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_price_polygon WHERE volume IS NOT NULL)
-                    FROM dev_daily_price_polygon
-                    WHERE volume = 0
-                """) or 0
+            # Test for data quality issues
+            zero_volume_ratio = await conn.fetchval("""
+                SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_price_polygon WHERE volume IS NOT NULL)
+                FROM dev_daily_price_polygon
+                WHERE volume = 0
+            """) or 0
 
-                missing_prices_ratio = await conn.fetchval("""
-                    SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_price_polygon)
-                    FROM dev_daily_price_polygon
-                    WHERE close IS NULL OR close <= 0
-                """) or 0
+            missing_prices_ratio = await conn.fetchval("""
+                SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM dev_daily_price_polygon)
+                FROM dev_daily_price_polygon
+                WHERE close IS NULL OR close <= 0
+            """) or 0
 
-                assert recent_coverage > 0.70, f"Recent price coverage too low: {recent_coverage:.1%}"
-                assert zero_volume_ratio < 0.30, f"Too many zero volume records: {zero_volume_ratio:.1%}"
-                assert missing_prices_ratio < 0.01, f"Too many missing prices: {missing_prices_ratio:.1%}"
+            assert recent_coverage > 0.70, f"Recent price coverage too low: {recent_coverage:.1%}"
+            assert zero_volume_ratio < 0.30, f"Too many zero volume records: {zero_volume_ratio:.1%}"
+            assert missing_prices_ratio < 0.01, f"Too many missing prices: {missing_prices_ratio:.1%}"
 
-                # Log metrics
-                print(f"📊 Recent price coverage: {recent_coverage:.1%}")
-                print(f"📊 Zero volume ratio: {zero_volume_ratio:.1%}")
-                print(f"📊 Missing prices ratio: {missing_prices_ratio:.1%}")
+            # Log metrics
+            print(f"📊 Recent price coverage: {recent_coverage:.1%}")
+            print(f"📊 Zero volume ratio: {zero_volume_ratio:.1%}")
+            print(f"📊 Missing prices ratio: {missing_prices_ratio:.1%}")
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_news_data_quality(self):
         """Test quality and coverage of news data"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                # Test Polygon news
-                try:
-                    polygon_news_count = await conn.fetchval("SELECT COUNT(*) FROM dev_news_polygon")
-                    recent_polygon_news = await conn.fetchval("""
-                        SELECT COUNT(*) FROM dev_news_polygon
-                        WHERE published_utc >= $1
-                    """, datetime.now() - timedelta(days=30))
+        async with pool.acquire() as conn:
+            # Test Polygon news
+            polygon_news_count = await conn.fetchval("SELECT COUNT(*) FROM dev_news_polygon")
+            recent_polygon_news = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_news_polygon
+                WHERE published_utc >= $1
+            """, datetime.now() - timedelta(days=30))
 
-                    if polygon_news_count > 0:
-                        recent_news_ratio = recent_polygon_news / polygon_news_count
-                        assert recent_news_ratio > 0.01, f"Too few recent Polygon news: {recent_news_ratio:.1%}"
-                        print(f"📊 Polygon news: {polygon_news_count:,} total, {recent_polygon_news:,} recent")
+            if polygon_news_count > 0:
+                recent_news_ratio = recent_polygon_news / polygon_news_count
+                assert recent_news_ratio > 0.01, f"Too few recent Polygon news: {recent_news_ratio:.1%}"
+                print(f"📊 Polygon news: {polygon_news_count:,} total, {recent_polygon_news:,} recent")
 
-                except Exception:
-                    print("📊 Polygon news table not available")
+            tiingo_news_count = await conn.fetchval("SELECT COUNT(*) FROM dev_news_tiingo")
+            if tiingo_news_count > 0:
+                print(f"📊 Tiingo news: {tiingo_news_count:,} articles")
 
-                # Test Tiingo news
-                try:
-                    tiingo_news_count = await conn.fetchval("SELECT COUNT(*) FROM dev_news_tiingo")
-                    if tiingo_news_count > 0:
-                        print(f"📊 Tiingo news: {tiingo_news_count:,} articles")
-
-                except Exception:
-                    print("📊 Tiingo news table not available")
-
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
 class TestSystemPerformance:
     """Test system performance and scalability"""
@@ -481,89 +444,80 @@ class TestSystemPerformance:
     async def test_query_performance(self):
         """Test performance of common queries"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                # Test instrument lookup performance
-                start_time = datetime.now()
+        async with pool.acquire() as conn:
+            # Test instrument lookup performance
+            start_time = datetime.now()
 
-                result = await conn.fetchrow("""
-                    SELECT * FROM dev_instrument
-                    WHERE symbol = 'AAPL'
-                """)
+            result = await conn.fetchrow("""
+                SELECT * FROM dev_instrument
+                WHERE symbol = 'AAPL'
+            """)
 
-                lookup_time = (datetime.now() - start_time).total_seconds()
-                assert lookup_time < 0.1, f"Instrument lookup too slow: {lookup_time:.3f}s"
+            lookup_time = (datetime.now() - start_time).total_seconds()
+            assert lookup_time < 0.1, f"Instrument lookup too slow: {lookup_time:.3f}s"
 
-                # Test price data aggregation performance
-                start_time = datetime.now()
+            # Test price data aggregation performance
+            start_time = datetime.now()
 
-                result = await conn.fetchrow("""
-                    SELECT symbol, COUNT(*) as record_count, AVG(close) as avg_price
-                    FROM dev_daily_price_polygon p
-                    JOIN dev_instrument i ON i.id = p.instrument_id
-                    WHERE p.date >= $1
-                    GROUP BY symbol
-                    LIMIT 1
-                """, datetime.now().date() - timedelta(days=30))
+            result = await conn.fetchrow("""
+                SELECT symbol, COUNT(*) as record_count, AVG(close) as avg_price
+                FROM dev_daily_price_polygon p
+                JOIN dev_instrument i ON i.id = p.instrument_id
+                WHERE p.date >= $1
+                GROUP BY symbol
+                LIMIT 1
+            """, datetime.now().date() - timedelta(days=30))
 
-                aggregation_time = (datetime.now() - start_time).total_seconds()
-                assert aggregation_time < 5.0, f"Price aggregation too slow: {aggregation_time:.3f}s"
+            aggregation_time = (datetime.now() - start_time).total_seconds()
+            assert aggregation_time < 5.0, f"Price aggregation too slow: {aggregation_time:.3f}s"
 
-                print(f"📊 Instrument lookup: {lookup_time:.3f}s")
-                print(f"📊 Price aggregation: {aggregation_time:.3f}s")
+            print(f"📊 Instrument lookup: {lookup_time:.3f}s")
+            print(f"📊 Price aggregation: {aggregation_time:.3f}s")
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_index_effectiveness(self):
         """Test effectiveness of database indexes"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            async with pool.acquire() as conn:
-                # Check that key indexes exist
-                indexes = await conn.fetch("""
-                    SELECT tablename, indexname, indexdef
-                    FROM pg_indexes
-                    WHERE tablename IN ('dev_instrument', 'dev_daily_price_polygon', 'dev_news_polygon')
-                    ORDER BY tablename, indexname
-                """)
+        async with pool.acquire() as conn:
+            # Check that key indexes exist
+            indexes = await conn.fetch("""
+                SELECT tablename, indexname, indexdef
+                FROM pg_indexes
+                WHERE tablename IN ('dev_instrument', 'dev_daily_price_polygon', 'dev_news_polygon')
+                ORDER BY tablename, indexname
+            """)
 
-                index_names = [idx['indexname'] for idx in indexes]
+            index_names = [idx['indexname'] for idx in indexes]
 
-                # Critical indexes should exist
-                critical_indexes = [
-                    'dev_instrument_pkey',  # Primary key
-                    'dev_daily_price_polygon_pkey',  # Primary key
-                ]
+            # Critical indexes should exist
+            critical_indexes = [
+                'dev_instrument_pkey',  # Primary key
+                'dev_daily_price_polygon_pkey',  # Primary key
+            ]
 
-                for critical_index in critical_indexes:
-                    # Check if index exists (may have different exact names)
-                    index_found = any(critical_index in idx_name for idx_name in index_names)
-                    if not index_found:
-                        print(f"⚠️ Critical index may be missing: {critical_index}")
+            for critical_index in critical_indexes:
+                # Check if index exists (may have different exact names)
+                index_found = any(critical_index in idx_name for idx_name in index_names)
+                if not index_found:
+                    print(f"⚠️ Critical index may be missing: {critical_index}")
 
-                print(f"📊 Found {len(indexes)} indexes across key tables")
+            print(f"📊 Found {len(indexes)} indexes across key tables")
 
-            await pool.close()
+        await pool.close()
 
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
-
-# Integration and end-to-end tests
 class TestEndToEndDataFlow:
     """Test complete data flow from collection to consumption"""
 
@@ -573,65 +527,60 @@ class TestEndToEndDataFlow:
     async def test_complete_data_pipeline(self):
         """Test end-to-end data pipeline functionality"""
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=30.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=30.0)
 
-            async with pool.acquire() as conn:
-                # Step 1: Verify vendor data exists
-                vendor_counts = await conn.fetchrow("""
-                    SELECT
-                        (SELECT COUNT(*) FROM dev_instrument_polygon WHERE active = true) as polygon_count,
-                        (SELECT COUNT(*) FROM dev_instrument_tiingo WHERE active = true) as tiingo_count,
-                        (SELECT COUNT(*) FROM dev_instrument_eodhd) as eodhd_count
-                """)
+        async with pool.acquire() as conn:
+            # Step 1: Verify vendor data exists
+            vendor_counts = await conn.fetchrow("""
+                SELECT
+                    (SELECT COUNT(*) FROM dev_instrument_polygon WHERE active = true) as polygon_count,
+                    (SELECT COUNT(*) FROM dev_instrument_tiingo WHERE active = true) as tiingo_count,
+                    (SELECT COUNT(*) FROM dev_instrument_eodhd) as eodhd_count
+            """)
 
-                total_vendor_instruments = vendor_counts['polygon_count'] + vendor_counts['tiingo_count'] + vendor_counts['eodhd_count']
-                assert total_vendor_instruments > 0, "No vendor instrument data found"
+            total_vendor_instruments = vendor_counts['polygon_count'] + vendor_counts['tiingo_count'] + vendor_counts['eodhd_count']
+            assert total_vendor_instruments > 0, "No vendor instrument data found"
 
-                # Step 2: Verify unified instruments exist
-                unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
-                assert unified_count > 0, "No unified instruments found"
+            # Step 2: Verify unified instruments exist
+            unified_count = await conn.fetchval("SELECT COUNT(*) FROM dev_instrument")
+            assert unified_count > 0, "No unified instruments found"
 
-                # Step 3: Verify price data integration
-                price_count = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
-                assert price_count > 0, "No price data found"
+            # Step 3: Verify price data integration
+            price_count = await conn.fetchval("SELECT COUNT(*) FROM dev_daily_price_polygon")
+            assert price_count > 0, "No price data found"
 
-                # Step 4: Test data accessibility via typical queries
-                # Query: Get recent prices for active instruments
-                recent_data = await conn.fetch("""
-                    SELECT i.symbol, i.name, p.date, p.close, p.volume
-                    FROM dev_instrument i
-                    JOIN dev_daily_price_polygon p ON p.instrument_id = i.id
-                    WHERE i.active = true
-                      AND p.date >= $1
-                      AND p.close > 0
-                    ORDER BY p.date DESC, i.symbol
-                    LIMIT 5
-                """, datetime.now().date() - timedelta(days=7))
+            # Step 4: Test data accessibility via typical queries
+            # Query: Get recent prices for active instruments
+            recent_data = await conn.fetch("""
+                SELECT i.symbol, i.name, p.date, p.close, p.volume
+                FROM dev_instrument i
+                JOIN dev_daily_price_polygon p ON p.instrument_id = i.id
+                WHERE i.active = true
+                  AND p.date >= $1
+                  AND p.close > 0
+                ORDER BY p.date DESC, i.symbol
+                LIMIT 5
+            """, datetime.now().date() - timedelta(days=7))
 
-                assert len(recent_data) > 0, "No recent price data accessible"
+            assert len(recent_data) > 0, "No recent price data accessible"
 
-                # Step 5: Validate data quality in the pipeline
-                for record in recent_data:
-                    assert record['symbol'] is not None, "Symbol should not be null"
-                    assert record['close'] > 0, "Close price should be positive"
-                    assert record['date'] is not None, "Date should not be null"
+            # Step 5: Validate data quality in the pipeline
+            for record in recent_data:
+                assert record['symbol'] is not None, "Symbol should not be null"
+                assert record['close'] > 0, "Close price should be positive"
+                assert record['date'] is not None, "Date should not be null"
 
-                print(f"✅ End-to-end pipeline test passed:")
-                print(f"   📊 {total_vendor_instruments:,} vendor instruments")
-                print(f"   📊 {unified_count:,} unified instruments")
-                print(f"   📊 {price_count:,} price records")
-                print(f"   📊 {len(recent_data)} recent accessible records")
+            print(f"✅ End-to-end pipeline test passed:")
+            print(f"   📊 {total_vendor_instruments:,} vendor instruments")
+            print(f"   📊 {unified_count:,} unified instruments")
+            print(f"   📊 {price_count:,} price records")
+            print(f"   📊 {len(recent_data)} recent accessible records")
 
-            await pool.close()
+        await pool.close()
 
-        except Exception as e:
-            pytest.skip(f"End-to-end test failed due to system dependency: {e}")
-
-# Test runner configuration
 if __name__ == "__main__":
     import sys
 

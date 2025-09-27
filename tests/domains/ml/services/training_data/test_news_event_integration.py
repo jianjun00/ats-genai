@@ -10,7 +10,7 @@ from datetime import datetime, date
 from unittest.mock import MagicMock, AsyncMock, patch
 
 # Import the callback class we're testing
-from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 
 class TestNewsEventIntegration:

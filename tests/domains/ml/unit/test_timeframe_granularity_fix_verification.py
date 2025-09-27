@@ -109,41 +109,35 @@ def test_technical_indicators_basic():
     # Test basic indicator calculations
     indicators = {}
     
-    try:
-        # SMA calculation
-        sma_20 = df['close'].rolling(window=20).mean()
-        indicators['sma_20'] = sma_20.dropna().tolist()
-        print(f"✅ SMA-20 calculated: {len(indicators['sma_20'])} values")
-        
-        # EMA calculation  
-        ema_12 = df['close'].ewm(span=12).mean()
-        indicators['ema_12'] = ema_12.tolist()
-        print(f"✅ EMA-12 calculated: {len(indicators['ema_12'])} values")
-        
-        # RSI calculation
-        delta = df['close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean() 
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        indicators['rsi_14'] = rsi.fillna(50).tolist()
-        print(f"✅ RSI-14 calculated: {len(indicators['rsi_14'])} values")
-        
-        # Envelope signals
-        std_20 = df['close'].rolling(window=20).std()
-        upper_band = sma_20 + (2 * std_20)
-        lower_band = sma_20 - (2 * std_20)
-        indicators['etop'] = (df['close'] > upper_band).astype(int).tolist()
-        indicators['ebot'] = (df['close'] < lower_band).astype(int).tolist()
-        print(f"✅ Envelope signals calculated: etop={sum(indicators['etop'])}, ebot={sum(indicators['ebot'])}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error calculating indicators: {e}")
-        return False
-
-
+    # SMA calculation
+    sma_20 = df['close'].rolling(window=20).mean()
+    indicators['sma_20'] = sma_20.dropna().tolist()
+    print(f"✅ SMA-20 calculated: {len(indicators['sma_20'])} values")
+    
+    # EMA calculation  
+    ema_12 = df['close'].ewm(span=12).mean()
+    indicators['ema_12'] = ema_12.tolist()
+    print(f"✅ EMA-12 calculated: {len(indicators['ema_12'])} values")
+    
+    # RSI calculation
+    delta = df['close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean() 
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    indicators['rsi_14'] = rsi.fillna(50).tolist()
+    print(f"✅ RSI-14 calculated: {len(indicators['rsi_14'])} values")
+    
+    # Envelope signals
+    std_20 = df['close'].rolling(window=20).std()
+    upper_band = sma_20 + (2 * std_20)
+    lower_band = sma_20 - (2 * std_20)
+    indicators['etop'] = (df['close'] > upper_band).astype(int).tolist()
+    indicators['ebot'] = (df['close'] < lower_band).astype(int).tolist()
+    print(f"✅ Envelope signals calculated: etop={sum(indicators['etop'])}, ebot={sum(indicators['ebot'])}")
+    
+    return True
+    
 def test_granularity_fix_summary():
     """Summarize the granularity fixes implemented."""
     print("\n" + "="*80)

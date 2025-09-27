@@ -463,75 +463,70 @@ def main():
         'torch_version': torch.__version__
     }
 
-    try:
-        # Forward pass benchmarks
-        forward_results = benchmark_forward_pass()
-        results['forward_pass_benchmarks'] = forward_results
+    # Forward pass benchmarks
+    forward_results = benchmark_forward_pass()
+    results['forward_pass_benchmarks'] = forward_results
 
-        # Loss computation benchmarks
-        loss_results = benchmark_loss_computation()
-        results['loss_computation_benchmarks'] = loss_results
+    # Loss computation benchmarks
+    loss_results = benchmark_loss_computation()
+    results['loss_computation_benchmarks'] = loss_results
 
-        # Gradient computation benchmarks
-        gradient_results = benchmark_gradient_computation()
-        results['gradient_computation_benchmarks'] = gradient_results
+    # Gradient computation benchmarks
+    gradient_results = benchmark_gradient_computation()
+    results['gradient_computation_benchmarks'] = gradient_results
 
-        # Training stability test
-        stability_results = test_training_stability()
-        results['training_stability'] = stability_results
+    # Training stability test
+    stability_results = test_training_stability()
+    results['training_stability'] = stability_results
 
-        # Research insights validation
-        insights_results = validate_research_insights()
-        results['research_validation'] = insights_results
+    # Research insights validation
+    insights_results = validate_research_insights()
+    results['research_validation'] = insights_results
 
-        # Performance summary
-        logger.info("\n📊 PERFORMANCE SUMMARY")
-        logger.info("=" * 60)
+    # Performance summary
+    logger.info("\n📊 PERFORMANCE SUMMARY")
+    logger.info("=" * 60)
 
-        # Best forward pass performance
-        best_forward = min(forward_results, key=lambda x: x['avg_time_ms'])
-        logger.info(f"⚡ Best forward pass: {best_forward['avg_time_ms']:.2f}ms ({best_forward['throughput_samples_per_sec']:.1f} samples/s)")
+    # Best forward pass performance
+    best_forward = min(forward_results, key=lambda x: x['avg_time_ms'])
+    logger.info(f"⚡ Best forward pass: {best_forward['avg_time_ms']:.2f}ms ({best_forward['throughput_samples_per_sec']:.1f} samples/s)")
 
-        # Best loss computation performance
-        best_loss = min(loss_results, key=lambda x: x['avg_time_ms'])
-        logger.info(f"📊 Best loss computation: {best_loss['avg_time_ms']:.3f}ms ({best_loss['throughput_samples_per_sec']:.1f} samples/s)")
+    # Best loss computation performance
+    best_loss = min(loss_results, key=lambda x: x['avg_time_ms'])
+    logger.info(f"📊 Best loss computation: {best_loss['avg_time_ms']:.3f}ms ({best_loss['throughput_samples_per_sec']:.1f} samples/s)")
 
-        # Training stability
-        logger.info(f"🔄 Training stability: {'✅ STABLE' if stability_results['stable'] else '❌ UNSTABLE'}")
+    # Training stability
+    logger.info(f"🔄 Training stability: {'✅ STABLE' if stability_results['stable'] else '❌ UNSTABLE'}")
 
-        # Research validation
-        logger.info(f"🔬 Research insights: {'✅ VALIDATED' if insights_results['overall_validation'] else '❌ FAILED'}")
+    # Research validation
+    logger.info(f"🔬 Research insights: {'✅ VALIDATED' if insights_results['overall_validation'] else '❌ FAILED'}")
 
-        # Production readiness assessment
-        production_ready = (
-            best_forward['avg_time_ms'] < 100 and  # <100ms inference
-            stability_results['stable'] and
-            insights_results['overall_validation']
-        )
+    # Production readiness assessment
+    production_ready = (
+        best_forward['avg_time_ms'] < 100 and  # <100ms inference
+        stability_results['stable'] and
+        insights_results['overall_validation']
+    )
 
-        logger.info(f"\n🚀 Production readiness: {'✅ READY' if production_ready else '❌ NOT READY'}")
+    logger.info(f"\n🚀 Production readiness: {'✅ READY' if production_ready else '❌ NOT READY'}")
 
-        # Save results
-        with open('/tmp/unified_loss_performance_results.json', 'w') as f:
-            json.dump(results, f, indent=2, default=str)
+    # Save results
+    with open('/tmp/unified_loss_performance_results.json', 'w') as f:
+        json.dump(results, f, indent=2, default=str)
 
-        logger.info(f"💾 Results saved to: /tmp/unified_loss_performance_results.json")
+    logger.info(f"💾 Results saved to: /tmp/unified_loss_performance_results.json")
 
-        if production_ready:
-            logger.info("\n🎉 UNIFIED LOSS IMPLEMENTATION PERFORMANCE VALIDATED!")
-            logger.info("✅ Cross-domain research synthesis working optimally")
-            logger.info("✅ Production-ready performance characteristics")
-            logger.info("✅ Training stability confirmed")
-            logger.info("✅ Research insights validated")
-            logger.info("🚗→📈 Ready for deployment!")
+    if production_ready:
+        logger.info("\n🎉 UNIFIED LOSS IMPLEMENTATION PERFORMANCE VALIDATED!")
+        logger.info("✅ Cross-domain research synthesis working optimally")
+        logger.info("✅ Production-ready performance characteristics")
+        logger.info("✅ Training stability confirmed")
+        logger.info("✅ Research insights validated")
+        logger.info("🚗→📈 Ready for deployment!")
 
-            return True
-        else:
-            logger.warning("⚠️ Performance issues detected - optimization needed")
-            return False
-
-    except Exception as e:
-        logger.error(f"❌ Performance testing failed: {e}")
+        return True
+    else:
+        logger.warning("⚠️ Performance issues detected - optimization needed")
         return False
 
 if __name__ == "__main__":

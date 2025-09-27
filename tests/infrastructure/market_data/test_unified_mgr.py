@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, date
-from shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.trading.services.core.eod.enhanced_eod_service import UnifiedDBDailyPriceMarketDataManager
 from vendor.tiingo.core.dao.daily_price_tiingo_dao import DailyPricesTiingoDAO
 from vendor.polygon.core.dao.daily_price_polygon_dao import DailyPricesPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
@@ -17,7 +17,7 @@ async def test_unified_mgr(unit_test_db):
     polygon_dao = DailyPricesPolygonDAO(env)
     symbol = "AAPL"
     instrument_id = await instruments_core.dao.create_instrument(symbol=symbol)
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
     vendors_dao = VendorsDAO(env)
     tiingo_vendor = await vendors_core.dao.get_vendor_by_name("tiingo")
     if tiingo_vendor is None:

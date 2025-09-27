@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from domains.instruments.services.secmaster import SecMaster
+from domains.instruments.services.secmaster.secmaster import SecMaster
 
 class DummyConn:
     def __init__(self, fetchval_map):

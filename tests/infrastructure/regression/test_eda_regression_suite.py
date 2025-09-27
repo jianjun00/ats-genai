@@ -24,14 +24,10 @@ class TestEDARegressionSuite:
         # Wait for service to be ready
         max_retries = 15
         for i in range(max_retries):
-            try:
-                response = requests.get(f"{cls.base_url}/health", timeout=5)
-                if response.status_code == 200:
-                    print(f"✅ EDA service ready after {i+1} attempts")
-                    break
-            except:
-                time.sleep(2)
-        else:
+            response = requests.get(f"{cls.base_url}/health", timeout=5)
+            if response.status_code == 200:
+                print(f"✅ EDA service ready after {i+1} attempts")
+                break
             raise Exception("EDA service not available after 30 seconds")
 
     # REGRESSION TESTS FOR CRITICAL ISSUES
@@ -46,24 +42,14 @@ class TestEDARegressionSuite:
 
         def make_concurrent_request(request_id):
             start_time = time.time()
-            try:
-                response = requests.get(f"{self.base_url}/health", timeout=self.timeout)
-                end_time = time.time()
-                return {
-                    "request_id": request_id,
-                    "success": response.status_code == 200,
-                    "response_time": end_time - start_time,
-                    "error": None
-                }
-            except Exception as e:
-                return {
-                    "request_id": request_id,
-                    "success": False,
-                    "response_time": time.time() - start_time,
-                    "error": str(e)
-                }
-
-        # Test concurrent requests (simulates JavaScript polling + user interactions)
+            response = requests.get(f"{self.base_url}/health", timeout=self.timeout)
+            end_time = time.time()
+            return {
+                "request_id": request_id,
+                "success": response.status_code == 200,
+                "response_time": end_time - start_time,
+                "error": None
+            }
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(make_concurrent_request, i) for i in range(10)]
             results = [future.result() for future in concurrent.futures.as_completed(futures, timeout=self.timeout)]
@@ -289,21 +275,16 @@ class TestEDARegressionSuite:
         print("🧪 Testing regression: No service crash under load...")
 
         def mixed_load_request(request_type, request_id):
-            try:
-                if request_type == "health":
-                    response = requests.get(f"{self.base_url}/health", timeout=self.timeout)
-                elif request_type == "datasets":
-                    response = requests.get(f"{self.base_url}/api/v1/datasets", timeout=self.timeout)
-                elif request_type == "schema":
-                    response = requests.get(f"{self.base_url}/api/v1/datasets/dev_instrument_tiingo/schema", timeout=self.timeout)
-                elif request_type == "eda_page":
-                    response = requests.get(f"{self.base_url}/eda", timeout=self.timeout)
+            if request_type == "health":
+                response = requests.get(f"{self.base_url}/health", timeout=self.timeout)
+            elif request_type == "datasets":
+                response = requests.get(f"{self.base_url}/api/v1/datasets", timeout=self.timeout)
+            elif request_type == "schema":
+                response = requests.get(f"{self.base_url}/api/v1/datasets/dev_instrument_tiingo/schema", timeout=self.timeout)
+            elif request_type == "eda_page":
+                response = requests.get(f"{self.base_url}/eda", timeout=self.timeout)
 
-                return {"id": request_id, "type": request_type, "success": response.status_code == 200}
-            except:
-                return {"id": request_id, "type": request_type, "success": False}
-
-        # Create mixed load (simulates real usage: page loads + API calls + health checks)
+            return {"id": request_id, "type": request_type, "success": response.status_code == 200}
         request_types = ["health", "datasets", "schema", "eda_page"] * 5  # 20 total requests
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
@@ -353,15 +334,9 @@ def run_comprehensive_eda_regression_suite():
     failed_tests = []
 
     for test_name, test_func in regression_tests:
-        try:
-            test_func()
-            passed_tests += 1
-            print(f"✅ PASSED: {test_name}")
-        except Exception as e:
-            failed_tests.append((test_name, str(e)))
-            print(f"❌ FAILED: {test_name} - {e}")
-
-    # Summary
+        test_func()
+        passed_tests += 1
+        print(f"✅ PASSED: {test_name}")
     print("\n" + "=" * 60)
     print(f"📊 EDA REGRESSION TEST SUMMARY")
     print(f"   Total Tests: {len(regression_tests)}")

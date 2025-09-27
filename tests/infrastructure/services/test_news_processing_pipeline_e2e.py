@@ -20,7 +20,7 @@ from datetime import datetime
 
 import asyncpg
 
-from domains.market_data.services.news.realtime_news_ingestion import (
+from domains.market_data.services.vendor_adapters.news.realtime_news_ingestion import (
     create_realtime_news_service
 )
 from domains.market_data.services.llm.enhanced_news_llm_processor import (
@@ -31,7 +31,7 @@ from domains.market_data.services.signals.signal_broadcasting_system import (
 )
 from domains.market_data.agents.multi_agent_framework import AgentType
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 class TestNewsProcessingPipelineE2E:
     """End-to-end tests for the complete news processing pipeline."""

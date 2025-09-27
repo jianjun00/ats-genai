@@ -10,7 +10,7 @@ import asyncio
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from domains.ml.services.training_data.runners.training_data_callback_runner import create_sample_job_config, run_training_data_job_for_symbol
+from domains.ml.services.training_data.runners.feature_extraction_runner import create_sample_job_config, run_training_data_job_for_symbol
 
 def test_job_config_symbol_configuration():
     """Test that job configuration correctly uses different symbols."""
@@ -64,34 +64,25 @@ async def test_training_data_generation_different_symbols():
 
     # Test TSLA
     print("Testing TSLA training data generation...")
-    try:
-        tsla_result = await run_training_data_job_for_symbol('TSLA')
-        print(f"TSLA Result: {tsla_result['status']}")
-        print(f"TSLA Run ID: {tsla_result.get('run_id', 'N/A')}")
-        print(f"TSLA Dataset IDs: {tsla_result.get('dataset_ids', [])}")
+    tsla_result = await run_training_data_job_for_symbol('TSLA')
+    print(f"TSLA Result: {tsla_result['status']}")
+    print(f"TSLA Run ID: {tsla_result.get('run_id', 'N/A')}")
+    print(f"TSLA Dataset IDs: {tsla_result.get('dataset_ids', [])}")
 
-        if tsla_result['status'] == 'success':
-            print("✅ TSLA training data generation successful!")
-        else:
-            print(f"⚠️ TSLA training data generation failed: {tsla_result}")
-    except Exception as e:
-        print(f"❌ TSLA training data generation error: {e}")
-
-    # Test GOOGL
+    if tsla_result['status'] == 'success':
+        print("✅ TSLA training data generation successful!")
+    else:
+        print(f"⚠️ TSLA training data generation failed: {tsla_result}")
     print("\nTesting GOOGL training data generation...")
-    try:
-        googl_result = await run_training_data_job_for_symbol('GOOGL')
-        print(f"GOOGL Result: {googl_result['status']}")
-        print(f"GOOGL Run ID: {googl_result.get('run_id', 'N/A')}")
-        print(f"GOOGL Dataset IDs: {googl_result.get('dataset_ids', [])}")
+    googl_result = await run_training_data_job_for_symbol('GOOGL')
+    print(f"GOOGL Result: {googl_result['status']}")
+    print(f"GOOGL Run ID: {googl_result.get('run_id', 'N/A')}")
+    print(f"GOOGL Dataset IDs: {googl_result.get('dataset_ids', [])}")
 
-        if googl_result['status'] == 'success':
-            print("✅ GOOGL training data generation successful!")
-        else:
-            print(f"⚠️ GOOGL training data generation failed: {googl_result}")
-    except Exception as e:
-        print(f"❌ GOOGL training data generation error: {e}")
-
+    if googl_result['status'] == 'success':
+        print("✅ GOOGL training data generation successful!")
+    else:
+        print(f"⚠️ GOOGL training data generation failed: {googl_result}")
 def main():
     """Run all tests."""
 

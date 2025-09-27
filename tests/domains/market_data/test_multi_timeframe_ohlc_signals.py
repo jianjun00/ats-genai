@@ -19,9 +19,9 @@ import shutil
 import logging
 
 # Import test subjects
-from core.config.environment import Environment, EnvironmentType
-from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-from ml.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteMarketDataManager
+from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 # Setup logging for tests
 logging.basicConfig(level=logging.DEBUG)

@@ -23,7 +23,7 @@ from domains.ml.services.training_data.dao.monthly_training_data_dao import (
 from domains.ml.services.training_data.callbacks.training_data_callback import (
     IntervalBasedTrainingDataCallback
 )
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 class TestMonthlyTrainingDataDAO:
@@ -445,61 +445,56 @@ class TestIntegrationScenarios:
 
             # 1. Simulate training data generation with offsets
             temp_dir = tempfile.mkdtemp()
-            try:
-                callback = IntervalBasedTrainingDataCallback(
-                    symbols=['AAPL'],
-                    start_date='2025-07-01',
-                    end_date='2025-07-31',
-                    start_day_offset=2,
-                    end_day_offset=1,
-                    output_dir=temp_dir
-                )
-                callback.run_id = 456
-                callback.dataset_id = 'test_dataset'
+            callback = IntervalBasedTrainingDataCallback(
+                symbols=['AAPL'],
+                start_date='2025-07-01',
+                end_date='2025-07-31',
+                start_day_offset=2,
+                end_day_offset=1,
+                output_dir=temp_dir
+            )
+            callback.run_id = 456
+            callback.dataset_id = 'test_dataset'
 
-                # 2. Initialize monthly structure
-                await callback._initialize_dataset_structure()
+            # 2. Initialize monthly structure
+            await callback._initialize_dataset_structure()
 
-                # Verify monthly writers were created
-                assert len(callback.array_record_writers) == 4  # 1 symbol × 4 timeframes × 1 month
-                assert len(callback.monthly_file_paths) == 4
+            # Verify monthly writers were created
+            assert len(callback.array_record_writers) == 4  # 1 symbol × 4 timeframes × 1 month
+            assert len(callback.monthly_file_paths) == 4
 
-                # 3. Simulate data processing and record counting
-                callback.monthly_record_counts = {
-                    'AAPL_5m_2025_07': 100,
-                    'AAPL_15m_2025_07': 50,
-                    'AAPL_1h_2025_07': 25,
-                    'AAPL_1d_2025_07': 12
-                }
+            # 3. Simulate data processing and record counting
+            callback.monthly_record_counts = {
+                'AAPL_5m_2025_07': 100,
+                'AAPL_15m_2025_07': 50,
+                'AAPL_1h_2025_07': 25,
+                'AAPL_1d_2025_07': 12
+            }
 
-                # 4. Simulate end of processing - save to database
-                mock_runner = Mock()
-                mock_environment = Mock()
-                mock_runner.get_environment.return_value = mock_environment
+            # 4. Simulate end of processing - save to database
+            mock_runner = Mock()
+            mock_environment = Mock()
+            mock_runner.get_environment.return_value = mock_environment
 
-                await callback._save_monthly_training_data_records(mock_runner)
+            await callback._save_monthly_training_data_records(mock_runner)
 
-                # 5. Verify database interaction
-                mock_dao.create_monthly_record.assert_called_once()
-                record_saved = mock_dao.create_monthly_record.call_args[0][0]
+            # 5. Verify database interaction
+            mock_dao.create_monthly_record.assert_called_once()
+            record_saved = mock_dao.create_monthly_record.call_args[0][0]
 
-                assert record_saved.run_id == 456
-                assert record_saved.symbol == 'AAPL'
-                assert record_saved.year_month == date(2025, 7, 1)
-                assert record_saved.total_records == 187  # Sum of all timeframe counts
-                assert len(record_saved.timeframe_paths) == 4
+            assert record_saved.run_id == 456
+            assert record_saved.symbol == 'AAPL'
+            assert record_saved.year_month == date(2025, 7, 1)
+            assert record_saved.total_records == 187  # Sum of all timeframe counts
+            assert len(record_saved.timeframe_paths) == 4
 
-                # 6. Test EDA retrieval
-                records = await mock_dao.list_monthly_records(symbols=['AAPL'])
-                summary = await mock_dao.get_summary_by_symbol()
+            # 6. Test EDA retrieval
+            records = await mock_dao.list_monthly_records(symbols=['AAPL'])
+            summary = await mock_dao.get_summary_by_symbol()
 
-                # Verify EDA calls were made
-                mock_dao.list_monthly_records.assert_called_with(symbols=['AAPL'])
-                mock_dao.get_summary_by_symbol.assert_called_once()
-
-            finally:
-                shutil.rmtree(temp_dir)
-
+            # Verify EDA calls were made
+            mock_dao.list_monthly_records.assert_called_with(symbols=['AAPL'])
+            mock_dao.get_summary_by_symbol.assert_called_once()
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

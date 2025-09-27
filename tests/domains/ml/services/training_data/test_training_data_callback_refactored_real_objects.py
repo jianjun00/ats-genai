@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class we:
@@ -56,13 +51,7 @@ class we:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_timeframe_to_minutes_conversion_real_objects(self, real_service, test_data):
         """Real objects version of test_timeframe_to_minutes_conversion"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.timeframe_to_minutes_conversion_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.timeframe_to_minutes_conversion_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_timeframe_features_success_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_timeframe_features_success"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_timeframe_features_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_timeframe_features_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_timeframe_features_insufficient_data_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_timeframe_features_insufficient_data"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_timeframe_features_insufficient_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_timeframe_features_insufficient_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_timeframe_features_missing_columns_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_timeframe_features_missing_columns"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_timeframe_features_missing_columns_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_timeframe_features_missing_columns_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_convert_scalar_to_qr4_row_success_real_objects(self, real_service, test_data):
         """Real objects version of test_convert_scalar_to_qr4_row_success"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.convert_scalar_to_qr4_row_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.convert_scalar_to_qr4_row_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_convert_scalar_to_qr4_row_missing_features_real_objects(self, real_service, test_data):
         """Real objects version of test_convert_scalar_to_qr4_row_missing_features"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.convert_scalar_to_qr4_row_missing_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.convert_scalar_to_qr4_row_missing_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_convert_scalar_to_qr4_row_empty_features_real_objects(self, real_service, test_data):
         """Real objects version of test_convert_scalar_to_qr4_row_empty_features"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.convert_scalar_to_qr4_row_empty_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.convert_scalar_to_qr4_row_empty_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_convert_sequence_to_qr4_rows_uneven_sequences_real_objects(self, real_service, test_data):
         """Real objects version of test_convert_sequence_to_qr4_rows_uneven_sequences"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.convert_sequence_to_qr4_rows_uneven_sequences_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.convert_sequence_to_qr4_rows_uneven_sequences_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_qr4_base_feature_names_only_real_objects(self, real_service, test_data):
         """Real objects version of test_qr4_base_feature_names_only"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.qr4_base_feature_names_only_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.qr4_base_feature_names_only_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_qr4_no_indexed_features_real_objects(self, real_service, test_data):
         """Real objects version of test_qr4_no_indexed_features"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.qr4_no_indexed_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.qr4_no_indexed_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_qr4_scalar_values_only_real_objects(self, real_service, test_data):
         """Real objects version of test_qr4_scalar_values_only"""
         # Test with real database integration
@@ -297,15 +226,8 @@ class we:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.qr4_scalar_values_only_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.qr4_scalar_values_only_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

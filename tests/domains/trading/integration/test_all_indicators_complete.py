@@ -31,22 +31,16 @@ from typing import List, Optional
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-try:
-    from domains.trading.services.indicator import (
-        # HLC Linear Regression Indicators (9)
-        PL, L11, H11, Z1B, Z2B, EnvelopeBot, EnvelopeTop, Z5T, Z6T,
-        # Five Nine Arithmetic Indicators (2)
-        FiveNineSell, FiveNineBuy,
-        # Five One Conditional Indicators (2)
-        FiveOneBuy, FiveOneSell,
-        # Five Two Conditional Indicators (2)
-        FiveTwoBuy, FiveTwoSell
-    )
-except ImportError as e:
-    print(f"❌ Cannot import indicators: {e}")
-    print("Make sure to run: PYTHONPATH=src python test_all_indicators_complete.py")
-    sys.exit(1)
-
+from domains.trading.services.indicators import (
+    # HLC Linear Regression Indicators (9)
+    PL, L11, H11, Z1B, Z2B, EnvelopeBot, EnvelopeTop, Z5T, Z6T,
+    # Five Nine Arithmetic Indicators (2)
+    FiveNineSell, FiveNineBuy,
+    # Five One Conditional Indicators (2)
+    FiveOneBuy, FiveOneSell,
+    # Five Two Conditional Indicators (2)
+    FiveTwoBuy, FiveTwoSell
+)
 @dataclass
 class TestInstrumentInterval:
     """Test implementation of InstrumentInterval."""
@@ -136,16 +130,11 @@ class ComprehensiveIndicatorTests:
         total_count = len(self.all_indicators)
 
         for name, indicator_class in self.all_indicators.items():
-            try:
-                indicator = indicator_class()
-                assert hasattr(indicator, 'update'), f"{name} missing update method"
-                assert hasattr(indicator, 'get_value'), f"{name} missing get_value method"
-                print(f"✅ {name}: instantiated successfully")
-                success_count += 1
-            except Exception as e:
-                print(f"❌ {name}: instantiation failed - {e}")
-                self.errors.append(f"Instantiation failed for {name}: {e}")
-
+            indicator = indicator_class()
+            assert hasattr(indicator, 'update'), f"{name} missing update method"
+            assert hasattr(indicator, 'get_value'), f"{name} missing get_value method"
+            print(f"✅ {name}: instantiated successfully")
+            success_count += 1
         success_rate = success_count / total_count
         print(f"\nInstantiation Success Rate: {success_count}/{total_count} ({success_rate:.1%})")
 
@@ -161,52 +150,46 @@ class ComprehensiveIndicatorTests:
         accuracy_results = {}
 
         for name, indicator_class in self.hlc_indicators.items():
-            try:
-                indicator = indicator_class()
+            indicator = indicator_class()
 
-                # Need at least 3 intervals for HLC indicators
-                if len(intervals) >= 3:
-                    indicator.update(intervals)
-                    calculated_value = indicator.get_value()
+            # Need at least 3 intervals for HLC indicators
+            if len(intervals) >= 3:
+                indicator.update(intervals)
+                calculated_value = indicator.get_value()
 
-                    if calculated_value is not None:
-                        # For indicators we have expected results
-                        if name in self.expected_hlc_results:
-                            expected = self.expected_hlc_results[name][4]  # 5th value
-                            error = abs(calculated_value - expected)
-                            relative_error = error / abs(expected) if expected != 0 else 0
+                if calculated_value is not None:
+                    # For indicators we have expected results
+                    if name in self.expected_hlc_results:
+                        expected = self.expected_hlc_results[name][4]  # 5th value
+                        error = abs(calculated_value - expected)
+                        relative_error = error / abs(expected) if expected != 0 else 0
 
-                            accuracy_results[name] = {
-                                'calculated': calculated_value,
-                                'expected': expected,
-                                'absolute_error': error,
-                                'relative_error': relative_error
-                            }
+                        accuracy_results[name] = {
+                            'calculated': calculated_value,
+                            'expected': expected,
+                            'absolute_error': error,
+                            'relative_error': relative_error
+                        }
 
-                            tolerance = 0.001  # 0.1% tolerance
-                            if relative_error <= tolerance:
-                                print(f"✅ {name}: {calculated_value:.3f} (expected {expected:.3f}, error {relative_error:.4%})")
-                            else:
-                                print(f"❌ {name}: {calculated_value:.3f} (expected {expected:.3f}, error {relative_error:.4%})")
-                                self.errors.append(f"{name} mathematical accuracy failed")
+                        tolerance = 0.001  # 0.1% tolerance
+                        if relative_error <= tolerance:
+                            print(f"✅ {name}: {calculated_value:.3f} (expected {expected:.3f}, error {relative_error:.4%})")
                         else:
-                            # For other indicators, just verify they calculate
-                            accuracy_results[name] = {
-                                'calculated': calculated_value,
-                                'status': 'calculated_successfully'
-                            }
-                            print(f"✅ {name}: {calculated_value:.3f} (calculated successfully)")
+                            print(f"❌ {name}: {calculated_value:.3f} (expected {expected:.3f}, error {relative_error:.4%})")
+                            self.errors.append(f"{name} mathematical accuracy failed")
                     else:
-                        print(f"⚠️ {name}: returned None (may be expected for insufficient data)")
-                        accuracy_results[name] = {'status': 'returned_none'}
+                        # For other indicators, just verify they calculate
+                        accuracy_results[name] = {
+                            'calculated': calculated_value,
+                            'status': 'calculated_successfully'
+                        }
+                        print(f"✅ {name}: {calculated_value:.3f} (calculated successfully)")
                 else:
-                    print(f"⚠️ {name}: insufficient test data")
-                    accuracy_results[name] = {'status': 'insufficient_data'}
-
-            except Exception as e:
-                print(f"❌ {name}: calculation failed - {e}")
-                self.errors.append(f"{name} calculation failed: {e}")
-                accuracy_results[name] = {'status': 'failed', 'error': str(e)}
+                    print(f"⚠️ {name}: returned None (may be expected for insufficient data)")
+                    accuracy_results[name] = {'status': 'returned_none'}
+            else:
+                print(f"⚠️ {name}: insufficient test data")
+                accuracy_results[name] = {'status': 'insufficient_data'}
 
         self.test_results['hlc_accuracy'] = accuracy_results
 
@@ -277,23 +260,17 @@ class ComprehensiveIndicatorTests:
             conditional_indicators = {**self.five_one_indicators, **self.five_two_indicators}
 
             for name, indicator_class in conditional_indicators.items():
-                try:
-                    indicator = indicator_class()
-                    indicator.update(scenario['intervals'])
-                    actual_value = indicator.get_value()
-                    expected_value = scenario['expected'][name]
+                indicator = indicator_class()
+                indicator.update(scenario['intervals'])
+                actual_value = indicator.get_value()
+                expected_value = scenario['expected'][name]
 
-                    if actual_value == expected_value:
-                        status = "None" if actual_value is None else f"{actual_value:.1f}"
-                        print(f"✅ {name}: {status} (as expected)")
-                    else:
-                        print(f"❌ {name}: got {actual_value}, expected {expected_value}")
-                        self.errors.append(f"{name} conditional logic failed in {scenario['name']}")
-                        all_passed = False
-
-                except Exception as e:
-                    print(f"❌ {name}: error - {e}")
-                    self.errors.append(f"{name} error in {scenario['name']}: {e}")
+                if actual_value == expected_value:
+                    status = "None" if actual_value is None else f"{actual_value:.1f}"
+                    print(f"✅ {name}: {status} (as expected)")
+                else:
+                    print(f"❌ {name}: got {actual_value}, expected {expected_value}")
+                    self.errors.append(f"{name} conditional logic failed in {scenario['name']}")
                     all_passed = False
 
         return all_passed
@@ -315,22 +292,16 @@ class ComprehensiveIndicatorTests:
         all_passed = True
 
         for name, indicator_class in self.five_nine_indicators.items():
-            try:
-                indicator = indicator_class()
-                indicator.update(test_intervals)
-                actual_value = indicator.get_value()
-                expected_value = expected_results[name]
+            indicator = indicator_class()
+            indicator.update(test_intervals)
+            actual_value = indicator.get_value()
+            expected_value = expected_results[name]
 
-                if actual_value == expected_value:
-                    print(f"✅ {name}: {actual_value} (correct)")
-                else:
-                    print(f"❌ {name}: got {actual_value}, expected {expected_value}")
-                    self.errors.append(f"{name} arithmetic accuracy failed")
-                    all_passed = False
-
-            except Exception as e:
-                print(f"❌ {name}: calculation error - {e}")
-                self.errors.append(f"{name} calculation error: {e}")
+            if actual_value == expected_value:
+                print(f"✅ {name}: {actual_value} (correct)")
+            else:
+                print(f"❌ {name}: got {actual_value}, expected {expected_value}")
+                self.errors.append(f"{name} arithmetic accuracy failed")
                 all_passed = False
 
         return all_passed
@@ -387,34 +358,24 @@ class ComprehensiveIndicatorTests:
 
             for name, indicator_class in self.all_indicators.items():
                 total_tests += 1
-                try:
-                    indicator = indicator_class()
-                    indicator.update(case['intervals'])
-                    result = indicator.get_value()
+                indicator = indicator_class()
+                indicator.update(case['intervals'])
+                result = indicator.get_value()
 
-                    # For edge cases, we mainly check that no exceptions occur
-                    # and that the behavior is reasonable
-                    if case['expected_behavior'] == 'all_return_none':
-                        if result is None:
-                            print(f"✅ {name}: None (as expected)")
-                            passed_tests += 1
-                        else:
-                            print(f"⚠️ {name}: {result} (expected None, but calculation may be valid)")
-                            passed_tests += 1  # Still pass if it calculated something reasonable
-                    else:
-                        # For other cases, just check no exception occurred
-                        status = "None" if result is None else f"calculated: {result}"
-                        print(f"✅ {name}: {status} (handled gracefully)")
-                        passed_tests += 1
-
-                except Exception as e:
-                    print(f"❌ {name}: exception - {e}")
-                    # Some exceptions might be expected for extreme edge cases
-                    if "invalid_data" in str(e) or "calculation_error" in str(e):
-                        print(f"   (Expected error for edge case)")
+                # For edge cases, we mainly check that no exceptions occur
+                # and that the behavior is reasonable
+                if case['expected_behavior'] == 'all_return_none':
+                    if result is None:
+                        print(f"✅ {name}: None (as expected)")
                         passed_tests += 1
                     else:
-                        self.errors.append(f"{name} failed edge case {case['name']}: {e}")
+                        print(f"⚠️ {name}: {result} (expected None, but calculation may be valid)")
+                        passed_tests += 1  # Still pass if it calculated something reasonable
+                else:
+                    # For other cases, just check no exception occurred
+                    status = "None" if result is None else f"calculated: {result}"
+                    print(f"✅ {name}: {status} (handled gracefully)")
+                    passed_tests += 1
 
         success_rate = passed_tests / total_tests
         print(f"\nEdge Cases: {passed_tests}/{total_tests} tests handled correctly ({success_rate:.1%})")
@@ -445,28 +406,22 @@ class ComprehensiveIndicatorTests:
         performance_results = {}
 
         for name, indicator_class in self.all_indicators.items():
-            try:
-                indicator = indicator_class()
+            indicator = indicator_class()
 
-                # Measure time for multiple updates
-                start_time = time.perf_counter()
-                iterations = 10
+            # Measure time for multiple updates
+            start_time = time.perf_counter()
+            iterations = 10
 
-                for _ in range(iterations):
-                    indicator.update(intervals)
-                    result = indicator.get_value()
+            for _ in range(iterations):
+                indicator.update(intervals)
+                result = indicator.get_value()
 
-                end_time = time.perf_counter()
+            end_time = time.perf_counter()
 
-                avg_time_ms = ((end_time - start_time) / iterations) * 1000
-                performance_results[name] = avg_time_ms
+            avg_time_ms = ((end_time - start_time) / iterations) * 1000
+            performance_results[name] = avg_time_ms
 
-                print(f"✅ {name}: {avg_time_ms:.3f}ms avg (over {iterations} iterations)")
-
-            except Exception as e:
-                print(f"❌ {name}: performance test failed - {e}")
-                self.errors.append(f"{name} performance test failed: {e}")
-                performance_results[name] = float('inf')
+            print(f"✅ {name}: {avg_time_ms:.3f}ms avg (over {iterations} iterations)")
 
         self.performance_metrics = performance_results
 
@@ -530,20 +485,13 @@ class ComprehensiveIndicatorTests:
             scenario_results = {}
 
             for name, indicator_class in self.all_indicators.items():
-                try:
-                    indicator = indicator_class()
-                    indicator.update(intervals)
-                    result = indicator.get_value()
+                indicator = indicator_class()
+                indicator.update(intervals)
+                result = indicator.get_value()
 
-                    scenario_results[name] = result
-                    status = "None" if result is None else f"{result:.2f}"
-                    print(f"  {name}: {status}")
-
-                except Exception as e:
-                    print(f"  ❌ {name}: failed - {e}")
-                    scenario_results[name] = 'error'
-                    self.errors.append(f"{name} failed in {scenario['name']}: {e}")
-                    all_passed = False
+                scenario_results[name] = result
+                status = "None" if result is None else f"{result:.2f}"
+                print(f"  {name}: {status}")
 
             integration_results[scenario['name']] = scenario_results
 
@@ -613,22 +561,13 @@ class ComprehensiveIndicatorTests:
 
         for test_name, test_method in test_methods:
             print(f"\n{'='*20} {test_name} {'='*20}")
-            try:
-                result = test_method()
-                results[test_name] = result
-                if not result:
-                    overall_success = False
-                    print(f"❌ {test_name} FAILED")
-                else:
-                    print(f"✅ {test_name} PASSED")
-            except Exception as e:
-                print(f"❌ {test_name} CRASHED: {e}")
-                results[test_name] = False
+            result = test_method()
+            results[test_name] = result
+            if not result:
                 overall_success = False
-                import traceback
-                traceback.print_exc()
-
-        # Final summary
+                print(f"❌ {test_name} FAILED")
+            else:
+                print(f"✅ {test_name} PASSED")
         print("\n" + "="*60)
         print("FINAL TEST RESULTS:")
         print("="*60)

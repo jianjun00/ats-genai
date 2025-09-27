@@ -39,22 +39,16 @@ from concurrent.futures import ThreadPoolExecutor
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-try:
-    from domains.trading.services.indicator import (
-        # HLC Linear Regression Indicators (9)
-        PL, L11, H11, Z1B, Z2B, EnvelopeBot, EnvelopeTop, Z5T, Z6T,
-        # Five Nine Arithmetic Indicators (2)
-        FiveNineSell, FiveNineBuy,
-        # Five One Conditional Indicators (2)
-        FiveOneBuy, FiveOneSell,
-        # Five Two Conditional Indicators (2)
-        FiveTwoBuy, FiveTwoSell
-    )
-except ImportError as e:
-    print(f"❌ Cannot import indicators: {e}")
-    print("Make sure to run: PYTHONPATH=src python test_system_stress_comprehensive.py")
-    sys.exit(1)
-
+from domains.trading.services.indicators import (
+    # HLC Linear Regression Indicators (9)
+    PL, L11, H11, Z1B, Z2B, EnvelopeBot, EnvelopeTop, Z5T, Z6T,
+    # Five Nine Arithmetic Indicators (2)
+    FiveNineSell, FiveNineBuy,
+    # Five One Conditional Indicators (2)
+    FiveOneBuy, FiveOneSell,
+    # Five Two Conditional Indicators (2)
+    FiveTwoBuy, FiveTwoSell
+)
 @dataclass
 class TestInstrumentInterval:
     """Test implementation of InstrumentInterval."""
@@ -156,42 +150,35 @@ class SystemStressTests:
             indicator_times = {}
 
             for name, indicator_class in self.all_indicators.items():
-                try:
-                    indicator = indicator_class()
+                indicator = indicator_class()
 
-                    # Test with sliding window approach (more realistic)
-                    window_size = min(100, len(intervals))  # Max 100 bars per update
-                    total_time = 0
-                    update_count = 0
+                # Test with sliding window approach (more realistic)
+                window_size = min(100, len(intervals))  # Max 100 bars per update
+                total_time = 0
+                update_count = 0
 
-                    for i in range(window_size, len(intervals), 10):  # Every 10th bar
-                        start_time = time.perf_counter()
+                for i in range(window_size, len(intervals), 10):  # Every 10th bar
+                    start_time = time.perf_counter()
 
-                        # Use last window_size intervals
-                        window_intervals = intervals[i-window_size:i]
-                        indicator.update(window_intervals)
-                        result = indicator.get_value()
+                    # Use last window_size intervals
+                    window_intervals = intervals[i-window_size:i]
+                    indicator.update(window_intervals)
+                    result = indicator.get_value()
 
-                        end_time = time.perf_counter()
-                        total_time += (end_time - start_time)
-                        update_count += 1
+                    end_time = time.perf_counter()
+                    total_time += (end_time - start_time)
+                    update_count += 1
 
-                    avg_time_ms = (total_time / update_count) * 1000 if update_count > 0 else 0
-                    indicator_times[name] = avg_time_ms
+                avg_time_ms = (total_time / update_count) * 1000 if update_count > 0 else 0
+                indicator_times[name] = avg_time_ms
 
-                    status = "✅" if avg_time_ms < 10.0 else "⚠️"  # 10ms threshold
-                    print(f"  {status} {name}: {avg_time_ms:.3f}ms avg ({update_count} updates)")
+                status = "✅" if avg_time_ms < 10.0 else "⚠️"  # 10ms threshold
+                print(f"  {status} {name}: {avg_time_ms:.3f}ms avg ({update_count} updates)")
 
-                    if avg_time_ms >= 10.0:
-                        self.errors.append(f"{name} too slow in {test_config['name']}: {avg_time_ms:.3f}ms")
-                        all_passed = False
-
-                except Exception as e:
-                    print(f"  ❌ {name}: failed - {e}")
-                    self.errors.append(f"{name} failed in {test_config['name']}: {e}")
+                if avg_time_ms >= 10.0:
+                    self.errors.append(f"{name} too slow in {test_config['name']}: {avg_time_ms:.3f}ms")
                     all_passed = False
 
-            # Overall stats
             if indicator_times:
                 avg_system_time = statistics.mean(indicator_times.values())
                 max_system_time = max(indicator_times.values())
@@ -236,13 +223,8 @@ class SystemStressTests:
             ]
 
             for indicator in indicators.values():
-                try:
-                    indicator.update(test_intervals)
-                    indicator.get_value()
-                except:
-                    pass  # Ignore errors in stress test
-
-            # Explicitly delete
+                indicator.update(test_intervals)
+                indicator.get_value()
             for indicator in indicators.values():
                 del indicator
             del indicators
@@ -273,12 +255,8 @@ class SystemStressTests:
             intervals = self.generate_realistic_market_data(50)  # 50 bars per batch
 
             for indicator in persistent_indicators.values():
-                try:
-                    indicator.update(intervals)
-                    indicator.get_value()
-                except:
-                    pass  # Ignore errors in stress test
-
+                indicator.update(intervals)
+                indicator.get_value()
             if batch % 25 == 0:
                 current_memory = process.memory_info().rss / 1024 / 1024
                 print(f"    Batch {batch}: {current_memory:.2f} MB")
@@ -329,34 +307,26 @@ class SystemStressTests:
 
             total_time = 0
 
-            try:
-                for i in range(iterations):
-                    # Generate unique data for this thread/iteration
-                    base = 3400 + thread_id * 100 + i
-                    intervals = [
-                        TestInstrumentInterval(high=base+20, low=base-20, close=base+random.uniform(-10,10)),
-                        TestInstrumentInterval(high=base+15, low=base-25, close=base+random.uniform(-15,15)),
-                        TestInstrumentInterval(high=base+25, low=base-15, close=base+random.uniform(-5,5))
-                    ]
+            for i in range(iterations):
+                # Generate unique data for this thread/iteration
+                base = 3400 + thread_id * 100 + i
+                intervals = [
+                    TestInstrumentInterval(high=base+20, low=base-20, close=base+random.uniform(-10,10)),
+                    TestInstrumentInterval(high=base+15, low=base-25, close=base+random.uniform(-15,15)),
+                    TestInstrumentInterval(high=base+25, low=base-15, close=base+random.uniform(-5,5))
+                ]
 
-                    start_time = time.perf_counter()
+                start_time = time.perf_counter()
 
-                    # Update all indicators
-                    for indicator in thread_indicators.values():
-                        try:
-                            indicator.update(intervals)
-                            indicator.get_value()
-                            results['successful_updates'] += 1
-                        except Exception:
-                            results['errors'] += 1
+                # Update all indicators
+                for indicator in thread_indicators.values():
+                    indicator.update(intervals)
+                    indicator.get_value()
+                    results['successful_updates'] += 1
+                end_time = time.perf_counter()
+                total_time += (end_time - start_time)
 
-                    end_time = time.perf_counter()
-                    total_time += (end_time - start_time)
-
-                results['avg_time_ms'] = (total_time / iterations) * 1000 if iterations > 0 else 0
-
-            except Exception as e:
-                results['thread_error'] = str(e)
+            results['avg_time_ms'] = (total_time / iterations) * 1000 if iterations > 0 else 0
 
             return results
 
@@ -386,14 +356,8 @@ class SystemStressTests:
                 # Collect results
                 thread_results = []
                 for future in futures:
-                    try:
-                        result = future.result(timeout=30)  # 30 second timeout per thread
-                        thread_results.append(result)
-                    except Exception as e:
-                        print(f"    ❌ Thread failed: {e}")
-                        thread_results.append({'error': str(e)})
-                        all_passed = False
-
+                    result = future.result(timeout=30)  # 30 second timeout per thread
+                    thread_results.append(result)
             end_time = time.perf_counter()
             total_test_time = end_time - start_time
 
@@ -469,44 +433,32 @@ class SystemStressTests:
         for scenario in extreme_scenarios:
             print(f"\n  --- {scenario['name']} ---")
 
-            try:
-                # Generate extreme market data
-                intervals = scenario['generator']()
+            # Generate extreme market data
+            intervals = scenario['generator']()
 
-                scenario_results = {}
+            scenario_results = {}
 
-                # Test all indicators
-                for name, indicator_class in self.all_indicators.items():
-                    try:
-                        indicator = indicator_class()
-                        indicator.update(intervals)
-                        result = indicator.get_value()
+            # Test all indicators
+            for name, indicator_class in self.all_indicators.items():
+                indicator = indicator_class()
+                indicator.update(intervals)
+                result = indicator.get_value()
 
-                        # Check that result is reasonable (not NaN, Inf, etc.)
-                        if result is not None:
-                            if not (isinstance(result, (int, float)) and
-                                   not (result != result or result == float('inf') or result == float('-inf'))):  # NaN or Inf check
-                                scenario_results[name] = 'invalid_result'
-                                print(f"    ❌ {name}: invalid result {result}")
-                                all_passed = False
-                            else:
-                                scenario_results[name] = 'valid_result'
-                                print(f"    ✅ {name}: valid result")
-                        else:
-                            scenario_results[name] = 'none_result'
-                            print(f"    ✅ {name}: None (acceptable)")
+                # Check that result is reasonable (not NaN, Inf, etc.)
+                if result is not None:
+                    if not (isinstance(result, (int, float)) and
+                           not (result != result or result == float('inf') or result == float('-inf'))):  # NaN or Inf check
+                        scenario_results[name] = 'invalid_result'
+                        print(f"    ❌ {name}: invalid result {result}")
+                        all_passed = False
+                    else:
+                        scenario_results[name] = 'valid_result'
+                        print(f"    ✅ {name}: valid result")
+                else:
+                    scenario_results[name] = 'none_result'
+                    print(f"    ✅ {name}: None (acceptable)")
 
-                    except Exception as e:
-                        scenario_results[name] = f'error: {str(e)}'
-                        print(f"    ❌ {name}: error - {e}")
-                        # Don't fail the test for errors in extreme conditions - some are expected
-
-                extreme_results[scenario['name']] = scenario_results
-
-            except Exception as e:
-                print(f"    ❌ Scenario setup failed: {e}")
-                extreme_results[scenario['name']] = {'setup_error': str(e)}
-                all_passed = False
+            extreme_results[scenario['name']] = scenario_results
 
         self.test_results['extreme_conditions'] = extreme_results
         return all_passed
@@ -682,31 +634,22 @@ class SystemStressTests:
 
         for test_name, test_method in stress_test_methods:
             print(f"\n{'='*20} {test_name} {'='*20}")
-            try:
-                start_time = time.perf_counter()
-                result = test_method()
-                end_time = time.perf_counter()
+            start_time = time.perf_counter()
+            result = test_method()
+            end_time = time.perf_counter()
 
-                test_time = end_time - start_time
-                results[test_name] = {
-                    'passed': result,
-                    'duration': test_time
-                }
+            test_time = end_time - start_time
+            results[test_name] = {
+                'passed': result,
+                'duration': test_time
+            }
 
-                if not result:
-                    overall_success = False
-                    print(f"❌ {test_name} FAILED ({test_time:.1f}s)")
-                else:
-                    print(f"✅ {test_name} PASSED ({test_time:.1f}s)")
-
-            except Exception as e:
-                print(f"❌ {test_name} CRASHED: {e}")
-                results[test_name] = {'passed': False, 'error': str(e)}
+            if not result:
                 overall_success = False
-                import traceback
-                traceback.print_exc()
+                print(f"❌ {test_name} FAILED ({test_time:.1f}s)")
+            else:
+                print(f"✅ {test_name} PASSED ({test_time:.1f}s)")
 
-        # Final summary
         print("\n" + "="*70)
         print("STRESS TEST RESULTS SUMMARY:")
         print("="*70)

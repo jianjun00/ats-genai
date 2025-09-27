@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class RealTestRealObjectsRunner:
@@ -56,13 +51,7 @@ class RealTestRealObjectsRunner:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_temporal_isolation_future_data_exclusion_real_objects(self, real_service, test_data):
         """Real objects version of test_temporal_isolation_future_data_exclusion"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class RealTestRealObjectsRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.temporal_isolation_future_data_exclusion_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.temporal_isolation_future_data_exclusion_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_strict_temporal_boundaries_multi_timeframe_real_objects(self, real_service, test_data):
         """Real objects version of test_strict_temporal_boundaries_multi_timeframe"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class RealTestRealObjectsRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.strict_temporal_boundaries_multi_timeframe_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.strict_temporal_boundaries_multi_timeframe_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_leakage_detection_with_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_data_leakage_detection_with_edge_cases"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class RealTestRealObjectsRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_leakage_detection_with_edge_cases_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_leakage_detection_with_edge_cases_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_aggregation_window_correctness_real_objects(self, real_service, test_data):
         """Real objects version of test_aggregation_window_correctness"""
         # Test with real database integration
@@ -143,15 +114,8 @@ class RealTestRealObjectsRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.aggregation_window_correctness_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.aggregation_window_correctness_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

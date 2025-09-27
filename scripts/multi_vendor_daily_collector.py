@@ -101,42 +101,30 @@ class VendorCollector:
         logger.info(f"🔄 Starting {self.config.name} collection for {len(symbols)} symbols")
 
         for i, (symbol, instrument_id) in enumerate(symbols):
-            try:
-                logger.debug(f"[{i+1}/{len(symbols)}] Processing {self.config.name} - {symbol}")
+            logger.debug(f"[{i+1}/{len(symbols)}] Processing {self.config.name} - {symbol}")
 
-                # Fetch data from vendor API
-                data = await self.fetch_symbol_data(symbol, start_date, end_date)
-                result.api_calls_made += 1
+            # Fetch data from vendor API
+            data = await self.fetch_symbol_data(symbol, start_date, end_date)
+            result.api_calls_made += 1
 
-                if not data:
-                    logger.debug(f"No data returned for {self.config.name} - {symbol}")
-                    continue
+            if not data:
+                logger.debug(f"No data returned for {self.config.name} - {symbol}")
+                continue
 
-                # Store data in database
-                inserted, updated, failed = await self.store_symbol_data(symbol, instrument_id, data)
-                result.records_inserted += inserted
-                result.records_updated += updated
-                result.records_failed += failed
-                result.symbols_processed += 1
+            # Store data in database
+            inserted, updated, failed = await self.store_symbol_data(symbol, instrument_id, data)
+            result.records_inserted += inserted
+            result.records_updated += updated
+            result.records_failed += failed
+            result.symbols_processed += 1
 
-                logger.debug(f"✅ {self.config.name} - {symbol}: {inserted} inserted, {updated} updated")
+            logger.debug(f"✅ {self.config.name} - {symbol}: {inserted} inserted, {updated} updated")
 
-                # Rate limiting
-                await asyncio.sleep(self.config.rate_limit_seconds)
+            # Rate limiting
+            await asyncio.sleep(self.config.rate_limit_seconds)
 
-            except Exception as e:
-                error_msg = f"Error processing {self.config.name} - {symbol}: {str(e)}"
-                logger.warning(error_msg)
-                result.errors.append(error_msg)
-                result.records_failed += 1
-
-        # Get latest data date
-        try:
-            latest_date = await self.db_conn.fetchval(f"SELECT MAX(date) FROM {self.config.table_name}")
-            result.latest_date = latest_date.isoformat() if latest_date else None
-        except Exception as e:
-            logger.warning(f"Could not fetch latest date for {self.config.name}: {e}")
-
+        latest_date = await self.db_conn.fetchval(f"SELECT MAX(date) FROM {self.config.table_name}")
+        result.latest_date = latest_date.isoformat() if latest_date else None
         result.execution_time_seconds = time.time() - start_time
         logger.info(f"✅ {self.config.name} collection completed: {result.symbols_processed} symbols, {result.records_inserted} inserted, {result.records_updated} updated")
 
@@ -154,55 +142,45 @@ class TiingoCollector(VendorCollector):
             'token': self.api_key
         }
 
-        try:
-            async with self.session.get(url, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
-        except Exception as e:
-            logger.warning(f"Tiingo API error for {symbol}: {e}")
-            return []
-
+        async with self.session.get(url, params=params) as response:
+            response.raise_for_status()
+            return await response.json()
     async def store_symbol_data(self, symbol: str, instrument_id: int, data: List[Dict]) -> Tuple[int, int, int]:
         """Store Tiingo data in database."""
         inserted, updated, failed = 0, 0, 0
 
         for record in data:
-            try:
-                # Parse date
-                record_date = datetime.fromisoformat(record['date'].replace('Z', '+00:00')).date()
+            # Parse date
+            record_date = datetime.fromisoformat(record['date'].replace('Z', '+00:00')).date()
 
-                # Check if record exists
-                existing = await self.db_conn.fetchrow(
-                    f"SELECT instrument_id FROM {self.config.table_name} WHERE instrument_id = $1 AND date = $2",
-                    instrument_id, record_date
-                )
+            # Check if record exists
+            existing = await self.db_conn.fetchrow(
+                f"SELECT instrument_id FROM {self.config.table_name} WHERE instrument_id = $1 AND date = $2",
+                instrument_id, record_date
+            )
 
-                if existing:
-                    # Update existing record
-                    await self.db_conn.execute(f"""
-                        UPDATE {self.config.table_name}
-                        SET open = $3, high = $4, low = $5, close = $6, volume = $7,
-                            adjusted_close = $8, symbol = $9, updated_at = CURRENT_TIMESTAMP
-                        WHERE instrument_id = $1 AND date = $2
-                    """, instrument_id, record_date,
-                        float(record['open']), float(record['high']), float(record['low']),
-                        float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
-                    updated += 1
-                else:
-                    # Insert new record
-                    await self.db_conn.execute(f"""
-                        INSERT INTO {self.config.table_name}
-                        (instrument_id, date, open, high, low, close, volume, adjusted_close, symbol, created_at, updated_at)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        ON CONFLICT (instrument_id, date) DO NOTHING
-                    """, instrument_id, record_date,
-                        float(record['open']), float(record['high']), float(record['low']),
-                        float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
-                    inserted += 1
-
-            except Exception as e:
-                logger.warning(f"Error storing Tiingo record for {symbol}: {e}")
-                failed += 1
+            if existing:
+                # Update existing record
+                await self.db_conn.execute(f"""
+                    UPDATE {self.config.table_name}
+                    SET open = $3, high = $4, low = $5, close = $6, volume = $7,
+                        adjusted_close = $8, symbol = $9, updated_at = CURRENT_TIMESTAMP
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
+                updated += 1
+            else:
+                # Insert new record
+                await self.db_conn.execute(f"""
+                    INSERT INTO {self.config.table_name}
+                    (instrument_id, date, open, high, low, close, volume, adjusted_close, symbol, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (instrument_id, date) DO NOTHING
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
+                inserted += 1
 
         return inserted, updated, failed
 
@@ -214,75 +192,65 @@ class PolygonCollector(VendorCollector):
         url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{start_date.strftime('%Y-%m-%d')}/{end_date.strftime('%Y-%m-%d')}"
         params = {'apikey': self.api_key}
 
-        try:
-            async with self.session.get(url, params=params) as response:
-                response.raise_for_status()
-                data = await response.json()
+        async with self.session.get(url, params=params) as response:
+            response.raise_for_status()
+            data = await response.json()
 
-                if data.get('status') == 'OK' and data.get('results'):
-                    # Convert Polygon format to standard format
-                    results = []
-                    for item in data['results']:
-                        results.append({
-                            'date': datetime.fromtimestamp(item['t'] / 1000).strftime('%Y-%m-%d'),
-                            'open': item['o'],
-                            'high': item['h'],
-                            'low': item['l'],
-                            'close': item['c'],
-                            'volume': item['v'],
-                            'adjClose': item.get('vw', item['c'])  # Use VWAP as adjusted close if available
-                        })
-                    return results
+            if data.get('status') == 'OK' and data.get('results'):
+                # Convert Polygon format to standard format
+                results = []
+                for item in data['results']:
+                    results.append({
+                        'date': datetime.fromtimestamp(item['t'] / 1000).strftime('%Y-%m-%d'),
+                        'open': item['o'],
+                        'high': item['h'],
+                        'low': item['l'],
+                        'close': item['c'],
+                        'volume': item['v'],
+                        'adjClose': item.get('vw', item['c'])  # Use VWAP as adjusted close if available
+                    })
+                return results
 
-                return []
-        except Exception as e:
-            logger.warning(f"Polygon API error for {symbol}: {e}")
             return []
-
     async def store_symbol_data(self, symbol: str, instrument_id: int, data: List[Dict]) -> Tuple[int, int, int]:
         """Store Polygon data in database."""
         inserted, updated, failed = 0, 0, 0
 
         for record in data:
-            try:
-                # Parse date
-                if isinstance(record['date'], str):
-                    record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
-                else:
-                    record_date = record['date']
+            # Parse date
+            if isinstance(record['date'], str):
+                record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
+            else:
+                record_date = record['date']
 
-                # Check if record exists
-                existing = await self.db_conn.fetchrow(
-                    f"SELECT instrument_id FROM {self.config.table_name} WHERE instrument_id = $1 AND date = $2",
-                    instrument_id, record_date
-                )
+            # Check if record exists
+            existing = await self.db_conn.fetchrow(
+                f"SELECT instrument_id FROM {self.config.table_name} WHERE instrument_id = $1 AND date = $2",
+                instrument_id, record_date
+            )
 
-                if existing:
-                    # Update existing record (Polygon table has no adjclose, has market_cap)
-                    await self.db_conn.execute(f"""
-                        UPDATE {self.config.table_name}
-                        SET open = $3, high = $4, low = $5, close = $6, volume = $7,
-                            symbol = $8, updated_at = CURRENT_TIMESTAMP
-                        WHERE instrument_id = $1 AND date = $2
-                    """, instrument_id, record_date,
-                        float(record['open']), float(record['high']), float(record['low']),
-                        float(record['close']), int(record['volume']), symbol)
-                    updated += 1
-                else:
-                    # Insert new record (Polygon table schema)
-                    await self.db_conn.execute(f"""
-                        INSERT INTO {self.config.table_name}
-                        (instrument_id, date, open, high, low, close, volume, symbol, created_at, updated_at)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        ON CONFLICT (instrument_id, date) DO NOTHING
-                    """, instrument_id, record_date,
-                        float(record['open']), float(record['high']), float(record['low']),
-                        float(record['close']), int(record['volume']), symbol)
-                    inserted += 1
-
-            except Exception as e:
-                logger.warning(f"Error storing Polygon record for {symbol}: {e}")
-                failed += 1
+            if existing:
+                # Update existing record (Polygon table has no adjclose, has market_cap)
+                await self.db_conn.execute(f"""
+                    UPDATE {self.config.table_name}
+                    SET open = $3, high = $4, low = $5, close = $6, volume = $7,
+                        symbol = $8, updated_at = CURRENT_TIMESTAMP
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']), symbol)
+                updated += 1
+            else:
+                # Insert new record (Polygon table schema)
+                await self.db_conn.execute(f"""
+                    INSERT INTO {self.config.table_name}
+                    (instrument_id, date, open, high, low, close, volume, symbol, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (instrument_id, date) DO NOTHING
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']), symbol)
+                inserted += 1
 
         return inserted, updated, failed
 
@@ -299,57 +267,47 @@ class EODHDCollector(VendorCollector):
             'fmt': 'json'
         }
 
-        try:
-            async with self.session.get(url, params=params) as response:
-                response.raise_for_status()
-                return await response.json()
-        except Exception as e:
-            logger.warning(f"EODHD API error for {symbol}: {e}")
-            return []
-
+        async with self.session.get(url, params=params) as response:
+            response.raise_for_status()
+            return await response.json()
     async def store_symbol_data(self, symbol: str, instrument_id: int, data: List[Dict]) -> Tuple[int, int, int]:
         """Store EODHD data in database."""
         inserted, updated, failed = 0, 0, 0
 
         for record in data:
-            try:
-                # Parse date
-                record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
+            # Parse date
+            record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
 
-                # Check if record exists (EODHD table has id column)
-                existing = await self.db_conn.fetchrow(
-                    f"SELECT id FROM {self.config.table_name} WHERE instrument_id = $1 AND date = $2",
-                    instrument_id, record_date
-                )
+            # Check if record exists (EODHD table has id column)
+            existing = await self.db_conn.fetchrow(
+                f"SELECT id FROM {self.config.table_name} WHERE instrument_id = $1 AND date = $2",
+                instrument_id, record_date
+            )
 
-                if existing:
-                    # Update existing record (no updated_at column in EODHD table)
-                    await self.db_conn.execute(f"""
-                        UPDATE {self.config.table_name}
-                        SET open = $3, high = $4, low = $5, close = $6, volume = $7,
-                            adjusted_close = $8, symbol = $9
-                        WHERE instrument_id = $1 AND date = $2
-                    """, instrument_id, record_date,
-                        float(record['open']), float(record['high']), float(record['low']),
-                        float(record['close']), int(record['volume']),
-                        float(record.get('adjusted_close', record['close'])), symbol)
-                    updated += 1
-                else:
-                    # Insert new record (EODHD table schema - has id, created_at but no updated_at)
-                    await self.db_conn.execute(f"""
-                        INSERT INTO {self.config.table_name}
-                        (instrument_id, date, open, high, low, close, volume, adjusted_close, symbol, created_at)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
-                        ON CONFLICT (instrument_id, date) DO NOTHING
-                    """, instrument_id, record_date,
-                        float(record['open']), float(record['high']), float(record['low']),
-                        float(record['close']), int(record['volume']),
-                        float(record.get('adjusted_close', record['close'])), symbol)
-                    inserted += 1
-
-            except Exception as e:
-                logger.warning(f"Error storing EODHD record for {symbol}: {e}")
-                failed += 1
+            if existing:
+                # Update existing record (no updated_at column in EODHD table)
+                await self.db_conn.execute(f"""
+                    UPDATE {self.config.table_name}
+                    SET open = $3, high = $4, low = $5, close = $6, volume = $7,
+                        adjusted_close = $8, symbol = $9
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']),
+                    float(record.get('adjusted_close', record['close'])), symbol)
+                updated += 1
+            else:
+                # Insert new record (EODHD table schema - has id, created_at but no updated_at)
+                await self.db_conn.execute(f"""
+                    INSERT INTO {self.config.table_name}
+                    (instrument_id, date, open, high, low, close, volume, adjusted_close, symbol, created_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+                    ON CONFLICT (instrument_id, date) DO NOTHING
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']),
+                    float(record.get('adjusted_close', record['close'])), symbol)
+                inserted += 1
 
         return inserted, updated, failed
 
@@ -444,11 +402,7 @@ class MultiVendorDailyCollector:
 
         async with self.db_pool.acquire() as conn:
             await collector.initialize(conn)
-            try:
-                return await collector.collect_data(symbols, start_date, end_date)
-            finally:
-                await collector.cleanup()
-
+            return await collector.collect_data(symbols, start_date, end_date)
     async def run_collection(self, vendors: List[str], lookback_days: int = 7,
                            max_symbols: Optional[int] = None) -> Dict[str, CollectionResult]:
         """Run collection for specified vendors."""
@@ -475,29 +429,15 @@ class MultiVendorDailyCollector:
                 continue
 
             logger.info(f"\n🔄 Starting {vendor} collection...")
-            try:
-                result = await self.collect_vendor_data(vendor, symbols, start_date, end_date)
-                results[vendor] = result
+            result = await self.collect_vendor_data(vendor, symbols, start_date, end_date)
+            results[vendor] = result
 
-                # Log summary
-                logger.info(f"✅ {vendor} completed: {result.symbols_processed} symbols, "
-                           f"{result.records_inserted} inserted, {result.records_updated} updated")
+            # Log summary
+            logger.info(f"✅ {vendor} completed: {result.symbols_processed} symbols, "
+                       f"{result.records_inserted} inserted, {result.records_updated} updated")
 
-                if result.errors:
-                    logger.warning(f"⚠️ {vendor} had {len(result.errors)} errors")
-
-            except Exception as e:
-                logger.error(f"❌ {vendor} collection failed: {e}")
-                results[vendor] = CollectionResult(
-                    vendor=vendor,
-                    symbols_processed=0,
-                    records_inserted=0,
-                    records_updated=0,
-                    records_failed=0,
-                    api_calls_made=0,
-                    execution_time_seconds=0,
-                    errors=[str(e)]
-                )
+            if result.errors:
+                logger.warning(f"⚠️ {vendor} had {len(result.errors)} errors")
 
         return results
 
@@ -535,17 +475,13 @@ async def send_slack_notification(results: Dict[str, CollectionResult]):
     if total_errors > 10:
         message += f"\n⚠️ **Warning: {total_errors} errors detected - please review logs**"
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            payload = {"text": message}
-            async with session.post(webhook_url, json=payload) as resp:
-                if resp.status == 200:
-                    logger.info("✅ Slack notification sent")
-                else:
-                    logger.error(f"❌ Failed to send Slack notification: {resp.status}")
-    except Exception as e:
-        logger.error(f"❌ Error sending Slack notification: {e}")
-
+    async with aiohttp.ClientSession() as session:
+        payload = {"text": message}
+        async with session.post(webhook_url, json=payload) as resp:
+            if resp.status == 200:
+                logger.info("✅ Slack notification sent")
+            else:
+                logger.error(f"❌ Failed to send Slack notification: {resp.status}")
 async def main():
     """Main function."""
     parser = argparse.ArgumentParser(description='Multi-Vendor Daily Data Collector')
@@ -578,37 +514,33 @@ async def main():
 
     # Run collection
     collector = MultiVendorDailyCollector()
-    try:
-        await collector.initialize()
-        results = await collector.run_collection(vendors, args.days, args.symbols)
+    await collector.initialize()
+    results = await collector.run_collection(vendors, args.days, args.symbols)
 
-        # Send notifications
-        if not args.no_slack and results:
-            await send_slack_notification(results)
+    # Send notifications
+    if not args.no_slack and results:
+        await send_slack_notification(results)
 
-        # Print final summary
-        logger.info("\n" + "="*80)
-        logger.info("COLLECTION COMPLETED")
-        logger.info("="*80)
+    # Print final summary
+    logger.info("\n" + "="*80)
+    logger.info("COLLECTION COMPLETED")
+    logger.info("="*80)
 
-        for vendor, result in results.items():
-            logger.info(f"{vendor.upper()}: {result.symbols_processed} symbols, "
-                       f"{result.records_inserted} inserted, {result.records_updated} updated, "
-                       f"{len(result.errors)} errors")
-            if result.latest_date:
-                logger.info(f"  Latest data: {result.latest_date}")
+    for vendor, result in results.items():
+        logger.info(f"{vendor.upper()}: {result.symbols_processed} symbols, "
+                   f"{result.records_inserted} inserted, {result.records_updated} updated, "
+                   f"{len(result.errors)} errors")
+        if result.latest_date:
+            logger.info(f"  Latest data: {result.latest_date}")
 
-        # Exit with appropriate code
-        total_errors = sum(len(r.errors) for r in results.values())
-        if total_errors > 0:
-            logger.warning(f"⚠️ Completed with {total_errors} errors")
-            exit(1)
-        else:
-            logger.info("✅ Collection completed successfully")
-            exit(0)
-
-    finally:
-        await collector.cleanup()
+    # Exit with appropriate code
+    total_errors = sum(len(r.errors) for r in results.values())
+    if total_errors > 0:
+        logger.warning(f"⚠️ Completed with {total_errors} errors")
+        exit(1)
+    else:
+        logger.info("✅ Collection completed successfully")
+        exit(0)
 
 if __name__ == "__main__":
     asyncio.run(main())

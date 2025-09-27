@@ -374,28 +374,12 @@ if __name__ == "__main__":
     print("🔍 Running Training Data Duplication Detection Tests")
     print("=" * 60)
     
-    try:
-        test_instance.test_detect_identical_ohlcv_across_time_intervals()
-        print("✅ Test 1: OHLCV duplication detection - PASSED")
-    except Exception as e:
-        print(f"❌ Test 1: OHLCV duplication detection - FAILED: {e}")
-    
-    try:
-        test_instance.test_valid_training_data_should_have_different_ohlcv()
-        print("✅ Test 2: Valid data variation check - PASSED")  
-    except Exception as e:
-        print(f"❌ Test 2: Valid data variation check - FAILED: {e}")
-        
-    try:
-        test_instance.test_timeframe_specific_duplication_detection()
-        print("✅ Test 3: 5-minute aggregation validation - PASSED")
-    except Exception as e:
-        print(f"❌ Test 3: 5-minute aggregation validation - FAILED: {e}")
-        
-    try:
-        test_instance.test_cache_invalidation_prevents_duplicates()
-        print("✅ Test 4: Cache invalidation logic - PASSED")
-    except Exception as e:
-        print(f"❌ Test 4: Cache invalidation logic - FAILED: {e}")
-        
+    test_instance.test_detect_identical_ohlcv_across_time_intervals()
+    print("✅ Test 1: OHLCV duplication detection - PASSED")
+    test_instance.test_valid_training_data_should_have_different_ohlcv()
+    print("✅ Test 2: Valid data variation check - PASSED")  
+    test_instance.test_timeframe_specific_duplication_detection()
+    print("✅ Test 3: 5-minute aggregation validation - PASSED")
+    test_instance.test_cache_invalidation_prevents_duplicates()
+    print("✅ Test 4: Cache invalidation logic - PASSED")
     print("\n🎯 Duplication detection tests completed!")

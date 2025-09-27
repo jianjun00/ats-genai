@@ -31,7 +31,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from domains.trading.services.state.universe_state import UniverseStateInterval
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from core.business.calendars.time_duration import TimeDuration
-from core.shared.data_handling.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 @pytest.mark.asyncio
 async def test_temporal_isolation_future_data_exclusion():
@@ -70,94 +70,71 @@ async def test_temporal_isolation_future_data_exclusion():
     for scenario in scenarios:
         print(f"\n📊 Testing: {scenario['name']} with REAL objects")
         
-        try:
-            # Create REAL Environment
-            environment = Environment()
-            
-            # Create REAL UniverseStateIntervalBuilder
-            builder = UniverseStateIntervalBuilder(
-                env=environment,
-                target_durations='5m,15m,60m',
-                base_duration='5m'
-            )
-            
-            # Create REAL UniverseStateManager
-            universe_manager = UniverseStateManager(
-                env=environment
-            )
-            
-            # Create REAL TimeSeriesSequenceTrainingGenerator
-            training_generator = TimeSeriesSequenceTrainingGenerator(
-                env=environment,
-                universe_manager=universe_manager
-            )
-            
-            # Create REAL IntervalBasedTrainingDataCallback
-            callback = IntervalBasedTrainingDataCallback(['AAPL'])
-            callback.training_generator = training_generator
-            
-            # Create REAL Runner
-            class RealTestRunner:
-                def __init__(self, environment):
-                    self.environment = environment
-                    self.universe_manager = universe_manager
-            
-            runner = RealTestRunner(environment)
-            
-            print(f"   🔧 Real Environment: {type(environment).__name__}")
-            print(f"   🏗️ Real Builder: {type(builder).__name__}")
-            print(f"   🌍 Real UniverseStateManager: {type(universe_manager).__name__}")
-            print(f"   🎯 Real TrainingGenerator: {type(training_generator).__name__}")
-            print(f"   📞 Real Callback: {type(callback).__name__}")
-            
-            # Execute REAL system with current time
-            await callback.handleInterval(runner, current_time)
-            
-            # If we get here, the real system processed the interval
-            print(f"   ✅ Real system processed interval successfully!")
-            print(f"   📊 Current data scenario: {scenario['current_ohlcv']}")
-            print(f"   🔮 Future data scenario: {scenario['future_ohlcv']}")
-            
-            # Verify real objects are being used
-            assert 'Mock' not in str(type(universe_manager))
-            assert 'Mock' not in str(type(training_generator))
-            assert 'Mock' not in str(type(callback))
-            
-            print(f"   ✅ Verified all objects are REAL (no Mock types)")
-            
-            # Store result for this scenario (even if just success/failure)
-            results[scenario['name']] = {
-                'success': True,
-                'scenario_data': scenario['current_ohlcv'],
-                'system_types': {
-                    'manager': type(universe_manager).__name__,
-                    'generator': type(training_generator).__name__,
-                    'callback': type(callback).__name__
-                }
+        # Create REAL Environment
+        environment = Environment()
+        
+        # Create REAL UniverseStateIntervalBuilder
+        builder = UniverseStateIntervalBuilder(
+            env=environment,
+            target_durations='5m,15m,60m',
+            base_duration='5m'
+        )
+        
+        # Create REAL UniverseStateManager
+        universe_manager = UniverseStateManager(
+            env=environment
+        )
+        
+        # Create REAL TimeSeriesSequenceTrainingGenerator
+        training_generator = TimeSeriesSequenceTrainingGenerator(
+            env=environment,
+            universe_manager=universe_manager
+        )
+        
+        # Create REAL IntervalBasedTrainingDataCallback
+        callback = IntervalBasedTrainingDataCallback(['AAPL'])
+        callback.training_generator = training_generator
+        
+        # Create REAL Runner
+        class RealTestRunner:
+            def __init__(self, environment):
+                self.environment = environment
+                self.universe_manager = universe_manager
+        
+        runner = RealTestRunner(environment)
+        
+        print(f"   🔧 Real Environment: {type(environment).__name__}")
+        print(f"   🏗️ Real Builder: {type(builder).__name__}")
+        print(f"   🌍 Real UniverseStateManager: {type(universe_manager).__name__}")
+        print(f"   🎯 Real TrainingGenerator: {type(training_generator).__name__}")
+        print(f"   📞 Real Callback: {type(callback).__name__}")
+        
+        # Execute REAL system with current time
+        await callback.handleInterval(runner, current_time)
+        
+        # If we get here, the real system processed the interval
+        print(f"   ✅ Real system processed interval successfully!")
+        print(f"   📊 Current data scenario: {scenario['current_ohlcv']}")
+        print(f"   🔮 Future data scenario: {scenario['future_ohlcv']}")
+        
+        # Verify real objects are being used
+        assert 'Mock' not in str(type(universe_manager))
+        assert 'Mock' not in str(type(training_generator))
+        assert 'Mock' not in str(type(callback))
+        
+        print(f"   ✅ Verified all objects are REAL (no Mock types)")
+        
+        # Store result for this scenario (even if just success/failure)
+        results[scenario['name']] = {
+            'success': True,
+            'scenario_data': scenario['current_ohlcv'],
+            'system_types': {
+                'manager': type(universe_manager).__name__,
+                'generator': type(training_generator).__name__,
+                'callback': type(callback).__name__
             }
-            
-        except Exception as e:
-            error_msg = str(e).lower()
-            
-            # Check if it's a Mock-related error (should not happen)
-            mock_indicators = ['mock', 'magicmock', 'attribute error on mock']
-            is_mock_error = any(indicator in error_msg for indicator in mock_indicators)
-            
-            if is_mock_error:
-                pytest.fail(f"❌ Mock error with real objects: {e}")
-            else:
-                # This is legitimate real system behavior (e.g., no data, connection issues)
-                print(f"   ⚠️ Real system error (expected): {e}")
-                print(f"   ✅ Real system behaving authentically")
-                
-                results[scenario['name']] = {
-                    'success': False,
-                    'error': str(e),
-                    'scenario_data': scenario['current_ohlcv'],
-                    'error_is_real_system': not is_mock_error
-                }
-    
-    # 🚨 CRITICAL VERIFICATION: Both scenarios should behave identically with real objects
+        }
+        
     print(f"\n🔍 REAL SYSTEM TEMPORAL ISOLATION VERIFICATION:")
     
     scenario_names = list(results.keys())
@@ -224,79 +201,63 @@ async def test_strict_temporal_boundaries_multi_timeframe():
         }
     }
     
-    try:
-        # Create REAL system components
-        environment = Environment()
-        
-        # Create REAL UniverseStateIntervalBuilder
-        builder = UniverseStateIntervalBuilder(
-            env=environment,
-            target_durations='5m,15m,60m',
-            base_duration='5m'
-        )
-        
-        # Create REAL UniverseStateManager
-        universe_manager = UniverseStateManager(
-            env=environment
-        )
-        
-        # Create REAL TimeSeriesSequenceTrainingGenerator with multi-timeframe support
-        training_generator = TimeSeriesSequenceTrainingGenerator(
-            env=environment,
-            universe_manager=universe_manager
-        )
-        
-        # Create REAL IntervalBasedTrainingDataCallback
-        callback = IntervalBasedTrainingDataCallback(['AAPL'])
-        callback.training_generator = training_generator
-        
-        # Create REAL Runner
-        class RealMultiTimeframeRunner:
-            def __init__(self, environment):
-                self.environment = environment
-                self.universe_manager = universe_manager
-        
-        runner = RealMultiTimeframeRunner(environment)
-        
-        print(f"   🔧 Real Environment: {type(environment).__name__}")
-        print(f"   🏗️ Real Builder (multi-timeframe): {type(builder).__name__}")
-        print(f"   🌍 Real UniverseStateManager: {type(universe_manager).__name__}")
-        print(f"   🎯 Real TrainingGenerator: {type(training_generator).__name__}")
-        print(f"   📞 Real Callback: {type(callback).__name__}")
-        print(f"   📅 Testing at boundary time: {current_time}")
-        
-        # Execute REAL system at multi-timeframe boundary
-        await callback.handleInterval(runner, current_time)
-        
-        # If we get here, the real system processed the multi-timeframe boundary
-        print(f"   ✅ Real system processed multi-timeframe boundary successfully!")
-        print(f"   📊 Expected 5m interval: {expected_intervals['5m']}")
-        print(f"   📊 Expected 15m interval: {expected_intervals['15m']}")
-        print(f"   🔮 Future data (should not affect): 5m={future_intervals['5m']['ohlcv']}")
-        print(f"   🔮 Future data (should not affect): 15m={future_intervals['15m']['ohlcv']}")
-        
-        # Verify real objects are being used
-        assert 'Mock' not in str(type(universe_manager))
-        assert 'Mock' not in str(type(training_generator))
-        assert 'Mock' not in str(type(callback))
-        
-        print(f"   ✅ Verified all objects are REAL (no Mock types)")
-        print(f"   ✅ Multi-timeframe temporal boundaries processed by real system")
-        
-    except Exception as e:
-        error_msg = str(e).lower()
-        
-        # Check if it's a Mock-related error (should not happen)
-        mock_indicators = ['mock', 'magicmock', 'attribute error on mock']
-        is_mock_error = any(indicator in error_msg for indicator in mock_indicators)
-        
-        if is_mock_error:
-            pytest.fail(f"❌ Mock error with real objects: {e}")
-        else:
-            # This is legitimate real system behavior 
-            print(f"   ⚠️ Real system error (expected): {e}")
-            print(f"   ✅ Real system handling multi-timeframe boundaries authentically")
-            print(f"   🎯 This exposes real bugs that Mock objects would hide")
+    # Create REAL system components
+    environment = Environment()
+    
+    # Create REAL UniverseStateIntervalBuilder
+    builder = UniverseStateIntervalBuilder(
+        env=environment,
+        target_durations='5m,15m,60m',
+        base_duration='5m'
+    )
+    
+    # Create REAL UniverseStateManager
+    universe_manager = UniverseStateManager(
+        env=environment
+    )
+    
+    # Create REAL TimeSeriesSequenceTrainingGenerator with multi-timeframe support
+    training_generator = TimeSeriesSequenceTrainingGenerator(
+        env=environment,
+        universe_manager=universe_manager
+    )
+    
+    # Create REAL IntervalBasedTrainingDataCallback
+    callback = IntervalBasedTrainingDataCallback(['AAPL'])
+    callback.training_generator = training_generator
+    
+    # Create REAL Runner
+    class RealMultiTimeframeRunner:
+        def __init__(self, environment):
+            self.environment = environment
+            self.universe_manager = universe_manager
+    
+    runner = RealMultiTimeframeRunner(environment)
+    
+    print(f"   🔧 Real Environment: {type(environment).__name__}")
+    print(f"   🏗️ Real Builder (multi-timeframe): {type(builder).__name__}")
+    print(f"   🌍 Real UniverseStateManager: {type(universe_manager).__name__}")
+    print(f"   🎯 Real TrainingGenerator: {type(training_generator).__name__}")
+    print(f"   📞 Real Callback: {type(callback).__name__}")
+    print(f"   📅 Testing at boundary time: {current_time}")
+    
+    # Execute REAL system at multi-timeframe boundary
+    await callback.handleInterval(runner, current_time)
+    
+    # If we get here, the real system processed the multi-timeframe boundary
+    print(f"   ✅ Real system processed multi-timeframe boundary successfully!")
+    print(f"   📊 Expected 5m interval: {expected_intervals['5m']}")
+    print(f"   📊 Expected 15m interval: {expected_intervals['15m']}")
+    print(f"   🔮 Future data (should not affect): 5m={future_intervals['5m']['ohlcv']}")
+    print(f"   🔮 Future data (should not affect): 15m={future_intervals['15m']['ohlcv']}")
+    
+    # Verify real objects are being used
+    assert 'Mock' not in str(type(universe_manager))
+    assert 'Mock' not in str(type(training_generator))
+    assert 'Mock' not in str(type(callback))
+    
+    print(f"   ✅ Verified all objects are REAL (no Mock types)")
+    print(f"   ✅ Multi-timeframe temporal boundaries processed by real system")
     
     print(f"   🏆 MULTI-TIMEFRAME TEMPORAL BOUNDARIES TEST COMPLETED WITH REAL OBJECTS")
 
@@ -344,70 +305,54 @@ async def test_data_leakage_detection_with_edge_cases():
         current_time = edge_case['current_time']
         expected_boundary = datetime(2025, 7, 1, 10, 30, 0)
         
-        try:
-            # Create REAL system components
-            environment = Environment()
-            
-            builder = UniverseStateIntervalBuilder(
-                environment=environment,
-                target_durations='5m,15m,60m',
-                base_duration='5m'
-            )
-            
-            universe_manager = UniverseStateManager(
-                universe_state_builder=builder,
-                environment=environment
-            )
-            
-            training_generator = TimeSeriesSequenceTrainingGenerator(
-                sequence_length=10,
-                prediction_horizon=5,
-                universe_manager=universe_manager
-            )
-            
-            callback = IntervalBasedTrainingDataCallback(['AAPL'])
-            callback.training_generator = training_generator
-            
-            class RealEdgeCaseRunner:
-                def __init__(self, environment):
-                    self.environment = environment
-                    self.universe_manager = universe_manager
-            
-            runner = RealEdgeCaseRunner(environment)
-            
-            print(f"   🔧 Real components initialized for edge case testing")
-            print(f"   📅 Testing time: {current_time}")
-            print(f"   🎯 Expected boundary: {expected_boundary}")
-            print(f"   ⏰ Time difference: {(current_time - expected_boundary).total_seconds()} seconds")
-            
-            # Execute REAL system with edge case timing
-            await callback.handleInterval(runner, current_time)
-            
-            print(f"   ✅ Real system processed edge case successfully!")
-            print(f"   🎯 Edge case handling by real system: {edge_case['name']}")
-            
-            # Verify real objects are being used
-            assert 'Mock' not in str(type(universe_manager))
-            assert 'Mock' not in str(type(training_generator))
-            assert 'Mock' not in str(type(callback))
-            
-            print(f"   ✅ Verified all objects are REAL during edge case testing")
-            
-        except Exception as e:
-            error_msg = str(e).lower()
-            
-            # Check if it's a Mock-related error (should not happen)
-            mock_indicators = ['mock', 'magicmock', 'attribute error on mock']
-            is_mock_error = any(indicator in error_msg for indicator in mock_indicators)
-            
-            if is_mock_error:
-                pytest.fail(f"❌ Mock error with real objects in edge case: {e}")
-            else:
-                # This is legitimate real system behavior with edge cases
-                print(f"   ⚠️ Real system edge case behavior: {e}")
-                print(f"   ✅ Real system handling timing edge cases authentically")
-                print(f"   🔍 This reveals how real system handles boundary conditions")
-    
+        # Create REAL system components
+        environment = Environment()
+        
+        builder = UniverseStateIntervalBuilder(
+            environment=environment,
+            target_durations='5m,15m,60m',
+            base_duration='5m'
+        )
+        
+        universe_manager = UniverseStateManager(
+            universe_state_builder=builder,
+            environment=environment
+        )
+        
+        training_generator = TimeSeriesSequenceTrainingGenerator(
+            sequence_length=10,
+            prediction_horizon=5,
+            universe_manager=universe_manager
+        )
+        
+        callback = IntervalBasedTrainingDataCallback(['AAPL'])
+        callback.training_generator = training_generator
+        
+        class RealEdgeCaseRunner:
+            def __init__(self, environment):
+                self.environment = environment
+                self.universe_manager = universe_manager
+        
+        runner = RealEdgeCaseRunner(environment)
+        
+        print(f"   🔧 Real components initialized for edge case testing")
+        print(f"   📅 Testing time: {current_time}")
+        print(f"   🎯 Expected boundary: {expected_boundary}")
+        print(f"   ⏰ Time difference: {(current_time - expected_boundary).total_seconds()} seconds")
+        
+        # Execute REAL system with edge case timing
+        await callback.handleInterval(runner, current_time)
+        
+        print(f"   ✅ Real system processed edge case successfully!")
+        print(f"   🎯 Edge case handling by real system: {edge_case['name']}")
+        
+        # Verify real objects are being used
+        assert 'Mock' not in str(type(universe_manager))
+        assert 'Mock' not in str(type(training_generator))
+        assert 'Mock' not in str(type(callback))
+        
+        print(f"   ✅ Verified all objects are REAL during edge case testing")
+        
     print(f"\n🏆 EDGE CASE DATA LEAKAGE DETECTION COMPLETED WITH REAL OBJECTS")
 
 
@@ -443,68 +388,52 @@ async def test_aggregation_window_correctness():
     assert actual_start == expected_start, f"15m window start should be {expected_start}, got {actual_start}"
     print(f"   ✅ TimeDuration calculation is correct")
     
-    try:
-        # Create REAL system components
-        environment = Environment()
-        
-        builder = UniverseStateIntervalBuilder(
-            env=environment,
-            target_durations='5m,15m,60m',
-            base_duration='5m'
-        )
-        
-        universe_manager = UniverseStateManager(
-            env=environment
-        )
-        
-        training_generator = TimeSeriesSequenceTrainingGenerator(
-            sequence_length=10,
-            prediction_horizon=5,
-            universe_manager=universe_manager
-        )
-        
-        callback = IntervalBasedTrainingDataCallback(['AAPL'])
-        callback.training_generator = training_generator
-        
-        class RealWindowTestRunner:
-            def __init__(self, environment):
-                self.environment = environment
-                self.universe_manager = universe_manager
-        
-        runner = RealWindowTestRunner(environment)
-        
-        print(f"   🔧 Real components initialized for window testing")
-        print(f"   📅 Testing at 15m boundary: {current_time}")
-        print(f"   📏 Expected window duration: 15 minutes = 900 seconds")
-        
-        # Execute REAL system at 15-minute boundary
-        await callback.handleInterval(runner, current_time)
-        
-        print(f"   ✅ Real system processed 15m window successfully!")
-        print(f"   🎯 Window timing handled by real system components")
-        
-        # Verify real objects are being used for window calculations
-        assert 'Mock' not in str(type(universe_manager))
-        assert 'Mock' not in str(type(training_generator))
-        assert 'Mock' not in str(type(callback))
-        
-        print(f"   ✅ Verified all objects are REAL during window testing")
-        print(f"   📏 Real system enforces precise aggregation windows")
-        
-    except Exception as e:
-        error_msg = str(e).lower()
-        
-        # Check if it's a Mock-related error (should not happen)
-        mock_indicators = ['mock', 'magicmock', 'attribute error on mock']
-        is_mock_error = any(indicator in error_msg for indicator in mock_indicators)
-        
-        if is_mock_error:
-            pytest.fail(f"❌ Mock error with real objects in window test: {e}")
-        else:
-            # This is legitimate real system behavior 
-            print(f"   ⚠️ Real system window behavior: {e}")
-            print(f"   ✅ Real system handling aggregation windows authentically")
-            print(f"   🔍 This reveals how real system calculates time windows")
+    # Create REAL system components
+    environment = Environment()
+    
+    builder = UniverseStateIntervalBuilder(
+        env=environment,
+        target_durations='5m,15m,60m',
+        base_duration='5m'
+    )
+    
+    universe_manager = UniverseStateManager(
+        env=environment
+    )
+    
+    training_generator = TimeSeriesSequenceTrainingGenerator(
+        sequence_length=10,
+        prediction_horizon=5,
+        universe_manager=universe_manager
+    )
+    
+    callback = IntervalBasedTrainingDataCallback(['AAPL'])
+    callback.training_generator = training_generator
+    
+    class RealWindowTestRunner:
+        def __init__(self, environment):
+            self.environment = environment
+            self.universe_manager = universe_manager
+    
+    runner = RealWindowTestRunner(environment)
+    
+    print(f"   🔧 Real components initialized for window testing")
+    print(f"   📅 Testing at 15m boundary: {current_time}")
+    print(f"   📏 Expected window duration: 15 minutes = 900 seconds")
+    
+    # Execute REAL system at 15-minute boundary
+    await callback.handleInterval(runner, current_time)
+    
+    print(f"   ✅ Real system processed 15m window successfully!")
+    print(f"   🎯 Window timing handled by real system components")
+    
+    # Verify real objects are being used for window calculations
+    assert 'Mock' not in str(type(universe_manager))
+    assert 'Mock' not in str(type(training_generator))
+    assert 'Mock' not in str(type(callback))
+    
+    print(f"   ✅ Verified all objects are REAL during window testing")
+    print(f"   📏 Real system enforces precise aggregation windows")
     
     print(f"\n🏆 AGGREGATION WINDOW CORRECTNESS TEST COMPLETED WITH REAL OBJECTS")
 
@@ -513,23 +442,16 @@ if __name__ == '__main__':
     print("🧪 Running critical temporal isolation tests with REAL OBJECTS...\n")
     
     async def run_all_tests():
-        try:
-            await test_temporal_isolation_future_data_exclusion()
-            await test_strict_temporal_boundaries_multi_timeframe()
-            await test_data_leakage_detection_with_edge_cases()
-            await test_aggregation_window_correctness()
-            
-            print(f"\n🎉 ALL TEMPORAL ISOLATION TESTS PASSED WITH REAL OBJECTS!")
-            print(f"✅ Future data completely excluded from current examples")
-            print(f"✅ Temporal boundaries strictly enforced across all timeframes")
-            print(f"✅ No data leakage detected in edge cases")
-            print(f"✅ Aggregation windows are precisely correct")
-            print(f"\n🛡️ TEMPORAL INTEGRITY VERIFIED: Training data is temporally pure with REAL system!")
-            
-        except Exception as e:
-            print(f"\n❌ TEMPORAL ISOLATION TEST FAILED: {e}")
-            import traceback
-            traceback.print_exc()
-            sys.exit(1)
-    
+        await test_temporal_isolation_future_data_exclusion()
+        await test_strict_temporal_boundaries_multi_timeframe()
+        await test_data_leakage_detection_with_edge_cases()
+        await test_aggregation_window_correctness()
+        
+        print(f"\n🎉 ALL TEMPORAL ISOLATION TESTS PASSED WITH REAL OBJECTS!")
+        print(f"✅ Future data completely excluded from current examples")
+        print(f"✅ Temporal boundaries strictly enforced across all timeframes")
+        print(f"✅ No data leakage detected in edge cases")
+        print(f"✅ Aggregation windows are precisely correct")
+        print(f"\n🛡️ TEMPORAL INTEGRITY VERIFIED: Training data is temporally pure with REAL system!")
+        
     asyncio.run(run_all_tests())

@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsRunIdUniquenessValidation:
@@ -55,13 +49,7 @@ class TestRealObjectsRunIdUniquenessValidation:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_run_id_generation_uniqueness_real_objects(self, real_service, test_data):
         """Real objects version of test_run_id_generation_uniqueness"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_id_generation_uniqueness_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_id_generation_uniqueness_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_run_id_collision_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_database_run_id_collision_detection"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_run_id_collision_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_run_id_collision_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_instrument_interval_constraint_violation_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_instrument_interval_constraint_violation_detection"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.instrument_interval_constraint_violation_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.instrument_interval_constraint_violation_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_failed_run_cleanup_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_failed_run_cleanup_detection"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.failed_run_cleanup_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.failed_run_cleanup_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_run_id_generation_safety_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_run_id_generation_safety"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_run_id_generation_safety_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_run_id_generation_safety_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_idempotent_run_behavior_real_objects(self, real_service, test_data):
         """Real objects version of test_idempotent_run_behavior"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.idempotent_run_behavior_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.idempotent_run_behavior_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_constraint_definitions_real_objects(self, real_service, test_data):
         """Real objects version of test_database_constraint_definitions"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_constraint_definitions_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_constraint_definitions_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_constraint_violation_prevention_real_objects(self, real_service, test_data):
         """Real objects version of test_constraint_violation_prevention"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.constraint_violation_prevention_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.constraint_violation_prevention_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_failed_run_identification_real_objects(self, real_service, test_data):
         """Real objects version of test_failed_run_identification"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.failed_run_identification_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.failed_run_identification_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cleanup_strategy_definition_real_objects(self, real_service, test_data):
         """Real objects version of test_cleanup_strategy_definition"""
         # Test with real database integration
@@ -274,15 +208,8 @@ class TestRealObjectsRunIdUniquenessValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cleanup_strategy_definition_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.cleanup_strategy_definition_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

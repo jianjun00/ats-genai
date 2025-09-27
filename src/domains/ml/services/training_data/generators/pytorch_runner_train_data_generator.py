@@ -19,7 +19,7 @@ TARGET_COL = 'close'
 
 # --- DATA GENERATOR ---
 async def generate_train_data_async(start_date, end_date, environment, universe_id, symbols=None, vendor='polygon', output_path="train_data.pt"):
-    from modeling.train_data_callback import TrainDataCallback
+    from domains.ml.services.training_data.callbacks.training_data_callback import TrainDataCallback
     from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
     from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
     callback = TrainDataCallback(

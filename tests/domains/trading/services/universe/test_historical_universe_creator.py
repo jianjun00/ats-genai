@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from domains.trading.services.historical_universe_creator import (
+from domains.trading.services.universe.modeling_universe_creator import (
     HistoricalUniverseCreator,
     HistoricalStock
 )

@@ -9,56 +9,51 @@ from pathlib import Path
 
 def fix_imports_in_file(file_path):
     """Fix imports in a single real objects file"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Replace incorrect imports with correct ones
+    fixes = [
+        # Environment imports
+        (r'from core\.shared\.utils\.environment import Environment, EnvironmentType',
+         'from core.config.environment import Environment, EnvironmentType'),
         
-        # Replace incorrect imports with correct ones
-        fixes = [
-            # Environment imports
-            (r'from core\.shared\.utils\.environment import Environment, EnvironmentType',
-             'from core.config.environment import Environment, EnvironmentType'),
-            
-            # Exception imports - use generic Python exceptions for now
-            (r'from domains\.data_quality\.exceptions\.custom_exceptions import.*',
-             '# Using built-in exceptions for robust testing'),
-            
-            # DAO imports - make them generic for now
-            (r'from infrastructure\.vendor\.(\w+)\.dao import (\w+)DAO',
-             r'# from infrastructure.vendor.\1.dao import \2DAO'),
-            
-            # Service imports
-            (r'from infrastructure\.vendor\.(\w+)\.services import (\w+)DataService',
-             r'# from infrastructure.vendor.\1.services import \2DataService'),
-            
-            # Client imports
-            (r'from infrastructure\.vendor\.(\w+)\.client import (\w+)Client',
-             r'# from infrastructure.vendor.\1.client import \2Client'),
-        ]
+        # Exception imports - use generic Python exceptions for now
+        (r'from domains\.data_quality\.exceptions\.custom_exceptions import.*',
+         '# Using built-in exceptions for robust testing'),
         
-        for pattern, replacement in fixes:
-            content = re.sub(pattern, replacement, content)
+        # DAO imports - make them generic for now
+        (r'from infrastructure\.vendor\.(\w+)\.dao import (\w+)DAO',
+         r'# from infrastructure.vendor.\1.dao import \2DAO'),
         
-        # Replace exception class references with generic ones
-        content = re.sub(r'VendorAPIError|DatabaseConnectionError|ValidationError|BusinessLogicError', 
-                        'Exception', content)
+        # Service imports
+        (r'from infrastructure\.vendor\.(\w+)\.services import (\w+)DataService',
+         r'# from infrastructure.vendor.\1.services import \2DataService'),
         
-        # Fix class instantiation issues
-        content = re.sub(r'return (\w+)DAO\(test_environment\)', 
-                        r'# return \1DAO(test_environment)  # Real DAO integration needed', content)
-        
-        content = re.sub(r'return (\w+)DataService\(test_environment\)', 
-                        r'# return \1DataService(test_environment)  # Real service integration needed', content)
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        return True
-        
-    except Exception as e:
-        print(f"Error fixing {file_path}: {e}")
-        return False
-
+        # Client imports
+        (r'from infrastructure\.vendor\.(\w+)\.client import (\w+)Client',
+         r'# from infrastructure.vendor.\1.client import \2Client'),
+    ]
+    
+    for pattern, replacement in fixes:
+        content = re.sub(pattern, replacement, content)
+    
+    # Replace exception class references with generic ones
+    content = re.sub(r'VendorAPIError|DatabaseConnectionError|ValidationError|BusinessLogicError', 
+                    'Exception', content)
+    
+    # Fix class instantiation issues
+    content = re.sub(r'return (\w+)DAO\(test_environment\)', 
+                    r'# return \1DAO(test_environment)  # Real DAO integration needed', content)
+    
+    content = re.sub(r'return (\w+)DataService\(test_environment\)', 
+                    r'# return \1DataService(test_environment)  # Real service integration needed', content)
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    
+    return True
+    
 def main():
     """Fix all real objects files"""
     real_objects_files = []

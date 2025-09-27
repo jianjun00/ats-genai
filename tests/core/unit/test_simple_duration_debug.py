@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 import gin
 
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from core.business.calendars.time_duration import TimeDuration
 
 
@@ -78,32 +78,28 @@ class TestSimpleDurationDebug:
                 mock_manager = Mock()
                 mock_manager_class.return_value = mock_manager
                 
-                try:
-                    builder = UniverseStateIntervalBuilder(
-                        env=self.mock_env,
-                        base_duration=base_duration_str,
-                        target_durations=target_durations_str,
-                        universe_state_manager=mock_manager
-                    )
+                builder = UniverseStateIntervalBuilder(
+                    env=self.mock_env,
+                    base_duration=base_duration_str,
+                    target_durations=target_durations_str,
+                    universe_state_manager=mock_manager
+                )
+                
+                print(f"   ✅ Successfully created builder")
+                print(f"   📊 Parsed {len(builder.target_durations)} target durations:")
+                for i, duration in enumerate(builder.target_durations):
+                    print(f"      [{i}] {duration.get_duration_string()}")
+                
+                # Check if base_duration is properly handled
+                base_str = builder.base_duration.get_duration_string()
+                target_strings = [d.get_duration_string() for d in builder.target_durations]
+                
+                if base_str in target_strings:
+                    print(f"   ✅ Base duration '{base_str}' found in target_durations")
+                else:
+                    print(f"   ⚠️  Base duration '{base_str}' NOT in target_durations")
+                    print(f"      This might cause processing issues")
                     
-                    print(f"   ✅ Successfully created builder")
-                    print(f"   📊 Parsed {len(builder.target_durations)} target durations:")
-                    for i, duration in enumerate(builder.target_durations):
-                        print(f"      [{i}] {duration.get_duration_string()}")
-                    
-                    # Check if base_duration is properly handled
-                    base_str = builder.base_duration.get_duration_string()
-                    target_strings = [d.get_duration_string() for d in builder.target_durations]
-                    
-                    if base_str in target_strings:
-                        print(f"   ✅ Base duration '{base_str}' found in target_durations")
-                    else:
-                        print(f"   ⚠️  Base duration '{base_str}' NOT in target_durations")
-                        print(f"      This might cause processing issues")
-                        
-                except Exception as e:
-                    print(f"   ❌ Failed to create builder: {e}")
-
     def test_debug_check_actual_universe_state_manager_calls(self):
         """Debug: Check what actually gets passed to UniverseStateManager."""
         
@@ -216,13 +212,9 @@ class TestSimpleDurationDebug:
                 
                 # Get the source code location
                 import inspect
-                try:
-                    source_file = inspect.getfile(method)
-                    source_lines = inspect.getsourcelines(method)
-                    print(f"   Source: {source_file}:{source_lines[1]}")
-                except:
-                    print("   Source: Unable to get source location")
-                
+                source_file = inspect.getfile(method)
+                source_lines = inspect.getsourcelines(method)
+                print(f"   Source: {source_file}:{source_lines[1]}")
                 print("\n🎯 CRITICAL FINDING:")
                 print("   To fix the duplication bug, we need to examine")
                 print("   UniverseStateIntervalBuilder.on_interval_complete method")

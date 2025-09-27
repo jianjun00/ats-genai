@@ -38,17 +38,9 @@ if data_path.exists():
         else:
             print(f"❌ No AAPL directory found")
             # List what symbols are available
-            try:
-                symbols = [d.name for d in minute_bars_path.iterdir() if d.is_dir()]
-                print(f"Available symbols: {symbols[:10]}...")  # First 10
-            except:
-                pass
-    else:
+            symbols = [d.name for d in minute_bars_path.iterdir() if d.is_dir()]
+            print(f"Available symbols: {symbols[:10]}...")  # First 10
         print(f"❌ No minute-bars directory found")
-        try:
-            contents = [d.name for d in data_path.iterdir()]
-            print(f"Contents of /data: {contents}")
-        except:
-            pass
-else:
+        contents = [d.name for d in data_path.iterdir()]
+        print(f"Contents of /data: {contents}")
     print(f"❌ /data directory not found")

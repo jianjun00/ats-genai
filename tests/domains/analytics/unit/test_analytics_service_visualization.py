@@ -18,7 +18,7 @@ class TestAnalyticsServiceVisualization(unittest.TestCase):
         """Set up test fixtures."""
         # Mock the analytics service
         from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-        self.service = UnifiedAnalyticsService()
+        self.service = UnifiedUnifiedAnalyticsService()
 
     @patch('core.database.connection_manager.get_raw_connection')
     def test_dataset_table_consistency(self, mock_connection):

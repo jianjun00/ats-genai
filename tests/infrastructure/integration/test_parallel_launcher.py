@@ -51,32 +51,28 @@ def test_parallel_backfill():
         print(f"   Symbols: {batch}")
         print(f"   Command: {' '.join(cmd)}")
 
-        try:
-            # Launch process
-            with open(log_file, 'w') as log_f:
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=log_f,
-                    stderr=subprocess.STDOUT,
-                    cwd='/home/jianjun/ats-genai-data'
-                )
+        # Launch process
+        with open(log_file, 'w') as log_f:
+            process = subprocess.Popen(
+                cmd,
+                stdout=log_f,
+                stderr=subprocess.STDOUT,
+                cwd='/home/jianjun/ats-genai-data'
+            )
 
-            launched_processes.append({
-                "worker_id": i,
-                "pid": process.pid,
-                "symbols": batch,
-                "checkpoint_file": checkpoint_file,
-                "log_file": log_file,
-                "process": process
-            })
+        launched_processes.append({
+            "worker_id": i,
+            "pid": process.pid,
+            "symbols": batch,
+            "checkpoint_file": checkpoint_file,
+            "log_file": log_file,
+            "process": process
+        })
 
-            print(f"   ✅ Started (PID: {process.pid})")
+        print(f"   ✅ Started (PID: {process.pid})")
 
-            # Brief delay between launches
-            time.sleep(2)
-
-        except Exception as e:
-            print(f"   ❌ Failed to launch: {e}")
+        # Brief delay between launches
+        time.sleep(2)
 
     print(f"\n🎉 Test launched {len(launched_processes)} parallel workers!")
     print("\n📋 Monitoring Commands:")
@@ -96,36 +92,26 @@ def test_parallel_backfill():
     # Check if processes are still running
     for proc_info in launched_processes:
         pid = proc_info['pid']
-        try:
-            # Check if process is still running
-            result = subprocess.run(['ps', '-p', str(pid)], capture_output=True, text=True)
-            if result.returncode == 0:
-                print(f"✅ Test Worker {proc_info['worker_id']} (PID {pid}) is running")
+        # Check if process is still running
+        result = subprocess.run(['ps', '-p', str(pid)], capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"✅ Test Worker {proc_info['worker_id']} (PID {pid}) is running")
 
-                # Show first few lines of log
-                try:
-                    with open(proc_info['log_file'], 'r') as f:
-                        lines = f.readlines()
-                        if lines:
-                            print(f"   Log preview: {lines[-1].strip()}")
-                        else:
-                            print(f"   Log: No output yet")
-                except:
-                    print(f"   Log: Cannot read log file")
-            else:
-                print(f"❌ Test Worker {proc_info['worker_id']} (PID {pid}) not running")
+            # Show first few lines of log
+            with open(proc_info['log_file'], 'r') as f:
+                lines = f.readlines()
+                if lines:
+                    print(f"   Log preview: {lines[-1].strip()}")
+                else:
+                    print(f"   Log: No output yet")
+            print(f"❌ Test Worker {proc_info['worker_id']} (PID {pid}) not running")
 
-                # Show error from log
-                try:
-                    with open(proc_info['log_file'], 'r') as f:
-                        content = f.read()
-                        if content:
-                            print(f"   Error: {content[-200:]}")  # Last 200 chars
-                except:
-                    print(f"   Error: Cannot read log file")
-
-        except Exception as e:
-            print(f"❌ Error checking Test Worker {proc_info['worker_id']}: {e}")
+            # Show error from log
+            with open(proc_info['log_file'], 'r') as f:
+                content = f.read()
+                if content:
+                    print(f"   Error: {content[-200:]}")  # Last 200 chars
+        print(f"❌ Error checking Test Worker {proc_info['worker_id']}: {e}")
 
     return launched_processes
 

@@ -22,18 +22,13 @@ def test_database_manager_import_works():
     """
     print("🔍 Testing DatabaseManager import")
     
-    try:
-        from infrastructure.database.database_manager import DatabaseManager
-        print("   ✅ DatabaseManager imported successfully from infrastructure.database.database_manager")
-        
-        # Verify it's a class
-        assert isinstance(DatabaseManager, type), "DatabaseManager should be a class"
-        print("   ✅ DatabaseManager is a proper class")
-        
-    except ImportError as e:
-        pytest.fail(f"DatabaseManager import failed: {e}")
-
-
+    from infrastructure.database.database_manager import DatabaseManager
+    print("   ✅ DatabaseManager imported successfully from infrastructure.database.database_manager")
+    
+    # Verify it's a class
+    assert isinstance(DatabaseManager, type), "DatabaseManager should be a class"
+    print("   ✅ DatabaseManager is a proper class")
+    
 def test_incorrect_import_path_fails():
     """
     Test that the incorrect import path that was causing the error fails clearly.
@@ -51,15 +46,8 @@ def test_incorrect_import_path_fails():
     for import_path in incorrect_import_paths:
         print(f"   Testing incorrect path: {import_path}")
         
-        try:
-            module = importlib.import_module(import_path)
-            pytest.fail(f"Import should have failed for incorrect path: {import_path}")
-        except ModuleNotFoundError:
-            print(f"     ✅ Correctly failed with ModuleNotFoundError")
-        except ImportError:
-            print(f"     ✅ Correctly failed with ImportError")
-
-
+        module = importlib.import_module(import_path)
+        pytest.fail(f"Import should have failed for incorrect path: {import_path}")
 def test_feature_extraction_runner_imports_correctly():
     """
     Test that feature_extraction_runner now imports DatabaseManager correctly.
@@ -68,19 +56,14 @@ def test_feature_extraction_runner_imports_correctly():
     """
     print("\n🔍 Testing feature_extraction_runner imports correctly")
     
-    try:
-        # This will test the imports at the top of the file
-        from domains.ml.services.training_data.runners import feature_extraction_runner
-        print("   ✅ feature_extraction_runner imported successfully")
-        
-        # Verify the DatabaseManager is available in the module
-        assert hasattr(feature_extraction_runner, 'DatabaseManager'), "DatabaseManager should be imported"
-        print("   ✅ DatabaseManager is available in feature_extraction_runner module")
-        
-    except ImportError as e:
-        pytest.fail(f"feature_extraction_runner import failed: {e}")
-
-
+    # This will test the imports at the top of the file
+    from domains.ml.services.training_data.runners import feature_extraction_runner
+    print("   ✅ feature_extraction_runner imported successfully")
+    
+    # Verify the DatabaseManager is available in the module
+    assert hasattr(feature_extraction_runner, 'DatabaseManager'), "DatabaseManager should be imported"
+    print("   ✅ DatabaseManager is available in feature_extraction_runner module")
+    
 def test_no_exception_masking_in_database_setup():
     """
     Test that database setup failures are not masked by exception handling.

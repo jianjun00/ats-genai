@@ -42,17 +42,13 @@ class TestPerformanceRegression:
         
         for import_path in import_tests:
             start_time = time.time()
-            try:
-                module = __import__(import_path, fromlist=[''])
-                import_time = time.time() - start_time
-                import_times[import_path] = import_time
-                
-                # Imports should be fast (< 2 seconds)
-                assert import_time < 2.0, f"Import {import_path} took too long: {import_time:.2f}s"
-                
-            except ImportError as e:
-                pytest.fail(f"Import failed for {import_path}: {e}")
-                
+            module = __import__(import_path, fromlist=[''])
+            import_time = time.time() - start_time
+            import_times[import_path] = import_time
+            
+            # Imports should be fast (< 2 seconds)
+            assert import_time < 2.0, f"Import {import_path} took too long: {import_time:.2f}s"
+            
         total_import_time = sum(import_times.values())
         assert total_import_time < 5.0, f"Total import time too high: {total_import_time:.2f}s"
         
@@ -185,44 +181,39 @@ class TestPerformanceRegression:
         # Test feature extraction timing
         start_time = time.time()
         
-        try:
-            # Test basic feature calculations
-            features = {}
+        # Test basic feature calculations
+        features = {}
+        
+        # OHLC features
+        for price_type in ['open', 'high', 'low', 'close']:
+            features[f'1m_{price_type}'] = float(data[price_type].iloc[-1])
             
-            # OHLC features
-            for price_type in ['open', 'high', 'low', 'close']:
-                features[f'1m_{price_type}'] = float(data[price_type].iloc[-1])
-                
-            # Volume features
-            features['1m_volume'] = float(data['volume'].iloc[-1])
-            features['1m_volume_latest'] = float(data['volume'].iloc[-1])
+        # Volume features
+        features['1m_volume'] = float(data['volume'].iloc[-1])
+        features['1m_volume_latest'] = float(data['volume'].iloc[-1])
+        
+        # Derived features
+        features['1m_range'] = float(data['high'].iloc[-1] - data['low'].iloc[-1])
+        features['1m_range_pct'] = features['1m_range'] / features['1m_close']
+        
+        # Technical features (simplified)
+        if len(data) >= 2:
+            returns = (data['close'].iloc[-1] - data['close'].iloc[-2]) / data['close'].iloc[-2]
+            features['1m_return'] = float(returns)
             
-            # Derived features
-            features['1m_range'] = float(data['high'].iloc[-1] - data['low'].iloc[-1])
-            features['1m_range_pct'] = features['1m_range'] / features['1m_close']
+        extraction_time = time.time() - start_time
+        
+        # Performance assertions
+        assert extraction_time < 0.1, f"Feature extraction too slow: {extraction_time:.3f}s"
+        assert len(features) >= 7, f"Should extract at least 7 features, got {len(features)}"
+        
+        # Validate all features are valid numbers
+        for feature_name, feature_value in features.items():
+            assert isinstance(feature_value, (int, float)), f"{feature_name} is not numeric: {type(feature_value)}"
+            assert np.isfinite(feature_value), f"{feature_name} is not finite: {feature_value}"
             
-            # Technical features (simplified)
-            if len(data) >= 2:
-                returns = (data['close'].iloc[-1] - data['close'].iloc[-2]) / data['close'].iloc[-2]
-                features['1m_return'] = float(returns)
-                
-            extraction_time = time.time() - start_time
-            
-            # Performance assertions
-            assert extraction_time < 0.1, f"Feature extraction too slow: {extraction_time:.3f}s"
-            assert len(features) >= 7, f"Should extract at least 7 features, got {len(features)}"
-            
-            # Validate all features are valid numbers
-            for feature_name, feature_value in features.items():
-                assert isinstance(feature_value, (int, float)), f"{feature_name} is not numeric: {type(feature_value)}"
-                assert np.isfinite(feature_value), f"{feature_name} is not finite: {feature_value}"
-                
-            print(f"✅ Feature extraction performance test passed - {len(features)} features in {extraction_time:.3f}s")
-            
-        except Exception as e:
-            pytest.fail(f"Feature extraction performance test failed: {e}")
-
-
+        print(f"✅ Feature extraction performance test passed - {len(features)} features in {extraction_time:.3f}s")
+        
 class TestRegressionDetection:
     """Test for regressions of all previously fixed issues."""
     
@@ -242,12 +233,8 @@ class TestRegressionDetection:
         failed_fixes = []
         
         for fix_name, test_func in fixes_to_test.items():
-            try:
-                test_func()
-                print(f"✅ {fix_name} regression test passed")
-            except Exception as e:
-                failed_fixes.append(f"{fix_name}: {e}")
-                
+            test_func()
+            print(f"✅ {fix_name} regression test passed")
         if failed_fixes:
             pytest.fail(f"Regression detected in fixes:\n" + "\n".join(failed_fixes))
             
@@ -344,81 +331,76 @@ class TestEndToEndIntegrationReal:
         
         completed_components = []
         
-        try:
-            # Step 1: Import all required modules
-            from domains.trading.services.core.app.runner import Runner
-            from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
-            from domains.trading.services.state.universe_state_manager import UniverseStateManager
-            completed_components.append(pipeline_components[0])
+        # Step 1: Import all required modules
+        from domains.trading.services.core.app.runner import Runner
+        from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
+        from domains.trading.services.state.universe_state_manager import UniverseStateManager
+        completed_components.append(pipeline_components[0])
+        
+        # Step 2: Create UnifiedMarketDataManager
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = MarketDataConfig(
+                vendors=[VendorType.FIRSTRATE],
+                storage_backend=StorageBackend.FILE,
+                file_storage_path=temp_dir
+            )
+            manager = UnifiedMarketDataManager(config)
+            completed_components.append(pipeline_components[1])
             
-            # Step 2: Create UnifiedMarketDataManager
-            with tempfile.TemporaryDirectory() as temp_dir:
-                config = MarketDataConfig(
-                    vendors=[VendorType.FIRSTRATE],
-                    storage_backend=StorageBackend.FILE,
-                    file_storage_path=temp_dir
-                )
-                manager = UnifiedMarketDataManager(config)
-                completed_components.append(pipeline_components[1])
+            # Step 3: Create test data and load it
+            from tests.integration.test_training_data_infrastructure_comprehensive import TestFirstRateAdapter
+            test_instance = TestFirstRateAdapter()
+            parquet_file, expected_df = test_instance.create_mock_parquet_data(temp_dir)
+            completed_components.append(pipeline_components[2])
+            
+            # Step 4: Test volume preservation
+            start_date = datetime(2025, 7, 1, 14, 0, 0)
+            end_date = datetime(2025, 7, 1, 14, 1, 0)
+            
+            result = asyncio.run(manager.get_minute_ohlc_batch(
+                symbols=["AAPL"],
+                start=start_date,
+                end=end_date
+            ))
+            
+            assert "AAPL" in result
+            assert result["AAPL"] is not None
+            assert "volume" in result["AAPL"]
+            assert result["AAPL"]["volume"] is not None
+            completed_components.append(pipeline_components[3])
+            
+            # Step 5: Test UniverseStateManager methods
+            universe_manager = UniverseStateManager()
+            lag_result = universe_manager.get_lag_prices(31, datetime.now(), 1)
+            assert isinstance(lag_result, pd.DataFrame)
+            completed_components.append(pipeline_components[4])
+            
+            # Step 6: Test feature extraction with real data
+            sample_features = {
+                '1m_open': float(result["AAPL"]["open"]),
+                '1m_high': float(result["AAPL"]["high"]), 
+                '1m_low': float(result["AAPL"]["low"]),
+                '1m_close': float(result["AAPL"]["close"]),
+                '1m_volume': float(result["AAPL"]["volume"])
+            }
+            
+            for feature_name, feature_value in sample_features.items():
+                assert np.isfinite(feature_value), f"{feature_name} not finite"
                 
-                # Step 3: Create test data and load it
-                from tests.integration.test_training_data_infrastructure_comprehensive import TestFirstRateAdapter
-                test_instance = TestFirstRateAdapter()
-                parquet_file, expected_df = test_instance.create_mock_parquet_data(temp_dir)
-                completed_components.append(pipeline_components[2])
-                
-                # Step 4: Test volume preservation
-                start_date = datetime(2025, 7, 1, 14, 0, 0)
-                end_date = datetime(2025, 7, 1, 14, 1, 0)
-                
-                result = asyncio.run(manager.get_minute_ohlc_batch(
-                    symbols=["AAPL"],
-                    start=start_date,
-                    end=end_date
-                ))
-                
-                assert "AAPL" in result
-                assert result["AAPL"] is not None
-                assert "volume" in result["AAPL"]
-                assert result["AAPL"]["volume"] is not None
-                completed_components.append(pipeline_components[3])
-                
-                # Step 5: Test UniverseStateManager methods
-                universe_manager = UniverseStateManager()
-                lag_result = universe_manager.get_lag_prices(31, datetime.now(), 1)
-                assert isinstance(lag_result, pd.DataFrame)
-                completed_components.append(pipeline_components[4])
-                
-                # Step 6: Test feature extraction with real data
-                sample_features = {
-                    '1m_open': float(result["AAPL"]["open"]),
-                    '1m_high': float(result["AAPL"]["high"]), 
-                    '1m_low': float(result["AAPL"]["low"]),
-                    '1m_close': float(result["AAPL"]["close"]),
-                    '1m_volume': float(result["AAPL"]["volume"])
-                }
-                
-                for feature_name, feature_value in sample_features.items():
-                    assert np.isfinite(feature_value), f"{feature_name} not finite"
-                    
-                completed_components.append(pipeline_components[5])
-                
-                # Step 7: Conceptual training sequence generation
-                # (This would involve the actual training data generator in full implementation)
-                training_sequence_concept = {
-                    'features': sample_features,
-                    'labels': {'future_return_1m': 0.001},  # Mock label
-                    'metadata': {'symbol': 'AAPL', 'timestamp': start_date}
-                }
-                
-                assert 'features' in training_sequence_concept
-                assert 'labels' in training_sequence_concept
-                assert len(training_sequence_concept['features']) >= 5
-                completed_components.append(pipeline_components[6])
-                
-        except Exception as e:
-            failed_step = len(completed_components)
-            pytest.fail(f"Pipeline integration failed at step {failed_step + 1} ({pipeline_components[failed_step]}): {e}")
+            completed_components.append(pipeline_components[5])
+            
+            # Step 7: Conceptual training sequence generation
+            # (This would involve the actual training data generator in full implementation)
+            training_sequence_concept = {
+                'features': sample_features,
+                'labels': {'future_return_1m': 0.001},  # Mock label
+                'metadata': {'symbol': 'AAPL', 'timestamp': start_date}
+            }
+            
+            assert 'features' in training_sequence_concept
+            assert 'labels' in training_sequence_concept
+            assert len(training_sequence_concept['features']) >= 5
+            completed_components.append(pipeline_components[6])
             
         print(f"✅ Complete pipeline integration test passed - {len(completed_components)}/{len(pipeline_components)} components")
 
@@ -434,44 +416,39 @@ class TestEndToEndIntegrationReal:
         
         results = {}
         
-        try:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Test 1: Parquet loading performance
-                start_time = time.time()
-                
-                from tests.integration.test_training_data_infrastructure_comprehensive import TestFirstRateAdapter
-                test_instance = TestFirstRateAdapter()
-                parquet_file, df = test_instance.create_mock_parquet_data(temp_dir)
-                
-                # Load multiple times to get average
-                for _ in range(3):
-                    test_df = pd.read_parquet(parquet_file)
-                    
-                load_time = (time.time() - start_time) / 3
-                results['parquet_loading'] = load_time
-                
-                # Test 2: Feature extraction performance  
-                start_time = time.time()
-                
-                # Extract features for multiple timeframes
-                for timeframe in ['1m', '5m', '15m', '1h']:
-                    features = {}
-                    for price_col in ['open', 'high', 'low', 'close']:
-                        features[f'{timeframe}_{price_col}'] = float(df[price_col].iloc[-1])
-                    features[f'{timeframe}_volume'] = float(df['volume'].iloc[-1])
-                    
-                extraction_time = time.time() - start_time
-                results['feature_extraction'] = extraction_time
-                
-                # Test 3: Memory usage
-                process = psutil.Process()
-                memory_mb = process.memory_info().rss / 1024 / 1024
-                results['memory_usage'] = memory_mb
-                
-        except Exception as e:
-            pytest.fail(f"Performance benchmark failed: {e}")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Test 1: Parquet loading performance
+            start_time = time.time()
             
-        # Validate against benchmarks
+            from tests.integration.test_training_data_infrastructure_comprehensive import TestFirstRateAdapter
+            test_instance = TestFirstRateAdapter()
+            parquet_file, df = test_instance.create_mock_parquet_data(temp_dir)
+            
+            # Load multiple times to get average
+            for _ in range(3):
+                test_df = pd.read_parquet(parquet_file)
+                
+            load_time = (time.time() - start_time) / 3
+            results['parquet_loading'] = load_time
+            
+            # Test 2: Feature extraction performance  
+            start_time = time.time()
+            
+            # Extract features for multiple timeframes
+            for timeframe in ['1m', '5m', '15m', '1h']:
+                features = {}
+                for price_col in ['open', 'high', 'low', 'close']:
+                    features[f'{timeframe}_{price_col}'] = float(df[price_col].iloc[-1])
+                features[f'{timeframe}_volume'] = float(df['volume'].iloc[-1])
+                
+            extraction_time = time.time() - start_time
+            results['feature_extraction'] = extraction_time
+            
+            # Test 3: Memory usage
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            results['memory_usage'] = memory_mb
+            
         for test_name, benchmark in performance_benchmarks.items():
             if test_name == 'memory_usage':
                 actual = results['memory_usage']

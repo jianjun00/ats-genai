@@ -10,12 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
 # from infrastructure.vendor.firstrate.client import FirstRateClient
 # from infrastructure.vendor.firstrate.dao import FirstRateDAO
@@ -56,13 +51,7 @@ class TestRealObjectsDownloadJob:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_download_job_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_download_job_creation"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.download_job_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.download_job_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_download_job_custom_params_real_objects(self, real_service, test_data):
         """Real objects version of test_download_job_custom_params"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.download_job_custom_params_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.download_job_custom_params_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_downloader_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_downloader_initialization"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.downloader_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.downloader_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_build_download_url_real_objects(self, real_service, test_data):
         """Real objects version of test_build_download_url"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.build_download_url_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.build_download_url_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_output_path_real_objects(self, real_service, test_data):
         """Real objects version of test_get_output_path"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_output_path_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_output_path_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_output_path_custom_dir_real_objects(self, real_service, test_data):
         """Real objects version of test_get_output_path_custom_dir"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_output_path_custom_dir_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_output_path_custom_dir_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calculate_checksum_real_objects(self, real_service, test_data):
         """Real objects version of test_calculate_checksum"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calculate_checksum_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calculate_checksum_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_verify_zip_file_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_verify_zip_file_valid"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.verify_zip_file_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.verify_zip_file_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_verify_zip_file_invalid_real_objects(self, real_service, test_data):
         """Real objects version of test_verify_zip_file_invalid"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.verify_zip_file_invalid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.verify_zip_file_invalid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_verify_zip_file_empty_real_objects(self, real_service, test_data):
         """Real objects version of test_verify_zip_file_empty"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.verify_zip_file_empty_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.verify_zip_file_empty_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_download_with_retries_success_real_objects(self, real_service, test_data):
         """Real objects version of test_download_with_retries_success"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.download_with_retries_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.download_with_retries_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_download_with_retries_404_real_objects(self, real_service, test_data):
         """Real objects version of test_download_with_retries_404"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.download_with_retries_404_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.download_with_retries_404_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_download_with_retries_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_download_with_retries_failure"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.download_with_retries_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.download_with_retries_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cleanup_old_files_real_objects(self, real_service, test_data):
         """Real objects version of test_cleanup_old_files"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cleanup_old_files_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cleanup_old_files_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_download_daily_data_success_real_objects(self, real_service, test_data):
         """Real objects version of test_download_daily_data_success"""
         # Test with real database integration
@@ -385,14 +290,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.download_daily_data_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.download_daily_data_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_download_daily_data_skip_existing_real_objects(self, real_service, test_data):
         """Real objects version of test_download_daily_data_skip_existing"""
         # Test with real database integration
@@ -407,14 +306,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.download_daily_data_skip_existing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.download_daily_data_skip_existing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_to_end_download_simulation_real_objects(self, real_service, test_data):
         """Real objects version of test_end_to_end_download_simulation"""
         # Test with real database integration
@@ -429,15 +322,8 @@ class TestRealObjectsDownloadJob:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_to_end_download_simulation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.end_to_end_download_simulation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

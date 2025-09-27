@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import asyncpg
 
-from storage.hybrid_minute_data_manager import (
+from domains.trading.services.core.minute.hybrid_minute_data_manager import (
     HybridMinuteDataManager,
     StorageConfig
 )

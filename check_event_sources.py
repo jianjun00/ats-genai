@@ -6,15 +6,11 @@ def run_query(host, port, db, query):
     """Run a SQL query and return results"""
     cmd = f'PGPASSWORD=dev_password psql -h {host} -p {port} -U postgres -d {db} -c "{query}"'
 
-    try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        if result.returncode == 0:
-            return result.stdout
-        else:
-            return f"Error: {result.stderr}"
-    except Exception as e:
-        return f"Exception: {e}"
-
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout
+    else:
+        return f"Error: {result.stderr}"
 def main():
     print("🔍 Checking for additional event data sources...")
 

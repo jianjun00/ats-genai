@@ -31,14 +31,9 @@ def test_complete_eda_arrayrecord_workflow():
 
     # Verify analytics service is running
     base_url = "http://localhost:3000"
-    try:
-        health_response = requests.get(f"{base_url}/health", timeout=5)
-        if health_response.status_code != 200:
-            pytest.skip("Analytics service not running")
-    except requests.ConnectionError:
-        pytest.skip("Analytics service not accessible")
-
-    # Step 1: Verify training datasets are visible in API
+    health_response = requests.get(f"{base_url}/health", timeout=5)
+    if health_response.status_code != 200:
+        pytest.skip("Analytics service not running")
     datasets_response = requests.get(f"{base_url}/api/v1/training-datasets", timeout=10)
     assert datasets_response.status_code == 200, "Training datasets API should be accessible"
 
@@ -90,20 +85,15 @@ def test_complete_eda_arrayrecord_workflow():
         print(f"Verified sequence: {sequence['symbol']} - {sequence['filename']}")
 
     # Step 4: Verify EDA page loads without errors
-    try:
-        eda_response = requests.get(f"{base_url}/eda", timeout=10)
-        assert eda_response.status_code == 200, "EDA page should be accessible"
+    eda_response = requests.get(f"{base_url}/eda", timeout=10)
+    assert eda_response.status_code == 200, "EDA page should be accessible"
 
-        eda_content = eda_response.text
-        assert "Select Sequence" in eda_content, "EDA page should contain sequence selector"
-        assert "training-datasets" in eda_content, "EDA page should reference training datasets API"
+    eda_content = eda_response.text
+    assert "Select Sequence" in eda_content, "EDA page should contain sequence selector"
+    assert "training-datasets" in eda_content, "EDA page should reference training datasets API"
 
-        print("✅ EDA page loads successfully")
+    print("✅ EDA page loads successfully")
 
-    except requests.RequestException as e:
-        pytest.skip(f"Cannot verify EDA page: {e}")
-
-    # Step 5: Test dataset metadata consistency
     dataset_info = sequences_data["datasets"][0]
     assert dataset_info.get("dataset_name"), "Dataset should have name"
     assert dataset_info.get("symbols"), "Dataset should have symbols list"
@@ -141,29 +131,23 @@ def test_arrayrecord_file_accessibility():
         assert file_path.stat().st_size > 0, f"ArrayRecord file should not be empty: {file_path}"
 
         # Try to read with ArrayRecord (if available)
-        try:
-            pytest.importorskip("array_record")
-            from array_record.python.array_record_module import ArrayRecordReader
+        pytest.importorskip("array_record")
+        from array_record.python.array_record_module import ArrayRecordReader
 
-            with ArrayRecordReader(str(file_path)) as reader:
-                records = list(reader)
-                assert len(records) > 0, f"ArrayRecord file should contain records: {file_path}"
+        with ArrayRecordReader(str(file_path)) as reader:
+            records = list(reader)
+            assert len(records) > 0, f"ArrayRecord file should contain records: {file_path}"
 
-                # Verify record format
-                first_record = records[0]
-                assert isinstance(first_record, bytes), "ArrayRecord records should be bytes"
+            # Verify record format
+            first_record = records[0]
+            assert isinstance(first_record, bytes), "ArrayRecord records should be bytes"
 
-                # Try to parse as JSON
-                import json
-                record_data = json.loads(first_record.decode())
-                assert isinstance(record_data, dict), "Record should be JSON dictionary"
+            # Try to parse as JSON
+            import json
+            record_data = json.loads(first_record.decode())
+            assert isinstance(record_data, dict), "Record should be JSON dictionary"
 
-                print(f"✅ Verified ArrayRecord file: {file_path.name} ({len(records)} records)")
-
-        except ImportError:
-            print(f"⚠️  ArrayRecord package not available, skipping file content verification")
-            continue
-
+            print(f"✅ Verified ArrayRecord file: {file_path.name} ({len(records)} records)")
 
 @pytest.mark.integration
 def test_database_to_eda_consistency():
@@ -171,52 +155,43 @@ def test_database_to_eda_consistency():
 
     base_url = "http://localhost:3000"
 
-    try:
-        # Get database connection to verify table consistency
-        from core.database.connection_manager import get_raw_connection
+    # Get database connection to verify table consistency
+    from core.database.connection_manager import get_raw_connection
 
-        with get_raw_connection("dev") as conn:
-            with conn.cursor() as cursor:
-                # Get training datasets from database directly
-                cursor.execute("""
-                    SELECT id, dataset_name, total_sequences, symbols, created_at
-                    FROM dev_training_dataset
-                    ORDER BY created_at DESC
-                    LIMIT 5
-                """)
+    with get_raw_connection("dev") as conn:
+        with conn.cursor() as cursor:
+            # Get training datasets from database directly
+            cursor.execute("""
+                SELECT id, dataset_name, total_sequences, symbols, created_at
+                FROM dev_training_dataset
+                ORDER BY created_at DESC
+                LIMIT 5
+            """)
 
-                db_datasets = cursor.fetchall()
-                if not db_datasets:
-                    pytest.skip("No training datasets in database")
+            db_datasets = cursor.fetchall()
+            if not db_datasets:
+                pytest.skip("No training datasets in database")
 
-        # Get same data via API
-        api_response = requests.get(f"{base_url}/api/v1/training-datasets", timeout=10)
-        assert api_response.status_code == 200, "API should work when database has data"
+    # Get same data via API
+    api_response = requests.get(f"{base_url}/api/v1/training-datasets", timeout=10)
+    assert api_response.status_code == 200, "API should work when database has data"
 
-        api_data = api_response.json()
-        api_datasets = api_data["datasets"]
+    api_data = api_response.json()
+    api_datasets = api_data["datasets"]
 
-        # Find matching datasets
-        db_dataset = db_datasets[0]  # Most recent from DB
-        db_id, db_name, db_sequences, db_symbols, db_created = db_dataset
+    # Find matching datasets
+    db_dataset = db_datasets[0]  # Most recent from DB
+    db_id, db_name, db_sequences, db_symbols, db_created = db_dataset
 
-        # Find matching dataset in API response
-        api_dataset = next((ds for ds in api_datasets if ds["id"] == db_id), None)
-        assert api_dataset is not None, f"Database dataset {db_id} not found in API"
+    # Find matching dataset in API response
+    api_dataset = next((ds for ds in api_datasets if ds["id"] == db_id), None)
+    assert api_dataset is not None, f"Database dataset {db_id} not found in API"
 
-        # Verify consistency
-        assert api_dataset["dataset_name"] == db_name, "Dataset name should match between DB and API"
-        assert api_dataset["total_sequences"] == db_sequences, "Sequence count should match between DB and API"
+    # Verify consistency
+    assert api_dataset["dataset_name"] == db_name, "Dataset name should match between DB and API"
+    assert api_dataset["total_sequences"] == db_sequences, "Sequence count should match between DB and API"
 
-        print(f"✅ Database-API consistency verified for dataset {db_name}")
-
-    except ImportError:
-        pytest.skip("Database connection manager not available")
-    except Exception as e:
-        if "could not connect" in str(e).lower():
-            pytest.skip("Database not available")
-        raise
-
+    print(f"✅ Database-API consistency verified for dataset {db_name}")
 
 @pytest.mark.integration
 def test_json_datetime_in_api_responses():
@@ -242,14 +217,9 @@ def test_json_datetime_in_api_responses():
             assert isinstance(created_at, str), f"created_at should be string, got {type(created_at)}"
 
             # Should be parseable as datetime
-            try:
-                parsed_dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                assert isinstance(parsed_dt, datetime), "Should parse as datetime"
-                print(f"✅ Datetime serialization verified: {created_at}")
-            except ValueError as e:
-                pytest.fail(f"Invalid datetime format in API response: {created_at} - {e}")
-
-
+            parsed_dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            assert isinstance(parsed_dt, datetime), "Should parse as datetime"
+            print(f"✅ Datetime serialization verified: {created_at}")
 @pytest.mark.integration
 def test_error_handling_graceful_degradation():
     """Test that system handles errors gracefully without crashing."""
@@ -271,16 +241,12 @@ def test_error_handling_graceful_degradation():
     assert response.status_code != 500, "Server should not crash on invalid dataset ID"
 
     # Test 3: EDA page with no datasets
-    try:
-        eda_response = requests.get(f"{base_url}/eda", timeout=10)
-        assert eda_response.status_code == 200, "EDA page should load even without datasets"
+    eda_response = requests.get(f"{base_url}/eda", timeout=10)
+    assert eda_response.status_code == 200, "EDA page should load even without datasets"
 
-        content = eda_response.text
-        # Should have basic structure even without data
-        assert "Select Sequence" in content, "EDA page should have sequence selector even without data"
-
-    except requests.RequestException:
-        pytest.skip("Cannot test EDA error handling")
+    content = eda_response.text
+    # Should have basic structure even without data
+    assert "Select Sequence" in content, "EDA page should have sequence selector even without data"
 
     print("✅ Error handling works gracefully")
 

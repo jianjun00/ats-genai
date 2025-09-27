@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.trading.signals.enhanced_indicators import VolumeProfileIndicator
+from domains.trading.services.indicators.enhanced_indicators import VolumeProfileIndicator
 
 class TestVolumeProfileBasic(unittest.TestCase):
     """Test cases for Volume Profile indicator basic functionality."""

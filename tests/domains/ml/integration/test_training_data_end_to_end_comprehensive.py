@@ -40,7 +40,7 @@ from domains.trading.services.core.app.runner import Runner
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 from core.shared.utils.database_connections import get_database_pool
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TrainingDataEndToEndTest:
@@ -62,15 +62,11 @@ class TrainingDataEndToEndTest:
         print(f"📁 Test output directory: {self.test_output_dir}")
 
         # Verify database connection
-        try:
-            pool = await get_database_pool('intg')
-            async with pool.acquire() as conn:
-                await conn.execute("SELECT 1")
-            await pool.close()
-            print("✅ Database connection verified")
-        except Exception as e:
-            pytest.fail(f"❌ Database connection failed: {e}")
-
+        pool = await get_database_pool('intg')
+        async with pool.acquire() as conn:
+            await conn.execute("SELECT 1")
+        await pool.close()
+        print("✅ Database connection verified")
         return True
 
     async def cleanup_test_environment(self):
@@ -97,58 +93,53 @@ class TrainingDataEndToEndTest:
         initial_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
         start_time = time.time()
 
-        try:
-            # Create configuration for training data generation
-            config = TrainingDataConfig(
-                base_interval_minutes=1,
-                training_interval_minutes=60,
-                technical_indicators=["etop", "ebot", "pldot"]
-            )
+        # Create configuration for training data generation
+        config = TrainingDataConfig(
+            base_interval_minutes=1,
+            training_interval_minutes=60,
+            technical_indicators=["etop", "ebot", "pldot"]
+        )
 
-            # Initialize training callback with test parameters
-            callback = IntervalBasedTrainingDataCallback(
-                symbols=self.test_symbols,
-                config=config,
-                start_date=self.test_start_date,
-                end_date=self.test_end_date,
-                output_dir=self.test_output_dir,
-                storage_format='arrayrecord'
-            )
+        # Initialize training callback with test parameters
+        callback = IntervalBasedTrainingDataCallback(
+            symbols=self.test_symbols,
+            config=config,
+            start_date=self.test_start_date,
+            end_date=self.test_end_date,
+            output_dir=self.test_output_dir,
+            storage_format='arrayrecord'
+        )
 
-            # Execute complete pipeline using Runner framework
-            print("🚀 Executing training data generation pipeline...")
-            environment = Environment(env_type=EnvironmentType.INTG)
-            runner = Runner(
-                environment=environment,
-                symbols=self.test_symbols,
-                start_date=self.test_start_date,
-                end_date=self.test_end_date,
-                interval='60m'
-            )
+        # Execute complete pipeline using Runner framework
+        print("🚀 Executing training data generation pipeline...")
+        environment = Environment(env_type=EnvironmentType.INTG)
+        runner = Runner(
+            environment=environment,
+            symbols=self.test_symbols,
+            start_date=self.test_start_date,
+            end_date=self.test_end_date,
+            interval='60m'
+        )
 
-            runner.add_callback(callback)
-            await runner.run()
+        runner.add_callback(callback)
+        await runner.run()
 
-            # Measure execution metrics
-            execution_time = time.time() - start_time
-            final_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
-            memory_delta = final_memory - initial_memory
+        # Measure execution metrics
+        execution_time = time.time() - start_time
+        final_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
+        memory_delta = final_memory - initial_memory
 
-            print(f"⏱️ Execution time: {execution_time:.2f} seconds")
-            print(f"📊 Memory usage delta: {memory_delta:.1f} MB")
+        print(f"⏱️ Execution time: {execution_time:.2f} seconds")
+        print(f"📊 Memory usage delta: {memory_delta:.1f} MB")
 
-            # VERIFICATION: Execution completed within acceptable timeframe
-            assert execution_time < 300, f"Pipeline too slow: {execution_time:.1f}s (expected <300s)"
+        # VERIFICATION: Execution completed within acceptable timeframe
+        assert execution_time < 300, f"Pipeline too slow: {execution_time:.1f}s (expected <300s)"
 
-            # VERIFICATION: Memory usage reasonable
-            assert abs(memory_delta) < 500, f"Memory leak detected: {memory_delta:.1f}MB delta"
+        # VERIFICATION: Memory usage reasonable
+        assert abs(memory_delta) < 500, f"Memory leak detected: {memory_delta:.1f}MB delta"
 
-            print("✅ Complete pipeline integration test PASSED")
-            return True
-
-        except Exception as e:
-            print(f"❌ Pipeline integration test FAILED: {e}")
-            raise
+        print("✅ Complete pipeline integration test PASSED")
+        return True
 
     async def test_arrayrecord_file_integrity(self):
         """
@@ -184,47 +175,43 @@ class TrainingDataEndToEndTest:
             file_size = os.path.getsize(file_path)
             assert file_size > 1000, f"File too small: {file_size} bytes (expected >1000)"
 
-            try:
-                # VERIFICATION: ArrayRecord file is readable
-                reader = array_record.ArrayRecordReader(str(file_path))
-                total_records = reader.num_records()
+            # VERIFICATION: ArrayRecord file is readable
+            reader = array_record.ArrayRecordReader(str(file_path))
+            total_records = reader.num_records()
 
-                print(f"   📊 Records: {total_records:,}")
-                assert total_records > 0, f"Empty ArrayRecord file: {file_path}"
+            print(f"   📊 Records: {total_records:,}")
+            assert total_records > 0, f"Empty ArrayRecord file: {file_path}"
 
-                # VERIFICATION: Sample record structure
-                if total_records > 0:
-                    reader.seek(0)
-                    sample_record = reader.read()
+            # VERIFICATION: Sample record structure
+            if total_records > 0:
+                reader.seek(0)
+                sample_record = reader.read()
 
-                    # Parse and verify binary format
-                    indicator_count = struct.unpack('>H', sample_record[:2])[0]
-                    timestamp = struct.unpack('>d', sample_record[2:10])[0]
-                    symbol_len = struct.unpack('>I', sample_record[10:14])[0]
+                # Parse and verify binary format
+                indicator_count = struct.unpack('>H', sample_record[:2])[0]
+                timestamp = struct.unpack('>d', sample_record[2:10])[0]
+                symbol_len = struct.unpack('>I', sample_record[10:14])[0]
 
-                    assert indicator_count > 0, f"No indicators in record: {file_path}"
-                    assert symbol_len > 0, f"Invalid symbol length: {file_path}"
-                    assert timestamp > 1640995200, f"Invalid timestamp: {timestamp}"  # After 2022
+                assert indicator_count > 0, f"No indicators in record: {file_path}"
+                assert symbol_len > 0, f"Invalid symbol length: {file_path}"
+                assert timestamp > 1640995200, f"Invalid timestamp: {timestamp}"  # After 2022
 
-                    # VERIFICATION: OHLCV data is reasonable
-                    ohlcv_offset = 14 + symbol_len
-                    ohlcv_data = struct.unpack('>fffff', sample_record[ohlcv_offset:ohlcv_offset+20])
-                    open_price, high_price, low_price, close_price, volume = ohlcv_data
+                # VERIFICATION: OHLCV data is reasonable
+                ohlcv_offset = 14 + symbol_len
+                ohlcv_data = struct.unpack('>fffff', sample_record[ohlcv_offset:ohlcv_offset+20])
+                open_price, high_price, low_price, close_price, volume = ohlcv_data
 
-                    assert open_price > 0, f"Invalid open price: {open_price}"
-                    assert high_price >= low_price, f"High < Low: {high_price} < {low_price}"
-                    assert volume >= 0, f"Negative volume: {volume}"
+                assert open_price > 0, f"Invalid open price: {open_price}"
+                assert high_price >= low_price, f"High < Low: {high_price} < {low_price}"
+                assert volume >= 0, f"Negative volume: {volume}"
 
-                    print(f"   💰 Sample OHLCV: O=${open_price:.2f}, H=${high_price:.2f}, L=${low_price:.2f}, C=${close_price:.2f}, V={volume:,.0f}")
+                print(f"   💰 Sample OHLCV: O=${open_price:.2f}, H=${high_price:.2f}, L=${low_price:.2f}, C=${close_price:.2f}, V={volume:,.0f}")
 
-                file_integrity_results[file_path] = {
-                    'records': total_records,
-                    'size_bytes': file_size,
-                    'size_kb': file_size / 1024
-                }
-
-            except Exception as e:
-                pytest.fail(f"ArrayRecord integrity check failed for {file_path}: {e}")
+            file_integrity_results[file_path] = {
+                'records': total_records,
+                'size_bytes': file_size,
+                'size_kb': file_size / 1024
+            }
 
         print(f"✅ ArrayRecord file integrity test PASSED - {len(arrayrecord_files)} files verified")
         return file_integrity_results
@@ -241,61 +228,56 @@ class TrainingDataEndToEndTest:
         """
         print("\n🧪 TEST 3: Database Registration and Tracking")
 
-        try:
-            pool = await get_database_pool('intg')
-            async with pool.acquire() as conn:
-                # VERIFICATION: Find recent training data runs
-                recent_runs = await conn.fetch("""
-                    SELECT id, run_type, status, command_line, git_commit_hash, created_at
-                    FROM intg_runs
-                    WHERE run_type = 'training_data_generation'
-                    AND created_at >= NOW() - INTERVAL '1 hour'
-                    ORDER BY created_at DESC
-                    LIMIT 5
-                """)
+        pool = await get_database_pool('intg')
+        async with pool.acquire() as conn:
+            # VERIFICATION: Find recent training data runs
+            recent_runs = await conn.fetch("""
+                SELECT id, run_type, status, command_line, git_commit_hash, created_at
+                FROM intg_runs
+                WHERE run_type = 'training_data_generation'
+                AND created_at >= NOW() - INTERVAL '1 hour'
+                ORDER BY created_at DESC
+                LIMIT 5
+            """)
 
-                print(f"📊 Found {len(recent_runs)} recent training data runs")
-                assert len(recent_runs) >= 1, "No recent training data runs found in database"
+            print(f"📊 Found {len(recent_runs)} recent training data runs")
+            assert len(recent_runs) >= 1, "No recent training data runs found in database"
 
-                # VERIFICATION: Run metadata completeness
-                latest_run = recent_runs[0]
-                print(f"🔍 Latest run ID: {latest_run['id']}")
-                print(f"📋 Command line: {latest_run['command_line'][:100]}...")
-                print(f"🔗 Git commit: {latest_run['git_commit_hash'][:8]}...")
+            # VERIFICATION: Run metadata completeness
+            latest_run = recent_runs[0]
+            print(f"🔍 Latest run ID: {latest_run['id']}")
+            print(f"📋 Command line: {latest_run['command_line'][:100]}...")
+            print(f"🔗 Git commit: {latest_run['git_commit_hash'][:8]}...")
 
-                assert latest_run['run_type'] == 'training_data_generation', f"Wrong run type: {latest_run['run_type']}"
-                assert latest_run['command_line'] is not None, "Missing command line in run record"
-                assert latest_run['git_commit_hash'] is not None, "Missing git commit hash"
+            assert latest_run['run_type'] == 'training_data_generation', f"Wrong run type: {latest_run['run_type']}"
+            assert latest_run['command_line'] is not None, "Missing command line in run record"
+            assert latest_run['git_commit_hash'] is not None, "Missing git commit hash"
 
-                # VERIFICATION: Training dataset registration
-                recent_datasets = await conn.fetch("""
-                    SELECT id, dataset_name, symbols, status, total_sequences, feature_count, file_size_mb
-                    FROM intg_training_dataset
-                    WHERE created_at >= NOW() - INTERVAL '1 hour'
-                    ORDER BY created_at DESC
-                    LIMIT 3
-                """)
+            # VERIFICATION: Training dataset registration
+            recent_datasets = await conn.fetch("""
+                SELECT id, dataset_name, symbols, status, total_sequences, feature_count, file_size_mb
+                FROM intg_training_dataset
+                WHERE created_at >= NOW() - INTERVAL '1 hour'
+                ORDER BY created_at DESC
+                LIMIT 3
+            """)
 
-                print(f"📊 Found {len(recent_datasets)} recent training datasets")
+            print(f"📊 Found {len(recent_datasets)} recent training datasets")
 
-                if recent_datasets:
-                    latest_dataset = recent_datasets[0]
-                    print(f"📋 Dataset: {latest_dataset['dataset_name']}")
-                    print(f"📊 Status: {latest_dataset['status']}")
-                    print(f"📈 File size: {latest_dataset['file_size_mb']}MB")
+            if recent_datasets:
+                latest_dataset = recent_datasets[0]
+                print(f"📋 Dataset: {latest_dataset['dataset_name']}")
+                print(f"📊 Status: {latest_dataset['status']}")
+                print(f"📈 File size: {latest_dataset['file_size_mb']}MB")
 
-                    # VERIFICATION: Dataset has reasonable metadata
-                    assert latest_dataset['symbols'] is not None, "Missing symbols in dataset"
-                    assert len(latest_dataset['symbols']) > 0, "Empty symbols array"
+                # VERIFICATION: Dataset has reasonable metadata
+                assert latest_dataset['symbols'] is not None, "Missing symbols in dataset"
+                assert len(latest_dataset['symbols']) > 0, "Empty symbols array"
 
-            await pool.close()
+        await pool.close()
 
-            print("✅ Database registration and tracking test PASSED")
-            return True
-
-        except Exception as e:
-            print(f"❌ Database registration test FAILED: {e}")
-            raise
+        print("✅ Database registration and tracking test PASSED")
+        return True
 
     async def test_multi_timeframe_consistency(self):
         """
@@ -323,33 +305,28 @@ class TrainingDataEndToEndTest:
                         if timeframe in self.expected_timeframes:
                             file_path = os.path.join(root, file)
 
-                            try:
-                                reader = array_record.ArrayRecordReader(str(file_path))
-                                record_count = reader.num_records()
+                            reader = array_record.ArrayRecordReader(str(file_path))
+                            record_count = reader.num_records()
 
-                                if record_count > 0:
-                                    reader.seek(0)
-                                    first_record = reader.read()
+                            if record_count > 0:
+                                reader.seek(0)
+                                first_record = reader.read()
 
-                                    # Extract timestamp and volume from first record
-                                    timestamp = struct.unpack('>d', first_record[2:10])[0]
-                                    symbol_len = struct.unpack('>I', first_record[10:14])[0]
-                                    ohlcv_offset = 14 + symbol_len
-                                    volume = struct.unpack('>f', first_record[ohlcv_offset+16:ohlcv_offset+20])[0]
+                                # Extract timestamp and volume from first record
+                                timestamp = struct.unpack('>d', first_record[2:10])[0]
+                                symbol_len = struct.unpack('>I', first_record[10:14])[0]
+                                ohlcv_offset = 14 + symbol_len
+                                volume = struct.unpack('>f', first_record[ohlcv_offset+16:ohlcv_offset+20])[0]
 
-                                    timeframe_data[timeframe] = {
-                                        'records': record_count,
-                                        'first_timestamp': timestamp,
-                                        'first_volume': volume,
-                                        'file_path': file_path
-                                    }
+                                timeframe_data[timeframe] = {
+                                    'records': record_count,
+                                    'first_timestamp': timestamp,
+                                    'first_volume': volume,
+                                    'file_path': file_path
+                                }
 
-                                    print(f"📊 {timeframe}: {record_count} records, first volume: {volume:,.0f}")
+                                print(f"📊 {timeframe}: {record_count} records, first volume: {volume:,.0f}")
 
-                            except Exception as e:
-                                print(f"⚠️ Error reading {timeframe} data: {e}")
-
-        # VERIFICATION: All expected timeframes present
         found_timeframes = set(timeframe_data.keys())
         expected_timeframes = set(self.expected_timeframes)
         missing_timeframes = expected_timeframes - found_timeframes
@@ -386,74 +363,61 @@ class TrainingDataEndToEndTest:
         initial_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
 
         # TEST: Simulated failure during generation
-        try:
-            config = TrainingDataConfig(
-                base_interval_minutes=1,
-                training_interval_minutes=60,
-                technical_indicators=["etop", "ebot", "pldot"]
-            )
+        config = TrainingDataConfig(
+            base_interval_minutes=1,
+            training_interval_minutes=60,
+            technical_indicators=["etop", "ebot", "pldot"]
+        )
 
-            callback = IntervalBasedTrainingDataCallback(
-                symbols=['INVALID_SYMBOL_TEST'],  # Use invalid symbol to trigger controlled failure
-                config=config,
-                start_date=self.test_start_date,
-                end_date=self.test_end_date,
-                output_dir=self.test_output_dir,
-                storage_format='arrayrecord'
-            )
+        callback = IntervalBasedTrainingDataCallback(
+            symbols=['INVALID_SYMBOL_TEST'],  # Use invalid symbol to trigger controlled failure
+            config=config,
+            start_date=self.test_start_date,
+            end_date=self.test_end_date,
+            output_dir=self.test_output_dir,
+            storage_format='arrayrecord'
+        )
 
-            # Mock a failure in the middle of processing
-            original_process_interval = callback._process_interval
+        # Mock a failure in the middle of processing
+        original_process_interval = callback._process_interval
 
-            def failing_process_interval(*args, **kwargs):
-                # Let first few calls succeed, then fail
-                if hasattr(callback, '_call_count'):
-                    callback._call_count += 1
-                else:
-                    callback._call_count = 1
+        def failing_process_interval(*args, **kwargs):
+            # Let first few calls succeed, then fail
+            if hasattr(callback, '_call_count'):
+                callback._call_count += 1
+            else:
+                callback._call_count = 1
 
-                if callback._call_count > 2:
-                    raise RuntimeError("Simulated processing failure")
+            if callback._call_count > 2:
+                raise RuntimeError("Simulated processing failure")
 
-                return original_process_interval(*args, **kwargs)
+            return original_process_interval(*args, **kwargs)
 
-            callback._process_interval = failing_process_interval
+        callback._process_interval = failing_process_interval
 
-            # Try to run pipeline - should fail gracefully
-            exception_caught = False
-            try:
-                environment = Environment(env_type=EnvironmentType.INTG)
-                runner = Runner(
-                    environment=environment,
-                    symbols=['INVALID_SYMBOL_TEST'],
-                    start_date=self.test_start_date,
-                    end_date=self.test_end_date,
-                    interval='60m'
-                )
+        # Try to run pipeline - should fail gracefully
+        exception_caught = False
+        environment = Environment(env_type=EnvironmentType.INTG)
+        runner = Runner(
+            environment=environment,
+            symbols=['INVALID_SYMBOL_TEST'],
+            start_date=self.test_start_date,
+            end_date=self.test_end_date,
+            interval='60m'
+        )
 
-                runner.add_callback(callback)
-                await runner.run()
-            except (RuntimeError, Exception) as e:
-                exception_caught = True
-                print(f"🎯 Caught expected exception: {type(e).__name__}: {e}")
+        runner.add_callback(callback)
+        await runner.run()
+        assert exception_caught, "Expected exception was not raised"
 
-            # VERIFICATION: Exception was properly caught and handled
-            assert exception_caught, "Expected exception was not raised"
+        # VERIFICATION: Memory was properly cleaned up
+        final_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
+        memory_delta = final_memory - initial_memory
+        assert abs(memory_delta) < 100, f"Memory not cleaned up: {memory_delta:.1f}MB delta"
 
-            # VERIFICATION: Memory was properly cleaned up
-            final_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
-            memory_delta = final_memory - initial_memory
-            assert abs(memory_delta) < 100, f"Memory not cleaned up: {memory_delta:.1f}MB delta"
-
-            print(f"📊 Memory cleanup verified: {memory_delta:.1f}MB delta")
-            print("✅ Error handling and cleanup test PASSED")
-            return True
-
-        except AssertionError:
-            raise
-        except Exception as e:
-            print(f"❌ Error handling test failed unexpectedly: {e}")
-            raise
+        print(f"📊 Memory cleanup verified: {memory_delta:.1f}MB delta")
+        print("✅ Error handling and cleanup test PASSED")
+        return True
 
     async def test_performance_benchmarks(self):
         """
@@ -584,78 +548,72 @@ class TrainingDataEndToEndTest:
 
                     print(f"🔍 Validating data quality: {timeframe}/{file}")
 
-                    try:
-                        reader = array_record.ArrayRecordReader(str(file_path))
-                        total_records = reader.num_records()
+                    reader = array_record.ArrayRecordReader(str(file_path))
+                    total_records = reader.num_records()
 
-                        if total_records == 0:
-                            print(f"⚠️ Empty file: {file}")
-                            continue
+                    if total_records == 0:
+                        print(f"⚠️ Empty file: {file}")
+                        continue
 
-                        quality_metrics['total_records_validated'] += total_records
+                    quality_metrics['total_records_validated'] += total_records
 
-                        # Sample and validate multiple records
-                        sample_size = min(10, total_records)
-                        sample_indices = [i * (total_records // sample_size) for i in range(sample_size)]
+                    # Sample and validate multiple records
+                    sample_size = min(10, total_records)
+                    sample_indices = [i * (total_records // sample_size) for i in range(sample_size)]
 
-                        valid_prices = 0
-                        valid_volumes = 0
-                        indicator_counts = []
+                    valid_prices = 0
+                    valid_volumes = 0
+                    indicator_counts = []
 
-                        for idx in sample_indices:
-                            reader.seek(idx)
-                            record = reader.read()
+                    for idx in sample_indices:
+                        reader.seek(idx)
+                        record = reader.read()
 
-                            # Parse record structure
-                            indicator_count = struct.unpack('>H', record[:2])[0]
-                            timestamp = struct.unpack('>d', record[2:10])[0]
-                            symbol_len = struct.unpack('>I', record[10:14])[0]
-                            symbol = record[14:14+symbol_len].decode('utf-8')
+                        # Parse record structure
+                        indicator_count = struct.unpack('>H', record[:2])[0]
+                        timestamp = struct.unpack('>d', record[2:10])[0]
+                        symbol_len = struct.unpack('>I', record[10:14])[0]
+                        symbol = record[14:14+symbol_len].decode('utf-8')
 
-                            # Validate OHLCV data
-                            ohlcv_offset = 14 + symbol_len
-                            ohlcv_data = struct.unpack('>fffff', record[ohlcv_offset:ohlcv_offset+20])
-                            open_price, high_price, low_price, close_price, volume = ohlcv_data
+                        # Validate OHLCV data
+                        ohlcv_offset = 14 + symbol_len
+                        ohlcv_data = struct.unpack('>fffff', record[ohlcv_offset:ohlcv_offset+20])
+                        open_price, high_price, low_price, close_price, volume = ohlcv_data
 
-                            # Price validation
-                            if (open_price > 0 and high_price >= low_price and
-                                close_price > 0 and high_price >= max(open_price, close_price) and
-                                low_price <= min(open_price, close_price)):
-                                valid_prices += 1
-                            else:
-                                quality_metrics['data_anomalies'].append(f"Invalid OHLC in {file} record {idx}")
+                        # Price validation
+                        if (open_price > 0 and high_price >= low_price and
+                            close_price > 0 and high_price >= max(open_price, close_price) and
+                            low_price <= min(open_price, close_price)):
+                            valid_prices += 1
+                        else:
+                            quality_metrics['data_anomalies'].append(f"Invalid OHLC in {file} record {idx}")
 
-                            # Volume validation
-                            if volume >= 0:
-                                valid_volumes += 1
-                            else:
-                                quality_metrics['data_anomalies'].append(f"Negative volume in {file} record {idx}")
+                        # Volume validation
+                        if volume >= 0:
+                            valid_volumes += 1
+                        else:
+                            quality_metrics['data_anomalies'].append(f"Negative volume in {file} record {idx}")
 
-                            # Indicator count tracking
-                            indicator_counts.append(indicator_count)
+                        # Indicator count tracking
+                        indicator_counts.append(indicator_count)
 
-                        # Calculate quality metrics for this file
-                        price_quality = valid_prices / sample_size
-                        volume_quality = valid_volumes / sample_size
-                        avg_indicators = sum(indicator_counts) / len(indicator_counts)
+                    # Calculate quality metrics for this file
+                    price_quality = valid_prices / sample_size
+                    volume_quality = valid_volumes / sample_size
+                    avg_indicators = sum(indicator_counts) / len(indicator_counts)
 
-                        quality_metrics['valid_price_records'] += valid_prices
-                        quality_metrics['valid_volume_records'] += valid_volumes
+                    quality_metrics['valid_price_records'] += valid_prices
+                    quality_metrics['valid_volume_records'] += valid_volumes
 
-                        print(f"   📊 Price quality: {price_quality*100:.1f}%")
-                        print(f"   📈 Volume quality: {volume_quality*100:.1f}%")
-                        print(f"   🔧 Avg indicators: {avg_indicators:.1f}")
+                    print(f"   📊 Price quality: {price_quality*100:.1f}%")
+                    print(f"   📈 Volume quality: {volume_quality*100:.1f}%")
+                    print(f"   🔧 Avg indicators: {avg_indicators:.1f}")
 
-                        # VERIFICATION: High data quality standards
-                        assert price_quality >= 0.95, f"Price quality too low: {price_quality*100:.1f}% (expected ≥95%)"
-                        assert volume_quality >= 0.95, f"Volume quality too low: {volume_quality*100:.1f}% (expected ≥95%)"
-                        assert avg_indicators >= 10, f"Too few indicators: {avg_indicators:.1f} (expected ≥10)"
+                    # VERIFICATION: High data quality standards
+                    assert price_quality >= 0.95, f"Price quality too low: {price_quality*100:.1f}% (expected ≥95%)"
+                    assert volume_quality >= 0.95, f"Volume quality too low: {volume_quality*100:.1f}% (expected ≥95%)"
+                    assert avg_indicators >= 10, f"Too few indicators: {avg_indicators:.1f} (expected ≥10)"
 
-                    except Exception as e:
-                        quality_metrics['data_anomalies'].append(f"Error validating {file}: {e}")
-                        print(f"⚠️ Validation error for {file}: {e}")
-
-        # Calculate overall quality metrics
         total_samples = quality_metrics['valid_price_records'] + quality_metrics['valid_volume_records']
         if quality_metrics['total_records_validated'] > 0:
             overall_quality = total_samples / (quality_metrics['total_records_validated'] * 2)  # *2 for price+volume
@@ -694,108 +652,88 @@ class TrainingDataEndToEndTest:
             'cleanup_successful': False
         }
 
-        try:
-            # Complete workflow execution
-            print("🔄 Executing complete regression workflow...")
+        # Complete workflow execution
+        print("🔄 Executing complete regression workflow...")
 
-            config = TrainingDataConfig(
-                base_interval_minutes=1,
-                training_interval_minutes=60,
-                technical_indicators=["etop", "ebot", "pldot"]
-            )
+        config = TrainingDataConfig(
+            base_interval_minutes=1,
+            training_interval_minutes=60,
+            technical_indicators=["etop", "ebot", "pldot"]
+        )
 
-            callback = IntervalBasedTrainingDataCallback(
-                symbols=self.test_symbols,
-                config=config,
-                start_date=self.test_start_date,
-                end_date=self.test_end_date,
-                output_dir=self.test_output_dir,
-                storage_format='arrayrecord'
-            )
+        callback = IntervalBasedTrainingDataCallback(
+            symbols=self.test_symbols,
+            config=config,
+            start_date=self.test_start_date,
+            end_date=self.test_end_date,
+            output_dir=self.test_output_dir,
+            storage_format='arrayrecord'
+        )
 
-            # Execute with full monitoring
-            execution_successful = False
-            try:
-                environment = Environment(env_type=EnvironmentType.INTG)
-                runner = Runner(
-                    environment=environment,
-                    symbols=self.test_symbols,
-                    start_date=self.test_start_date,
-                    end_date=self.test_end_date,
-                    interval='60m'
-                )
+        # Execute with full monitoring
+        execution_successful = False
+        environment = Environment(env_type=EnvironmentType.INTG)
+        runner = Runner(
+            environment=environment,
+            symbols=self.test_symbols,
+            start_date=self.test_start_date,
+            end_date=self.test_end_date,
+            interval='60m'
+        )
 
-                runner.add_callback(callback)
-                await runner.run()
-                execution_successful = True
+        runner.add_callback(callback)
+        await runner.run()
+        execution_successful = True
 
-            except Exception as e:
-                print(f"⚠️ Workflow execution error: {e}")
+        regression_checks['workflow_completed'] = execution_successful
 
-            regression_checks['workflow_completed'] = execution_successful
+        # Database integration check
+        pool = await get_database_pool('intg')
+        async with pool.acquire() as conn:
+            recent_run = await conn.fetchrow("""
+                SELECT id FROM intg_runs
+                WHERE created_at >= NOW() - INTERVAL '5 minutes'
+                ORDER BY created_at DESC LIMIT 1
+            """)
 
-            # Database integration check
-            try:
-                pool = await get_database_pool('intg')
-                async with pool.acquire() as conn:
-                    recent_run = await conn.fetchrow("""
-                        SELECT id FROM intg_runs
-                        WHERE created_at >= NOW() - INTERVAL '5 minutes'
-                        ORDER BY created_at DESC LIMIT 1
-                    """)
+            regression_checks['database_integration'] = recent_run is not None
+        await pool.close()
 
-                    regression_checks['database_integration'] = recent_run is not None
-                await pool.close()
+        generated_files = []
+        for root, dirs, files in os.walk(self.test_output_dir):
+            for file in files:
+                if file.endswith('.arrayrecord'):
+                    generated_files.append(os.path.join(root, file))
 
-            except Exception as e:
-                print(f"⚠️ Database integration error: {e}")
+        regression_checks['file_system_integration'] = len(generated_files) > 0
 
-            # File system integration check
-            generated_files = []
-            for root, dirs, files in os.walk(self.test_output_dir):
-                for file in files:
-                    if file.endswith('.arrayrecord'):
-                        generated_files.append(os.path.join(root, file))
+        # ArrayRecord compatibility check
+        compatible_files = 0
+        for file_path in generated_files:
+            reader = array_record.ArrayRecordReader(str(file_path))
+            if reader.num_records() > 0:
+                compatible_files += 1
+        regression_checks['arrayrecord_compatibility'] = (
+            compatible_files > 0 and
+            compatible_files == len(generated_files)
+        )
 
-            regression_checks['file_system_integration'] = len(generated_files) > 0
+        # Cleanup verification
+        regression_checks['cleanup_successful'] = True  # If we get here, cleanup worked
 
-            # ArrayRecord compatibility check
-            compatible_files = 0
-            for file_path in generated_files:
-                try:
-                    reader = array_record.ArrayRecordReader(str(file_path))
-                    if reader.num_records() > 0:
-                        compatible_files += 1
-                except:
-                    pass
+        # Report regression results
+        print(f"\n📋 Regression Check Results:")
+        for check, result in regression_checks.items():
+            status = "✅ PASS" if result else "❌ FAIL"
+            print(f"   {check}: {status}")
 
-            regression_checks['arrayrecord_compatibility'] = (
-                compatible_files > 0 and
-                compatible_files == len(generated_files)
-            )
+        # VERIFICATION: All regression checks must pass
+        failed_checks = [check for check, result in regression_checks.items() if not result]
+        assert len(failed_checks) == 0, f"Regression failures: {failed_checks}"
 
-            # Cleanup verification
-            regression_checks['cleanup_successful'] = True  # If we get here, cleanup worked
+        print("✅ Complete workflow regression protection test PASSED")
+        return regression_checks
 
-            # Report regression results
-            print(f"\n📋 Regression Check Results:")
-            for check, result in regression_checks.items():
-                status = "✅ PASS" if result else "❌ FAIL"
-                print(f"   {check}: {status}")
-
-            # VERIFICATION: All regression checks must pass
-            failed_checks = [check for check, result in regression_checks.items() if not result]
-            assert len(failed_checks) == 0, f"Regression failures: {failed_checks}"
-
-            print("✅ Complete workflow regression protection test PASSED")
-            return regression_checks
-
-        except Exception as e:
-            print(f"❌ Regression test failed: {e}")
-            raise
-
-
-# Pytest test functions
 @pytest.fixture
 async def test_suite():
     """Initialize and cleanup test suite."""
@@ -834,18 +772,12 @@ async def test_end_to_end_comprehensive_suite(test_suite):
     ]
 
     for test_name, test_method in test_methods:
-        try:
-            print(f"\n🔹 Starting: {test_name}")
-            result = await test_method()
-            test_results[test_name] = {'status': 'PASSED', 'result': result}
-            passed_tests += 1
-            print(f"✅ {test_name}: PASSED")
+        print(f"\n🔹 Starting: {test_name}")
+        result = await test_method()
+        test_results[test_name] = {'status': 'PASSED', 'result': result}
+        passed_tests += 1
+        print(f"✅ {test_name}: PASSED")
 
-        except Exception as e:
-            test_results[test_name] = {'status': 'FAILED', 'error': str(e)}
-            print(f"❌ {test_name}: FAILED - {e}")
-
-    # Final test report
     print("\n" + "="*80)
     print("🎯 COMPREHENSIVE TEST SUITE RESULTS")
     print("="*80)
@@ -878,14 +810,9 @@ if __name__ == "__main__":
 
     async def run_direct():
         suite = TrainingDataEndToEndTest()
-        try:
-            await suite.setup_test_environment()
-            results = await test_end_to_end_comprehensive_suite(suite)
-            print("\n🎯 Direct execution completed successfully")
-            return results
-        finally:
-            await suite.cleanup_test_environment()
-
-    # Run the tests
+        await suite.setup_test_environment()
+        results = await test_end_to_end_comprehensive_suite(suite)
+        print("\n🎯 Direct execution completed successfully")
+        return results
     import asyncio
     results = asyncio.run(run_direct())

@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsJSONResponseValidation:
@@ -55,13 +49,7 @@ class TestRealObjectsJSONResponseValidation:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_training_datasets_list_json_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_training_datasets_list_json_valid"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsJSONResponseValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.training_datasets_list_json_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.training_datasets_list_json_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_training_dataset_sequences_json_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_training_dataset_sequences_json_valid"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsJSONResponseValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.training_dataset_sequences_json_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.training_dataset_sequences_json_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_timeframe_data_json_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_timeframe_data_json_valid"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsJSONResponseValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_timeframe_data_json_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_timeframe_data_json_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_visualization_data_json_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_visualization_data_json_valid"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsJSONResponseValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.visualization_data_json_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.visualization_data_json_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_edge_case_responses_real_objects(self, real_service, test_data):
         """Real objects version of test_edge_case_responses"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsJSONResponseValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.edge_case_responses_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.edge_case_responses_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sanitize_api_response_with_nan_real_objects(self, real_service, test_data):
         """Real objects version of test_sanitize_api_response_with_nan"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsJSONResponseValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sanitize_api_response_with_nan_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sanitize_api_response_with_nan_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_safe_json_response_real_objects(self, real_service, test_data):
         """Real objects version of test_safe_json_response"""
         # Test with real database integration
@@ -208,15 +160,8 @@ class TestRealObjectsJSONResponseValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.safe_json_response_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.safe_json_response_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

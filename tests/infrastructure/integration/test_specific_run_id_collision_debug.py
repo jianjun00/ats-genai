@@ -45,12 +45,8 @@ class TestSpecificRunIdCollisionDebug:
 
     async def get_db_connection(self) -> asyncpg.Connection:
         """Get database connection for testing."""
-        try:
-            conn = await asyncpg.connect(**self.db_config)
-            return conn
-        except Exception as e:
-            pytest.skip(f"Cannot connect to intg database: {e}")
-
+        conn = await asyncpg.connect(**self.db_config)
+        return conn
     @pytest.mark.asyncio
     async def test_investigate_problematic_run_id(self):
         """Test: Investigate the specific problematic run ID."""
@@ -59,90 +55,86 @@ class TestSpecificRunIdCollisionDebug:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Check if this exact record exists
-            exact_match_query = """
-                SELECT 
-                    id,
-                    instrument_id,
-                    interval_start,
-                    interval_duration,
-                    run_id,
-                    created_at,
-                    status
-                FROM intg_instrument_interval 
-                WHERE instrument_id = $1
-                  AND interval_start = $2
-                  AND interval_duration = $3
-                  AND run_id = $4
-            """
-            
-            exact_matches = await conn.fetch(
-                exact_match_query,
-                self.problematic_instrument_id,
-                self.problematic_interval_start,
-                self.problematic_interval_duration,
-                self.problematic_run_id
-            )
-            
-            print(f"📊 Exact match results: {len(exact_matches)} records found")
-            
-            if exact_matches:
-                print("🚨 DUPLICATE RECORDS FOUND:")
-                for i, record in enumerate(exact_matches):
-                    print(f"   Record {i+1}:")
-                    print(f"      ID: {record['id']}")
-                    print(f"      Created: {record['created_at']}")
-                    print(f"      Status: {record['status']}")
-            else:
-                print("✅ No exact duplicates found - record may have been cleaned up")
-            
-            # Check for any records with this run_id
-            run_id_query = """
-                SELECT 
-                    COUNT(*) as total_records,
-                    MIN(interval_start) as first_interval,
-                    MAX(interval_start) as last_interval,
-                    MIN(created_at) as run_started,
-                    MAX(created_at) as last_activity,
-                    COUNT(DISTINCT instrument_id) as unique_instruments
-                FROM intg_instrument_interval 
-                WHERE run_id = $1
-            """
-            
-            run_stats = await conn.fetchrow(run_id_query, self.problematic_run_id)
-            
-            if run_stats and run_stats['total_records'] > 0:
-                print(f"\n📈 Run ID Statistics:")
-                print(f"   Total records: {run_stats['total_records']}")
-                print(f"   Unique instruments: {run_stats['unique_instruments']}")
-                print(f"   Time range: {run_stats['first_interval']} to {run_stats['last_interval']}")
-                print(f"   Execution time: {run_stats['run_started']} to {run_stats['last_activity']}")
-            else:
-                print(f"\n✅ No records found for run_id: {self.problematic_run_id}")
-            
-            # Check for similar run IDs (same timestamp, different suffix)
-            similar_run_ids_query = """
-                SELECT DISTINCT run_id, COUNT(*) as record_count
-                FROM intg_instrument_interval 
-                WHERE run_id LIKE 'run_20250913_053441_%'
-                GROUP BY run_id
-                ORDER BY run_id
-            """
-            
-            similar_runs = await conn.fetch(similar_run_ids_query)
-            
-            if similar_runs:
-                print(f"\n🔍 Similar run IDs (same timestamp):")
-                for run in similar_runs:
-                    print(f"   {run['run_id']}: {run['record_count']} records")
-                    
-                if len(similar_runs) > 1:
-                    print("🚨 MULTIPLE RUNS WITH SAME TIMESTAMP - This suggests rapid restart issue!")
-            
-        finally:
-            await conn.close()
-
+        # Check if this exact record exists
+        exact_match_query = """
+            SELECT 
+                id,
+                instrument_id,
+                interval_start,
+                interval_duration,
+                run_id,
+                created_at,
+                status
+            FROM intg_instrument_interval 
+            WHERE instrument_id = $1
+              AND interval_start = $2
+              AND interval_duration = $3
+              AND run_id = $4
+        """
+        
+        exact_matches = await conn.fetch(
+            exact_match_query,
+            self.problematic_instrument_id,
+            self.problematic_interval_start,
+            self.problematic_interval_duration,
+            self.problematic_run_id
+        )
+        
+        print(f"📊 Exact match results: {len(exact_matches)} records found")
+        
+        if exact_matches:
+            print("🚨 DUPLICATE RECORDS FOUND:")
+            for i, record in enumerate(exact_matches):
+                print(f"   Record {i+1}:")
+                print(f"      ID: {record['id']}")
+                print(f"      Created: {record['created_at']}")
+                print(f"      Status: {record['status']}")
+        else:
+            print("✅ No exact duplicates found - record may have been cleaned up")
+        
+        # Check for any records with this run_id
+        run_id_query = """
+            SELECT 
+                COUNT(*) as total_records,
+                MIN(interval_start) as first_interval,
+                MAX(interval_start) as last_interval,
+                MIN(created_at) as run_started,
+                MAX(created_at) as last_activity,
+                COUNT(DISTINCT instrument_id) as unique_instruments
+            FROM intg_instrument_interval 
+            WHERE run_id = $1
+        """
+        
+        run_stats = await conn.fetchrow(run_id_query, self.problematic_run_id)
+        
+        if run_stats and run_stats['total_records'] > 0:
+            print(f"\n📈 Run ID Statistics:")
+            print(f"   Total records: {run_stats['total_records']}")
+            print(f"   Unique instruments: {run_stats['unique_instruments']}")
+            print(f"   Time range: {run_stats['first_interval']} to {run_stats['last_interval']}")
+            print(f"   Execution time: {run_stats['run_started']} to {run_stats['last_activity']}")
+        else:
+            print(f"\n✅ No records found for run_id: {self.problematic_run_id}")
+        
+        # Check for similar run IDs (same timestamp, different suffix)
+        similar_run_ids_query = """
+            SELECT DISTINCT run_id, COUNT(*) as record_count
+            FROM intg_instrument_interval 
+            WHERE run_id LIKE 'run_20250913_053441_%'
+            GROUP BY run_id
+            ORDER BY run_id
+        """
+        
+        similar_runs = await conn.fetch(similar_run_ids_query)
+        
+        if similar_runs:
+            print(f"\n🔍 Similar run IDs (same timestamp):")
+            for run in similar_runs:
+                print(f"   {run['run_id']}: {run['record_count']} records")
+                
+            if len(similar_runs) > 1:
+                print("🚨 MULTIPLE RUNS WITH SAME TIMESTAMP - This suggests rapid restart issue!")
+        
     @pytest.mark.asyncio
     async def test_analyze_run_id_pattern(self):
         """Test: Analyze run ID patterns to understand collision source."""
@@ -151,85 +143,81 @@ class TestSpecificRunIdCollisionDebug:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Analyze all run IDs to find patterns
-            run_id_analysis_query = """
-                WITH run_id_parts AS (
-                    SELECT 
-                        run_id,
-                        COUNT(*) as record_count,
-                        CASE 
-                            WHEN run_id ~ '^run_\\d{8}_\\d{6}_[a-f0-9]{8}$' THEN 'standard_format'
-                            WHEN run_id ~ '^run_\\d+' THEN 'legacy_numeric'
-                            WHEN run_id = 'legacy_run_pre_0025' THEN 'legacy_default'
-                            ELSE 'unknown_format'
-                        END as format_type,
-                        SUBSTRING(run_id FROM 'run_(\\d{8}_\\d{6})_') as timestamp_part,
-                        SUBSTRING(run_id FROM '_([a-f0-9]{8})$') as uuid_part
-                    FROM intg_instrument_interval 
-                    WHERE interval_start >= '2025-07-01'
-                    GROUP BY run_id
-                )
+        # Analyze all run IDs to find patterns
+        run_id_analysis_query = """
+            WITH run_id_parts AS (
                 SELECT 
-                    format_type,
-                    COUNT(*) as run_count,
-                    SUM(record_count) as total_records,
-                    AVG(record_count) as avg_records_per_run,
-                    MIN(record_count) as min_records,
-                    MAX(record_count) as max_records
-                FROM run_id_parts
-                GROUP BY format_type
-                ORDER BY run_count DESC
-            """
-            
-            pattern_analysis = await conn.fetch(run_id_analysis_query)
-            
-            print("📊 Run ID Pattern Analysis:")
-            for row in pattern_analysis:
-                print(f"   {row['format_type']}:")
-                print(f"      Runs: {row['run_count']}")
-                print(f"      Total records: {row['total_records']}")
-                print(f"      Avg records/run: {row['avg_records_per_run']:.1f}")
-                print(f"      Range: {row['min_records']} - {row['max_records']} records")
-            
-            # Check for timestamp collisions
-            timestamp_collision_query = """
-                WITH timestamp_groups AS (
-                    SELECT 
-                        SUBSTRING(run_id FROM 'run_(\\d{8}_\\d{6})_') as timestamp_part,
-                        COUNT(DISTINCT run_id) as unique_run_ids,
-                        ARRAY_AGG(DISTINCT run_id) as run_ids
-                    FROM intg_instrument_interval 
-                    WHERE run_id ~ '^run_\\d{8}_\\d{6}_[a-f0-9]{8}$'
-                      AND interval_start >= '2025-07-01'
-                    GROUP BY timestamp_part
-                    HAVING COUNT(DISTINCT run_id) > 1
-                )
+                    run_id,
+                    COUNT(*) as record_count,
+                    CASE 
+                        WHEN run_id ~ '^run_\\d{8}_\\d{6}_[a-f0-9]{8}$' THEN 'standard_format'
+                        WHEN run_id ~ '^run_\\d+' THEN 'legacy_numeric'
+                        WHEN run_id = 'legacy_run_pre_0025' THEN 'legacy_default'
+                        ELSE 'unknown_format'
+                    END as format_type,
+                    SUBSTRING(run_id FROM 'run_(\\d{8}_\\d{6})_') as timestamp_part,
+                    SUBSTRING(run_id FROM '_([a-f0-9]{8})$') as uuid_part
+                FROM intg_instrument_interval 
+                WHERE interval_start >= '2025-07-01'
+                GROUP BY run_id
+            )
+            SELECT 
+                format_type,
+                COUNT(*) as run_count,
+                SUM(record_count) as total_records,
+                AVG(record_count) as avg_records_per_run,
+                MIN(record_count) as min_records,
+                MAX(record_count) as max_records
+            FROM run_id_parts
+            GROUP BY format_type
+            ORDER BY run_count DESC
+        """
+        
+        pattern_analysis = await conn.fetch(run_id_analysis_query)
+        
+        print("📊 Run ID Pattern Analysis:")
+        for row in pattern_analysis:
+            print(f"   {row['format_type']}:")
+            print(f"      Runs: {row['run_count']}")
+            print(f"      Total records: {row['total_records']}")
+            print(f"      Avg records/run: {row['avg_records_per_run']:.1f}")
+            print(f"      Range: {row['min_records']} - {row['max_records']} records")
+        
+        # Check for timestamp collisions
+        timestamp_collision_query = """
+            WITH timestamp_groups AS (
                 SELECT 
-                    timestamp_part,
-                    unique_run_ids,
-                    run_ids
-                FROM timestamp_groups
-                ORDER BY unique_run_ids DESC
-            """
-            
-            timestamp_collisions = await conn.fetch(timestamp_collision_query)
-            
-            if timestamp_collisions:
-                print(f"\n🚨 TIMESTAMP COLLISIONS DETECTED:")
-                for collision in timestamp_collisions:
-                    print(f"   Timestamp {collision['timestamp_part']}:")
-                    print(f"      {collision['unique_run_ids']} different run IDs")
-                    for run_id in collision['run_ids'][:3]:  # Show first 3
-                        print(f"         - {run_id}")
-                    if len(collision['run_ids']) > 3:
-                        print(f"         ... and {len(collision['run_ids']) - 3} more")
-            else:
-                print(f"\n✅ No timestamp collisions detected in run ID generation")
-            
-        finally:
-            await conn.close()
-
+                    SUBSTRING(run_id FROM 'run_(\\d{8}_\\d{6})_') as timestamp_part,
+                    COUNT(DISTINCT run_id) as unique_run_ids,
+                    ARRAY_AGG(DISTINCT run_id) as run_ids
+                FROM intg_instrument_interval 
+                WHERE run_id ~ '^run_\\d{8}_\\d{6}_[a-f0-9]{8}$'
+                  AND interval_start >= '2025-07-01'
+                GROUP BY timestamp_part
+                HAVING COUNT(DISTINCT run_id) > 1
+            )
+            SELECT 
+                timestamp_part,
+                unique_run_ids,
+                run_ids
+            FROM timestamp_groups
+            ORDER BY unique_run_ids DESC
+        """
+        
+        timestamp_collisions = await conn.fetch(timestamp_collision_query)
+        
+        if timestamp_collisions:
+            print(f"\n🚨 TIMESTAMP COLLISIONS DETECTED:")
+            for collision in timestamp_collisions:
+                print(f"   Timestamp {collision['timestamp_part']}:")
+                print(f"      {collision['unique_run_ids']} different run IDs")
+                for run_id in collision['run_ids'][:3]:  # Show first 3
+                    print(f"         - {run_id}")
+                if len(collision['run_ids']) > 3:
+                    print(f"         ... and {len(collision['run_ids']) - 3} more")
+        else:
+            print(f"\n✅ No timestamp collisions detected in run ID generation")
+        
     @pytest.mark.asyncio
     async def test_simulate_collision_scenario(self):
         """Test: Simulate the collision scenario to understand root cause."""
@@ -308,75 +296,70 @@ class TestSpecificRunIdCollisionDebug:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Strategy 1: Pre-flight run ID check
-            async def check_run_id_exists(run_id: str) -> bool:
-                query = "SELECT COUNT(*) as count FROM intg_instrument_interval WHERE run_id = $1"
-                result = await conn.fetchrow(query, run_id)
-                return result['count'] > 0
+        # Strategy 1: Pre-flight run ID check
+        async def check_run_id_exists(run_id: str) -> bool:
+            query = "SELECT COUNT(*) as count FROM intg_instrument_interval WHERE run_id = $1"
+            result = await conn.fetchrow(query, run_id)
+            return result['count'] > 0
+        
+        # Test with known run IDs
+        test_run_ids = [
+            self.problematic_run_id,
+            'run_20250913_999999_ffffffff',  # Unlikely to exist
+            'legacy_run_pre_0025'  # Default value
+        ]
+        
+        print("📋 Pre-flight Check Results:")
+        for run_id in test_run_ids:
+            exists = await check_run_id_exists(run_id)
+            status = "🚨 EXISTS" if exists else "✅ AVAILABLE"
+            print(f"   {run_id}: {status}")
+        
+        # Strategy 2: Enhanced run ID generation
+        def generate_enhanced_run_id() -> str:
+            import uuid
+            import os
+            from datetime import datetime
             
-            # Test with known run IDs
-            test_run_ids = [
-                self.problematic_run_id,
-                'run_20250913_999999_ffffffff',  # Unlikely to exist
-                'legacy_run_pre_0025'  # Default value
-            ]
+            # Use microsecond precision
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # milliseconds
             
-            print("📋 Pre-flight Check Results:")
-            for run_id in test_run_ids:
-                exists = await check_run_id_exists(run_id)
-                status = "🚨 EXISTS" if exists else "✅ AVAILABLE"
-                print(f"   {run_id}: {status}")
+            # Add process ID for uniqueness
+            pid = os.getpid()
             
-            # Strategy 2: Enhanced run ID generation
-            def generate_enhanced_run_id() -> str:
-                import uuid
-                import os
-                from datetime import datetime
-                
-                # Use microsecond precision
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # milliseconds
-                
-                # Add process ID for uniqueness
-                pid = os.getpid()
-                
-                # Use longer UUID suffix
-                uuid_suffix = uuid.uuid4().hex[:12]  # 12 chars instead of 8
-                
-                return f"run_{timestamp}_{pid:06d}_{uuid_suffix}"
+            # Use longer UUID suffix
+            uuid_suffix = uuid.uuid4().hex[:12]  # 12 chars instead of 8
             
-            # Test enhanced generation
-            enhanced_run_ids = [generate_enhanced_run_id() for _ in range(5)]
-            
-            print(f"\n🔧 Enhanced Run ID Generation:")
-            for i, run_id in enumerate(enhanced_run_ids):
-                print(f"   {i+1}. {run_id}")
-                exists = await check_run_id_exists(run_id)
-                if exists:
-                    print(f"      🚨 COLLISION DETECTED!")
-                else:
-                    print(f"      ✅ Unique")
-            
-            # Strategy 3: Cleanup query for failed runs
-            cleanup_query = """
-                DELETE FROM intg_instrument_interval 
-                WHERE run_id = $1
-                  AND instrument_id = $2
-                  AND interval_start >= $3
-                  AND interval_start < $4
-            """
-            
-            print(f"\n🧹 Cleanup Strategy Example:")
-            print(f"   Query: {cleanup_query}")
-            print(f"   Purpose: Remove partial data from failed runs before retry")
-            print(f"   Safety: Scoped to specific run_id and date range")
-            
-            print(f"\n✅ Prevention strategies validated")
-            
-        finally:
-            await conn.close()
-
-
+            return f"run_{timestamp}_{pid:06d}_{uuid_suffix}"
+        
+        # Test enhanced generation
+        enhanced_run_ids = [generate_enhanced_run_id() for _ in range(5)]
+        
+        print(f"\n🔧 Enhanced Run ID Generation:")
+        for i, run_id in enumerate(enhanced_run_ids):
+            print(f"   {i+1}. {run_id}")
+            exists = await check_run_id_exists(run_id)
+            if exists:
+                print(f"      🚨 COLLISION DETECTED!")
+            else:
+                print(f"      ✅ Unique")
+        
+        # Strategy 3: Cleanup query for failed runs
+        cleanup_query = """
+            DELETE FROM intg_instrument_interval 
+            WHERE run_id = $1
+              AND instrument_id = $2
+              AND interval_start >= $3
+              AND interval_start < $4
+        """
+        
+        print(f"\n🧹 Cleanup Strategy Example:")
+        print(f"   Query: {cleanup_query}")
+        print(f"   Purpose: Remove partial data from failed runs before retry")
+        print(f"   Safety: Scoped to specific run_id and date range")
+        
+        print(f"\n✅ Prevention strategies validated")
+        
 if __name__ == "__main__":
     # Run the specific collision debug tests
     pytest.main([__file__, "-v", "--tb=short", "-s"])

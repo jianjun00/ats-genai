@@ -295,57 +295,56 @@ if __name__ == "__main__":
     test_suite = TestEDAPerformanceIntegration()
     test_suite.setup_class()
 
-    try:
-        print("🚀 Testing EDA Performance Improvements...")
+    print("🚀 Testing EDA Performance Improvements...")
 
-        test_suite.test_health_endpoint()
-        print("✅ Health endpoint test passed")
+    test_suite.test_health_endpoint()
+    print("✅ Health endpoint test passed")
 
-        test_suite.test_eda_page_load_performance()
-        print("✅ Page load performance test passed")
+    test_suite.test_eda_page_load_performance()
+    print("✅ Page load performance test passed")
 
-        test_suite.test_proper_loading_indicators_availability()
-        print("✅ Loading indicators availability test passed")
+    test_suite.test_proper_loading_indicators_availability()
+    print("✅ Loading indicators availability test passed")
 
-        test_suite.test_parallel_loading_patterns()
-        print("✅ Parallel loading patterns test passed")
+    test_suite.test_parallel_loading_patterns()
+    print("✅ Parallel loading patterns test passed")
 
-        test_suite.test_reduced_column_limits_for_performance()
-        print("✅ Reduced limits test passed")
+    test_suite.test_reduced_column_limits_for_performance()
+    print("✅ Reduced limits test passed")
 
-        test_suite.test_parallel_api_requests_simulation()
-        print("✅ Concurrent API requests test passed")
+    test_suite.test_parallel_api_requests_simulation()
+    print("✅ Concurrent API requests test passed")
 
-        test_suite.test_column_values_endpoint_with_reduced_limits()
-        print("✅ Column values performance test passed")
+    test_suite.test_column_values_endpoint_with_reduced_limits()
+    print("✅ Column values performance test passed")
 
-        test_suite.test_filtered_data_endpoint_performance()
-        print("✅ Filtered data performance test passed")
+    test_suite.test_filtered_data_endpoint_performance()
+    print("✅ Filtered data performance test passed")
 
-        test_suite.test_filter_functionality_structure()
-        print("✅ Filter functionality structure test passed")
+    test_suite.test_filter_functionality_structure()
+    print("✅ Filter functionality structure test passed")
 
-        test_suite.test_proper_error_handling()
-        print("✅ Proper error handling test passed")
+    test_suite.test_proper_error_handling()
+    print("✅ Proper error handling test passed")
 
-        test_suite.test_immediate_ui_feedback_patterns()
-        print("✅ Immediate UI feedback test passed")
+    test_suite.test_immediate_ui_feedback_patterns()
+    print("✅ Immediate UI feedback test passed")
 
-        test_suite.test_optimized_data_structures()
-        print("✅ Optimized data structures test passed")
+    test_suite.test_optimized_data_structures()
+    print("✅ Optimized data structures test passed")
 
-        test_suite.test_browser_compatibility_patterns()
-        print("✅ Browser compatibility test passed")
+    test_suite.test_browser_compatibility_patterns()
+    print("✅ Browser compatibility test passed")
 
-        test_suite.test_memory_efficiency_patterns()
-        print("✅ Memory efficiency test passed")
+    test_suite.test_memory_efficiency_patterns()
+    print("✅ Memory efficiency test passed")
 
-        test_performance_comparison_simulation()
-        print("✅ Performance comparison test passed")
+    test_performance_comparison_simulation()
+    print("✅ Performance comparison test passed")
 
-        print("\n🎉 All performance improvement tests passed!")
+    print("\n🎉 All performance improvement tests passed!")
 
-        test_manual_performance_verification()
+    test_manual_performance_verification()
 
     except Exception as e:
         print(f"❌ Test failed: {e}")

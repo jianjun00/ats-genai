@@ -66,24 +66,17 @@ class TestOHLCVDataScopingFix:
 
         # This should not raise NameError: name 'data_df' is not defined
         import asyncio
-        try:
-            result = asyncio.run(generator.get_timeframe_data(
-                instrument_id=31,  # AAPL
-                center_datetime=datetime(2025, 7, 1, 14, 0),
-                timeframe='5m',
-                is_future=False
-            ))
+        result = asyncio.run(generator.get_timeframe_data(
+            instrument_id=31,  # AAPL
+            center_datetime=datetime(2025, 7, 1, 14, 0),
+            timeframe='5m',
+            is_future=False
+        ))
 
-            # Should successfully return features
-            assert result is not None
-            assert isinstance(result, dict)
-            print("✅ data_df initialization prevents NameError")
-
-        except NameError as e:
-            if 'data_df' in str(e):
-                pytest.fail(f"REGRESSION: data_df scoping bug reintroduced: {e}")
-            else:
-                raise
+        # Should successfully return features
+        assert result is not None
+        assert isinstance(result, dict)
+        print("✅ data_df initialization prevents NameError")
 
     def test_ohlcv_data_preserved_when_signals_empty(self, generator, sample_ohlcv_data):
         """

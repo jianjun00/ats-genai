@@ -42,27 +42,22 @@ def setup_grafana_datasource():
         }
     }
 
-    try:
-        response = requests.post(
-            f"{GRAFANA_URL}/api/datasources",
-            auth=(GRAFANA_USER, GRAFANA_PASS),
-            headers={"Content-Type": "application/json"},
-            json=datasource_config,
-            timeout=10
-        )
+    response = requests.post(
+        f"{GRAFANA_URL}/api/datasources",
+        auth=(GRAFANA_USER, GRAFANA_PASS),
+        headers={"Content-Type": "application/json"},
+        json=datasource_config,
+        timeout=10
+    )
 
-        if response.status_code == 200:
-            print("✅ PostgreSQL data source added successfully")
-            return True
-        elif response.status_code == 409:
-            print("ℹ️  PostgreSQL data source already exists")
-            return True
-        else:
-            print(f"❌ Failed to add data source: {response.status_code} - {response.text}")
-            return False
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to connect to Grafana: {e}")
+    if response.status_code == 200:
+        print("✅ PostgreSQL data source added successfully")
+        return True
+    elif response.status_code == 409:
+        print("ℹ️  PostgreSQL data source already exists")
+        return True
+    else:
+        print(f"❌ Failed to add data source: {response.status_code} - {response.text}")
         return False
 
 def import_dashboard():
@@ -73,44 +68,33 @@ def import_dashboard():
     # Load dashboard JSON
     dashboard_path = Path(__file__).parent.parent / "config/grafana/ats-vendor-monitoring-dashboard-postgres.json"
 
-    try:
-        with open(dashboard_path, 'r') as f:
-            dashboard_data = json.load(f)
+    with open(dashboard_path, 'r') as f:
+        dashboard_data = json.load(f)
 
-        # Wrap in import format
-        import_payload = {
-            "dashboard": dashboard_data["dashboard"],
-            "overwrite": True,
-            "inputs": [],
-            "folderId": 0
-        }
+    # Wrap in import format
+    import_payload = {
+        "dashboard": dashboard_data["dashboard"],
+        "overwrite": True,
+        "inputs": [],
+        "folderId": 0
+    }
 
-        response = requests.post(
-            f"{GRAFANA_URL}/api/dashboards/import",
-            auth=(GRAFANA_USER, GRAFANA_PASS),
-            headers={"Content-Type": "application/json"},
-            json=import_payload,
-            timeout=10
-        )
+    response = requests.post(
+        f"{GRAFANA_URL}/api/dashboards/import",
+        auth=(GRAFANA_USER, GRAFANA_PASS),
+        headers={"Content-Type": "application/json"},
+        json=import_payload,
+        timeout=10
+    )
 
-        if response.status_code == 200:
-            result = response.json()
-            dashboard_url = f"{GRAFANA_URL}/d/{result['dashboardId']}/ats-vendor-monitoring-dashboard-postgresql"
-            print(f"✅ Dashboard imported successfully")
-            print(f"🎯 Access at: {dashboard_url}")
-            return True
-        else:
-            print(f"❌ Failed to import dashboard: {response.status_code} - {response.text}")
-            return False
-
-    except FileNotFoundError:
-        print(f"❌ Dashboard file not found: {dashboard_path}")
-        return False
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to connect to Grafana: {e}")
-        return False
-    except Exception as e:
-        print(f"❌ Error importing dashboard: {e}")
+    if response.status_code == 200:
+        result = response.json()
+        dashboard_url = f"{GRAFANA_URL}/d/{result['dashboardId']}/ats-vendor-monitoring-dashboard-postgresql"
+        print(f"✅ Dashboard imported successfully")
+        print(f"🎯 Access at: {dashboard_url}")
+        return True
+    else:
+        print(f"❌ Failed to import dashboard: {response.status_code} - {response.text}")
         return False
 
 def test_grafana_connection():
@@ -118,23 +102,17 @@ def test_grafana_connection():
 
     print("🔍 Testing Grafana connection...")
 
-    try:
-        response = requests.get(
-            f"{GRAFANA_URL}/api/health",
-            timeout=5
-        )
+    response = requests.get(
+        f"{GRAFANA_URL}/api/health",
+        timeout=5
+    )
 
-        if response.status_code == 200:
-            health_data = response.json()
-            print(f"✅ Grafana is running (version {health_data.get('version', 'unknown')})")
-            return True
-        else:
-            print(f"❌ Grafana health check failed: {response.status_code}")
-            return False
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Cannot connect to Grafana at {GRAFANA_URL}: {e}")
-        print("💡 Make sure Grafana is running: docker ps | grep grafana")
+    if response.status_code == 200:
+        health_data = response.json()
+        print(f"✅ Grafana is running (version {health_data.get('version', 'unknown')})")
+        return True
+    else:
+        print(f"❌ Grafana health check failed: {response.status_code}")
         return False
 
 def main():

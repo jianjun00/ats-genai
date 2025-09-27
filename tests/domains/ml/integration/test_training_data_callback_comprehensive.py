@@ -31,7 +31,7 @@ from domains.ml.services.training_data.callbacks.training_data_callback import I
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from domains.trading.services.state.universe_state import UniverseStateInterval
-from core.shared.data_handling.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 class TestTrainingDataCallbackArrayRecord:
@@ -122,33 +122,28 @@ class TestTrainingDataCallbackArrayRecord:
         }
         
         # Test ArrayRecord writer creation
-        try:
-            # This would test the actual ArrayRecord writing logic
-            # For now, test file path construction and directory creation
-            dataset_id = "test_dataset_123"
-            symbol = "AAPL"
-            timeframe = "1h"
-            
-            # Construct expected file path
-            expected_subdir = f"{dataset_id}/{symbol}_{timeframe}"
-            expected_dir = os.path.join(temp_output_dir, expected_subdir, timeframe)
-            expected_file = os.path.join(expected_dir, f"{symbol}_{timeframe}.arrayrecord")
-            
-            # Create directory structure
-            os.makedirs(expected_dir, exist_ok=True)
-            
-            # Create a dummy file to simulate ArrayRecord creation
-            with open(expected_file, 'w') as f:
-                f.write("dummy arrayrecord content")
-            
-            # Verify file was created
-            assert os.path.exists(expected_file)
-            assert os.path.getsize(expected_file) > 0
-            
-        except ImportError:
-            # ArrayRecord might not be available in test environment
-            pytest.skip("ArrayRecord not available for testing")
-
+        # This would test the actual ArrayRecord writing logic
+        # For now, test file path construction and directory creation
+        dataset_id = "test_dataset_123"
+        symbol = "AAPL"
+        timeframe = "1h"
+        
+        # Construct expected file path
+        expected_subdir = f"{dataset_id}/{symbol}_{timeframe}"
+        expected_dir = os.path.join(temp_output_dir, expected_subdir, timeframe)
+        expected_file = os.path.join(expected_dir, f"{symbol}_{timeframe}.arrayrecord")
+        
+        # Create directory structure
+        os.makedirs(expected_dir, exist_ok=True)
+        
+        # Create a dummy file to simulate ArrayRecord creation
+        with open(expected_file, 'w') as f:
+            f.write("dummy arrayrecord content")
+        
+        # Verify file was created
+        assert os.path.exists(expected_file)
+        assert os.path.getsize(expected_file) > 0
+        
     def test_sequence_data_extraction(self, training_callback, sample_universe_state_data):
         """Test extraction of sequence data from universe states."""
         # Mock the callback's universe state access
@@ -368,16 +363,12 @@ class TestTrainingDataCallbackDatabaseIntegration:
         training_callback_with_mocks.training_dataset_dao.insert_training_dataset.side_effect = Exception("Database connection failed")
         
         # Should handle database errors gracefully
-        try:
-            await training_callback_with_mocks.training_dataset_dao.insert_training_dataset(
-                dataset_name='test',
-                symbols=['AAPL'],
-                start_date=datetime.now(),
-                end_date=datetime.now()
-            )
-        except Exception as e:
-            assert "database" in str(e).lower() or "connection" in str(e).lower()
-
+        await training_callback_with_mocks.training_dataset_dao.insert_training_dataset(
+            dataset_name='test',
+            symbols=['AAPL'],
+            start_date=datetime.now(),
+            end_date=datetime.now()
+        )
     async def test_transaction_consistency(self, training_callback_with_mocks):
         """Test database transaction consistency."""
         # This would test that database operations are atomic
@@ -572,14 +563,7 @@ class TestTrainingDataCallbackEndToEnd:
         )
         
         # Test error handling during initialization
-        try:
-            await training_callback_e2e.initialize()
-        except Exception as e:
-            assert "database" in str(e).lower() or "error" in str(e).lower()
-        
-        # Test cleanup after error
-        # (This would test that temporary files are cleaned up, database transactions are rolled back, etc.)
-        # For now, verify that the output directory still exists (cleanup might preserve it for debugging)
+        await training_callback_e2e.initialize()
         assert os.path.exists(temp_output_dir)
 
     async def test_data_quality_validation(self, training_callback_e2e, mock_universe_state_manager):
@@ -604,14 +588,8 @@ class TestTrainingDataCallbackEndToEnd:
         # Test data quality validation (should handle NaN values)
         current_time = datetime(2025, 7, 1, 10, 30, 0)
         
-        try:
-            await training_callback_e2e.handleInterval(mock_runner, current_time)
-            # Should either handle NaN gracefully or raise appropriate error
-        except Exception as e:
-            # If it raises an error, it should be about data quality
-            assert any(term in str(e).lower() for term in ['nan', 'invalid', 'quality', 'data'])
-
-
+        await training_callback_e2e.handleInterval(mock_runner, current_time)
+        # Should either handle NaN gracefully or raise appropriate error
 class TestTrainingDataCallbackPerformance:
     """Test performance characteristics of TrainingDataCallback."""
 

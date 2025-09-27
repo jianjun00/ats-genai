@@ -35,7 +35,7 @@ from domains.trading.services.state.universe_state import UniverseStateInterval
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 @pytest.fixture
@@ -250,32 +250,26 @@ class TestTrainingDataCallbackRealIntegration:
         assert manager.universe_id == test_universe_with_instruments['id']
         
         # Test getting universe state (may be empty if no data exists)
-        try:
-            # Use a recent date range for testing
-            start_time = datetime.now() - timedelta(days=1)
-            end_time = datetime.now()
+        # Use a recent date range for testing
+        start_time = datetime.now() - timedelta(days=1)
+        end_time = datetime.now()
+        
+        # This tests real database queries
+        universe_states = await manager.get_universe_state_range(
+            start_time=start_time,
+            end_time=end_time,
+            timeframe="5m"
+        )
+        
+        # Universe states should be a list (may be empty)
+        assert isinstance(universe_states, list)
+        
+        # If states exist, verify structure
+        for state in universe_states:
+            assert hasattr(state, 'start_date_time')
+            assert hasattr(state, 'end_date_time')
+            assert hasattr(state, 'instrument_intervals')
             
-            # This tests real database queries
-            universe_states = await manager.get_universe_state_range(
-                start_time=start_time,
-                end_time=end_time,
-                timeframe="5m"
-            )
-            
-            # Universe states should be a list (may be empty)
-            assert isinstance(universe_states, list)
-            
-            # If states exist, verify structure
-            for state in universe_states:
-                assert hasattr(state, 'start_date_time')
-                assert hasattr(state, 'end_date_time')
-                assert hasattr(state, 'instrument_intervals')
-                
-        except Exception as e:
-            # If no data exists or service has issues, that's also valid for testing
-            # The important thing is we're testing real service behavior
-            print(f"Universe state query result: {e}")
-
     async def test_training_data_generation_workflow_real_services(
         self, 
         real_training_callback,
@@ -288,39 +282,29 @@ class TestTrainingDataCallbackRealIntegration:
         manager = real_universe_state_manager
         
         # Test training data generation process
-        try:
-            # Create minimal universe state data for testing
-            test_start_time = datetime(2025, 7, 1, 9, 30, 0)
-            test_end_time = datetime(2025, 7, 1, 10, 30, 0)
+        # Create minimal universe state data for testing
+        test_start_time = datetime(2025, 7, 1, 9, 30, 0)
+        test_end_time = datetime(2025, 7, 1, 10, 30, 0)
+        
+        # Check if we can generate training data
+        # This tests real callback processing logic
+        dataset_id = f"integration_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Test callback's sequence generation capability
+        # Note: This might fail if no real market data exists, which is expected
+        # Test the callback's ability to process timeframes
+        timeframes = ['5m', '15m', '1h']
+        for timeframe in timeframes:
+            # Test timeframe processing logic
+            assert hasattr(callback, '_timeframe_to_minutes')
+            minutes = callback._timeframe_to_minutes(timeframe)
+            assert minutes > 0
             
-            # Check if we can generate training data
-            # This tests real callback processing logic
-            dataset_id = f"integration_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # Test feature extraction capability
+            # This tests real method existence and basic functionality
+            assert hasattr(callback, '_extract_timeframe_features')
             
-            # Test callback's sequence generation capability
-            # Note: This might fail if no real market data exists, which is expected
-            try:
-                # Test the callback's ability to process timeframes
-                timeframes = ['5m', '15m', '1h']
-                for timeframe in timeframes:
-                    # Test timeframe processing logic
-                    assert hasattr(callback, '_timeframe_to_minutes')
-                    minutes = callback._timeframe_to_minutes(timeframe)
-                    assert minutes > 0
-                    
-                    # Test feature extraction capability
-                    # This tests real method existence and basic functionality
-                    assert hasattr(callback, '_extract_timeframe_features')
-                    
-            except Exception as e:
-                print(f"Training data generation test result: {e}")
-                # Real service integration may fail due to missing data
-                # The test validates service connectivity and method availability
-                
-        except Exception as e:
-            # Real service integration may have limitations
-            # Document the actual behavior for future debugging
-            print(f"End-to-end workflow test result: {e}")
+        print(f"End-to-end workflow test result: {e}")
 
     async def test_database_integration_real_tables(
         self, 
@@ -331,27 +315,23 @@ class TestTrainingDataCallbackRealIntegration:
         callback = real_training_callback
         
         # Test database connection and table access
-        try:
-            # Verify environment has database connection
-            db_url = test_environment.get_database_url()
-            assert db_url is not None
-            assert "postgresql" in db_url
-            
-            # Test table name resolution
-            training_dataset_table = test_environment.get_table_name('training_dataset')
-            runs_table = test_environment.get_table_name('runs')
-            
-            assert training_dataset_table is not None
-            assert runs_table is not None
-            
-            # Test UUID generation for tracking
-            run_uuid = test_environment.get_run_uuid()
-            assert run_uuid is not None
-            assert len(run_uuid) > 0
-            
-        except Exception as e:
-            print(f"Database integration test result: {e}")
-
+        # Verify environment has database connection
+        db_url = test_environment.get_database_url()
+        assert db_url is not None
+        assert "postgresql" in db_url
+        
+        # Test table name resolution
+        training_dataset_table = test_environment.get_table_name('training_dataset')
+        runs_table = test_environment.get_table_name('runs')
+        
+        assert training_dataset_table is not None
+        assert runs_table is not None
+        
+        # Test UUID generation for tracking
+        run_uuid = test_environment.get_run_uuid()
+        assert run_uuid is not None
+        assert len(run_uuid) > 0
+        
     async def test_error_handling_real_service_failures(
         self, 
         real_training_callback,
@@ -368,28 +348,22 @@ class TestTrainingDataCallbackRealIntegration:
         invalid_symbols = ['NONEXISTENT_SYMBOL_12345']
         
         # Create callback with invalid configuration
-        try:
-            invalid_callback = IntervalBasedTrainingDataCallback(
-                symbols=invalid_symbols,
-                config=None,
-                storage_format="arrayrecord",
-                output_dir="/invalid/path/that/does/not/exist",
-                start_date=date(2030, 1, 1),
-                end_date=date(2030, 1, 2),
-                start_day_offset=0,
-                end_day_offset=0,
-                environment=callback.environment
-            )
-            
-            # Test that callback handles invalid configuration gracefully
-            assert invalid_callback.symbols == invalid_symbols
-            assert invalid_callback.output_dir == "/invalid/path/that/does/not/exist"
-            
-        except Exception as e:
-            # Real services may fail immediately with invalid configuration
-            # This is expected and demonstrates real error handling
-            print(f"Error handling test result: {e}")
-
+        invalid_callback = IntervalBasedTrainingDataCallback(
+            symbols=invalid_symbols,
+            config=None,
+            storage_format="arrayrecord",
+            output_dir="/invalid/path/that/does/not/exist",
+            start_date=date(2030, 1, 1),
+            end_date=date(2030, 1, 2),
+            start_day_offset=0,
+            end_day_offset=0,
+            environment=callback.environment
+        )
+        
+        # Test that callback handles invalid configuration gracefully
+        assert invalid_callback.symbols == invalid_symbols
+        assert invalid_callback.output_dir == "/invalid/path/that/does/not/exist"
+        
     async def test_multi_timeframe_processing_real_data(
         self, 
         real_training_callback
@@ -544,26 +518,21 @@ class TestTrainingDataCallbackConstraintValidation:
         # Test with symbols that don't exist in database
         invalid_symbols = ['INVALID_SYM_123', 'NONEXISTENT_456']
         
-        try:
-            callback = IntervalBasedTrainingDataCallback(
-                symbols=invalid_symbols,
-                config=None,
-                storage_format="arrayrecord",
-                output_dir=temp_output_dir,
-                start_date=date(2025, 7, 1),
-                end_date=date(2025, 7, 2),
-                start_day_offset=0,
-                end_day_offset=0,
-                environment=test_environment
-            )
-            
-            # Callback should be created but may fail during actual data processing
-            assert callback.symbols == invalid_symbols
-            
-        except Exception as e:
-            # Real service may reject invalid symbols immediately
-            print(f"Invalid symbol handling result: {e}")
-
+        callback = IntervalBasedTrainingDataCallback(
+            symbols=invalid_symbols,
+            config=None,
+            storage_format="arrayrecord",
+            output_dir=temp_output_dir,
+            start_date=date(2025, 7, 1),
+            end_date=date(2025, 7, 2),
+            start_day_offset=0,
+            end_day_offset=0,
+            environment=test_environment
+        )
+        
+        # Callback should be created but may fail during actual data processing
+        assert callback.symbols == invalid_symbols
+        
     async def test_date_range_validation_real_constraints(
         self, 
         test_environment,
@@ -572,26 +541,21 @@ class TestTrainingDataCallbackConstraintValidation:
     ):
         """Test date range validation with real calendar constraints."""
         # Test with invalid date range (end before start)
-        try:
-            callback = IntervalBasedTrainingDataCallback(
-                symbols=test_universe_with_instruments['symbols'],
-                config=None,
-                storage_format="arrayrecord",
-                output_dir=temp_output_dir,
-                start_date=date(2025, 7, 10),  # After end date
-                end_date=date(2025, 7, 1),    # Before start date
-                start_day_offset=0,
-                end_day_offset=0,
-                environment=test_environment
-            )
-            
-            # May be allowed during initialization but fail during processing
-            assert callback.start_date > callback.end_date
-            
-        except Exception as e:
-            # Real service may validate date ranges immediately
-            print(f"Date range validation result: {e}")
-
+        callback = IntervalBasedTrainingDataCallback(
+            symbols=test_universe_with_instruments['symbols'],
+            config=None,
+            storage_format="arrayrecord",
+            output_dir=temp_output_dir,
+            start_date=date(2025, 7, 10),  # After end date
+            end_date=date(2025, 7, 1),    # Before start date
+            start_day_offset=0,
+            end_day_offset=0,
+            environment=test_environment
+        )
+        
+        # May be allowed during initialization but fail during processing
+        assert callback.start_date > callback.end_date
+        
     async def test_storage_path_validation_real_filesystem(
         self, 
         test_environment,
@@ -606,26 +570,20 @@ class TestTrainingDataCallbackConstraintValidation:
         ]
         
         for invalid_path in invalid_paths:
-            try:
-                callback = IntervalBasedTrainingDataCallback(
-                    symbols=test_universe_with_instruments['symbols'],
-                    config=None,
-                    storage_format="arrayrecord",
-                    output_dir=invalid_path,
-                    start_date=date(2025, 7, 1),
-                    end_date=date(2025, 7, 2),
-                    start_day_offset=0,
-                    end_day_offset=0,
-                    environment=test_environment
-                )
-                
-                # May be allowed during initialization
-                assert callback.output_dir == invalid_path
-                
-            except Exception as e:
-                # Real filesystem may reject invalid paths
-                print(f"Storage path validation result for {invalid_path}: {e}")
-
-
+            callback = IntervalBasedTrainingDataCallback(
+                symbols=test_universe_with_instruments['symbols'],
+                config=None,
+                storage_format="arrayrecord",
+                output_dir=invalid_path,
+                start_date=date(2025, 7, 1),
+                end_date=date(2025, 7, 2),
+                start_day_offset=0,
+                end_day_offset=0,
+                environment=test_environment
+            )
+            
+            # May be allowed during initialization
+            assert callback.output_dir == invalid_path
+            
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

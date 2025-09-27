@@ -17,28 +17,20 @@ def run_command(cmd, description):
     print(f"\n🔧 {description}")
     print(f"Running: {' '.join(cmd)}")
 
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
-        if result.returncode == 0:
-            print("✅ SUCCESS")
-            if result.stdout:
-                print(result.stdout)
-            return True
-        else:
-            print("❌ FAILED")
-            print(f"Exit code: {result.returncode}")
-            if result.stderr:
-                print(f"Error: {result.stderr}")
-            if result.stdout:
-                print(f"Output: {result.stdout}")
-            return False
-
-    except subprocess.TimeoutExpired:
-        print("⏰ TIMEOUT - Test execution took too long")
-        return False
-    except Exception as e:
-        print(f"💥 EXCEPTION - {e}")
+    if result.returncode == 0:
+        print("✅ SUCCESS")
+        if result.stdout:
+            print(result.stdout)
+        return True
+    else:
+        print("❌ FAILED")
+        print(f"Exit code: {result.returncode}")
+        if result.stderr:
+            print(f"Error: {result.stderr}")
+        if result.stdout:
+            print(f"Output: {result.stdout}")
         return False
 
 def main():

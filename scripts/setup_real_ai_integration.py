@@ -146,28 +146,23 @@ def test_api_integration():
     
     # Test connection
     print("🔄 Testing connection to analytics service...")
-    try:
-        import requests
-        response = requests.get("http://localhost:4000/financial_events/sources", timeout=5)
+    import requests
+    response = requests.get("http://localhost:4000/financial_events/sources", timeout=5)
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ Analytics service connected")
+        print(f"   Status: {data.get('status', 'unknown')}")
+        print(f"   Available sources: {data.get('available_sources', [])}")
         
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✅ Analytics service connected")
-            print(f"   Status: {data.get('status', 'unknown')}")
-            print(f"   Available sources: {data.get('available_sources', [])}")
-            
-            if data.get('status') == 'demo_mode':
-                print("⚠️ Still in demo mode - restart service to pick up API key")
-            
-            return True
-        else:
-            print(f"❌ Analytics service error: {response.status_code}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Connection failed: {e}")
+        if data.get('status') == 'demo_mode':
+            print("⚠️ Still in demo mode - restart service to pick up API key")
+        
+        return True
+    else:
+        print(f"❌ Analytics service error: {response.status_code}")
         return False
-
+        
 def run_sample_extraction():
     print("\n🚀 Sample Financial Events Extraction")
     print("-" * 40)
@@ -177,77 +172,71 @@ def run_sample_extraction():
     
     print("🔄 Extracting recent financial events...")
     
-    try:
-        import requests
-        import json
+    import requests
+    import json
+    
+    extract_data = {
+        "start_date": "2025-09-10",
+        "end_date": "2025-09-13", 
+        "symbols": ["AAPL", "TSLA", "NVDA"],
+        "source": "combined",
+        "force_refresh": True
+    }
+    
+    response = requests.post(
+        "http://localhost:4000/financial_events/extract",
+        json=extract_data,
+        timeout=60
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
         
-        extract_data = {
-            "start_date": "2025-09-10",
-            "end_date": "2025-09-13", 
-            "symbols": ["AAPL", "TSLA", "NVDA"],
-            "source": "combined",
-            "force_refresh": True
-        }
-        
-        response = requests.post(
-            "http://localhost:4000/financial_events/extract",
-            json=extract_data,
-            timeout=60
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
+        if result.get('success'):
+            print(f"✅ Extraction successful!")
+            print(f"   Events extracted: {result.get('events_extracted', 0)}")
+            print(f"   Unique events: {result.get('events_unique', 0)}")
+            print(f"   Events stored: {result.get('events_stored', 0)}")
+            print(f"   Sources used: {result.get('sources_used', [])}")
             
-            if result.get('success'):
-                print(f"✅ Extraction successful!")
-                print(f"   Events extracted: {result.get('events_extracted', 0)}")
-                print(f"   Unique events: {result.get('events_unique', 0)}")
-                print(f"   Events stored: {result.get('events_stored', 0)}")
-                print(f"   Sources used: {result.get('sources_used', [])}")
-                
-                if result.get('events_preview'):
-                    print(f"\n📋 Sample events:")
-                    for i, event in enumerate(result['events_preview'][:3], 1):
-                        print(f"   {i}. {event.get('symbol', 'MARKET')}: {event.get('details', 'N/A')[:80]}...")
-                
-                return True
-            else:
-                print(f"❌ Extraction failed: {result.get('error', 'Unknown error')}")
-                return False
+            if result.get('events_preview'):
+                print(f"\n📋 Sample events:")
+                for i, event in enumerate(result['events_preview'][:3], 1):
+                    print(f"   {i}. {event.get('symbol', 'MARKET')}: {event.get('details', 'N/A')[:80]}...")
+            
+            return True
         else:
-            print(f"❌ API error: {response.status_code}")
+            print(f"❌ Extraction failed: {result.get('error', 'Unknown error')}")
             return False
-            
-    except Exception as e:
-        print(f"❌ Extraction failed: {e}")
+    else:
+        print(f"❌ API error: {response.status_code}")
         return False
-
+        
 if __name__ == "__main__":
-    try:
-        main()
-        
-        # Test the setup
-        proceed = input("\n🧪 Test the integration now? (y/N): ").lower().strip() == 'y'
-        if proceed:
-            if test_api_integration():
-                run_sample = input("\n🚀 Run sample extraction? (y/N): ").lower().strip() == 'y'
-                if run_sample:
-                    success = run_sample_extraction()
-                    
-                    if success:
-                        print(f"\n🎉 Setup Complete!")
-                        print(f"   ✅ Real AI financial events integration is working")
-                        print(f"   🌐 View events at: http://10.0.0.79:4000/")
-                        print(f"   🔮 Click 'AI Financial Events (xAI + Grok)' button")
-                    else:
-                        print(f"\n⚠️ Setup complete but extraction needs debugging")
-        
-        print(f"\n📚 Next Steps:")
-        print(f"   1. Access dashboard: http://10.0.0.79:4000/")
-        print(f"   2. Click '🔮 AI Financial Events (xAI + Grok)'")
-        print(f"   3. Use 'Extract New Events' to get real data")
-        print(f"   4. Monitor API costs and cache performance")
-        
+    main()
+    
+    # Test the setup
+    proceed = input("\n🧪 Test the integration now? (y/N): ").lower().strip() == 'y'
+    if proceed:
+        if test_api_integration():
+            run_sample = input("\n🚀 Run sample extraction? (y/N): ").lower().strip() == 'y'
+            if run_sample:
+                success = run_sample_extraction()
+                
+                if success:
+                    print(f"\n🎉 Setup Complete!")
+                    print(f"   ✅ Real AI financial events integration is working")
+                    print(f"   🌐 View events at: http://10.0.0.79:4000/")
+                    print(f"   🔮 Click 'AI Financial Events (xAI + Grok)' button")
+                else:
+                    print(f"\n⚠️ Setup complete but extraction needs debugging")
+    
+    print(f"\n📚 Next Steps:")
+    print(f"   1. Access dashboard: http://10.0.0.79:4000/")
+    print(f"   2. Click '🔮 AI Financial Events (xAI + Grok)'")
+    print(f"   3. Use 'Extract New Events' to get real data")
+    print(f"   4. Monitor API costs and cache performance")
+    
     except KeyboardInterrupt:
         print(f"\n\n👋 Setup cancelled by user")
     except Exception as e:

@@ -27,36 +27,29 @@ class TestDatasetFilesystemFix:
     @pytest.mark.asyncio
     async def test_dataset_sequences_error_detection(self, webapp_base_url, http_session):
         """Test that dataset sequences endpoint properly handles file not found errors"""
-        try:
-            # Test multiple datasets to find the pattern
-            for dataset_id in [1, 2, 3, 4, 5]:
-                async with http_session.get(f"{webapp_base_url}/api/v1/datasets/{dataset_id}/sequences") as response:
-                    content = await response.text()
+        # Test multiple datasets to find the pattern
+        for dataset_id in [1, 2, 3, 4, 5]:
+            async with http_session.get(f"{webapp_base_url}/api/v1/datasets/{dataset_id}/sequences") as response:
+                content = await response.text()
 
-                    if response.status == 404:
-                        logger.info(f"✅ Dataset {dataset_id}: Properly returns 404 for not found")
-                        continue
+                if response.status == 404:
+                    logger.info(f"✅ Dataset {dataset_id}: Properly returns 404 for not found")
+                    continue
 
-                    try:
-                        data = await response.json()
+                data = await response.json()
 
-                        if "detail" in data and "No such file or directory" in data["detail"]:
-                            logger.error(f"❌ Dataset {dataset_id}: File path error - {data['detail']}")
-                            # This indicates the webapp is looking for files that don't exist
-                            pytest.fail(f"Dataset {dataset_id} has filesystem path issue: {data['detail']}")
+                if "detail" in data and "No such file or directory" in data["detail"]:
+                    logger.error(f"❌ Dataset {dataset_id}: File path error - {data['detail']}")
+                    # This indicates the webapp is looking for files that don't exist
+                    pytest.fail(f"Dataset {dataset_id} has filesystem path issue: {data['detail']}")
 
-                        elif "sequences" in data:
-                            logger.info(f"✅ Dataset {dataset_id}: Successfully returned sequences")
+                elif "sequences" in data:
+                    logger.info(f"✅ Dataset {dataset_id}: Successfully returned sequences")
 
-                        else:
-                            logger.warning(f"⚠️ Dataset {dataset_id}: Unexpected response format")
+                else:
+                    logger.warning(f"⚠️ Dataset {dataset_id}: Unexpected response format")
 
-                    except json.JSONDecodeError:
-                        if "Error loading sequences" in content:
-                            pytest.fail(f"Dataset {dataset_id} frontend shows 'Error loading sequences'")
-
-        except Exception as e:
-            pytest.fail(f"Failed to test dataset sequences: {e}")
+        pytest.fail(f"Failed to test dataset sequences: {e}")
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -64,23 +57,19 @@ class TestDatasetFilesystemFix:
         """Test that dataset metadata endpoint handles file errors properly"""
         for dataset_id in [1, 2, 3]:
             async with http_session.get(f"{webapp_base_url}/api/v1/datasets/{dataset_id}/metadata") as response:
-                try:
-                    data = await response.json()
+                data = await response.json()
 
-                    if "detail" in data and "No such file or directory" in data["detail"]:
-                        logger.error(f"❌ Dataset {dataset_id} metadata: File path error - {data['detail']}")
-                        # Extract the expected file path from the error
-                        error_msg = data["detail"]
-                        if "training_data_output/" in error_msg:
-                            expected_path = error_msg.split("'")[1]
-                            logger.error(f"   Expected file: {expected_path}")
-                            pytest.fail(f"Dataset {dataset_id} metadata filesystem issue: {expected_path}")
+                if "detail" in data and "No such file or directory" in data["detail"]:
+                    logger.error(f"❌ Dataset {dataset_id} metadata: File path error - {data['detail']}")
+                    # Extract the expected file path from the error
+                    error_msg = data["detail"]
+                    if "training_data_output/" in error_msg:
+                        expected_path = error_msg.split("'")[1]
+                        logger.error(f"   Expected file: {expected_path}")
+                        pytest.fail(f"Dataset {dataset_id} metadata filesystem issue: {expected_path}")
 
-                    elif "dataset_name" in data:
-                        logger.info(f"✅ Dataset {dataset_id}: Metadata loaded successfully")
-
-                except json.JSONDecodeError:
-                    pass  # Non-JSON response is acceptable for some error cases
+                elif "dataset_name" in data:
+                    logger.info(f"✅ Dataset {dataset_id}: Metadata loaded successfully")
 
     def test_local_training_files_exist(self):
         """Test that training files exist locally (for comparison)"""
@@ -122,31 +111,25 @@ class TestDatasetFilesystemFix:
                 logger.error("❌ Found 'Error loading sequences' in page content")
 
                 # Try to determine the root cause by checking the API endpoint directly
-                try:
-                    async with http_session.get(f"{webapp_base_url}/api/v1/datasets/1/sequences") as api_response:
-                        api_content = await api_response.text()
+                async with http_session.get(f"{webapp_base_url}/api/v1/datasets/1/sequences") as api_response:
+                    api_content = await api_response.text()
 
-                        if api_response.status != 200:
-                            logger.error(f"   Root cause: API endpoint returns {api_response.status}")
-                            logger.error(f"   API response: {api_content}")
+                    if api_response.status != 200:
+                        logger.error(f"   Root cause: API endpoint returns {api_response.status}")
+                        logger.error(f"   API response: {api_content}")
 
-                        try:
-                            api_data = await api_response.json()
-                            if "detail" in api_data:
-                                logger.error(f"   Root cause: API error - {api_data['detail']}")
+                    api_data = await api_response.json()
+                    if "detail" in api_data:
+                        logger.error(f"   Root cause: API error - {api_data['detail']}")
 
-                                # Extract file path issue
-                                if "No such file or directory" in api_data["detail"]:
-                                    missing_file = api_data["detail"].split("'")[1]
-                                    logger.error(f"   Missing file: {missing_file}")
+                        # Extract file path issue
+                        if "No such file or directory" in api_data["detail"]:
+                            missing_file = api_data["detail"].split("'")[1]
+                            logger.error(f"   Missing file: {missing_file}")
 
-                                    pytest.fail(f"Dataset detail page fails because API cannot find file: {missing_file}")
+                            pytest.fail(f"Dataset detail page fails because API cannot find file: {missing_file}")
 
-                        except json.JSONDecodeError:
-                            logger.error(f"   Root cause: API returned non-JSON response")
-
-                except Exception as e:
-                    logger.error(f"   Error checking API endpoint: {e}")
+                logger.error(f"   Error checking API endpoint: {e}")
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -157,19 +140,14 @@ class TestDatasetFilesystemFix:
         expected_files = []
 
         for dataset_id in range(1, 6):
-            try:
-                async with http_session.get(f"{webapp_base_url}/api/v1/datasets/{dataset_id}/sequences") as response:
-                    try:
-                        data = await response.json()
-                        if "detail" in data and "No such file or directory" in data["detail"]:
-                            error_msg = data["detail"]
-                            if "'" in error_msg:
-                                missing_file = error_msg.split("'")[1]
-                                expected_files.append(f"Dataset {dataset_id}: {missing_file}")
-                    except:
-                        pass
-            except:
-                pass
+            async with http_session.get(f"{webapp_base_url}/api/v1/datasets/{dataset_id}/sequences") as response:
+                data = await response.json()
+                if "detail" in data and "No such file or directory" in data["detail"]:
+                    error_msg = data["detail"]
+                    if "'" in error_msg:
+                        missing_file = error_msg.split("'")[1]
+                        expected_files.append(f"Dataset {dataset_id}: {missing_file}")
+            pass
 
         if expected_files:
             logger.error("❌ Webapp expects these files but cannot find them:")

@@ -9,8 +9,8 @@ import pandas as pd
 from unittest.mock import MagicMock, patch
 
 # Import the callback class we're testing
-from domains.ml.legacy.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-from domains.ml.legacy.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 
 
 class TestTrainingDataCallbackRefactored:

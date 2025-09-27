@@ -3,9 +3,9 @@ import pandas as pd
 import asyncpg
 from datetime import datetime, date
 
-from state.universe_state_builder import UniverseStateIntervalBuilder
-from state.universe_state_manager import UniverseStateManager
-from core.shared.utils.environment import Environment, EnvironmentType
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from core.platform.config.environment import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -20,7 +20,7 @@ async def test_universe_state_builder_real_db(unit_test_db, tmp_path):
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     env.get_database_url = lambda: unit_test_db
     # Ensure indicator config includes all required indicators
-    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig.default_config()
     base_path = tmp_path / "universe_state"
     state_manager = UniverseStateManager(env=env, base_path=base_path)

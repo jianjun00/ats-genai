@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsHourlyTrainingDataIntegration:
@@ -56,13 +51,7 @@ class TestRealObjectsHourlyTrainingDataIntegration:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_hourly_generation_with_real_minute_manager_real_objects(self, real_service, test_data):
         """Real objects version of test_hourly_generation_with_real_minute_manager"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsHourlyTrainingDataIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hourly_generation_with_real_minute_manager_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hourly_generation_with_real_minute_manager_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_minute_data_available_real_objects(self, real_service, test_data):
         """Real objects version of test_no_minute_data_available"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsHourlyTrainingDataIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_minute_data_available_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_minute_data_available_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_file_based_minute_manager_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_file_based_minute_manager_initialization"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsHourlyTrainingDataIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.file_based_minute_manager_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.file_based_minute_manager_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_minute_data_retrieval_format_real_objects(self, real_service, test_data):
         """Real objects version of test_minute_data_retrieval_format"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsHourlyTrainingDataIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.minute_data_retrieval_format_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.minute_data_retrieval_format_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_async_hourly_generation_without_universe_state_real_objects(self, real_service, test_data):
         """Real objects version of test_async_hourly_generation_without_universe_state"""
         # Test with real database integration
@@ -165,15 +130,8 @@ class TestRealObjectsHourlyTrainingDataIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.async_hourly_generation_without_universe_state_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.async_hourly_generation_without_universe_state_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

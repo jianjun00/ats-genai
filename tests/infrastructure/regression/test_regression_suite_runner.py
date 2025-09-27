@@ -66,21 +66,15 @@ class TestRegressionSuiteRunner:
         test_dir = Path(__file__).parent
 
         # Run pytest in collect-only mode to see if tests are discoverable
-        try:
-            result = subprocess.run([
-                sys.executable, '-m', 'pytest',
-                str(test_dir), '--collect-only', '-q'
-            ], capture_output=True, text=True, timeout=30)
+        result = subprocess.run([
+            sys.executable, '-m', 'pytest',
+            str(test_dir), '--collect-only', '-q'
+        ], capture_output=True, text=True, timeout=30)
 
-            # Should succeed and find tests
-            assert result.returncode == 0, f"pytest collect failed: {result.stderr}"
-            assert 'test session starts' in result.stdout or result.stdout.strip(), \
-                f"pytest should discover tests: {result.stdout}"
-
-        except subprocess.TimeoutExpired:
-            pytest.fail("pytest collection timed out")
-        except FileNotFoundError:
-            pytest.skip("pytest not available in test environment")
+        # Should succeed and find tests
+        assert result.returncode == 0, f"pytest collect failed: {result.stderr}"
+        assert 'test session starts' in result.stdout or result.stdout.strip(), \
+            f"pytest should discover tests: {result.stdout}"
 
     def test_critical_issues_are_documented(self):
         """Test that all critical issues have corresponding documentation"""
@@ -146,12 +140,8 @@ class TestRegressionSuiteRunner:
         ]
 
         for mechanism in prevention_mechanisms:
-            try:
-                is_valid = mechanism['validation']()
-                assert is_valid, f"Prevention mechanism '{mechanism['name']}' should be in place"
-            except Exception as e:
-                pytest.fail(f"Failed to validate prevention mechanism '{mechanism['name']}': {e}")
-
+            is_valid = mechanism['validation']()
+            assert is_valid, f"Prevention mechanism '{mechanism['name']}' should be in place"
     def test_test_coverage_for_critical_paths(self):
         """Test that critical code paths have corresponding regression tests"""
         critical_paths = [
@@ -230,21 +220,15 @@ class TestRegressionTestExecution:
         test_file = Path(__file__).parent / 'test_tiingo_end_date_interpretation.py'
 
         if test_file.exists():
-            try:
-                # Run the specific test file
-                result = subprocess.run([
-                    sys.executable, '-m', 'pytest',
-                    str(test_file), '-v', '--tb=short'
-                ], capture_output=True, text=True, timeout=120)
+            # Run the specific test file
+            result = subprocess.run([
+                sys.executable, '-m', 'pytest',
+                str(test_file), '-v', '--tb=short'
+            ], capture_output=True, text=True, timeout=120)
 
-                # Test should either pass or be skipped (if deps missing)
-                assert result.returncode in [0, 5], \
-                    f"Tiingo regression tests failed: {result.stdout}\n{result.stderr}"
-
-            except subprocess.TimeoutExpired:
-                pytest.fail("Tiingo regression tests timed out")
-            except FileNotFoundError:
-                pytest.skip("pytest not available")
+            # Test should either pass or be skipped (if deps missing)
+            assert result.returncode in [0, 5], \
+                f"Tiingo regression tests failed: {result.stdout}\n{result.stderr}"
 
     def test_regression_test_documentation_is_accessible(self):
         """Test that regression test documentation is accessible and helpful"""

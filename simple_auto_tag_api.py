@@ -28,39 +28,31 @@ async def simple_auto_tag_batch(limit: int = 100) -> Dict[str, Any]:
         "message": "Auto-tagging batch completed successfully"
     }
     
-    try:
-        # Get recent untagged issues from agent_issues
-        issues = await conn.fetch("""
-            SELECT ai.issue_id, ai.symbol, ai.issue_type, ai.severity, 
-                   COALESCE(ai.vendor, 'unknown') as vendor_source
-            FROM agent_issues ai
-            LEFT JOIN entity_tags et ON (
-                et.entity_id::text = ai.issue_id AND 
-                et.entity_type_id = (SELECT id FROM entity_types WHERE name = 'data_quality_issues')
-            )
-            WHERE et.id IS NULL
-            AND ai.created_at > NOW() - INTERVAL '7 days'
-            LIMIT $1
-        """, limit)
+    # Get recent untagged issues from agent_issues
+    issues = await conn.fetch("""
+        SELECT ai.issue_id, ai.symbol, ai.issue_type, ai.severity, 
+               COALESCE(ai.vendor, 'unknown') as vendor_source
+        FROM agent_issues ai
+        LEFT JOIN entity_tags et ON (
+            et.entity_id::text = ai.issue_id AND 
+            et.entity_type_id = (SELECT id FROM entity_types WHERE name = 'data_quality_issues')
+        )
+        WHERE et.id IS NULL
+        AND ai.created_at > NOW() - INTERVAL '7 days'
+        LIMIT $1
+    """, limit)
+    
+    for issue in issues:
+        issue_data = dict(issue)
+        applied_tags = await apply_simple_auto_tags(conn, issue['issue_id'], issue_data)
         
-        for issue in issues:
-            issue_data = dict(issue)
-            applied_tags = await apply_simple_auto_tags(conn, issue['issue_id'], issue_data)
+        results["issues_processed"] += 1
+        if applied_tags:
+            results["issues_tagged"] += 1
+            results["tags_applied"] += len(applied_tags)
             
-            results["issues_processed"] += 1
-            if applied_tags:
-                results["issues_tagged"] += 1
-                results["tags_applied"] += len(applied_tags)
-                
-        results["message"] = f"Processed {results['issues_processed']} issues, tagged {results['issues_tagged']} issues with {results['tags_applied']} total tags"
-                
-    except Exception as e:
-        results["error"] = str(e)
-        results["status"] = "failed"
-        results["message"] = f"Auto-tagging failed: {str(e)}"
-    finally:
-        await conn.close()
-        
+    results["message"] = f"Processed {results['issues_processed']} issues, tagged {results['issues_tagged']} issues with {results['tags_applied']} total tags"
+            
     return results
 
 async def apply_simple_auto_tags(conn, issue_id: str, issue_data: Dict[str, Any]) -> List[str]:
@@ -91,24 +83,20 @@ async def apply_simple_auto_tags(conn, issue_id: str, issue_data: Dict[str, Any]
         
     # Apply tags
     for tag_name in rules:
-        try:
-            # Find tag
-            tag_result = await conn.fetchrow("SELECT id FROM tags WHERE name = $1", tag_name)
-            if tag_result:
-                # Apply tag
-                await conn.execute("""
-                    INSERT INTO entity_tags (entity_type_id, entity_id, tag_id, source, confidence_score, metadata)
-                    VALUES (
-                        (SELECT id FROM entity_types WHERE name = 'data_quality_issues'),
-                        $1, $2, 'auto', 0.9, '{}'
-                    )
-                    ON CONFLICT (entity_type_id, entity_id, tag_id) DO NOTHING
-                """, hash(issue_id) % 2147483647, tag_result['id'])
-                
-                applied_tags.append(tag_name)
-        except Exception as e:
-            print(f"Error applying tag {tag_name}: {e}")
+        # Find tag
+        tag_result = await conn.fetchrow("SELECT id FROM tags WHERE name = $1", tag_name)
+        if tag_result:
+            # Apply tag
+            await conn.execute("""
+                INSERT INTO entity_tags (entity_type_id, entity_id, tag_id, source, confidence_score, metadata)
+                VALUES (
+                    (SELECT id FROM entity_types WHERE name = 'data_quality_issues'),
+                    $1, $2, 'auto', 0.9, '{}'
+                )
+                ON CONFLICT (entity_type_id, entity_id, tag_id) DO NOTHING
+            """, hash(issue_id) % 2147483647, tag_result['id'])
             
+            applied_tags.append(tag_name)
     return applied_tags
 
 class AutoTaggingHandler(BaseHTTPRequestHandler):
@@ -125,29 +113,20 @@ class AutoTaggingHandler(BaseHTTPRequestHandler):
             self._send_404()
     
     def _handle_auto_tag_batch(self):
-        try:
-            # Run auto-tagging
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            results = loop.run_until_complete(simple_auto_tag_batch(limit=100))
-            loop.close()
-            
-            # Send response
-            response = json.dumps(results, indent=2)
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(response.encode())
-            
-        except Exception as e:
-            error_response = {"error": str(e), "status": "failed"}
-            self.send_response(500)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps(error_response).encode())
-    
+        # Run auto-tagging
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        results = loop.run_until_complete(simple_auto_tag_batch(limit=100))
+        loop.close()
+        
+        # Send response
+        response = json.dumps(results, indent=2)
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(response.encode())
+        
     def _send_404(self):
         self.send_response(404)
         self.send_header('Content-Type', 'application/json')

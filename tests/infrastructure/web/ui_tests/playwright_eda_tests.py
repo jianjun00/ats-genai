@@ -108,14 +108,8 @@ class EDAPlaywrightTests:
         await small_dataset.click()
 
         # Wait for schema to load (with timeout protection)
-        try:
-            await page.wait_for_selector(".schema-container", timeout=10000)
-            schema_loaded = True
-        except:
-            # Schema might timeout on large datasets - this is expected behavior
-            schema_loaded = False
-
-        # If schema loaded, test interactive features
+        await page.wait_for_selector(".schema-container", timeout=10000)
+        schema_loaded = True
         if schema_loaded:
             # Check for sortable table headers
             sortable_header = page.locator("th[onclick*='sortTable']")
@@ -162,28 +156,23 @@ class EDAPlaywrightTests:
             await chart_dataset.first.click()
 
             # Wait for potential chart to load
-            try:
-                chart_container = page.locator("[id*='timeseries']")
-                await chart_container.wait_for(state="visible", timeout=5000)
+            chart_container = page.locator("[id*='timeseries']")
+            await chart_container.wait_for(state="visible", timeout=5000)
 
-                # Test Plotly interactions (zoom, pan)
-                chart_svg = chart_container.locator("svg").first
-                if await chart_svg.count() > 0:
-                    # Simulate mouse interactions on chart
-                    chart_bbox = await chart_svg.bounding_box()
-                    if chart_bbox:
-                        # Test zoom by double-clicking
-                        await page.mouse.dblclick(
-                            chart_bbox["x"] + chart_bbox["width"] / 2,
-                            chart_bbox["y"] + chart_bbox["height"] / 2
-                        )
+            # Test Plotly interactions (zoom, pan)
+            chart_svg = chart_container.locator("svg").first
+            if await chart_svg.count() > 0:
+                # Simulate mouse interactions on chart
+                chart_bbox = await chart_svg.bounding_box()
+                if chart_bbox:
+                    # Test zoom by double-clicking
+                    await page.mouse.dblclick(
+                        chart_bbox["x"] + chart_bbox["width"] / 2,
+                        chart_bbox["y"] + chart_bbox["height"] / 2
+                    )
 
-                        # Verify chart responds to interactions
-                        await page.wait_for_timeout(1000)  # Allow chart to update
-
-            except:
-                # Chart functionality is optional
-                pass
+                    # Verify chart responds to interactions
+                    await page.wait_for_timeout(1000)  # Allow chart to update
 
     async def test_large_dataset_performance_handling(self, page: Page):
         """Test 6: Large dataset handling with timeout protection"""
@@ -208,19 +197,12 @@ class EDAPlaywrightTests:
             await large_dataset.click()
 
             # Wait for response (with timeout protection)
-            try:
-                await page.wait_for_selector(".schema-container", timeout=8000)
-                load_time = time.time() - start_time
+            await page.wait_for_selector(".schema-container", timeout=8000)
+            load_time = time.time() - start_time
 
-                # Verify reasonable load time (should be under 10s with our fixes)
-                assert load_time < 10, f"Large dataset took {load_time:.2f}s, expected <10s"
+            # Verify reasonable load time (should be under 10s with our fixes)
+            assert load_time < 10, f"Large dataset took {load_time:.2f}s, expected <10s"
 
-            except:
-                # Timeout is acceptable behavior for very large datasets
-                load_time = time.time() - start_time
-                print(f"Large dataset timed out after {load_time:.2f}s - this is expected")
-
-        # Verify datasets API was fast
         datasets_responses = [r for r in responses if "/api/eda/datasets" in r["url"]]
         if datasets_responses:
             # Datasets API should be very fast with our optimizations

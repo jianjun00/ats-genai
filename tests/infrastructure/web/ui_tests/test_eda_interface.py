@@ -367,14 +367,9 @@ async def run_playwright_tests():
 
         for test_name, test_func in tests:
             print(f"\n🧪 Running: {test_name}")
-            try:
-                await test_func(page)
-                results[test_name] = "✅ PASS"
-                print(f"✅ {test_name} - PASSED")
-            except Exception as e:
-                results[test_name] = f"❌ FAIL: {str(e)}"
-                print(f"❌ {test_name} - FAILED: {e}")
-
+            await test_func(page)
+            results[test_name] = "✅ PASS"
+            print(f"✅ {test_name} - PASSED")
         await browser.close()
 
     # Print summary

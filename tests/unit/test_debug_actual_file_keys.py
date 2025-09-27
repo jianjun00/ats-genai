@@ -46,30 +46,20 @@ def test_debug_actual_file_key_patterns():
         if len(parts) < 5:
             print("     → Would use LEGACY format parsing")
             if len(parts) >= 4:
-                try:
-                    symbol = parts[0]
-                    timeframe = parts[1]
-                    year = int(parts[2])
-                    month = int(parts[3])
-                    print(f"     ✅ Legacy: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
-                except ValueError as e:
-                    print(f"     ❌ Legacy parsing would fail: {e}")
-            else:
+                symbol = parts[0]
+                timeframe = parts[1]
+                year = int(parts[2])
+                month = int(parts[3])
+                print(f"     ✅ Legacy: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
                 print("     ⚠️  Would be skipped (insufficient parts)")
         else:
             print("     → Would use NEW format parsing")
-            try:
-                symbol = parts[0]
-                feature_group = parts[1]
-                timeframe = parts[2]
-                year = int(parts[3])  # This is line 575 where error occurs
-                month = int(parts[4])
-                print(f"     ✅ New: symbol={symbol}, feature_group={feature_group}, timeframe={timeframe}, year={year}, month={month}")
-            except ValueError as e:
-                print(f"     ❌ NEW parsing FAILS: {e}")
-                print(f"         parts[3] = '{parts[3]}' (expected year)")
-                print(f"         This matches the error: int('{parts[3]}') fails")
-
+            symbol = parts[0]
+            feature_group = parts[1]
+            timeframe = parts[2]
+            year = int(parts[3])  # This is line 575 where error occurs
+            month = int(parts[4])
+            print(f"     ✅ New: symbol={symbol}, feature_group={feature_group}, timeframe={timeframe}, year={year}, month={month}")
 def test_reproduce_exact_error_condition():
     """
     Try to reproduce the exact error condition from the traceback.

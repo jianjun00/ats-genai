@@ -285,16 +285,10 @@ def run_failing_tests():
     failed = 0
     
     for test_name, test_func in tests:
-        try:
-            print(f"\n🔍 Testing: {test_name}")
-            test_func()
-            print(f"   ✅ PASSED: {test_name}")
-            passed += 1
-        except Exception as e:
-            print(f"   ❌ FAILED: {test_name}")
-            print(f"      Error: {str(e)}")
-            failed += 1
-    
+        print(f"\n🔍 Testing: {test_name}")
+        test_func()
+        print(f"   ✅ PASSED: {test_name}")
+        passed += 1
     print(f"\n📊 Test Results:")
     print(f"   ✅ Passed: {passed}")
     print(f"   ❌ Failed: {failed}")

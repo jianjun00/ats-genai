@@ -37,32 +37,28 @@ def test_file_key_parsing_no_longer_throws_valueerror():
         # This is the exact parsing logic from the fixed code
         parts = file_key.split('_')
         
-        try:
-            if len(parts) < 5:
-                # Handle legacy format: symbol_timeframe_YYYY_MM
-                if len(parts) >= 4:
-                    symbol = parts[0]
-                    timeframe = parts[1]
-                    year_month = f"{parts[2]}_{parts[3]}"
-                    year = int(parts[2])  # This should not fail
-                    month = int(parts[3])  # This should not fail
-                    print(f"     ✅ Legacy parsed: {symbol}, {timeframe}, {year}, {month}")
-                else:
-                    print(f"     ⚠️  Skipped: insufficient parts ({len(parts)})")
-                    continue
-            else:
-                # Handle new format: symbol_featuregroup_timeframe_YYYY_MM
+        if len(parts) < 5:
+            # Handle legacy format: symbol_timeframe_YYYY_MM
+            if len(parts) >= 4:
                 symbol = parts[0]
-                feature_group = parts[1]
-                timeframe = parts[2]
-                year_month = f"{parts[3]}_{parts[4]}"
-                year = int(parts[3])  # This should not fail (was previously int(parts[2]) = int('5m'))
-                month = int(parts[4])  # This should not fail (was previously int(parts[3]) = int('2025'))
-                print(f"     ✅ Feature group parsed: {symbol}, {feature_group}, {timeframe}, {year}, {month}")
-                
-        except ValueError as e:
-            pytest.fail(f"ValueError still occurs for {file_key}: {e}")
-    
+                timeframe = parts[1]
+                year_month = f"{parts[2]}_{parts[3]}"
+                year = int(parts[2])  # This should not fail
+                month = int(parts[3])  # This should not fail
+                print(f"     ✅ Legacy parsed: {symbol}, {timeframe}, {year}, {month}")
+            else:
+                print(f"     ⚠️  Skipped: insufficient parts ({len(parts)})")
+                continue
+        else:
+            # Handle new format: symbol_featuregroup_timeframe_YYYY_MM
+            symbol = parts[0]
+            feature_group = parts[1]
+            timeframe = parts[2]
+            year_month = f"{parts[3]}_{parts[4]}"
+            year = int(parts[3])  # This should not fail (was previously int(parts[2]) = int('5m'))
+            month = int(parts[4])  # This should not fail (was previously int(parts[3]) = int('2025'))
+            print(f"     ✅ Feature group parsed: {symbol}, {feature_group}, {timeframe}, {year}, {month}")
+            
     print("   ✅ All file keys parsed successfully without ValueError")
 
 

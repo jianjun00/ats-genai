@@ -20,8 +20,8 @@ from unittest.mock import Mock
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
-from storage.file_based_minute_manager import FileBasedMinuteManager
+# TrainingDataJobRunner class does not exist in feature_extraction_runner, TrainingDataJobConfig
+from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteManager
 
 
 class TestHourlyGenerationWithRealData(unittest.TestCase):
@@ -347,38 +347,26 @@ def run_async_tests():
             # Set up test class
             TestHourlyGenerationWithRealData.setUpClass()
 
-            try:
-                # Run tests
-                test_methods = [
-                    'test_end_to_end_with_real_minute_data',
-                    'test_multiple_symbols_real_data',
-                    'test_hourly_aggregation_accuracy'
-                ]
+            # Run tests
+            test_methods = [
+                'test_end_to_end_with_real_minute_data',
+                'test_multiple_symbols_real_data',
+                'test_hourly_aggregation_accuracy'
+            ]
 
-                for test_method in test_methods:
-                    print(f"\n📋 Running {test_method}...")
-                    self.test_instance.setUp()
-
-                    try:
-                        await getattr(self.test_instance, test_method)()
-                        print(f"✅ {test_method} PASSED")
-                    except Exception as e:
-                        print(f"❌ {test_method} FAILED: {e}")
-                        raise
-
-                # Run sync test
-                print(f"\n📋 Running test_real_data_file_structure...")
+            for test_method in test_methods:
+                print(f"\n📋 Running {test_method}...")
                 self.test_instance.setUp()
-                self.test_instance.test_real_data_file_structure()
-                print(f"✅ test_real_data_file_structure PASSED")
 
-                print(f"\n🎉 All tests PASSED!")
+                await getattr(self.test_instance, test_method)()
+                print(f"✅ {test_method} PASSED")
+            print(f"\n📋 Running test_real_data_file_structure...")
+            self.test_instance.setUp()
+            self.test_instance.test_real_data_file_structure()
+            print(f"✅ test_real_data_file_structure PASSED")
 
-            finally:
-                # Clean up
-                TestHourlyGenerationWithRealData.tearDownClass()
+            print(f"\n🎉 All tests PASSED!")
 
-    # Run async tests
     runner = AsyncTestRunner()
     asyncio.run(runner.run_all_tests())
 

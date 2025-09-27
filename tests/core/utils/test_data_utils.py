@@ -3,11 +3,11 @@ import numpy as np
 import pandas as pd
 from unittest.mock import patch, MagicMock
 from decimal import Decimal
-from core.utils.data_utils import (
+from core.shared.data_handling.utils.data_utils import (
     clean_numeric_data,
     calculate_returns
 )
-from core.validation.data_validators import ValidationResult
+from core.security.validation.data_validators import ValidationResult
 
 
 class TestDataUtilsCore:

@@ -118,106 +118,87 @@ async def demonstrate_service_architecture():
 
     # Portfolio Management Demo
     print("\n   📈 Portfolio Management:")
-    try:
-        portfolio = await services['portfolio'].create_portfolio(
-            portfolio_name="Demo Trading Portfolio",
-            account_id="DEMO_ACCOUNT_001",
-            portfolio_type=PortfolioType.EQUITY,
-            base_currency="USD",
-            initial_cash=Decimal('100000.00'),
-            benchmark_symbol="SPY"
-        )
-        print(f"      ✅ Created portfolio: {portfolio.portfolio_id}")
-        print(f"         Initial Value: ${portfolio.total_value:,.2f}")
+    portfolio = await services['portfolio'].create_portfolio(
+        portfolio_name="Demo Trading Portfolio",
+        account_id="DEMO_ACCOUNT_001",
+        portfolio_type=PortfolioType.EQUITY,
+        base_currency="USD",
+        initial_cash=Decimal('100000.00'),
+        benchmark_symbol="SPY"
+    )
+    print(f"      ✅ Created portfolio: {portfolio.portfolio_id}")
+    print(f"         Initial Value: ${portfolio.total_value:,.2f}")
 
-        # Add position
-        position = await services['portfolio'].add_position(
-            portfolio_id=portfolio.portfolio_id,
-            symbol="AAPL",
-            quantity=Decimal('100'),
-            price=Decimal('150.00'),
-            transaction_date=datetime.now()
-        )
-        print(f"      ✅ Added position: {position.quantity} shares of {position.symbol}")
+    # Add position
+    position = await services['portfolio'].add_position(
+        portfolio_id=portfolio.portfolio_id,
+        symbol="AAPL",
+        quantity=Decimal('100'),
+        price=Decimal('150.00'),
+        transaction_date=datetime.now()
+    )
+    print(f"      ✅ Added position: {position.quantity} shares of {position.symbol}")
 
-    except Exception as e:
-        print(f"      ❌ Portfolio demo failed: {e}")
-
-    # Order Management Demo
     print("\n   📋 Order Management:")
-    try:
-        order = await services['orders'].create_order(
-            portfolio_id=portfolio.portfolio_id if 'portfolio' in locals() else "DEMO_PORTFOLIO",
-            symbol="TSLA",
-            side=OrderSide.BUY,
-            quantity=Decimal('50'),
-            order_type=OrderType.LIMIT,
-            price=Decimal('200.00'),
-            time_in_force=TimeInForce.DAY
-        )
-        print(f"      ✅ Created order: {order.order_id}")
-        print(f"         {order.side.value} {order.quantity} {order.symbol} @ ${order.price}")
+    order = await services['orders'].create_order(
+        portfolio_id=portfolio.portfolio_id if 'portfolio' in locals() else "DEMO_PORTFOLIO",
+        symbol="TSLA",
+        side=OrderSide.BUY,
+        quantity=Decimal('50'),
+        order_type=OrderType.LIMIT,
+        price=Decimal('200.00'),
+        time_in_force=TimeInForce.DAY
+    )
+    print(f"      ✅ Created order: {order.order_id}")
+    print(f"         {order.side.value} {order.quantity} {order.symbol} @ ${order.price}")
 
-        # List execution venues
-        venues = await services['orders'].list_execution_venues()
-        print(f"      ✅ Available execution venues: {len(venues)}")
-        for venue in venues[:3]:
-            print(f"         - {venue.venue_name} ({venue.venue_type})")
+    # List execution venues
+    venues = await services['orders'].list_execution_venues()
+    print(f"      ✅ Available execution venues: {len(venues)}")
+    for venue in venues[:3]:
+        print(f"         - {venue.venue_name} ({venue.venue_type})")
 
-    except Exception as e:
-        print(f"      ❌ Order management demo failed: {e}")
-
-    # Market Data Demo
     print("\n   📊 Market Data Processing:")
-    try:
-        # Start data ingestion
-        session_id = await services['market_data'].start_data_ingestion(
-            sources=["NYSE", "NASDAQ"],
-            buffer_size=5000,
-            batch_size=50
-        )
-        print(f"      ✅ Started data ingestion: {session_id}")
+    # Start data ingestion
+    session_id = await services['market_data'].start_data_ingestion(
+        sources=["NYSE", "NASDAQ"],
+        buffer_size=5000,
+        batch_size=50
+    )
+    print(f"      ✅ Started data ingestion: {session_id}")
 
-        # Get processing metrics
-        metrics = await services['market_data'].get_processing_metrics()
-        print(f"      ✅ Processing metrics:")
-        print(f"         Messages/sec: {metrics.messages_per_second:.1f}")
-        print(f"         Queue depth: {metrics.queue_depth}")
+    # Get processing metrics
+    metrics = await services['market_data'].get_processing_metrics()
+    print(f"      ✅ Processing metrics:")
+    print(f"         Messages/sec: {metrics.messages_per_second:.1f}")
+    print(f"         Queue depth: {metrics.queue_depth}")
 
-        await services['market_data'].stop_data_ingestion(session_id)
-        print(f"      ✅ Stopped data ingestion")
+    await services['market_data'].stop_data_ingestion(session_id)
+    print(f"      ✅ Stopped data ingestion")
 
-    except Exception as e:
-        print(f"      ❌ Market data demo failed: {e}")
-
-    # Analytics Demo
     print("\n   🧠 Analytics & ML:")
-    try:
-        # Calculate technical indicators
-        indicators = await services['analytics'].calculate_technical_indicators(
-            symbol="AAPL",
-            indicators=["SMA_20", "RSI_14"],
-            start_date=datetime.now() - timedelta(days=30),
-            end_date=datetime.now()
-        )
-        print(f"      ✅ Calculated {len(indicators)} technical indicators")
+    # Calculate technical indicators
+    indicators = await services['analytics'].calculate_technical_indicators(
+        symbol="AAPL",
+        indicators=["SMA_20", "RSI_14"],
+        start_date=datetime.now() - timedelta(days=30),
+        end_date=datetime.now()
+    )
+    print(f"      ✅ Calculated {len(indicators)} technical indicators")
 
-        # List available models
-        models = await services['analytics'].list_models()
-        print(f"      ✅ Available ML models: {len(models)}")
+    # List available models
+    models = await services['analytics'].list_models()
+    print(f"      ✅ Available ML models: {len(models)}")
 
-        # Calculate quantitative metrics
-        quant_metrics = await services['analytics'].calculate_quantitative_metrics(
-            symbol="AAPL",
-            start_date=datetime.now() - timedelta(days=365),
-            end_date=datetime.now()
-        )
-        print(f"      ✅ Quantitative analysis:")
-        print(f"         Volatility: {quant_metrics.volatility:.1%}")
-        print(f"         Sharpe Ratio: {quant_metrics.sharpe_ratio:.2f}" if quant_metrics.sharpe_ratio else "         Sharpe Ratio: N/A")
-
-    except Exception as e:
-        print(f"      ❌ Analytics demo failed: {e}")
+    # Calculate quantitative metrics
+    quant_metrics = await services['analytics'].calculate_quantitative_metrics(
+        symbol="AAPL",
+        start_date=datetime.now() - timedelta(days=365),
+        end_date=datetime.now()
+    )
+    print(f"      ✅ Quantitative analysis:")
+    print(f"         Volatility: {quant_metrics.volatility:.1%}")
+    print(f"         Sharpe Ratio: {quant_metrics.sharpe_ratio:.2f}" if quant_metrics.sharpe_ratio else "         Sharpe Ratio: N/A")
 
     print("\n3. 🔧 Service Architecture Benefits")
     print("-" * 50)

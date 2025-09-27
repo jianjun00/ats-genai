@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
+from domains.trading.services.indicators.enhanced_indicators import BXTrenderIndicator
 from domains.trading.signals.indicator import BXTrenderBasic
 
 class TestBXTrenderEdgeCases(unittest.TestCase):
@@ -242,14 +242,9 @@ class TestBXTrenderEdgeCases(unittest.TestCase):
             mock_calc.side_effect = Exception("Calculation error")
 
             indicator = BXTrenderIndicator(period=14, variant='basic')
-            try:
-                result = indicator.calculate(data)
-                # If exception is caught, should return error status
-                self.assertEqual(result['status'], 'calculation_error')
-            except Exception:
-                # If exception propagates, that's also valid behavior
-                pass
-
+            result = indicator.calculate(data)
+            # If exception is caught, should return error status
+            self.assertEqual(result['status'], 'calculation_error')
     def test_framework_indicator_edge_cases(self):
         """Test edge cases in framework indicators."""
         # Test with empty intervals
@@ -372,13 +367,8 @@ class TestBXTrenderErrorRecovery(unittest.TestCase):
         indicator = BXTrenderIndicator(period=14, variant='basic')
 
         # Should either convert or report invalid data
-        try:
-            result = indicator.calculate(data)
-            self.assertIn(result['status'], ['valid', 'invalid_data'])
-        except (ValueError, TypeError):
-            # Type conversion failure is also valid behavior
-            pass
-
+        result = indicator.calculate(data)
+        self.assertIn(result['status'], ['valid', 'invalid_data'])
     def test_concurrent_calculation(self):
         """Test thread safety of calculations."""
         import threading
@@ -390,14 +380,9 @@ class TestBXTrenderErrorRecovery(unittest.TestCase):
         errors = []
 
         def calculate_indicator():
-            try:
-                indicator = BXTrenderIndicator(period=14, variant='basic')
-                result = indicator.calculate(data)
-                results.append(result)
-            except Exception as e:
-                errors.append(e)
-
-        # Run multiple calculations concurrently
+            indicator = BXTrenderIndicator(period=14, variant='basic')
+            result = indicator.calculate(data)
+            results.append(result)
         threads = [threading.Thread(target=calculate_indicator) for _ in range(10)]
 
         for thread in threads:

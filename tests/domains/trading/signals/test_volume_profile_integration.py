@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.trading.signals.enhanced_indicators import (
+from domains.trading.services.indicators.enhanced_indicators import (
     VolumeProfileIndicator,
     ResidualReturnIndicatorConfig,
     calculate_all_technical_indicators
@@ -88,25 +88,21 @@ class TestVolumeProfileIntegration(unittest.TestCase):
 
     def test_calculate_all_indicators_integration(self):
         """Test Volume Profile through calculate_all_technical_indicators function."""
-        try:
-            # Use minimal config to avoid dependency issues
-            all_results = calculate_all_technical_indicators(self.test_data, self.minimal_config)
+        # Use minimal config to avoid dependency issues
+        all_results = calculate_all_technical_indicators(self.test_data, self.minimal_config)
 
-            self.assertIsInstance(all_results, dict)
+        self.assertIsInstance(all_results, dict)
 
-            # calculate_all_technical_indicators flattens results with prefixes
-            vp_keys = [key for key in all_results.keys() if key.startswith('VolumeProfile_20_50')]
-            self.assertGreater(len(vp_keys), 0, "Should have Volume Profile results")
+        # calculate_all_technical_indicators flattens results with prefixes
+        vp_keys = [key for key in all_results.keys() if key.startswith('VolumeProfile_20_50')]
+        self.assertGreater(len(vp_keys), 0, "Should have Volume Profile results")
 
-            # Check for essential Volume Profile features
-            self.assertIn('VolumeProfile_20_50_poc', all_results)
-            self.assertIn('VolumeProfile_20_50_status', all_results)
+        # Check for essential Volume Profile features
+        self.assertIn('VolumeProfile_20_50_poc', all_results)
+        self.assertIn('VolumeProfile_20_50_status', all_results)
 
-            self.assertEqual(all_results['VolumeProfile_20_50_status'], 'valid')
-            self.assertIsNotNone(all_results['VolumeProfile_20_50_poc'])
-
-        except Exception as e:
-            self.fail(f"calculate_all_technical_indicators failed with Volume Profile: {e}")
+        self.assertEqual(all_results['VolumeProfile_20_50_status'], 'valid')
+        self.assertIsNotNone(all_results['VolumeProfile_20_50_poc'])
 
     def test_multi_timeframe_consistency(self):
         """Test Volume Profile consistency across different timeframe-like periods."""
@@ -158,25 +154,21 @@ class TestVolumeProfileIntegration(unittest.TestCase):
         config.add_indicator('VolumeProfile_20_50', lambda: VolumeProfileIndicator(20, 50))
 
         # Import BX Trender for compatibility test
-        try:
-            from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
-            config.add_indicator('BXTrender_basic_14', lambda: BXTrenderIndicator(14, 'basic'))
+        from domains.trading.services.indicators.enhanced_indicators import BXTrenderIndicator
+        config.add_indicator('BXTrender_basic_14', lambda: BXTrenderIndicator(14, 'basic'))
 
-            # Calculate all indicators
-            results = calculate_all_technical_indicators(self.test_data, config)
+        # Calculate all indicators
+        results = calculate_all_technical_indicators(self.test_data, config)
 
-            # Both should work together (check for flattened keys)
-            vp_keys = [key for key in results.keys() if key.startswith('VolumeProfile_20_50')]
-            bx_keys = [key for key in results.keys() if key.startswith('BXTrender_basic_14')]
+        # Both should work together (check for flattened keys)
+        vp_keys = [key for key in results.keys() if key.startswith('VolumeProfile_20_50')]
+        bx_keys = [key for key in results.keys() if key.startswith('BXTrender_basic_14')]
 
-            self.assertGreater(len(vp_keys), 0, "Should have Volume Profile results")
-            self.assertGreater(len(bx_keys), 0, "Should have BX Trender results")
+        self.assertGreater(len(vp_keys), 0, "Should have Volume Profile results")
+        self.assertGreater(len(bx_keys), 0, "Should have BX Trender results")
 
-            self.assertEqual(results['VolumeProfile_20_50_status'], 'valid')
-            self.assertEqual(results['BXTrender_basic_14_status'], 'valid')
-
-        except ImportError:
-            self.skipTest("BX Trender not available for compatibility test")
+        self.assertEqual(results['VolumeProfile_20_50_status'], 'valid')
+        self.assertEqual(results['BXTrender_basic_14_status'], 'valid')
 
     def test_performance_with_large_dataset(self):
         """Test Volume Profile performance with larger datasets."""

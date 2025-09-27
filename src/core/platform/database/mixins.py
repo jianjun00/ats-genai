@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional
 
 from .connection_manager import get_connection_manager, get_raw_connection
 from ..config.settings import get_settings
-from ..exceptions.custom_exceptions import DatabaseError
+from core.security.exceptions.custom_exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 

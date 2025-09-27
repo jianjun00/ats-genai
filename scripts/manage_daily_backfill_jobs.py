@@ -54,35 +54,19 @@ class BackfillJobsManager:
 
     def run_kubectl(self, command: List[str]) -> Dict:
         """Run kubectl command and return result."""
-        try:
-            result = subprocess.run(
-                ['kubectl'] + command,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+        result = subprocess.run(
+            ['kubectl'] + command,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
 
-            return {
-                'success': result.returncode == 0,
-                'stdout': result.stdout.strip(),
-                'stderr': result.stderr.strip(),
-                'returncode': result.returncode
-            }
-        except subprocess.TimeoutExpired:
-            return {
-                'success': False,
-                'stdout': '',
-                'stderr': 'Command timed out',
-                'returncode': -1
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'stdout': '',
-                'stderr': str(e),
-                'returncode': -1
-            }
-
+        return {
+            'success': result.returncode == 0,
+            'stdout': result.stdout.strip(),
+            'stderr': result.stderr.strip(),
+            'returncode': result.returncode
+        }
     def deploy_jobs(self) -> bool:
         """Deploy the daily backfill CronJobs to Kubernetes."""
         logger.info("🚀 Deploying daily backfill jobs...")
@@ -130,12 +114,7 @@ class BackfillJobsManager:
             logger.error(f"❌ Failed to get CronJobs: {cronjobs_result['stderr']}")
             return {}
 
-        try:
-            cronjobs_data = json.loads(cronjobs_result['stdout'])
-        except json.JSONDecodeError:
-            logger.error("❌ Failed to parse CronJobs JSON")
-            return {}
-
+        cronjobs_data = json.loads(cronjobs_result['stdout'])
         status = {}
 
         for item in cronjobs_data.get('items', []):
@@ -210,12 +189,7 @@ class BackfillJobsManager:
             logger.error(f"❌ Failed to get jobs: {jobs_result['stderr']}")
             return None
 
-        try:
-            jobs_data = json.loads(jobs_result['stdout'])
-        except json.JSONDecodeError:
-            logger.error("❌ Failed to parse jobs JSON")
-            return None
-
+        jobs_data = json.loads(jobs_result['stdout'])
         jobs = jobs_data.get('items', [])
         if not jobs:
             logger.warning(f"⚠️ No jobs found for CronJob: {cronjob_name}")
@@ -397,39 +371,31 @@ def main():
 
     manager = BackfillJobsManager(args.namespace)
 
-    try:
-        if args.command == 'deploy':
-            success = manager.deploy_jobs()
-            sys.exit(0 if success else 1)
+    if args.command == 'deploy':
+        success = manager.deploy_jobs()
+        sys.exit(0 if success else 1)
 
-        elif args.command == 'status':
-            manager.print_status()
+    elif args.command == 'status':
+        manager.print_status()
 
-        elif args.command == 'logs':
-            if not args.job:
-                logger.error("❌ --job parameter required for logs command")
-                sys.exit(1)
+    elif args.command == 'logs':
+        if not args.job:
+            logger.error("❌ --job parameter required for logs command")
+            sys.exit(1)
 
-            logs = manager.get_job_logs(args.job, args.lines)
-            if logs:
-                print("\n" + "="*80)
-                print(f"LOGS FOR {args.job} (last {args.lines} lines)")
-                print("="*80)
-                print(logs)
-            else:
-                logger.error("❌ Could not retrieve logs")
-                sys.exit(1)
+        logs = manager.get_job_logs(args.job, args.lines)
+        if logs:
+            print("\n" + "="*80)
+            print(f"LOGS FOR {args.job} (last {args.lines} lines)")
+            print("="*80)
+            print(logs)
+        else:
+            logger.error("❌ Could not retrieve logs")
+            sys.exit(1)
 
-        elif args.command == 'test-run':
-            success = manager.run_test_job(args.vendor)
-            sys.exit(0 if success else 1)
-
-    except KeyboardInterrupt:
-        logger.info("\n👋 Operation cancelled by user")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
-        sys.exit(1)
+    elif args.command == 'test-run':
+        success = manager.run_test_job(args.vendor)
+        sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()

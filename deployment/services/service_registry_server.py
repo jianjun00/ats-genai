@@ -101,145 +101,76 @@ start_time = datetime.utcnow()
 async def startup_event():
     """Initialize service registry on startup."""
     global registry
-    try:
-        registry = await initialize_service_registry()
-        logger.info("Service registry initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize service registry: {e}")
-        raise
-
+    registry = await initialize_service_registry()
+    logger.info("Service registry initialized successfully")
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
-    try:
-        await shutdown_service_registry()
-        logger.info("Service registry shut down successfully")
-    except Exception as e:
-        logger.error(f"Error during shutdown: {e}")
-
-# API Endpoints
-
+    await shutdown_service_registry()
+    logger.info("Service registry shut down successfully")
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
-    try:
-        all_services = await registry.get_all_services()
-        total_instances = sum(len(instances) for instances in all_services.values())
+    all_services = await registry.get_all_services()
+    total_instances = sum(len(instances) for instances in all_services.values())
 
-        uptime = (datetime.utcnow() - start_time).total_seconds()
+    uptime = (datetime.utcnow() - start_time).total_seconds()
 
-        return HealthResponse(
-            status="healthy",
-            message="Service registry is operational",
-            timestamp=datetime.utcnow().isoformat(),
-            uptime_seconds=uptime,
-            registered_services=len(all_services),
-            total_instances=total_instances
-        )
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Health check failed: {str(e)}")
-
+    return HealthResponse(
+        status="healthy",
+        message="Service registry is operational",
+        timestamp=datetime.utcnow().isoformat(),
+        uptime_seconds=uptime,
+        registered_services=len(all_services),
+        total_instances=total_instances
+    )
 @app.post("/services/register")
 async def register_service(request: ServiceRegistrationRequest):
     """Register a new service instance."""
-    try:
-        service_instance = ServiceInstance(
-            service_name=request.service_name,
-            instance_id=request.instance_id,
-            version=request.version,
-            endpoint=ServiceEndpoint(
-                host=request.host,
-                port=request.port,
-                protocol=request.protocol,
-                path=request.path
-            ),
-            metadata=request.metadata,
-            health_check=ServiceHealthCheck(
-                endpoint=request.health_check_endpoint,
-                interval_seconds=request.health_check_interval,
-                timeout_seconds=request.health_check_timeout
-            )
+    service_instance = ServiceInstance(
+        service_name=request.service_name,
+        instance_id=request.instance_id,
+        version=request.version,
+        endpoint=ServiceEndpoint(
+            host=request.host,
+            port=request.port,
+            protocol=request.protocol,
+            path=request.path
+        ),
+        metadata=request.metadata,
+        health_check=ServiceHealthCheck(
+            endpoint=request.health_check_endpoint,
+            interval_seconds=request.health_check_interval,
+            timeout_seconds=request.health_check_timeout
         )
+    )
 
-        success = await registry.register_service(service_instance)
-        if not success:
-            raise HTTPException(status_code=400, detail="Failed to register service")
+    success = await registry.register_service(service_instance)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to register service")
 
-        logger.info(f"Registered service: {request.service_name}:{request.instance_id}")
-        return {"message": "Service registered successfully", "instance_id": request.instance_id}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error registering service: {e}")
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+    logger.info(f"Registered service: {request.service_name}:{request.instance_id}")
+    return {"message": "Service registered successfully", "instance_id": request.instance_id}
 
 @app.delete("/services/{service_name}/instances/{instance_id}")
 async def deregister_service(service_name: str, instance_id: str):
     """Deregister a service instance."""
-    try:
-        success = await registry.deregister_service(service_name, instance_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Service instance not found")
+    success = await registry.deregister_service(service_name, instance_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Service instance not found")
 
-        logger.info(f"Deregistered service: {service_name}:{instance_id}")
-        return {"message": "Service deregistered successfully"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deregistering service: {e}")
-        raise HTTPException(status_code=500, detail=f"Deregistration failed: {str(e)}")
+    logger.info(f"Deregistered service: {service_name}:{instance_id}")
+    return {"message": "Service deregistered successfully"}
 
 @app.get("/services", response_model=ServiceListResponse)
 async def list_all_services():
     """List all registered services."""
-    try:
-        all_services = await registry.get_all_services()
+    all_services = await registry.get_all_services()
 
-        services_response = {}
-        total_instances = 0
+    services_response = {}
+    total_instances = 0
 
-        for service_name, instances in all_services.items():
-            instance_responses = []
-            for instance in instances:
-                instance_responses.append(ServiceInstanceResponse(
-                    service_name=instance.service_name,
-                    instance_id=instance.instance_id,
-                    version=instance.version,
-                    endpoint={
-                        "host": instance.endpoint.host,
-                        "port": instance.endpoint.port,
-                        "protocol": instance.endpoint.protocol,
-                        "path": instance.endpoint.path,
-                        "url": instance.endpoint.url
-                    },
-                    metadata=instance.metadata,
-                    status=instance.status.value,
-                    last_heartbeat=instance.last_heartbeat.isoformat() if instance.last_heartbeat else None,
-                    registration_time=instance.registration_time.isoformat()
-                ))
-                total_instances += 1
-
-            services_response[service_name] = instance_responses
-
-        return ServiceListResponse(
-            services=services_response,
-            total_services=len(all_services),
-            total_instances=total_instances
-        )
-
-    except Exception as e:
-        logger.error(f"Error listing services: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list services: {str(e)}")
-
-@app.get("/services/{service_name}")
-async def get_service_instances(service_name: str):
-    """Get all instances of a specific service."""
-    try:
-        instances = await registry.get_service_instances(service_name)
-
+    for service_name, instances in all_services.items():
         instance_responses = []
         for instance in instances:
             instance_responses.append(ServiceInstanceResponse(
@@ -258,88 +189,93 @@ async def get_service_instances(service_name: str):
                 last_heartbeat=instance.last_heartbeat.isoformat() if instance.last_heartbeat else None,
                 registration_time=instance.registration_time.isoformat()
             ))
+            total_instances += 1
 
-        return {
-            "service_name": service_name,
-            "instances": instance_responses,
-            "instance_count": len(instance_responses)
-        }
+        services_response[service_name] = instance_responses
 
-    except Exception as e:
-        logger.error(f"Error getting service instances: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get instances: {str(e)}")
+    return ServiceListResponse(
+        services=services_response,
+        total_services=len(all_services),
+        total_instances=total_instances
+    )
+
+@app.get("/services/{service_name}")
+async def get_service_instances(service_name: str):
+    """Get all instances of a specific service."""
+    instances = await registry.get_service_instances(service_name)
+
+    instance_responses = []
+    for instance in instances:
+        instance_responses.append(ServiceInstanceResponse(
+            service_name=instance.service_name,
+            instance_id=instance.instance_id,
+            version=instance.version,
+            endpoint={
+                "host": instance.endpoint.host,
+                "port": instance.endpoint.port,
+                "protocol": instance.endpoint.protocol,
+                "path": instance.endpoint.path,
+                "url": instance.endpoint.url
+            },
+            metadata=instance.metadata,
+            status=instance.status.value,
+            last_heartbeat=instance.last_heartbeat.isoformat() if instance.last_heartbeat else None,
+            registration_time=instance.registration_time.isoformat()
+        ))
+
+    return {
+        "service_name": service_name,
+        "instances": instance_responses,
+        "instance_count": len(instance_responses)
+    }
 
 @app.post("/services/{service_name}/instances/{instance_id}/heartbeat")
 async def update_heartbeat(service_name: str, instance_id: str):
     """Update service instance heartbeat."""
-    try:
-        success = await registry.heartbeat(service_name, instance_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Service instance not found")
+    success = await registry.heartbeat(service_name, instance_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Service instance not found")
 
-        return {"message": "Heartbeat updated successfully"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating heartbeat: {e}")
-        raise HTTPException(status_code=500, detail=f"Heartbeat update failed: {str(e)}")
+    return {"message": "Heartbeat updated successfully"}
 
 @app.put("/services/{service_name}/instances/{instance_id}/status")
 async def update_service_status(service_name: str, instance_id: str, status: str):
     """Update service instance status."""
-    try:
-        # Validate status
-        try:
-            service_status = ServiceStatus(status.lower())
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+    # Validate status
+    service_status = ServiceStatus(status.lower())
+    success = await registry.update_health_status(service_name, instance_id, service_status)
+    if not success:
+        raise HTTPException(status_code=404, detail="Service instance not found")
 
-        success = await registry.update_health_status(service_name, instance_id, service_status)
-        if not success:
-            raise HTTPException(status_code=404, detail="Service instance not found")
-
-        logger.info(f"Updated status for {service_name}:{instance_id} to {status}")
-        return {"message": f"Status updated to {status}"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating status: {e}")
-        raise HTTPException(status_code=500, detail=f"Status update failed: {str(e)}")
+    logger.info(f"Updated status for {service_name}:{instance_id} to {status}")
+    return {"message": f"Status updated to {status}"}
 
 @app.get("/metrics")
 async def get_metrics():
     """Get service registry metrics."""
-    try:
-        all_services = await registry.get_all_services()
+    all_services = await registry.get_all_services()
 
-        metrics = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "uptime_seconds": (datetime.utcnow() - start_time).total_seconds(),
-            "total_services": len(all_services),
-            "total_instances": sum(len(instances) for instances in all_services.values()),
-            "services": {}
+    metrics = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "uptime_seconds": (datetime.utcnow() - start_time).total_seconds(),
+        "total_services": len(all_services),
+        "total_instances": sum(len(instances) for instances in all_services.values()),
+        "services": {}
+    }
+
+    for service_name, instances in all_services.items():
+        status_counts = {}
+        for instance in instances:
+            status = instance.status.value
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+        metrics["services"][service_name] = {
+            "instance_count": len(instances),
+            "status_distribution": status_counts
         }
 
-        for service_name, instances in all_services.items():
-            status_counts = {}
-            for instance in instances:
-                status = instance.status.value
-                status_counts[status] = status_counts.get(status, 0) + 1
+    return metrics
 
-            metrics["services"][service_name] = {
-                "instance_count": len(instances),
-                "status_distribution": status_counts
-            }
-
-        return metrics
-
-    except Exception as e:
-        logger.error(f"Error getting metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}")
-
-# Signal handlers for graceful shutdown
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
     logger.info(f"Received signal {signum}, shutting down...")

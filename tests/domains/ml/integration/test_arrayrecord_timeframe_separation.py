@@ -37,15 +37,7 @@ def read_arrayrecord_metadata(file_path: str) -> Tuple[List[str], int]:
 
     # Parse column names - handle both JSON and Python list format
     column_names_str = first_record.decode('utf-8') if isinstance(first_record, bytes) else str(first_record)
-    try:
-        column_names = json.loads(column_names_str)
-    except json.JSONDecodeError:
-        try:
-            column_names = ast.literal_eval(column_names_str)
-        except (ValueError, SyntaxError) as e:
-            raise ValueError(f"Failed to parse column names: {e}")
-
-    # Count total records (subtract 1 for metadata record)
+    column_names = json.loads(column_names_str)
     record_count = total_records - 1
 
     return column_names, record_count

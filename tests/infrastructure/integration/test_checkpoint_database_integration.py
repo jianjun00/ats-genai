@@ -232,27 +232,24 @@ class DatabaseTestCheckpointManager:
         """Store Tiingo prices in database"""
         stored_count = 0
         for price in prices:
-            try:
-                await self.conn.execute("""
-                    INSERT INTO test_tiingo_prices
-                    (symbol, price_date, open_price, high_price, low_price, close_price,
-                     adj_close_price, volume, raw_data, job_id)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                    ON CONFLICT (symbol, price_date) DO UPDATE SET
-                        open_price = EXCLUDED.open_price,
-                        high_price = EXCLUDED.high_price,
-                        low_price = EXCLUDED.low_price,
-                        close_price = EXCLUDED.close_price,
-                        adj_close_price = EXCLUDED.adj_close_price,
-                        volume = EXCLUDED.volume,
-                        raw_data = EXCLUDED.raw_data,
-                        job_id = EXCLUDED.job_id
-                """, symbol, price['date'], price['open'], price['high'],
-                    price['low'], price['close'], price['adj_close'],
-                    price['volume'], json.dumps(price['raw_data']), job_id)
-                stored_count += 1
-            except Exception as e:
-                logger.warning(f"Error storing price for {symbol}: {e}")
+            await self.conn.execute("""
+                INSERT INTO test_tiingo_prices
+                (symbol, price_date, open_price, high_price, low_price, close_price,
+                 adj_close_price, volume, raw_data, job_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (symbol, price_date) DO UPDATE SET
+                    open_price = EXCLUDED.open_price,
+                    high_price = EXCLUDED.high_price,
+                    low_price = EXCLUDED.low_price,
+                    close_price = EXCLUDED.close_price,
+                    adj_close_price = EXCLUDED.adj_close_price,
+                    volume = EXCLUDED.volume,
+                    raw_data = EXCLUDED.raw_data,
+                    job_id = EXCLUDED.job_id
+            """, symbol, price['date'], price['open'], price['high'],
+                price['low'], price['close'], price['adj_close'],
+                price['volume'], json.dumps(price['raw_data']), job_id)
+            stored_count += 1
         return stored_count
 
     async def cleanup_test_tables(self):
@@ -270,15 +267,8 @@ class TestDatabaseIntegration:
     @pytest.fixture
     async def db_connection(self):
         """Real database connection for integration tests"""
-        try:
-            conn = await asyncpg.connect(**TEST_DATABASE_CONFIG)
-            yield conn
-        except Exception as e:
-            pytest.skip(f"Cannot connect to test database: {e}")
-        finally:
-            if 'conn' in locals():
-                await conn.close()
-
+        conn = await asyncpg.connect(**TEST_DATABASE_CONFIG)
+        yield conn
     @pytest.fixture
     async def checkpoint_manager(self, db_connection):
         """Checkpoint manager with real database"""
@@ -509,15 +499,8 @@ class TestConcurrentJobExecution:
     @pytest.fixture
     async def db_connection(self):
         """Database connection for concurrency tests"""
-        try:
-            conn = await asyncpg.connect(**TEST_DATABASE_CONFIG)
-            yield conn
-        except Exception as e:
-            pytest.skip(f"Cannot connect to test database: {e}")
-        finally:
-            if 'conn' in locals():
-                await conn.close()
-
+        conn = await asyncpg.connect(**TEST_DATABASE_CONFIG)
+        yield conn
     @pytest.fixture
     async def checkpoint_manager(self, db_connection):
         """Checkpoint manager for concurrency tests"""
@@ -670,15 +653,8 @@ class TestJobRecoveryAndResumption:
     @pytest.fixture
     async def db_connection(self):
         """Database connection for recovery tests"""
-        try:
-            conn = await asyncpg.connect(**TEST_DATABASE_CONFIG)
-            yield conn
-        except Exception as e:
-            pytest.skip(f"Cannot connect to test database: {e}")
-        finally:
-            if 'conn' in locals():
-                await conn.close()
-
+        conn = await asyncpg.connect(**TEST_DATABASE_CONFIG)
+        yield conn
     @pytest.fixture
     async def checkpoint_manager(self, db_connection):
         """Checkpoint manager for recovery tests"""

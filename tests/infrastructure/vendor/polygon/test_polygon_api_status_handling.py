@@ -214,30 +214,25 @@ class TestPolygonApiStatusHandling:
                     'apikey': polygon_api_key
                 }
 
-                try:
-                    async with session.get(url, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            api_status = data.get('status', '')
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        api_status = data.get('status', '')
 
-                            # Verify our fix handles both OK and DELAYED
-                            if api_status in ['OK', 'DELAYED']:
-                                results = data.get('results', [])
-                                print(f"✅ {symbol}: Status={api_status}, Records={len(results)}")
-                                assert len(results) >= 0, f"Should accept {api_status} status for {symbol}"
-                            else:
-                                print(f"⚠️ {symbol}: Unexpected status={api_status}")
-
-                        elif response.status == 429:
-                            print(f"⏳ Rate limited for {symbol} (expected)")
-                            continue
+                        # Verify our fix handles both OK and DELAYED
+                        if api_status in ['OK', 'DELAYED']:
+                            results = data.get('results', [])
+                            print(f"✅ {symbol}: Status={api_status}, Records={len(results)}")
+                            assert len(results) >= 0, f"Should accept {api_status} status for {symbol}"
                         else:
-                            print(f"❌ {symbol}: HTTP {response.status}")
+                            print(f"⚠️ {symbol}: Unexpected status={api_status}")
 
-                except Exception as e:
-                    print(f"💥 {symbol}: Request failed: {e}")
+                    elif response.status == 429:
+                        print(f"⏳ Rate limited for {symbol} (expected)")
+                        continue
+                    else:
+                        print(f"❌ {symbol}: HTTP {response.status}")
 
-                # Rate limiting
                 await asyncio.sleep(2)
 
     @pytest.mark.asyncio

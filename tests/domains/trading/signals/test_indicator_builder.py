@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
-from state.instrument_interval import InstrumentInterval
-from state.indicator_interval import IndicatorInterval
-from domains.trading.services.indicator_builder import IndicatorBuilder
-from domains.trading.services.indicator import PL, OneOneHigh, OneOneLow, OneOneDot, ETop, EBot
+from domains.trading.services.state.instrument_interval import InstrumentInterval
+from domains.trading.services.state.indicator_interval import IndicatorInterval
+from domains.trading.services.indicators_builder import IndicatorBuilder
+# PL indicator does not exist, OneOneHigh, OneOneLow, OneOneDot, ETop, EBot
 
 class DummyIndicatorConfig:
     def __init__(self):

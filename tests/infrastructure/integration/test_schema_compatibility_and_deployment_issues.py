@@ -19,7 +19,7 @@ from dataclasses import dataclass
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 @dataclass
 class TableSchema:
@@ -44,51 +44,47 @@ class SchemaCompatibilityValidator:
     async def get_table_schema(self, table_name: str) -> Optional[TableSchema]:
         """Get actual schema for a table from database"""
         pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=2)
-        try:
-            async with pool.acquire() as conn:
-                # Check if table exists
-                table_exists = await conn.fetchval("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables
-                        WHERE table_schema = 'public'
-                          AND table_name = $1
-                    )
-                """, table_name)
-
-                if not table_exists:
-                    return None
-
-                # Get column information
-                rows = await conn.fetch("""
-                    SELECT column_name, data_type, is_nullable
-                    FROM information_schema.columns
+        async with pool.acquire() as conn:
+            # Check if table exists
+            table_exists = await conn.fetchval("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables
                     WHERE table_schema = 'public'
                       AND table_name = $1
-                    ORDER BY ordinal_position
-                """, table_name)
+                )
+            """, table_name)
 
-                columns = {}
-                for row in rows:
-                    columns[row['column_name']] = {
-                        'data_type': row['data_type'],
-                        'nullable': row['is_nullable'] == 'YES'
-                    }
+            if not table_exists:
+                return None
 
-                # Get constraints
-                constraint_rows = await conn.fetch("""
-                    SELECT constraint_name, constraint_type
-                    FROM information_schema.table_constraints
-                    WHERE table_schema = 'public'
-                      AND table_name = $1
-                """, table_name)
+            # Get column information
+            rows = await conn.fetch("""
+                SELECT column_name, data_type, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = $1
+                ORDER BY ordinal_position
+            """, table_name)
 
-                constraints = [f"{row['constraint_type']}: {row['constraint_name']}"
-                             for row in constraint_rows]
+            columns = {}
+            for row in rows:
+                columns[row['column_name']] = {
+                    'data_type': row['data_type'],
+                    'nullable': row['is_nullable'] == 'YES'
+                }
 
-                return TableSchema(table_name, columns, constraints)
-        finally:
-            await pool.close()
+            # Get constraints
+            constraint_rows = await conn.fetch("""
+                SELECT constraint_name, constraint_type
+                FROM information_schema.table_constraints
+                WHERE table_schema = 'public'
+                  AND table_name = $1
+            """, table_name)
 
+            constraints = [f"{row['constraint_type']}: {row['constraint_name']}"
+                         for row in constraint_rows]
+
+            return TableSchema(table_name, columns, constraints)
     async def validate_vendor_table_compatibility(self) -> Dict[str, Any]:
         """Validate all vendor tables have compatible schemas"""
 
@@ -235,16 +231,8 @@ class BackfillScriptValidator:
                                                    table_name: str) -> Dict[str, Any]:
         """Validate that a backfill script is compatible with database schema"""
 
-        try:
-            with open(script_path, 'r') as f:
-                script_content = f.read()
-        except FileNotFoundError:
-            return {
-                'valid': False,
-                'error': f"Script file not found: {script_path}"
-            }
-
-        # Get actual table schema
+        with open(script_path, 'r') as f:
+            script_content = f.read()
         schema = await self.schema_validator.get_table_schema(table_name)
         if not schema:
             return {

@@ -16,12 +16,8 @@ SLACK_WEBHOOK = "https://hooks.slack.com/services/T09ANHQAF0D/B09AX7TTTHT/XG8KiV
 
 def run_command(cmd):
     """Run shell command and return output"""
-    try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-        return result.stdout.strip() if result.returncode == 0 else None
-    except:
-        return None
-
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+    return result.stdout.strip() if result.returncode == 0 else None
 def get_system_metrics():
     """Get basic system metrics using system commands"""
     metrics = {
@@ -112,13 +108,8 @@ def send_slack_message(message, title="WSL System Status"):
         }]
     }
 
-    try:
-        response = requests.post(SLACK_WEBHOOK, json=payload, timeout=10)
-        return response.status_code == 200
-    except Exception as e:
-        print(f"Failed to send Slack message: {e}")
-        return False
-
+    response = requests.post(SLACK_WEBHOOK, json=payload, timeout=10)
+    return response.status_code == 200
 def format_status_message(metrics):
     """Format system metrics into Slack message"""
     message = f"""**System Health Report**
@@ -169,28 +160,19 @@ def run_monitoring_loop(interval_minutes=60):
     send_slack_message(message, "🚀 WSL System Monitor Started")
 
     while True:
-        try:
-            print(f"Waiting {interval_minutes} minutes until next update...")
-            time.sleep(interval_minutes * 60)
+        print(f"Waiting {interval_minutes} minutes until next update...")
+        time.sleep(interval_minutes * 60)
 
-            print(f"Collecting system metrics at {datetime.now().strftime('%H:%M:%S')}...")
-            metrics = get_system_metrics()
-            message = format_status_message(metrics)
+        print(f"Collecting system metrics at {datetime.now().strftime('%H:%M:%S')}...")
+        metrics = get_system_metrics()
+        message = format_status_message(metrics)
 
-            success = send_slack_message(message, f"📊 Hourly System Status - {datetime.now().strftime('%H:%M')}")
+        success = send_slack_message(message, f"📊 Hourly System Status - {datetime.now().strftime('%H:%M')}")
 
-            if success:
-                print(f"✅ Hourly status sent at {datetime.now().strftime('%H:%M:%S')}")
-            else:
-                print(f"❌ Failed to send hourly status at {datetime.now().strftime('%H:%M:%S')}")
-
-        except KeyboardInterrupt:
-            print("\nMonitoring stopped by user")
-            send_slack_message("🛑 WSL System Monitor stopped by user", "Monitor Shutdown")
-            break
-        except Exception as e:
-            print(f"Error in monitoring loop: {e}")
-            time.sleep(300)  # Wait 5 minutes before retrying
+        if success:
+            print(f"✅ Hourly status sent at {datetime.now().strftime('%H:%M:%S')}")
+        else:
+            print(f"❌ Failed to send hourly status at {datetime.now().strftime('%H:%M:%S')}")
 
 def main():
     """Main entry point"""

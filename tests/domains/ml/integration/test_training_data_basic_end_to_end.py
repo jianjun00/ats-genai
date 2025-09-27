@@ -68,51 +68,46 @@ async def test_arrayrecord_files_are_readable_and_contain_data():
         file_size = os.path.getsize(file_path)
         assert file_size > 1000, f"File too small: {file_size} bytes"
 
-        try:
-            # VERIFICATION: ArrayRecord file is readable
-            reader = array_record.ArrayRecordReader(str(file_path))
-            record_count = reader.num_records()
+        # VERIFICATION: ArrayRecord file is readable
+        reader = array_record.ArrayRecordReader(str(file_path))
+        record_count = reader.num_records()
 
-            print(f"   📊 Records: {record_count:,}")
+        print(f"   📊 Records: {record_count:,}")
 
-            if record_count > 0:
-                total_records += record_count
-                valid_files += 1
+        if record_count > 0:
+            total_records += record_count
+            valid_files += 1
 
-                # VERIFICATION: Sample record has valid structure
-                reader.seek(0)
-                sample_record = reader.read()
+            # VERIFICATION: Sample record has valid structure
+            reader.seek(0)
+            sample_record = reader.read()
 
-                # Parse and verify binary format
-                indicator_count = struct.unpack('>H', sample_record[:2])[0]
-                timestamp = struct.unpack('>d', sample_record[2:10])[0]
-                symbol_len = struct.unpack('>I', sample_record[10:14])[0]
-                symbol = sample_record[14:14+symbol_len].decode('utf-8')
+            # Parse and verify binary format
+            indicator_count = struct.unpack('>H', sample_record[:2])[0]
+            timestamp = struct.unpack('>d', sample_record[2:10])[0]
+            symbol_len = struct.unpack('>I', sample_record[10:14])[0]
+            symbol = sample_record[14:14+symbol_len].decode('utf-8')
 
-                # VERIFICATION: Data is reasonable
-                assert indicator_count > 0, f"No indicators in record"
-                assert symbol_len > 0, f"Invalid symbol length"
-                assert symbol == 'TSLA', f"Unexpected symbol: {symbol}"
-                assert timestamp > 1640995200, f"Invalid timestamp: {timestamp}"  # After 2022
+            # VERIFICATION: Data is reasonable
+            assert indicator_count > 0, f"No indicators in record"
+            assert symbol_len > 0, f"Invalid symbol length"
+            assert symbol == 'TSLA', f"Unexpected symbol: {symbol}"
+            assert timestamp > 1640995200, f"Invalid timestamp: {timestamp}"  # After 2022
 
-                # VERIFICATION: OHLCV data
-                ohlcv_offset = 14 + symbol_len
-                ohlcv_data = struct.unpack('>fffff', sample_record[ohlcv_offset:ohlcv_offset+20])
-                open_price, high_price, low_price, close_price, volume = ohlcv_data
+            # VERIFICATION: OHLCV data
+            ohlcv_offset = 14 + symbol_len
+            ohlcv_data = struct.unpack('>fffff', sample_record[ohlcv_offset:ohlcv_offset+20])
+            open_price, high_price, low_price, close_price, volume = ohlcv_data
 
-                assert open_price > 0, f"Invalid open price: {open_price}"
-                assert high_price >= low_price, f"High < Low: {high_price} < {low_price}"
-                assert volume >= 0, f"Negative volume: {volume}"
+            assert open_price > 0, f"Invalid open price: {open_price}"
+            assert high_price >= low_price, f"High < Low: {high_price} < {low_price}"
+            assert volume >= 0, f"Negative volume: {volume}"
 
-                print(f"   💰 OHLCV: O=${open_price:.2f}, H=${high_price:.2f}, L=${low_price:.2f}, C=${close_price:.2f}, V={volume:,.0f}")
-                print(f"   🔧 Indicators: {indicator_count}")
-            else:
-                print(f"   ⚠️ Empty file: {file_path}")
+            print(f"   💰 OHLCV: O=${open_price:.2f}, H=${high_price:.2f}, L=${low_price:.2f}, C=${close_price:.2f}, V={volume:,.0f}")
+            print(f"   🔧 Indicators: {indicator_count}")
+        else:
+            print(f"   ⚠️ Empty file: {file_path}")
 
-        except Exception as e:
-            pytest.fail(f"Error reading ArrayRecord file {file_path}: {e}")
-
-    # VERIFICATION: Overall data quality
     print(f"\n📊 SUMMARY:")
     print(f"   📁 Total files: {len(arrayrecord_files)}")
     print(f"   ✅ Valid files: {valid_files}")
@@ -154,29 +149,24 @@ async def test_multi_timeframe_consistency():
                     if timeframe in expected_timeframes:
                         file_path = os.path.join(root, file)
 
-                        try:
-                            reader = array_record.ArrayRecordReader(str(file_path))
-                            record_count = reader.num_records()
+                        reader = array_record.ArrayRecordReader(str(file_path))
+                        record_count = reader.num_records()
 
-                            if record_count > 0:
-                                reader.seek(0)
-                                first_record = reader.read()
+                        if record_count > 0:
+                            reader.seek(0)
+                            first_record = reader.read()
 
-                                # Extract timestamp from first record
-                                timestamp = struct.unpack('>d', first_record[2:10])[0]
+                            # Extract timestamp from first record
+                            timestamp = struct.unpack('>d', first_record[2:10])[0]
 
-                                timeframe_data[timeframe] = {
-                                    'records': record_count,
-                                    'first_timestamp': timestamp,
-                                    'file_path': file_path
-                                }
+                            timeframe_data[timeframe] = {
+                                'records': record_count,
+                                'first_timestamp': timestamp,
+                                'file_path': file_path
+                            }
 
-                                print(f"📊 {timeframe}: {record_count} records")
+                            print(f"📊 {timeframe}: {record_count} records")
 
-                        except Exception as e:
-                            print(f"⚠️ Error reading {timeframe} data: {e}")
-
-    # VERIFICATION: All expected timeframes present
     found_timeframes = set(timeframe_data.keys())
     expected_timeframes_set = set(expected_timeframes)
     missing_timeframes = expected_timeframes_set - found_timeframes
@@ -206,52 +196,45 @@ async def test_database_tracking():
     """
     print("\n🧪 Testing database tracking")
 
-    try:
-        pool = await get_database_pool('intg')
-        async with pool.acquire() as conn:
-            # Check for recent training data runs
-            recent_runs = await conn.fetch("""
-                SELECT id, run_type, status, created_at
-                FROM intg_runs
-                WHERE run_type = 'training_data_generation'
-                AND created_at >= NOW() - INTERVAL '24 hours'
-                ORDER BY created_at DESC
-                LIMIT 5
-            """)
+    pool = await get_database_pool('intg')
+    async with pool.acquire() as conn:
+        # Check for recent training data runs
+        recent_runs = await conn.fetch("""
+            SELECT id, run_type, status, created_at
+            FROM intg_runs
+            WHERE run_type = 'training_data_generation'
+            AND created_at >= NOW() - INTERVAL '24 hours'
+            ORDER BY created_at DESC
+            LIMIT 5
+        """)
 
-            print(f"📊 Found {len(recent_runs)} recent training data runs")
+        print(f"📊 Found {len(recent_runs)} recent training data runs")
 
-            if recent_runs:
-                latest_run = recent_runs[0]
-                print(f"🔍 Latest run ID: {latest_run['id']}")
-                print(f"📋 Status: {latest_run['status']}")
-                print(f"📅 Created: {latest_run['created_at']}")
+        if recent_runs:
+            latest_run = recent_runs[0]
+            print(f"🔍 Latest run ID: {latest_run['id']}")
+            print(f"📋 Status: {latest_run['status']}")
+            print(f"📅 Created: {latest_run['created_at']}")
 
-            # Check for training datasets
-            datasets = await conn.fetch("""
-                SELECT id, dataset_name, symbols, status, created_at
-                FROM intg_training_dataset
-                WHERE created_at >= NOW() - INTERVAL '24 hours'
-                ORDER BY created_at DESC
-                LIMIT 5
-            """)
+        # Check for training datasets
+        datasets = await conn.fetch("""
+            SELECT id, dataset_name, symbols, status, created_at
+            FROM intg_training_dataset
+            WHERE created_at >= NOW() - INTERVAL '24 hours'
+            ORDER BY created_at DESC
+            LIMIT 5
+        """)
 
-            print(f"📊 Found {len(datasets)} recent training datasets")
+        print(f"📊 Found {len(datasets)} recent training datasets")
 
-            if datasets:
-                latest_dataset = datasets[0]
-                print(f"📋 Latest dataset: {latest_dataset['dataset_name']}")
-                print(f"📊 Status: {latest_dataset['status']}")
-                print(f"🎯 Symbols: {latest_dataset['symbols']}")
+        if datasets:
+            latest_dataset = datasets[0]
+            print(f"📋 Latest dataset: {latest_dataset['dataset_name']}")
+            print(f"📊 Status: {latest_dataset['status']}")
+            print(f"🎯 Symbols: {latest_dataset['symbols']}")
 
-        await pool.close()
-        print("✅ Database tracking test passed")
-
-    except Exception as e:
-        print(f"⚠️ Database tracking test failed: {e}")
-        # Don't fail the test if database is unavailable
-        pytest.skip(f"Database not available: {e}")
-
+    await pool.close()
+    print("✅ Database tracking test passed")
 
 @pytest.mark.asyncio
 async def test_comprehensive_system_health():
@@ -267,27 +250,12 @@ async def test_comprehensive_system_health():
     test_results = {}
 
     # Test 1: ArrayRecord file quality
-    try:
-        await test_arrayrecord_files_are_readable_and_contain_data()
-        test_results['ArrayRecord Files'] = '✅ PASSED'
-    except Exception as e:
-        test_results['ArrayRecord Files'] = f'❌ FAILED: {e}'
-
-    # Test 2: Multi-timeframe consistency
-    try:
-        await test_multi_timeframe_consistency()
-        test_results['Multi-timeframe Consistency'] = '✅ PASSED'
-    except Exception as e:
-        test_results['Multi-timeframe Consistency'] = f'❌ FAILED: {e}'
-
-    # Test 3: Database tracking
-    try:
-        await test_database_tracking()
-        test_results['Database Tracking'] = '✅ PASSED'
-    except Exception as e:
-        test_results['Database Tracking'] = f'⚠️ SKIPPED: {e}'
-
-    # Generate comprehensive report
+    await test_arrayrecord_files_are_readable_and_contain_data()
+    test_results['ArrayRecord Files'] = '✅ PASSED'
+    await test_multi_timeframe_consistency()
+    test_results['Multi-timeframe Consistency'] = '✅ PASSED'
+    await test_database_tracking()
+    test_results['Database Tracking'] = '✅ PASSED'
     print("\n" + "="*80)
     print("🎯 COMPREHENSIVE TEST RESULTS")
     print("="*80)

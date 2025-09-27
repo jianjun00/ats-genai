@@ -10,15 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
-
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TestRealObjectsHardcodedValues:
@@ -55,13 +47,7 @@ class TestRealObjectsHardcodedValues:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_default_port_values_real_objects(self, real_service, test_data):
         """Real objects version of test_default_port_values"""
         # Test with real database integration
@@ -76,14 +62,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.default_port_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.default_port_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_default_database_configuration_real_objects(self, real_service, test_data):
         """Real objects version of test_default_database_configuration"""
         # Test with real database integration
@@ -98,14 +78,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.default_database_configuration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.default_database_configuration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_stock_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_stock_symbols"""
         # Test with real database integration
@@ -120,14 +94,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_stock_symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_stock_symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_date_ranges_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_date_ranges"""
         # Test with real database integration
@@ -142,14 +110,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_date_ranges_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_date_ranges_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_financial_thresholds_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_financial_thresholds"""
         # Test with real database integration
@@ -164,14 +126,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_financial_thresholds_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_financial_thresholds_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_timeouts_and_delays_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_timeouts_and_delays"""
         # Test with real database integration
@@ -186,14 +142,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_timeouts_and_delays_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_timeouts_and_delays_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_batch_sizes_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_batch_sizes"""
         # Test with real database integration
@@ -208,14 +158,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_batch_sizes_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_batch_sizes_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_base_prices_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_base_prices"""
         # Test with real database integration
@@ -230,14 +174,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_base_prices_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_base_prices_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_volatility_values_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_volatility_values"""
         # Test with real database integration
@@ -252,14 +190,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_volatility_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_volatility_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_sector_mappings_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_sector_mappings"""
         # Test with real database integration
@@ -274,14 +206,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_sector_mappings_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_sector_mappings_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_cors_origins_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_cors_origins"""
         # Test with real database integration
@@ -296,14 +222,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_cors_origins_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_cors_origins_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_api_limits_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_api_limits"""
         # Test with real database integration
@@ -318,14 +238,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_api_limits_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_api_limits_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_file_paths_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_file_paths"""
         # Test with real database integration
@@ -340,14 +254,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_file_paths_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_file_paths_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hardcoded_table_names_real_objects(self, real_service, test_data):
         """Real objects version of test_hardcoded_table_names"""
         # Test with real database integration
@@ -362,14 +270,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hardcoded_table_names_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.hardcoded_table_names_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gin_binding_structure_real_objects(self, real_service, test_data):
         """Real objects version of test_gin_binding_structure"""
         # Test with real database integration
@@ -384,14 +286,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gin_binding_structure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gin_binding_structure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_environment_override_capability_real_objects(self, real_service, test_data):
         """Real objects version of test_environment_override_capability"""
         # Test with real database integration
@@ -406,15 +302,8 @@ class TestRealObjectsHardcodedValues:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.environment_override_capability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.environment_override_capability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

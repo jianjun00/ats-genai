@@ -297,39 +297,27 @@ class ValidatedFinancialAVLoss(nn.Module):
 
         if len(returns) > 2:
             # CVaR penalty with bounds
-            try:
-                var_threshold = torch.quantile(returns, self.alpha_cvar)
-                tail_losses = returns[returns <= var_threshold]
+            var_threshold = torch.quantile(returns, self.alpha_cvar)
+            tail_losses = returns[returns <= var_threshold]
 
-                if len(tail_losses) > 0:
-                    cvar_penalty = -torch.mean(tail_losses)
-                    # Bound CVaR penalty
-                    cvar_penalty = torch.clamp(cvar_penalty, 0, self.max_cvar_penalty)
-                    total_loss += cvar_penalty
-                    loss_components['cvar_penalty'] = cvar_penalty.item()
-                else:
-                    loss_components['cvar_penalty'] = 0.0
-            except Exception as e:
-                logger.warning(f"CVaR calculation failed: {e}")
+            if len(tail_losses) > 0:
+                cvar_penalty = -torch.mean(tail_losses)
+                # Bound CVaR penalty
+                cvar_penalty = torch.clamp(cvar_penalty, 0, self.max_cvar_penalty)
+                total_loss += cvar_penalty
+                loss_components['cvar_penalty'] = cvar_penalty.item()
+            else:
                 loss_components['cvar_penalty'] = 0.0
+            cumulative_returns = torch.cumsum(returns, dim=0)
+            running_max = torch.cummax(cumulative_returns, dim=0)[0]
+            drawdown = cumulative_returns - running_max
+            max_drawdown = -torch.min(drawdown)
 
-            # Drawdown penalty with bounds
-            try:
-                cumulative_returns = torch.cumsum(returns, dim=0)
-                running_max = torch.cummax(cumulative_returns, dim=0)[0]
-                drawdown = cumulative_returns - running_max
-                max_drawdown = -torch.min(drawdown)
-
-                # Bound drawdown penalty
-                drawdown_penalty = torch.clamp(max_drawdown * self.lambda_drawdown, 0, self.max_drawdown_penalty)
-                total_loss += drawdown_penalty
-                loss_components['drawdown_penalty'] = drawdown_penalty.item()
-                loss_components['max_drawdown'] = max_drawdown.item()
-            except Exception as e:
-                logger.warning(f"Drawdown calculation failed: {e}")
-                loss_components['drawdown_penalty'] = 0.0
-
-        # Final validation of total loss
+            # Bound drawdown penalty
+            drawdown_penalty = torch.clamp(max_drawdown * self.lambda_drawdown, 0, self.max_drawdown_penalty)
+            total_loss += drawdown_penalty
+            loss_components['drawdown_penalty'] = drawdown_penalty.item()
+            loss_components['max_drawdown'] = max_drawdown.item()
         if torch.isnan(total_loss) or torch.isinf(total_loss):
             logger.error(f"Invalid total loss: {total_loss}")
             total_loss = torch.tensor(1000.0, device=device)  # Large but finite loss
@@ -981,10 +969,9 @@ def robust_training_and_evaluation():
 
 
 if __name__ == "__main__":
-    try:
-        results = robust_training_and_evaluation()
-        logger.info("✅ Robust validation completed successfully")
-        sys.exit(0)
+    results = robust_training_and_evaluation()
+    logger.info("✅ Robust validation completed successfully")
+    sys.exit(0)
     except Exception as e:
         logger.error(f"❌ Robust validation failed: {e}")
         import traceback

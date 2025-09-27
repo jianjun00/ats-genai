@@ -362,24 +362,20 @@ class TestDatabaseSchemaCompatibility:
         }
 
         # Test INSERT works with explicit column names (most robust)
-        try:
-            await db_connection.execute("""
-                INSERT INTO dev_daily_price_tiingo
-                (date, symbol, open, high, low, close, adjclose, volume, status_id, instrument_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            """,
-            test_data['date'], test_data['symbol'], test_data['open'],
-            test_data['high'], test_data['low'], test_data['close'],
-            test_data['adjclose'], test_data['volume'], test_data['status_id'],
-            test_data['instrument_id'])
+        await db_connection.execute("""
+            INSERT INTO dev_daily_price_tiingo
+            (date, symbol, open, high, low, close, adjclose, volume, status_id, instrument_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        """,
+        test_data['date'], test_data['symbol'], test_data['open'],
+        test_data['high'], test_data['low'], test_data['close'],
+        test_data['adjclose'], test_data['volume'], test_data['status_id'],
+        test_data['instrument_id'])
 
-            # Cleanup test data
-            await db_connection.execute(
-                "DELETE FROM dev_daily_price_tiingo WHERE symbol = 'TEST_SCHEMA'"
-            )
-
-        except Exception as e:
-            pytest.fail(f"INSERT statement failed - schema compatibility issue: {e}")
+        # Cleanup test data
+        await db_connection.execute(
+            "DELETE FROM dev_daily_price_tiingo WHERE symbol = 'TEST_SCHEMA'"
+        )
 
     def test_script_error_handling_for_schema_issues(self):
         """Test that scripts handle schema mismatches gracefully"""

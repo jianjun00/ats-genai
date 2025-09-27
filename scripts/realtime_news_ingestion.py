@@ -37,55 +37,18 @@ import time
 from pathlib import Path
 
 # OpenTelemetry imports for SigNoz integration (optional)
-try:
-    from opentelemetry import trace, metrics
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-    from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
-    from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
-    from opentelemetry.instrumentation.logging import LoggingInstrumentor
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.sdk.resources import Resource
-    OTEL_AVAILABLE = True
-except ImportError as e:
-    OTEL_AVAILABLE = False
-
-    # Dummy classes for compatibility
-    class NoOpTracer:
-        def start_as_current_span(self, name):
-            return NoOpSpan()
-
-    class NoOpSpan:
-        def __enter__(self): return self
-        def __exit__(self, *args): pass
-        def set_attributes(self, attrs): pass
-        def set_attribute(self, key, value): pass
-        def record_exception(self, exc): pass
-        def set_status(self, status_code, description=""): pass
-
-    class StatusCode:
-        ERROR = "ERROR"
-        OK = "OK"
-
-    # Create a fake trace module for compatibility
-    class NoOpTrace:
-        StatusCode = StatusCode
-
-    trace = NoOpTrace()
-
-    class NoOpMeter:
-        def create_counter(self, name, **kwargs): return NoOpInstrument()
-        def create_histogram(self, name, **kwargs): return NoOpInstrument()
-        def create_up_down_counter(self, name, **kwargs): return NoOpInstrument()
-
-    class NoOpInstrument:
-        def add(self, amount, attributes=None): pass
-        def record(self, amount, attributes=None): pass
-
-# Import the news backfill components
+from opentelemetry import trace, metrics
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
+from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import Resource
+OTEL_AVAILABLE = True
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from multi_vendor_news_backfill import (
     NewsArticle, VendorNewsConfig, TiingoNewsCollector,
@@ -144,53 +107,47 @@ def setup_telemetry():
         logger.warning("📊 OpenTelemetry not available - using no-op implementations")
         return NoOpTracer(), NoOpMeter()
 
-    try:
-        # Get configuration from environment
-        otel_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://signoz-otel-collector:4318')
-        service_name = os.getenv('OTEL_SERVICE_NAME', 'ats-intg-news-realtime')
-        environment = os.getenv('ENVIRONMENT', 'intg')
+    # Get configuration from environment
+    otel_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://signoz-otel-collector:4318')
+    service_name = os.getenv('OTEL_SERVICE_NAME', 'ats-intg-news-realtime')
+    environment = os.getenv('ENVIRONMENT', 'intg')
 
-        # Create resource
-        resource = Resource.create({
-            "service.name": service_name,
-            "service.version": "1.0.0",
-            "deployment.environment": environment,
-            "ats.tier": "integration",
-            "ats.component": "news-ingestion",
-            "ats.criticality": "high"
-        })
+    # Create resource
+    resource = Resource.create({
+        "service.name": service_name,
+        "service.version": "1.0.0",
+        "deployment.environment": environment,
+        "ats.tier": "integration",
+        "ats.component": "news-ingestion",
+        "ats.criticality": "high"
+    })
 
-        # Setup tracing
-        trace_provider = TracerProvider(resource=resource)
-        trace_exporter = OTLPSpanExporter(
-            endpoint=f"{otel_endpoint}/v1/traces",
-            headers={"Content-Type": "application/json"}
-        )
-        span_processor = BatchSpanProcessor(trace_exporter)
-        trace_provider.add_span_processor(span_processor)
-        trace.set_tracer_provider(trace_provider)
+    # Setup tracing
+    trace_provider = TracerProvider(resource=resource)
+    trace_exporter = OTLPSpanExporter(
+        endpoint=f"{otel_endpoint}/v1/traces",
+        headers={"Content-Type": "application/json"}
+    )
+    span_processor = BatchSpanProcessor(trace_exporter)
+    trace_provider.add_span_processor(span_processor)
+    trace.set_tracer_provider(trace_provider)
 
-        # Setup metrics
-        metric_exporter = OTLPMetricExporter(
-            endpoint=f"{otel_endpoint}/v1/metrics",
-            headers={"Content-Type": "application/json"}
-        )
-        metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=30000)
-        metrics_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
-        metrics.set_meter_provider(metrics_provider)
+    # Setup metrics
+    metric_exporter = OTLPMetricExporter(
+        endpoint=f"{otel_endpoint}/v1/metrics",
+        headers={"Content-Type": "application/json"}
+    )
+    metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=30000)
+    metrics_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    metrics.set_meter_provider(metrics_provider)
 
-        # Auto-instrument libraries
-        AsyncPGInstrumentor().instrument()
-        AioHttpClientInstrumentor().instrument()
-        LoggingInstrumentor().instrument(set_logging_format=True)
+    # Auto-instrument libraries
+    AsyncPGInstrumentor().instrument()
+    AioHttpClientInstrumentor().instrument()
+    LoggingInstrumentor().instrument(set_logging_format=True)
 
-        logger.info("✅ OpenTelemetry configured for SigNoz")
-        return trace.get_tracer(__name__), metrics.get_meter(__name__)
-
-    except Exception as e:
-        logger.error(f"❌ Failed to setup OpenTelemetry: {e}")
-        logger.warning("📊 Falling back to no-op implementations")
-        return NoOpTracer(), NoOpMeter()
+    logger.info("✅ OpenTelemetry configured for SigNoz")
+    return trace.get_tracer(__name__), metrics.get_meter(__name__)
 
 class NewsIngestionMetrics:
     """Enhanced metrics collection for news ingestion with OpenTelemetry integration."""
@@ -416,24 +373,20 @@ class RealTimeNewsIngestion:
 
             config = self.vendor_configs[vendor]
 
-            try:
-                if vendor == 'tiingo':
-                    collector = TiingoNewsCollector(config)
-                elif vendor == 'polygon':
-                    collector = PolygonNewsCollector(config)
-                elif vendor == 'eodhd':
-                    collector = EODHDNewsCollector(config)
+            if vendor == 'tiingo':
+                collector = TiingoNewsCollector(config)
+            elif vendor == 'polygon':
+                collector = PolygonNewsCollector(config)
+            elif vendor == 'eodhd':
+                collector = EODHDNewsCollector(config)
 
-                # Test API key
-                async with self.db_pool.acquire() as conn:
-                    await collector.initialize(conn)
-                    await collector.cleanup()
+            # Test API key
+            async with self.db_pool.acquire() as conn:
+                await collector.initialize(conn)
+                await collector.cleanup()
 
-                self.collectors[vendor] = config
-                logger.info(f"✅ {vendor} collector initialized")
-
-            except Exception as e:
-                logger.error(f"❌ Failed to initialize {vendor}: {e}")
+            self.collectors[vendor] = config
+            logger.info(f"✅ {vendor} collector initialized")
 
         if not self.collectors:
             raise RuntimeError("No collectors initialized successfully")
@@ -445,24 +398,19 @@ class RealTimeNewsIngestion:
         """Load last processed timestamps from database."""
         async with self.db_pool.acquire() as conn:
             for vendor in self.collectors.keys():
-                try:
-                    # Get latest article timestamp for this vendor
-                    latest = await conn.fetchval(
-                        "SELECT MAX(published_utc) FROM intg_realtime_news WHERE vendor = $1",
-                        vendor
-                    )
+                # Get latest article timestamp for this vendor
+                latest = await conn.fetchval(
+                    "SELECT MAX(published_utc) FROM intg_realtime_news WHERE vendor = $1",
+                    vendor
+                )
 
-                    if latest:
-                        self.last_processed[vendor] = latest
-                        logger.info(f"📅 {vendor} last processed: {latest}")
-                    else:
-                        # Default to 1 hour ago
-                        self.last_processed[vendor] = datetime.now(timezone.utc) - timedelta(hours=1)
-                        logger.info(f"📅 {vendor} starting from: {self.last_processed[vendor]}")
-
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not load last processed for {vendor}: {e}")
+                if latest:
+                    self.last_processed[vendor] = latest
+                    logger.info(f"📅 {vendor} last processed: {latest}")
+                else:
+                    # Default to 1 hour ago
                     self.last_processed[vendor] = datetime.now(timezone.utc) - timedelta(hours=1)
+                    logger.info(f"📅 {vendor} starting from: {self.last_processed[vendor]}")
 
     async def cleanup(self):
         """Clean up resources."""
@@ -470,11 +418,7 @@ class RealTimeNewsIngestion:
 
         for collector in self.collectors.values():
             if hasattr(collector, 'cleanup'):
-                try:
-                    await collector.cleanup()
-                except:
-                    pass
-
+                await collector.cleanup()
         if self.db_pool:
             await self.db_pool.close()
 
@@ -503,49 +447,38 @@ class RealTimeNewsIngestion:
                 return articles
 
             async with self.db_pool.acquire() as conn:
-                try:
-                    await collector.initialize(conn)
+                await collector.initialize(conn)
 
-                    # Fetch news since last processed
-                    start_date = self.last_processed[vendor].date()
-                    end_date = datetime.now(timezone.utc).date()
+                # Fetch news since last processed
+                start_date = self.last_processed[vendor].date()
+                end_date = datetime.now(timezone.utc).date()
 
-                    logger.debug(f"🔄 Fetching {vendor} news from {start_date} to {end_date}")
+                logger.debug(f"🔄 Fetching {vendor} news from {start_date} to {end_date}")
 
-                    articles = await collector.fetch_news(start_date, end_date)
+                articles = await collector.fetch_news(start_date, end_date)
 
-                    # Calculate API response time
-                    response_time_ms = (time.time() - api_start) * 1000
+                # Calculate API response time
+                response_time_ms = (time.time() - api_start) * 1000
 
-                    span.set_attributes({
-                        "api_response_time_ms": response_time_ms,
-                        "articles_total": len(articles)
-                    })
+                span.set_attributes({
+                    "api_response_time_ms": response_time_ms,
+                    "articles_total": len(articles)
+                })
 
-                    # Filter articles newer than last processed
-                    new_articles = [
-                        article for article in articles
-                        if article.published_utc > self.last_processed[vendor]
-                    ]
+                # Filter articles newer than last processed
+                new_articles = [
+                    article for article in articles
+                    if article.published_utc > self.last_processed[vendor]
+                ]
 
-                    span.set_attribute("articles_new", len(new_articles))
+                span.set_attribute("articles_new", len(new_articles))
 
-                    self.metrics.record_fetch(vendor, len(new_articles))
-                    self.metrics.record_api_call(vendor, True, response_time_ms)
+                self.metrics.record_fetch(vendor, len(new_articles))
+                self.metrics.record_api_call(vendor, True, response_time_ms)
 
-                    logger.debug(f"📰 {vendor}: {len(articles)} total, {len(new_articles)} new")
+                logger.debug(f"📰 {vendor}: {len(articles)} total, {len(new_articles)} new")
 
-                    return new_articles
-
-                except Exception as e:
-                    logger.error(f"❌ Error fetching {vendor} news: {e}")
-                    span.record_exception(e)
-                    span.set_status(trace.StatusCode.ERROR, str(e))
-                    self.metrics.record_api_call(vendor, False)
-                    return []
-
-                finally:
-                    await collector.cleanup()
+                return new_articles
 
     async def process_vendor_news(self, vendor: str, articles: List[NewsArticle]) -> int:
         """Process and store news articles from a vendor."""
@@ -568,35 +501,26 @@ class RealTimeNewsIngestion:
 
             await collector.initialize(conn)
 
-            try:
-                for article in articles:
-                    try:
-                        stored, action = await collector.store_article(article)
-                        if stored:
-                            if action == "inserted":
-                                stored_count += 1
-                            elif action == "updated":
-                                updated_count += 1
+            for article in articles:
+                stored, action = await collector.store_article(article)
+                if stored:
+                    if action == "inserted":
+                        stored_count += 1
+                    elif action == "updated":
+                        updated_count += 1
 
-                            # Update latest timestamp
-                            if article.published_utc > latest_timestamp:
-                                latest_timestamp = article.published_utc
+                    # Update latest timestamp
+                    if article.published_utc > latest_timestamp:
+                        latest_timestamp = article.published_utc
 
-                    except Exception as e:
-                        logger.warning(f"⚠️ Error storing {vendor} article: {e}")
+            self.last_processed[vendor] = latest_timestamp
 
-                # Update last processed timestamp
-                self.last_processed[vendor] = latest_timestamp
+            # Record metrics
+            self.metrics.record_store(vendor, stored_count)
+            self.metrics.record_update(vendor, updated_count)
 
-                # Record metrics
-                self.metrics.record_store(vendor, stored_count)
-                self.metrics.record_update(vendor, updated_count)
-
-                if stored_count > 0 or updated_count > 0:
-                    logger.info(f"✅ {vendor}: {stored_count} stored, {updated_count} updated")
-
-            finally:
-                await collector.cleanup()
+            if stored_count > 0 or updated_count > 0:
+                logger.info(f"✅ {vendor}: {stored_count} stored, {updated_count} updated")
 
         return stored_count + updated_count
 
@@ -614,27 +538,22 @@ class RealTimeNewsIngestion:
             total_processed = 0
 
             for vendor in self.collectors.keys():
-                try:
-                    vendor_start = time.time()
+                vendor_start = time.time()
 
-                    # Fetch news
-                    articles = await self.fetch_vendor_news(vendor)
+                # Fetch news
+                articles = await self.fetch_vendor_news(vendor)
 
-                    # Process articles
-                    if articles:
-                        processed = await self.process_vendor_news(vendor, articles)
-                        total_processed += processed
+                # Process articles
+                if articles:
+                    processed = await self.process_vendor_news(vendor, articles)
+                    total_processed += processed
 
-                    # Record processing time
-                    processing_time = time.time() - vendor_start
-                    self.metrics.record_processing_time(vendor, processing_time)
+                # Record processing time
+                processing_time = time.time() - vendor_start
+                self.metrics.record_processing_time(vendor, processing_time)
 
-                    # Rate limiting between vendors
-                    await asyncio.sleep(1.0)
-
-                except Exception as e:
-                    logger.error(f"❌ Error processing {vendor}: {e}")
-                    span.set_attribute(f"error.{vendor}", str(e))
+                # Rate limiting between vendors
+                await asyncio.sleep(1.0)
 
             cycle_time = time.time() - cycle_start
             cycle_time_ms = cycle_time * 1000
@@ -653,27 +572,22 @@ class RealTimeNewsIngestion:
 
     async def health_check(self):
         """Perform health checks."""
-        try:
-            # Database connectivity check
-            async with self.db_pool.acquire() as conn:
-                await conn.fetchval("SELECT 1")
+        # Database connectivity check
+        async with self.db_pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
 
-            # Check for stale data (no updates in last hour)
-            now = datetime.now(timezone.utc)
-            stale_vendors = []
+        # Check for stale data (no updates in last hour)
+        now = datetime.now(timezone.utc)
+        stale_vendors = []
 
-            for vendor, last_time in self.last_processed.items():
-                if (now - last_time).total_seconds() > 3600:  # 1 hour
-                    stale_vendors.append(vendor)
+        for vendor, last_time in self.last_processed.items():
+            if (now - last_time).total_seconds() > 3600:  # 1 hour
+                stale_vendors.append(vendor)
 
-            if stale_vendors:
-                logger.warning(f"⚠️ Stale vendors (no updates in 1h): {', '.join(stale_vendors)}")
+        if stale_vendors:
+            logger.warning(f"⚠️ Stale vendors (no updates in 1h): {', '.join(stale_vendors)}")
 
-            return len(stale_vendors) == 0
-
-        except Exception as e:
-            logger.error(f"❌ Health check failed: {e}")
-            return False
+        return len(stale_vendors) == 0
 
     async def print_status(self):
         """Print current status."""
@@ -705,44 +619,32 @@ class RealTimeNewsIngestion:
 
     async def health_handler(self, request):
         """HTTP health endpoint handler."""
-        try:
-            # Check service health
-            is_healthy = await self.health_check()
-            metrics = self.metrics.get_summary()
+        # Check service health
+        is_healthy = await self.health_check()
+        metrics = self.metrics.get_summary()
 
-            status = {
-                "status": "healthy" if is_healthy else "unhealthy",
-                "service": "ats-intg-news-realtime",
-                "version": "1.0.0",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "uptime_hours": round(metrics['uptime_hours'], 2),
-                "vendors": list(self.collectors.keys()),
-                "metrics": {
-                    "articles_fetched": metrics['articles_fetched'],
-                    "articles_stored": metrics['articles_stored'],
-                    "api_calls": metrics['api_calls'],
-                    "api_errors": metrics['api_errors'],
-                    "processing_time": metrics['processing_time']
-                }
+        status = {
+            "status": "healthy" if is_healthy else "unhealthy",
+            "service": "ats-intg-news-realtime",
+            "version": "1.0.0",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "uptime_hours": round(metrics['uptime_hours'], 2),
+            "vendors": list(self.collectors.keys()),
+            "metrics": {
+                "articles_fetched": metrics['articles_fetched'],
+                "articles_stored": metrics['articles_stored'],
+                "api_calls": metrics['api_calls'],
+                "api_errors": metrics['api_errors'],
+                "processing_time": metrics['processing_time']
             }
+        }
 
-            return web.json_response(status, status=200 if is_healthy else 503)
-
-        except Exception as e:
-            return web.json_response({
-                "status": "error",
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }, status=500)
+        return web.json_response(status, status=200 if is_healthy else 503)
 
     async def metrics_handler(self, request):
         """HTTP metrics endpoint handler."""
-        try:
-            metrics = self.metrics.get_summary()
-            return web.json_response(metrics)
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
-
+        metrics = self.metrics.get_summary()
+        return web.json_response(metrics)
     async def start_health_server(self):
         """Start HTTP health check server."""
         app = web.Application()
@@ -773,44 +675,32 @@ class RealTimeNewsIngestion:
         self.running = True
         next_status_time = time.time() + 1800  # Status every 30 minutes
 
-        try:
-            while self.running and not self.shutdown_event.is_set():
-                try:
-                    # Run ingestion cycle
-                    await self.run_ingestion_cycle()
+        while self.running and not self.shutdown_event.is_set():
+            # Run ingestion cycle
+            await self.run_ingestion_cycle()
 
-                    # Health check every 5 cycles
-                    if self.metrics.api_calls:
-                        total_calls = sum(self.metrics.api_calls.values())
-                        if total_calls % 5 == 0:
-                            await self.health_check()
+            # Health check every 5 cycles
+            if self.metrics.api_calls:
+                total_calls = sum(self.metrics.api_calls.values())
+                if total_calls % 5 == 0:
+                    await self.health_check()
 
-                    # Print status periodically
-                    if time.time() >= next_status_time:
-                        await self.print_status()
-                        next_status_time = time.time() + 1800
+            # Print status periodically
+            if time.time() >= next_status_time:
+                await self.print_status()
+                next_status_time = time.time() + 1800
 
-                    # Wait for next cycle or shutdown
-                    try:
-                        await asyncio.wait_for(
-                            self.shutdown_event.wait(),
-                            timeout=self.poll_interval
-                        )
-                        break  # Shutdown requested
-                    except asyncio.TimeoutError:
-                        pass  # Continue to next cycle
+            # Wait for next cycle or shutdown
+            await asyncio.wait_for(
+                self.shutdown_event.wait(),
+                timeout=self.poll_interval
+            )
+            break  # Shutdown requested
+            logger.error(f"❌ Error in ingestion cycle: {e}")
+            await asyncio.sleep(60)  # Wait before retrying
 
-                except Exception as e:
-                    logger.error(f"❌ Error in ingestion cycle: {e}")
-                    await asyncio.sleep(60)  # Wait before retrying
-
-        except Exception as e:
-            logger.error(f"❌ Fatal error in ingestion loop: {e}")
-            raise
-
-        finally:
-            self.running = False
-            logger.info("🛑 News ingestion stopped")
+        logger.error(f"❌ Fatal error in ingestion loop: {e}")
+        raise
 
 async def main():
     """Main function."""
@@ -841,17 +731,8 @@ async def main():
     # Initialize and run ingestion
     ingestion = RealTimeNewsIngestion(vendors, args.interval)
 
-    try:
-        await ingestion.initialize()
-        await ingestion.run()
-
-    except KeyboardInterrupt:
-        logger.info("👋 Shutdown requested by user")
-    except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
-        return 1
-    finally:
-        await ingestion.cleanup()
+    await ingestion.initialize()
+    await ingestion.run()
 
     return 0
 

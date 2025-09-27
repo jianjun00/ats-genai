@@ -25,7 +25,7 @@ import time
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
+from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
 
 
 class TestFirstRateErrorHandling:
@@ -221,14 +221,9 @@ class TestFirstRateErrorHandling:
         # Mock download_with_retries to raise exception
         with patch.object(downloader, 'download_with_retries', side_effect=Exception("Unexpected error")):
             # The method should handle the exception gracefully
-            try:
-                results = await downloader.download_daily_data(jobs)
-                # Should handle exception and return False for that asset
-                assert results["stock"] is False
-            except Exception:
-                # If exception propagates, that's also acceptable for this error test
-                pass
-
+            results = await downloader.download_daily_data(jobs)
+            # Should handle exception and return False for that asset
+            assert results["stock"] is False
     def test_invalid_file_paths(self, temp_setup):
         """Test handling of invalid file paths."""
         downloader = FirstRateDownloader(base_path=temp_setup)

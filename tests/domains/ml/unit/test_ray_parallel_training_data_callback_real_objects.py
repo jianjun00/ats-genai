@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsParallelSequenceGenerator:
@@ -56,13 +51,7 @@ class TestRealObjectsParallelSequenceGenerator:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_ray_actor_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_actor_initialization"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_actor_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_actor_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_generate_sequences_for_symbol_batch_real_objects(self, real_service, test_data):
         """Real objects version of test_generate_sequences_for_symbol_batch"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.generate_sequences_for_symbol_batch_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.generate_sequences_for_symbol_batch_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_parallel_actor_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_parallel_actor_error_handling"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.parallel_actor_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.parallel_actor_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_callback_ray_initialization_enabled_real_objects(self, real_service, test_data):
         """Real objects version of test_callback_ray_initialization_enabled"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.callback_ray_initialization_enabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.callback_ray_initialization_enabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_callback_ray_initialization_disabled_real_objects(self, real_service, test_data):
         """Real objects version of test_callback_ray_initialization_disabled"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.callback_ray_initialization_disabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.callback_ray_initialization_disabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_symbol_distribution_to_workers_real_objects(self, real_service, test_data):
         """Real objects version of test_symbol_distribution_to_workers"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.symbol_distribution_to_workers_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.symbol_distribution_to_workers_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_symbol_distribution_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_symbol_distribution_edge_cases"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.symbol_distribution_edge_cases_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.symbol_distribution_edge_cases_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_parallel_vs_sequential_processing_mode_real_objects(self, real_service, test_data):
         """Real objects version of test_parallel_vs_sequential_processing_mode"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.parallel_vs_sequential_processing_mode_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.parallel_vs_sequential_processing_mode_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_fallback_on_error_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_fallback_on_error"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_fallback_on_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_fallback_on_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequential_processing_reliability_real_objects(self, real_service, test_data):
         """Real objects version of test_sequential_processing_reliability"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequential_processing_reliability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sequential_processing_reliability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_parallel_processing_with_multiple_workers_real_objects(self, real_service, test_data):
         """Real objects version of test_parallel_processing_with_multiple_workers"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.parallel_processing_with_multiple_workers_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.parallel_processing_with_multiple_workers_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_worker_count_configuration_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_worker_count_configuration"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_worker_count_configuration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_worker_count_configuration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_configuration_with_no_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_configuration_with_no_symbols"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_configuration_with_no_symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_configuration_with_no_symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_start_of_day_with_ray_real_objects(self, real_service, test_data):
         """Real objects version of test_start_of_day_with_ray"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.start_of_day_with_ray_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.start_of_day_with_ray_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_of_day_with_ray_real_objects(self, real_service, test_data):
         """Real objects version of test_end_of_day_with_ray"""
         # Test with real database integration
@@ -385,15 +290,8 @@ class TestRealObjectsParallelSequenceGenerator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_of_day_with_ray_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.end_of_day_with_ray_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

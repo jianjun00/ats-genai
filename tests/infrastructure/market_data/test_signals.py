@@ -126,16 +126,8 @@ class TestExtractAllSignals(unittest.TestCase):
     def test_type_robustness(self):
         # Should not raise on completely unexpected types
         tick_data = 12345
-        try:
-            signals = extract_all_signals(tick_data)
-        except Exception as e:
-            self.fail(f"extract_all_signals raised {e} on unexpected input type")
-
+        signals = extract_all_signals(tick_data)
         tick_data = {'interval_signals': 'notadict'}
-        try:
-            signals = extract_all_signals(tick_data)
-        except Exception as e:
-            self.fail(f"extract_all_signals raised {e} on string interval_signals")
-
+        signals = extract_all_signals(tick_data)
 if __name__ == '__main__':
     unittest.main()

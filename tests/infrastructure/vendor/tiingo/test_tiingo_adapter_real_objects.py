@@ -10,12 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
 # from infrastructure.vendor.tiingo.client import TiingoClient
 # from infrastructure.vendor.tiingo.dao import TiingoDAO
@@ -56,13 +51,7 @@ class TestRealObjectsTiingoAdapter:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_init_with_api_key_real_objects(self, real_service, test_data):
         """Real objects version of test_init_with_api_key"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_with_api_key_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_with_api_key_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_init_from_env_var_real_objects(self, real_service, test_data):
         """Real objects version of test_init_from_env_var"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_from_env_var_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_from_env_var_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_init_no_api_key_raises_exception_real_objects(self, real_service, test_data):
         """Real objects version of test_init_no_api_key_raises_exception"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_no_api_key_raises_exception_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_no_api_key_raises_exception_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_instruments_success_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_instruments_success"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_instruments_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_instruments_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_instruments_empty_response_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_instruments_empty_response"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_instruments_empty_response_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_instruments_empty_response_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_instruments_http_error_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_instruments_http_error"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_instruments_http_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_instruments_http_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_success_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_success"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_multiple_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_multiple_symbols"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_multiple_symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_multiple_symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_rate_limiting_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_rate_limiting"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_rate_limiting_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_rate_limiting_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_http_error_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_http_error"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_http_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_http_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_empty_data_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_empty_data"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_empty_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_empty_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_date_parsing_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_date_parsing"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_date_parsing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_date_parsing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_logging_mechanism_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_logging_mechanism"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_logging_mechanism_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_logging_mechanism_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_missing_optional_fields_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_missing_optional_fields"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_missing_optional_fields_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_eod_missing_optional_fields_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_ticks_not_implemented_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_ticks_not_implemented"""
         # Test with real database integration
@@ -385,14 +290,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_ticks_not_implemented_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_ticks_not_implemented_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_interval_not_implemented_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_interval_not_implemented"""
         # Test with real database integration
@@ -407,14 +306,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_interval_not_implemented_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_interval_not_implemented_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_base_url_format_real_objects(self, real_service, test_data):
         """Real objects version of test_base_url_format"""
         # Test with real database integration
@@ -429,14 +322,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.base_url_format_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.base_url_format_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_name_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_name"""
         # Test with real database integration
@@ -451,14 +338,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_name_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_name_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_instruments_with_partial_data_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_instruments_with_partial_data"""
         # Test with real database integration
@@ -473,14 +354,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_instruments_with_partial_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_instruments_with_partial_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_eod_api_key_in_url_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_eod_api_key_in_url"""
         # Test with real database integration
@@ -495,15 +370,8 @@ class TestRealObjectsTiingoAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_eod_api_key_in_url_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.fetch_eod_api_key_in_url_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

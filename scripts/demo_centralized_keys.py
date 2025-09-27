@@ -59,45 +59,35 @@ def test_api_with_centralized_key(vendor, test_url_func):
 
 def test_polygon_api(api_key):
     """Test Polygon API"""
-    try:
-        url = f"https://api.polygon.io/v1/marketstatus/now?apikey={api_key}"
-        logger.info(f"🧪 Testing: {url[:60]}...")
+    url = f"https://api.polygon.io/v1/marketstatus/now?apikey={api_key}"
+    logger.info(f"🧪 Testing: {url[:60]}...")
 
-        response = requests.get(url, timeout=10)
+    response = requests.get(url, timeout=10)
 
-        if response.status_code == 200:
-            data = response.json()
-            if 'market' in data:
-                logger.info(f"   ✅ SUCCESS: Polygon API working! Market status: {data.get('market')}")
-                return True
+    if response.status_code == 200:
+        data = response.json()
+        if 'market' in data:
+            logger.info(f"   ✅ SUCCESS: Polygon API working! Market status: {data.get('market')}")
+            return True
 
-        logger.error(f"   ❌ FAILED: Status {response.status_code}")
-        return False
-
-    except Exception as e:
-        logger.error(f"   ❌ ERROR: {e}")
-        return False
+    logger.error(f"   ❌ FAILED: Status {response.status_code}")
+    return False
 
 def test_eodhd_api(api_key):
     """Test EODHD API"""
-    try:
-        url = f"https://eodhistoricaldata.com/api/eod/AAPL.US?api_token={api_key}&period=d&from=2023-01-01&to=2023-01-05&fmt=json"
-        logger.info(f"🧪 Testing: {url[:60]}...")
+    url = f"https://eodhistoricaldata.com/api/eod/AAPL.US?api_token={api_key}&period=d&from=2023-01-01&to=2023-01-05&fmt=json"
+    logger.info(f"🧪 Testing: {url[:60]}...")
 
-        response = requests.get(url, timeout=10)
+    response = requests.get(url, timeout=10)
 
-        if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, list) and len(data) > 0:
-                logger.info(f"   ✅ SUCCESS: EODHD API working! Got {len(data)} records")
-                return True
+    if response.status_code == 200:
+        data = response.json()
+        if isinstance(data, list) and len(data) > 0:
+            logger.info(f"   ✅ SUCCESS: EODHD API working! Got {len(data)} records")
+            return True
 
-        logger.error(f"   ❌ FAILED: Status {response.status_code} - {response.text[:50]}")
-        return False
-
-    except Exception as e:
-        logger.error(f"   ❌ ERROR: {e}")
-        return False
+    logger.error(f"   ❌ FAILED: Status {response.status_code} - {response.text[:50]}")
+    return False
 
 def main():
     """Main demonstration"""

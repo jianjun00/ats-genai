@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 from db.migration_manager import MigrationManager
 
-from shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -50,16 +50,11 @@ async def test_get_current_version_with_existing_data(unit_test_db_clean):
 
     # Manually insert a version record
     pool = await asyncpg.create_pool(unit_test_db_clean)
-    try:
-        async with pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO test_db_version (version, description, migration_file)
-                VALUES (5, 'Test migration', 'test.sql')
-            """)
-    finally:
-        await pool.close()
-
-    # Should return the highest version
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO test_db_version (version, description, migration_file)
+            VALUES (5, 'Test migration', 'test.sql')
+        """)
     version = await manager.get_current_version()
     assert version == 5
 
@@ -113,23 +108,19 @@ async def test_calculate_checksum(unit_test_db_clean):
         f.write("CREATE TABLE test (id SERIAL);")
         temp_file = Path(f.name)
 
-    try:
-        checksum1 = manager._calculate_checksum(temp_file)
-        checksum2 = manager._calculate_checksum(temp_file)
+    checksum1 = manager._calculate_checksum(temp_file)
+    checksum2 = manager._calculate_checksum(temp_file)
 
-        # Same file should produce same checksum
-        assert checksum1 == checksum2
-        assert len(checksum1) == 32  # MD5 hash length
+    # Same file should produce same checksum
+    assert checksum1 == checksum2
+    assert len(checksum1) == 32  # MD5 hash length
 
-        # Different content should produce different checksum
-        with open(temp_file, 'w') as f:
-            f.write("CREATE TABLE different (id SERIAL);")
+    # Different content should produce different checksum
+    with open(temp_file, 'w') as f:
+        f.write("CREATE TABLE different (id SERIAL);")
 
-        checksum3 = manager._calculate_checksum(temp_file)
-        assert checksum1 != checksum3
-
-    finally:
-        temp_file.unlink()
+    checksum3 = manager._calculate_checksum(temp_file)
+    assert checksum1 != checksum3
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -179,32 +170,26 @@ async def test_apply_migration_success(unit_test_db_clean):
         """)
         temp_file = Path(f.name)
 
-    try:
-        # Apply migration
-        success = await manager.apply_migration(1, "test migration", temp_file)
-        assert success is True
+    # Apply migration
+    success = await manager.apply_migration(1, "test migration", temp_file)
+    assert success is True
 
-        # Verify table was created with correct prefix
-        pool = await asyncpg.create_pool(unit_test_db_clean)
-        try:
-            async with pool.acquire() as conn:
-                # Check table exists with single prefix
-                result = await conn.fetchval("""
-                    SELECT COUNT(*) FROM information_schema.tables
-                    WHERE table_name = 'test_migration_table'
-                """)
-                assert result == 1, "Table 'test_migration_table' not found"
+    # Verify table was created with correct prefix
+    pool = await asyncpg.create_pool(unit_test_db_clean)
+    async with pool.acquire() as conn:
+        # Check table exists with single prefix
+        result = await conn.fetchval("""
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_name = 'test_migration_table'
+        """)
+        assert result == 1, "Table 'test_migration_table' not found"
 
-                # Check migration was recorded
-                version_count = await conn.fetchval("""
-                    SELECT COUNT(*) FROM test_db_version WHERE version = 1
-                """)
-                assert version_count == 1
-        finally:
-            await pool.close()
-
-    finally:
-        temp_file.unlink()
+        # Check migration was recorded
+        version_count = await conn.fetchval("""
+            SELECT COUNT(*) FROM test_db_version WHERE version = 1
+        """)
+        assert version_count == 1
+    temp_file.unlink()
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -220,24 +205,18 @@ async def test_apply_migration_sql_error(unit_test_db_clean):
         f.write("INVALID SQL STATEMENT;")
         temp_file = Path(f.name)
 
-    try:
-        # Apply migration should fail
-        success = await manager.apply_migration(1, "bad migration", temp_file)
-        assert success is False
+    # Apply migration should fail
+    success = await manager.apply_migration(1, "bad migration", temp_file)
+    assert success is False
 
-        # Verify migration was not recorded
-        pool = await asyncpg.create_pool(unit_test_db_clean)
-        try:
-            async with pool.acquire() as conn:
-                version_count = await conn.fetchval("""
-                    SELECT COUNT(*) FROM test_db_version WHERE version = 1
-                """)
-                assert version_count == 0
-        finally:
-            await pool.close()
-
-    finally:
-        temp_file.unlink()
+    # Verify migration was not recorded
+    pool = await asyncpg.create_pool(unit_test_db_clean)
+    async with pool.acquire() as conn:
+        version_count = await conn.fetchval("""
+            SELECT COUNT(*) FROM test_db_version WHERE version = 1
+        """)
+        assert version_count == 0
+    temp_file.unlink()
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -284,28 +263,24 @@ async def test_migrate_to_latest_with_migrations(unit_test_db_clean):
 
             # Verify both tables were created
             pool = await asyncpg.create_pool(unit_test_db_clean)
-            try:
-                async with pool.acquire() as conn:
-                    users_exists = await conn.fetchval("""
-                        SELECT COUNT(*) FROM information_schema.tables
-                        WHERE table_name = 'test_users'
-                    """)
-                    posts_exists = await conn.fetchval("""
-                        SELECT COUNT(*) FROM information_schema.tables
-                        WHERE table_name = 'test_posts'
-                    """)
+            async with pool.acquire() as conn:
+                users_exists = await conn.fetchval("""
+                    SELECT COUNT(*) FROM information_schema.tables
+                    WHERE table_name = 'test_users'
+                """)
+                posts_exists = await conn.fetchval("""
+                    SELECT COUNT(*) FROM information_schema.tables
+                    WHERE table_name = 'test_posts'
+                """)
 
-                    assert users_exists == 1
-                    assert posts_exists == 1
+                assert users_exists == 1
+                assert posts_exists == 1
 
-                    # Check final version
-                    final_version = await conn.fetchval("""
-                        SELECT MAX(version) FROM test_db_version
-                    """)
-                    assert final_version == 2
-            finally:
-                await pool.close()
-
+                # Check final version
+                final_version = await conn.fetchval("""
+                    SELECT MAX(version) FROM test_db_version
+                """)
+                assert final_version == 2
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -334,22 +309,18 @@ async def test_migrate_to_latest_partial_failure(unit_test_db_clean):
 
             # Verify first migration was applied, second was not
             pool = await asyncpg.create_pool(unit_test_db_clean)
-            try:
-                async with pool.acquire() as conn:
-                    users_exists = await conn.fetchval("""
-                        SELECT COUNT(*) FROM information_schema.tables
-                        WHERE table_name = 'test_users'
-                    """)
-                    assert users_exists == 1
+            async with pool.acquire() as conn:
+                users_exists = await conn.fetchval("""
+                    SELECT COUNT(*) FROM information_schema.tables
+                    WHERE table_name = 'test_users'
+                """)
+                assert users_exists == 1
 
-                    # Only version 1 should be recorded
-                    max_version = await conn.fetchval("""
-                        SELECT MAX(version) FROM test_db_version
-                    """)
-                    assert max_version == 1
-            finally:
-                await pool.close()
-
+                # Only version 1 should be recorded
+                max_version = await conn.fetchval("""
+                    SELECT MAX(version) FROM test_db_version
+                """)
+                assert max_version == 1
 @pytest.mark.unit
 @pytest.mark.database
 @pytest.mark.asyncio
@@ -478,39 +449,33 @@ async def test_migration_with_complex_sql(unit_test_db_clean):
         f.write(complex_sql)
         temp_file = Path(f.name)
 
-    try:
-        await manager.get_current_version()
+    await manager.get_current_version()
 
-        success = await manager.apply_migration(1, "complex migration", temp_file)
-        assert success is True
+    success = await manager.apply_migration(1, "complex migration", temp_file)
+    assert success is True
 
-        # Verify all components were created
-        pool = await asyncpg.create_pool(unit_test_db_clean)
-        try:
-            async with pool.acquire() as conn:
-                # Check table with single prefix
-                table_exists = await conn.fetchval("""
-                    SELECT COUNT(*) FROM information_schema.tables
-                    WHERE table_name = 'test_complex'
-                """)
-                assert table_exists == 1, "Table 'test_complex' not found"
+    # Verify all components were created
+    pool = await asyncpg.create_pool(unit_test_db_clean)
+    async with pool.acquire() as conn:
+        # Check table with single prefix
+        table_exists = await conn.fetchval("""
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_name = 'test_complex'
+        """)
+        assert table_exists == 1, "Table 'test_complex' not found"
 
-                # Check data with single prefix
-                row_count = await conn.fetchval("SELECT COUNT(*) FROM test_complex")
-                assert row_count == 2, f"Expected 2 rows in test_complex, found {row_count}"
+        # Check data with single prefix
+        row_count = await conn.fetchval("SELECT COUNT(*) FROM test_complex")
+        assert row_count == 2, f"Expected 2 rows in test_complex, found {row_count}"
 
-                # Check index with single prefix
-                index_exists = await conn.fetchval("""
-                    SELECT COUNT(*) FROM pg_indexes
-                    WHERE tablename = 'test_complex' AND indexname = 'idx_test_complex_name'
-                """)
-                assert index_exists == 1, "Index 'idx_test_complex_name' not found"
+        # Check index with single prefix
+        index_exists = await conn.fetchval("""
+            SELECT COUNT(*) FROM pg_indexes
+            WHERE tablename = 'test_complex' AND indexname = 'idx_test_complex_name'
+        """)
+        assert index_exists == 1, "Index 'idx_test_complex_name' not found"
 
-        finally:
-            await pool.close()
-
-    finally:
-        temp_file.unlink()
+    temp_file.unlink()
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -533,43 +498,34 @@ async def test_migration_rollback_on_error(unit_test_db_clean):
         temp_file = Path(f.name)
 
     pool = await asyncpg.create_pool(unit_test_db_clean)
-    try:
-        async with pool.acquire() as conn:
-            print("[DEBUG] test_db_version contents BEFORE migration:")
-            rows = await conn.fetch("SELECT * FROM test_db_version")
-            for row in rows:
-                print(dict(row))
-    finally:
-        await pool.close()
-    try:
-        success = await manager.apply_migration(1, "failing migration", temp_file)
-        assert success is False
+    async with pool.acquire() as conn:
+        print("[DEBUG] test_db_version contents BEFORE migration:")
+        rows = await conn.fetch("SELECT * FROM test_db_version")
+        for row in rows:
+            print(dict(row))
+    success = await manager.apply_migration(1, "failing migration", temp_file)
+    assert success is False
 
-        # Verify table was not created (rolled back)
-        pool = await asyncpg.create_pool(unit_test_db_clean)
-        try:
-            async with pool.acquire() as conn:
-                table_exists = await conn.fetchval("""
-                    SELECT COUNT(*) FROM information_schema.tables
-                    WHERE table_name = 'test_test_rollback'
-                """)
-                assert table_exists == 0
+    # Verify table was not created (rolled back)
+    pool = await asyncpg.create_pool(unit_test_db_clean)
+    async with pool.acquire() as conn:
+        table_exists = await conn.fetchval("""
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_name = 'test_test_rollback'
+        """)
+        assert table_exists == 0
 
-                # Verify migration was not recorded
-                migration_recorded = await conn.fetchval("""
-                    SELECT COUNT(*) FROM test_db_version WHERE version = 1
-                """)
-                print("[DEBUG] test_db_version contents after failed migration:")
-                rows = await conn.fetch("SELECT * FROM test_db_version")
-                for row in rows:
-                    print(dict(row))
-                assert migration_recorded == 0
+        # Verify migration was not recorded
+        migration_recorded = await conn.fetchval("""
+            SELECT COUNT(*) FROM test_db_version WHERE version = 1
+        """)
+        print("[DEBUG] test_db_version contents after failed migration:")
+        rows = await conn.fetch("SELECT * FROM test_db_version")
+        for row in rows:
+            print(dict(row))
+        assert migration_recorded == 0
 
-        finally:
-            await pool.close()
-
-    finally:
-        temp_file.unlink()
+    temp_file.unlink()
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -580,36 +536,25 @@ async def test_migration_with_environment_variables(unit_test_db_clean):
     # Test with different table prefixes
     original_env = os.environ.get('ENVIRONMENT')
 
-    try:
-        # Test with production environment (should use prod_ prefix)
-        os.environ['ENVIRONMENT'] = 'production'
+    # Test with production environment (should use prod_ prefix)
+    os.environ['ENVIRONMENT'] = 'production'
 
-        # Need to reload the environment configuration
-        from importlib import reload
-        import src.config.environment
-        import gin
+    # Need to reload the environment configuration
+    from importlib import reload
+    import src.config.environment
+    import gin
 
-        # Enter interactive mode to allow re-registration of configurables
-        gin.enter_interactive_mode()
-        reload(src.config.environment)
+    # Enter interactive mode to allow re-registration of configurables
+    gin.enter_interactive_mode()
+    reload(src.config.environment)
 
-        manager = MigrationManager(unit_test_db_clean)
-        await manager.get_current_version()
-        # Note: In a real test, this would use prod_ prefix, but our test DB URL
-        # might override this. The important thing is testing the logic.
+    manager = MigrationManager(unit_test_db_clean)
+    await manager.get_current_version()
+    # Note: In a real test, this would use prod_ prefix, but our test DB URL
+    # might override this. The important thing is testing the logic.
 
-        current_version = await manager.get_current_version()
-        assert current_version >= -1  # Should work regardless of prefix
-
-    finally:
-        # Restore original environment
-        if original_env:
-            os.environ['ENVIRONMENT'] = original_env
-        elif 'ENVIRONMENT' in os.environ:
-            del os.environ['ENVIRONMENT']
-
-        # Reload to restore original state
-        reload(src.config.environment)
+    current_version = await manager.get_current_version()
+    assert current_version >= -1  # Should work regardless of prefix
 
 @pytest.mark.unit
 @pytest.mark.database
@@ -638,12 +583,8 @@ async def test_migration_idempotency(unit_test_db_clean):
 
         # Reset current version to test re-running
         pool = await asyncpg.create_pool(unit_test_db_clean)
-        try:
-            async with pool.acquire() as conn:
-                await conn.execute("DELETE FROM test_db_version WHERE version = 1")
-        finally:
-            await pool.close()
-
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM test_db_version WHERE version = 1")
         success2 = await manager.migrate_to_latest()
 
         assert success1 is True
@@ -651,9 +592,8 @@ async def test_migration_idempotency(unit_test_db_clean):
 
         # Verify data integrity
         pool = await asyncpg.create_pool(unit_test_db_clean)
-        try:
-            async with pool.acquire() as conn:
-                count = await conn.fetchval("SELECT COUNT(*) FROM test_idempotent")
-                assert count == 1  # Should still be 1, not 2
+        async with pool.acquire() as conn:
+            count = await conn.fetchval("SELECT COUNT(*) FROM test_idempotent")
+            assert count == 1  # Should still be 1, not 2
         finally:
             await pool.close()

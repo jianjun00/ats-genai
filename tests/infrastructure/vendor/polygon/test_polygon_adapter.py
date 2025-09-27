@@ -1,6 +1,6 @@
 from datetime import date
-from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
-from domains.market_data.services.agent.models import InstrumentMetadata, EODPrice
+from domains.market_data.services.vendor_adapters.market_cap.unified_market_cap_provider import PolygonAdapter
+from domains.market_data.services.core.agent.models import InstrumentMetadata, EODPrice
 import responses
 
 @responses.activate

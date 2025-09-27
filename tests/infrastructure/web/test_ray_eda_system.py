@@ -320,15 +320,10 @@ class TestErrorHandlingAndRobustness:
                 mock_init.side_effect = Exception("Ray unavailable")
 
                 # Should handle Ray unavailability gracefully
-                try:
-                    from services.ray_eda_engine import get_ray_eda_service
-                    service = get_ray_eda_service()
-                    cache_stats = service.get_cache_stats()
-                    assert cache_stats['ray_cluster_status'] == 'disconnected'
-                except Exception as e:
-                    # Expected if Ray truly unavailable
-                    assert "Ray unavailable" in str(e)
-
+                from services.ray_eda_engine import get_ray_eda_service
+                service = get_ray_eda_service()
+                cache_stats = service.get_cache_stats()
+                assert cache_stats['ray_cluster_status'] == 'disconnected'
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_timeout_handling_for_massive_queries(self):
@@ -341,15 +336,9 @@ class TestErrorHandlingAndRobustness:
         # Test with very short timeout
         start_time = time.time()
 
-        try:
-            async with asyncio.timeout(5):  # 5 second timeout
-                async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns):
-                    break
-        except asyncio.TimeoutError:
-            # Timeout is acceptable for massive datasets
-            elapsed = time.time() - start_time
-            assert 4 < elapsed < 7, f"Timeout occurred at {elapsed:.1f}s"
-
+        async with asyncio.timeout(5):  # 5 second timeout
+            async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns):
+                break
 class TestPerformanceBenchmarks:
     """Performance benchmarks and regression tests"""
 

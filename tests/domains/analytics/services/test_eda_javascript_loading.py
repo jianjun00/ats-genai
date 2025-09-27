@@ -23,13 +23,9 @@ class TestEDAJavaScriptLoading:
         # Wait for service to be ready
         max_retries = 10
         for i in range(max_retries):
-            try:
-                response = requests.get(f"{cls.base_url}/health", timeout=5)
-                if response.status_code == 200:
-                    break
-            except:
-                time.sleep(2)
-        else:
+            response = requests.get(f"{cls.base_url}/health", timeout=5)
+            if response.status_code == 200:
+                break
             raise Exception("EDA service not available after 20 seconds")
 
     def test_eda_dashboard_html_loads(self):
@@ -263,47 +259,46 @@ if __name__ == "__main__":
     test_suite = TestEDAJavaScriptLoading()
     test_suite.setup_class()
 
-    try:
-        print("🧪 Testing EDA JavaScript Loading...")
+    print("🧪 Testing EDA JavaScript Loading...")
 
-        test_suite.test_eda_dashboard_html_loads()
-        print("✅ EDA dashboard HTML loads test passed")
+    test_suite.test_eda_dashboard_html_loads()
+    print("✅ EDA dashboard HTML loads test passed")
 
-        test_suite.test_javascript_functions_present_in_html()
-        print("✅ JavaScript functions present test passed")
+    test_suite.test_javascript_functions_present_in_html()
+    print("✅ JavaScript functions present test passed")
 
-        test_suite.test_javascript_error_handling_present()
-        print("✅ JavaScript error handling test passed")
+    test_suite.test_javascript_error_handling_present()
+    print("✅ JavaScript error handling test passed")
 
-        test_suite.test_dataset_dropdown_population_flow()
-        print("✅ Dataset dropdown population flow test passed")
+    test_suite.test_dataset_dropdown_population_flow()
+    print("✅ Dataset dropdown population flow test passed")
 
-        test_suite.test_numeric_column_filtering_matches_javascript()
-        print("✅ Numeric column filtering test passed")
+    test_suite.test_numeric_column_filtering_matches_javascript()
+    print("✅ Numeric column filtering test passed")
 
-        test_suite.test_analysis_api_endpoint_for_javascript()
-        print("✅ Analysis API endpoint test passed")
+    test_suite.test_analysis_api_endpoint_for_javascript()
+    print("✅ Analysis API endpoint test passed")
 
-        test_suite.test_html_form_element_ids_match_javascript()
-        print("✅ HTML element IDs matching test passed")
+    test_suite.test_html_form_element_ids_match_javascript()
+    print("✅ HTML element IDs matching test passed")
 
-        test_suite.test_javascript_event_listeners_properly_attached()
-        print("✅ JavaScript event listeners test passed")
+    test_suite.test_javascript_event_listeners_properly_attached()
+    print("✅ JavaScript event listeners test passed")
 
-        test_suite.test_datasets_display_prevents_loading_issue()
-        print("✅ 'Loading...' issue prevention test passed")
+    test_suite.test_datasets_display_prevents_loading_issue()
+    print("✅ 'Loading...' issue prevention test passed")
 
-        test_suite.test_javascript_console_logging_for_debugging()
-        print("✅ JavaScript debugging logging test passed")
+    test_suite.test_javascript_console_logging_for_debugging()
+    print("✅ JavaScript debugging logging test passed")
 
-        test_suite.test_plotly_chart_rendering_configuration()
-        print("✅ Plotly chart rendering test passed")
+    test_suite.test_plotly_chart_rendering_configuration()
+    print("✅ Plotly chart rendering test passed")
 
-        print("\n🎉 All JavaScript loading tests passed!")
-        print("✅ JavaScript properly loads datasets and populates dropdowns")
-        print("✅ Error handling prevents UI failures")
-        print("✅ 'Loading...' issue resolved with proper data flow")
-        print("✅ Interactive chart rendering configured correctly")
+    print("\n🎉 All JavaScript loading tests passed!")
+    print("✅ JavaScript properly loads datasets and populates dropdowns")
+    print("✅ Error handling prevents UI failures")
+    print("✅ 'Loading...' issue resolved with proper data flow")
+    print("✅ Interactive chart rendering configured correctly")
 
     except Exception as e:
         print(f"❌ JavaScript loading test failed: {e}")

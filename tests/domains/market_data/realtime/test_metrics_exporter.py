@@ -22,7 +22,7 @@ from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Histo
 import sys
 sys.path.append('src')
 
-from domains.market_data.services.realtime.metrics_exporter import (
+from domains.market_data.services.data_collection.realtime.metrics_exporter import (
     RealtimeMetricsExporter,
     MetricsCollector,
     HealthcheckHandler

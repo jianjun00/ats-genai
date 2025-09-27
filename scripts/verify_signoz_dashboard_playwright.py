@@ -32,40 +32,31 @@ class SignOzDashboardVerifier:
             context = await browser.new_context()
             page = await context.new_page()
 
-            try:
-                print("🌐 Loading dashboard page...")
+            print("🌐 Loading dashboard page...")
 
-                # Navigate to dashboard
-                response = await page.goto(self.dashboard_url, wait_until="networkidle", timeout=30000)
+            # Navigate to dashboard
+            response = await page.goto(self.dashboard_url, wait_until="networkidle", timeout=30000)
 
-                print(f"📡 HTTP Status: {response.status}")
+            print(f"📡 HTTP Status: {response.status}")
 
-                # Wait for page to fully load
-                await page.wait_for_timeout(3000)
+            # Wait for page to fully load
+            await page.wait_for_timeout(3000)
 
-                # Take screenshot for debugging
-                await page.screenshot(path="/tmp/signoz_dashboard_screenshot.png")
-                print("📸 Screenshot saved: /tmp/signoz_dashboard_screenshot.png")
+            # Take screenshot for debugging
+            await page.screenshot(path="/tmp/signoz_dashboard_screenshot.png")
+            print("📸 Screenshot saved: /tmp/signoz_dashboard_screenshot.png")
 
-                # Check for common elements
-                await self.check_dashboard_elements(page)
+            # Check for common elements
+            await self.check_dashboard_elements(page)
 
-                # Check for error messages
-                await self.check_error_messages(page)
+            # Check for error messages
+            await self.check_error_messages(page)
 
-                # Check for panels
-                await self.check_panels(page)
+            # Check for panels
+            await self.check_panels(page)
 
-                # Check for data loading
-                await self.check_data_loading(page)
-
-            except Exception as e:
-                print(f"❌ Browser verification failed: {e}")
-                await page.screenshot(path="/tmp/signoz_error_screenshot.png")
-                print("📸 Error screenshot saved: /tmp/signoz_error_screenshot.png")
-
-            finally:
-                await browser.close()
+            # Check for data loading
+            await self.check_data_loading(page)
 
     async def check_dashboard_elements(self, page):
         """Check for basic dashboard elements"""
@@ -109,16 +100,12 @@ class SignOzDashboardVerifier:
         ]
 
         for selector in error_selectors:
-            try:
-                error_elements = page.locator(selector)
-                count = await error_elements.count()
-                if count > 0:
-                    for i in range(min(count, 3)):  # Check first 3 errors
-                        error_text = await error_elements.nth(i).text_content()
-                        print(f"❌ Error found: {error_text[:100]}...")
-            except:
-                continue
-
+            error_elements = page.locator(selector)
+            count = await error_elements.count()
+            if count > 0:
+                for i in range(min(count, 3)):  # Check first 3 errors
+                    error_text = await error_elements.nth(i).text_content()
+                    print(f"❌ Error found: {error_text[:100]}...")
     async def check_panels(self, page):
         """Check if dashboard panels are visible"""
         print("🎛️ Checking for dashboard panels...")
@@ -152,15 +139,11 @@ class SignOzDashboardVerifier:
 
         total_panels = 0
         for selector in panel_selectors:
-            try:
-                elements = page.locator(selector)
-                count = await elements.count()
-                if count > 0:
-                    print(f"✅ Found {count} elements matching '{selector}'")
-                    total_panels += count
-            except:
-                continue
-
+            elements = page.locator(selector)
+            count = await elements.count()
+            if count > 0:
+                print(f"✅ Found {count} elements matching '{selector}'")
+                total_panels += count
         if total_panels > 0:
             print(f"✅ Total panel-like elements found: {total_panels}")
             return True
@@ -187,13 +170,9 @@ class SignOzDashboardVerifier:
 
         loading_count = 0
         for selector in loading_indicators:
-            try:
-                elements = page.locator(selector)
-                count = await elements.count()
-                loading_count += count
-            except:
-                continue
-
+            elements = page.locator(selector)
+            count = await elements.count()
+            loading_count += count
         if loading_count > 0:
             print(f"⏳ Found {loading_count} loading indicators - data may still be loading")
 
@@ -206,21 +185,16 @@ class SignOzDashboardVerifier:
 
         data_elements = 0
         for selector in value_selectors:
-            try:
-                elements = page.locator(selector)
-                count = await elements.count()
-                if count > 0:
-                    # Try to get some text content
-                    for i in range(min(count, 3)):
-                        try:
-                            text = await elements.nth(i).text_content()
-                            if text and text.strip():
-                                print(f"📊 Found data: {text.strip()}")
-                                data_elements += 1
-                        except:
-                            continue
-            except:
-                continue
+            elements = page.locator(selector)
+            count = await elements.count()
+            if count > 0:
+                # Try to get some text content
+                for i in range(min(count, 3)):
+                    text = await elements.nth(i).text_content()
+                    if text and text.strip():
+                        print(f"📊 Found data: {text.strip()}")
+                        data_elements += 1
+            continue
 
         if data_elements > 0:
             print(f"✅ Found {data_elements} elements with data")
@@ -280,12 +254,7 @@ class SignOzDashboardVerifier:
 async def main():
     verifier = SignOzDashboardVerifier()
 
-    try:
-        await verifier.verify_dashboard_with_browser()
-
-    except Exception as e:
-        print(f"❌ Verification failed: {e}")
-        sys.exit(1)
+    await verifier.verify_dashboard_with_browser()
 
 if __name__ == "__main__":
     asyncio.run(main())

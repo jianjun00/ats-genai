@@ -28,38 +28,33 @@ def test_function_signatures_have_duration_parameters():
             with open(file_path, 'r') as f:
                 content = f.read()
             
-            try:
-                tree = ast.parse(content)
-                
-                # Find the run_file_daily_price_ohlcv function
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.FunctionDef) and node.name == 'run_file_daily_price_ohlcv':
-                        print(f"  Found function: {node.name}")
-                        
-                        # Check parameters
-                        param_names = [arg.arg for arg in node.args.args]
-                        
-                        has_base_duration = 'base_duration' in param_names
-                        has_target_durations = 'target_durations' in param_names
-                        
-                        print(f"  Parameters: {param_names}")
-                        print(f"  Has base_duration: {has_base_duration}")
-                        print(f"  Has target_durations: {has_target_durations}")
-                        
-                        if has_base_duration and has_target_durations:
-                            print(f"  ✅ Function signature is correct")
-                        else:
-                            print(f"  ❌ Function missing duration parameters")
-                            all_good = False
-                        break
-                else:
-                    print(f"  ❌ Function run_file_daily_price_ohlcv not found")
-                    all_good = False
+            tree = ast.parse(content)
+            
+            # Find the run_file_daily_price_ohlcv function
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef) and node.name == 'run_file_daily_price_ohlcv':
+                    print(f"  Found function: {node.name}")
                     
-            except SyntaxError as e:
-                print(f"  ❌ Syntax error in file: {e}")
+                    # Check parameters
+                    param_names = [arg.arg for arg in node.args.args]
+                    
+                    has_base_duration = 'base_duration' in param_names
+                    has_target_durations = 'target_durations' in param_names
+                    
+                    print(f"  Parameters: {param_names}")
+                    print(f"  Has base_duration: {has_base_duration}")
+                    print(f"  Has target_durations: {has_target_durations}")
+                    
+                    if has_base_duration and has_target_durations:
+                        print(f"  ✅ Function signature is correct")
+                    else:
+                        print(f"  ❌ Function missing duration parameters")
+                        all_good = False
+                    break
+            else:
+                print(f"  ❌ Function run_file_daily_price_ohlcv not found")
                 all_good = False
-        else:
+                
             print(f"❌ File not found: {file_path}")
             all_good = False
     

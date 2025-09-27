@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsTimeframeComprehensiveCoverage:
@@ -56,13 +51,7 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_multiple_symbols_single_timeframe_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_symbols_single_timeframe"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multiple_symbols_single_timeframe_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multiple_symbols_single_timeframe_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multiple_symbols_multiple_timeframes_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_symbols_multiple_timeframes"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multiple_symbols_multiple_timeframes_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multiple_symbols_multiple_timeframes_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_resilience_single_timeframe_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_error_resilience_single_timeframe_failure"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_resilience_single_timeframe_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_resilience_single_timeframe_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_resilience_single_symbol_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_error_resilience_single_symbol_failure"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_resilience_single_symbol_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_resilience_single_symbol_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_generator_returns_none_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_generator_returns_none_handling"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.generator_returns_none_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.generator_returns_none_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_generator_returns_wrong_timeframe_data_real_objects(self, real_service, test_data):
         """Real objects version of test_generator_returns_wrong_timeframe_data"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.generator_returns_wrong_timeframe_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.generator_returns_wrong_timeframe_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_call_pattern_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_call_pattern_consistency"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.call_pattern_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.call_pattern_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_structure_integrity_real_objects(self, real_service, test_data):
         """Real objects version of test_data_structure_integrity"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_structure_integrity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_structure_integrity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_cross_timeframe_contamination_real_objects(self, real_service, test_data):
         """Real objects version of test_no_cross_timeframe_contamination"""
         # Test with real database integration
@@ -253,15 +194,8 @@ class TestRealObjectsTimeframeComprehensiveCoverage:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_cross_timeframe_contamination_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.no_cross_timeframe_contamination_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -1,10 +1,10 @@
-from state.universe_state_builder import UniverseStateIntervalBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 import app.runner
 
 import pytest
 import asyncpg
 from datetime import date
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
 
@@ -50,7 +50,7 @@ async def test_runner_universe_manager_sod_eod_real_db(unit_test_db):
     callbacks = [lambda: UniverseStateIntervalBuilder(env=env, base_duration="1d", target_durations="1d")]
     runner_object = app.runner.Runner("2025-07-01", "2025-07-03", env, universe_id, callbacks=callbacks, base_duration="1d")
     # Patch runner.market_data_manager to use patched env (ensures correct DB URL)
-    from domains.market_data.services.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
+    from domains.trading.services.core.eod.daily_price_market_data_manager import DailyPriceMarketDataManager
     runner_object.market_data_manager = DailyPriceMarketDataManager(env=env)
     sod_instruments = {}
     async def capture_sod(runner_object, current_time):

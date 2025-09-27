@@ -383,81 +383,77 @@ async def main():
 
     cli = RunMetadataCLI(environment=args.environment)
 
-    try:
-        if args.command == 'list':
-            runs = await cli.list_runs(
-                limit=args.limit,
-                run_type=args.run_type,
-                status=args.status,
-                since=args.since
-            )
-            print_runs_table(runs)
+    if args.command == 'list':
+        runs = await cli.list_runs(
+            limit=args.limit,
+            run_type=args.run_type,
+            status=args.status,
+            since=args.since
+        )
+        print_runs_table(runs)
 
-        elif args.command == 'show':
-            run_data = await cli.get_run_details(args.run_id)
-            if run_data:
-                print_run_details(run_data)
-            else:
-                print(f"Run {args.run_id} not found in {args.environment} environment")
+    elif args.command == 'show':
+        run_data = await cli.get_run_details(args.run_id)
+        if run_data:
+            print_run_details(run_data)
+        else:
+            print(f"Run {args.run_id} not found in {args.environment} environment")
 
-        elif args.command == 'commits':
-            commits = await cli.get_commit_history(args.limit)
-            if commits:
-                print(f"{'Commit':<14} {'Branch':<20} {'First Used':<17} {'Last Used':<17} {'Runs':<5}")
-                print("-" * 75)
-                for commit in commits:
-                    print(f"{commit['git_commit_hash'][:12]:<14} {commit['git_branch'][:19]:<20} {commit['first_used'].strftime('%Y-%m-%d %H:%M'):<17} {commit['last_used'].strftime('%Y-%m-%d %H:%M'):<17} {commit['run_count']:<5}")
-            else:
-                print("No git commit history found")
+    elif args.command == 'commits':
+        commits = await cli.get_commit_history(args.limit)
+        if commits:
+            print(f"{'Commit':<14} {'Branch':<20} {'First Used':<17} {'Last Used':<17} {'Runs':<5}")
+            print("-" * 75)
+            for commit in commits:
+                print(f"{commit['git_commit_hash'][:12]:<14} {commit['git_branch'][:19]:<20} {commit['first_used'].strftime('%Y-%m-%d %H:%M'):<17} {commit['last_used'].strftime('%Y-%m-%d %H:%M'):<17} {commit['run_count']:<5}")
+        else:
+            print("No git commit history found")
 
-        elif args.command == 'export':
-            success = await cli.export_metadata(args.run_id, args.output)
+    elif args.command == 'export':
+        success = await cli.export_metadata(args.run_id, args.output)
 
-        elif args.command == 'validate':
-            validation = await cli.validate_reproducibility(args.run_id)
-            if 'error' in validation:
-                print(f"Error: {validation['error']}")
-            else:
-                print(f"\nREPRODUCIBILITY VALIDATION - Run {args.run_id}")
-                print("=" * 50)
-                print(f"Reproducible: {'✅ YES' if validation['reproducible'] else '❌ NO'}")
-                print(f"Metadata Completeness: {validation['metadata_completeness']:.1f}%")
+    elif args.command == 'validate':
+        validation = await cli.validate_reproducibility(args.run_id)
+        if 'error' in validation:
+            print(f"Error: {validation['error']}")
+        else:
+            print(f"\nREPRODUCIBILITY VALIDATION - Run {args.run_id}")
+            print("=" * 50)
+            print(f"Reproducible: {'✅ YES' if validation['reproducible'] else '❌ NO'}")
+            print(f"Metadata Completeness: {validation['metadata_completeness']:.1f}%")
 
-                if validation['issues']:
-                    print("\nISSUES (Critical):")
-                    for issue in validation['issues']:
-                        print(f"  ❌ {issue}")
+            if validation['issues']:
+                print("\nISSUES (Critical):")
+                for issue in validation['issues']:
+                    print(f"  ❌ {issue}")
 
-                if validation['warnings']:
-                    print("\nWARNINGS:")
-                    for warning in validation['warnings']:
-                        print(f"  ⚠️ {warning}")
+            if validation['warnings']:
+                print("\nWARNINGS:")
+                for warning in validation['warnings']:
+                    print(f"  ⚠️ {warning}")
 
-        elif args.command == 'compare':
-            run_ids = [int(x.strip()) for x in args.run_ids.split(',')]
-            comparison = await cli.compare_runs(run_ids)
+    elif args.command == 'compare':
+        run_ids = [int(x.strip()) for x in args.run_ids.split(',')]
+        comparison = await cli.compare_runs(run_ids)
 
-            if 'error' in comparison:
-                print(f"Error: {comparison['error']}")
-            else:
-                print(f"\nRUN COMPARISON")
-                print("=" * 40)
-                print(f"Runs: {', '.join([str(r['id']) for r in comparison['runs']])}")
+        if 'error' in comparison:
+            print(f"Error: {comparison['error']}")
+        else:
+            print(f"\nRUN COMPARISON")
+            print("=" * 40)
+            print(f"Runs: {', '.join([str(r['id']) for r in comparison['runs']])}")
 
-                if comparison['similarities']:
-                    print("\nSIMILARITIES:")
-                    for key, value in comparison['similarities'].items():
-                        print(f"  {key}: {value}")
+            if comparison['similarities']:
+                print("\nSIMILARITIES:")
+                for key, value in comparison['similarities'].items():
+                    print(f"  {key}: {value}")
 
-                if comparison['differences']:
-                    print("\nDIFFERENCES:")
-                    for key, values in comparison['differences'].items():
-                        print(f"  {key}:")
-                        for run_id, value in values.items():
-                            print(f"    Run {run_id}: {value}")
-
-    finally:
-        await cli.close()
+            if comparison['differences']:
+                print("\nDIFFERENCES:")
+                for key, values in comparison['differences'].items():
+                    print(f"  {key}:")
+                    for run_id, value in values.items():
+                        print(f"    Run {run_id}: {value}")
 
 if __name__ == '__main__':
     asyncio.run(main())

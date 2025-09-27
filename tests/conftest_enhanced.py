@@ -13,7 +13,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 # Import common test utilities
-from tests.fixtures.test_data_factory import TestDataFactory, get_sample_price_data
+from tests.conftest.test_data_factory import TestDataFactory, get_sample_price_data
 
 
 @pytest.fixture(scope="session")

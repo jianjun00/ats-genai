@@ -46,35 +46,26 @@ class DatabaseTester:
         print("-" * 40)
         
         for env, config in self.db_configs.items():
-            try:
-                conn = await asyncpg.connect(**config)
-                
-                # Test basic query
-                version = await conn.fetchval("SELECT version()")
-                
-                # Test table count
-                table_count = await conn.fetchval("""
-                    SELECT COUNT(*) FROM information_schema.tables 
-                    WHERE table_schema = 'public'
-                """)
-                
-                await conn.close()
-                
-                print(f"  ✅ {env.upper()} database connected - {table_count} tables")
-                self.test_results.append({
-                    "test": f"{env}_db_connectivity",
-                    "passed": True,
-                    "message": f"Connected with {table_count} tables"
-                })
-                
-            except Exception as e:
-                print(f"  ❌ {env.upper()} database failed: {str(e)}")
-                self.test_results.append({
-                    "test": f"{env}_db_connectivity", 
-                    "passed": False,
-                    "message": str(e)
-                })
-    
+            conn = await asyncpg.connect(**config)
+            
+            # Test basic query
+            version = await conn.fetchval("SELECT version()")
+            
+            # Test table count
+            table_count = await conn.fetchval("""
+                SELECT COUNT(*) FROM information_schema.tables 
+                WHERE table_schema = 'public'
+            """)
+            
+            await conn.close()
+            
+            print(f"  ✅ {env.upper()} database connected - {table_count} tables")
+            self.test_results.append({
+                "test": f"{env}_db_connectivity",
+                "passed": True,
+                "message": f"Connected with {table_count} tables"
+            })
+            
     async def test_data_availability(self):
         """Test if required data tables exist and have data"""
         print("\n📊 Testing Data Availability")
@@ -83,178 +74,129 @@ class DatabaseTester:
         # Focus on integration database for data quality testing
         config = self.db_configs["intg"]
         
-        try:
-            conn = await asyncpg.connect(**config)
+        conn = await asyncpg.connect(**config)
+        
+        # Check for key tables
+        key_tables = [
+            "intg_daily_prices",
+            "intg_instruments", 
+            "intg_daily_price_polygon",
+            "intg_daily_price_tiingo",
+            "intg_daily_price_eodhd"
+        ]
+        
+        for table in key_tables:
+            count = await conn.fetchval(f"SELECT COUNT(*) FROM {table}")
             
-            # Check for key tables
-            key_tables = [
-                "intg_daily_prices",
-                "intg_instruments", 
-                "intg_daily_price_polygon",
-                "intg_daily_price_tiingo",
-                "intg_daily_price_eodhd"
-            ]
-            
-            for table in key_tables:
-                try:
-                    count = await conn.fetchval(f"SELECT COUNT(*) FROM {table}")
-                    
-                    if count > 0:
-                        print(f"  ✅ {table}: {count:,} records")
-                        self.test_results.append({
-                            "test": f"{table}_data_available",
-                            "passed": True,
-                            "message": f"{count} records found"
-                        })
-                    else:
-                        print(f"  ⚠️  {table}: No data")
-                        self.test_results.append({
-                            "test": f"{table}_data_available",
-                            "passed": False,
-                            "message": "No data found"
-                        })
-                        
-                except Exception as e:
-                    print(f"  ❌ {table}: Table not found or error")
-                    self.test_results.append({
-                        "test": f"{table}_data_available",
-                        "passed": False,
-                        "message": f"Table error: {str(e)}"
-                    })
-            
-            await conn.close()
-            
-        except Exception as e:
-            print(f"  ❌ Database connection failed: {str(e)}")
-            self.test_results.append({
-                "test": "data_availability_check",
-                "passed": False,
-                "message": str(e)
-            })
-    
+            if count > 0:
+                print(f"  ✅ {table}: {count:,} records")
+                self.test_results.append({
+                    "test": f"{table}_data_available",
+                    "passed": True,
+                    "message": f"{count} records found"
+                })
+            else:
+                print(f"  ⚠️  {table}: No data")
+                self.test_results.append({
+                    "test": f"{table}_data_available",
+                    "passed": False,
+                    "message": "No data found"
+                })
+                
+        await conn.close()
+        
     async def test_quality_scan_tool(self):
         """Test Quality Scan Tool with real database"""
         print("\n🔍 Testing Quality Scan Tool")
         print("-" * 40)
         
-        try:
-            from src.mcp_tools.quality_scan_tool import QualityScanTool
-            
-            # Initialize tool
-            quality_tool = QualityScanTool()
-            print("  ✅ Quality Scan Tool initialized")
-            
-            # Test tool definition
-            definition = quality_tool.get_tool_definition()
-            print(f"  ✅ Tool definition: {definition['name']}")
-            
-            # Test with sample parameters (if database is available)
-            test_params = {
-                "table_name": "intg_daily_price",
-                "date_range": {
-                    "start_date": (date.today() - timedelta(days=7)).isoformat(),
-                    "end_date": date.today().isoformat()
-                },
-                "quality_rules": ["completeness", "timeliness"],
-                "severity_threshold": "medium"
-            }
-            
-            try:
-                # This would normally be called by the agent
-                print("  🧪 Testing quality scan execution...")
-                
-                # Test database connection within tool
-                config = self.db_configs["intg"]
-                conn = await asyncpg.connect(**config)
-                
-                # Check if table exists
-                table_exists = await conn.fetchval("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_name = $1
-                    )
-                """, test_params["table_name"])
-                
-                await conn.close()
-                
-                if table_exists:
-                    print(f"  ✅ Target table '{test_params['table_name']}' exists")
-                    self.test_results.append({
-                        "test": "quality_scan_tool_database",
-                        "passed": True,
-                        "message": "Tool can connect to database and find target table"
-                    })
-                else:
-                    print(f"  ⚠️  Target table '{test_params['table_name']}' not found")
-                    self.test_results.append({
-                        "test": "quality_scan_tool_database",
-                        "passed": False,
-                        "message": "Target table not found"
-                    })
-                
-            except Exception as e:
-                print(f"  ❌ Quality scan database test failed: {str(e)}")
-                self.test_results.append({
-                    "test": "quality_scan_tool_database",
-                    "passed": False,
-                    "message": str(e)
-                })
-            
+        from src.mcp_tools.quality_scan_tool import QualityScanTool
+        
+        # Initialize tool
+        quality_tool = QualityScanTool()
+        print("  ✅ Quality Scan Tool initialized")
+        
+        # Test tool definition
+        definition = quality_tool.get_tool_definition()
+        print(f"  ✅ Tool definition: {definition['name']}")
+        
+        # Test with sample parameters (if database is available)
+        test_params = {
+            "table_name": "intg_daily_price",
+            "date_range": {
+                "start_date": (date.today() - timedelta(days=7)).isoformat(),
+                "end_date": date.today().isoformat()
+            },
+            "quality_rules": ["completeness", "timeliness"],
+            "severity_threshold": "medium"
+        }
+        
+        # This would normally be called by the agent
+        print("  🧪 Testing quality scan execution...")
+        
+        # Test database connection within tool
+        config = self.db_configs["intg"]
+        conn = await asyncpg.connect(**config)
+        
+        # Check if table exists
+        table_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = $1
+            )
+        """, test_params["table_name"])
+        
+        await conn.close()
+        
+        if table_exists:
+            print(f"  ✅ Target table '{test_params['table_name']}' exists")
             self.test_results.append({
-                "test": "quality_scan_tool_init",
+                "test": "quality_scan_tool_database",
                 "passed": True,
-                "message": "Tool initialized and configured correctly"
+                "message": "Tool can connect to database and find target table"
             })
-            
-        except Exception as e:
-            print(f"  ❌ Quality Scan Tool failed: {str(e)}")
+        else:
+            print(f"  ⚠️  Target table '{test_params['table_name']}' not found")
             self.test_results.append({
-                "test": "quality_scan_tool_init",
+                "test": "quality_scan_tool_database",
                 "passed": False,
-                "message": str(e)
+                "message": "Target table not found"
             })
-    
+        
+        self.test_results.append({
+            "test": "quality_scan_tool_init",
+            "passed": True,
+            "message": "Tool initialized and configured correctly"
+        })
+        
     async def test_backfill_tool(self):
         """Test Backfill Orchestrator Tool"""
         print("\n🔄 Testing Backfill Orchestrator Tool")
         print("-" * 40)
         
-        try:
-            from src.mcp_tools.backfill_orchestrator_tool import BackfillOrchestratorTool
-            
-            # Initialize tool
-            backfill_tool = BackfillOrchestratorTool()
-            print("  ✅ Backfill Orchestrator Tool initialized")
-            
-            # Test tool definition
-            definition = backfill_tool.get_tool_definition()
-            print(f"  ✅ Tool definition: {definition['name']}")
-            
-            # Test vendor configurations
-            vendors = ["polygon", "tiingo", "eodhd"]
-            for vendor in vendors:
-                try:
-                    # This would test if vendor configurations are accessible
-                    print(f"  📡 Testing {vendor} vendor configuration...")
-                    # In a real test, this would check API keys and endpoints
-                    print(f"  ✅ {vendor} configuration available")
-                except Exception as e:
-                    print(f"  ⚠️  {vendor} configuration issue: {str(e)}")
-            
-            self.test_results.append({
-                "test": "backfill_tool_init",
-                "passed": True,
-                "message": "Tool initialized with vendor configurations"
-            })
-            
-        except Exception as e:
-            print(f"  ❌ Backfill Orchestrator Tool failed: {str(e)}")
-            self.test_results.append({
-                "test": "backfill_tool_init",
-                "passed": False,
-                "message": str(e)
-            })
-    
+        from src.mcp_tools.backfill_orchestrator_tool import BackfillOrchestratorTool
+        
+        # Initialize tool
+        backfill_tool = BackfillOrchestratorTool()
+        print("  ✅ Backfill Orchestrator Tool initialized")
+        
+        # Test tool definition
+        definition = backfill_tool.get_tool_definition()
+        print(f"  ✅ Tool definition: {definition['name']}")
+        
+        # Test vendor configurations
+        vendors = ["polygon", "tiingo", "eodhd"]
+        for vendor in vendors:
+            # This would test if vendor configurations are accessible
+            print(f"  📡 Testing {vendor} vendor configuration...")
+            # In a real test, this would check API keys and endpoints
+            print(f"  ✅ {vendor} configuration available")
+        self.test_results.append({
+            "test": "backfill_tool_init",
+            "passed": True,
+            "message": "Tool initialized with vendor configurations"
+        })
+        
     async def test_data_quality_queries(self):
         """Test data quality detection queries"""
         print("\n🔎 Testing Data Quality Detection")
@@ -262,121 +204,83 @@ class DatabaseTester:
         
         config = self.db_configs["intg"]
         
-        try:
-            conn = await asyncpg.connect(**config)
+        conn = await asyncpg.connect(**config)
+        
+        # Test 1: Missing data detection
+        missing_data_query = """
+        WITH recent_dates AS (
+            SELECT generate_series(
+                CURRENT_DATE - INTERVAL '7 days',
+                CURRENT_DATE - INTERVAL '1 day',
+                '1 day'::interval
+            )::date as expected_date
+        ),
+        actual_dates AS (
+            SELECT DISTINCT date as actual_date
+            FROM intg_daily_price 
+            WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+            LIMIT 100  -- Limit for testing
+        )
+        SELECT COUNT(*) as missing_days
+        FROM recent_dates rd
+        LEFT JOIN actual_dates ad ON rd.expected_date = ad.actual_date
+        WHERE ad.actual_date IS NULL
+        AND EXTRACT(dow FROM rd.expected_date) NOT IN (0, 6)
+        """
+        
+        missing_days = await conn.fetchval(missing_data_query)
+        print(f"  📅 Missing data check: {missing_days} missing trading days")
+        self.test_results.append({
+            "test": "missing_data_detection",
+            "passed": True,
+            "message": f"Found {missing_days} missing days"
+        })
+        volume_query = """
+        SELECT COUNT(*) as total_records,
+               COUNT(DISTINCT symbol) as unique_symbols,
+               MIN(date) as earliest_date,
+               MAX(date) as latest_date
+        FROM intg_daily_price
+        WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+        """
+        
+        volume_result = await conn.fetchrow(volume_query)
+        if volume_result:
+            total_records = volume_result['total_records']
+            unique_symbols = volume_result['unique_symbols']
+            print(f"  📊 Data volume: {total_records:,} records, {unique_symbols} symbols")
             
-            # Test 1: Missing data detection
-            missing_data_query = """
-            WITH recent_dates AS (
-                SELECT generate_series(
-                    CURRENT_DATE - INTERVAL '7 days',
-                    CURRENT_DATE - INTERVAL '1 day',
-                    '1 day'::interval
-                )::date as expected_date
-            ),
-            actual_dates AS (
-                SELECT DISTINCT date as actual_date
-                FROM intg_daily_price 
-                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-                LIMIT 100  -- Limit for testing
-            )
-            SELECT COUNT(*) as missing_days
-            FROM recent_dates rd
-            LEFT JOIN actual_dates ad ON rd.expected_date = ad.actual_date
-            WHERE ad.actual_date IS NULL
-            AND EXTRACT(dow FROM rd.expected_date) NOT IN (0, 6)
-            """
-            
-            try:
-                missing_days = await conn.fetchval(missing_data_query)
-                print(f"  📅 Missing data check: {missing_days} missing trading days")
-                self.test_results.append({
-                    "test": "missing_data_detection",
-                    "passed": True,
-                    "message": f"Found {missing_days} missing days"
-                })
-            except Exception as e:
-                print(f"  ❌ Missing data query failed: {str(e)}")
-                self.test_results.append({
-                    "test": "missing_data_detection", 
-                    "passed": False,
-                    "message": str(e)
-                })
-            
-            # Test 2: Data volume check
-            volume_query = """
-            SELECT COUNT(*) as total_records,
-                   COUNT(DISTINCT symbol) as unique_symbols,
-                   MIN(date) as earliest_date,
-                   MAX(date) as latest_date
-            FROM intg_daily_price
-            WHERE date >= CURRENT_DATE - INTERVAL '30 days'
-            """
-            
-            try:
-                volume_result = await conn.fetchrow(volume_query)
-                if volume_result:
-                    total_records = volume_result['total_records']
-                    unique_symbols = volume_result['unique_symbols']
-                    print(f"  📊 Data volume: {total_records:,} records, {unique_symbols} symbols")
-                    
-                    self.test_results.append({
-                        "test": "data_volume_check",
-                        "passed": total_records > 0,
-                        "message": f"{total_records} records, {unique_symbols} symbols"
-                    })
-            except Exception as e:
-                print(f"  ❌ Volume query failed: {str(e)}")
-                self.test_results.append({
-                    "test": "data_volume_check",
-                    "passed": False,
-                    "message": str(e)
-                })
-            
-            # Test 3: Data freshness
-            freshness_query = """
-            SELECT MAX(date) as latest_date,
-                   CURRENT_DATE - MAX(date) as days_old
-            FROM intg_daily_price
-            """
-            
-            try:
-                freshness_result = await conn.fetchrow(freshness_query)
-                if freshness_result and freshness_result['latest_date']:
-                    days_old = freshness_result['days_old'].days if freshness_result['days_old'] else 0
-                    latest_date = freshness_result['latest_date']
-                    print(f"  📅 Data freshness: Latest data is {days_old} days old ({latest_date})")
-                    
-                    self.test_results.append({
-                        "test": "data_freshness_check",
-                        "passed": days_old <= 5,  # Allow up to 5 days old
-                        "message": f"Latest data: {latest_date} ({days_old} days old)"
-                    })
-                else:
-                    print("  ❌ No date information found")
-                    self.test_results.append({
-                        "test": "data_freshness_check",
-                        "passed": False,
-                        "message": "No date information found"
-                    })
-            except Exception as e:
-                print(f"  ❌ Freshness query failed: {str(e)}")
-                self.test_results.append({
-                    "test": "data_freshness_check",
-                    "passed": False, 
-                    "message": str(e)
-                })
-            
-            await conn.close()
-            
-        except Exception as e:
-            print(f"  ❌ Database connection for quality tests failed: {str(e)}")
             self.test_results.append({
-                "test": "data_quality_queries",
-                "passed": False,
-                "message": str(e)
+                "test": "data_volume_check",
+                "passed": total_records > 0,
+                "message": f"{total_records} records, {unique_symbols} symbols"
             })
-    
+        freshness_query = """
+        SELECT MAX(date) as latest_date,
+               CURRENT_DATE - MAX(date) as days_old
+        FROM intg_daily_price
+        """
+        
+        freshness_result = await conn.fetchrow(freshness_query)
+        if freshness_result and freshness_result['latest_date']:
+            days_old = freshness_result['days_old'].days if freshness_result['days_old'] else 0
+            latest_date = freshness_result['latest_date']
+            print(f"  📅 Data freshness: Latest data is {days_old} days old ({latest_date})")
+            
+            self.test_results.append({
+                "test": "data_freshness_check",
+                "passed": days_old <= 5,  # Allow up to 5 days old
+                "message": f"Latest data: {latest_date} ({days_old} days old)"
+            })
+        else:
+            print("  ❌ No date information found")
+            self.test_results.append({
+                "test": "data_freshness_check",
+                "passed": False,
+                "message": "No date information found"
+            })
+        await conn.close()
+        
     def generate_report(self):
         """Generate test report"""
         

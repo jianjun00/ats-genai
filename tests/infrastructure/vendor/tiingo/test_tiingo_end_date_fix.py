@@ -274,26 +274,15 @@ if __name__ == "__main__":
         print("🧪 Running Tiingo End Date Fix Test Suite")
         print("=" * 60)
 
-        try:
-            # Run all tests
-            await test_instance.test_active_companies_have_null_end_date(conn)
-            await test_instance.test_delisted_companies_have_correct_end_date(conn)
-            await test_instance.test_no_recent_end_dates_for_active_stocks(conn)
-            await test_instance.test_end_date_interpretation_logic(conn)
-            await test_instance.test_historical_accuracy_validation(conn)
-            await test_instance.test_data_quality_metrics(conn)
+        # Run all tests
+        await test_instance.test_active_companies_have_null_end_date(conn)
+        await test_instance.test_delisted_companies_have_correct_end_date(conn)
+        await test_instance.test_no_recent_end_dates_for_active_stocks(conn)
+        await test_instance.test_end_date_interpretation_logic(conn)
+        await test_instance.test_historical_accuracy_validation(conn)
+        await test_instance.test_data_quality_metrics(conn)
 
-            print("=" * 60)
-            print("✅ ALL TESTS PASSED - Tiingo end_date fix working correctly")
+        print("=" * 60)
+        print("✅ ALL TESTS PASSED - Tiingo end_date fix working correctly")
 
-        except AssertionError as e:
-            print(f"❌ TEST FAILED: {e}")
-            raise
-        except Exception as e:
-            print(f"💥 UNEXPECTED ERROR: {e}")
-            raise
-        finally:
-            await conn.close()
-
-    # Run the tests
     asyncio.run(run_tests())

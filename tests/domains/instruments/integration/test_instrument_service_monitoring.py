@@ -12,7 +12,7 @@ from datetime import datetime
 from unittest.mock import Mock
 
 # Service imports
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.impl.instrument_service_cached import (
     InstrumentDTO,
     InstrumentSearchCriteria
 )
@@ -224,39 +224,30 @@ class TestInstrumentServiceMonitoringIntegration:
     @pytest.mark.asyncio
     async def test_service_integration_with_monitoring(self, instrument_service, service_monitor):
         """Test complete service operations with monitoring integration"""
-        try:
-            # Perform a complete workflow that should generate metrics
-            search_criteria = InstrumentSearchCriteria(limit=5)
+        # Perform a complete workflow that should generate metrics
+        search_criteria = InstrumentSearchCriteria(limit=5)
+        
+        # These operations should be automatically monitored
+        instruments = await instrument_service.list_instruments(search_criteria)
+        count = await instrument_service.get_instrument_count()
+        is_valid = await instrument_service.validate_symbol("AAPL")
+        
+        # Get monitoring data after operations
+        dashboard_data = await service_monitor.get_monitoring_dashboard()
+        
+        # Should have recorded the operations
+        perf_metrics = dashboard_data['performance_metrics']
+        instrument_stats = perf_metrics['instrument_service']
+        
+        # Should have some activity
+        assert instrument_stats is not None
+        
+        # If we have operation counts, verify they increased
+        if 'operation_counts' in instrument_stats:
+            operation_counts = instrument_stats['operation_counts']
+            total_ops = sum(operation_counts.values()) if operation_counts else 0
+            assert total_ops >= 0  # Should have at least some operations
             
-            # These operations should be automatically monitored
-            instruments = await instrument_service.list_instruments(search_criteria)
-            count = await instrument_service.get_instrument_count()
-            is_valid = await instrument_service.validate_symbol("AAPL")
-            
-            # Get monitoring data after operations
-            dashboard_data = await service_monitor.get_monitoring_dashboard()
-            
-            # Should have recorded the operations
-            perf_metrics = dashboard_data['performance_metrics']
-            instrument_stats = perf_metrics['instrument_service']
-            
-            # Should have some activity
-            assert instrument_stats is not None
-            
-            # If we have operation counts, verify they increased
-            if 'operation_counts' in instrument_stats:
-                operation_counts = instrument_stats['operation_counts']
-                total_ops = sum(operation_counts.values()) if operation_counts else 0
-                assert total_ops >= 0  # Should have at least some operations
-                
-        except Exception as e:
-            # In test environment, some operations might fail
-            # Verify monitoring still captures the attempts
-            dashboard_data = await service_monitor.get_monitoring_dashboard()
-            assert dashboard_data is not None
-            assert 'performance_metrics' in dashboard_data
-
-
 class TestMonitoringSystemReliability:
     """Test monitoring system reliability and error handling"""
     

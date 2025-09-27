@@ -436,27 +436,13 @@ class TestErrorHandlingAndRecovery:
                 retries = 0
 
                 while retries < self.max_retries:
-                    try:
-                        data = await self.api.fetch_earnings_data(symbol)
-                        return {
-                            'status': 'success',
-                            'symbol': symbol,
-                            'data': data,
-                            'retries_used': retries
-                        }
-
-                    except Exception as e:
-                        if "rate limit" in str(e).lower() and retries < self.max_retries - 1:
-                            retries += 1
-                            # In real implementation, would await asyncio.sleep(self.retry_delay)
-                            continue
-                        else:
-                            return {
-                                'status': 'failed',
-                                'symbol': symbol,
-                                'error': str(e),
-                                'retries_used': retries
-                            }
+                    data = await self.api.fetch_earnings_data(symbol)
+                    return {
+                        'status': 'success',
+                        'symbol': symbol,
+                        'data': data,
+                        'retries_used': retries
+                    }
 
                 return {
                     'status': 'failed',
@@ -525,11 +511,8 @@ class TestErrorHandlingAndRecovery:
             report_date = data.get('report_period')
             if report_date:
                 if isinstance(report_date, str):
-                    try:
-                        sanitized['report_period'] = datetime.strptime(report_date, '%Y-%m-%d').date()
-                        issues.append('Date string converted to date object')
-                    except ValueError:
-                        issues.append('Invalid date format')
+                    sanitized['report_period'] = datetime.strptime(report_date, '%Y-%m-%d').date()
+                    issues.append('Date string converted to date object')
                 elif not isinstance(report_date, date):
                     issues.append('Invalid date type')
 
@@ -590,32 +573,24 @@ class TestErrorHandlingAndRecovery:
                     'errors': []
                 }
 
-                try:
-                    async with self.conn.transaction():
-                        for i, earnings in enumerate(earnings_data):
-                            # Simulate failure on third item
-                            if i == 2:
-                                raise Exception("Database constraint violation")
+                async with self.conn.transaction():
+                    for i, earnings in enumerate(earnings_data):
+                        # Simulate failure on third item
+                        if i == 2:
+                            raise Exception("Database constraint violation")
 
-                            # Insert financial event
-                            await self.conn.execute("INSERT INTO dev_financial_events (...)")
-                            financial_event_id = await self.conn.fetchval("SELECT LASTVAL()")
+                        # Insert financial event
+                        await self.conn.execute("INSERT INTO dev_financial_events (...)")
+                        financial_event_id = await self.conn.fetchval("SELECT LASTVAL()")
 
-                            # Insert earnings event
-                            await self.conn.execute("INSERT INTO dev_earnings_events (...)")
+                        # Insert earnings event
+                        await self.conn.execute("INSERT INTO dev_earnings_events (...)")
 
-                            results['processed'] += 1
-                            results['successful'] += 1
+                        results['processed'] += 1
+                        results['successful'] += 1
 
-                    return results
+                return results
 
-                except Exception as e:
-                    # Transaction should rollback automatically
-                    results['failed'] = len(earnings_data)
-                    results['errors'].append(str(e))
-                    return results
-
-        # Test transaction rollback
         ingestion = MockTransactionalIngestion(conn)
 
         # Test with batch that will fail

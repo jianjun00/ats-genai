@@ -21,7 +21,7 @@ import os
 import sys
 sys.path.append('src')
 
-from domains.market_data.services.realtime.daily_validation import (
+from domains.market_data.services.data_collection.realtime.daily_validation import (
     DailyValidationEngine,
     ValidationResult
 )

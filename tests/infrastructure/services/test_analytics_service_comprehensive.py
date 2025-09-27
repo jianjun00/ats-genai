@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import Mock, patch
 import time
 
-from src.domains.analytics.services.analytics_service import (
+from domains.analytics.services.analytics_service import (
     JobManager,
     get_cached_datasets,
     DATASET_CACHE
@@ -223,13 +223,13 @@ class TestRayIntegration:
         mock_get_ray_service.return_value = mock_ray_service
 
         # Import would happen at module level, but we test the functionality
-        from src.domains.analytics.services.analytics_service import RAY_AVAILABLE
+        from domains.analytics.services.analytics_service import RAY_AVAILABLE
         assert RAY_AVAILABLE is True
 
     @patch('src.services.analytics_service.RAY_AVAILABLE', False)
     def test_ray_eda_service_unavailable(self):
         """Test fallback when Ray EDA service is unavailable."""
-        from src.domains.analytics.services.analytics_service import RAY_AVAILABLE
+        from domains.analytics.services.analytics_service import RAY_AVAILABLE
         assert RAY_AVAILABLE is False
 
 class TestAnalyticsServiceIntegration:

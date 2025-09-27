@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsFeatureExtractionKeys:
@@ -56,17 +51,11 @@ class TestRealObjectsFeatureExtractionKeys:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_5m_feature_keys_are_prefixed_real_objects(self, real_service, test_data):
         """Real objects version of test_5m_feature_keys_are_prefixed"""
         # Test with real database integration
-        result = await real_service.5m_feature_keys_are_prefixed(test_data)
+        result = await real_service.test_5m_feature_keys_are_prefixed(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -77,18 +66,12 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.5m_feature_keys_are_prefixed_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.test_5m_feature_keys_are_prefixed_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_15m_feature_keys_are_prefixed_real_objects(self, real_service, test_data):
         """Real objects version of test_15m_feature_keys_are_prefixed"""
         # Test with real database integration
-        result = await real_service.15m_feature_keys_are_prefixed(test_data)
+        result = await real_service.test_15m_feature_keys_are_prefixed(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -99,18 +82,12 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.15m_feature_keys_are_prefixed_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.test_15m_feature_keys_are_prefixed_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_1h_feature_keys_are_prefixed_real_objects(self, real_service, test_data):
         """Real objects version of test_1h_feature_keys_are_prefixed"""
         # Test with real database integration
-        result = await real_service.1h_feature_keys_are_prefixed(test_data)
+        result = await real_service.test_1h_feature_keys_are_prefixed(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -121,18 +98,12 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.1h_feature_keys_are_prefixed_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.test_1h_feature_keys_are_prefixed_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_1d_feature_keys_are_prefixed_real_objects(self, real_service, test_data):
         """Real objects version of test_1d_feature_keys_are_prefixed"""
         # Test with real database integration
-        result = await real_service.1d_feature_keys_are_prefixed(test_data)
+        result = await real_service.test_1d_feature_keys_are_prefixed(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -143,14 +114,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.1d_feature_keys_are_prefixed_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.test_1d_feature_keys_are_prefixed_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_base_timeframe_feature_keys_real_objects(self, real_service, test_data):
         """Real objects version of test_base_timeframe_feature_keys"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.base_timeframe_feature_keys_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.base_timeframe_feature_keys_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_feature_extraction_preserves_real_values_real_objects(self, real_service, test_data):
         """Real objects version of test_feature_extraction_preserves_real_values"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.feature_extraction_preserves_real_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.feature_extraction_preserves_real_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_qr4_uses_prefixed_keys_for_5m_real_objects(self, real_service, test_data):
         """Real objects version of test_qr4_uses_prefixed_keys_for_5m"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.qr4_uses_prefixed_keys_for_5m_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.qr4_uses_prefixed_keys_for_5m_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_qr4_fails_with_old_unprefixed_keys_real_objects(self, real_service, test_data):
         """Real objects version of test_qr4_fails_with_old_unprefixed_keys"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.qr4_fails_with_old_unprefixed_keys_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.qr4_fails_with_old_unprefixed_keys_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_qr4_handles_multiple_timeframes_real_objects(self, real_service, test_data):
         """Real objects version of test_qr4_handles_multiple_timeframes"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.qr4_handles_multiple_timeframes_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.qr4_handles_multiple_timeframes_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_to_end_feature_to_qr4_pipeline_real_objects(self, real_service, test_data):
         """Real objects version of test_end_to_end_feature_to_qr4_pipeline"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_to_end_feature_to_qr4_pipeline_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.end_to_end_feature_to_qr4_pipeline_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multiple_timeframe_pipeline_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_timeframe_pipeline_consistency"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multiple_timeframe_pipeline_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multiple_timeframe_pipeline_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_zero_values_bug_regression_check_real_objects(self, real_service, test_data):
         """Real objects version of test_zero_values_bug_regression_check"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.zero_values_bug_regression_check_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.zero_values_bug_regression_check_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_defensive_programming_checks_real_objects(self, real_service, test_data):
         """Real objects version of test_defensive_programming_checks"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.defensive_programming_checks_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.defensive_programming_checks_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_arrayrecord_real_data_verification_real_objects(self, real_service, test_data):
         """Real objects version of test_arrayrecord_real_data_verification"""
         # Test with real database integration
@@ -363,15 +274,8 @@ class TestRealObjectsFeatureExtractionKeys:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.arrayrecord_real_data_verification_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.arrayrecord_real_data_verification_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

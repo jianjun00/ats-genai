@@ -17,7 +17,7 @@ import os
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 class TestMultiTimeframeUniverseStateManager:
     """Test suite for multi-timeframe functionality in UniverseStateManager."""

@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from domains.trading.services.historical_universe_creator import HistoricalUniverseCreator, HistoricalStock
+from domains.trading.services.universe.modeling_universe_creator import HistoricalUniverseCreator, HistoricalStock
 from domains.ml.services.training_data.support_resistance_generator import (
     TrainingExample,
     SupportResistanceLevel
@@ -437,15 +437,9 @@ class TestCompleteSRPipeline:
         ensemble = SupportResistanceEnsemble(config)
 
         # Should handle empty training data gracefully
-        try:
-            ensemble.train([])  # Empty training data
-            # If it doesn't raise an exception, that's fine
-            # Different implementations may handle this differently
-        except (ValueError, IndexError) as e:
-            # Expected for empty data
-            assert "empty" in str(e).lower() or "shape" in str(e).lower()
-
-        # Test with malformed data
+        ensemble.train([])  # Empty training data
+        # If it doesn't raise an exception, that's fine
+        # Different implementations may handle this differently
         malformed_example = TrainingExample(
             symbol='TEST',
             date=date(2021, 1, 1),
@@ -459,13 +453,8 @@ class TestCompleteSRPipeline:
         )
 
         # Should handle gracefully
-        try:
-            data = ensemble.prepare_data([malformed_example])
-            # May succeed with default values or fail gracefully
-        except (ValueError, KeyError, IndexError):
-            # Expected for malformed data
-            pass
-
+        data = ensemble.prepare_data([malformed_example])
+        # May succeed with default values or fail gracefully
     def test_pipeline_reproducibility(self, sample_training_examples):
         """Test that pipeline produces reproducible results"""
 

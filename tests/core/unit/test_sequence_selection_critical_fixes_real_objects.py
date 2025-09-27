@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsSequenceSelectionCriticalFixes:
@@ -55,13 +49,7 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_nan_json_serialization_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_nan_json_serialization_handling"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.nan_json_serialization_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.nan_json_serialization_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_javascript_template_literal_syntax_real_objects(self, real_service, test_data):
         """Real objects version of test_javascript_template_literal_syntax"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.javascript_template_literal_syntax_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.javascript_template_literal_syntax_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_21_bar_selection_logic_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_21_bar_selection_logic_validation"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.21_bar_selection_logic_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.21_bar_selection_logic_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_21_bar_selection_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_21_bar_selection_edge_cases"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.21_bar_selection_edge_cases_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.21_bar_selection_edge_cases_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_timeframe_data_structure_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_timeframe_data_structure_validation"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_timeframe_data_structure_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_timeframe_data_structure_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequence_metadata_completeness_real_objects(self, real_service, test_data):
         """Real objects version of test_sequence_metadata_completeness"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequence_metadata_completeness_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sequence_metadata_completeness_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_dom_element_validation_patterns_real_objects(self, real_service, test_data):
         """Real objects version of test_dom_element_validation_patterns"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.dom_element_validation_patterns_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.dom_element_validation_patterns_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_response_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_api_response_error_handling"""
         # Test with real database integration
@@ -230,15 +176,8 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_response_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.api_response_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -29,15 +29,11 @@ DATABASE_CONFIG = {
 async def get_sample_instruments(limit: int = 5):
     """Get sample instruments from database."""
     conn = await asyncpg.connect(**DATABASE_CONFIG)
-    try:
-        rows = await conn.fetch(
-            "SELECT symbol FROM dev_instrument WHERE symbol ~ '^[A-Z]+$' AND LENGTH(symbol) <= 4 ORDER BY symbol LIMIT $1",
-            limit
-        )
-        return [row['symbol'] for row in rows]
-    finally:
-        await conn.close()
-
+    rows = await conn.fetch(
+        "SELECT symbol FROM dev_instrument WHERE symbol ~ '^[A-Z]+$' AND LENGTH(symbol) <= 4 ORDER BY symbol LIMIT $1",
+        limit
+    )
+    return [row['symbol'] for row in rows]
 async def main():
     parser = argparse.ArgumentParser(description='Tiingo Incremental Backfill CLI')
     parser.add_argument('--limit', type=int, default=3, help='Number of sample instruments')

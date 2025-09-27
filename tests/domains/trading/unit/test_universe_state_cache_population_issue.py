@@ -23,7 +23,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.services.universe.universe_manager import UniverseManager
 
 
@@ -49,25 +49,21 @@ class TestUniverseStateCachePopulationIssue:
         )
         
         # Initialize the universe manager (this should resolve AAPL → instrument_id 31)
-        try:
-            await universe_manager.initialize()
-            
-            # Verify AAPL was resolved correctly
-            instrument_ids = universe_manager.instrument_ids
-            print(f"   Resolved instrument_ids: {instrument_ids}")
-            
-            # This should pass - UniverseManager should resolve AAPL to instrument_id 31
-            assert instrument_ids == [31], f"Expected [31] for AAPL, got {instrument_ids}"
-            print("   ✅ UniverseManager correctly resolves AAPL → instrument_id 31")
-            
-            # Verify symbols are correct
-            symbols = await universe_manager.get_symbols()
-            assert symbols == ['AAPL'], f"Expected ['AAPL'], got {symbols}"
-            print("   ✅ UniverseManager returns correct symbols")
-            
-        except Exception as e:
-            pytest.fail(f"UniverseManager failed to resolve AAPL: {e}")
-    
+        await universe_manager.initialize()
+        
+        # Verify AAPL was resolved correctly
+        instrument_ids = universe_manager.instrument_ids
+        print(f"   Resolved instrument_ids: {instrument_ids}")
+        
+        # This should pass - UniverseManager should resolve AAPL to instrument_id 31
+        assert instrument_ids == [31], f"Expected [31] for AAPL, got {instrument_ids}"
+        print("   ✅ UniverseManager correctly resolves AAPL → instrument_id 31")
+        
+        # Verify symbols are correct
+        symbols = await universe_manager.get_symbols()
+        assert symbols == ['AAPL'], f"Expected ['AAPL'], got {symbols}"
+        print("   ✅ UniverseManager returns correct symbols")
+        
     @pytest.mark.asyncio
     async def test_universe_state_cache_uses_correct_instrument_ids(self):
         """Test that universe state cache gets populated with the correct instrument_ids from UniverseManager."""
@@ -121,16 +117,9 @@ class TestUniverseStateCachePopulationIssue:
             print(f"      Cache contains correct instrument_id: {requested_instrument_id in available_instrument_ids}")
             
             # This assertion will fail, demonstrating the issue
-            try:
-                assert requested_instrument_id in available_instrument_ids, \
-                    f"❌ ISSUE CONFIRMED: Cache contains {available_instrument_ids} but needs {requested_instrument_id}"
-                print("   ✅ Cache contains correct instrument_id")
-            except AssertionError as e:
-                print(f"   {e}")
-                print("   🎯 This test successfully reproduces the issue!")
-                # Don't fail the test - we expect this to fail until the issue is fixed
-                # pytest.fail(str(e))
-    
+            assert requested_instrument_id in available_instrument_ids, \
+                f"❌ ISSUE CONFIRMED: Cache contains {available_instrument_ids} but needs {requested_instrument_id}"
+            print("   ✅ Cache contains correct instrument_id")
     def test_issue_summary(self):
         """Summarize the universe state cache population issue."""
         print("\n" + "="*80)

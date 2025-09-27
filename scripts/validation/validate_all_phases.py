@@ -25,15 +25,11 @@ import pandas as pd
 
 def import_module_safely(module_name: str, file_path: str):
     """Safely import a module from a file path."""
-    try:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(module_name, file_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module, None
-    except Exception as e:
-        return None, str(e)
-
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module, None
 class PhaseValidator:
     """Comprehensive phase validation system."""
 
@@ -77,103 +73,78 @@ class PhaseValidator:
         phase_success = True
 
         # Test 1: Multi-Scale Sequence
-        try:
-            from storage.multi_scale_sequence import MultiScaleSequence, ScaleFeatures, TimeScale, MarketEvent, EventSequence
+        from storage.multi_scale_sequence import MultiScaleSequence, ScaleFeatures, TimeScale, MarketEvent, EventSequence
 
-            # Create test data
-            timestamps = pd.date_range('2024-01-01', periods=100, freq='1min')
-            ohlcv_data = np.random.randn(100, 5) + [150, 152, 148, 151, 5000]
-            technical_data = np.random.randn(100, 3)
+        # Create test data
+        timestamps = pd.date_range('2024-01-01', periods=100, freq='1min')
+        ohlcv_data = np.random.randn(100, 5) + [150, 152, 148, 151, 5000]
+        technical_data = np.random.randn(100, 3)
 
-            minute_features = ScaleFeatures(
-                timestamps=timestamps,
-                ohlcv=ohlcv_data,
-                technical=technical_data
-            )
+        minute_features = ScaleFeatures(
+            timestamps=timestamps,
+            ohlcv=ohlcv_data,
+            technical=technical_data
+        )
 
-            sequence = MultiScaleSequence(
-                symbol="AAPL",
-                time_range=(timestamps[0], timestamps[-1]),
-                minute_features=minute_features
-            )
+        sequence = MultiScaleSequence(
+            symbol="AAPL",
+            time_range=(timestamps[0], timestamps[-1]),
+            minute_features=minute_features
+        )
 
-            # Test feature access
-            features = sequence.get_features(TimeScale.MINUTE, 'ohlcv')
-            assert features is not None
-            assert features.shape[1] == 5
+        # Test feature access
+        features = sequence.get_features(TimeScale.MINUTE, 'ohlcv')
+        assert features is not None
+        assert features.shape[1] == 5
 
-            self.log_result("phase_1", "Multi-Scale Sequence", True)
+        self.log_result("phase_1", "Multi-Scale Sequence", True)
 
-        except Exception as e:
-            self.log_result("phase_1", "Multi-Scale Sequence", False, str(e))
-            phase_success = False
+        from storage.hdf5_multi_scale_cache import HDF5MultiScaleCache, CacheConfig
 
-        # Test 2: HDF5 Cache
-        try:
-            from storage.hdf5_multi_scale_cache import HDF5MultiScaleCache, CacheConfig
+        config = CacheConfig(
+            cache_dir="/tmp/test_cache",
+            compression_level=6
+        )
 
-            config = CacheConfig(
-                cache_dir="/tmp/test_cache",
-                compression_level=6
-            )
+        cache = HDF5MultiScaleCache(config)
+        assert cache.config.cache_dir == "/tmp/test_cache"
 
-            cache = HDF5MultiScaleCache(config)
-            assert cache.config.cache_dir == "/tmp/test_cache"
+        self.log_result("phase_1", "HDF5 Multi-Scale Cache", True)
 
-            self.log_result("phase_1", "HDF5 Multi-Scale Cache", True)
+        from domains.analytics.events.event_integration import EventIntegrationLayer, EventConfig
 
-        except Exception as e:
-            self.log_result("phase_1", "HDF5 Multi-Scale Cache", False, str(e))
-            phase_success = False
+        # Skip if PyTorch not available
+        import torch
 
-        # Test 3: Event Integration
-        try:
-            from domains.analytics.events.event_integration import EventIntegrationLayer, EventConfig
+        config = EventConfig(
+            hidden_dim=128,
+            num_attention_heads=8
+        )
 
-            # Skip if PyTorch not available
-            try:
-                import torch
+        layer = EventIntegrationLayer(config)
+        assert layer.config.hidden_dim == 128
 
-                config = EventConfig(
-                    hidden_dim=128,
-                    num_attention_heads=8
-                )
+        self.log_result("phase_1", "Event Integration Layer", True)
 
-                layer = EventIntegrationLayer(config)
-                assert layer.config.hidden_dim == 128
+        self.log_result("phase_1", "Event Integration Layer", False, str(e))
+        phase_success = False
 
-                self.log_result("phase_1", "Event Integration Layer", True)
+        from models.attention.cross_scale_attention import CrossScaleAttention, AttentionConfig
 
-            except ImportError:
-                self.log_result("phase_1", "Event Integration Layer", True, "PyTorch not available (expected)")
+        import torch
 
-        except Exception as e:
-            self.log_result("phase_1", "Event Integration Layer", False, str(e))
-            phase_success = False
+        config = AttentionConfig(
+            hidden_dim=128,
+            num_attention_heads=8
+        )
 
-        # Test 4: Cross-Scale Attention
-        try:
-            from models.attention.cross_scale_attention import CrossScaleAttention, AttentionConfig
+        attention = CrossScaleAttention(config)
+        assert attention.config.hidden_dim == 128
 
-            try:
-                import torch
+        self.log_result("phase_1", "Cross-Scale Attention", True)
 
-                config = AttentionConfig(
-                    hidden_dim=128,
-                    num_attention_heads=8
-                )
-
-                attention = CrossScaleAttention(config)
-                assert attention.config.hidden_dim == 128
-
-                self.log_result("phase_1", "Cross-Scale Attention", True)
-
-            except ImportError:
-                self.log_result("phase_1", "Cross-Scale Attention", True, "PyTorch not available (expected)")
-
-        except Exception as e:
-            self.log_result("phase_1", "Cross-Scale Attention", False, str(e))
-            phase_success = False
+        self.log_result("phase_1", "Cross-Scale Attention", False, str(e))
+        phase_success = False
 
         return phase_success
 
@@ -185,89 +156,64 @@ class PhaseValidator:
         phase_success = True
 
         # Test feature flag system first
-        try:
-            from config.feature_flags import feature_manager, is_enabled
+        from config.feature_flags import feature_manager, is_enabled
 
-            # Test default state (should be disabled)
-            agent_enabled = is_enabled("enable_agent_networks")
-            self.log_result("phase_2", "Feature Flags Available", True, f"Agent networks: {agent_enabled}")
+        # Test default state (should be disabled)
+        agent_enabled = is_enabled("enable_agent_networks")
+        self.log_result("phase_2", "Feature Flags Available", True, f"Agent networks: {agent_enabled}")
 
-        except Exception as e:
-            self.log_result("phase_2", "Feature Flags Available", False, str(e))
-            phase_success = False
-            return phase_success
+        from agents import create_agent_network, create_portfolio_system
 
-        # Test with feature disabled
-        try:
-            from agents import create_agent_network, create_portfolio_system
+        # Should return None when disabled
+        network = create_agent_network(["AAPL", "MSFT"])
+        portfolio_system = create_portfolio_system(["AAPL", "MSFT"])
 
-            # Should return None when disabled
-            network = create_agent_network(["AAPL", "MSFT"])
-            portfolio_system = create_portfolio_system(["AAPL", "MSFT"])
+        if not agent_enabled:
+            assert network is None
+            assert portfolio_system is None
+            self.log_result("phase_2", "Graceful Degradation (Disabled)", True)
+        else:
+            self.log_result("phase_2", "Feature Enabled by Default", True, "Agents available")
 
-            if not agent_enabled:
-                assert network is None
-                assert portfolio_system is None
-                self.log_result("phase_2", "Graceful Degradation (Disabled)", True)
-            else:
-                self.log_result("phase_2", "Feature Enabled by Default", True, "Agents available")
+        from config.feature_flags import feature_manager
 
-        except Exception as e:
-            self.log_result("phase_2", "Feature Flag Integration", False, str(e))
-            phase_success = False
+        # Override feature flags for testing
+        feature_manager.override_flag("enable_agent_networks", True)
+        feature_manager.override_flag("enable_portfolio_agents", True)
 
-        # Test with feature temporarily enabled
-        try:
-            from config.feature_flags import feature_manager
+        from agents import create_agent_network, create_portfolio_system
 
-            # Override feature flags for testing
-            feature_manager.override_flag("enable_agent_networks", True)
-            feature_manager.override_flag("enable_portfolio_agents", True)
+        # Test agent network creation
+        network = create_agent_network(["AAPL", "MSFT", "GOOGL"])
+        if network is not None:
+            self.log_result("phase_2", "Agent Network Creation", True)
 
-            from agents import create_agent_network, create_portfolio_system
+            # Test basic functionality if PyTorch available
+            import torch
+            hidden_dim = 64
+            market_features = {
+                "agent_AAPL": torch.randn(1, hidden_dim),
+                "agent_MSFT": torch.randn(1, hidden_dim)
+            }
 
-            # Test agent network creation
-            network = create_agent_network(["AAPL", "MSFT", "GOOGL"])
-            if network is not None:
-                self.log_result("phase_2", "Agent Network Creation", True)
+            results = network(market_features, enable_communication=False)
+            assert "agent_outputs" in results
+            assert "market_signal" in results
 
-                # Test basic functionality if PyTorch available
-                try:
-                    import torch
-                    hidden_dim = 64
-                    market_features = {
-                        "agent_AAPL": torch.randn(1, hidden_dim),
-                        "agent_MSFT": torch.randn(1, hidden_dim)
-                    }
+            self.log_result("phase_2", "Agent Network Forward Pass", True)
 
-                    results = network(market_features, enable_communication=False)
-                    assert "agent_outputs" in results
-                    assert "market_signal" in results
+            self.log_result("phase_2", "Agent Network Creation", False, "Network is None despite override")
 
-                    self.log_result("phase_2", "Agent Network Forward Pass", True)
+        # Test portfolio system
+        portfolio_system = create_portfolio_system(["AAPL", "MSFT"])
+        if portfolio_system is not None:
+            self.log_result("phase_2", "Portfolio System Creation", True)
+        else:
+            self.log_result("phase_2", "Portfolio System Creation", False, "System is None")
 
-                except ImportError:
-                    self.log_result("phase_2", "Agent Network Forward Pass", True, "PyTorch not available")
-                except Exception as forward_e:
-                    self.log_result("phase_2", "Agent Network Forward Pass", False, str(forward_e))
-
-            else:
-                self.log_result("phase_2", "Agent Network Creation", False, "Network is None despite override")
-
-            # Test portfolio system
-            portfolio_system = create_portfolio_system(["AAPL", "MSFT"])
-            if portfolio_system is not None:
-                self.log_result("phase_2", "Portfolio System Creation", True)
-            else:
-                self.log_result("phase_2", "Portfolio System Creation", False, "System is None")
-
-            # Reset feature flags
-            feature_manager.override_flag("enable_agent_networks", False)
-            feature_manager.override_flag("enable_portfolio_agents", False)
-
-        except Exception as e:
-            self.log_result("phase_2", "Agent Systems (Enabled)", False, str(e))
-            phase_success = False
+        # Reset feature flags
+        feature_manager.override_flag("enable_agent_networks", False)
+        feature_manager.override_flag("enable_portfolio_agents", False)
 
         return phase_success
 
@@ -279,140 +225,122 @@ class PhaseValidator:
         phase_success = True
 
         # Test feature flag system
-        try:
-            from config.feature_flags import feature_manager, is_enabled
+        from config.feature_flags import feature_manager, is_enabled
 
-            llm_enabled = is_enabled("enable_llm_events")
-            adaptive_enabled = is_enabled("enable_adaptive_selection")
+        llm_enabled = is_enabled("enable_llm_events")
+        adaptive_enabled = is_enabled("enable_adaptive_selection")
 
-            self.log_result("phase_3", "LLM Feature Flags", True,
-                          f"LLM Events: {llm_enabled}, Adaptive: {adaptive_enabled}")
+        self.log_result("phase_3", "LLM Feature Flags", True,
+                      f"LLM Events: {llm_enabled}, Adaptive: {adaptive_enabled}")
 
-        except Exception as e:
-            self.log_result("phase_3", "LLM Feature Flags", False, str(e))
-            phase_success = False
-            return phase_success
+        from llm import create_event_analyzer, create_adaptive_analyzer, quick_event_analysis
 
-        # Test with features disabled (default state)
-        try:
-            from llm import create_event_analyzer, create_adaptive_analyzer, quick_event_analysis
+        analyzer = create_event_analyzer()
+        adaptive = create_adaptive_analyzer()
+        quick_result = await quick_event_analysis("test content", "AAPL")
 
-            analyzer = create_event_analyzer()
-            adaptive = create_adaptive_analyzer()
-            quick_result = await quick_event_analysis("test content", "AAPL")
+        if not llm_enabled:
+            assert analyzer is None
+            assert adaptive is None
+            assert quick_result is None
+            self.log_result("phase_3", "Graceful Degradation (Disabled)", True)
+        else:
+            self.log_result("phase_3", "Features Enabled by Default", True, "LLM components available")
 
-            if not llm_enabled:
-                assert analyzer is None
-                assert adaptive is None
-                assert quick_result is None
-                self.log_result("phase_3", "Graceful Degradation (Disabled)", True)
-            else:
-                self.log_result("phase_3", "Features Enabled by Default", True, "LLM components available")
+        from config.feature_flags import feature_manager
 
-        except Exception as e:
-            self.log_result("phase_3", "LLM Feature Integration", False, str(e))
-            phase_success = False
+        # Enable LLM features for testing
+        feature_manager.override_flag("enable_llm_events", True)
+        feature_manager.override_flag("enable_adaptive_selection", True)
+        feature_manager.override_flag("enable_event_reflection", True)
 
-        # Test with features temporarily enabled
-        try:
-            from config.feature_flags import feature_manager
+        from llm import create_event_analyzer, create_adaptive_analyzer, quick_event_analysis, deep_event_analysis
 
-            # Enable LLM features for testing
-            feature_manager.override_flag("enable_llm_events", True)
-            feature_manager.override_flag("enable_adaptive_selection", True)
-            feature_manager.override_flag("enable_event_reflection", True)
+        # Test event analyzer creation
+        analyzer = create_event_analyzer(enable_reflection=False)  # Faster without reflection
+        if analyzer is not None:
+            self.log_result("phase_3", "Event Analyzer Creation", True)
 
-            from llm import create_event_analyzer, create_adaptive_analyzer, quick_event_analysis, deep_event_analysis
+            # Test basic analysis
+            from llm.event_analysis import EventAnalysisRequest
 
-            # Test event analyzer creation
-            analyzer = create_event_analyzer(enable_reflection=False)  # Faster without reflection
-            if analyzer is not None:
-                self.log_result("phase_3", "Event Analyzer Creation", True)
-
-                # Test basic analysis
-                from llm.event_analysis import EventAnalysisRequest
-
-                request = EventAnalysisRequest(
-                    event_id="test_validation",
-                    event_type="earnings",
-                    content="Company reports strong quarterly results with revenue beating expectations",
-                    timestamp=datetime.now(),
-                    symbol="AAPL",
-                    enable_reflection=False
-                )
-
-                result = await analyzer.analyze_event(request)
-
-                assert result.event_id == "test_validation"
-                assert isinstance(result.sentiment_score, float)
-                assert -1.0 <= result.sentiment_score <= 1.0
-                assert isinstance(result.importance_score, float)
-                assert 0.0 <= result.importance_score <= 1.0
-
-                self.log_result("phase_3", "Event Analysis Execution", True)
-
-            else:
-                self.log_result("phase_3", "Event Analyzer Creation", False, "Analyzer is None")
-
-            # Test adaptive selector
-            adaptive = create_adaptive_analyzer()
-            if adaptive is not None:
-                self.log_result("phase_3", "Adaptive Selector Creation", True)
-
-                # Test model selection
-                from llm.event_analysis import EventAnalysisRequest
-
-                quick_request = EventAnalysisRequest(
-                    event_id="quick_test",
-                    event_type="news",
-                    content="Short news",
-                    timestamp=datetime.now(),
-                    symbol="MSFT"
-                )
-
-                model_type = adaptive.select_model(quick_request)
-                assert model_type in ["quick", "standard", "deep"]
-
-                self.log_result("phase_3", "Adaptive Model Selection", True, f"Selected: {model_type}")
-
-            else:
-                self.log_result("phase_3", "Adaptive Selector Creation", False, "Selector is None")
-
-            # Test convenience functions
-            quick_result = await quick_event_analysis(
-                "Market volatility increases",
-                "SPY",
-                "news"
+            request = EventAnalysisRequest(
+                event_id="test_validation",
+                event_type="earnings",
+                content="Company reports strong quarterly results with revenue beating expectations",
+                timestamp=datetime.now(),
+                symbol="AAPL",
+                enable_reflection=False
             )
 
-            if quick_result is not None:
-                assert isinstance(quick_result.sentiment_score, float)
-                self.log_result("phase_3", "Quick Analysis Function", True)
-            else:
-                self.log_result("phase_3", "Quick Analysis Function", False, "Result is None")
+            result = await analyzer.analyze_event(request)
 
-            # Test deep analysis with context
-            context = {"market_conditions": "volatile", "sector": "technology"}
-            deep_result = await deep_event_analysis(
-                "Comprehensive analysis of market impact",
-                "AAPL",
-                context,
-                "news"
+            assert result.event_id == "test_validation"
+            assert isinstance(result.sentiment_score, float)
+            assert -1.0 <= result.sentiment_score <= 1.0
+            assert isinstance(result.importance_score, float)
+            assert 0.0 <= result.importance_score <= 1.0
+
+            self.log_result("phase_3", "Event Analysis Execution", True)
+
+        else:
+            self.log_result("phase_3", "Event Analyzer Creation", False, "Analyzer is None")
+
+        # Test adaptive selector
+        adaptive = create_adaptive_analyzer()
+        if adaptive is not None:
+            self.log_result("phase_3", "Adaptive Selector Creation", True)
+
+            # Test model selection
+            from llm.event_analysis import EventAnalysisRequest
+
+            quick_request = EventAnalysisRequest(
+                event_id="quick_test",
+                event_type="news",
+                content="Short news",
+                timestamp=datetime.now(),
+                symbol="MSFT"
             )
 
-            if deep_result is not None:
-                self.log_result("phase_3", "Deep Analysis with Context", True)
-            else:
-                self.log_result("phase_3", "Deep Analysis with Context", False, "Result is None")
+            model_type = adaptive.select_model(quick_request)
+            assert model_type in ["quick", "standard", "deep"]
 
-            # Reset feature flags
-            feature_manager.override_flag("enable_llm_events", False)
-            feature_manager.override_flag("enable_adaptive_selection", False)
-            feature_manager.override_flag("enable_event_reflection", False)
+            self.log_result("phase_3", "Adaptive Model Selection", True, f"Selected: {model_type}")
 
-        except Exception as e:
-            self.log_result("phase_3", "LLM Analysis (Enabled)", False, str(e))
-            phase_success = False
+        else:
+            self.log_result("phase_3", "Adaptive Selector Creation", False, "Selector is None")
+
+        # Test convenience functions
+        quick_result = await quick_event_analysis(
+            "Market volatility increases",
+            "SPY",
+            "news"
+        )
+
+        if quick_result is not None:
+            assert isinstance(quick_result.sentiment_score, float)
+            self.log_result("phase_3", "Quick Analysis Function", True)
+        else:
+            self.log_result("phase_3", "Quick Analysis Function", False, "Result is None")
+
+        # Test deep analysis with context
+        context = {"market_conditions": "volatile", "sector": "technology"}
+        deep_result = await deep_event_analysis(
+            "Comprehensive analysis of market impact",
+            "AAPL",
+            context,
+            "news"
+        )
+
+        if deep_result is not None:
+            self.log_result("phase_3", "Deep Analysis with Context", True)
+        else:
+            self.log_result("phase_3", "Deep Analysis with Context", False, "Result is None")
+
+        # Reset feature flags
+        feature_manager.override_flag("enable_llm_events", False)
+        feature_manager.override_flag("enable_adaptive_selection", False)
+        feature_manager.override_flag("enable_event_reflection", False)
 
         return phase_success
 
@@ -424,81 +352,57 @@ class PhaseValidator:
         phase_success = True
 
         # Test feature manager initialization
-        try:
-            from config.feature_flags import FeatureManager, feature_manager
+        from config.feature_flags import FeatureManager, feature_manager
 
-            assert feature_manager is not None
-            self.log_result("feature_flags", "Feature Manager Initialization", True)
+        assert feature_manager is not None
+        self.log_result("feature_flags", "Feature Manager Initialization", True)
 
-        except Exception as e:
-            self.log_result("feature_flags", "Feature Manager Initialization", False, str(e))
-            phase_success = False
-            return phase_success
+        from config.feature_flags import is_enabled
 
-        # Test feature flag querying
-        try:
-            from config.feature_flags import is_enabled
+        # Test known flags
+        agent_status = is_enabled("enable_agent_networks")
+        llm_status = is_enabled("enable_llm_events")
+        portfolio_status = is_enabled("enable_portfolio_agents")
 
-            # Test known flags
-            agent_status = is_enabled("enable_agent_networks")
-            llm_status = is_enabled("enable_llm_events")
-            portfolio_status = is_enabled("enable_portfolio_agents")
+        # Should all be boolean
+        assert isinstance(agent_status, bool)
+        assert isinstance(llm_status, bool)
+        assert isinstance(portfolio_status, bool)
 
-            # Should all be boolean
-            assert isinstance(agent_status, bool)
-            assert isinstance(llm_status, bool)
-            assert isinstance(portfolio_status, bool)
+        self.log_result("feature_flags", "Feature Status Querying", True,
+                      f"Agents: {agent_status}, LLM: {llm_status}, Portfolio: {portfolio_status}")
 
-            self.log_result("feature_flags", "Feature Status Querying", True,
-                          f"Agents: {agent_status}, LLM: {llm_status}, Portfolio: {portfolio_status}")
+        from config.feature_flags import feature_manager
 
-        except Exception as e:
-            self.log_result("feature_flags", "Feature Status Querying", False, str(e))
-            phase_success = False
+        original_status = feature_manager.is_enabled("enable_agent_networks")
 
-        # Test feature flag overrides
-        try:
-            from config.feature_flags import feature_manager
+        # Override to opposite
+        feature_manager.override_flag("enable_agent_networks", not original_status)
+        new_status = feature_manager.is_enabled("enable_agent_networks")
 
-            original_status = feature_manager.is_enabled("enable_agent_networks")
+        assert new_status != original_status
 
-            # Override to opposite
-            feature_manager.override_flag("enable_agent_networks", not original_status)
-            new_status = feature_manager.is_enabled("enable_agent_networks")
+        # Reset
+        feature_manager.override_flag("enable_agent_networks", original_status)
+        reset_status = feature_manager.is_enabled("enable_agent_networks")
 
-            assert new_status != original_status
+        assert reset_status == original_status
 
-            # Reset
-            feature_manager.override_flag("enable_agent_networks", original_status)
-            reset_status = feature_manager.is_enabled("enable_agent_networks")
+        self.log_result("feature_flags", "Runtime Overrides", True)
 
-            assert reset_status == original_status
+        summary = feature_manager.model_flags.get_feature_summary()
 
-            self.log_result("feature_flags", "Runtime Overrides", True)
+        assert isinstance(summary, dict)
+        assert len(summary) > 0
 
-        except Exception as e:
-            self.log_result("feature_flags", "Runtime Overrides", False, str(e))
-            phase_success = False
+        # Check expected keys in summary
+        for feature_name, feature_info in summary.items():
+            assert "enabled" in feature_info
+            assert "stage" in feature_info
+            assert "description" in feature_info
 
-        # Test feature summary
-        try:
-            summary = feature_manager.model_flags.get_feature_summary()
-
-            assert isinstance(summary, dict)
-            assert len(summary) > 0
-
-            # Check expected keys in summary
-            for feature_name, feature_info in summary.items():
-                assert "enabled" in feature_info
-                assert "stage" in feature_info
-                assert "description" in feature_info
-
-            self.log_result("feature_flags", "Feature Summary Generation", True,
-                          f"Found {len(summary)} features")
-
-        except Exception as e:
-            self.log_result("feature_flags", "Feature Summary Generation", False, str(e))
-            phase_success = False
+        self.log_result("feature_flags", "Feature Summary Generation", True,
+                      f"Found {len(summary)} features")
 
         return phase_success
 
@@ -508,79 +412,70 @@ class PhaseValidator:
         print("-" * 40)
 
         # Phase 1 Performance: Multi-scale data access
-        try:
+        start_time = time.time()
+
+        from storage.multi_scale_sequence import MultiScaleSequence, ScaleFeatures, TimeScale
+
+        # Create larger dataset
+        timestamps = pd.date_range('2024-01-01', periods=10000, freq='1min')
+        ohlcv_data = np.random.randn(10000, 5) + [150, 152, 148, 151, 5000]
+        technical_data = np.random.randn(10000, 10)  # More technical indicators
+
+        minute_features = ScaleFeatures(
+            timestamps=timestamps,
+            ohlcv=ohlcv_data,
+            technical=technical_data
+        )
+
+        sequence = MultiScaleSequence(
+            symbol="AAPL",
+            time_range=(timestamps[0], timestamps[-1]),
+            minute_features=minute_features
+        )
+
+        # Multiple feature accesses
+        for _ in range(100):
+            features = sequence.get_features(TimeScale.MINUTE, 'all')
+
+        phase1_time = time.time() - start_time
+
+        self.log_result("feature_flags", "Phase 1 Performance", True,
+                      f"{phase1_time:.3f}s for 10k records, 100 accesses")
+
+        from config.feature_flags import feature_manager
+        feature_manager.override_flag("enable_llm_events", True)
+
+        from llm import create_event_analyzer
+
+        analyzer = create_event_analyzer(enable_reflection=False, enable_caching=True)
+
+        if analyzer:
             start_time = time.time()
 
-            from storage.multi_scale_sequence import MultiScaleSequence, ScaleFeatures, TimeScale
+            # Batch analysis
+            from llm.event_analysis import EventAnalysisRequest
 
-            # Create larger dataset
-            timestamps = pd.date_range('2024-01-01', periods=10000, freq='1min')
-            ohlcv_data = np.random.randn(10000, 5) + [150, 152, 148, 151, 5000]
-            technical_data = np.random.randn(10000, 10)  # More technical indicators
+            requests = [
+                EventAnalysisRequest(
+                    event_id=f"perf_{i}",
+                    event_type="news",
+                    content=f"Performance test event {i} with varying content length",
+                    timestamp=datetime.now(),
+                    symbol=f"STOCK{i}",
+                    enable_reflection=False,
+                    cache_results=True
+                )
+                for i in range(50)
+            ]
 
-            minute_features = ScaleFeatures(
-                timestamps=timestamps,
-                ohlcv=ohlcv_data,
-                technical=technical_data
-            )
+            results = await analyzer.analyze_batch(requests, max_concurrent=10)
 
-            sequence = MultiScaleSequence(
-                symbol="AAPL",
-                time_range=(timestamps[0], timestamps[-1]),
-                minute_features=minute_features
-            )
+            phase3_time = time.time() - start_time
 
-            # Multiple feature accesses
-            for _ in range(100):
-                features = sequence.get_features(TimeScale.MINUTE, 'all')
+            self.log_result("feature_flags", "Phase 3 Performance", True,
+                          f"{phase3_time:.3f}s for 50 events, {len(results)} results")
 
-            phase1_time = time.time() - start_time
-
-            self.log_result("feature_flags", "Phase 1 Performance", True,
-                          f"{phase1_time:.3f}s for 10k records, 100 accesses")
-
-        except Exception as e:
-            self.log_result("feature_flags", "Phase 1 Performance", False, str(e))
-
-        # Phase 3 Performance: LLM analysis
-        try:
-            from config.feature_flags import feature_manager
-            feature_manager.override_flag("enable_llm_events", True)
-
-            from llm import create_event_analyzer
-
-            analyzer = create_event_analyzer(enable_reflection=False, enable_caching=True)
-
-            if analyzer:
-                start_time = time.time()
-
-                # Batch analysis
-                from llm.event_analysis import EventAnalysisRequest
-
-                requests = [
-                    EventAnalysisRequest(
-                        event_id=f"perf_{i}",
-                        event_type="news",
-                        content=f"Performance test event {i} with varying content length",
-                        timestamp=datetime.now(),
-                        symbol=f"STOCK{i}",
-                        enable_reflection=False,
-                        cache_results=True
-                    )
-                    for i in range(50)
-                ]
-
-                results = await analyzer.analyze_batch(requests, max_concurrent=10)
-
-                phase3_time = time.time() - start_time
-
-                self.log_result("feature_flags", "Phase 3 Performance", True,
-                              f"{phase3_time:.3f}s for 50 events, {len(results)} results")
-
-            feature_manager.override_flag("enable_llm_events", False)
-
-        except Exception as e:
-            self.log_result("feature_flags", "Phase 3 Performance", False, str(e))
+        feature_manager.override_flag("enable_llm_events", False)
 
     def print_summary(self):
         """Print comprehensive validation summary."""

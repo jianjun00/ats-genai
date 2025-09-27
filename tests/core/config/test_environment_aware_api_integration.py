@@ -20,7 +20,7 @@ class TestEnvironmentAwareAPIs:
     @pytest.mark.asyncio
     async def test_training_datasets_api_uses_environment_config(self):
         """Test that training datasets API uses environment-specific database config"""
-        from src.domains.ml.legacy.training_data.apis.training_dataset_simple_api import get_db_connection
+        from domains.ml.legacy.training_data.apis.training_dataset_simple_api import get_db_connection
 
         # Test DEV environment
         with patch.dict(os.environ, {
@@ -101,7 +101,7 @@ class TestEnvironmentAwareAPIs:
 
     def test_training_datasets_api_endpoint_responds_in_both_environments(self):
         """Integration test: API endpoint works in both environments"""
-        from src.infrastructure.services_legacy.analytics.unified_analytics_app import app
+        from infrastructure.services_legacy.analytics.unified_analytics_app import app
 
         client = TestClient(app)
 
@@ -169,7 +169,7 @@ class TestEnvironmentConfigurationValidation:
 
     def test_environment_detection_accuracy(self):
         """Test that environment is correctly detected from different sources"""
-        from core.shared.utils.environment import Environment
+        from core.platform.config.environment import Environment
 
         # Test explicit environment variable
         with patch.dict(os.environ, {'ENVIRONMENT': 'intg'}, clear=False):
@@ -184,22 +184,16 @@ class TestEnvironmentConfigurationValidation:
 
     def test_missing_environment_config_handling(self):
         """Test graceful handling when environment config is missing"""
-        from core.shared.utils.environment import Environment
+        from core.platform.config.environment import Environment
 
         # Test with missing environment variables
         with patch.dict(os.environ, {}, clear=True):
             # Should not crash, should provide sensible defaults or clear error
-            try:
-                env = Environment()
-                # Should be able to determine some environment
-                table_name = env.get_table_name('training_datasets')
-                assert table_name is not None
-                assert len(table_name) > 0
-            except Exception as e:
-                # If it raises an exception, it should be clear and actionable
-                assert 'environment' in str(e).lower() or 'config' in str(e).lower()
-
-# Test cases for CI/CD pipeline
+            env = Environment()
+            # Should be able to determine some environment
+            table_name = env.get_table_name('training_datasets')
+            assert table_name is not None
+            assert len(table_name) > 0
 class TestCrosEnvironmentIntegration:
     """Integration tests that validate cross-environment functionality"""
 

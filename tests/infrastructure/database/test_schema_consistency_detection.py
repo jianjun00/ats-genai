@@ -145,20 +145,9 @@ class TestSchemaConsistencyDetection:
         expected_error_pattern = f'column "{missing_column}" of relation "{table_name}" does not exist'
         
         # Verify our test would catch this
-        try:
-            # Simulate query that would fail
-            from asyncpg.exceptions import UndefinedColumnError
-            raise UndefinedColumnError(expected_error_pattern)
-        except UndefinedColumnError as e:
-            error_message = str(e)
-            
-            # Verify error message contains expected components
-            assert missing_column in error_message, f"Error should mention missing column '{missing_column}'"
-            assert table_name in error_message, f"Error should mention table '{table_name}'"
-            assert "does not exist" in error_message, "Error should indicate column does not exist"
-            
-            print(f"✅ UndefinedColumnError pattern detected: {error_message}")
-
+        # Simulate query that would fail
+        from asyncpg.exceptions import UndefinedColumnError
+        raise UndefinedColumnError(expected_error_pattern)
     async def test_migration_007_completeness(self):
         """
         Test that migration 007 adds all required columns.
@@ -189,22 +178,15 @@ class TestSchemaConsistencyDetection:
 
     async def _get_table_columns(self, environment, table_name):
         """Get list of column names for a table."""
-        try:
-            async with environment.get_connection() as conn:
-                query = """
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = $1 
-                ORDER BY ordinal_position
-                """
-                rows = await conn.fetch(query, table_name)
-                return [row['column_name'] for row in rows]
-        except Exception as e:
-            print(f"❌ Failed to get columns for {table_name}: {e}")
-            return []
-
-
-# Standalone test functions for direct execution
+        async with environment.get_connection() as conn:
+            query = """
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = $1 
+            ORDER BY ordinal_position
+            """
+            rows = await conn.fetch(query, table_name)
+            return [row['column_name'] for row in rows]
 async def test_schema_consistency():
     """Test schema consistency between environments."""
     test_instance = TestSchemaConsistencyDetection()
@@ -233,27 +215,20 @@ if __name__ == "__main__":
     print("=" * 60)
     
     async def run_tests():
-        try:
-            # Test 1: Schema consistency
-            print("\n1. Testing schema consistency:")
-            await test_schema_consistency()
-            
-            # Test 2: Error detection pattern
-            print("\n2. Testing error detection pattern:")
-            await test_error_detection()
-            
-            # Test 3: Migration verification
-            print("\n3. Testing migration verification:")
-            await test_migration_verification()
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
-    
+        # Test 1: Schema consistency
+        print("\n1. Testing schema consistency:")
+        await test_schema_consistency()
+        
+        # Test 2: Error detection pattern
+        print("\n2. Testing error detection pattern:")
+        await test_error_detection()
+        
+        # Test 3: Migration verification
+        print("\n3. Testing migration verification:")
+        await test_migration_verification()
+        
+        return True
+        
     success = asyncio.run(run_tests())
     if success:
         print(f"\n🎉 All schema consistency tests passed!")

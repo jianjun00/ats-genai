@@ -13,7 +13,7 @@ from datetime import date
 import sys
 sys.path.append('/workspace/src')
 
-from src.secmaster.populate_instrument_eodhd import (
+from domains.instruments.services.secmaster.populate_instrument_eodhd import (
     get_exchange_symbols,
     fetch_fundamental_data,
     fetch_and_store_instruments,

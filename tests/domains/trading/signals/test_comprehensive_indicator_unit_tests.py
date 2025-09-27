@@ -21,7 +21,7 @@ import json
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+from domains.ml.services.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
 
 class TestOHLCVIndicators:
     """Test OHLCV base data and derived features."""

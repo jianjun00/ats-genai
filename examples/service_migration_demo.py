@@ -45,45 +45,36 @@ class ServiceMigrationDemo:
         print("🚀 Starting Service Architecture Migration Demo")
         print("=" * 60)
 
-        try:
-            # Initialize orchestrator
-            await self._initialize_demo_environment()
+        # Initialize orchestrator
+        await self._initialize_demo_environment()
 
-            # Phase 1: Analysis and Planning
-            print("\n📋 Phase 1: Migration Analysis and Planning")
-            migration_plan = await self._demonstrate_migration_planning()
+        # Phase 1: Analysis and Planning
+        print("\n📋 Phase 1: Migration Analysis and Planning")
+        migration_plan = await self._demonstrate_migration_planning()
 
-            # Phase 2: Dry Run Execution
-            print("\n🧪 Phase 2: Dry Run Migration Execution")
-            dry_run_report = await self._demonstrate_dry_run_migration(migration_plan)
+        # Phase 2: Dry Run Execution
+        print("\n🧪 Phase 2: Dry Run Migration Execution")
+        dry_run_report = await self._demonstrate_dry_run_migration(migration_plan)
 
-            # Phase 3: Validation Demo
-            print("\n🔍 Phase 3: Migration Validation Demo")
-            await self._demonstrate_validation_capabilities()
+        # Phase 3: Validation Demo
+        print("\n🔍 Phase 3: Migration Validation Demo")
+        await self._demonstrate_validation_capabilities()
 
-            # Phase 4: Performance Demo
-            print("\n⚡ Phase 4: Performance Optimization Demo")
-            await self._demonstrate_performance_features()
+        # Phase 4: Performance Demo
+        print("\n⚡ Phase 4: Performance Optimization Demo")
+        await self._demonstrate_performance_features()
 
-            # Phase 5: Monitoring Demo
-            print("\n📊 Phase 5: Service Monitoring Demo")
-            await self._demonstrate_monitoring_capabilities()
+        # Phase 5: Monitoring Demo
+        print("\n📊 Phase 5: Service Monitoring Demo")
+        await self._demonstrate_monitoring_capabilities()
 
-            # Phase 6: Rollback Demo
-            print("\n🔄 Phase 6: Rollback Capabilities Demo")
-            await self._demonstrate_rollback_features(migration_plan.migration_id)
+        # Phase 6: Rollback Demo
+        print("\n🔄 Phase 6: Rollback Capabilities Demo")
+        await self._demonstrate_rollback_features(migration_plan.migration_id)
 
-            # Summary
-            print("\n✅ Migration Demo Complete!")
-            self._display_demo_summary()
-
-        except Exception as e:
-            logger.error(f"Demo failed: {e}")
-            print(f"\n❌ Demo failed: {e}")
-
-        finally:
-            if self.orchestrator:
-                await self.orchestrator.database_migrator.close()
+        # Summary
+        print("\n✅ Migration Demo Complete!")
+        self._display_demo_summary()
 
     async def _initialize_demo_environment(self):
         """Initialize demo environment."""
@@ -102,70 +93,55 @@ class ServiceMigrationDemo:
             enable_rollback=True
         )
 
-        try:
-            await self.orchestrator.initialize()
-            print("✅ Demo environment initialized successfully")
-        except Exception as e:
-            print(f"⚠️  Database connection not available: {e}")
-            print("   Demo will continue with limited functionality")
-
+        await self.orchestrator.initialize()
+        print("✅ Demo environment initialized successfully")
     async def _demonstrate_migration_planning(self) -> MigrationPlan:
         """Demonstrate migration planning capabilities."""
         print("\n🔍 Analyzing current codebase structure...")
 
         # Show codebase analysis
         if self.orchestrator:
-            try:
-                codebase_analysis = self.orchestrator.code_migrator.analyze_codebase()
+            codebase_analysis = self.orchestrator.code_migrator.analyze_codebase()
 
-                print(f"   📁 Total files found: {codebase_analysis.get('total_files', 0)}")
-                print(f"   🏗️  DAO classes found: {codebase_analysis.get('dao_classes_found', 0)}")
-                print(f"   📦 Domain directories: {len(codebase_analysis.get('domains_found', []))}")
-                print(f"   🔧 Complexity score: {codebase_analysis.get('complexity_score', 0):.1f}/10")
+            print(f"   📁 Total files found: {codebase_analysis.get('total_files', 0)}")
+            print(f"   🏗️  DAO classes found: {codebase_analysis.get('dao_classes_found', 0)}")
+            print(f"   📦 Domain directories: {len(codebase_analysis.get('domains_found', []))}")
+            print(f"   🔧 Complexity score: {codebase_analysis.get('complexity_score', 0):.1f}/10")
 
-                # Show domains found
-                domains = codebase_analysis.get('domains_found', [])
-                if domains:
-                    print(f"   🎯 Domains detected: {', '.join(domains)}")
+            # Show domains found
+            domains = codebase_analysis.get('domains_found', [])
+            if domains:
+                print(f"   🎯 Domains detected: {', '.join(domains)}")
 
-            except Exception as e:
-                print(f"   ⚠️  Codebase analysis limited: {e}")
-
-        # Create migration plan
         print("\n📋 Creating comprehensive migration plan...")
 
         target_services = ['instruments', 'market_data', 'analytics', 'user_management']
 
         if self.orchestrator:
-            try:
-                migration_plan = await self.orchestrator.create_migration_plan(
-                    target_services=target_services
-                )
+            migration_plan = await self.orchestrator.create_migration_plan(
+                target_services=target_services
+            )
 
-                # Display plan details
-                print(f"   🆔 Migration ID: {migration_plan.migration_id}")
-                print(f"   🎯 Target services: {', '.join(migration_plan.target_services)}")
-                print(f"   ⏱️  Estimated duration: {migration_plan.estimated_duration_hours:.1f} hours")
-                print(f"   📋 Migration phases: {len(migration_plan.phases)}")
+            # Display plan details
+            print(f"   🆔 Migration ID: {migration_plan.migration_id}")
+            print(f"   🎯 Target services: {', '.join(migration_plan.target_services)}")
+            print(f"   ⏱️  Estimated duration: {migration_plan.estimated_duration_hours:.1f} hours")
+            print(f"   📋 Migration phases: {len(migration_plan.phases)}")
 
-                # Show phases
-                print("\n   📋 Migration Phases:")
-                for i, phase in enumerate(migration_plan.phases, 1):
-                    print(f"      {i:2d}. {phase.replace('_', ' ').title()}")
+            # Show phases
+            print("\n   📋 Migration Phases:")
+            for i, phase in enumerate(migration_plan.phases, 1):
+                print(f"      {i:2d}. {phase.replace('_', ' ').title()}")
 
-                # Show prerequisites
-                print(f"\n   ✅ Prerequisites ({len(migration_plan.prerequisites)}):")
-                for prereq in migration_plan.prerequisites[:3]:
-                    print(f"      • {prereq}")
-                if len(migration_plan.prerequisites) > 3:
-                    print(f"      ... and {len(migration_plan.prerequisites) - 3} more")
+            # Show prerequisites
+            print(f"\n   ✅ Prerequisites ({len(migration_plan.prerequisites)}):")
+            for prereq in migration_plan.prerequisites[:3]:
+                print(f"      • {prereq}")
+            if len(migration_plan.prerequisites) > 3:
+                print(f"      ... and {len(migration_plan.prerequisites) - 3} more")
 
-                return migration_plan
+            return migration_plan
 
-            except Exception as e:
-                print(f"   ⚠️  Migration planning limited: {e}")
-
-        # Fallback mock plan for demo
         from src.infrastructure.migration.migration_orchestrator import MigrationPlan
         return MigrationPlan(
             migration_id=f"demo_migration_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -191,51 +167,46 @@ class ServiceMigrationDemo:
         print(f"   🎯 Target services: {', '.join(migration_plan.target_services)}")
 
         if self.orchestrator:
-            try:
-                # Execute dry run
-                migration_report = await self.orchestrator.execute_migration(
-                    migration_plan=migration_plan,
-                    dry_run=True,
-                    continue_on_failure=True
-                )
+            # Execute dry run
+            migration_report = await self.orchestrator.execute_migration(
+                migration_plan=migration_plan,
+                dry_run=True,
+                continue_on_failure=True
+            )
 
-                # Display results
-                status_emoji = {
-                    'completed': '✅',
-                    'partial': '⚠️',
-                    'failed': '❌'
-                }
+            # Display results
+            status_emoji = {
+                'completed': '✅',
+                'partial': '⚠️',
+                'failed': '❌'
+            }
 
-                emoji = status_emoji.get(migration_report.overall_status, '❓')
-                print(f"\n   {emoji} Dry run status: {migration_report.overall_status.upper()}")
+            emoji = status_emoji.get(migration_report.overall_status, '❓')
+            print(f"\n   {emoji} Dry run status: {migration_report.overall_status.upper()}")
 
-                if migration_report.duration_minutes:
-                    print(f"   ⏱️  Duration: {migration_report.duration_minutes:.1f} minutes")
+            if migration_report.duration_minutes:
+                print(f"   ⏱️  Duration: {migration_report.duration_minutes:.1f} minutes")
 
-                print(f"   ✅ Phases completed: {len(migration_report.phases_completed)}")
-                print(f"   ❌ Phases failed: {len(migration_report.phases_failed)}")
+            print(f"   ✅ Phases completed: {len(migration_report.phases_completed)}")
+            print(f"   ❌ Phases failed: {len(migration_report.phases_failed)}")
 
-                # Show completed phases
-                if migration_report.phases_completed:
-                    print("\n   ✅ Completed phases:")
-                    for phase in migration_report.phases_completed[:3]:
-                        print(f"      • {phase.replace('_', ' ').title()}")
-                    if len(migration_report.phases_completed) > 3:
-                        print(f"      ... and {len(migration_report.phases_completed) - 3} more")
+            # Show completed phases
+            if migration_report.phases_completed:
+                print("\n   ✅ Completed phases:")
+                for phase in migration_report.phases_completed[:3]:
+                    print(f"      • {phase.replace('_', ' ').title()}")
+                if len(migration_report.phases_completed) > 3:
+                    print(f"      ... and {len(migration_report.phases_completed) - 3} more")
 
-                # Show migration statistics
-                print(f"\n   📊 Migration statistics:")
-                print(f"      • Code migrations: {len(migration_report.code_migration_results)}")
-                print(f"      • Database migrations: {len(migration_report.database_migration_results)}")
-                print(f"      • Config migrations: {len(migration_report.config_migration_results)}")
-                print(f"      • Test migrations: {len(migration_report.test_migration_results)}")
+            # Show migration statistics
+            print(f"\n   📊 Migration statistics:")
+            print(f"      • Code migrations: {len(migration_report.code_migration_results)}")
+            print(f"      • Database migrations: {len(migration_report.database_migration_results)}")
+            print(f"      • Config migrations: {len(migration_report.config_migration_results)}")
+            print(f"      • Test migrations: {len(migration_report.test_migration_results)}")
 
-                return migration_report
+            return migration_report
 
-            except Exception as e:
-                print(f"   ⚠️  Dry run execution limited: {e}")
-
-        # Mock results for demo
         print("   ✅ Dry run completed successfully")
         print("   ⏱️  Duration: 2.3 minutes")
         print("   📊 All phases validated without errors")
@@ -254,23 +225,19 @@ class ServiceMigrationDemo:
         # Database validation demo
         print("\n   🗄️  Database Validation:")
         if self.orchestrator:
-            try:
-                db_validation = await self.orchestrator.database_migrator.validate_schema_integrity()
+            db_validation = await self.orchestrator.database_migrator.validate_schema_integrity()
 
-                overall_status = db_validation.get('overall_status', 'unknown')
-                status_emoji = {'healthy': '✅', 'degraded': '⚠️', 'unhealthy': '❌'}
-                emoji = status_emoji.get(overall_status, '❓')
+            overall_status = db_validation.get('overall_status', 'unknown')
+            status_emoji = {'healthy': '✅', 'degraded': '⚠️', 'unhealthy': '❌'}
+            emoji = status_emoji.get(overall_status, '❓')
 
-                print(f"      {emoji} Schema integrity: {overall_status}")
+            print(f"      {emoji} Schema integrity: {overall_status}")
 
-                table_checks = db_validation.get('table_checks', [])
-                if table_checks:
-                    valid_tables = [t for t in table_checks if t.get('status') == 'ok']
-                    print(f"      📊 Service tables: {len(valid_tables)}/{len(table_checks)} validated")
+            table_checks = db_validation.get('table_checks', [])
+            if table_checks:
+                valid_tables = [t for t in table_checks if t.get('status') == 'ok']
+                print(f"      📊 Service tables: {len(valid_tables)}/{len(table_checks)} validated")
 
-            except Exception as e:
-                print(f"      ⚠️  Database validation limited: {e}")
-        else:
             print("      ✅ Service infrastructure tables")
             print("      ✅ Migration tracking system")
             print("      ✅ Cache tables and indexes")
@@ -321,44 +288,38 @@ class ServiceMigrationDemo:
         """Demonstrate cache performance."""
         print("\n   🎯 Cache Performance Demo:")
 
-        try:
-            # Import caching components
-            from src.infrastructure.caching import MemoryCache, CacheConfig
+        # Import caching components
+        from src.infrastructure.caching import MemoryCache, CacheConfig
 
-            # Create test cache
-            config = CacheConfig(
-                ttl_seconds=300,
-                max_size=100,
-                namespace="demo"
-            )
-            cache = MemoryCache(config)
+        # Create test cache
+        config = CacheConfig(
+            ttl_seconds=300,
+            max_size=100,
+            namespace="demo"
+        )
+        cache = MemoryCache(config)
 
-            # Simulate cache operations
-            import time
+        # Simulate cache operations
+        import time
 
-            # Cache miss (first access)
-            start_time = time.time()
-            await cache.set("test_key", {"data": "test_value", "timestamp": datetime.now()})
-            cache_write_time = (time.time() - start_time) * 1000
+        # Cache miss (first access)
+        start_time = time.time()
+        await cache.set("test_key", {"data": "test_value", "timestamp": datetime.now()})
+        cache_write_time = (time.time() - start_time) * 1000
 
-            # Cache hit (second access)
-            start_time = time.time()
-            cached_value = await cache.get("test_key")
-            cache_read_time = (time.time() - start_time) * 1000
+        # Cache hit (second access)
+        start_time = time.time()
+        cached_value = await cache.get("test_key")
+        cache_read_time = (time.time() - start_time) * 1000
 
-            print(f"      • Cache write time: {cache_write_time:.2f}ms")
-            print(f"      • Cache read time: {cache_read_time:.2f}ms")
-            print(f"      • Cache efficiency: {cache_write_time / max(cache_read_time, 0.001):.1f}x faster reads")
+        print(f"      • Cache write time: {cache_write_time:.2f}ms")
+        print(f"      • Cache read time: {cache_read_time:.2f}ms")
+        print(f"      • Cache efficiency: {cache_write_time / max(cache_read_time, 0.001):.1f}x faster reads")
 
-            # Get cache metrics
-            metrics = await cache.get_metrics()
-            print(f"      • Cache hit rate: {metrics.hit_rate:.1f}%")
-            print(f"      • Total operations: {metrics.total_requests}")
-
-        except Exception as e:
-            print(f"      ⚠️  Cache demo limited: {e}")
-            print("      • Theoretical performance: < 1ms cache hits")
-            print("      • Expected hit rate: 85%+")
+        # Get cache metrics
+        metrics = await cache.get_metrics()
+        print(f"      • Cache hit rate: {metrics.hit_rate:.1f}%")
+        print(f"      • Total operations: {metrics.total_requests}")
 
     async def _demonstrate_monitoring_capabilities(self):
         """Demonstrate service monitoring capabilities."""
@@ -392,27 +353,23 @@ class ServiceMigrationDemo:
         """Demonstrate health monitoring."""
         print("\n   🎯 Health Monitoring Demo:")
 
-        try:
-            # Simulate service health checks
-            services = ['instruments', 'market_data', 'analytics', 'user_management']
+        # Simulate service health checks
+        services = ['instruments', 'market_data', 'analytics', 'user_management']
 
-            print("      📊 Service Health Status:")
-            for service in services:
-                # Simulate health check
-                response_time = __import__('random').uniform(10, 50)
-                status = "healthy" if response_time < 40 else "degraded"
-                emoji = "✅" if status == "healthy" else "⚠️"
+        print("      📊 Service Health Status:")
+        for service in services:
+            # Simulate health check
+            response_time = __import__('random').uniform(10, 50)
+            status = "healthy" if response_time < 40 else "degraded"
+            emoji = "✅" if status == "healthy" else "⚠️"
 
-                print(f"        {emoji} {service}: {status} ({response_time:.1f}ms)")
+            print(f"        {emoji} {service}: {status} ({response_time:.1f}ms)")
 
-            print("\n      📋 Health Check Configuration:")
-            print("        • Check interval: 30 seconds")
-            print("        • Timeout: 10 seconds")
-            print("        • Failure threshold: 3 consecutive failures")
-            print("        • Recovery threshold: 2 consecutive successes")
-
-        except Exception as e:
-            print(f"      ⚠️  Health monitoring demo limited: {e}")
+        print("\n      📋 Health Check Configuration:")
+        print("        • Check interval: 30 seconds")
+        print("        • Timeout: 10 seconds")
+        print("        • Failure threshold: 3 consecutive failures")
+        print("        • Recovery threshold: 2 consecutive successes")
 
     async def _demonstrate_rollback_features(self, migration_id: str):
         """Demonstrate rollback capabilities."""
@@ -441,20 +398,16 @@ class ServiceMigrationDemo:
         print("      • Dependency verification")
 
         if self.orchestrator:
-            try:
-                # Show migration status
-                status = self.orchestrator.get_migration_status(migration_id)
+            # Show migration status
+            status = self.orchestrator.get_migration_status(migration_id)
 
-                if status.get('status') != 'no_active_migration':
-                    print(f"\n   📊 Migration Status:")
-                    print(f"      • Status: {status.get('status', 'unknown')}")
-                    print(f"      • Phases completed: {status.get('completed_phases', 0)}")
-                    print(f"      • Rollback available: ✅")
-                else:
-                    print(f"\n   ✅ Rollback system ready for future migrations")
-
-            except Exception as e:
-                print(f"   ⚠️  Status check limited: {e}")
+            if status.get('status') != 'no_active_migration':
+                print(f"\n   📊 Migration Status:")
+                print(f"      • Status: {status.get('status', 'unknown')}")
+                print(f"      • Phases completed: {status.get('completed_phases', 0)}")
+                print(f"      • Rollback available: ✅")
+            else:
+                print(f"\n   ✅ Rollback system ready for future migrations")
 
     def _display_demo_summary(self):
         """Display comprehensive demo summary."""
@@ -514,8 +467,7 @@ if __name__ == "__main__":
     print("   This demo showcases the complete migration process")
     print("   from DAO-based to service-based architecture.\n")
 
-    try:
-        asyncio.run(main())
+    asyncio.run(main())
     except KeyboardInterrupt:
         print("\n🛑 Demo interrupted by user")
     except Exception as e:

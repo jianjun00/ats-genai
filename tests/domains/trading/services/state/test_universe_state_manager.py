@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime, timedelta
 
-from src.state.universe_state_manager import UniverseStateManager, UniverseStateMetadata
+from domains.trading.services.state.universe_state_manager import UniverseStateManager, UniverseStateMetadata
 
 class TestUniverseStateManager:
     """Async DAO-based tests for UniverseStateManager (DB-backed interval logic only)."""
@@ -471,18 +471,13 @@ class TestUniverseStateManager:
         errors = []
 
         def save_and_load(thread_id):
-            try:
-                timestamp = f"20231201_{thread_id:06d}"
-                # Save
-                state_manager.save_universe_state_sync(sample_universe_data, timestamp)
-                time.sleep(0.01)  # Small delay
-                # Load
-                loaded_data = state_manager.load_universe_state(timestamp)
-                results.append((thread_id, len(loaded_data)))
-            except Exception as e:
-                errors.append((thread_id, str(e)))
-
-        # Create multiple threads
+            timestamp = f"20231201_{thread_id:06d}"
+            # Save
+            state_manager.save_universe_state_sync(sample_universe_data, timestamp)
+            time.sleep(0.01)  # Small delay
+            # Load
+            loaded_data = state_manager.load_universe_state(timestamp)
+            results.append((thread_id, len(loaded_data)))
         threads = []
         for i in range(5):
             thread = threading.Thread(target=save_and_load, args=(i,))
@@ -571,15 +566,11 @@ class TestUniverseStateManager:
 
         # Mock to_parquet to verify compression parameter
         with patch('pyarrow.parquet.write_table') as mock_write_table:
-            try:
-                state_manager.save_universe_state_sync(sample_universe_data, timestamp)
-                # Verify compression was passed (default is snappy)
-                call_args = mock_write_table.call_args
-                # args: (table, file_path), kwargs: {'compression': 'snappy'}
-                assert call_args[1]['compression'] == 'snappy'  # Default compression
-            except Exception:
-                pass  # Expected since we're mocking
-
+            state_manager.save_universe_state_sync(sample_universe_data, timestamp)
+            # Verify compression was passed (default is snappy)
+            call_args = mock_write_table.call_args
+            # args: (table, file_path), kwargs: {'compression': 'snappy'}
+            assert call_args[1]['compression'] == 'snappy'  # Default compression
     def test_instrument_and_indicator_join(self, state_manager):
         """
         Regression test: Ensure instrument and indicator rows are joined by instrument_id and timestamp, and no duplicate/NaN OHLC rows are created.

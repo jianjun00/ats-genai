@@ -109,7 +109,7 @@ class TestDuplicateDatasetNameConstraint:
         
         This enforces proper run context management and prevents duplicate names.
         """
-        from domains.ml.services.training_data.runners.training_data_callback_runner import register_training_dataset_in_database
+        from domains.ml.services.training_data.runners.feature_extraction_runner import register_training_dataset_in_database
         from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
         
         config = TrainingDataConfig(

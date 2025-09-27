@@ -13,7 +13,7 @@ from unittest.mock import Mock, AsyncMock
 import pandas as pd
 
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TestUniverseStateManagerMissingMethods:
@@ -86,25 +86,21 @@ class TestUniverseStateManagerMissingMethods:
         center_datetime = datetime(2025, 7, 1, 14, 0, 0)
         lag_periods = 1
         
-        try:
-            result = universe_state_manager.get_lag_prices(instrument_id, center_datetime, lag_periods)
-            
-            # Should return a DataFrame
-            assert isinstance(result, pd.DataFrame), \
-                f"get_lag_prices should return DataFrame, got {type(result)}"
-            
-            # Should have OHLCV columns
-            expected_columns = ['open', 'high', 'low', 'close', 'volume', 'date']
-            for col in expected_columns:
-                if not result.empty:
-                    assert col in result.columns or len(result) == 0, \
-                        f"get_lag_prices result missing column: {col}"
-                        
-            print(f"✅ get_lag_prices signature and return type validated")
-            
-        except Exception as e:
-            pytest.fail(f"get_lag_prices failed with valid parameters: {e}")
-
+        result = universe_state_manager.get_lag_prices(instrument_id, center_datetime, lag_periods)
+        
+        # Should return a DataFrame
+        assert isinstance(result, pd.DataFrame), \
+            f"get_lag_prices should return DataFrame, got {type(result)}"
+        
+        # Should have OHLCV columns
+        expected_columns = ['open', 'high', 'low', 'close', 'volume', 'date']
+        for col in expected_columns:
+            if not result.empty:
+                assert col in result.columns or len(result) == 0, \
+                    f"get_lag_prices result missing column: {col}"
+                    
+        print(f"✅ get_lag_prices signature and return type validated")
+        
     async def test_get_lead_prices_signature_and_return_type(self, universe_state_manager):
         """Test get_lead_prices method signature and return type."""
         if not hasattr(universe_state_manager, 'get_lead_prices'):
@@ -115,18 +111,14 @@ class TestUniverseStateManagerMissingMethods:
         center_datetime = datetime(2025, 7, 1, 14, 0, 0)
         lead_periods = 1
         
-        try:
-            result = universe_state_manager.get_lead_prices(instrument_id, center_datetime, lead_periods)
-            
-            # Should return a DataFrame
-            assert isinstance(result, pd.DataFrame), \
-                f"get_lead_prices should return DataFrame, got {type(result)}"
-            
-            print(f"✅ get_lead_prices signature and return type validated")
-            
-        except Exception as e:
-            pytest.fail(f"get_lead_prices failed with valid parameters: {e}")
-
+        result = universe_state_manager.get_lead_prices(instrument_id, center_datetime, lead_periods)
+        
+        # Should return a DataFrame
+        assert isinstance(result, pd.DataFrame), \
+            f"get_lead_prices should return DataFrame, got {type(result)}"
+        
+        print(f"✅ get_lead_prices signature and return type validated")
+        
     async def test_get_lagged_signals_signature_and_return_type(self, universe_state_manager):
         """Test get_lagged_signals method signature and return type."""
         if not hasattr(universe_state_manager, 'get_lagged_signals'):
@@ -139,24 +131,20 @@ class TestUniverseStateManagerMissingMethods:
         time_interval = "1m"
         signal_names = ['sma_20', 'ema_12', 'rsi_14']
         
-        try:
-            result = await universe_state_manager.get_lagged_signals(
-                instrument_id=instrument_id,
-                cur_datetime=cur_datetime,
-                lag_periods=lag_periods,
-                time_interval=time_interval,
-                signal_names=signal_names
-            )
-            
-            # Should return a DataFrame
-            assert isinstance(result, pd.DataFrame), \
-                f"get_lagged_signals should return DataFrame, got {type(result)}"
-            
-            print(f"✅ get_lagged_signals signature and return type validated")
-            
-        except Exception as e:
-            pytest.fail(f"get_lagged_signals failed with valid parameters: {e}")
-
+        result = await universe_state_manager.get_lagged_signals(
+            instrument_id=instrument_id,
+            cur_datetime=cur_datetime,
+            lag_periods=lag_periods,
+            time_interval=time_interval,
+            signal_names=signal_names
+        )
+        
+        # Should return a DataFrame
+        assert isinstance(result, pd.DataFrame), \
+            f"get_lagged_signals should return DataFrame, got {type(result)}"
+        
+        print(f"✅ get_lagged_signals signature and return type validated")
+        
     def test_identify_all_missing_methods(self, universe_state_manager):
         """Comprehensive test to identify all missing methods at once."""
         missing_methods = []

@@ -146,32 +146,31 @@ async def test_universe_add_remove(unit_test_db, monkeypatch):
         rows_after = await conn.fetch(f"SELECT * FROM {membership_table} ORDER BY start_at, symbol")
         print(f"[DEBUG] test_universe_membership contents after universe_creator: {rows_after}")
     # Check results in universe table
-    try:
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(f"SELECT universe_id, start_at, symbol, end_at FROM {membership_table} ORDER BY start_at, symbol")
-            all_rows = await conn.fetch(f"SELECT * FROM {membership_table} ORDER BY start_at, symbol")
-            print("[DEBUG] universe_membership full contents:", all_rows)
-            # Verify (start_at, symbol) as before
-            # Define expected intervals as (start_at, symbol, end_at)
-            expected = [
-                (date(2025,1,1), 'TESTA', None),
-                (date(2025,1,1), 'TESTB', date(2025,1,4)),
-            ]
-            def to_date(dt):
-                return dt.date() if hasattr(dt, 'date') else dt
-            actual = [(to_date(r['start_at']), r['symbol'], to_date(r['end_at']) if r['end_at'] else None) for r in rows]
-            print(f"[DEBUG] actual intervals: {actual}")
-            print(f"[DEBUG] expected intervals: {expected}")
-            assert set(expected) == set(actual)
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(f"SELECT universe_id, start_at, symbol, end_at FROM {membership_table} ORDER BY start_at, symbol")
+        all_rows = await conn.fetch(f"SELECT * FROM {membership_table} ORDER BY start_at, symbol")
+        print("[DEBUG] universe_membership full contents:", all_rows)
+        # Verify (start_at, symbol) as before
+        # Define expected intervals as (start_at, symbol, end_at)
+        expected = [
+            (date(2025,1,1), 'TESTA', None),
+            (date(2025,1,1), 'TESTB', date(2025,1,4)),
+        ]
+        def to_date(dt):
+            return dt.date() if hasattr(dt, 'date') else dt
+        actual = [(to_date(r['start_at']), r['symbol'], to_date(r['end_at']) if r['end_at'] else None) for r in rows]
+        print(f"[DEBUG] actual intervals: {actual}")
+        print(f"[DEBUG] expected intervals: {expected}")
+        assert set(expected) == set(actual)
 
-            # Also verify end_at if present
-            if rows and 'end_at' in rows[0]:
-                actual_end = {(r['start_at'], r['symbol']): r['end_at'] for r in rows}
-                print(f"[DEBUG] actual end_at: {actual_end}")
-                # You can define expected_end here if you know the expected end dates for each (start_at, symbol)
-                # For now, just print for manual inspection
-            else:
-                print("[DEBUG] end_at column not present in universe_membership.")
+        # Also verify end_at if present
+        if rows and 'end_at' in rows[0]:
+            actual_end = {(r['start_at'], r['symbol']): r['end_at'] for r in rows}
+            print(f"[DEBUG] actual end_at: {actual_end}")
+            # You can define expected_end here if you know the expected end dates for each (start_at, symbol)
+            # For now, just print for manual inspection
+        else:
+            print("[DEBUG] end_at column not present in universe_membership.")
     finally:
         await pool.close()
         import asyncio

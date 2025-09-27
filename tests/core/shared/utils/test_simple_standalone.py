@@ -71,7 +71,7 @@ def test_polygon_adapter_gin_standalone():
     gin.clear_config()
 
     # Test that our PolygonAdapterConfig class can be imported and instantiated
-    from domains.market_data.services.agent.polygon_adapter import PolygonAdapterConfig
+    from domains.market_data.services.vendor_adapters.market_cap.unified_market_cap_provider import PolygonAdapterConfig
 
     # Test default values
     config = PolygonAdapterConfig()
@@ -103,18 +103,17 @@ if __name__ == "__main__":
     print("🧪 Testing Standalone Gin Refactoring (Without Complex Dependencies)")
     print("=" * 75)
 
-    try:
-        test_simple_main_gin_standalone()
-        test_analytics_api_gin_standalone()
-        test_polygon_adapter_gin_standalone()
+    test_simple_main_gin_standalone()
+    test_analytics_api_gin_standalone()
+    test_polygon_adapter_gin_standalone()
 
-        print("\n🎉 All standalone gin configuration tests passed!")
-        print("✅ Hardcoded values refactoring is working correctly!")
-        print("\n📋 Successfully tested:")
-        print("  • simple_main.ApiConfig - gin configurable API settings")
-        print("  • analytics_api_dynamic.MockDataConfig - gin configurable mock data")
-        print("  • polygon_adapter.PolygonAdapterConfig - gin configurable adapter settings")
-        print("\n🚀 Our refactoring changes work independently of other system issues")
+    print("\n🎉 All standalone gin configuration tests passed!")
+    print("✅ Hardcoded values refactoring is working correctly!")
+    print("\n📋 Successfully tested:")
+    print("  • simple_main.ApiConfig - gin configurable API settings")
+    print("  • analytics_api_dynamic.MockDataConfig - gin configurable mock data")
+    print("  • polygon_adapter.PolygonAdapterConfig - gin configurable adapter settings")
+    print("\n🚀 Our refactoring changes work independently of other system issues")
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")

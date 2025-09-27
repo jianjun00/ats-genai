@@ -14,7 +14,7 @@ from datetime import datetime
 from unittest.mock import Mock, AsyncMock
 import pandas as pd
 
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from core.business.calendars.time_duration import TimeDuration
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 
@@ -86,29 +86,7 @@ class TestUniverseStateBuilderToDataFrameBug:
         # Create a UniverseStateInterval object through the normal flow
         current_time = datetime(2025, 7, 1, 15, 0)
 
-        try:
-            await self.builder.handleInterval(self.mock_runner, current_time)
-        except AssertionError as e:
-            # Extract the UniverseStateInterval object from the error context
-            # The error happens because state object doesn't have to_dataframe()
-            assert "does not have .to_dataframe()" in str(e)
-
-            # Import UniverseStateInterval to verify it lacks the method
-            from domains.trading.services.state.universe_state import UniverseStateInterval
-
-            # Create a sample instance to test
-            test_state = UniverseStateInterval(
-                start_date_time=current_time,
-                end_date_time=current_time,
-                instrument_intervals={},
-                universe_id=1,
-                base_duration="60m"
-            )
-
-            # Confirm it lacks to_dataframe method
-            assert not hasattr(test_state, 'to_dataframe')
-            print("✅ Confirmed: UniverseStateInterval lacks to_dataframe() method")
-
+        await self.builder.handleInterval(self.mock_runner, current_time)
     def test_expected_behavior_after_fix(self):
         """
         Test that describes the expected behavior after the bug is fixed.
@@ -131,15 +109,14 @@ class TestUniverseStateBuilderToDataFrameBug:
         )
 
         # This test will initially fail but should pass after fix
-        try:
-            # Either the method should exist
-            if hasattr(test_state, 'to_dataframe'):
-                df = test_state.to_dataframe()
-                assert isinstance(df, pd.DataFrame)
-                print("✅ Fix approach 1: to_dataframe() method implemented")
-            else:
-                # Or the UniverseStateBuilder should not require it
-                print("✅ Fix approach 2: UniverseStateBuilder no longer requires to_dataframe()")
+        # Either the method should exist
+        if hasattr(test_state, 'to_dataframe'):
+            df = test_state.to_dataframe()
+            assert isinstance(df, pd.DataFrame)
+            print("✅ Fix approach 1: to_dataframe() method implemented")
+        else:
+            # Or the UniverseStateBuilder should not require it
+            print("✅ Fix approach 2: UniverseStateBuilder no longer requires to_dataframe()")
         except Exception as e:
             print(f"❌ Bug not yet fixed: {e}")
             # This is expected before the fix

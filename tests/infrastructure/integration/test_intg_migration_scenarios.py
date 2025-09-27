@@ -96,51 +96,42 @@ class TestMigrationDecisionTree:
 
     def _clear_intg_database(self):
         """Clear INTG database for testing."""
-        try:
-            conn = psycopg2.connect(**self.db_params)
-            cur = conn.cursor()
+        conn = psycopg2.connect(**self.db_params)
+        cur = conn.cursor()
 
-            # Clear all INTG tables
-            cur.execute("DELETE FROM intg_daily_price;")
-            cur.execute("DELETE FROM intg_fundamental_comprehensive;")
-            cur.execute("DELETE FROM intg_daily_price_polygon;")
-            cur.execute("DELETE FROM intg_fundamentals_comprehensive;")
-            cur.execute("DELETE FROM intg_instrument;")
+        # Clear all INTG tables
+        cur.execute("DELETE FROM intg_daily_price;")
+        cur.execute("DELETE FROM intg_fundamental_comprehensive;")
+        cur.execute("DELETE FROM intg_daily_price_polygon;")
+        cur.execute("DELETE FROM intg_fundamentals_comprehensive;")
+        cur.execute("DELETE FROM intg_instrument;")
 
-            conn.commit()
-            cur.close()
-            conn.close()
-        except Exception as e:
-            print(f"Warning: Could not clear INTG database: {e}")
-
+        conn.commit()
+        cur.close()
+        conn.close()
     def _populate_intg_test_data(self):
         """Add test data to INTG database."""
-        try:
-            conn = psycopg2.connect(**self.db_params)
-            cur = conn.cursor()
+        conn = psycopg2.connect(**self.db_params)
+        cur = conn.cursor()
 
-            # Add test instrument
-            cur.execute("""
-                INSERT INTO intg_instrument (symbol, name, exchange)
-                VALUES ('TEST_MIGRATION', 'Test Migration Stock', 'NASDAQ')
-                ON CONFLICT (symbol) DO NOTHING;
-            """)
+        # Add test instrument
+        cur.execute("""
+            INSERT INTO intg_instrument (symbol, name, exchange)
+            VALUES ('TEST_MIGRATION', 'Test Migration Stock', 'NASDAQ')
+            ON CONFLICT (symbol) DO NOTHING;
+        """)
 
-            # Add test price data
-            cur.execute("""
-                INSERT INTO intg_daily_price (symbol, date, vendor, open_price, close_price, volume)
-                INSERT INTO intg_daily_price_polygon (symbol, date, vendor, open_price, close_price, volume)
-                VALUES ('TEST_MIGRATION', CURRENT_DATE - 1, 'test_vendor', 100.0, 105.0, 1000000)
-                ON CONFLICT (symbol, date, vendor) DO NOTHING;
-            """)
+        # Add test price data
+        cur.execute("""
+            INSERT INTO intg_daily_price (symbol, date, vendor, open_price, close_price, volume)
+            INSERT INTO intg_daily_price_polygon (symbol, date, vendor, open_price, close_price, volume)
+            VALUES ('TEST_MIGRATION', CURRENT_DATE - 1, 'test_vendor', 100.0, 105.0, 1000000)
+            ON CONFLICT (symbol, date, vendor) DO NOTHING;
+        """)
 
-            conn.commit()
-            cur.close()
-            conn.close()
-        except Exception as e:
-            print(f"Warning: Could not populate test data: {e}")
-
-
+        conn.commit()
+        cur.close()
+        conn.close()
 class TestMigrationScriptIntegration:
     """Test integration with actual migration scripts."""
 
@@ -266,40 +257,32 @@ class TestDatabaseMigrationConsistency:
         connections = []
         cursors = []
 
-        try:
-            # Create multiple connections
-            for i in range(3):
-                conn = psycopg2.connect(**self.intg_db_params)
-                cur = conn.cursor()
-                connections.append(conn)
-                cursors.append(cur)
+        # Create multiple connections
+        for i in range(3):
+            conn = psycopg2.connect(**self.intg_db_params)
+            cur = conn.cursor()
+            connections.append(conn)
+            cursors.append(cur)
 
-            # Perform concurrent operations
-            for i, cur in enumerate(cursors):
-                cur.execute(f"""
-                    INSERT INTO intg_instrument (symbol, name, exchange)
-                    VALUES ('CONCURRENT_{i}', 'Concurrent Test {i}', 'TEST')
-                    ON CONFLICT (symbol) DO NOTHING;
-                """)
-                connections[i].commit()
+        # Perform concurrent operations
+        for i, cur in enumerate(cursors):
+            cur.execute(f"""
+                INSERT INTO intg_instrument (symbol, name, exchange)
+                VALUES ('CONCURRENT_{i}', 'Concurrent Test {i}', 'TEST')
+                ON CONFLICT (symbol) DO NOTHING;
+            """)
+            connections[i].commit()
 
-            # Verify all inserts succeeded
-            cur = cursors[0]
-            cur.execute("SELECT COUNT(*) FROM intg_instrument WHERE symbol LIKE 'CONCURRENT_%';")
-            count = cur.fetchone()[0]
-            assert count == 3, f"Expected 3 concurrent inserts, got {count}"
+        # Verify all inserts succeeded
+        cur = cursors[0]
+        cur.execute("SELECT COUNT(*) FROM intg_instrument WHERE symbol LIKE 'CONCURRENT_%';")
+        count = cur.fetchone()[0]
+        assert count == 3, f"Expected 3 concurrent inserts, got {count}"
 
-            # Clean up test data
-            for cur in cursors:
-                cur.execute("DELETE FROM intg_instrument WHERE symbol LIKE 'CONCURRENT_%';")
-                cur.connection.commit()
-
-        finally:
-            # Clean up connections
-            for cur in cursors:
-                cur.close()
-            for conn in connections:
-                conn.close()
+        # Clean up test data
+        for cur in cursors:
+            cur.execute("DELETE FROM intg_instrument WHERE symbol LIKE 'CONCURRENT_%';")
+            cur.connection.commit()
 
     def test_dev_database_connectivity_from_container(self):
         """Test DEV database connectivity from INTG containers."""
@@ -438,12 +421,9 @@ class TestContainerRecoveryAndRestart:
         import requests
         max_attempts = 10
         for _ in range(max_attempts):
-            try:
-                response = requests.get('http://localhost:4000/health', timeout=5)
-                if response.status_code == 200:
-                    break
-            except requests.exceptions.RequestException:
-                pass
+            response = requests.get('http://localhost:4000/health', timeout=5)
+            if response.status_code == 200:
+                break
             time.sleep(2)
         else:
             pytest.fail("Dashboard failed to become accessible after restart")

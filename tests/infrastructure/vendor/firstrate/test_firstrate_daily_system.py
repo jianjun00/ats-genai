@@ -71,7 +71,7 @@ class TestFirstRateSystemIntegration:
 
     def test_directory_structure_creation(self, temp_system_setup):
         """Test that the system creates proper directory structure."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
 
         # Initialize downloader - should create directories
         downloader = FirstRateDownloader(base_path=temp_system_setup["data_dir"].parent.parent)
@@ -86,7 +86,7 @@ class TestFirstRateSystemIntegration:
     @pytest.mark.asyncio
     async def test_end_to_end_download_simulation(self, mock_session_cls, temp_system_setup):
         """Test complete end-to-end download workflow."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
 
         # Create realistic test data
         test_data = {
@@ -126,7 +126,7 @@ class TestFirstRateSystemIntegration:
 
     def test_cleanup_integration(self, temp_system_setup):
         """Test file cleanup integration."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
 
         downloader = FirstRateDownloader(base_path=temp_system_setup["data_dir"].parent.parent)
 
@@ -169,7 +169,7 @@ class TestFirstRateSystemIntegration:
     def test_logging_integration(self, temp_system_setup):
         """Test logging system integration."""
         import logging
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
 
         # Set up file logging
         log_file = temp_system_setup["logs_dir"] / "firstrate-test.log"
@@ -207,7 +207,7 @@ class TestFirstRateSystemIntegration:
 
     def test_error_recovery_scenarios(self, temp_system_setup):
         """Test system behavior under error conditions."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
 
         downloader = FirstRateDownloader(base_path=temp_system_setup["data_dir"].parent.parent)
 
@@ -230,17 +230,12 @@ class TestFirstRateSystemIntegration:
         # Make file read-only
         protected_file.chmod(0o444)
 
-        try:
-            # Should still be able to verify read-only files
-            result = downloader.verify_zip_file(protected_file)
-            assert result is True
-        finally:
-            # Restore permissions for cleanup
-            protected_file.chmod(0o644)
-
+        # Should still be able to verify read-only files
+        result = downloader.verify_zip_file(protected_file)
+        assert result is True
     def test_concurrent_access_safety(self, temp_system_setup):
         """Test system behavior with concurrent access."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
         import threading
 
         downloader = FirstRateDownloader(base_path=temp_system_setup["data_dir"].parent.parent)
@@ -263,12 +258,8 @@ class TestFirstRateSystemIntegration:
         cleanup_results = []
 
         def run_cleanup():
-            try:
-                result = downloader.cleanup_old_files("stock", keep_days=7)
-                cleanup_results.append(result)
-            except Exception as e:
-                cleanup_results.append(f"ERROR: {e}")
-
+            result = downloader.cleanup_old_files("stock", keep_days=7)
+            cleanup_results.append(result)
         threads = []
         for _ in range(3):  # 3 concurrent cleanup operations
             thread = threading.Thread(target=run_cleanup)
@@ -287,7 +278,7 @@ class TestFirstRateSystemIntegration:
 
     def test_system_resource_usage(self, temp_system_setup):
         """Test system resource usage patterns."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
         import psutil
         import gc
 
@@ -447,7 +438,7 @@ class TestFirstRateProductionReadiness:
 
     def test_configuration_validation(self):
         """Test that system validates configuration properly."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Test with valid configuration
@@ -486,7 +477,7 @@ class TestFirstRateProductionReadiness:
 
     def test_disk_space_monitoring(self):
         """Test disk space considerations."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
 
         with tempfile.TemporaryDirectory() as temp_dir:
             downloader = FirstRateDownloader(base_path=temp_dir)
@@ -536,7 +527,7 @@ class TestFirstRateProductionReadiness:
 
     def test_monitoring_and_alerting_hooks(self):
         """Test hooks for monitoring and alerting systems."""
-        from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader
+        from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader
         import logging
 
         # Set up logging capture

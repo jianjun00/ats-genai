@@ -48,49 +48,41 @@ def process_target_symbols():
         letter_output = output_path / letter
         letter_output.mkdir(parents=True, exist_ok=True)
 
-        try:
-            with zipfile.ZipFile(zip_file, 'r') as zf:
-                txt_files = [f for f in zf.namelist() if f.endswith('.txt')]
-                logger.info(f"   📄 Found {len(txt_files)} TXT files")
+        with zipfile.ZipFile(zip_file, 'r') as zf:
+            txt_files = [f for f in zf.namelist() if f.endswith('.txt')]
+            logger.info(f"   📄 Found {len(txt_files)} TXT files")
 
-                # Process only target symbols
-                for txt_file in txt_files:
-                    try:
-                        symbol = Path(txt_file).stem.split('_')[0]
-                        if symbol not in symbols:
-                            continue
+            # Process only target symbols
+            for txt_file in txt_files:
+                symbol = Path(txt_file).stem.split('_')[0]
+                if symbol not in symbols:
+                    continue
 
-                        logger.info(f"   🎯 Processing target symbol: {symbol}")
+                logger.info(f"   🎯 Processing target symbol: {symbol}")
 
-                        # Read TXT data from zip
-                        with zf.open(txt_file) as f:
-                            content = f.read()
-                            df = pd.read_csv(io.BytesIO(content), header=None,
-                                           names=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                # Read TXT data from zip
+                with zf.open(txt_file) as f:
+                    content = f.read()
+                    df = pd.read_csv(io.BytesIO(content), header=None,
+                                   names=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
 
-                            if len(df) > 0:
-                                # Create symbol directory
-                                symbol_dir = letter_output / symbol
-                                symbol_dir.mkdir(parents=True, exist_ok=True)
+                    if len(df) > 0:
+                        # Create symbol directory
+                        symbol_dir = letter_output / symbol
+                        symbol_dir.mkdir(parents=True, exist_ok=True)
 
-                                # Save full dataset (not just sample)
-                                output_file = symbol_dir / f"{symbol}_full.parquet"
-                                df.to_parquet(output_file, engine='auto')
+                        # Save full dataset (not just sample)
+                        output_file = symbol_dir / f"{symbol}_full.parquet"
+                        df.to_parquet(output_file, engine='auto')
 
-                                logger.info(f"   ✅ {symbol}: Saved {len(df):,} records to {output_file.name}")
-                                total_processed += 1
-                            else:
-                                logger.warning(f"   ⚠️  {symbol}: Empty data")
+                        logger.info(f"   ✅ {symbol}: Saved {len(df):,} records to {output_file.name}")
+                        total_processed += 1
+                    else:
+                        logger.warning(f"   ⚠️  {symbol}: Empty data")
 
-                    except Exception as e:
-                        logger.error(f"   ❌ Error processing {txt_file}: {e}")
-                        continue
+        logger.error(f"❌ Error processing zip {zip_file}: {e}")
+        continue
 
-        except Exception as e:
-            logger.error(f"❌ Error processing zip {zip_file}: {e}")
-            continue
-
-        # Brief pause between letters
         time.sleep(1)
 
     logger.info(f"✅ Processing completed: {total_processed} target symbols processed")

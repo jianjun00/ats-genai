@@ -88,160 +88,135 @@ async def test_aapl_training_data_generation():
     start_datetime = datetime(2025, 7, 1, 0, 0, 0)
     end_datetime = datetime(2025, 7, 1, 23, 59, 59)
     
-    try:
-        minute_data = await minute_manager.query_minute_data(
-            symbol="AAPL",
-            start_time=start_datetime,
-            end_time=end_datetime
-        )
+    minute_data = await minute_manager.query_minute_data(
+        symbol="AAPL",
+        start_time=start_datetime,
+        end_time=end_datetime
+    )
+    
+    if minute_data is not None and len(minute_data) > 0:
+        print(f"✅ Query successful: {len(minute_data)} records")
+        print(f"   Sample: {minute_data.iloc[0].to_dict()}")
+    else:
+        print(f"⚠️ Query returned no data")
         
-        if minute_data is not None and len(minute_data) > 0:
-            print(f"✅ Query successful: {len(minute_data)} records")
-            print(f"   Sample: {minute_data.iloc[0].to_dict()}")
-        else:
-            print(f"⚠️ Query returned no data")
-            
-    except Exception as e:
-        print(f"❌ Query failed: {e}")
-        import traceback
-        traceback.print_exc()
-        
-    # Test 3: FileBasedMinuteMarketDataManager
     print(f"\n⚙️ TEST 3: FileBasedMinuteMarketDataManager")
     
-    from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+    from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteMarketDataManager
     
-    try:
-        market_data_manager = FileBasedMinuteMarketDataManager(env, "/data/minute-bars")
-        print(f"✅ FileBasedMinuteMarketDataManager initialized")
+    market_data_manager = FileBasedMinuteMarketDataManager(env, "/data/minute-bars")
+    print(f"✅ FileBasedMinuteMarketDataManager initialized")
+    
+    # Query AAPL data using the market data manager API
+    batch_data = await market_data_manager.get_minute_ohlc_batch(
+        symbols=["AAPL"],
+        start=start_datetime,
+        end=end_datetime,
+        timeframe_minutes=1
+    )
+    
+    if "AAPL" in batch_data and len(batch_data["AAPL"]) > 0:
+        aapl_data = batch_data["AAPL"]
+        print(f"✅ Batch query successful: {len(aapl_data)} records")
+        print(f"   Sample: {aapl_data.iloc[0].to_dict()}")
+    else:
+        print(f"⚠️ Batch query returned no AAPL data")
+        print(f"   Batch results: {list(batch_data.keys())}")
         
-        # Query AAPL data using the market data manager API
-        batch_data = await market_data_manager.get_minute_ohlc_batch(
-            symbols=["AAPL"],
-            start=start_datetime,
-            end=end_datetime,
-            timeframe_minutes=1
-        )
-        
-        if "AAPL" in batch_data and len(batch_data["AAPL"]) > 0:
-            aapl_data = batch_data["AAPL"]
-            print(f"✅ Batch query successful: {len(aapl_data)} records")
-            print(f"   Sample: {aapl_data.iloc[0].to_dict()}")
-        else:
-            print(f"⚠️ Batch query returned no AAPL data")
-            print(f"   Batch results: {list(batch_data.keys())}")
-            
-    except Exception as e:
-        print(f"❌ Market data manager test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        
-    # Test 4: Run actual training data generation for one day
     print(f"\n🚀 TEST 4: Actual training data generation (1 day)")
     
-    try:
-        # Use the working training data runner command but for just 1 day
-        import subprocess
+    # Use the working training data runner command but for just 1 day
+    import subprocess
+    
+    training_cmd = [
+        "python3", "src/domains/ml/services/training_data/runners/training_data_callback_runner.py",
+        "--symbols", "AAPL",
+        "--start-date", "2025-07-01", 
+        "--end-date", "2025-07-01",
+        "--environment", "intg",
+        "--storage-format", "arrayrecord",
+        "--output-dir", "/data/training_data",
+        "--debug",
+        "--gin-config", "config/training_data.gin",
+        "--base-duration", "60m"
+    ]
+    
+    env_vars = {
+        **os.environ,
+        "ENVIRONMENT_TYPE": "intg",
+        "DB_HOST": "localhost",
+        "DB_PORT": "4432", 
+        "DB_USER": "postgres",
+        "DB_PASSWORD": "intg_password",
+        "DB_NAME": "intg_db",
+        "PYTHONPATH": "src"
+    }
+    
+    print(f"🔄 Running training data generation...")
+    print(f"   Command: {' '.join(training_cmd)}")
+    
+    result = subprocess.run(
+        training_cmd,
+        cwd="/home/jianjun/ats-genai-admin",
+        env=env_vars,
+        capture_output=True,
+        text=True,
+        timeout=300  # 5 minute timeout
+    )
+    
+    print(f"\n📊 TRAINING DATA GENERATION RESULTS:")
+    print(f"   Return code: {result.returncode}")
+    
+    if result.returncode == 0:
+        print(f"✅ Training data generation succeeded!")
+    else:
+        print(f"❌ Training data generation failed")
         
-        training_cmd = [
-            "python3", "src/domains/ml/services/training_data/runners/training_data_callback_runner.py",
-            "--symbols", "AAPL",
-            "--start-date", "2025-07-01", 
-            "--end-date", "2025-07-01",
-            "--environment", "intg",
-            "--storage-format", "arrayrecord",
-            "--output-dir", "/data/training_data",
-            "--debug",
-            "--gin-config", "config/training_data.gin",
-            "--base-duration", "60m"
-        ]
+    # Show last 20 lines of output
+    if result.stdout:
+        stdout_lines = result.stdout.split('\n')
+        print(f"\n📝 Last 20 lines of stdout:")
+        for line in stdout_lines[-20:]:
+            if line.strip():
+                print(f"   {line}")
+                
+    if result.stderr:
+        stderr_lines = result.stderr.split('\n')
+        print(f"\n🚨 Last 10 lines of stderr:")
+        for line in stderr_lines[-10:]:
+            if line.strip():
+                print(f"   {line}")
+                
+    # Check if training data files were created
+    training_data_dir = Path("/data/training_data")
+    if training_data_dir.exists():
+        recent_datasets = sorted([d for d in training_data_dir.iterdir() if d.is_dir() and d.name.startswith("dataset_")], 
+                               key=lambda x: x.stat().st_mtime, reverse=True)
         
-        env_vars = {
-            **os.environ,
-            "ENVIRONMENT_TYPE": "intg",
-            "DB_HOST": "localhost",
-            "DB_PORT": "4432", 
-            "DB_USER": "postgres",
-            "DB_PASSWORD": "intg_password",
-            "DB_NAME": "intg_db",
-            "PYTHONPATH": "src"
-        }
-        
-        print(f"🔄 Running training data generation...")
-        print(f"   Command: {' '.join(training_cmd)}")
-        
-        result = subprocess.run(
-            training_cmd,
-            cwd="/home/jianjun/ats-genai-admin",
-            env=env_vars,
-            capture_output=True,
-            text=True,
-            timeout=300  # 5 minute timeout
-        )
-        
-        print(f"\n📊 TRAINING DATA GENERATION RESULTS:")
-        print(f"   Return code: {result.returncode}")
-        
-        if result.returncode == 0:
-            print(f"✅ Training data generation succeeded!")
-        else:
-            print(f"❌ Training data generation failed")
+        if recent_datasets:
+            latest_dataset = recent_datasets[0]
+            print(f"\n📁 Latest dataset: {latest_dataset.name}")
             
-        # Show last 20 lines of output
-        if result.stdout:
-            stdout_lines = result.stdout.split('\n')
-            print(f"\n📝 Last 20 lines of stdout:")
-            for line in stdout_lines[-20:]:
-                if line.strip():
-                    print(f"   {line}")
-                    
-        if result.stderr:
-            stderr_lines = result.stderr.split('\n')
-            print(f"\n🚨 Last 10 lines of stderr:")
-            for line in stderr_lines[-10:]:
-                if line.strip():
-                    print(f"   {line}")
-                    
-        # Check if training data files were created
-        training_data_dir = Path("/data/training_data")
-        if training_data_dir.exists():
-            recent_datasets = sorted([d for d in training_data_dir.iterdir() if d.is_dir() and d.name.startswith("dataset_")], 
-                                   key=lambda x: x.stat().st_mtime, reverse=True)
+            # Check contents
+            arrayrecord_files = list(latest_dataset.rglob("*.arrayrecord"))
+            metadata_files = list(latest_dataset.glob("*.json"))
             
-            if recent_datasets:
-                latest_dataset = recent_datasets[0]
-                print(f"\n📁 Latest dataset: {latest_dataset.name}")
+            print(f"   ArrayRecord files: {len(arrayrecord_files)}")
+            print(f"   Metadata files: {len(metadata_files)}")
+            
+            for ar_file in arrayrecord_files:
+                file_size = ar_file.stat().st_size
+                print(f"     📄 {ar_file.name}: {file_size:,} bytes")
                 
-                # Check contents
-                arrayrecord_files = list(latest_dataset.rglob("*.arrayrecord"))
-                metadata_files = list(latest_dataset.glob("*.json"))
-                
-                print(f"   ArrayRecord files: {len(arrayrecord_files)}")
-                print(f"   Metadata files: {len(metadata_files)}")
-                
-                for ar_file in arrayrecord_files:
-                    file_size = ar_file.stat().st_size
-                    print(f"     📄 {ar_file.name}: {file_size:,} bytes")
-                    
-                if metadata_files:
-                    import json
-                    for meta_file in metadata_files:
-                        if meta_file.name.endswith('metadata.json'):
-                            try:
-                                with open(meta_file) as f:
-                                    metadata = json.load(f)
-                                print(f"     📋 Status: {metadata.get('status', 'unknown')}")
-                                print(f"     📋 Intervals: {metadata.get('actual_intervals_processed', 'unknown')}")
-                            except Exception as e:
-                                print(f"     ❌ Error reading metadata: {e}")
-                                
-    except subprocess.TimeoutExpired:
-        print(f"❌ Training data generation timed out after 5 minutes")
-    except Exception as e:
-        print(f"❌ Training data generation test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        
+            if metadata_files:
+                import json
+                for meta_file in metadata_files:
+                    if meta_file.name.endswith('metadata.json'):
+                        with open(meta_file) as f:
+                            metadata = json.load(f)
+                        print(f"     📋 Status: {metadata.get('status', 'unknown')}")
+                        print(f"     📋 Intervals: {metadata.get('actual_intervals_processed', 'unknown')}")
+    print(f"❌ Training data generation timed out after 5 minutes")
     print(f"\n" + "=" * 60)
     print(f"✅ FOCUSED AAPL TRAINING DATA TEST COMPLETE")
 

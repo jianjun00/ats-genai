@@ -14,7 +14,7 @@ from datetime import datetime
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from domains.trading.services.feature_registry import (
+from domains.trading.services.indicators.feature_registry import (
     FeatureRegistry,
     FeatureConfig
 )

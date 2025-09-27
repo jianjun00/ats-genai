@@ -23,54 +23,45 @@ async def run_hermetic_tests() -> bool:
     print("Using mock data - no ATS infrastructure required")
     print("-" * 60)
 
-    try:
-        # Add current directory to path for relative imports
-        current_dir = os.path.dirname(__file__)
-        sys.path.insert(0, current_dir)
+    # Add current directory to path for relative imports
+    current_dir = os.path.dirname(__file__)
+    sys.path.insert(0, current_dir)
 
-        # Import and run hermetic test suite
-        from integration.test_training_data_visualization_suite import HermeticTrainingDataVisualizationSuite
+    # Import and run hermetic test suite
+    from integration.test_training_data_visualization_suite import HermeticTrainingDataVisualizationSuite
 
-        suite = HermeticTrainingDataVisualizationSuite()
-        hermetic_result = await suite.run_all_tests()
+    suite = HermeticTrainingDataVisualizationSuite()
+    hermetic_result = await suite.run_all_tests()
 
-        # Also run datetime bug detection test
-        print(f"\n{'='*80}")
-        from integration.test_datetime_bug_detection import DatetimeBugDetectionTest
+    # Also run datetime bug detection test
+    print(f"\n{'='*80}")
+    from integration.test_datetime_bug_detection import DatetimeBugDetectionTest
 
-        bug_suite = DatetimeBugDetectionTest()
-        bug_result = await bug_suite.run_all_tests()
+    bug_suite = DatetimeBugDetectionTest()
+    bug_result = await bug_suite.run_all_tests()
 
-        # Run comprehensive 21-row window visualization tests
-        print(f"\n{'='*80}")
-        from integration.test_21_row_window_visualization import TwentyOneRowWindowVisualizationTests
+    # Run comprehensive 21-row window visualization tests
+    print(f"\n{'='*80}")
+    from integration.test_21_row_window_visualization import TwentyOneRowWindowVisualizationTests
 
-        window_suite = TwentyOneRowWindowVisualizationTests()
-        window_result = await window_suite.run_all_tests()
+    window_suite = TwentyOneRowWindowVisualizationTests()
+    window_result = await window_suite.run_all_tests()
 
-        # Run data bounds validation tests (addresses "Start index out of bounds" errors)
-        print(f"\n{'='*80}")
-        from integration.test_data_bounds_validation import DataBoundsValidationTests
+    # Run data bounds validation tests (addresses "Start index out of bounds" errors)
+    print(f"\n{'='*80}")
+    from integration.test_data_bounds_validation import DataBoundsValidationTests
 
-        bounds_suite = DataBoundsValidationTests()
-        bounds_result = await bounds_suite.run_all_tests()
+    bounds_suite = DataBoundsValidationTests()
+    bounds_result = await bounds_suite.run_all_tests()
 
-        # Run API bounds integration tests
-        print(f"\n{'='*80}")
-        from integration.test_api_bounds_integration import APIBoundsIntegrationTests
+    # Run API bounds integration tests
+    print(f"\n{'='*80}")
+    from integration.test_api_bounds_integration import APIBoundsIntegrationTests
 
-        api_bounds_suite = APIBoundsIntegrationTests()
-        api_bounds_result = await api_bounds_suite.run_all_tests()
+    api_bounds_suite = APIBoundsIntegrationTests()
+    api_bounds_result = await api_bounds_suite.run_all_tests()
 
-        return hermetic_result and bug_result and window_result and bounds_result and api_bounds_result
-
-    except ImportError as e:
-        print(f"❌ Failed to import hermetic test suite: {e}")
-        return False
-    except Exception as e:
-        print(f"❌ Hermetic tests failed: {e}")
-        return False
-
+    return hermetic_result and bug_result and window_result and bounds_result and api_bounds_result
 
 async def run_integration_tests() -> bool:
     """Run integration tests against live ATS services"""
@@ -78,40 +69,24 @@ async def run_integration_tests() -> bool:
     print("Testing against live ATS analytics service")
     print("-" * 60)
 
-    try:
-        # Check if ATS analytics service is available
-        import urllib.request
-        try:
-            urllib.request.urlopen("http://localhost:3000/health", timeout=5)
-            print("✅ ATS analytics service is available")
-        except Exception:
-            print("❌ ATS analytics service not available at http://localhost:3000")
-            print("   Start ATS services with: python3 scripts/run_dev.py start --service analytics")
-            return False
+    # Check if ATS analytics service is available
+    import urllib.request
+    urllib.request.urlopen("http://localhost:3000/health", timeout=5)
+    print("✅ ATS analytics service is available")
+    from integration.test_plotly_ohlc_visualization import TestPlotlyOHLCVisualization
+    from integration.test_training_data_table_validation import TestTrainingDataTableValidation
 
-        # Import and run integration tests
-        from integration.test_plotly_ohlc_visualization import TestPlotlyOHLCVisualization
-        from integration.test_training_data_table_validation import TestTrainingDataTableValidation
+    print("\n1️⃣ Running OHLC Plotly visualization tests...")
+    ohlc_suite = TestPlotlyOHLCVisualization()
+    # Note: This would require Playwright setup - simplified for this example
+    ohlc_result = True  # Placeholder
+    print("✅ OHLC tests completed (simplified)")
 
-        print("\n1️⃣ Running OHLC Plotly visualization tests...")
-        ohlc_suite = TestPlotlyOHLCVisualization()
-        # Note: This would require Playwright setup - simplified for this example
-        ohlc_result = True  # Placeholder
-        print("✅ OHLC tests completed (simplified)")
+    print("\n2️⃣ Running table validation tests...")
+    table_suite = TestTrainingDataTableValidation()
+    table_result = await table_suite.run_all_tests()
 
-        print("\n2️⃣ Running table validation tests...")
-        table_suite = TestTrainingDataTableValidation()
-        table_result = await table_suite.run_all_tests()
-
-        return ohlc_result and table_result
-
-    except ImportError as e:
-        print(f"❌ Failed to import integration test suites: {e}")
-        return False
-    except Exception as e:
-        print(f"❌ Integration tests failed: {e}")
-        return False
-
+    return ohlc_result and table_result
 
 async def run_all_tests() -> bool:
     """Run both hermetic and integration tests"""
@@ -204,23 +179,14 @@ Examples:
     print(f"Timestamp: {asyncio.get_event_loop().time()}")
     print("=" * 80)
 
-    try:
-        success = asyncio.run(run_specific_test(args.test_type))
+    success = asyncio.run(run_specific_test(args.test_type))
 
-        if success:
-            print(f"\n🎉 **{args.test_type.upper()} TESTS COMPLETED SUCCESSFULLY!**")
-            return 0
-        else:
-            print(f"\n❌ **{args.test_type.upper()} TESTS FAILED**")
-            return 1
-
-    except KeyboardInterrupt:
-        print("\n⚠️ Tests interrupted by user")
-        return 130
-    except Exception as e:
-        print(f"\n❌ Test runner failed: {e}")
+    if success:
+        print(f"\n🎉 **{args.test_type.upper()} TESTS COMPLETED SUCCESSFULLY!**")
+        return 0
+    else:
+        print(f"\n❌ **{args.test_type.upper()} TESTS FAILED**")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

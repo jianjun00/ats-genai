@@ -1,5 +1,5 @@
-from domains.trading.services.indicator_config import IndicatorConfig
-from domains.trading.services.indicator import PL, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop, Indicator
+from domains.trading.services.indicators_config import IndicatorConfig
+# PL indicator does not exist, OneOneHigh, OneOneLow, OneOneDot, EBot, ETop, Indicator
 
 class MockIndicator(Indicator):
     """Mock indicator for testing purposes."""

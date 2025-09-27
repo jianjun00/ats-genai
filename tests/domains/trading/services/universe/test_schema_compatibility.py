@@ -9,8 +9,8 @@ from unittest.mock import Mock, AsyncMock
 import asyncpg
 import os
 
-from core.shared.utils.environment import Environment
-from domains.trading.services.dynamic_modeling_universe import DynamicModelingUniverse
+from core.platform.config.environment import Environment
+from domains.trading.services.universe.dynamic_modeling_universe import DynamicModelingUniverse
 
 class TestSchemaCompatibility:
     """Test that dynamic universe system is compatible with existing database schema"""
@@ -29,56 +29,52 @@ class TestSchemaCompatibility:
             pytest.skip("Database credentials not available")
 
         # Connect to actual database to check schema
-        try:
-            conn = await asyncpg.connect(
-                host=os.environ.get('DB_HOST', 'localhost'),
-                port=int(os.environ.get('DB_PORT', '5433')),
-                user=os.environ.get('DB_USER'),
-                password=os.environ.get('DB_PASSWORD'),
-                database=os.environ.get('DB_NAME')
-            )
+        conn = await asyncpg.connect(
+            host=os.environ.get('DB_HOST', 'localhost'),
+            port=int(os.environ.get('DB_PORT', '5433')),
+            user=os.environ.get('DB_USER'),
+            password=os.environ.get('DB_PASSWORD'),
+            database=os.environ.get('DB_NAME')
+        )
 
-            # Check if dev_universe table exists
-            table_exists = await conn.fetchval("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables
-                    WHERE table_name = 'dev_universe'
-                );
-            """)
-
-            if not table_exists:
-                pytest.skip("dev_universe table doesn't exist - this is expected for new systems")
-
-            # Get actual table schema
-            columns = await conn.fetch("""
-                SELECT column_name, data_type, is_nullable
-                FROM information_schema.columns
+        # Check if dev_universe table exists
+        table_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
                 WHERE table_name = 'dev_universe'
-                ORDER BY ordinal_position;
-            """)
+            );
+        """)
 
-            column_names = [row['column_name'] for row in columns]
-            print(f"Existing dev_universe columns: {column_names}")
+        if not table_exists:
+            pytest.skip("dev_universe table doesn't exist - this is expected for new systems")
 
-            # Check for expected columns from our universe system
-            required_columns = ['id', 'name', 'description', 'created_at']
-            expected_columns = ['id', 'name', 'description', 'created_at', 'updated_at']
+        # Get actual table schema
+        columns = await conn.fetch("""
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'dev_universe'
+            ORDER BY ordinal_position;
+        """)
 
-            # Test: Required columns should exist
-            for col in required_columns:
-                assert col in column_names, f"Required column '{col}' missing from dev_universe"
+        column_names = [row['column_name'] for row in columns]
+        print(f"Existing dev_universe columns: {column_names}")
 
-            # Test: Detect if updated_at column is missing (this should fail initially)
-            missing_columns = [col for col in expected_columns if col not in column_names]
-            if missing_columns:
-                print(f"❌ DETECTED ISSUE: Missing columns: {missing_columns}")
-                # This test documents the issue - updated_at column is missing
-                assert 'updated_at' in missing_columns, "Expected to find updated_at missing (this documents the issue)"
+        # Check for expected columns from our universe system
+        required_columns = ['id', 'name', 'description', 'created_at']
+        expected_columns = ['id', 'name', 'description', 'created_at', 'updated_at']
 
-            await conn.close()
+        # Test: Required columns should exist
+        for col in required_columns:
+            assert col in column_names, f"Required column '{col}' missing from dev_universe"
 
-        except Exception as e:
-            pytest.skip(f"Could not connect to database: {e}")
+        # Test: Detect if updated_at column is missing (this should fail initially)
+        missing_columns = [col for col in expected_columns if col not in column_names]
+        if missing_columns:
+            print(f"❌ DETECTED ISSUE: Missing columns: {missing_columns}")
+            # This test documents the issue - updated_at column is missing
+            assert 'updated_at' in missing_columns, "Expected to find updated_at missing (this documents the issue)"
+
+        await conn.close()
 
     def test_universe_creation_query_compatibility(self):
         """Test that universe creation query matches existing schema"""

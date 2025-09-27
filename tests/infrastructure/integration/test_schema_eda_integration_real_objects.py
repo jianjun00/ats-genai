@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsSchemaEDAIntegration:
@@ -55,13 +49,7 @@ class TestRealObjectsSchemaEDAIntegration:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_eda_dataset_discovery_real_objects(self, real_service, test_data):
         """Real objects version of test_eda_dataset_discovery"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.eda_dataset_discovery_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.eda_dataset_discovery_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_eda_feature_categorization_real_objects(self, real_service, test_data):
         """Real objects version of test_eda_feature_categorization"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.eda_feature_categorization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.eda_feature_categorization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_eda_visualization_metadata_real_objects(self, real_service, test_data):
         """Real objects version of test_eda_visualization_metadata"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.eda_visualization_metadata_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.eda_visualization_metadata_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_eda_data_quality_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_eda_data_quality_integration"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.eda_data_quality_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.eda_data_quality_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_eda_schema_comparison_real_objects(self, real_service, test_data):
         """Real objects version of test_eda_schema_comparison"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.eda_schema_comparison_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.eda_schema_comparison_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_feature_type_visualization_mapping_real_objects(self, real_service, test_data):
         """Real objects version of test_feature_type_visualization_mapping"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.feature_type_visualization_mapping_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.feature_type_visualization_mapping_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_interactive_eda_configuration_real_objects(self, real_service, test_data):
         """Real objects version of test_interactive_eda_configuration"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.interactive_eda_configuration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.interactive_eda_configuration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complete_training_to_eda_workflow_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_training_to_eda_workflow"""
         # Test with real database integration
@@ -230,15 +176,8 @@ class TestRealObjectsSchemaEDAIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_training_to_eda_workflow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.complete_training_to_eda_workflow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

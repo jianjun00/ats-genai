@@ -25,81 +25,66 @@ logger = logging.getLogger(__name__)
 
 def parse_binary_arrayrecord(data_bytes, num_features=962):
     """Parse binary ArrayRecord data containing IEEE 754 floats."""
-    try:
-        offset = 16  # Skip initial metadata
-        float_data = []
-        expected_bytes_per_record = num_features * 4
+    offset = 16  # Skip initial metadata
+    float_data = []
+    expected_bytes_per_record = num_features * 4
 
-        while offset + expected_bytes_per_record <= len(data_bytes):
-            record_floats = []
-            for i in range(num_features):
-                if offset + 4 <= len(data_bytes):
-                    float_bytes = data_bytes[offset:offset+4]
-                    try:
-                        float_val = struct.unpack('<f', float_bytes)[0]
-                        record_floats.append(float_val)
-                    except struct.error:
-                        record_floats.append(0.0)
-                    offset += 4
-                else:
-                    break
-
-            if len(record_floats) == num_features:
-                float_data.append(record_floats)
+    while offset + expected_bytes_per_record <= len(data_bytes):
+        record_floats = []
+        for i in range(num_features):
+            if offset + 4 <= len(data_bytes):
+                float_bytes = data_bytes[offset:offset+4]
+                float_val = struct.unpack('<f', float_bytes)[0]
+                record_floats.append(float_val)
+                offset += 4
             else:
                 break
 
-        if float_data:
-            return np.array(float_data, dtype=np.float32)
-        return None
-    except Exception as e:
-        logger.error(f"Binary parsing failed: {e}")
-        return None
+        if len(record_floats) == num_features:
+            float_data.append(record_floats)
+        else:
+            break
 
-
+    if float_data:
+        return np.array(float_data, dtype=np.float32)
+    return None
 def load_real_aapl_data():
     """Load and parse real AAPL data."""
-    try:
-        import array_record.python.array_record_module as ar_module
+    import array_record.python.array_record_module as ar_module
 
-        data_path = Path('/data/training_data/89/AAPL_20250701_000000_20250906_000000/1h')
-        arrayrecord_path = data_path / 'AAPL_20250701_000000_20250906_000000.arrayrecord'
-        columns_path = data_path / 'AAPL_20250701_000000_20250906_000000_columns.json'
+    data_path = Path('/data/training_data/89/AAPL_20250701_000000_20250906_000000/1h')
+    arrayrecord_path = data_path / 'AAPL_20250701_000000_20250906_000000.arrayrecord'
+    columns_path = data_path / 'AAPL_20250701_000000_20250906_000000_columns.json'
 
-        logger.info(f"📊 Loading REAL AAPL data: {arrayrecord_path}")
+    logger.info(f"📊 Loading REAL AAPL data: {arrayrecord_path}")
 
-        if not arrayrecord_path.exists():
-            logger.error(f"❌ Data file not found: {arrayrecord_path}")
-            return None, None
-
-        # Load columns
-        with open(columns_path, 'r') as f:
-            columns = json.load(f)
-
-        # Load binary data
-        reader = ar_module.ArrayRecordReader(str(arrayrecord_path))
-        records = reader.read_all()
-        reader.close()
-
-        # Parse all records
-        all_data = []
-        for record_bytes in records:
-            if isinstance(record_bytes, bytes):
-                parsed = parse_binary_arrayrecord(record_bytes, len(columns))
-                if parsed is not None:
-                    all_data.append(parsed)
-
-        if all_data:
-            combined = np.vstack(all_data)
-            logger.info(f"✅ Parsed REAL AAPL data: {combined.shape}")
-            return combined, columns
-
-        return None, None
-    except Exception as e:
-        logger.error(f"Failed to load data: {e}")
+    if not arrayrecord_path.exists():
+        logger.error(f"❌ Data file not found: {arrayrecord_path}")
         return None, None
 
+    # Load columns
+    with open(columns_path, 'r') as f:
+        columns = json.load(f)
 
+    # Load binary data
+    reader = ar_module.ArrayRecordReader(str(arrayrecord_path))
+    records = reader.read_all()
+    reader.close()
+
+    # Parse all records
+    all_data = []
+    for record_bytes in records:
+        if isinstance(record_bytes, bytes):
+            parsed = parse_binary_arrayrecord(record_bytes, len(columns))
+            if parsed is not None:
+                all_data.append(parsed)
+
+    if all_data:
+        combined = np.vstack(all_data)
+        logger.info(f"✅ Parsed REAL AAPL data: {combined.shape}")
+        return combined, columns
+
+    return None, None
 class UnifiedLoss(nn.Module):
     """Simplified unified loss function combining AV and finance insights."""
 

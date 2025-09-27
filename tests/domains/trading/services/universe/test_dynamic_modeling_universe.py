@@ -13,12 +13,12 @@ import pytest
 from datetime import date
 from unittest.mock import Mock, AsyncMock
 
-from domains.trading.services.dynamic_modeling_universe import (
+from domains.trading.services.universe.dynamic_modeling_universe import (
     DynamicModelingUniverse,
     UniverseStock,
     QualificationMetrics
 )
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 @pytest.fixture
 async def mock_env():

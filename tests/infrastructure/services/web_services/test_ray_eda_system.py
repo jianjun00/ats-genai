@@ -35,7 +35,7 @@ class TestRayEDAInfrastructure:
 
     def test_ray_initialization(self):
         """Test Ray cluster initialization with correct resources"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         cache_stats = service.get_cache_stats()
@@ -56,7 +56,7 @@ class TestRayEDAInfrastructure:
     def test_database_worker_creation(self):
         """Test Ray database worker actors are created correctly"""
         import ray
-        from services.ray_eda_engine import DatabaseWorker
+        from infrastructure.services_legacy.web_services.ray_eda_engine import DatabaseWorker
 
         connection_params = {
             'host': 'postgres-dev',
@@ -77,7 +77,7 @@ class TestRayEDAInfrastructure:
 
     def test_eda_coordinator_initialization(self):
         """Test EDA coordinator with multiple workers"""
-        from services.ray_eda_engine import EDACoordinator
+        from infrastructure.services_legacy.web_services.ray_eda_engine import EDACoordinator
 
         connection_params = {
             'host': 'postgres-dev',
@@ -101,7 +101,7 @@ class TestDataPartitioning:
 
     def test_time_based_partitions_for_price_data(self):
         """Test time-based partitioning for massive price datasets"""
-        from services.ray_eda_engine import EDACoordinator
+        from infrastructure.services_legacy.web_services.ray_eda_engine import EDACoordinator
 
         connection_params = {'host': 'postgres-dev', 'port': 5432, 'user': 'postgres', 'password': 'dev_password', 'database': 'dev_db'}
         coordinator = EDACoordinator.remote(connection_params)
@@ -118,7 +118,7 @@ class TestDataPartitioning:
 
     def test_symbol_based_partitions_for_instruments(self):
         """Test symbol-based partitioning for instrument data"""
-        from services.ray_eda_engine import EDACoordinator
+        from infrastructure.services_legacy.web_services.ray_eda_engine import EDACoordinator
 
         connection_params = {'host': 'postgres-dev', 'port': 5432, 'user': 'postgres', 'password': 'dev_password', 'database': 'dev_db'}
         coordinator = EDACoordinator.remote(connection_params)
@@ -135,7 +135,7 @@ class TestDataPartitioning:
 
     def test_no_partitioning_for_small_tables(self):
         """Test no partitioning for smaller tables"""
-        from services.ray_eda_engine import EDACoordinator
+        from infrastructure.services_legacy.web_services.ray_eda_engine import EDACoordinator
 
         connection_params = {'host': 'postgres-dev', 'port': 5432, 'user': 'postgres', 'password': 'dev_password', 'database': 'dev_db'}
         coordinator = EDACoordinator.remote(connection_params)
@@ -155,7 +155,7 @@ class TestDistributedColumnAnalysis:
     @pytest.mark.asyncio
     async def test_numeric_column_analysis_performance(self):
         """Test numeric column analysis performance on 3.6GB dataset"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         columns = [{'column_name': 'close', 'data_type': 'double precision'}]
@@ -181,7 +181,7 @@ class TestDistributedColumnAnalysis:
     @pytest.mark.asyncio
     async def test_categorical_column_analysis(self):
         """Test categorical column analysis with top values"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         columns = [{'column_name': 'symbol', 'data_type': 'text'}]
@@ -207,7 +207,7 @@ class TestDistributedColumnAnalysis:
     @pytest.mark.asyncio
     async def test_parallel_multi_column_analysis(self):
         """Test parallel analysis of multiple columns"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         columns = [
@@ -241,7 +241,7 @@ class TestHTTPAPIIntegration:
 
     def test_ray_table_detection(self):
         """Test automatic Ray usage for large tables"""
-        from services.analytics_service import AnalyticsHandler
+        from infrastructure.services_legacy.analytics_service import AnalyticsHandler
 
         handler = AnalyticsHandler()
 
@@ -257,7 +257,7 @@ class TestHTTPAPIIntegration:
     def test_column_values_endpoint_ray_integration(self):
         """Test column values endpoint uses Ray for large tables"""
         import asyncio
-        from services.analytics_service import AnalyticsHandler
+        from infrastructure.services_legacy.analytics_service import AnalyticsHandler
 
         handler = AnalyticsHandler()
 
@@ -274,10 +274,10 @@ class TestHTTPAPIIntegration:
             assert 'min_value' in result
             assert 'max_value' in result
 
-    @patch('services.analytics_service.RAY_AVAILABLE', True)
+    @patch('infrastructure.services_legacy.analytics_service.RAY_AVAILABLE', True)
     def test_analyze_endpoint_ray_fallback(self):
         """Test analyze endpoint with Ray unavailable fallback"""
-        from services.analytics_service import AnalyticsHandler
+        from infrastructure.services_legacy.analytics_service import AnalyticsHandler
 
         handler = AnalyticsHandler()
 
@@ -296,7 +296,7 @@ class TestErrorHandlingAndRobustness:
         """Test graceful handling of database connection failures"""
 
         # Test with invalid connection parameters
-        with patch('services.ray_eda_engine.get_ray_eda_service') as mock_service:
+        with patch('infrastructure.services_legacy.web_services.ray_eda_engine.get_ray_eda_service') as mock_service:
             mock_result = MagicMock()
             mock_result.statistics = {'error': 'Connection refused'}
             mock_result.sample_size = 0
@@ -315,25 +315,20 @@ class TestErrorHandlingAndRobustness:
 
     def test_ray_cluster_unavailable_fallback(self):
         """Test fallback to traditional methods when Ray unavailable"""
-        with patch('services.ray_eda_engine.ray.is_initialized', return_value=False):
-            with patch('services.ray_eda_engine.ray.init') as mock_init:
+        with patch('infrastructure.services_legacy.web_services.ray_eda_engine.ray.is_initialized', return_value=False):
+            with patch('infrastructure.services_legacy.web_services.ray_eda_engine.ray.init') as mock_init:
                 mock_init.side_effect = Exception("Ray unavailable")
 
                 # Should handle Ray unavailability gracefully
-                try:
-                    from services.ray_eda_engine import get_ray_eda_service
-                    service = get_ray_eda_service()
-                    cache_stats = service.get_cache_stats()
-                    assert cache_stats['ray_cluster_status'] == 'disconnected'
-                except Exception as e:
-                    # Expected if Ray truly unavailable
-                    assert "Ray unavailable" in str(e)
-
+                from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
+                service = get_ray_eda_service()
+                cache_stats = service.get_cache_stats()
+                assert cache_stats['ray_cluster_status'] == 'disconnected'
     @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_timeout_handling_for_massive_queries(self):
         """Test timeout handling for queries on massive datasets"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         columns = [{'column_name': 'close', 'data_type': 'double precision'}]
@@ -341,15 +336,9 @@ class TestErrorHandlingAndRobustness:
         # Test with very short timeout
         start_time = time.time()
 
-        try:
-            async with asyncio.timeout(5):  # 5 second timeout
-                async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns):
-                    break
-        except asyncio.TimeoutError:
-            # Timeout is acceptable for massive datasets
-            elapsed = time.time() - start_time
-            assert 4 < elapsed < 7, f"Timeout occurred at {elapsed:.1f}s"
-
+        async with asyncio.timeout(5):  # 5 second timeout
+            async for result in service.analyze_dataset_columns('dev_daily_price_tiingo', columns):
+                break
 class TestPerformanceBenchmarks:
     """Performance benchmarks and regression tests"""
 
@@ -361,7 +350,7 @@ class TestPerformanceBenchmarks:
         traditional_expected_time = 300  # seconds (would timeout)
         ray_target_time = 30  # seconds
 
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         columns = [{'column_name': 'close', 'data_type': 'double precision'}]
@@ -382,7 +371,7 @@ class TestPerformanceBenchmarks:
 
     def test_memory_usage_efficiency(self):
         """Test Ray memory usage doesn't exceed limits"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         cache_stats = service.get_cache_stats()
@@ -400,7 +389,7 @@ class TestDataAccuracyAndConsistency:
     @pytest.mark.asyncio
     async def test_sample_size_accuracy(self):
         """Test that sample sizes are reasonable for statistical accuracy"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         columns = [{'column_name': 'close', 'data_type': 'double precision'}]
@@ -421,7 +410,7 @@ class TestDataAccuracyAndConsistency:
     @pytest.mark.asyncio
     async def test_distributed_aggregation_consistency(self):
         """Test that distributed results are internally consistent"""
-        from services.ray_eda_engine import get_ray_eda_service
+        from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
 
         service = get_ray_eda_service()
         columns = [{'column_name': 'close', 'data_type': 'double precision'}]
@@ -446,7 +435,7 @@ class TestDataAccuracyAndConsistency:
 @pytest.fixture
 def ray_service():
     """Fixture providing Ray EDA service for tests"""
-    from services.ray_eda_engine import get_ray_eda_service
+    from infrastructure.services_legacy.web_services.ray_eda_engine import get_ray_eda_service
     return get_ray_eda_service()
 
 @pytest.fixture

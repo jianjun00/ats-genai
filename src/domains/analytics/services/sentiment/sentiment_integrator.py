@@ -17,7 +17,7 @@ import numpy as np
 
 from sentiment.news_sentiment_analyzer import NewsSentimentAnalyzer, SentimentSignal
 from sentiment.social_media_analyzer import SocialSentimentAnalyzer, SocialTradingSignal
-from modeling.factor_models import ResidualReturnCalculator
+from domains.ml.modeling.features.factor_models import ResidualReturnCalculator
 
 
 @dataclass

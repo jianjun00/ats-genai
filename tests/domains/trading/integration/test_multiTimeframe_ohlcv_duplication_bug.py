@@ -28,7 +28,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from domains.trading.services.core.app.runner import Runner
 
 class MockRunner:
@@ -143,21 +143,17 @@ def extract_rolling_cache_data(universe_state_manager: UniverseStateManager, int
     instrument_id = 31
     
     for timeframe in ['5m', '15m', '60m', '1d']:
-        try:
-            # Try to get lag prices for this timeframe
-            lag_data = universe_state_manager.get_lag_prices(
-                instrument_id, 
-                interval_time, 
-                lag_periods=5, 
-                time_interval=timeframe
-            )
-            
-            if not lag_data.empty:
-                cache_data[timeframe] = lag_data.to_dict('records')
-            
-        except Exception as e:
-            cache_data[timeframe] = f"Error: {str(e)}"
-    
+        # Try to get lag prices for this timeframe
+        lag_data = universe_state_manager.get_lag_prices(
+            instrument_id, 
+            interval_time, 
+            lag_periods=5, 
+            time_interval=timeframe
+        )
+        
+        if not lag_data.empty:
+            cache_data[timeframe] = lag_data.to_dict('records')
+        
     return cache_data
 
 def print_interval_results(interval_time: datetime, cache_data: Dict):

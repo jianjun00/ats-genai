@@ -9,7 +9,7 @@ import aiohttp
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from domains.market_data.services.agent.tiingo_intraday_adapter import (
+from domains.market_data.services.core.agent.tiingo_intraday_adapter import (
     TiingoIntradayAdapter,
     TiingoMinuteBar,
     fetch_tiingo_minute_data,

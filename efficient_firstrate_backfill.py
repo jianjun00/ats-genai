@@ -48,33 +48,23 @@ async def run_priority_backfill():
         
         # Phase 1: Major symbols (highest priority)
         logger.info(f"🎯 PHASE 1: Processing {len(major_symbols)} major symbols")
-        try:
-            results1 = await adapter.incremental_backfill_to_files(
-                symbols=major_symbols,
-                days_back=30,
-                output_path='/mnt/d/ats-data/minute-bars/firstrate'
-            )
-            all_results.append(('Major Symbols', results1))
-            logger.info(f"✅ Phase 1: {len(results1.get('symbols_processed', []))}/{len(major_symbols)} processed, "
-                       f"{results1.get('files_written', 0)} files written")
-        except Exception as e:
-            logger.error(f"❌ Phase 1 failed: {e}")
-        
-        # Phase 2: Popular symbols
+        results1 = await adapter.incremental_backfill_to_files(
+            symbols=major_symbols,
+            days_back=30,
+            output_path='/mnt/d/ats-data/minute-bars/firstrate'
+        )
+        all_results.append(('Major Symbols', results1))
+        logger.info(f"✅ Phase 1: {len(results1.get('symbols_processed', []))}/{len(major_symbols)} processed, "
+                   f"{results1.get('files_written', 0)} files written")
         logger.info(f"📈 PHASE 2: Processing {len(popular_symbols)} popular symbols")
-        try:
-            results2 = await adapter.incremental_backfill_to_files(
-                symbols=popular_symbols,
-                days_back=30,
-                output_path='/mnt/d/ats-data/minute-bars/firstrate'
-            )
-            all_results.append(('Popular Symbols', results2))
-            logger.info(f"✅ Phase 2: {len(results2.get('symbols_processed', []))}/{len(popular_symbols)} processed, "
-                       f"{results2.get('files_written', 0)} files written")
-        except Exception as e:
-            logger.error(f"❌ Phase 2 failed: {e}")
-        
-        # Phase 3: Quick scan of A-Z symbols (sample-based)
+        results2 = await adapter.incremental_backfill_to_files(
+            symbols=popular_symbols,
+            days_back=30,
+            output_path='/mnt/d/ats-data/minute-bars/firstrate'
+        )
+        all_results.append(('Popular Symbols', results2))
+        logger.info(f"✅ Phase 2: {len(results2.get('symbols_processed', []))}/{len(popular_symbols)} processed, "
+                   f"{results2.get('files_written', 0)} files written")
         logger.info(f"🔤 PHASE 3: Sample processing across alphabet")
         
         # Get a representative sample from each letter
@@ -106,19 +96,14 @@ async def run_priority_backfill():
         alphabet_sample = [s for s in set(alphabet_sample) if s not in processed_symbols]
         
         logger.info(f"🎯 Phase 3: Processing {len(alphabet_sample)} alphabet sample symbols")
-        try:
-            results3 = await adapter.incremental_backfill_to_files(
-                symbols=alphabet_sample,
-                days_back=30,
-                output_path='/mnt/d/ats-data/minute-bars/firstrate'
-            )
-            all_results.append(('Alphabet Sample', results3))
-            logger.info(f"✅ Phase 3: {len(results3.get('symbols_processed', []))}/{len(alphabet_sample)} processed, "
-                       f"{results3.get('files_written', 0)} files written")
-        except Exception as e:
-            logger.error(f"❌ Phase 3 failed: {e}")
-        
-        # Summary
+        results3 = await adapter.incremental_backfill_to_files(
+            symbols=alphabet_sample,
+            days_back=30,
+            output_path='/mnt/d/ats-data/minute-bars/firstrate'
+        )
+        all_results.append(('Alphabet Sample', results3))
+        logger.info(f"✅ Phase 3: {len(results3.get('symbols_processed', []))}/{len(alphabet_sample)} processed, "
+                   f"{results3.get('files_written', 0)} files written")
         duration = datetime.now() - start_time
         total_processed = sum(len(result.get('symbols_processed', [])) for _, result in all_results)
         total_files_written = sum(result.get('files_written', 0) for _, result in all_results)

@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from vendor.polygon.services.range_splits_polygon import insert_splits_polygon, parse_date, date_chunks
+from infrastructure.vendor.polygon.services.range_splits_polygon import insert_splits_polygon, parse_date, date_chunks
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

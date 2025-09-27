@@ -10,10 +10,10 @@ os.environ["PYTHONPATH"] = f"{SRC_DIR}:{os.environ.get('PYTHONPATH','')}" if os.
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from core.calendars.time_duration import TimeDuration
-from state.universe_state import UniverseStateInterval
-from state.instrument_interval import InstrumentInterval
-from state.forecast_interval import ForecastInterval
+from core.business.calendars.time_duration import TimeDuration
+from domains.trading.services.state.universe_state import UniverseStateInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
+from domains.trading.services.state.forecast_interval import ForecastInterval
 
 def test_universe_state_interval_proto_roundtrip_with_forecasts():
     duration = TimeDuration("5m")

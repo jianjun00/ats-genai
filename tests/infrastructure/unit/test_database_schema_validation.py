@@ -175,11 +175,7 @@ class TestDatabaseSchemaValidation:
         """
 
         # Test query syntax by preparing it (doesn't execute)
-        try:
-            await db_connection.prepare(dataset_query)
-        except asyncpg.exceptions.PostgresError as e:
-            pytest.fail(f"SQL query syntax error: {e}")
-
+        await db_connection.prepare(dataset_query)
     @pytest.mark.asyncio
 
     async def test_job_management_sql_queries_validation(self, db_connection):
@@ -226,13 +222,7 @@ class TestDatabaseSchemaValidation:
 
         # Test each query - this will catch "relation does not exist" errors
         for i, query in enumerate(job_queries):
-            try:
-                await db_connection.prepare(query)
-            except asyncpg.exceptions.UndefinedTableError as e:
-                pytest.fail(f"Job management query {i+1} failed - table does not exist: {e}")
-            except asyncpg.exceptions.PostgresError as e:
-                pytest.fail(f"Job management query {i+1} SQL syntax error: {e}")
-
+            await db_connection.prepare(query)
     @pytest.mark.asyncio
 
     async def test_column_references_are_valid(self, actual_schema):
@@ -274,15 +264,11 @@ class TestDatabaseSchemaValidation:
         """Test that our data access layer matches database contract"""
 
         # Test that we can actually query the training dataset table
-        try:
-            result = await db_connection.fetchrow(
-                "SELECT dataset_name, total_sequences, feature_count FROM dev_training_dataset LIMIT 1"
-            )
-            # If query succeeds, our contract is valid
-            assert True
-        except asyncpg.exceptions.PostgresError as e:
-            pytest.fail(f"Data access layer contract broken: {e}")
-
+        result = await db_connection.fetchrow(
+            "SELECT dataset_name, total_sequences, feature_count FROM dev_training_dataset LIMIT 1"
+        )
+        # If query succeeds, our contract is valid
+        assert True
     @pytest.mark.asyncio
 
     async def test_type_compatibility(self, actual_schema):
@@ -321,27 +307,18 @@ class TestDatabaseSchemaValidation:
         """
 
         for dangerous_input in dangerous_inputs:
-            try:
-                # This should safely handle malicious input without error
-                result = await db_connection.fetchrow(query, dangerous_input)
-                # Result should be None (no match) or safe
-                assert result is None or isinstance(result['dataset_name'], str)
-            except Exception as e:
-                pytest.fail(f"Query parameter safety failed: {e}")
-
-
+            # This should safely handle malicious input without error
+            result = await db_connection.fetchrow(query, dangerous_input)
+            # Result should be None (no match) or safe
+            assert result is None or isinstance(result['dataset_name'], str)
 class TestMigrationStateCompatibility:
     """Test that our code is compatible with current database migration state"""
 
     @pytest.fixture
     async def migration_version(self, db_connection):
         """Get current database migration version"""
-        try:
-            result = await db_connection.fetchval("SELECT version FROM db_version ORDER BY applied_at DESC LIMIT 1")
-            return result
-        except:
-            return None
-
+        result = await db_connection.fetchval("SELECT version FROM db_version ORDER BY applied_at DESC LIMIT 1")
+        return result
     @pytest.mark.asyncio
 
     async def test_code_migration_compatibility(self, migration_version):
@@ -407,24 +384,19 @@ async def validated_database_engine():
     env = Environment()
     engine = EnhancedDatasetVisualizationEngine(env)
 
-    try:
-        await engine.initialize()
+    await engine.initialize()
 
-        # Validate that we can query the database with our schema
-        async with engine.db_pool.acquire() as conn:
-            # Test our actual query
-            await conn.fetchrow("""
-                SELECT dataset_name, symbols, total_sequences, feature_count,
-                       technical_indicators, creation_timestamp, file_size_mb
-                FROM dev_training_dataset
-                LIMIT 1
-            """)
+    # Validate that we can query the database with our schema
+    async with engine.db_pool.acquire() as conn:
+        # Test our actual query
+        await conn.fetchrow("""
+            SELECT dataset_name, symbols, total_sequences, feature_count,
+                   technical_indicators, creation_timestamp, file_size_mb
+            FROM dev_training_dataset
+            LIMIT 1
+        """)
 
-        yield engine
-    finally:
-        await engine.close()
-
-
+    yield engine
 class TestJobManagementAPISchemaCompatibility:
     """Test job management API against real database schema"""
 
@@ -436,15 +408,9 @@ class TestJobManagementAPISchemaCompatibility:
         # CRITICAL: This test catches the exact error from the user report
         # Test the exact scenario that's failing in production
 
-        try:
-            # Test basic job count query - this fails with "relation does not exist"
-            result = await db_connection.fetchval("SELECT COUNT(*) FROM dev_job_runs")
-            assert result is not None, "Job runs count query should work"
-
-        except asyncpg.exceptions.UndefinedTableError as e:
-            pytest.fail(f"CRITICAL: dev_job_runs table does not exist. This is the exact error reported by user: {e}")
-        except Exception as e:
-            pytest.fail(f"Unexpected error in job management database test: {e}")
+        # Test basic job count query - this fails with "relation does not exist"
+        result = await db_connection.fetchval("SELECT COUNT(*) FROM dev_job_runs")
+        assert result is not None, "Job runs count query should work"
 
     @pytest.mark.asyncio
 
@@ -456,31 +422,25 @@ class TestJobManagementAPISchemaCompatibility:
         base_url = "http://172.25.223.121:3000"
 
         async with httpx.AsyncClient() as client:
-            try:
-                # Test job stats endpoint
-                response = await client.get(f"{base_url}/api/v1/jobs/stats")
-                assert response.status_code == 200, f"Job stats endpoint failed: {response.status_code}"
+            # Test job stats endpoint
+            response = await client.get(f"{base_url}/api/v1/jobs/stats")
+            assert response.status_code == 200, f"Job stats endpoint failed: {response.status_code}"
 
-                data = response.json()
-                assert "total_jobs" in data, "Job stats should include total_jobs"
+            data = response.json()
+            assert "total_jobs" in data, "Job stats should include total_jobs"
 
-                # Test main jobs endpoint
-                response = await client.get(f"{base_url}/api/v1/jobs")
-                assert response.status_code == 200, f"Jobs endpoint failed: {response.status_code}"
+            # Test main jobs endpoint
+            response = await client.get(f"{base_url}/api/v1/jobs")
+            assert response.status_code == 200, f"Jobs endpoint failed: {response.status_code}"
 
-                data = response.json()
+            data = response.json()
 
-                # CRITICAL: This catches the exact error the user reported
-                if "error" in data and "relation" in data["error"] and "does not exist" in data["error"]:
-                    pytest.fail(f"CRITICAL: Job management API failing with table error: {data['error']}")
+            # CRITICAL: This catches the exact error the user reported
+            if "error" in data and "relation" in data["error"] and "does not exist" in data["error"]:
+                pytest.fail(f"CRITICAL: Job management API failing with table error: {data['error']}")
 
-                assert "jobs" in data, "Jobs endpoint should include 'jobs' key"
-                assert "total" in data, "Jobs endpoint should include 'total' key"
-
-            except httpx.ConnectError:
-                # If we can't connect, skip this test
-                pytest.skip("Cannot connect to job management API for integration test")
-
+            assert "jobs" in data, "Jobs endpoint should include 'jobs' key"
+            assert "total" in data, "Jobs endpoint should include 'total' key"
 
 class TestDatasetVisualizationEngineSchemaCompatibility:
     """Test the actual engine against real database schema"""
@@ -499,20 +459,13 @@ class TestDatasetVisualizationEngineSchemaCompatibility:
         engine = validated_database_engine
 
         # This should not raise schema errors
-        try:
-            # Test with non-existent dataset (should return 404, not schema error)
-            with pytest.raises(Exception) as exc_info:
-                await engine.get_dataset_details("nonexistent_dataset")
+        # Test with non-existent dataset (should return 404, not schema error)
+        with pytest.raises(Exception) as exc_info:
+            await engine.get_dataset_details("nonexistent_dataset")
 
-            # Should be 404 Not Found, not schema error
-            assert "not found" in str(exc_info.value).lower() or \
-                   exc_info.value.status_code == 404
-
-        except Exception as e:
-            # If we get schema errors here, the test should fail
-            if "does not exist" in str(e) and ("column" in str(e) or "relation" in str(e)):
-                pytest.fail(f"Schema validation failed: {e}")
-
+        # Should be 404 Not Found, not schema error
+        assert "not found" in str(exc_info.value).lower() or \
+               exc_info.value.status_code == 404
 
 if __name__ == "__main__":
     # Run schema validation tests

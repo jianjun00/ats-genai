@@ -84,34 +84,29 @@ class TestHardcodedApiKeysRegression:
                 # .env.test is allowed to contain the working API key
                 continue
 
-            try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                    if polygon_key in content:
-                        # Check if it's in a safe context (e.g., documentation about what NOT to do)
-                        lines = content.split('\n')
-                        for line_num, line in enumerate(lines, 1):
-                            if polygon_key in line:
-                                # Check for safe contexts
-                                safe_contexts = [
-                                    'NEVER DO THIS',
-                                    'test_api_key_placeholder',
-                                    'your_api_key_here',
-                                    'example of what not to do',
-                                    '❌', '# ❌'
-                                ]
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+                if polygon_key in content:
+                    # Check if it's in a safe context (e.g., documentation about what NOT to do)
+                    lines = content.split('\n')
+                    for line_num, line in enumerate(lines, 1):
+                        if polygon_key in line:
+                            # Check for safe contexts
+                            safe_contexts = [
+                                'NEVER DO THIS',
+                                'test_api_key_placeholder',
+                                'your_api_key_here',
+                                'example of what not to do',
+                                '❌', '# ❌'
+                            ]
 
-                                if not any(safe_ctx in line for safe_ctx in safe_contexts):
-                                    violations.append({
-                                        'file': str(file_path),
-                                        'line': line_num,
-                                        'content': line.strip(),
-                                        'issue': 'Hardcoded Polygon API key found'
-                                    })
-            except Exception as e:
-                # Skip files that can't be read
-                continue
-
+                            if not any(safe_ctx in line for safe_ctx in safe_contexts):
+                                violations.append({
+                                    'file': str(file_path),
+                                    'line': line_num,
+                                    'content': line.strip(),
+                                    'issue': 'Hardcoded Polygon API key found'
+                                })
         assert len(violations) == 0, f"Found hardcoded Polygon API key in {len(violations)} locations: {violations}"
 
     def test_no_hardcoded_tiingo_api_key(self, files_to_scan):
@@ -124,14 +119,10 @@ class TestHardcodedApiKeysRegression:
                 # Environment files are allowed
                 continue
 
-            try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                    if tiingo_key in content:
-                        violations.append(str(file_path))
-            except:
-                continue
-
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+                if tiingo_key in content:
+                    violations.append(str(file_path))
         assert len(violations) == 0, f"Found hardcoded Tiingo API key in: {violations}"
 
     def test_environment_variable_usage(self, files_to_scan):
@@ -149,24 +140,19 @@ class TestHardcodedApiKeysRegression:
         files_using_polygon_api = []
 
         for file_path in python_files:
-            try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
 
-                    # Check if file uses Polygon API
-                    if 'polygon' in content.lower() and 'api' in content.lower():
-                        files_using_polygon_api.append(file_path)
+                # Check if file uses Polygon API
+                if 'polygon' in content.lower() and 'api' in content.lower():
+                    files_using_polygon_api.append(file_path)
 
-                        # Check if it uses proper environment variable patterns
-                        has_proper_usage = any(re.search(pattern, content, re.IGNORECASE)
-                                             for pattern in proper_patterns)
+                    # Check if it uses proper environment variable patterns
+                    has_proper_usage = any(re.search(pattern, content, re.IGNORECASE)
+                                         for pattern in proper_patterns)
 
-                        if has_proper_usage:
-                            files_with_proper_usage += 1
-            except:
-                continue
-
-        # We should have at least some files using proper patterns
+                    if has_proper_usage:
+                        files_with_proper_usage += 1
         assert files_with_proper_usage > 0, "Should have files using proper environment variable patterns"
 
     def test_test_files_use_placeholders(self, files_to_scan):
@@ -181,21 +167,17 @@ class TestHardcodedApiKeysRegression:
         ]
 
         for file_path in test_files:
-            try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
 
-                    for api_key in real_api_keys:
-                        if api_key in content:
-                            # Check if it's been replaced with placeholder
-                            if 'test_api_key_placeholder' not in content:
-                                violations.append({
-                                    'file': str(file_path),
-                                    'issue': f'Real API key {api_key[:10]}... found without placeholder pattern'
-                                })
-            except:
-                continue
-
+                for api_key in real_api_keys:
+                    if api_key in content:
+                        # Check if it's been replaced with placeholder
+                        if 'test_api_key_placeholder' not in content:
+                            violations.append({
+                                'file': str(file_path),
+                                'issue': f'Real API key {api_key[:10]}... found without placeholder pattern'
+                            })
         assert len(violations) == 0, f"Test files should use placeholders: {violations}"
 
     def test_documentation_uses_placeholders(self, files_to_scan):
@@ -209,27 +191,23 @@ class TestHardcodedApiKeysRegression:
         ]
 
         for file_path in doc_files:
-            try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
 
-                    for api_key in real_api_keys:
-                        if api_key in content:
-                            # Check if it's in a safe documentation context
-                            safe_contexts = [
-                                '${POLYGON_API_KEY}',
-                                'your_polygon_api_key_here',
-                                'your_api_key_here',
-                                '❌', 'NEVER DO THIS',
-                                'example of what not to do'
-                            ]
+                for api_key in real_api_keys:
+                    if api_key in content:
+                        # Check if it's in a safe documentation context
+                        safe_contexts = [
+                            '${POLYGON_API_KEY}',
+                            'your_polygon_api_key_here',
+                            'your_api_key_here',
+                            '❌', 'NEVER DO THIS',
+                            'example of what not to do'
+                        ]
 
-                            has_safe_context = any(ctx in content for ctx in safe_contexts)
-                            if not has_safe_context:
-                                violations.append(str(file_path))
-            except:
-                continue
-
+                        has_safe_context = any(ctx in content for ctx in safe_contexts)
+                        if not has_safe_context:
+                            violations.append(str(file_path))
         assert len(violations) == 0, f"Documentation should use placeholders: {violations}"
 
     def test_environment_files_structure(self):

@@ -120,28 +120,7 @@ class PolygonSystemDemo:
         print("=" * 40)
 
         # Import checkpoint class
-        try:
-            from populate_30year_polygon_minute_bars import PolygonPopulationCheckpoint
-        except ImportError:
-            # Create a simple mock checkpoint for demo
-            from dataclasses import dataclass
-            from typing import List, Dict
-
-            @dataclass
-            class PolygonPopulationCheckpoint:
-                start_date: str
-                end_date: str
-                total_symbols: int
-                processed_symbols: int
-                current_symbol: str
-                symbols_completed: List[str]
-                symbols_failed: List[str]
-                total_bars_stored: int
-                total_api_calls: int
-                quality_scores: Dict[str, float]
-                last_update_timestamp: str
-
-        # Create demo checkpoint
+        from populate_30year_polygon_minute_bars import PolygonPopulationCheckpoint
         checkpoint = PolygonPopulationCheckpoint(
             start_date="1994-01-01",
             end_date="2024-01-01",
@@ -208,13 +187,9 @@ class PolygonSystemDemo:
         created_dirs = []
         for dir_name in directories:
             dir_path = self.storage_path / dir_name
-            try:
-                dir_path.mkdir(parents=True, exist_ok=True)
-                created_dirs.append(str(dir_path))
-                print(f"✅ {dir_path}")
-            except Exception as e:
-                print(f"❌ {dir_path}: {e}")
-
+            dir_path.mkdir(parents=True, exist_ok=True)
+            created_dirs.append(str(dir_path))
+            print(f"✅ {dir_path}")
         print(f"\nCreated {len(created_dirs)} directories on D: drive")
         return created_dirs
 

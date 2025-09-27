@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsVerifyTimeframeFix:
@@ -55,13 +49,7 @@ class TestRealObjectsVerifyTimeframeFix:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_verify_training_mode_fix_real_objects(self, real_service, test_data):
         """Real objects version of test_verify_training_mode_fix"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsVerifyTimeframeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.verify_training_mode_fix_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.verify_training_mode_fix_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_verify_gin_configuration_training_mode_real_objects(self, real_service, test_data):
         """Real objects version of test_verify_gin_configuration_training_mode"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsVerifyTimeframeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.verify_gin_configuration_training_mode_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.verify_gin_configuration_training_mode_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_expected_debug_output_after_fix_real_objects(self, real_service, test_data):
         """Real objects version of test_expected_debug_output_after_fix"""
         # Test with real database integration
@@ -120,15 +96,8 @@ class TestRealObjectsVerifyTimeframeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.expected_debug_output_after_fix_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.expected_debug_output_after_fix_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

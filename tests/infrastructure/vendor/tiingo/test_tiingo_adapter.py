@@ -2,7 +2,7 @@ import pytest
 import requests
 from unittest.mock import patch, MagicMock
 from datetime import datetime, date
-from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
+from domains.market_data.services.core.agent.tiingo_adapter import TiingoAdapter
 
 
 class TestTiingoAdapter:

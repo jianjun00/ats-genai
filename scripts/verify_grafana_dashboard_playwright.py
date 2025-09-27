@@ -27,47 +27,38 @@ class GrafanaDashboardVerifier:
             )
             page = await context.new_page()
 
-            try:
-                # Step 1: Login to Grafana
-                print("🔐 Logging into Grafana...")
-                await page.goto(self.grafana_url, wait_until="networkidle")
+            # Step 1: Login to Grafana
+            print("🔐 Logging into Grafana...")
+            await page.goto(self.grafana_url, wait_until="networkidle")
 
-                # Fill login form
-                await page.fill('input[name="user"]', self.username)
-                await page.fill('input[name="password"]', self.password)
-                await page.click('button[type="submit"]')
+            # Fill login form
+            await page.fill('input[name="user"]', self.username)
+            await page.fill('input[name="password"]', self.password)
+            await page.click('button[type="submit"]')
 
-                # Wait for login to complete
-                await page.wait_for_timeout(3000)
+            # Wait for login to complete
+            await page.wait_for_timeout(3000)
 
-                # Take screenshot after login
-                await page.screenshot(path="/tmp/grafana_after_login.png")
-                print("📸 After login screenshot: /tmp/grafana_after_login.png")
+            # Take screenshot after login
+            await page.screenshot(path="/tmp/grafana_after_login.png")
+            print("📸 After login screenshot: /tmp/grafana_after_login.png")
 
-                # Step 2: Navigate to dashboard
-                print("📊 Navigating to ATS Daily Prices Quality dashboard...")
-                await page.goto(self.dashboard_url, wait_until="networkidle")
+            # Step 2: Navigate to dashboard
+            print("📊 Navigating to ATS Daily Prices Quality dashboard...")
+            await page.goto(self.dashboard_url, wait_until="networkidle")
 
-                # Wait for dashboard to load
-                await page.wait_for_timeout(5000)
+            # Wait for dashboard to load
+            await page.wait_for_timeout(5000)
 
-                # Take dashboard screenshot
-                await page.screenshot(path="/tmp/grafana_dashboard.png")
-                print("📸 Dashboard screenshot: /tmp/grafana_dashboard.png")
+            # Take dashboard screenshot
+            await page.screenshot(path="/tmp/grafana_dashboard.png")
+            print("📸 Dashboard screenshot: /tmp/grafana_dashboard.png")
 
-                # Step 3: Check for panels
-                await self._check_dashboard_panels(page)
+            # Step 3: Check for panels
+            await self._check_dashboard_panels(page)
 
-                # Step 4: Check for data
-                await self._check_dashboard_data(page)
-
-            except Exception as e:
-                print(f"❌ Verification failed: {e}")
-                await page.screenshot(path="/tmp/grafana_error.png")
-                print("📸 Error screenshot: /tmp/grafana_error.png")
-
-            finally:
-                await browser.close()
+            # Step 4: Check for data
+            await self._check_dashboard_data(page)
 
     async def _check_dashboard_panels(self, page):
         """Check if dashboard panels are visible"""
@@ -84,15 +75,11 @@ class GrafanaDashboardVerifier:
 
         total_panels = 0
         for selector in panel_selectors:
-            try:
-                elements = page.locator(selector)
-                count = await elements.count()
-                if count > 0:
-                    print(f"✅ Found {count} elements matching '{selector}'")
-                    total_panels += count
-            except:
-                continue
-
+            elements = page.locator(selector)
+            count = await elements.count()
+            if count > 0:
+                print(f"✅ Found {count} elements matching '{selector}'")
+                total_panels += count
         if total_panels > 0:
             print(f"✅ Total panel elements found: {total_panels}")
         else:
@@ -108,15 +95,11 @@ class GrafanaDashboardVerifier:
         ]
 
         for title in expected_titles:
-            try:
-                title_element = page.locator(f"text={title}")
-                if await title_element.count() > 0:
-                    print(f"✅ Found panel: {title}")
-                else:
-                    print(f"❌ Missing panel: {title}")
-            except:
-                continue
-
+            title_element = page.locator(f"text={title}")
+            if await title_element.count() > 0:
+                print(f"✅ Found panel: {title}")
+            else:
+                print(f"❌ Missing panel: {title}")
     async def _check_dashboard_data(self, page):
         """Check if panels are displaying data"""
         print("📊 Checking for data in panels...")
@@ -133,23 +116,18 @@ class GrafanaDashboardVerifier:
 
         data_elements_found = 0
         for selector in data_indicators:
-            try:
-                elements = page.locator(selector)
-                count = await elements.count()
-                if count > 0:
-                    print(f"✅ Found {count} data elements: {selector}")
-                    data_elements_found += count
+            elements = page.locator(selector)
+            count = await elements.count()
+            if count > 0:
+                print(f"✅ Found {count} data elements: {selector}")
+                data_elements_found += count
 
-                    # Try to get some sample text
-                    if count > 0:
-                        try:
-                            sample_text = await elements.first.inner_text()
-                            if sample_text.strip():
-                                print(f"  📝 Sample data: {sample_text[:50]}...")
-                        except:
-                            pass
-            except:
-                continue
+                # Try to get some sample text
+                if count > 0:
+                    sample_text = await elements.first.inner_text()
+                    if sample_text.strip():
+                        print(f"  📝 Sample data: {sample_text[:50]}...")
+            continue
 
         if data_elements_found > 0:
             print(f"✅ Total data elements found: {data_elements_found}")

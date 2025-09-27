@@ -4,8 +4,8 @@ import sys
 sys.path.append('src')
 
 import numpy as np
-from src.domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
-from src.storage.file_based_minute_manager import MinuteBar
+from domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
+from domains.trading.services.core.minute.file_based_minute_service import MinuteBar
 from datetime import datetime, timedelta
 
 def test_five_one_buy():
@@ -183,7 +183,7 @@ def test_integration_with_existing_indicators():
     """Test that Five One indicators work alongside existing indicators"""
     print("\n=== Testing Integration ===")
 
-    from src.domains.trading.signals.indicator import H11, L11, EBOT, ETOP
+    from domains.trading.signals.indicator import H11, L11, EBOT, ETOP
 
     # Create multiple indicators
     buy_indicator = FiveOneBuy()
@@ -233,23 +233,16 @@ def main():
     print("Five One Indicators Comprehensive Test Suite")
     print("=" * 50)
 
-    try:
-        test_five_one_buy()
-        test_five_one_sell()
-        test_edge_cases()
-        test_integration_with_existing_indicators()
+    test_five_one_buy()
+    test_five_one_sell()
+    test_edge_cases()
+    test_integration_with_existing_indicators()
 
-        print("\n" + "=" * 50)
-        print("🎉 ALL FIVE ONE INDICATOR TESTS PASSED! 🎉")
-        print("=" * 50)
+    print("\n" + "=" * 50)
+    print("🎉 ALL FIVE ONE INDICATOR TESTS PASSED! 🎉")
+    print("=" * 50)
 
-        return True
-
-    except Exception as e:
-        print(f"\n❌ TEST FAILED: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return True
 
 if __name__ == "__main__":
     success = main()

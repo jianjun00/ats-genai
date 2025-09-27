@@ -28,7 +28,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     print(f"\n[DEBUG] Test DB URL: {unit_test_db}")
     env = await ensure_test_tables(unit_test_db)
 
-    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig(indicators={})
 
     # Insert test data
@@ -45,28 +45,12 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         print("\n[DEBUG] Tables in database:", [t['table_name'] for t in tables])
 
         # Debug: Check if instrument_xrefs table exists and its structure
-        try:
-            xrefs_columns = await conn.fetch("""
-                SELECT column_name, data_type
-                FROM information_schema.columns
-                WHERE table_name = 'test_instrument_xrefs'
-            """)
-            print("\n[DEBUG] test_instrument_xrefs columns:", [(c['column_name'], c['data_type']) for c in xrefs_columns])
-        except Exception as e:
-            print(f"\n[DEBUG] Error checking test_instrument_xrefs: {e}")
-
-            # Try to check without the test_ prefix
-            try:
-                xrefs_columns = await conn.fetch("""
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_name = 'instrument_xrefs'
-                """)
-                print("\n[DEBUG] instrument_xrefs columns (no prefix):", [(c['column_name'], c['data_type']) for c in xrefs_columns])
-            except Exception as e2:
-                print(f"\n[DEBUG] Error checking instrument_xrefs (no prefix): {e2}")
-
-        # Clear existing test data
+        xrefs_columns = await conn.fetch("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'test_instrument_xrefs'
+        """)
+        print("\n[DEBUG] test_instrument_xrefs columns:", [(c['column_name'], c['data_type']) for c in xrefs_columns])
         await conn.execute(f"TRUNCATE TABLE {env.get_table_name('instruments')} CASCADE")
         await conn.execute(f"TRUNCATE TABLE {env.get_table_name('universe_membership')} CASCADE")
         await conn.execute(f"TRUNCATE TABLE {env.get_table_name('vendors')} CASCADE")
@@ -129,8 +113,8 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
 
     await insert_test_data()
 
-    from domains.trading.services.indicator_config import IndicatorConfig
-    from domains.trading.services.indicator import ETop, EBot, PL
+    from domains.trading.services.indicators_config import IndicatorConfig
+    from domains.trading.services.indicators import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -164,20 +148,15 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                 print(f'[DEBUG][TEST]   Sample file size: {os.path.getsize(sample_path) if os.path.exists(sample_path) else 0} bytes')
 
                 # Try to read and parse the sample file
-                try:
-                    with open(sample_path, 'r') as f:
-                        content = f.read()
-                        print(f'[DEBUG][TEST]   Sample file content (first 200 chars): {content[:200]}...')
-                        try:
-                            import json
-                            json_content = json.loads(content)
-                            print(f'[DEBUG][TEST]   Successfully parsed JSON, type: {type(json_content)}')
-                            if isinstance(json_content, dict):
-                                print(f'[DEBUG][TEST]   JSON keys: {list(json_content.keys())}')
-                        except json.JSONDecodeError as e:
-                            print(f'[DEBUG][TEST]   Failed to parse JSON: {e}')
-                except Exception as e:
-                    print(f'[DEBUG][TEST]   Error reading sample file: {e}')
+                with open(sample_path, 'r') as f:
+                    content = f.read()
+                    print(f'[DEBUG][TEST]   Sample file content (first 200 chars): {content[:200]}...')
+                    import json
+                    json_content = json.loads(content)
+                    print(f'[DEBUG][TEST]   Successfully parsed JSON, type: {type(json_content)}')
+                    if isinstance(json_content, dict):
+                        print(f'[DEBUG][TEST]   JSON keys: {list(json_content.keys())}')
+                print(f'[DEBUG][TEST]   Error reading sample file: {e}')
 
     print('\n' + '='*80)
     print('[DEBUG][TEST] Creating FileDailyPriceMarketDataManager instance...')
@@ -203,28 +182,24 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
 
     # Debug: Check what's in the universe_membership table
     conn = await asyncpg.connect(unit_test_db)
-    try:
-        universe_members = await conn.fetch(f"""
-            SELECT * FROM {env.get_table_name('universe_membership')}
-            WHERE universe_id = 1
-        """)
-        print(f'[DEBUG][TEST] Universe membership: {universe_members}')
+    universe_members = await conn.fetch(f"""
+        SELECT * FROM {env.get_table_name('universe_membership')}
+        WHERE universe_id = 1
+    """)
+    print(f'[DEBUG][TEST] Universe membership: {universe_members}')
 
-        # Check instrument_xrefs
-        xrefs_table = env.get_table_name('instrument_xrefs')
-        xrefs = await conn.fetch(f"""
-            SELECT * FROM {xrefs_table}
-        """)
-        print(f'[DEBUG][TEST] Instrument xrefs: {xrefs}')
+    # Check instrument_xrefs
+    xrefs_table = env.get_table_name('instrument_xrefs')
+    xrefs = await conn.fetch(f"""
+        SELECT * FROM {xrefs_table}
+    """)
+    print(f'[DEBUG][TEST] Instrument xrefs: {xrefs}')
 
-        # Check instruments
-        instruments = await conn.fetch(f"""
-            SELECT * FROM {env.get_table_name('instruments')}
-        """)
-        print(f'[DEBUG][TEST] Instruments: {instruments}')
-    finally:
-        await conn.close()
-
+    # Check instruments
+    instruments = await conn.fetch(f"""
+        SELECT * FROM {env.get_table_name('instruments')}
+    """)
+    print(f'[DEBUG][TEST] Instruments: {instruments}')
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_30days')
 

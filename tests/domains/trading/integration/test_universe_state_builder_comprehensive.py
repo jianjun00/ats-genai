@@ -24,7 +24,7 @@ import pandas as pd
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.instrument_interval import InstrumentInterval
-from core.shared.data_handling.utils.environment import Environment
+from core.platform.config.environment import Environment
 from core.business.calendars.time_duration import TimeDuration
 
 
@@ -521,18 +521,13 @@ class TestUniverseStateBuilderEdgeCases:
 
     def test_invalid_duration_format(self, mock_environment, mock_universe_state_manager):
         """Test behavior with invalid duration formats."""
-        try:
-            builder = UniverseStateIntervalBuilder(
-                env=mock_environment,
-                base_duration="invalid",  # Invalid format
-                target_durations="1m,5m",
-                universe_state_manager=mock_universe_state_manager
-            )
-            # If it doesn't crash, that's acceptable too
-        except Exception as e:
-            # Should get a meaningful error about duration format
-            assert "duration" in str(e).lower() or "invalid" in str(e).lower()
-
+        builder = UniverseStateIntervalBuilder(
+            env=mock_environment,
+            base_duration="invalid",  # Invalid format
+            target_durations="1m,5m",
+            universe_state_manager=mock_universe_state_manager
+        )
+        # If it doesn't crash, that's acceptable too
     @pytest.mark.asyncio
     async def test_handle_interval_no_target_durations(self, mock_environment, mock_universe_state_manager):
         """Test handleInterval behavior when no target durations are configured."""
@@ -574,12 +569,7 @@ class TestUniverseStateBuilderEdgeCases:
             mock_dao_instance.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={1: 'AAPL'})
 
             # Should handle market data errors gracefully
-            try:
-                await builder.handleInterval(mock_runner, current_time)
-            except Exception as e:
-                # Some error handling is expected, but shouldn't crash the entire system
-                assert "market" in str(e).lower() or "data" in str(e).lower()
-
+            await builder.handleInterval(mock_runner, current_time)
     def test_cache_delegation_error_handling(self, mock_environment):
         """Test error handling when cache operations fail."""
         # Create manager that raises exceptions
@@ -596,18 +586,9 @@ class TestUniverseStateBuilderEdgeCases:
         )
         
         # Should handle cache errors gracefully
-        try:
-            builder._ensure_timeframe_cache("1m")
-        except Exception as e:
-            assert "cache" in str(e).lower() or "error" in str(e).lower()
-        
-        try:
-            history = builder._get_instrument_history_for_timeframe(1, "1m")
-            # If it returns empty list instead of crashing, that's acceptable
-        except Exception as e:
-            assert "cache" in str(e).lower() or "error" in str(e).lower()
-
-
+        builder._ensure_timeframe_cache("1m")
+        history = builder._get_instrument_history_for_timeframe(1, "1m")
+        # If it returns empty list instead of crashing, that's acceptable
 if __name__ == "__main__":
     # Run specific test for debugging
     pytest.main([__file__ + "::TestUniverseStateBuilderMultiTimeframe::test_ohlc_aggregation_1m_to_5m", "-v"])

@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.analytics.services.analytics_service import AnalyticsService
-from domains.analytics.dao.analytics_dao import AnalyticsDAO
-from infrastructure.web.analytics_service import AnalyticsWebService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService
+from domains.analytics.repositories.events_dao import EventsDAO
+from infrastructure.web.analytics_service_fail_fast import AnalyticsServiceError as AnalyticsWebService
 
 
 class TestRealObjectsSentimentScore:
@@ -36,12 +31,12 @@ class TestRealObjectsSentimentScore:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return AnalyticsDAO(test_environment)  # Real DAO integration needed
+        # return EventsDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
         """Real service implementation"""
-        return AnalyticsService(test_environment)
+        return UnifiedAnalyticsService(test_environment)
     
     @pytest.fixture
     async def test_data(self, real_dao):
@@ -56,13 +51,7 @@ class TestRealObjectsSentimentScore:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_sentiment_score_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_sentiment_score_creation"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sentiment_score_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sentiment_score_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_news_article_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_news_article_creation"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.news_article_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.news_article_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_finbert_analyzer_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_finbert_analyzer_initialization"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.finbert_analyzer_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.finbert_analyzer_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_finbert_analyzer_fallback_real_objects(self, real_service, test_data):
         """Real objects version of test_finbert_analyzer_fallback"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.finbert_analyzer_fallback_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.finbert_analyzer_fallback_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_sentiment_positive_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_sentiment_positive"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_sentiment_positive_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_sentiment_positive_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_sentiment_negative_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_sentiment_negative"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_sentiment_negative_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_sentiment_negative_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_clean_financial_text_real_objects(self, real_service, test_data):
         """Real objects version of test_clean_financial_text"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.clean_financial_text_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.clean_financial_text_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fallback_sentiment_real_objects(self, real_service, test_data):
         """Real objects version of test_fallback_sentiment"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fallback_sentiment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fallback_sentiment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vader_analyzer_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_vader_analyzer_initialization"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vader_analyzer_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vader_analyzer_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_sentiment_with_vader_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_sentiment_with_vader"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_sentiment_with_vader_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_sentiment_with_vader_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_content_fetcher_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_content_fetcher_initialization"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.content_fetcher_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.content_fetcher_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_news_for_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_news_for_symbols"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_news_for_symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_news_for_symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_symbols_from_text_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_symbols_from_text"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_symbols_from_text_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_symbols_from_text_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calculate_relevance_score_real_objects(self, real_service, test_data):
         """Real objects version of test_calculate_relevance_score"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calculate_relevance_score_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calculate_relevance_score_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_close_session_real_objects(self, real_service, test_data):
         """Real objects version of test_close_session"""
         # Test with real database integration
@@ -385,14 +290,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.close_session_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.close_session_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyzer_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_analyzer_initialization"""
         # Test with real database integration
@@ -407,14 +306,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyzer_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyzer_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_news_sentiment_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_news_sentiment"""
         # Test with real database integration
@@ -429,14 +322,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_news_sentiment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_news_sentiment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_article_sentiment_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_article_sentiment"""
         # Test with real database integration
@@ -451,14 +338,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_article_sentiment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_article_sentiment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_generate_sentiment_signal_real_objects(self, real_service, test_data):
         """Real objects version of test_generate_sentiment_signal"""
         # Test with real database integration
@@ -473,14 +354,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.generate_sentiment_signal_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.generate_sentiment_signal_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calculate_sentiment_momentum_real_objects(self, real_service, test_data):
         """Real objects version of test_calculate_sentiment_momentum"""
         # Test with real database integration
@@ -495,14 +370,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calculate_sentiment_momentum_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calculate_sentiment_momentum_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_store_sentiment_analysis_real_objects(self, real_service, test_data):
         """Real objects version of test_store_sentiment_analysis"""
         # Test with real database integration
@@ -517,14 +386,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.store_sentiment_analysis_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.store_sentiment_analysis_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_sentiment_history_real_objects(self, real_service, test_data):
         """Real objects version of test_get_sentiment_history"""
         # Test with real database integration
@@ -539,14 +402,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_sentiment_history_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_sentiment_history_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_close_resources_real_objects(self, real_service, test_data):
         """Real objects version of test_close_resources"""
         # Test with real database integration
@@ -561,14 +418,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.close_resources_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.close_resources_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_symbol_sentiment_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_symbol_sentiment"""
         # Test with real database integration
@@ -583,14 +434,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_symbol_sentiment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_symbol_sentiment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_news_articles_found_real_objects(self, real_service, test_data):
         """Real objects version of test_no_news_articles_found"""
         # Test with real database integration
@@ -605,14 +450,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_news_articles_found_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_news_articles_found_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sentiment_analysis_error_real_objects(self, real_service, test_data):
         """Real objects version of test_sentiment_analysis_error"""
         # Test with real database integration
@@ -627,14 +466,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sentiment_analysis_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sentiment_analysis_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_database_error_handling"""
         # Test with real database integration
@@ -649,14 +482,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_finbert_model_load_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_finbert_model_load_failure"""
         # Test with real database integration
@@ -671,15 +498,8 @@ class TestRealObjectsSentimentScore:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.finbert_model_load_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.finbert_model_load_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

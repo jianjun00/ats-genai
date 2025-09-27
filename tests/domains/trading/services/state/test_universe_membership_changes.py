@@ -3,7 +3,7 @@ import asyncpg
 from datetime import date
 
 # Adjust import as needed for your project structure
-from core.shared.utils.environment import Environment, EnvironmentType, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType, EnvironmentType
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

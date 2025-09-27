@@ -20,13 +20,13 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
 
-from domains.market_data.services.reconciliation.majority_voting_reconciler import (
+from domains.market_data.services.core.reconciliation.majority_voting_reconciler import (
     MajorityVotingReconciler,
     VendorPrice,
     PriceConsensus,
     ReconciliationDecision
 )
-from shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 @pytest.fixture
 def env():

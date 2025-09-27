@@ -1,11 +1,11 @@
 import pytest
 from datetime import datetime, timedelta
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
-from state.universe_state import UniverseStateInterval
-from state.instrument_interval import InstrumentInterval
-from core.calendars.time_duration import TimeDuration
+from domains.trading.services.state.universe_state import UniverseStateInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
+from core.business.calendars.time_duration import TimeDuration
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -20,17 +20,17 @@ async def test_universe_state_interval_nested_loading(unit_test_db):
     end_date_time = start_date_time + timedelta(days=1)
 
     # Insert parent UniverseStateInterval
-    usi_id = await usi_core.dao.create(universe_id, duration.get_duration_string(), start_date_time, end_date_time)
+    usi_id = await usi_dao.create(universe_id, duration.get_duration_string(), start_date_time, end_date_time)
 
     # Insert nested InstrumentInterval
-    await instr_core.dao.create(
+    await instr_dao.create(
         usi_id,
         instrument_id,
         100.0, 110.0, 90.0, 105.0, 1000.0, 105000.0, "ok", 1e9
     )
 
     # Load via DAO with nested loading
-    loaded = await usi_core.dao.async_load_row_to_interval({
+    loaded = await usi_dao.async_load_row_to_interval({
         'id': usi_id,
         'universe_id': universe_id,
         'duration': duration.get_duration_string(),

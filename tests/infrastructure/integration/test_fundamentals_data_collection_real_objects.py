@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsPolygonFundamentalsAPI:
@@ -55,13 +49,7 @@ class TestRealObjectsPolygonFundamentalsAPI:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_api_key_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_api_key_validation"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_key_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_key_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_connectivity_real_objects(self, real_service, test_data):
         """Real objects version of test_api_connectivity"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_connectivity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_connectivity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_rate_limiting_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_api_rate_limiting_handling"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_rate_limiting_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_rate_limiting_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_financial_value_extraction_real_objects(self, real_service, test_data):
         """Real objects version of test_financial_value_extraction"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.financial_value_extraction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.financial_value_extraction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_record_standardization_real_objects(self, real_service, test_data):
         """Real objects version of test_record_standardization"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.record_standardization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.record_standardization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_edge_case_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_edge_case_handling"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.edge_case_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.edge_case_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fundamentals_table_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_fundamentals_table_creation"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fundamentals_table_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fundamentals_table_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_record_insertion_and_retrieval_real_objects(self, real_service, test_data):
         """Real objects version of test_record_insertion_and_retrieval"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.record_insertion_and_retrieval_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.record_insertion_and_retrieval_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_duplicate_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_duplicate_handling"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.duplicate_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.duplicate_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_financial_data_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_financial_data_consistency"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.financial_data_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.financial_data_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_type_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_data_type_validation"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_type_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_type_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_required_fields_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_required_fields_validation"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.required_fields_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.required_fields_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_api_error_handling"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_malformed_data_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_malformed_data_handling"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.malformed_data_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.malformed_data_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_database_error_handling"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_batch_processing_efficiency_real_objects(self, real_service, test_data):
         """Real objects version of test_batch_processing_efficiency"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.batch_processing_efficiency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.batch_processing_efficiency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_memory_usage_bounds_real_objects(self, real_service, test_data):
         """Real objects version of test_memory_usage_bounds"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.memory_usage_bounds_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.memory_usage_bounds_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complete_collection_workflow_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_collection_workflow"""
         # Test with real database integration
@@ -450,15 +336,8 @@ class TestRealObjectsPolygonFundamentalsAPI:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_collection_workflow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.complete_collection_workflow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsPolygonDatetimeTimezoneIssue:
@@ -55,13 +49,7 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_polygon_datetime_error_reproduction_real_objects(self, real_service, test_data):
         """Real objects version of test_polygon_datetime_error_reproduction"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.polygon_datetime_error_reproduction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.polygon_datetime_error_reproduction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_polygon_datetime_fix_with_zoneinfo_real_objects(self, real_service, test_data):
         """Real objects version of test_polygon_datetime_fix_with_zoneinfo"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.polygon_datetime_fix_with_zoneinfo_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.polygon_datetime_fix_with_zoneinfo_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_polygon_adapter_datetime_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_polygon_adapter_datetime_handling"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.polygon_adapter_datetime_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.polygon_adapter_datetime_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tiingo_429_error_reproduction_real_objects(self, real_service, test_data):
         """Real objects version of test_tiingo_429_error_reproduction"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tiingo_429_error_reproduction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.tiingo_429_error_reproduction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_tables_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_tables_detection"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_tables_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_tables_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_polygon_real_timestamp_conversion_real_objects(self, real_service, test_data):
         """Real objects version of test_polygon_real_timestamp_conversion"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.polygon_real_timestamp_conversion_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.polygon_real_timestamp_conversion_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_symbols_causing_issues_real_objects(self, real_service, test_data):
         """Real objects version of test_symbols_causing_issues"""
         # Test with real database integration
@@ -208,15 +160,8 @@ class TestRealObjectsPolygonDatetimeTimezoneIssue:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.symbols_causing_issues_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.symbols_causing_issues_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

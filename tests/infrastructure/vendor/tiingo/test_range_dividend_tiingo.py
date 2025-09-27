@@ -1,8 +1,8 @@
 import pytest
 from datetime import date
-from vendor.tiingo.services.range_dividend_tiingo import parse_date, map_tiingo_dividend, insert_dividends_tiingo
+from infrastructure.vendor.tiingo.services.range_dividend_tiingo import parse_date, map_tiingo_dividend, insert_dividends_tiingo
 
-from vendor.tiingo.services.range_dividend_tiingo import get_symbols_from_dividend_polygon
+from infrastructure.vendor.tiingo.services.range_dividend_tiingo import get_symbols_from_dividend_polygon
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -38,14 +38,10 @@ async def test_get_symbols_from_dividend_polygon_parses_dates(tmp_path):
     import secmaster.range_dividend_tiingo as mod
     orig_create_pool = mod.asyncpg.create_pool
     mod.asyncpg.create_pool = dummy_create_pool
-    try:
-        env = DummyEnv()
-        # Pass string dates, should be parsed to date
-        symbols = await get_symbols_from_dividend_polygon(env, "2022-01-01", "2022-12-31")
-        assert symbols == ["AAPL", "MSFT"]
-    finally:
-        mod.asyncpg.create_pool = orig_create_pool
-
+    env = DummyEnv()
+    # Pass string dates, should be parsed to date
+    symbols = await get_symbols_from_dividend_polygon(env, "2022-01-01", "2022-12-31")
+    assert symbols == ["AAPL", "MSFT"]
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_parse_date_handles_none_and_date():

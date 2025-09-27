@@ -16,8 +16,8 @@ import contextvars
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from core.run_context import RunContext
-from core.run_aware_logging import (
+from core.shared.run_context import RunContext
+from core.shared.run_aware_logging import (
     RunAwareFormatter, RunAwareFileHandler, configure_run_aware_logging,
     setup_run_aware_logging, get_run_aware_logger, set_current_run_id,
     get_current_run_id, enable_run_aware_logging, current_run_id

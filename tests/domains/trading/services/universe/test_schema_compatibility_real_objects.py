@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsSchemaCompatibility:
@@ -36,7 +31,7 @@ class TestRealObjectsSchemaCompatibility:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsSchemaCompatibility:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_existing_universe_table_schema_real_objects(self, real_service, test_data):
         """Real objects version of test_existing_universe_table_schema"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsSchemaCompatibility:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.existing_universe_table_schema_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.existing_universe_table_schema_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_universe_creation_query_compatibility_real_objects(self, real_service, test_data):
         """Real objects version of test_universe_creation_query_compatibility"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsSchemaCompatibility:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.universe_creation_query_compatibility_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.universe_creation_query_compatibility_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_universe_tracking_table_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_universe_tracking_table_creation"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsSchemaCompatibility:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.universe_tracking_table_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.universe_tracking_table_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detect_schema_mismatch_issue_real_objects(self, real_service, test_data):
         """Real objects version of test_detect_schema_mismatch_issue"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsSchemaCompatibility:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detect_schema_mismatch_issue_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.detect_schema_mismatch_issue_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_universe_initialization_with_schema_error_real_objects(self, real_service, test_data):
         """Real objects version of test_universe_initialization_with_schema_error"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsSchemaCompatibility:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.universe_initialization_with_schema_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.universe_initialization_with_schema_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_schema_migration_strategy_real_objects(self, real_service, test_data):
         """Real objects version of test_schema_migration_strategy"""
         # Test with real database integration
@@ -187,15 +146,8 @@ class TestRealObjectsSchemaCompatibility:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.schema_migration_strategy_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.schema_migration_strategy_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -492,39 +492,34 @@ main "$@"
         print(f"🔧 Setting up {self.environment} environment for ATS Data Quality Agent")
         print("=" * 70)
         
-        try:
-            self.setup_directories()
-            self.setup_configuration()
-            self.setup_agent_config()
-            self.setup_docker_compose()
-            self.setup_systemd_service()
-            self.setup_cron_jobs()
-            self.create_startup_script()
-            self.create_monitoring_script()
-            
-            print("\n" + "=" * 70)
-            print("✅ Environment setup completed successfully!")
-            print("=" * 70)
-            
-            print(f"\n📋 Next steps for {self.environment}:")
-            print(f"1. Edit config/{self.environment}.env with your actual configuration")
-            print("2. Update config/agent_config.json if needed")
-            print(f"3. Run: ./scripts/start_{self.environment}.sh")
-            print("4. Access dashboard: http://localhost:{}/data-quality/dashboard".format(
-                "4000" if self.environment == "production" else "3000"))
-            
-            if self.environment == "production":
-                print("\n🔒 Production-specific steps:")
-                print("1. Set up SSL/TLS certificates")
-                print("2. Configure firewall rules")
-                print("3. Set up monitoring and alerting")
-                print("4. Install systemd service")
-                print("5. Set up automated backups")
-            
-        except Exception as e:
-            print(f"\n❌ Setup failed: {str(e)}")
-            sys.exit(1)
-
+        self.setup_directories()
+        self.setup_configuration()
+        self.setup_agent_config()
+        self.setup_docker_compose()
+        self.setup_systemd_service()
+        self.setup_cron_jobs()
+        self.create_startup_script()
+        self.create_monitoring_script()
+        
+        print("\n" + "=" * 70)
+        print("✅ Environment setup completed successfully!")
+        print("=" * 70)
+        
+        print(f"\n📋 Next steps for {self.environment}:")
+        print(f"1. Edit config/{self.environment}.env with your actual configuration")
+        print("2. Update config/agent_config.json if needed")
+        print(f"3. Run: ./scripts/start_{self.environment}.sh")
+        print("4. Access dashboard: http://localhost:{}/data-quality/dashboard".format(
+            "4000" if self.environment == "production" else "3000"))
+        
+        if self.environment == "production":
+            print("\n🔒 Production-specific steps:")
+            print("1. Set up SSL/TLS certificates")
+            print("2. Configure firewall rules")
+            print("3. Set up monitoring and alerting")
+            print("4. Install systemd service")
+            print("5. Set up automated backups")
+        
 def main():
     """Main entry point"""
     import argparse

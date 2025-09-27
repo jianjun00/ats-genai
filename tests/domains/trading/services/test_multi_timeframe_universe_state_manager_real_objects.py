@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsMultiTimeframeUniverseStateManager:
@@ -36,7 +31,7 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_get_lag_prices_with_time_interval_5m_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_with_time_interval_5m"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_with_time_interval_5m_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_with_time_interval_5m_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_with_time_interval_15m_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_with_time_interval_15m"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_with_time_interval_15m_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_with_time_interval_15m_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_with_time_interval_1h_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_with_time_interval_1h"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_with_time_interval_1h_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_with_time_interval_1h_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_with_time_interval_1d_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_with_time_interval_1d"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_with_time_interval_1d_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_with_time_interval_1d_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_default_interval_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_default_interval"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_default_interval_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_default_interval_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_market_data_manager_unavailable_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_market_data_manager_unavailable"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_market_data_manager_unavailable_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_market_data_manager_unavailable_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_market_data_manager_error_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_market_data_manager_error"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_market_data_manager_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_market_data_manager_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_empty_result_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_empty_result"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_empty_result_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_empty_result_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_datetime_normalization_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_datetime_normalization"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_datetime_normalization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_datetime_normalization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_all_supported_intervals_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_all_supported_intervals"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_all_supported_intervals_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_all_supported_intervals_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_feature_completeness_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_feature_completeness"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_feature_completeness_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_feature_completeness_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_lag_prices_gin_config_compliance_real_objects(self, real_service, test_data):
         """Real objects version of test_get_lag_prices_gin_config_compliance"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_lag_prices_gin_config_compliance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_lag_prices_gin_config_compliance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_timeframe_feature_extraction_pattern_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_timeframe_feature_extraction_pattern"""
         # Test with real database integration
@@ -341,15 +258,8 @@ class TestRealObjectsMultiTimeframeUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_timeframe_feature_extraction_pattern_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.multi_timeframe_feature_extraction_pattern_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -11,9 +11,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 async def simple_metrics_handler(request):
     """Simple metrics handler to test charset issue."""
-    try:
-        content = """# HELP ats_test_metric Test metric
-# TYPE ats_test_metric gauge
+    content = """# HELP ats_test_metric Test metric
 ats_test_metric 42
 """
         return web.Response(

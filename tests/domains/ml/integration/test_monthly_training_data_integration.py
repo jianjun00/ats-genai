@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from pathlib import Path
 import asyncpg
 
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.dao.monthly_training_data_dao import (
     MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
 )
@@ -41,74 +41,66 @@ class TestMonthlyTrainingDataDatabaseIntegration:
         """Test that the monthly training data table exists with correct schema."""
         conn = await asyncpg.connect(environment.get_database_url())
 
-        try:
-            # Test table exists
-            table_exists = await conn.fetchval("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables
-                    WHERE table_name = 'dev_monthly_training_data'
-                )
-            """)
-            assert table_exists, "dev_monthly_training_data table should exist"
-
-            # Test column schema
-            columns = await conn.fetch("""
-                SELECT column_name, data_type, is_nullable
-                FROM information_schema.columns
+        # Test table exists
+        table_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
                 WHERE table_name = 'dev_monthly_training_data'
-                ORDER BY ordinal_position
-            """)
+            )
+        """)
+        assert table_exists, "dev_monthly_training_data table should exist"
 
-            column_names = [col['column_name'] for col in columns]
-            expected_columns = [
-                'id', 'run_id', 'symbol', 'instrument_id', 'year_month',
-                'timeframe_paths', 'total_records', 'file_size_mb', 'data_quality_score',
-                'status', 'error_message', 'created_at', 'updated_at'
-            ]
+        # Test column schema
+        columns = await conn.fetch("""
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'dev_monthly_training_data'
+            ORDER BY ordinal_position
+        """)
 
-            for expected_col in expected_columns:
-                assert expected_col in column_names, f"Column {expected_col} should exist"
+        column_names = [col['column_name'] for col in columns]
+        expected_columns = [
+            'id', 'run_id', 'symbol', 'instrument_id', 'year_month',
+            'timeframe_paths', 'total_records', 'file_size_mb', 'data_quality_score',
+            'status', 'error_message', 'created_at', 'updated_at'
+        ]
 
-            # Test that timeframe_paths is JSONB
-            timeframe_paths_col = next(col for col in columns if col['column_name'] == 'timeframe_paths')
-            assert timeframe_paths_col['data_type'] == 'jsonb', "timeframe_paths should be JSONB type"
+        for expected_col in expected_columns:
+            assert expected_col in column_names, f"Column {expected_col} should exist"
 
-            # Test indexes exist
-            indexes = await conn.fetch("""
-                SELECT indexname FROM pg_indexes
-                WHERE tablename = 'dev_monthly_training_data'
-            """)
-            index_names = [idx['indexname'] for idx in indexes]
+        # Test that timeframe_paths is JSONB
+        timeframe_paths_col = next(col for col in columns if col['column_name'] == 'timeframe_paths')
+        assert timeframe_paths_col['data_type'] == 'jsonb', "timeframe_paths should be JSONB type"
 
-            expected_indexes = [
-                'idx_dev_monthly_training_run_id',
-                'idx_dev_monthly_training_symbol',
-                'idx_dev_monthly_training_year_month',
-                'idx_dev_monthly_training_symbol_month'
-            ]
+        # Test indexes exist
+        indexes = await conn.fetch("""
+            SELECT indexname FROM pg_indexes
+            WHERE tablename = 'dev_monthly_training_data'
+        """)
+        index_names = [idx['indexname'] for idx in indexes]
 
-            for expected_idx in expected_indexes:
-                assert expected_idx in index_names, f"Index {expected_idx} should exist"
+        expected_indexes = [
+            'idx_dev_monthly_training_run_id',
+            'idx_dev_monthly_training_symbol',
+            'idx_dev_monthly_training_year_month',
+            'idx_dev_monthly_training_symbol_month'
+        ]
 
-        finally:
-            await conn.close()
+        for expected_idx in expected_indexes:
+            assert expected_idx in index_names, f"Index {expected_idx} should exist"
 
     @pytest.mark.asyncio
     async def test_view_exists(self, environment):
         """Test that the view with instrument details exists."""
         conn = await asyncpg.connect(environment.get_database_url())
 
-        try:
-            view_exists = await conn.fetchval("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.views
-                    WHERE table_name = 'dev_monthly_training_data_with_instruments'
-                )
-            """)
-            assert view_exists, "dev_monthly_training_data_with_instruments view should exist"
-
-        finally:
-            await conn.close()
+        view_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.views
+                WHERE table_name = 'dev_monthly_training_data_with_instruments'
+            )
+        """)
+        assert view_exists, "dev_monthly_training_data_with_instruments view should exist"
 
     @pytest.mark.asyncio
     async def test_crud_operations_full_cycle(self, dao):
@@ -131,59 +123,50 @@ class TestMonthlyTrainingDataDatabaseIntegration:
             status="completed"
         )
 
-        try:
-            # CREATE
-            record_id = await dao.create_monthly_record(test_record)
-            assert record_id is not None
-            assert isinstance(record_id, int)
+        # CREATE
+        record_id = await dao.create_monthly_record(test_record)
+        assert record_id is not None
+        assert isinstance(record_id, int)
 
-            # READ - Get single record
-            retrieved_record = await dao.get_monthly_record(record_id)
-            assert retrieved_record is not None
-            assert retrieved_record.symbol == "TEST_INTEGRATION"
-            assert retrieved_record.year_month == date(2025, 9, 1)
-            assert retrieved_record.total_records == 1000
-            assert retrieved_record.data_quality_score == 0.98
-            assert len(retrieved_record.timeframe_paths) == 4
+        # READ - Get single record
+        retrieved_record = await dao.get_monthly_record(record_id)
+        assert retrieved_record is not None
+        assert retrieved_record.symbol == "TEST_INTEGRATION"
+        assert retrieved_record.year_month == date(2025, 9, 1)
+        assert retrieved_record.total_records == 1000
+        assert retrieved_record.data_quality_score == 0.98
+        assert len(retrieved_record.timeframe_paths) == 4
 
-            # READ - List records with filters
-            records = await dao.list_monthly_records(
-                symbols=["TEST_INTEGRATION"],
-                status="completed",
-                limit=10
-            )
-            assert len(records) >= 1
-            found_record = next((r for r in records if r.id == record_id), None)
-            assert found_record is not None
+        # READ - List records with filters
+        records = await dao.list_monthly_records(
+            symbols=["TEST_INTEGRATION"],
+            status="completed",
+            limit=10
+        )
+        assert len(records) >= 1
+        found_record = next((r for r in records if r.id == record_id), None)
+        assert found_record is not None
 
-            # UPDATE
-            updates = {
-                'total_records': 1500,
-                'data_quality_score': 0.99,
-                'status': 'validated'
-            }
-            update_success = await dao.update_monthly_record(record_id, updates)
-            assert update_success
+        # UPDATE
+        updates = {
+            'total_records': 1500,
+            'data_quality_score': 0.99,
+            'status': 'validated'
+        }
+        update_success = await dao.update_monthly_record(record_id, updates)
+        assert update_success
 
-            # Verify update
-            updated_record = await dao.get_monthly_record(record_id)
-            assert updated_record.total_records == 1500
-            assert updated_record.data_quality_score == 0.99
-            assert updated_record.status == 'validated'
+        # Verify update
+        updated_record = await dao.get_monthly_record(record_id)
+        assert updated_record.total_records == 1500
+        assert updated_record.data_quality_score == 0.99
+        assert updated_record.status == 'validated'
 
-            # Test timeframe paths retrieval
-            paths = await dao.get_timeframe_paths("TEST_INTEGRATION", date(2025, 9, 1))
-            assert paths is not None
-            assert paths['5m'] == "/test/path/5m.arrayrecord"
-            assert paths['1h'] == "/test/path/1h.arrayrecord"
-
-        finally:
-            # DELETE - Clean up test data
-            await dao.delete_monthly_record(record_id)
-
-            # Verify deletion
-            deleted_record = await dao.get_monthly_record(record_id)
-            assert deleted_record is None
+        # Test timeframe paths retrieval
+        paths = await dao.get_timeframe_paths("TEST_INTEGRATION", date(2025, 9, 1))
+        assert paths is not None
+        assert paths['5m'] == "/test/path/5m.arrayrecord"
+        assert paths['1h'] == "/test/path/1h.arrayrecord"
 
     @pytest.mark.asyncio
     async def test_summary_statistics(self, dao):
@@ -208,36 +191,29 @@ class TestMonthlyTrainingDataDatabaseIntegration:
         ]
 
         record_ids = []
-        try:
-            # Create test records
-            for record in test_records:
-                record_id = await dao.create_monthly_record(record)
-                record_ids.append(record_id)
+        # Create test records
+        for record in test_records:
+            record_id = await dao.create_monthly_record(record)
+            record_ids.append(record_id)
 
-            # Get summary statistics
-            summary = await dao.get_summary_by_symbol()
+        # Get summary statistics
+        summary = await dao.get_summary_by_symbol()
 
-            # Find our test symbols in summary
-            test_a_summary = next((s for s in summary if s['symbol'] == 'SUMMARY_TEST_A'), None)
-            test_b_summary = next((s for s in summary if s['symbol'] == 'SUMMARY_TEST_B'), None)
+        # Find our test symbols in summary
+        test_a_summary = next((s for s in summary if s['symbol'] == 'SUMMARY_TEST_A'), None)
+        test_b_summary = next((s for s in summary if s['symbol'] == 'SUMMARY_TEST_B'), None)
 
-            assert test_a_summary is not None
-            assert test_a_summary['total_months'] == 2
-            assert test_a_summary['total_records'] == 1100  # 500 + 600
-            assert test_a_summary['total_size_mb'] == 22.0   # 10.0 + 12.0
-            assert test_a_summary['completed_months'] == 2
-            assert test_a_summary['failed_months'] == 0
+        assert test_a_summary is not None
+        assert test_a_summary['total_months'] == 2
+        assert test_a_summary['total_records'] == 1100  # 500 + 600
+        assert test_a_summary['total_size_mb'] == 22.0   # 10.0 + 12.0
+        assert test_a_summary['completed_months'] == 2
+        assert test_a_summary['failed_months'] == 0
 
-            assert test_b_summary is not None
-            assert test_b_summary['total_months'] == 1
-            assert test_b_summary['total_records'] == 300
-            assert test_b_summary['total_size_mb'] == 8.0
-
-        finally:
-            # Clean up test records
-            for record_id in record_ids:
-                await dao.delete_monthly_record(record_id)
-
+        assert test_b_summary is not None
+        assert test_b_summary['total_months'] == 1
+        assert test_b_summary['total_records'] == 300
+        assert test_b_summary['total_size_mb'] == 8.0
 
 @pytest.mark.integration
 class TestMonthlyTrainingDataEndpoints:
@@ -247,7 +223,7 @@ class TestMonthlyTrainingDataEndpoints:
     def analytics_service(self):
         """Create analytics service for endpoint testing."""
         from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-        return UnifiedAnalyticsService()
+        return UnifiedUnifiedAnalyticsService()
 
     def test_monthly_training_data_table_endpoint(self, analytics_service):
         """Test the monthly training data table endpoint."""
@@ -390,7 +366,7 @@ class TestEndToEndWorkflow:
 
             # 5. Test visualization data preparation
             from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-            analytics = UnifiedAnalyticsService()
+            analytics = UnifiedUnifiedAnalyticsService()
 
             # Mock ArrayRecord reader for visualization
             with patch('array_record.python.array_record_module.ArrayRecordReader') as mock_reader:

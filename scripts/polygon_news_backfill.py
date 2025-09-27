@@ -229,123 +229,112 @@ class PolygonNewsBackfill:
                 logger.warning(f"Reached max requests limit ({max_requests}) for {description}")
                 break
 
-            try:
-                # Use next_url if available, otherwise construct URL
-                if next_url:
-                    url = next_url
-                    # Ensure API key is in the URL
-                    if "apikey=" not in url:
-                        url += f"&apikey={self.api_key}"
-                else:
-                    url = self.base_url
-                    params = base_params
+            # Use next_url if available, otherwise construct URL
+            if next_url:
+                url = next_url
+                # Ensure API key is in the URL
+                if "apikey=" not in url:
+                    url += f"&apikey={self.api_key}"
+            else:
+                url = self.base_url
+                params = base_params
 
-                # Make API request
-                if next_url:
-                    async with session.get(url) as response:
-                        self.stats.api_calls_made += 1
-                        request_count += 1
+            # Make API request
+            if next_url:
+                async with session.get(url) as response:
+                    self.stats.api_calls_made += 1
+                    request_count += 1
 
-                        if response.status == 429:
-                            logger.warning("Rate limited, waiting 12 seconds...")
-                            await asyncio.sleep(12)
-                            continue
-                        elif response.status != 200:
-                            logger.error(f"API error {response.status}: {await response.text()}")
-                            self.stats.api_errors += 1
-                            break
+                    if response.status == 429:
+                        logger.warning("Rate limited, waiting 12 seconds...")
+                        await asyncio.sleep(12)
+                        continue
+                    elif response.status != 200:
+                        logger.error(f"API error {response.status}: {await response.text()}")
+                        self.stats.api_errors += 1
+                        break
 
-                        data = await response.json()
-                else:
-                    async with session.get(url, params=params) as response:
-                        self.stats.api_calls_made += 1
-                        request_count += 1
+                    data = await response.json()
+            else:
+                async with session.get(url, params=params) as response:
+                    self.stats.api_calls_made += 1
+                    request_count += 1
 
-                        if response.status == 429:
-                            logger.warning("Rate limited, waiting 12 seconds...")
-                            await asyncio.sleep(12)
-                            continue
-                        elif response.status != 200:
-                            logger.error(f"API error {response.status}: {await response.text()}")
-                            self.stats.api_errors += 1
-                            break
+                    if response.status == 429:
+                        logger.warning("Rate limited, waiting 12 seconds...")
+                        await asyncio.sleep(12)
+                        continue
+                    elif response.status != 200:
+                        logger.error(f"API error {response.status}: {await response.text()}")
+                        self.stats.api_errors += 1
+                        break
 
-                        data = await response.json()
+                    data = await response.json()
 
-                # Process results
-                results = data.get("results", [])
-                if not results:
-                    logger.info(f"No more results for {description}")
-                    break
-
-                # Process and store articles
-                processed_articles = []
-                for article in results:
-                    processed_article = self._process_polygon_article(article)
-                    if processed_article:
-                        processed_articles.append(processed_article)
-
-                if processed_articles:
-                    inserted, updated, skipped = await self._store_articles(processed_articles)
-                    self.stats.records_fetched += len(processed_articles)
-                    self.stats.records_inserted += inserted
-                    self.stats.records_updated += updated
-                    self.stats.records_skipped += skipped
-
-                logger.info(f"Processed {len(processed_articles)} articles for {description}")
-                self.stats.log_progress(logger)
-
-                # Get next page URL
-                next_url = data.get("next_url")
-                if not next_url:
-                    logger.info(f"No more pages for {description}")
-                    break
-
-                # Rate limiting using shared utility
-                await self.rate_limiter.wait_if_needed()
-
-            except Exception as e:
-                logger.error(f"Error processing {description}: {e}")
-                self.stats.api_errors += 1
+            # Process results
+            results = data.get("results", [])
+            if not results:
+                logger.info(f"No more results for {description}")
                 break
+
+            # Process and store articles
+            processed_articles = []
+            for article in results:
+                processed_article = self._process_polygon_article(article)
+                if processed_article:
+                    processed_articles.append(processed_article)
+
+            if processed_articles:
+                inserted, updated, skipped = await self._store_articles(processed_articles)
+                self.stats.records_fetched += len(processed_articles)
+                self.stats.records_inserted += inserted
+                self.stats.records_updated += updated
+                self.stats.records_skipped += skipped
+
+            logger.info(f"Processed {len(processed_articles)} articles for {description}")
+            self.stats.log_progress(logger)
+
+            # Get next page URL
+            next_url = data.get("next_url")
+            if not next_url:
+                logger.info(f"No more pages for {description}")
+                break
+
+            # Rate limiting using shared utility
+            await self.rate_limiter.wait_if_needed()
 
     def _process_polygon_article(self, article: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Process a Polygon news article into our standard format"""
-        try:
-            # Generate unique ID from URL or content hash
-            article_id = article.get("id") or self._generate_article_id(article)
+        # Generate unique ID from URL or content hash
+        article_id = article.get("id") or self._generate_article_id(article)
 
-            # Parse publication date
-            published_date = self._parse_polygon_date(article.get("published_utc"))
-            if not published_date:
-                return None
-
-            # Extract tickers
-            tickers = []
-            for ticker_obj in article.get("tickers", []):
-                if isinstance(ticker_obj, dict):
-                    ticker = ticker_obj.get("ticker")
-                    if ticker:
-                        tickers.append(ticker)
-                elif isinstance(ticker_obj, str):
-                    tickers.append(ticker_obj)
-
-            return {
-                "vendor_id": article_id,
-                "title": article.get("title", ""),
-                "description": article.get("description", ""),
-                "article_url": article.get("article_url"),
-                "author": article.get("author"),
-                "published_utc": published_date,
-                "publisher_name": article.get("publisher", {}).get("name", "") if isinstance(article.get("publisher"), dict) else str(article.get("publisher", "")),
-                "tickers": tickers,
-                "keywords": article.get("keywords", []),
-                "data": article  # raw data goes in 'data' column
-            }
-        except Exception as e:
-            logger.warning(f"Error processing Polygon article: {e}")
+        # Parse publication date
+        published_date = self._parse_polygon_date(article.get("published_utc"))
+        if not published_date:
             return None
 
+        # Extract tickers
+        tickers = []
+        for ticker_obj in article.get("tickers", []):
+            if isinstance(ticker_obj, dict):
+                ticker = ticker_obj.get("ticker")
+                if ticker:
+                    tickers.append(ticker)
+            elif isinstance(ticker_obj, str):
+                tickers.append(ticker_obj)
+
+        return {
+            "vendor_id": article_id,
+            "title": article.get("title", ""),
+            "description": article.get("description", ""),
+            "article_url": article.get("article_url"),
+            "author": article.get("author"),
+            "published_utc": published_date,
+            "publisher_name": article.get("publisher", {}).get("name", "") if isinstance(article.get("publisher"), dict) else str(article.get("publisher", "")),
+            "tickers": tickers,
+            "keywords": article.get("keywords", []),
+            "data": article  # raw data goes in 'data' column
+        }
     def _generate_article_id(self, article: Dict[str, Any]) -> str:
         """Generate a unique ID for an article based on its content"""
         content = f"{article.get('title', '')}{article.get('article_url', '')}{article.get('published_utc', '')}"
@@ -355,20 +344,11 @@ class PolygonNewsBackfill:
         """Parse Polygon date format"""
         if not date_str:
             return None
-        try:
-            # Handle both Z and +00:00 timezone formats
-            if date_str.endswith('Z'):
-                return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            else:
-                return datetime.fromisoformat(date_str)
-        except ValueError:
-            try:
-                # Try parsing without timezone info
-                return datetime.fromisoformat(date_str.split('+')[0].split('Z')[0])
-            except:
-                logger.warning(f"Could not parse date: {date_str}")
-                return None
-
+        # Handle both Z and +00:00 timezone formats
+        if date_str.endswith('Z'):
+            return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        else:
+            return datetime.fromisoformat(date_str)
     async def _store_articles(self, articles: List[Dict[str, Any]]) -> tuple[int, int, int]:
         """Store articles in database, returning (inserted, updated, skipped) counts"""
         if not articles:
@@ -378,76 +358,71 @@ class PolygonNewsBackfill:
         updated_count = 0
         skipped_count = 0
 
-        try:
-            async with self.pool.acquire() as conn:
-                # Get initial count for validation
-                initial_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
+        async with self.pool.acquire() as conn:
+            # Get initial count for validation
+            initial_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
 
-                # Prepare records for insertion
-                news_records = []
-                article_ids_to_check = []
-                for article in articles:
-                    news_records.append((
-                        article["vendor_id"],
-                        article["title"],
-                        article["description"],
-                        article["article_url"],
-                        article["author"],
-                        article["published_utc"],
-                        article["publisher_name"],
-                        article["tickers"],
-                        article["keywords"],
-                        json.dumps(article["data"])
-                    ))
-                    article_ids_to_check.append(article["vendor_id"])
+            # Prepare records for insertion
+            news_records = []
+            article_ids_to_check = []
+            for article in articles:
+                news_records.append((
+                    article["vendor_id"],
+                    article["title"],
+                    article["description"],
+                    article["article_url"],
+                    article["author"],
+                    article["published_utc"],
+                    article["publisher_name"],
+                    article["tickers"],
+                    article["keywords"],
+                    json.dumps(article["data"])
+                ))
+                article_ids_to_check.append(article["vendor_id"])
 
-                # Check which articles already exist for accurate counting
-                existing_articles = await conn.fetch(f"""
-                    SELECT vendor_id FROM {self.table_name}
-                    WHERE vendor_id = ANY($1)
-                """, article_ids_to_check)
+            # Check which articles already exist for accurate counting
+            existing_articles = await conn.fetch(f"""
+                SELECT vendor_id FROM {self.table_name}
+                WHERE vendor_id = ANY($1)
+            """, article_ids_to_check)
 
-                existing_ids = {row['vendor_id'] for row in existing_articles}
-                expected_new_inserts = len(article_ids_to_check) - len(existing_ids)
+            existing_ids = {row['vendor_id'] for row in existing_articles}
+            expected_new_inserts = len(article_ids_to_check) - len(existing_ids)
 
-                # Use ON CONFLICT to handle duplicates (vendor_id is unique)
-                await conn.executemany(f"""
-                    INSERT INTO {self.table_name}
-                    (vendor_id, title, description, article_url, author,
-                     published_utc, publisher_name, tickers, keywords, data)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                    ON CONFLICT (vendor_id) DO UPDATE SET
-                    title = EXCLUDED.title,
-                    description = EXCLUDED.description,
-                    article_url = EXCLUDED.article_url,
-                    author = EXCLUDED.author,
-                    published_utc = EXCLUDED.published_utc,
-                    publisher_name = EXCLUDED.publisher_name,
-                    tickers = EXCLUDED.tickers,
-                    keywords = EXCLUDED.keywords,
-                    data = EXCLUDED.data::jsonb,
-                    updated_at = CURRENT_TIMESTAMP
-                    WHERE {self.table_name}.title IS DISTINCT FROM EXCLUDED.title
-                    OR {self.table_name}.description IS DISTINCT FROM EXCLUDED.description
-                """, news_records)
+            # Use ON CONFLICT to handle duplicates (vendor_id is unique)
+            await conn.executemany(f"""
+                INSERT INTO {self.table_name}
+                (vendor_id, title, description, article_url, author,
+                 published_utc, publisher_name, tickers, keywords, data)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (vendor_id) DO UPDATE SET
+                title = EXCLUDED.title,
+                description = EXCLUDED.description,
+                article_url = EXCLUDED.article_url,
+                author = EXCLUDED.author,
+                published_utc = EXCLUDED.published_utc,
+                publisher_name = EXCLUDED.publisher_name,
+                tickers = EXCLUDED.tickers,
+                keywords = EXCLUDED.keywords,
+                data = EXCLUDED.data::jsonb,
+                updated_at = CURRENT_TIMESTAMP
+                WHERE {self.table_name}.title IS DISTINCT FROM EXCLUDED.title
+                OR {self.table_name}.description IS DISTINCT FROM EXCLUDED.description
+            """, news_records)
 
-                # Validate actual database changes
-                final_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
-                actual_inserted = final_count - initial_count
+            # Validate actual database changes
+            final_count = await conn.fetchval(f"SELECT COUNT(*) FROM {self.table_name}")
+            actual_inserted = final_count - initial_count
 
-                # Accurate counting based on actual database changes
-                inserted_count = actual_inserted
-                updated_count = len(existing_ids)
-                skipped_count = len(news_records) - inserted_count - updated_count
+            # Accurate counting based on actual database changes
+            inserted_count = actual_inserted
+            updated_count = len(existing_ids)
+            skipped_count = len(news_records) - inserted_count - updated_count
 
-                # Log validation info for debugging
-                if actual_inserted != expected_new_inserts:
-                    logger.warning(f"Insert count mismatch: expected {expected_new_inserts}, actual {actual_inserted}")
-                    logger.debug(f"Articles processed: {len(news_records)}, existing: {len(existing_ids)}, final DB change: {actual_inserted}")
-
-        except Exception as e:
-            logger.error(f"Error storing articles: {e}")
-            raise
+            # Log validation info for debugging
+            if actual_inserted != expected_new_inserts:
+                logger.warning(f"Insert count mismatch: expected {expected_new_inserts}, actual {actual_inserted}")
+                logger.debug(f"Articles processed: {len(news_records)}, existing: {len(existing_ids)}, final DB change: {actual_inserted}")
 
         return inserted_count, updated_count, skipped_count
 
@@ -561,14 +536,8 @@ No need to provide API key on command line - it uses existing codebase infrastru
         logger.setLevel(logging.DEBUG)
 
     # Parse dates
-    try:
-        start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
-        end_date = datetime.strptime(args.end_date, '%Y-%m-%d') if args.end_date else None
-    except ValueError as e:
-        logger.error(f"Invalid date format: {e}")
-        return 1
-
-    # Parse symbols
+    start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
+    end_date = datetime.strptime(args.end_date, '%Y-%m-%d') if args.end_date else None
     symbols = None
     if args.symbols:
         symbols = [s.strip().upper() for s in args.symbols.split(',')]
@@ -586,13 +555,8 @@ No need to provide API key on command line - it uses existing codebase infrastru
 
     gin_config_path = gin_config_map.get(args.environment)
     if gin_config_path and os.path.exists(gin_config_path):
-        try:
-            gin.parse_config_file(gin_config_path)
-            logger.info(f"Loaded gin config: {gin_config_path}")
-        except Exception as e:
-            logger.warning(f"Failed to load gin config: {e}")
-
-    # API Key Management - Uses shared utility
+        gin.parse_config_file(gin_config_path)
+        logger.info(f"Loaded gin config: {gin_config_path}")
     polygon_api_key = get_polygon_api_key(required=not args.dry_run)
 
     if not polygon_api_key and args.dry_run:
@@ -602,49 +566,43 @@ No need to provide API key on command line - it uses existing codebase infrastru
         logger.error("No Polygon API key found. Use shared.utils.vendor_api_keys for details.")
         return 1
 
-    try:
-        # Create database connection pool using shared utility
-        logger.info("Creating database connection pool...")
-        pool = await get_database_pool(args.environment, max_retries=3, timeout=10.0)
-        table_name = get_table_name("news_polygon", args.environment)
+    # Create database connection pool using shared utility
+    logger.info("Creating database connection pool...")
+    pool = await get_database_pool(args.environment, max_retries=3, timeout=10.0)
+    table_name = get_table_name("news_polygon", args.environment)
 
-        try:
-            # Create backfill service
-            backfill_service = PolygonNewsBackfill(polygon_api_key, pool, table_name)
+    # Create backfill service
+    backfill_service = PolygonNewsBackfill(polygon_api_key, pool, table_name)
 
-            if args.dry_run:
-                logger.info("DRY RUN MODE - No data will be stored")
-                # In dry run, mock API calls and return test results
-                mock_stats = NewsBackfillStats()
-                mock_stats.records_fetched = 150
-                mock_stats.records_inserted = 150
-                mock_stats.api_calls_made = 2
-                mock_stats.add_custom_metric("symbols_processed", ["AAPL", "TSLA", "MSFT"])
-                logger.info("DRY RUN: Simulated fetching news articles for test")
-                stats = mock_stats
-            else:
-                # Run backfill
-                stats = await backfill_service.backfill_news_data(
-                    start_date=start_date,
-                    end_date=end_date,
-                    symbols=symbols,
-                    limit_per_request=args.limit_per_request,
-                    max_requests=args.max_requests
-                )
+    if args.dry_run:
+        logger.info("DRY RUN MODE - No data will be stored")
+        # In dry run, mock API calls and return test results
+        mock_stats = NewsBackfillStats()
+        mock_stats.records_fetched = 150
+        mock_stats.records_inserted = 150
+        mock_stats.api_calls_made = 2
+        mock_stats.add_custom_metric("symbols_processed", ["AAPL", "TSLA", "MSFT"])
+        logger.info("DRY RUN: Simulated fetching news articles for test")
+        stats = mock_stats
+    else:
+        # Run backfill
+        stats = await backfill_service.backfill_news_data(
+            start_date=start_date,
+            end_date=end_date,
+            symbols=symbols,
+            limit_per_request=args.limit_per_request,
+            max_requests=args.max_requests
+        )
 
-            logger.info("Backfill completed successfully!")
-            stats.log_final_summary(logger)
+    logger.info("Backfill completed successfully!")
+    stats.log_final_summary(logger)
 
-            return 0
+    return 0
 
-        finally:
-            await pool.close()
-
-    except Exception as e:
-        logger.error(f"Backfill failed: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return 1
+    logger.error(f"Backfill failed: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    return 1
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

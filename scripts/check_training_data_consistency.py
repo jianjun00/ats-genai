@@ -36,67 +36,57 @@ async def main():
         print(f"❌ Unsupported environment: {args.env}")
         return
 
-    try:
-        conn = await asyncpg.connect(db_url)
+    conn = await asyncpg.connect(db_url)
 
-        # Run comprehensive consistency check
-        inconsistencies = await run_consistency_check(conn)
+    # Run comprehensive consistency check
+    inconsistencies = await run_consistency_check(conn)
 
-        # Report results
-        print(f"Environment: {args.env}")
-        print(f"Check time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Total inconsistencies found: {len(inconsistencies)}")
+    # Report results
+    print(f"Environment: {args.env}")
+    print(f"Check time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Total inconsistencies found: {len(inconsistencies)}")
 
-        if not inconsistencies:
-            print("\n✅ No inconsistencies detected - all systems healthy!")
-            return
+    if not inconsistencies:
+        print("\n✅ No inconsistencies detected - all systems healthy!")
+        return
 
-        # Group inconsistencies by type
-        by_type = {}
-        for inc in inconsistencies:
-            inc_type = inc['type']
-            if inc_type not in by_type:
-                by_type[inc_type] = []
-            by_type[inc_type].append(inc)
+    # Group inconsistencies by type
+    by_type = {}
+    for inc in inconsistencies:
+        inc_type = inc['type']
+        if inc_type not in by_type:
+            by_type[inc_type] = []
+        by_type[inc_type].append(inc)
 
-        print(f"\n❌ INCONSISTENCIES DETECTED:")
-        for inc_type, incidents in by_type.items():
-            print(f"\n🚨 {inc_type.upper().replace('_', ' ')} ({len(incidents)} cases):")
-            for inc in incidents:
-                print(f"   - {inc['description']}")
+    print(f"\n❌ INCONSISTENCIES DETECTED:")
+    for inc_type, incidents in by_type.items():
+        print(f"\n🚨 {inc_type.upper().replace('_', ' ')} ({len(incidents)} cases):")
+        for inc in incidents:
+            print(f"   - {inc['description']}")
 
-        # Generate and show fixes
-        fixes = generate_fix_sql(inconsistencies)
-        print(f"\n🔧 SUGGESTED FIXES:")
+    # Generate and show fixes
+    fixes = generate_fix_sql(inconsistencies)
+    print(f"\n🔧 SUGGESTED FIXES:")
+    for fix in fixes:
+        print(f"   {fix}")
+
+    # Apply fixes if requested
+    if args.fix:
+        print(f"\n⚡ APPLYING FIXES...")
         for fix in fixes:
-            print(f"   {fix}")
-
-        # Apply fixes if requested
-        if args.fix:
-            print(f"\n⚡ APPLYING FIXES...")
-            for fix in fixes:
-                try:
-                    result = await conn.execute(fix)
-                    print(f"   ✅ {fix} - {result}")
-                except Exception as e:
-                    print(f"   ❌ {fix} - Error: {e}")
-
-            # Re-run check to verify fixes
-            print(f"\n🔄 VERIFYING FIXES...")
-            remaining = await run_consistency_check(conn)
-            if remaining:
-                print(f"   ⚠️ {len(remaining)} inconsistencies remain")
-            else:
-                print(f"   ✅ All inconsistencies resolved!")
+            result = await conn.execute(fix)
+            print(f"   ✅ {fix} - {result}")
+        print(f"\n🔄 VERIFYING FIXES...")
+        remaining = await run_consistency_check(conn)
+        if remaining:
+            print(f"   ⚠️ {len(remaining)} inconsistencies remain")
         else:
-            print(f"\n💡 To apply fixes automatically, run with --fix flag")
-            print(f"   CAUTION: Review fixes carefully before applying!")
+            print(f"   ✅ All inconsistencies resolved!")
+    else:
+        print(f"\n💡 To apply fixes automatically, run with --fix flag")
+        print(f"   CAUTION: Review fixes carefully before applying!")
 
-        await conn.close()
-
-    except Exception as e:
-        print(f"❌ Error: {e}")
-
+    await conn.close()
 
 async def run_consistency_check(conn) -> List[Dict[str, Any]]:
     """Run comprehensive consistency checks."""

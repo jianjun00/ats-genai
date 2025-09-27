@@ -60,23 +60,19 @@ class TestUnifiedWebappAccessibility:
         await asyncio.sleep(2)
 
         async with aiohttp.ClientSession() as session:
-            try:
-                # Test health endpoint
-                async with session.get('http://localhost:3000/health', timeout=10) as response:
-                    assert response.status == 200
-                    health_data = await response.json()
+            # Test health endpoint
+            async with session.get('http://localhost:3000/health', timeout=10) as response:
+                assert response.status == 200
+                health_data = await response.json()
 
-                    # Verify health response structure
-                    assert "status" in health_data
-                    assert "service" in health_data
-                    assert "port" in health_data
-                    assert health_data["port"] == 3000
-                    assert "unified_backtest_analytics_platform" in health_data["service"]
+                # Verify health response structure
+                assert "status" in health_data
+                assert "service" in health_data
+                assert "port" in health_data
+                assert health_data["port"] == 3000
+                assert "unified_backtest_analytics_platform" in health_data["service"]
 
-                    print(f"✅ Health check passed: {health_data['status']}")
-
-            except Exception as e:
-                pytest.fail(f"Health check failed: {e}")
+                print(f"✅ Health check passed: {health_data['status']}")
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -85,22 +81,18 @@ class TestUnifiedWebappAccessibility:
         await asyncio.sleep(1)
 
         async with aiohttp.ClientSession() as session:
-            try:
-                # Test main dashboard
-                async with session.get('http://localhost:3000/', timeout=10) as response:
-                    assert response.status == 200
-                    content = await response.text()
+            # Test main dashboard
+            async with session.get('http://localhost:3000/', timeout=10) as response:
+                assert response.status == 200
+                content = await response.text()
 
-                    # Verify dashboard content
-                    assert "Backtest Analytics Platform" in content
-                    assert "Executive Dashboard" in content
-                    assert "Performance Analysis" in content
-                    assert "plotly-latest.min.js" in content  # Verify Plotly is loaded
+                # Verify dashboard content
+                assert "Backtest Analytics Platform" in content
+                assert "Executive Dashboard" in content
+                assert "Performance Analysis" in content
+                assert "plotly-latest.min.js" in content  # Verify Plotly is loaded
 
-                    print("✅ Dashboard loads successfully")
-
-            except Exception as e:
-                pytest.fail(f"Dashboard loading failed: {e}")
+                print("✅ Dashboard loads successfully")
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -110,43 +102,34 @@ class TestUnifiedWebappAccessibility:
 
         async with aiohttp.ClientSession() as session:
             # Test backtests endpoint
-            try:
-                async with session.get('http://localhost:3000/api/v1/backtests', timeout=10) as response:
-                    assert response.status == 200
-                    backtests = await response.json()
+            async with session.get('http://localhost:3000/api/v1/backtests', timeout=10) as response:
+                assert response.status == 200
+                backtests = await response.json()
 
-                    # Verify backtest data structure
-                    assert isinstance(backtests, list)
-                    assert len(backtests) > 0
+                # Verify backtest data structure
+                assert isinstance(backtests, list)
+                assert len(backtests) > 0
 
-                    # Check first backtest has required fields
-                    first_backtest = backtests[0]
-                    required_fields = ["backtest_run_id", "strategy_name", "total_return", "sharpe_ratio"]
-                    for field in required_fields:
-                        assert field in first_backtest
+                # Check first backtest has required fields
+                first_backtest = backtests[0]
+                required_fields = ["backtest_run_id", "strategy_name", "total_return", "sharpe_ratio"]
+                for field in required_fields:
+                    assert field in first_backtest
 
-                    print(f"✅ Backtests API returns {len(backtests)} items")
+                print(f"✅ Backtests API returns {len(backtests)} items")
 
-            except Exception as e:
-                pytest.fail(f"Backtests API failed: {e}")
+            test_id = "comprehensive_2022_2025"
+            async with session.get(f'http://localhost:3000/api/v1/backtests/{test_id}/metrics', timeout=10) as response:
+                assert response.status == 200
+                metrics = await response.json()
 
-            # Test portfolio metrics endpoint
-            try:
-                test_id = "comprehensive_2022_2025"
-                async with session.get(f'http://localhost:3000/api/v1/backtests/{test_id}/metrics', timeout=10) as response:
-                    assert response.status == 200
-                    metrics = await response.json()
+                # Verify metrics structure
+                required_metrics = ["total_return", "sharpe_ratio", "max_drawdown", "volatility"]
+                for metric in required_metrics:
+                    assert metric in metrics
+                    assert isinstance(metrics[metric], (int, float))
 
-                    # Verify metrics structure
-                    required_metrics = ["total_return", "sharpe_ratio", "max_drawdown", "volatility"]
-                    for metric in required_metrics:
-                        assert metric in metrics
-                        assert isinstance(metrics[metric], (int, float))
-
-                    print("✅ Portfolio metrics API responds correctly")
-
-            except Exception as e:
-                pytest.fail(f"Portfolio metrics API failed: {e}")
+                print("✅ Portfolio metrics API responds correctly")
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -155,20 +138,16 @@ class TestUnifiedWebappAccessibility:
         await asyncio.sleep(1)
 
         async with aiohttp.ClientSession() as session:
-            try:
-                # Test API docs endpoint
-                async with session.get('http://localhost:3000/api/docs', timeout=10) as response:
-                    assert response.status == 200
-                    docs_content = await response.text()
+            # Test API docs endpoint
+            async with session.get('http://localhost:3000/api/docs', timeout=10) as response:
+                assert response.status == 200
+                docs_content = await response.text()
 
-                    # Verify it's actually the API docs
-                    assert "swagger" in docs_content.lower() or "openapi" in docs_content.lower()
-                    assert "Backtest Analytics Platform" in docs_content
+                # Verify it's actually the API docs
+                assert "swagger" in docs_content.lower() or "openapi" in docs_content.lower()
+                assert "Backtest Analytics Platform" in docs_content
 
-                    print("✅ API documentation accessible")
-
-            except Exception as e:
-                pytest.fail(f"API docs failed: {e}")
+                print("✅ API documentation accessible")
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -177,24 +156,20 @@ class TestUnifiedWebappAccessibility:
         await asyncio.sleep(1)
 
         async with aiohttp.ClientSession() as session:
-            try:
-                # Test with Origin header to trigger CORS
-                headers = {"Origin": "http://example.com"}
-                async with session.get('http://localhost:3000/health', headers=headers, timeout=10) as response:
-                    assert response.status == 200
+            # Test with Origin header to trigger CORS
+            headers = {"Origin": "http://example.com"}
+            async with session.get('http://localhost:3000/health', headers=headers, timeout=10) as response:
+                assert response.status == 200
 
-                    # Check CORS headers - they should be present when Origin header is sent
-                    response_headers = response.headers
-                    # CORS middleware should add these headers
-                    if "access-control-allow-origin" in response_headers:
-                        assert response_headers["access-control-allow-origin"] == "*"
-                        print("✅ CORS headers configured correctly for external access")
-                    else:
-                        # CORS might not be needed for same-origin requests
-                        print("✅ CORS middleware present (headers added when needed)")
-
-            except Exception as e:
-                pytest.fail(f"CORS headers test failed: {e}")
+                # Check CORS headers - they should be present when Origin header is sent
+                response_headers = response.headers
+                # CORS middleware should add these headers
+                if "access-control-allow-origin" in response_headers:
+                    assert response_headers["access-control-allow-origin"] == "*"
+                    print("✅ CORS headers configured correctly for external access")
+                else:
+                    # CORS might not be needed for same-origin requests
+                    print("✅ CORS middleware present (headers added when needed)")
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -203,43 +178,33 @@ class TestUnifiedWebappAccessibility:
         await asyncio.sleep(1)
 
         async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get('http://localhost:3000/health', timeout=10) as response:
-                    assert response.status == 200
-                    health_data = await response.json()
+            async with session.get('http://localhost:3000/health', timeout=10) as response:
+                assert response.status == 200
+                health_data = await response.json()
 
-                    # Verify database connectivity is reported
-                    assert "database_connected" in health_data
-                    # Should be boolean
-                    assert isinstance(health_data["database_connected"], bool)
+                # Verify database connectivity is reported
+                assert "database_connected" in health_data
+                # Should be boolean
+                assert isinstance(health_data["database_connected"], bool)
 
-                    print(f"✅ Database connectivity status: {health_data['database_connected']}")
-
-            except Exception as e:
-                pytest.fail(f"Database connectivity test failed: {e}")
+                print(f"✅ Database connectivity status: {health_data['database_connected']}")
 
     def test_webapp_can_be_imported(self):
         """Test that webapp module can be imported without errors"""
-        try:
-            # Test import
-            webapp_path = Path(__file__).parent.parent.parent / "unified_backtest_analytics_webapp.py"
+        # Test import
+        webapp_path = Path(__file__).parent.parent.parent / "unified_backtest_analytics_webapp.py"
 
-            # Read and verify structure
-            with open(webapp_path, 'r') as f:
-                content = f.read()
+        # Read and verify structure
+        with open(webapp_path, 'r') as f:
+            content = f.read()
 
-            # Verify key components are present
-            assert "create_unified_app" in content
-            assert "UnifiedAnalyticsEngine" in content
-            assert "FastAPI" in content
-            assert "Plotly" in content
+        # Verify key components are present
+        assert "create_unified_app" in content
+        assert "UnifiedAnalyticsEngine" in content
+        assert "FastAPI" in content
+        assert "Plotly" in content
 
-            print("✅ Webapp module structure is correct")
+        print("✅ Webapp module structure is correct")
 
-        except Exception as e:
-            pytest.fail(f"Webapp import test failed: {e}")
-
-
-# Run the tests directly if this file is executed
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

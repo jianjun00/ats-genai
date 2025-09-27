@@ -156,20 +156,19 @@ if __name__ == "__main__":
     print("🧪 Testing Economic Events Clients Gin Configuration Refactoring")
     print("=" * 75)
 
-    try:
-        test_fred_client_gin_refactor()
-        test_polygon_client_gin_refactor()
-        test_alpha_vantage_client_gin_refactor()
-        test_tiingo_client_gin_refactor()
+    test_fred_client_gin_refactor()
+    test_polygon_client_gin_refactor()
+    test_alpha_vantage_client_gin_refactor()
+    test_tiingo_client_gin_refactor()
 
-        print("\n🎉 All economic events clients gin configuration tests passed!")
-        print("✅ Hardcoded values successfully moved to gin configuration!")
-        print("\n📋 Successfully refactored:")
-        print("  • FRED Economic Client - base_url, timeout_seconds, search_limit_default, observations_limit")
-        print("  • Polygon Economic Events Client - base_url, timeout_seconds, api_limit, rate_limit_sleep_seconds")
-        print("  • Alpha Vantage Economic Client - base_url, timeout_seconds, rate_limit_delay_seconds")
-        print("  • Tiingo Economic Events Client - base_url, timeout_seconds, news_limit, crypto_news_limit, rate_limit_delay_seconds")
-        print("\n🚀 Economic events clients refactoring is complete and working!")
+    print("\n🎉 All economic events clients gin configuration tests passed!")
+    print("✅ Hardcoded values successfully moved to gin configuration!")
+    print("\n📋 Successfully refactored:")
+    print("  • FRED Economic Client - base_url, timeout_seconds, search_limit_default, observations_limit")
+    print("  • Polygon Economic Events Client - base_url, timeout_seconds, api_limit, rate_limit_sleep_seconds")
+    print("  • Alpha Vantage Economic Client - base_url, timeout_seconds, rate_limit_delay_seconds")
+    print("  • Tiingo Economic Events Client - base_url, timeout_seconds, news_limit, crypto_news_limit, rate_limit_delay_seconds")
+    print("\n🚀 Economic events clients refactoring is complete and working!")
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")

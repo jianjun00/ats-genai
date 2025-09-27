@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class MockMarketDataManager:
@@ -56,13 +51,7 @@ class MockMarketDataManager:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_db_connection_real_objects(self, real_service, test_data):
         """Real objects version of test_db_connection"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.db_connection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.db_connection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_storage_manager_real_objects(self, real_service, test_data):
         """Real objects version of test_storage_manager"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.storage_manager_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.storage_manager_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_full_ray_training_workflow_real_objects(self, real_service, test_data):
         """Real objects version of test_full_ray_training_workflow"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.full_ray_training_workflow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.full_ray_training_workflow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_vs_sequential_performance_comparison_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_vs_sequential_performance_comparison"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_vs_sequential_performance_comparison_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_vs_sequential_performance_comparison_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_error_recovery_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_error_recovery_integration"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_error_recovery_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_error_recovery_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_integration_with_ray_real_objects(self, real_service, test_data):
         """Real objects version of test_database_integration_with_ray"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_integration_with_ray_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_integration_with_ray_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_with_file_storage_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_with_file_storage"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_with_file_storage_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_with_file_storage_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_file_access_with_ray_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_file_access_with_ray"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_file_access_with_ray_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_file_access_with_ray_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_worker_failure_recovery_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_worker_failure_recovery"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_worker_failure_recovery_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ray_worker_failure_recovery_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_partial_ray_worker_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_partial_ray_worker_failure"""
         # Test with real database integration
@@ -275,15 +210,8 @@ class MockMarketDataManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.partial_ray_worker_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.partial_ray_worker_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

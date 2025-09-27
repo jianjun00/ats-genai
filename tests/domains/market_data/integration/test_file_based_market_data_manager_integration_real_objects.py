@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsFileBasedMarketDataManagerIntegration:
@@ -55,13 +49,7 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_get_ohlcv_data_method_signature_real_objects(self, real_service, test_data):
         """Real objects version of test_get_ohlcv_data_method_signature"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_ohlcv_data_method_signature_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_ohlcv_data_method_signature_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_ohlcv_data_without_xrefs_dao_real_objects(self, real_service, test_data):
         """Real objects version of test_get_ohlcv_data_without_xrefs_dao"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_ohlcv_data_without_xrefs_dao_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_ohlcv_data_without_xrefs_dao_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_ohlcv_data_instrument_not_found_real_objects(self, real_service, test_data):
         """Real objects version of test_get_ohlcv_data_instrument_not_found"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_ohlcv_data_instrument_not_found_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_ohlcv_data_instrument_not_found_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_ohlcv_data_successful_retrieval_real_objects(self, real_service, test_data):
         """Real objects version of test_get_ohlcv_data_successful_retrieval"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_ohlcv_data_successful_retrieval_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_ohlcv_data_successful_retrieval_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_ohlcv_data_forward_direction_real_objects(self, real_service, test_data):
         """Real objects version of test_get_ohlcv_data_forward_direction"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_ohlcv_data_forward_direction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_ohlcv_data_forward_direction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_timeframe_aggregation_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_timeframe_aggregation"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_timeframe_aggregation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_timeframe_aggregation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_universe_state_manager_uses_market_data_manager_real_objects(self, real_service, test_data):
         """Real objects version of test_universe_state_manager_uses_market_data_manager"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.universe_state_manager_uses_market_data_manager_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.universe_state_manager_uses_market_data_manager_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_universe_state_manager_get_lagged_signals_separation_real_objects(self, real_service, test_data):
         """Real objects version of test_universe_state_manager_get_lagged_signals_separation"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.universe_state_manager_get_lagged_signals_separation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.universe_state_manager_get_lagged_signals_separation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequence_window_builder_calls_both_methods_real_objects(self, real_service, test_data):
         """Real objects version of test_sequence_window_builder_calls_both_methods"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequence_window_builder_calls_both_methods_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sequence_window_builder_calls_both_methods_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_training_generator_end_to_end_real_objects(self, real_service, test_data):
         """Real objects version of test_training_generator_end_to_end"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.training_generator_end_to_end_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.training_generator_end_to_end_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_error_handling"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_invalid_time_interval_real_objects(self, real_service, test_data):
         """Real objects version of test_invalid_time_interval"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.invalid_time_interval_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.invalid_time_interval_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_base_market_data_manager_raises_not_implemented_real_objects(self, real_service, test_data):
         """Real objects version of test_base_market_data_manager_raises_not_implemented"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.base_market_data_manager_raises_not_implemented_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.base_market_data_manager_raises_not_implemented_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ohlcv_data_with_gaps_and_missing_values_real_objects(self, real_service, test_data):
         """Real objects version of test_ohlcv_data_with_gaps_and_missing_values"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ohlcv_data_with_gaps_and_missing_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ohlcv_data_with_gaps_and_missing_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extreme_price_movements_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_extreme_price_movements_validation"""
         # Test with real database integration
@@ -384,15 +288,8 @@ class TestRealObjectsFileBasedMarketDataManagerIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extreme_price_movements_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.extreme_price_movements_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

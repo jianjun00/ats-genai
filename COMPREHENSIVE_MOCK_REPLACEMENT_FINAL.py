@@ -86,12 +86,7 @@ class {class_name}:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {{e}}")
-    
+        await real_dao.delete_test_record(test_record.id)
 {real_test_methods}
 
     # Performance and concurrency tests with real objects
@@ -133,55 +128,43 @@ class {class_name}:
 
     def analyze_mock_file(self, file_path: str) -> MockFileAnalysis:
         """Analyze a mock file to understand its structure and complexity"""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Extract patterns
-            found_patterns = []
-            for pattern in self.mock_patterns:
-                if re.search(pattern, content, re.MULTILINE):
-                    found_patterns.append(pattern)
-            
-            # Extract class name
-            class_match = re.search(r'class\s+(\w+)', content)
-            class_name = class_match.group(1) if class_match else "TestRealObjects"
-            
-            # Extract test methods
-            test_methods = re.findall(r'def\s+(test_\w+)', content)
-            
-            # Extract imports
-            import_lines = re.findall(r'^(import\s+.*|from\s+.*import\s+.*)', content, re.MULTILINE)
-            
-            # Calculate complexity
-            complexity_score = (
-                len(found_patterns) * 2 +
-                len(test_methods) +
-                content.count('mock') +
-                content.count('Mock') +
-                content.count('@patch')
-            )
-            
-            return MockFileAnalysis(
-                file_path=file_path,
-                mock_patterns=found_patterns,
-                class_name=class_name,
-                test_methods=test_methods,
-                imports=import_lines,
-                complexity_score=complexity_score
-            )
-            
-        except Exception as e:
-            print(f"Error analyzing {file_path}: {e}")
-            return MockFileAnalysis(
-                file_path=file_path,
-                mock_patterns=[],
-                class_name="TestRealObjects",
-                test_methods=[],
-                imports=[],
-                complexity_score=0
-            )
-
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Extract patterns
+        found_patterns = []
+        for pattern in self.mock_patterns:
+            if re.search(pattern, content, re.MULTILINE):
+                found_patterns.append(pattern)
+        
+        # Extract class name
+        class_match = re.search(r'class\s+(\w+)', content)
+        class_name = class_match.group(1) if class_match else "TestRealObjects"
+        
+        # Extract test methods
+        test_methods = re.findall(r'def\s+(test_\w+)', content)
+        
+        # Extract imports
+        import_lines = re.findall(r'^(import\s+.*|from\s+.*import\s+.*)', content, re.MULTILINE)
+        
+        # Calculate complexity
+        complexity_score = (
+            len(found_patterns) * 2 +
+            len(test_methods) +
+            content.count('mock') +
+            content.count('Mock') +
+            content.count('@patch')
+        )
+        
+        return MockFileAnalysis(
+            file_path=file_path,
+            mock_patterns=found_patterns,
+            class_name=class_name,
+            test_methods=test_methods,
+            imports=import_lines,
+            complexity_score=complexity_score
+        )
+        
     def generate_real_objects_content(self, analysis: MockFileAnalysis) -> str:
         """Generate real objects test content based on analysis"""
         
@@ -329,12 +312,8 @@ from core.services.service_base import ServiceBase
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.{method.replace("test_", "")}_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except {self.infer_exception_class(file_path)} as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
+        await real_service.{method.replace("test_", "")}_with_invalid_data()
+        assert False, "Should have raised specific exception"
 '''
             methods.append(method_content)
         
@@ -351,16 +330,10 @@ from core.services.service_base import ServiceBase
             print(f"\nProcessing batch {i//batch_size + 1}: files {i+1}-{min(i+batch_size, total_files)} of {total_files}")
             
             for mock_file in batch:
-                try:
-                    self.process_single_file(mock_file)
-                    processed_count += 1
-                    print(f"  ✅ Processed: {mock_file}")
-                    
-                except Exception as e:
-                    print(f"  ❌ Failed: {mock_file} - {e}")
-                    self.failed_files.append((mock_file, str(e)))
-            
-            # Progress update
+                self.process_single_file(mock_file)
+                processed_count += 1
+                print(f"  ✅ Processed: {mock_file}")
+                
             progress = (processed_count / total_files) * 100
             print(f"Batch complete. Overall progress: {processed_count}/{total_files} ({progress:.1f}%)")
 

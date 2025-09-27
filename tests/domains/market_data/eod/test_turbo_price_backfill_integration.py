@@ -1,9 +1,9 @@
 import pytest
 import asyncio
 from datetime import date
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.market_data.services.eod.turbo_price_backfill import (
+from domains.trading.services.core.eod.turbo_price_backfill import (
     TurboDatabaseInserter
 )
 
@@ -18,7 +18,7 @@ async def test_end_to_end_polygon_backfill(unit_test_db):
     # Setup test data: create test instrument
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
 
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
@@ -119,7 +119,7 @@ async def test_end_to_end_tiingo_backfill(unit_test_db):
     # Setup test data: create test instrument
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
 
     instruments_dao = InstrumentsDAO(env)
     xrefs_dao = InstrumentXrefsDAO(env)
@@ -206,7 +206,7 @@ async def test_duplicate_handling(unit_test_db):
 
     # Setup test data
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
 
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
@@ -281,7 +281,7 @@ async def test_concurrent_database_operations(unit_test_db):
 
     # Setup test data
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
 
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)
@@ -370,7 +370,7 @@ async def test_large_batch_processing(unit_test_db):
 
     # Setup test data
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
 
     instruments_dao = InstrumentsDAO(env)
     vendors_dao = VendorsDAO(env)

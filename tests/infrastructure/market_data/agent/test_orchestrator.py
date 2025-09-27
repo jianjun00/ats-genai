@@ -2,10 +2,10 @@ import pytest
 from unittest import mock
 from datetime import datetime, date, timedelta
 
-from domains.market_data.services.agent.data_agent_orchestrator import DataAgentOrchestrator
-from domains.market_data.services.agent.base_adapter import VendorAdapter
-from domains.market_data.services.agent.models import EODPrice
-from domains.market_data.services.agent.reconciliation import ReconciliationEngine
+from domains.market_data.services.core.agent.orchestration.data_agent_orchestrator import DataAgentOrchestrator
+from domains.market_data.services.core.agent.base_adapter import VendorAdapter
+from domains.market_data.services.core.agent.models import EODPrice
+from domains.market_data.services.core.agent.reconciliation import ReconciliationEngine
 
 # Mock adapter for testing
 class MockAdapter(VendorAdapter):

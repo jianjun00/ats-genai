@@ -31,32 +31,28 @@ class MockTrainingDataAPI(BaseHTTPRequestHandler):
         path = parsed_url.path
         query_params = parse_qs(parsed_url.query)
 
-        try:
-            if path == '/health':
-                self._send_response(200, {'status': 'healthy', 'service': 'mock-analytics'})
+        if path == '/health':
+            self._send_response(200, {'status': 'healthy', 'service': 'mock-analytics'})
 
-            elif path == '/api/v1/training-datasets/':
-                self._handle_datasets_list()
+        elif path == '/api/v1/training-datasets/':
+            self._handle_datasets_list()
 
-            elif path.startswith('/api/v1/training-datasets/') and path.endswith('/data'):
-                dataset_id = path.split('/')[-2]
-                self._handle_table_data(dataset_id, query_params)
+        elif path.startswith('/api/v1/training-datasets/') and path.endswith('/data'):
+            dataset_id = path.split('/')[-2]
+            self._handle_table_data(dataset_id, query_params)
 
-            elif path.startswith('/api/v1/training-datasets/') and 'visualization-data' in path:
-                dataset_id = path.split('/')[-2]
-                self._handle_visualization_data(dataset_id, query_params)
+        elif path.startswith('/api/v1/training-datasets/') and 'visualization-data' in path:
+            dataset_id = path.split('/')[-2]
+            self._handle_visualization_data(dataset_id, query_params)
 
-            elif path == '/eda':
-                self._handle_eda_page()
+        elif path == '/eda':
+            self._handle_eda_page()
 
-            elif path == '/training-eda':
-                self._handle_training_eda_page()
+        elif path == '/training-eda':
+            self._handle_training_eda_page()
 
-            else:
-                self._send_error(404, f"Endpoint not found: {path}")
-
-        except Exception as e:
-            self._send_error(500, f"Internal server error: {str(e)}")
+        else:
+            self._send_error(404, f"Endpoint not found: {path}")
 
     def _handle_datasets_list(self):
         """Return list of available training datasets"""
@@ -412,20 +408,19 @@ class MockAPIServer:
 if __name__ == "__main__":
     # Run mock server standalone for testing
     server = MockAPIServer(3001)
-    try:
-        server.start()
-        print("Mock server running at http://localhost:3001")
-        print("Test endpoints:")
-        print("  GET /health")
-        print("  GET /api/v1/training-datasets/")
-        print("  GET /api/v1/training-datasets/15/data")
-        print("  GET /api/v1/training-datasets/15/visualization-data")
-        print("  GET /eda")
-        print("  GET /training-eda")
-        print("\nPress Ctrl+C to stop")
+    server.start()
+    print("Mock server running at http://localhost:3001")
+    print("Test endpoints:")
+    print("  GET /health")
+    print("  GET /api/v1/training-datasets/")
+    print("  GET /api/v1/training-datasets/15/data")
+    print("  GET /api/v1/training-datasets/15/visualization-data")
+    print("  GET /eda")
+    print("  GET /training-eda")
+    print("\nPress Ctrl+C to stop")
 
-        while True:
-            time.sleep(1)
+    while True:
+        time.sleep(1)
     except KeyboardInterrupt:
         server.stop()
         print("\nServer stopped")

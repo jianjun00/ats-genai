@@ -26,7 +26,7 @@ import os
 # Test imports
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.instrument_interval import InstrumentInterval
-from core.shared.data_handling.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 class TestUniverseStateManagerRollingCache:
@@ -233,27 +233,22 @@ class TestUniverseStateManagerRollingCache:
 
         def add_intervals_worker(thread_id):
             """Worker function for concurrent interval addition."""
-            try:
-                for i in range(intervals_per_thread):
-                    interval = InstrumentInterval(
-                        instrument_id=instrument_id,
-                        start_date_time=datetime(2025, 7, 1, 10, thread_id, i),
-                        end_date_time=datetime(2025, 7, 1, 10, thread_id, i+1),
-                        open=100.0 + thread_id + i,
-                        high=102.0 + thread_id + i,
-                        low=99.0 + thread_id + i,
-                        close=101.0 + thread_id + i,
-                        traded_volume=1000,
-                        traded_dollar=101000.0,
-                        status='ok'
-                    )
-                    universe_state_manager.add_interval_to_rolling_cache(instrument_id, timeframe, interval)
-                    time.sleep(0.001)  # Small delay to encourage race conditions
-                results.append(f"Thread {thread_id} completed")
-            except Exception as e:
-                exceptions.append(f"Thread {thread_id} failed: {e}")
-
-        # Start concurrent threads
+            for i in range(intervals_per_thread):
+                interval = InstrumentInterval(
+                    instrument_id=instrument_id,
+                    start_date_time=datetime(2025, 7, 1, 10, thread_id, i),
+                    end_date_time=datetime(2025, 7, 1, 10, thread_id, i+1),
+                    open=100.0 + thread_id + i,
+                    high=102.0 + thread_id + i,
+                    low=99.0 + thread_id + i,
+                    close=101.0 + thread_id + i,
+                    traded_volume=1000,
+                    traded_dollar=101000.0,
+                    status='ok'
+                )
+                universe_state_manager.add_interval_to_rolling_cache(instrument_id, timeframe, interval)
+                time.sleep(0.001)  # Small delay to encourage race conditions
+            results.append(f"Thread {thread_id} completed")
         threads = []
         for i in range(num_threads):
             thread = threading.Thread(target=add_intervals_worker, args=(i,))
@@ -346,14 +341,8 @@ class TestUniverseStateManagerRollingCache:
         assert history == []
 
         # Test adding None interval (should handle gracefully)
-        try:
-            universe_state_manager.add_interval_to_rolling_cache(1, "1m", None)
-            # Should not crash, but may not add anything
-        except Exception as e:
-            # Some validation error is acceptable
-            assert "interval" in str(e).lower() or "none" in str(e).lower()
-
-        # Test zero rolling window - some implementations may keep at least 1 interval
+        universe_state_manager.add_interval_to_rolling_cache(1, "1m", None)
+        # Should not crash, but may not add anything
         universe_state_manager.rolling_window = 0
         interval = InstrumentInterval(
             instrument_id=1,
@@ -475,13 +464,8 @@ class TestUniverseStateManagerDatabaseIntegration:
         )
 
         # Should handle database errors gracefully
-        try:
-            duration_to_state = {"1m": universe_state}
-            await universe_state_manager_with_dao.addUniverseState(duration_to_state, datetime(2025, 7, 1, 10, 0, 0))
-        except Exception as e:
-            # Some error handling is expected
-            assert "database" in str(e).lower() or "error" in str(e).lower()
-
+        duration_to_state = {"1m": universe_state}
+        await universe_state_manager_with_dao.addUniverseState(duration_to_state, datetime(2025, 7, 1, 10, 0, 0))
     async def test_cache_database_consistency(self, universe_state_manager_with_dao, sample_instrument_intervals):
         """Test consistency between cache and database operations."""
         # Add intervals to rolling cache

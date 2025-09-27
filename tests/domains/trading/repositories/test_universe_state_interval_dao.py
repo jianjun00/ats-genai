@@ -1,10 +1,10 @@
 import pytest
 from datetime import datetime, timedelta
 
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
-from state.universe_state import UniverseStateInterval
-from core.calendars.time_duration import TimeDuration
+from domains.trading.services.state.universe_state import UniverseStateInterval
+from core.business.calendars.time_duration import TimeDuration
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -23,7 +23,7 @@ async def test_universe_state_interval_dao_roundtrip(unit_test_db):
     end_date_time = start_date_time + timedelta(minutes=5)
 
     # Create a UniverseStateInterval
-    from state.instrument_interval import InstrumentInterval
+    from domains.trading.services.state.instrument_interval import InstrumentInterval
     interval = UniverseStateInterval(
         universe_id=universe_id,
         duration=duration,

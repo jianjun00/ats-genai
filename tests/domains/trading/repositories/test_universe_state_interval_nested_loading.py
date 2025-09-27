@@ -1,11 +1,11 @@
 import pytest
 from datetime import datetime, timedelta
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
-from state.universe_state import UniverseStateInterval
-from state.instrument_interval import InstrumentInterval
-from core.calendars.time_duration import TimeDuration
+from domains.trading.services.state.universe_state import UniverseStateInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
+from core.business.calendars.time_duration import TimeDuration
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

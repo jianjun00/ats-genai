@@ -17,16 +17,11 @@ async def main():
     migration_manager = MigrationManager(db_url)
 
     print("🚀 Running database migrations for integration environment...")
-    try:
-        success = await migration_manager.migrate_to_latest()
-        if success:
-            print("✅ Integration migrations completed successfully")
-        else:
-            print("❌ Integration migration failed")
-            sys.exit(1)
-    except Exception as e:
-        print(f"❌ Integration migration failed: {e}")
+    success = await migration_manager.migrate_to_latest()
+    if success:
+        print("✅ Integration migrations completed successfully")
+    else:
+        print("❌ Integration migration failed")
         sys.exit(1)
-
 if __name__ == "__main__":
     asyncio.run(main())

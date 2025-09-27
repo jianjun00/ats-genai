@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.analytics.services.analytics_service import AnalyticsService
-from domains.analytics.dao.analytics_dao import AnalyticsDAO
-from infrastructure.web.analytics_service import AnalyticsWebService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService
+from domains.analytics.repositories.events_dao import EventsDAO
+from infrastructure.web.analytics_service_fail_fast import AnalyticsServiceError as AnalyticsWebService
 
 
 class TestRealObjectsEarningsQualityMonitor:
@@ -36,12 +31,12 @@ class TestRealObjectsEarningsQualityMonitor:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return AnalyticsDAO(test_environment)  # Real DAO integration needed
+        # return EventsDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
         """Real service implementation"""
-        return AnalyticsService(test_environment)
+        return UnifiedAnalyticsService(test_environment)
     
     @pytest.fixture
     async def test_data(self, real_dao):
@@ -56,13 +51,7 @@ class TestRealObjectsEarningsQualityMonitor:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_eps_coverage_calculation_real_objects(self, real_service, test_data):
         """Real objects version of test_eps_coverage_calculation"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.eps_coverage_calculation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.eps_coverage_calculation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_health_assessment_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_health_assessment"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_health_assessment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_health_assessment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_quality_threshold_evaluation_real_objects(self, real_service, test_data):
         """Real objects version of test_quality_threshold_evaluation"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.quality_threshold_evaluation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.quality_threshold_evaluation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_quality_report_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_quality_report_generation"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.quality_report_generation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.quality_report_generation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_alert_generation_logic_real_objects(self, real_service, test_data):
         """Real objects version of test_alert_generation_logic"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.alert_generation_logic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.alert_generation_logic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_quality_score_calculation_real_objects(self, real_service, test_data):
         """Real objects version of test_quality_score_calculation"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.quality_score_calculation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.quality_score_calculation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_coverage_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_coverage_edge_cases"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.coverage_edge_cases_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.coverage_edge_cases_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_continuous_monitoring_simulation_real_objects(self, real_service, test_data):
         """Real objects version of test_continuous_monitoring_simulation"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.continuous_monitoring_simulation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.continuous_monitoring_simulation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_monitoring_configuration_real_objects(self, real_service, test_data):
         """Real objects version of test_monitoring_configuration"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.monitoring_configuration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.monitoring_configuration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_monitoring_report_serialization_real_objects(self, real_service, test_data):
         """Real objects version of test_monitoring_report_serialization"""
         # Test with real database integration
@@ -275,15 +210,8 @@ class TestRealObjectsEarningsQualityMonitor:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.monitoring_report_serialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.monitoring_report_serialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

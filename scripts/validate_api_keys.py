@@ -30,18 +30,14 @@ def validate_polygon_api(api_key):
         'apikey': api_key
     }
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('status') == 'ERROR':
-                return False, f"API Error: {data.get('error', 'Unknown error')}"
-            return True, f"OK - Status: {data.get('status', 'Unknown')}"
-        else:
-            return False, f"HTTP {response.status_code}: {response.text[:100]}"
-    except Exception as e:
-        return False, f"Exception: {str(e)}"
-
+    response = requests.get(url, params=params, timeout=10)
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('status') == 'ERROR':
+            return False, f"API Error: {data.get('error', 'Unknown error')}"
+        return True, f"OK - Status: {data.get('status', 'Unknown')}"
+    else:
+        return False, f"HTTP {response.status_code}: {response.text[:100]}"
 def validate_tiingo_api(api_key):
     """Validate Tiingo API key"""
     url = f"https://api.tiingo.com/tiingo/daily/AAPL/prices"
@@ -50,18 +46,14 @@ def validate_tiingo_api(api_key):
         'token': api_key
     }
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            return True, f"OK - Returned {len(data)} records"
-        elif response.status_code == 403:
-            return False, f"HTTP 403: Invalid token or access denied"
-        else:
-            return False, f"HTTP {response.status_code}: {response.text[:100]}"
-    except Exception as e:
-        return False, f"Exception: {str(e)}"
-
+    response = requests.get(url, params=params, timeout=10)
+    if response.status_code == 200:
+        data = response.json()
+        return True, f"OK - Returned {len(data)} records"
+    elif response.status_code == 403:
+        return False, f"HTTP 403: Invalid token or access denied"
+    else:
+        return False, f"HTTP {response.status_code}: {response.text[:100]}"
 def validate_eodhd_api(api_key):
     """Validate EODHD API key"""
     # Use timestamp format for EODHD
@@ -77,38 +69,30 @@ def validate_eodhd_api(api_key):
         'fmt': 'json'
     }
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, dict) and 'errors' in data:
-                return False, f"API Error: {data['errors']}"
-            return True, f"OK - Returned {len(data) if isinstance(data, list) else 'data'}"
-        elif response.status_code == 422:
-            # 422 is expected for some time periods
-            return True, "OK - 422 expected for some time periods"
-        else:
-            return False, f"HTTP {response.status_code}: {response.text[:100]}"
-    except Exception as e:
-        return False, f"Exception: {str(e)}"
-
+    response = requests.get(url, params=params, timeout=10)
+    if response.status_code == 200:
+        data = response.json()
+        if isinstance(data, dict) and 'errors' in data:
+            return False, f"API Error: {data['errors']}"
+        return True, f"OK - Returned {len(data) if isinstance(data, list) else 'data'}"
+    elif response.status_code == 422:
+        # 422 is expected for some time periods
+        return True, "OK - 422 expected for some time periods"
+    else:
+        return False, f"HTTP {response.status_code}: {response.text[:100]}"
 def validate_fmp_api(api_key):
     """Validate Financial Modeling Prep API key"""
     url = f"https://financialmodelingprep.com/api/v3/profile/AAPL"
     params = {'apikey': api_key}
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, list) and len(data) > 0:
-                return True, f"OK - Profile data returned"
-            return False, "Empty response"
-        else:
-            return False, f"HTTP {response.status_code}: {response.text[:100]}"
-    except Exception as e:
-        return False, f"Exception: {str(e)}"
-
+    response = requests.get(url, params=params, timeout=10)
+    if response.status_code == 200:
+        data = response.json()
+        if isinstance(data, list) and len(data) > 0:
+            return True, f"OK - Profile data returned"
+        return False, "Empty response"
+    else:
+        return False, f"HTTP {response.status_code}: {response.text[:100]}"
 def validate_alpha_vantage_api(api_key):
     """Validate Alpha Vantage API key"""
     url = "https://www.alphavantage.co/query"
@@ -118,22 +102,18 @@ def validate_alpha_vantage_api(api_key):
         'apikey': api_key
     }
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if 'Error Message' in data:
-                return False, f"API Error: {data['Error Message']}"
-            elif 'Note' in data:
-                return False, f"Rate Limited: {data['Note']}"
-            elif 'Global Quote' in data:
-                return True, "OK - Global quote returned"
-            return False, f"Unexpected response: {data}"
-        else:
-            return False, f"HTTP {response.status_code}: {response.text[:100]}"
-    except Exception as e:
-        return False, f"Exception: {str(e)}"
-
+    response = requests.get(url, params=params, timeout=10)
+    if response.status_code == 200:
+        data = response.json()
+        if 'Error Message' in data:
+            return False, f"API Error: {data['Error Message']}"
+        elif 'Note' in data:
+            return False, f"Rate Limited: {data['Note']}"
+        elif 'Global Quote' in data:
+            return True, "OK - Global quote returned"
+        return False, f"Unexpected response: {data}"
+    else:
+        return False, f"HTTP {response.status_code}: {response.text[:100]}"
 def main():
     """Validate all API keys"""
     validators = {

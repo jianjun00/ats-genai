@@ -48,45 +48,37 @@ async def run_daily_download(
     logger.info(f"🚀 Starting FirstRate daily download job for {run_date}")
     logger.info(f"📊 Asset types: {asset_types}")
 
-    try:
-        # Create download jobs
-        jobs = [DownloadJob(asset_type=asset_type) for asset_type in asset_types]
+    # Create download jobs
+    jobs = [DownloadJob(asset_type=asset_type) for asset_type in asset_types]
 
-        # Create downloader
-        downloader = FirstRateDownloader()
+    # Create downloader
+    downloader = FirstRateDownloader()
 
-        # Run download
-        results = await downloader.download_daily_data(jobs, download_date)
+    # Run download
+    results = await downloader.download_daily_data(jobs, download_date)
 
-        # Cleanup old files
-        total_cleaned = 0
-        if cleanup_days > 0:
-            logger.info(f"🧹 Cleaning up files older than {cleanup_days} days")
-            for asset_type in asset_types:
-                cleaned = downloader.cleanup_old_files(asset_type, cleanup_days)
-                total_cleaned += cleaned
+    # Cleanup old files
+    total_cleaned = 0
+    if cleanup_days > 0:
+        logger.info(f"🧹 Cleaning up files older than {cleanup_days} days")
+        for asset_type in asset_types:
+            cleaned = downloader.cleanup_old_files(asset_type, cleanup_days)
+            total_cleaned += cleaned
 
-        # Summary
-        successful = sum(1 for success in results.values() if success)
-        total = len(results)
+    # Summary
+    successful = sum(1 for success in results.values() if success)
+    total = len(results)
 
-        if successful == total:
-            logger.info(f"✅ Daily download completed successfully: {successful}/{total} asset types")
-            logger.info(f"📁 Files stored in: /mnt/d/ats-data/firstrate-data/daily/")
-            if total_cleaned > 0:
-                logger.info(f"🧹 Cleaned up {total_cleaned} old files")
-            return True
-        else:
-            logger.error(f"❌ Daily download partially failed: {successful}/{total} successful")
-            logger.error(f"Failed asset types: {[k for k, v in results.items() if not v]}")
-            return False
-
-    except Exception as e:
-        logger.error(f"💥 Daily download job failed: {e}")
-        import traceback
-        logger.debug(traceback.format_exc())
+    if successful == total:
+        logger.info(f"✅ Daily download completed successfully: {successful}/{total} asset types")
+        logger.info(f"📁 Files stored in: /mnt/d/ats-data/firstrate-data/daily/")
+        if total_cleaned > 0:
+            logger.info(f"🧹 Cleaned up {total_cleaned} old files")
+        return True
+    else:
+        logger.error(f"❌ Daily download partially failed: {successful}/{total} successful")
+        logger.error(f"Failed asset types: {[k for k, v in results.items() if not v]}")
         return False
-
 
 def main():
     """Main function with CLI argument parsing."""
@@ -141,33 +133,18 @@ Examples:
     # Parse date if provided
     download_date = None
     if args.date:
-        try:
-            download_date = datetime.strptime(args.date, '%Y-%m-%d').date()
-        except ValueError:
-            print(f"❌ Invalid date format: {args.date} (use YYYY-MM-DD)")
-            return 1
-
-    # Set cleanup days
+        download_date = datetime.strptime(args.date, '%Y-%m-%d').date()
     cleanup_days = 0 if args.no_cleanup else args.cleanup_days
 
     # Run the job
-    try:
-        success = asyncio.run(run_daily_download(
-            asset_types=asset_types,
-            download_date=download_date,
-            cleanup_days=cleanup_days,
-            debug=args.debug
-        ))
+    success = asyncio.run(run_daily_download(
+        asset_types=asset_types,
+        download_date=download_date,
+        cleanup_days=cleanup_days,
+        debug=args.debug
+    ))
 
-        return 0 if success else 1
-
-    except KeyboardInterrupt:
-        print("❌ Download interrupted by user")
-        return 1
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        return 1
-
+    return 0 if success else 1
 
 if __name__ == "__main__":
     exit_code = main()

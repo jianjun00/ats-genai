@@ -101,12 +101,7 @@ class TestInstrumentIntervalScalarConversion:
                 return float(value)
             else:
                 # Try to convert to float
-                try:
-                    return float(value)
-                except (ValueError, TypeError):
-                    return default
-
-        # Test with various inputs
+                return float(value)
         assert safe_scalar_conversion(299.45) == 299.45
         assert safe_scalar_conversion(pd.Series([299.45, 300.0])) == 299.45
         assert safe_scalar_conversion(np.array([299.45, 300.0])) == 299.45

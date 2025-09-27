@@ -144,17 +144,13 @@ class VolumeProfileMonitor:
                 # Update advanced profiles
                 advanced_results = {}
                 for profile_type, profile in self.advanced_profiles[symbol][timeframe].items():
-                    try:
-                        profile.update(intervals)
-                        advanced_results[profile_type] = {
-                            'poc': getattr(profile, 'latest_poc', None),
-                            'vah': getattr(profile, 'latest_vah', None),
-                            'val': getattr(profile, 'latest_val', None),
-                            'status': getattr(profile, 'status', 'unknown')
-                        }
-                    except Exception as e:
-                        advanced_results[profile_type] = {'error': str(e)}
-
+                    profile.update(intervals)
+                    advanced_results[profile_type] = {
+                        'poc': getattr(profile, 'latest_poc', None),
+                        'vah': getattr(profile, 'latest_vah', None),
+                        'val': getattr(profile, 'latest_val', None),
+                        'status': getattr(profile, 'status', 'unknown')
+                    }
                 results[symbol][timeframe] = {
                     'standard': vp_result,
                     'advanced': advanced_results,
@@ -311,85 +307,70 @@ class VolumeProfileMonitor:
         """Run monitoring cycles."""
         print(f"🚀 Starting Volume Profile monitoring ({cycles} cycles, {interval}s interval)")
 
-        try:
-            for cycle in range(cycles):
-                print(f"\n{'='*20} CYCLE {cycle + 1}/{cycles} {'='*20}")
+        for cycle in range(cycles):
+            print(f"\n{'='*20} CYCLE {cycle + 1}/{cycles} {'='*20}")
 
-                # Update Volume Profiles
-                results = self.update_volume_profiles()
+            # Update Volume Profiles
+            results = self.update_volume_profiles()
 
-                # Generate analysis
-                analysis = self.generate_market_analysis(results)
+            # Generate analysis
+            analysis = self.generate_market_analysis(results)
 
-                # Display dashboard
-                self.print_dashboard(results, analysis)
+            # Display dashboard
+            self.print_dashboard(results, analysis)
 
-                # Save results to file
-                output_file = f"/tmp/volume_profile_monitor_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-                with open(output_file, 'w') as f:
-                    combined_results = {
-                        'volume_profiles': results,
-                        'analysis': analysis,
-                        'metadata': {
-                            'cycle': cycle + 1,
-                            'total_cycles': cycles,
-                            'symbols': self.symbols,
-                            'timeframes': self.timeframes
-                        }
+            # Save results to file
+            output_file = f"/tmp/volume_profile_monitor_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            with open(output_file, 'w') as f:
+                combined_results = {
+                    'volume_profiles': results,
+                    'analysis': analysis,
+                    'metadata': {
+                        'cycle': cycle + 1,
+                        'total_cycles': cycles,
+                        'symbols': self.symbols,
+                        'timeframes': self.timeframes
                     }
-                    json.dump(combined_results, f, indent=2, default=str)
+                }
+                json.dump(combined_results, f, indent=2, default=str)
 
-                print(f"\n💾 Results saved to: {output_file}")
+            print(f"\n💾 Results saved to: {output_file}")
 
-                if cycle < cycles - 1:
-                    print(f"\n⏳ Waiting {interval} seconds until next cycle...")
-                    import time
-                    time.sleep(interval)
-
-        except KeyboardInterrupt:
-            print(f"\n\n🛑 Monitoring stopped by user")
-        except Exception as e:
-            print(f"\n❌ Error during monitoring: {e}")
-            import traceback
-            traceback.print_exc()
+            if cycle < cycles - 1:
+                print(f"\n⏳ Waiting {interval} seconds until next cycle...")
+                import time
+                time.sleep(interval)
 
     def run_validation_test(self):
         """Run validation test to ensure system works correctly."""
         print("🧪 Running Volume Profile validation test...")
 
-        try:
-            # Test data generation
-            test_data = self.generate_realistic_market_data('AAPL', 50)
-            assert len(test_data) == 50, "Data generation failed"
-            print("✅ Market data generation: PASS")
+        # Test data generation
+        test_data = self.generate_realistic_market_data('AAPL', 50)
+        assert len(test_data) == 50, "Data generation failed"
+        print("✅ Market data generation: PASS")
 
-            # Test Volume Profile calculation
-            intervals = self.create_mock_intervals(test_data)
-            test_vp = VolumeProfile(period=20, bin_count=30)
-            test_vp.update(intervals)
+        # Test Volume Profile calculation
+        intervals = self.create_mock_intervals(test_data)
+        test_vp = VolumeProfile(period=20, bin_count=30)
+        test_vp.update(intervals)
 
-            assert test_vp.status == 'ok', f"Volume Profile calculation failed: {test_vp.status}"
-            assert test_vp.latest_poc is not None, "POC calculation failed"
-            print("✅ Volume Profile calculation: PASS")
+        assert test_vp.status == 'ok', f"Volume Profile calculation failed: {test_vp.status}"
+        assert test_vp.latest_poc is not None, "POC calculation failed"
+        print("✅ Volume Profile calculation: PASS")
 
-            # Test full monitoring cycle
-            results = self.update_volume_profiles()
-            assert len(results) == len(self.symbols), "Monitoring update failed"
-            print("✅ Full monitoring cycle: PASS")
+        # Test full monitoring cycle
+        results = self.update_volume_profiles()
+        assert len(results) == len(self.symbols), "Monitoring update failed"
+        print("✅ Full monitoring cycle: PASS")
 
-            # Test analysis generation
-            analysis = self.generate_market_analysis(results)
-            assert 'summary' in analysis, "Analysis generation failed"
-            print("✅ Market analysis generation: PASS")
+        # Test analysis generation
+        analysis = self.generate_market_analysis(results)
+        assert 'summary' in analysis, "Analysis generation failed"
+        print("✅ Market analysis generation: PASS")
 
-            print("🎉 All validation tests PASSED!")
-            return True
-
-        except Exception as e:
-            print(f"❌ Validation test FAILED: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        print("🎉 All validation tests PASSED!")
+        return True
 
 def main():
     parser = argparse.ArgumentParser(description="Volume Profile Monitoring Dashboard")

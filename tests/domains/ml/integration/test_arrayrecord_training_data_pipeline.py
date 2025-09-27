@@ -296,14 +296,9 @@ class TestArrayRecordTrainingDataPipeline:
             mock_conn.side_effect = Exception("Database connection failed")
 
             # Should handle the error gracefully
-            try:
-                symbol = manager._get_symbol_from_instrument_id(999)
-                assert symbol is None or isinstance(symbol, str)
-                print("✅ Database error handled gracefully")
-            except Exception as e:
-                # Should not propagate unhandled database errors
-                assert False, f"Database error not properly handled: {e}"
-
+            symbol = manager._get_symbol_from_instrument_id(999)
+            assert symbol is None or isinstance(symbol, str)
+            print("✅ Database error handled gracefully")
     def test_end_to_end_pipeline_integration(self, temp_data_dir, mock_config):
         """
         Complete end-to-end integration test of the training data pipeline.

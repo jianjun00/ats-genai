@@ -205,54 +205,49 @@ class DailyPricesValidator:
 
     async def export_prometheus_metrics(self, metrics_list: List[ValidationMetrics]) -> bool:
         """Export validation metrics to Prometheus pushgateway"""
-        try:
-            import requests
+        import requests
 
-            # Build Prometheus metrics format
-            prometheus_metrics = []
-            timestamp = int(datetime.now().timestamp() * 1000)
+        # Build Prometheus metrics format
+        prometheus_metrics = []
+        timestamp = int(datetime.now().timestamp() * 1000)
 
-            for metrics in metrics_list:
-                vendor = metrics.vendor
+        for metrics in metrics_list:
+            vendor = metrics.vendor
 
-                # Missing prices metrics
-                prometheus_metrics.extend([
-                    f'ats_daily_prices_missing_count{{vendor="{vendor}",environment="intg"}} {metrics.missing_prices} {timestamp}',
-                    f'ats_daily_prices_missing_percentage{{vendor="{vendor}",environment="intg"}} {metrics.missing_percentage:.2f} {timestamp}',
-                    f'ats_daily_prices_expected_total{{vendor="{vendor}",environment="intg"}} {metrics.total_expected_prices} {timestamp}',
-                ])
+            # Missing prices metrics
+            prometheus_metrics.extend([
+                f'ats_daily_prices_missing_count{{vendor="{vendor}",environment="intg"}} {metrics.missing_prices} {timestamp}',
+                f'ats_daily_prices_missing_percentage{{vendor="{vendor}",environment="intg"}} {metrics.missing_percentage:.2f} {timestamp}',
+                f'ats_daily_prices_expected_total{{vendor="{vendor}",environment="intg"}} {metrics.total_expected_prices} {timestamp}',
+            ])
 
-                # Abnormal prices metrics
-                prometheus_metrics.extend([
-                    f'ats_daily_prices_abnormal_count{{vendor="{vendor}",environment="intg"}} {metrics.abnormal_prices} {timestamp}',
-                    f'ats_daily_prices_abnormal_percentage{{vendor="{vendor}",environment="intg"}} {metrics.abnormal_percentage:.2f} {timestamp}',
-                    f'ats_daily_prices_negative_count{{vendor="{vendor}",environment="intg"}} {metrics.negative_prices} {timestamp}',
-                    f'ats_daily_prices_zero_volume_count{{vendor="{vendor}",environment="intg"}} {metrics.zero_volume_prices} {timestamp}',
-                    f'ats_daily_prices_price_spike_count{{vendor="{vendor}",environment="intg"}} {metrics.price_spike_prices} {timestamp}',
-                ])
+            # Abnormal prices metrics
+            prometheus_metrics.extend([
+                f'ats_daily_prices_abnormal_count{{vendor="{vendor}",environment="intg"}} {metrics.abnormal_prices} {timestamp}',
+                f'ats_daily_prices_abnormal_percentage{{vendor="{vendor}",environment="intg"}} {metrics.abnormal_percentage:.2f} {timestamp}',
+                f'ats_daily_prices_negative_count{{vendor="{vendor}",environment="intg"}} {metrics.negative_prices} {timestamp}',
+                f'ats_daily_prices_zero_volume_count{{vendor="{vendor}",environment="intg"}} {metrics.zero_volume_prices} {timestamp}',
+                f'ats_daily_prices_price_spike_count{{vendor="{vendor}",environment="intg"}} {metrics.price_spike_prices} {timestamp}',
+            ])
 
-            # Overall validation timestamp
-            prometheus_metrics.append(f'ats_daily_prices_validation_timestamp{{environment="intg"}} {timestamp}')
+        # Overall validation timestamp
+        prometheus_metrics.append(f'ats_daily_prices_validation_timestamp{{environment="intg"}} {timestamp}')
 
-            # Push to Prometheus gateway
-            metrics_payload = '\n'.join(prometheus_metrics) + '\n'
+        # Push to Prometheus gateway
+        metrics_payload = '\n'.join(prometheus_metrics) + '\n'
 
-            response = requests.post(
-                f"{self.prometheus_gateway_url}/metrics/job/ats-daily-prices-validation/instance/intg",
-                headers={'Content-Type': 'text/plain; version=0.0.4'},
-                data=metrics_payload,
-                timeout=10
-            )
+        response = requests.post(
+            f"{self.prometheus_gateway_url}/metrics/job/ats-daily-prices-validation/instance/intg",
+            headers={'Content-Type': 'text/plain; version=0.0.4'},
+            data=metrics_payload,
+            timeout=10
+        )
 
-            if response.status_code == 200:
-                self.logger.info(f"✅ Successfully exported {len(prometheus_metrics)} metrics to Prometheus")
-                return True
-            else:
-                self.logger.error(f"❌ Failed to export metrics to Prometheus: {response.status_code} {response.text}")
-                return False
-
-        except Exception as e:
-            self.logger.error(f"❌ Error exporting Prometheus metrics: {e}")
+        if response.status_code == 200:
+            self.logger.info(f"✅ Successfully exported {len(prometheus_metrics)} metrics to Prometheus")
+            return True
+        else:
+            self.logger.error(f"❌ Failed to export metrics to Prometheus: {response.status_code} {response.text}")
             return False
 
     async def run_validation(self, days: int = 90) -> List[ValidationMetrics]:
@@ -261,14 +256,8 @@ class DailyPricesValidator:
 
         metrics_list = []
         for vendor in self.vendors:
-            try:
-                metrics = await self.validate_vendor_prices(vendor, days)
-                metrics_list.append(metrics)
-            except Exception as e:
-                self.logger.error(f"❌ Failed to validate {vendor} prices: {e}")
-                continue
-
-        # Export metrics to Prometheus
+            metrics = await self.validate_vendor_prices(vendor, days)
+            metrics_list.append(metrics)
         export_success = await self.export_prometheus_metrics(metrics_list)
 
         # Summary
@@ -310,41 +299,33 @@ async def main():
     if args.universe_id:
         logger.info(f"🌌 Universe filter: {args.universe_id}")
 
-    try:
-        # Initialize validator
-        validator = DailyPricesValidator(universe_id=args.universe_id)
+    # Initialize validator
+    validator = DailyPricesValidator(universe_id=args.universe_id)
 
-        if args.dry_run:
-            logger.info("🧪 DRY RUN: Running validation without metrics export")
-            # Override export method for dry run
-            async def dry_run_export(metrics):
-                logger.info("🧪 DRY RUN: Would export metrics to Prometheus")
-                return True
-            validator.export_prometheus_metrics = dry_run_export
+    if args.dry_run:
+        logger.info("🧪 DRY RUN: Running validation without metrics export")
+        # Override export method for dry run
+        async def dry_run_export(metrics):
+            logger.info("🧪 DRY RUN: Would export metrics to Prometheus")
+            return True
+        validator.export_prometheus_metrics = dry_run_export
 
-        # Run validation
-        metrics_list = await validator.run_validation(days=args.days)
+    # Run validation
+    metrics_list = await validator.run_validation(days=args.days)
 
-        # Print detailed results if debug mode
-        if args.debug:
-            logger.info("📋 Detailed Validation Results:")
-            for metrics in metrics_list:
-                logger.info(f"   📊 {metrics.vendor.upper()}:")
-                logger.info(f"      • Expected: {metrics.total_expected_prices:,} prices")
-                logger.info(f"      • Missing: {metrics.missing_prices:,} ({metrics.missing_percentage:.2f}%)")
-                logger.info(f"      • Abnormal: {metrics.abnormal_prices:,} ({metrics.abnormal_percentage:.2f}%)")
-                logger.info(f"      • Negative: {metrics.negative_prices:,}")
-                logger.info(f"      • Zero Volume: {metrics.zero_volume_prices:,}")
-                logger.info(f"      • Price Spikes: {metrics.price_spike_prices:,}")
+    # Print detailed results if debug mode
+    if args.debug:
+        logger.info("📋 Detailed Validation Results:")
+        for metrics in metrics_list:
+            logger.info(f"   📊 {metrics.vendor.upper()}:")
+            logger.info(f"      • Expected: {metrics.total_expected_prices:,} prices")
+            logger.info(f"      • Missing: {metrics.missing_prices:,} ({metrics.missing_percentage:.2f}%)")
+            logger.info(f"      • Abnormal: {metrics.abnormal_prices:,} ({metrics.abnormal_percentage:.2f}%)")
+            logger.info(f"      • Negative: {metrics.negative_prices:,}")
+            logger.info(f"      • Zero Volume: {metrics.zero_volume_prices:,}")
+            logger.info(f"      • Price Spikes: {metrics.price_spike_prices:,}")
 
-        logger.info("✅ Daily prices validation completed successfully")
-
-    except Exception as e:
-        logger.error(f"❌ Daily prices validation failed: {e}")
-        if args.debug:
-            import traceback
-            logger.error(f"📋 Full traceback: {traceback.format_exc()}")
-        sys.exit(1)
+    logger.info("✅ Daily prices validation completed successfully")
 
 if __name__ == "__main__":
     asyncio.run(main())

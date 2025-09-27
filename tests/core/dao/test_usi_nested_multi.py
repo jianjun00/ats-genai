@@ -1,15 +1,15 @@
 import pytest
 from datetime import datetime, timedelta
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
 from domains.trading.repositories.factor_interval_dao import FactorIntervalDAO
 from domains.instruments.repositories.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
-from state.universe_state import UniverseStateInterval
-from state.instrument_interval import InstrumentInterval
-from state.factor_interval import FactorInterval
-from state.indicator_interval import IndicatorInterval
-from core.calendars.time_duration import TimeDuration
+from domains.trading.services.state.universe_state import UniverseStateInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
+from domains.trading.services.state.factor_interval import FactorInterval
+from domains.trading.services.state.indicator_interval import IndicatorInterval
+from core.business.calendars.time_duration import TimeDuration
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -28,18 +28,18 @@ async def test_universe_state_interval_nested_multi(unit_test_db):
     end_date_time = start_date_time + timedelta(days=1)
 
     # Insert parent UniverseStateInterval
-    usi_id = await usi_core.dao.create(universe_id, duration.get_duration_string(), start_date_time, end_date_time)
+    usi_id = await usi_dao.create(universe_id, duration.get_duration_string(), start_date_time, end_date_time)
 
     # Insert two InstrumentIntervals
     for iid in instrument_ids:
-        await instr_core.dao.create(
+        await instr_dao.create(
             usi_id,
             iid,
             100.0 + iid, 110.0 + iid, 90.0 + iid, 105.0 + iid, 1000.0 + iid, 105000.0 + iid, "ok", 1e9 + iid
         )
 
     # Insert FactorInterval
-    await factor_core.dao.create(
+    await factor_dao.create(
         usi_id,
         str(factor_id),
         123.45
@@ -47,14 +47,14 @@ async def test_universe_state_interval_nested_multi(unit_test_db):
 
     # Insert InstrumentIndicatorInterval for one instrument
     # Find the instrument_interval_id for instrument_ids[0]
-    instr_intervals = await instr_core.dao.list(usi_id)
+    instr_intervals = await instr_dao.list(usi_id)
     instr_interval_id = None
     for row in instr_intervals:
         if row['instrument_id'] == instrument_ids[0]:
             instr_interval_id = row['id']
             break
     assert instr_interval_id is not None, "InstrumentInterval not found for instrument_ids[0]"
-    await indicator_core.dao.create(
+    await indicator_dao.create(
         instr_interval_id,
         str(indicator_id),
         7.89,
@@ -62,7 +62,7 @@ async def test_universe_state_interval_nested_multi(unit_test_db):
     )
 
     # Load via DAO with nested loading
-    loaded = await usi_core.dao.async_load_row_to_interval({
+    loaded = await usi_dao.async_load_row_to_interval({
         'id': usi_id,
         'universe_id': universe_id,
         'duration': duration.get_duration_string(),

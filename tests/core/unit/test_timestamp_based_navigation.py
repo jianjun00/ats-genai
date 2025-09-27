@@ -25,7 +25,7 @@ class TestTimestampBasedNavigation(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.mock_db = Mock()
-        self.analytics_service = UnifiedAnalyticsService(db_manager=self.mock_db)
+        self.analytics_service = UnifiedUnifiedAnalyticsService(db_manager=self.mock_db)
 
         # Sample 1-hour data for testing
         self.sample_1h_data = [

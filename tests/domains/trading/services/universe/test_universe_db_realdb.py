@@ -2,7 +2,7 @@ import pytest
 import asyncpg
 from datetime import date
 from domains.trading.services.universe_db import UniverseDB
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.services.universe_manager import UniverseManager
 
 @pytest.mark.asyncio
@@ -23,7 +23,7 @@ async def test_add_and_get_universe_members_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
 
     # --- Setup vendor, instrument, and instrument_xref for AAPL ---
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
     vendor_name = "TEST_VENDOR"
@@ -90,7 +90,7 @@ async def test_universe_manager_multiday_multiinstrument_real_db(unit_test_db):
         await conn.execute(f"DELETE FROM {env.get_table_name('universe_membership')}")
         await conn.execute(f"DELETE FROM {env.get_table_name('universe')}")
     # --- Setup vendor, instruments, and instrument_xrefs for test isolation ---
-    from dao.vendors_dao import VendorsDAO
+    from core.dao.infrastructure.vendors_dao import VendorsDAO
     from domains.instruments.repositories.instruments_dao import InstrumentsDAO
     from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 

@@ -15,17 +15,17 @@ from domains.market_data.services.market_cap.unified_market_cap_provider import 
     UnifiedMarketCap,
     MarketCapValidationStatus
 )
-from domains.market_data.services.fundamentals.unified_fundamental_provider import (
+from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import (
     UnifiedFundamental,
     VendorFundamental,
     ValidationStatus as FundamentalValidationStatus
 )
-from domains.market_data.services.eod.unified_daily_price_validator import (
+from domains.trading.services.core.eod.unified_daily_price_validator import (
     UnifiedPrice,
     ValidationResult,
     ValidationStatus as PriceValidationStatus
 )
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 @pytest.fixture

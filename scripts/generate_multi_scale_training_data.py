@@ -71,41 +71,35 @@ async def generate_and_save_to_database(
 
     # Save to database if requested
     if save_to_db:
-        try:
-            env = Environment()
-            dao = TrainingDatasetDAO(env)
+        env = Environment()
+        dao = TrainingDatasetDAO(env)
 
-            metadata = result['metadata']
+        metadata = result['metadata']
 
-            # Create training dataset record
-            record = TrainingDatasetRecord(
-                dataset_name=f"multi_scale_{'_'.join(symbols)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                feature_metadata={
-                    'scales': metadata['scales_used'],
-                    'feature_names': metadata['feature_names'],
-                    'technical_indicators': metadata['technical_indicators'],
-                    'prediction_horizons': metadata['prediction_horizons']
-                },
-                features_shape=metadata['feature_shape'],
-                labels_shape=metadata['label_shape'],
-                dataset_size=metadata['total_sequences'],
-                creation_timestamp=datetime.now(),
-                tfdv_statistics=None,  # Could add TensorFlow Data Validation stats
-                tfdv_anomalies=None,
-                model_performance_baseline=None,
-                model_performance_metadata=metadata
-            )
+        # Create training dataset record
+        record = TrainingDatasetRecord(
+            dataset_name=f"multi_scale_{'_'.join(symbols)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            feature_metadata={
+                'scales': metadata['scales_used'],
+                'feature_names': metadata['feature_names'],
+                'technical_indicators': metadata['technical_indicators'],
+                'prediction_horizons': metadata['prediction_horizons']
+            },
+            features_shape=metadata['feature_shape'],
+            labels_shape=metadata['label_shape'],
+            dataset_size=metadata['total_sequences'],
+            creation_timestamp=datetime.now(),
+            tfdv_statistics=None,  # Could add TensorFlow Data Validation stats
+            tfdv_anomalies=None,
+            model_performance_baseline=None,
+            model_performance_metadata=metadata
+        )
 
-            # Save to database
-            dataset_id = await dao.create_training_dataset(record)
+        # Save to database
+        dataset_id = await dao.create_training_dataset(record)
 
-            logger.info(f"Training dataset saved to database with ID: {dataset_id}")
-            result['dataset_id'] = dataset_id
-
-        except Exception as e:
-            logger.error(f"Failed to save to database: {e}")
-            # Don't fail the entire operation just because DB save failed
-            result['database_error'] = str(e)
+        logger.info(f"Training dataset saved to database with ID: {dataset_id}")
+        result['dataset_id'] = dataset_id
 
     return result
 
@@ -175,72 +169,64 @@ async def main():
         feature_manager.override_flag("enable_event_reflection", True)
         logger.info("Enabled LLM event analysis features via command line")
 
-    try:
-        # Parse scales
-        scales = parse_scales(args.scales)
+    # Parse scales
+    scales = parse_scales(args.scales)
 
-        # Convert symbols to uppercase
-        symbols = [s.upper() for s in args.symbols]
+    # Convert symbols to uppercase
+    symbols = [s.upper() for s in args.symbols]
 
-        # Generate training data
-        result = await generate_and_save_to_database(
-            symbols=symbols,
-            output_dir=args.output_dir,
-            days_back=args.days_back,
-            scales=scales,
-            save_to_db=args.save_to_db
-        )
+    # Generate training data
+    result = await generate_and_save_to_database(
+        symbols=symbols,
+        output_dir=args.output_dir,
+        days_back=args.days_back,
+        scales=scales,
+        save_to_db=args.save_to_db
+    )
 
-        # Print results
-        if result['status'] == 'success':
-            print(f"\n✅ Multi-scale training data generation completed successfully!")
-            print(f"📊 Features shape: {result['features'].shape}")
-            print(f"🎯 Labels shape: {result['labels'].shape}")
-            print(f"⏱️  Generation time: {result['metadata']['generation_time']:.2f}s")
-            print(f"📁 Output directory: {args.output_dir}")
+    # Print results
+    if result['status'] == 'success':
+        print(f"\n✅ Multi-scale training data generation completed successfully!")
+        print(f"📊 Features shape: {result['features'].shape}")
+        print(f"🎯 Labels shape: {result['labels'].shape}")
+        print(f"⏱️  Generation time: {result['metadata']['generation_time']:.2f}s")
+        print(f"📁 Output directory: {args.output_dir}")
 
-            if 'dataset_id' in result:
-                print(f"💾 Database ID: {result['dataset_id']}")
+        if 'dataset_id' in result:
+            print(f"💾 Database ID: {result['dataset_id']}")
 
-            # Print feature summary
-            metadata = result['metadata']
-            print(f"\n📋 Dataset Details:")
-            print(f"  Symbols: {', '.join(metadata['symbols'])}")
-            print(f"  Scales: {', '.join(metadata['scales_used'])}")
-            print(f"  Total sequences: {metadata['total_sequences']:,}")
-            print(f"  Features per sequence: {metadata['feature_shape'][2]}")
-            print(f"  Prediction horizons: {', '.join(metadata['label_names'])}")
+        # Print feature summary
+        metadata = result['metadata']
+        print(f"\n📋 Dataset Details:")
+        print(f"  Symbols: {', '.join(metadata['symbols'])}")
+        print(f"  Scales: {', '.join(metadata['scales_used'])}")
+        print(f"  Total sequences: {metadata['total_sequences']:,}")
+        print(f"  Features per sequence: {metadata['feature_shape'][2]}")
+        print(f"  Prediction horizons: {', '.join(metadata['label_names'])}")
 
-            # Advanced features
-            print(f"\n🚀 Advanced Features:")
-            print(f"  Events: {'✅' if metadata['events_enabled'] else '❌'}")
-            print(f"  Agent features: {'✅' if metadata['agent_features_enabled'] else '❌'}")
-            print(f"  LLM analysis: {'✅' if metadata['llm_analysis_enabled'] else '❌'}")
-            print(f"  Technical indicators: {len(metadata['technical_indicators'])}")
+        # Advanced features
+        print(f"\n🚀 Advanced Features:")
+        print(f"  Events: {'✅' if metadata['events_enabled'] else '❌'}")
+        print(f"  Agent features: {'✅' if metadata['agent_features_enabled'] else '❌'}")
+        print(f"  LLM analysis: {'✅' if metadata['llm_analysis_enabled'] else '❌'}")
+        print(f"  Technical indicators: {len(metadata['technical_indicators'])}")
 
-            # Per-symbol results
-            print(f"\n📈 Per-Symbol Results:")
-            for symbol, symbol_result in metadata['symbol_results'].items():
+        # Per-symbol results
+        print(f"\n📈 Per-Symbol Results:")
+        for symbol, symbol_result in metadata['symbol_results'].items():
+            if 'error' in symbol_result:
+                print(f"  {symbol}: ❌ {symbol_result['error']}")
+            else:
+                print(f"  {symbol}: ✅ {symbol_result['sequences_created']} sequences, "
+                      f"{len(symbol_result['scales'])} scales, {symbol_result['events']} events")
+
+    else:
+        print(f"\n❌ Training data generation failed!")
+        print(f"Error: {result.get('error', 'Unknown error')}")
+        if 'symbol_results' in result:
+            for symbol, symbol_result in result['symbol_results'].items():
                 if 'error' in symbol_result:
-                    print(f"  {symbol}: ❌ {symbol_result['error']}")
-                else:
-                    print(f"  {symbol}: ✅ {symbol_result['sequences_created']} sequences, "
-                          f"{len(symbol_result['scales'])} scales, {symbol_result['events']} events")
-
-        else:
-            print(f"\n❌ Training data generation failed!")
-            print(f"Error: {result.get('error', 'Unknown error')}")
-            if 'symbol_results' in result:
-                for symbol, symbol_result in result['symbol_results'].items():
-                    if 'error' in symbol_result:
-                        print(f"  {symbol}: {symbol_result['error']}")
-
-    except Exception as e:
-        logger.error(f"Script execution failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-
+                    print(f"  {symbol}: {symbol_result['error']}")
 
 if __name__ == "__main__":
     asyncio.run(main())

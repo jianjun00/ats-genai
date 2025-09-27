@@ -127,71 +127,58 @@ class TestInteractiveDatasetTableHTTPAPI:
     async def test_enhanced_datasets_api_endpoint_basic(self, base_url):
         """Test basic enhanced datasets API endpoint"""
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(f"{base_url}/api/v1/datasets")
-                assert response.status_code == 200
+            response = await client.get(f"{base_url}/api/v1/datasets")
+            assert response.status_code == 200
 
-                data = response.json()
-                assert "datasets" in data
-                assert "total" in data
-                assert isinstance(data["datasets"], list)
-                assert isinstance(data["total"], int)
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect to analytics API for integration test")
+            data = response.json()
+            assert "datasets" in data
+            assert "total" in data
+            assert isinstance(data["datasets"], list)
+            assert isinstance(data["total"], int)
 
     @pytest.mark.asyncio
 
     async def test_enhanced_datasets_api_with_query_parameters(self, base_url):
         """Test enhanced datasets API with filtering and sorting parameters"""
         async with httpx.AsyncClient() as client:
-            try:
-                # Test sorting
-                response = await client.get(f"{base_url}/api/v1/datasets?sort_by=dataset_name&sort_dir=asc")
-                assert response.status_code == 200
-                data = response.json()
-                assert "datasets" in data
+            # Test sorting
+            response = await client.get(f"{base_url}/api/v1/datasets?sort_by=dataset_name&sort_dir=asc")
+            assert response.status_code == 200
+            data = response.json()
+            assert "datasets" in data
 
-                # Test filtering
-                response = await client.get(f"{base_url}/api/v1/datasets?symbol_filter=tsla")
-                assert response.status_code == 200
-                data = response.json()
-                assert "datasets" in data
+            # Test filtering
+            response = await client.get(f"{base_url}/api/v1/datasets?symbol_filter=tsla")
+            assert response.status_code == 200
+            data = response.json()
+            assert "datasets" in data
 
-                # Test pagination
-                response = await client.get(f"{base_url}/api/v1/datasets?limit=1&offset=0")
-                assert response.status_code == 200
-                data = response.json()
-                assert len(data["datasets"]) <= 1
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect to analytics API for integration test")
+            # Test pagination
+            response = await client.get(f"{base_url}/api/v1/datasets?limit=1&offset=0")
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["datasets"]) <= 1
 
     @pytest.mark.asyncio
 
     async def test_enhanced_datasets_api_parameter_combinations(self, base_url):
         """Test combinations of enhanced API parameters"""
         async with httpx.AsyncClient() as client:
-            try:
-                # Test multiple parameters together
-                params = {
-                    "limit": 10,
-                    "offset": 0,
-                    "sort_by": "total_sequences",
-                    "sort_dir": "desc",
-                    "symbol_filter": "aapl"
-                }
+            # Test multiple parameters together
+            params = {
+                "limit": 10,
+                "offset": 0,
+                "sort_by": "total_sequences",
+                "sort_dir": "desc",
+                "symbol_filter": "aapl"
+            }
 
-                response = await client.get(f"{base_url}/api/v1/datasets", params=params)
-                assert response.status_code == 200
+            response = await client.get(f"{base_url}/api/v1/datasets", params=params)
+            assert response.status_code == 200
 
-                data = response.json()
-                assert "datasets" in data
-                assert "total" in data
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect to analytics API for integration test")
-
+            data = response.json()
+            assert "datasets" in data
+            assert "total" in data
 
 class TestInteractiveDatasetTableFrontend:
     """Test the frontend interactive table functionality"""
@@ -206,60 +193,51 @@ class TestInteractiveDatasetTableFrontend:
     async def test_web_interface_contains_interactive_dataset_table(self, base_url):
         """Test that web interface includes interactive dataset table elements"""
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(f"{base_url}/")
-                assert response.status_code == 200
+            response = await client.get(f"{base_url}/")
+            assert response.status_code == 200
 
-                html_content = response.text
+            html_content = response.text
 
-                # Verify interactive dataset table elements are present
-                interactive_elements = [
-                    "table-controls",  # Filter and pagination controls
-                    "interactive-table",  # Table styling class
-                    "datasets-table-body",  # Table body ID
-                    "symbol-filter",  # Filter input field
-                    "dataset-limit-select",  # Pagination select
-                    "sortDatasets",  # JavaScript sort function
-                    "refreshDatasets",  # JavaScript refresh function
-                    "Dataset Name",  # Table headers
-                    "Technical Indicators",
-                    "📈 Dataset Visualization"  # Tab button
-                ]
+            # Verify interactive dataset table elements are present
+            interactive_elements = [
+                "table-controls",  # Filter and pagination controls
+                "interactive-table",  # Table styling class
+                "datasets-table-body",  # Table body ID
+                "symbol-filter",  # Filter input field
+                "dataset-limit-select",  # Pagination select
+                "sortDatasets",  # JavaScript sort function
+                "refreshDatasets",  # JavaScript refresh function
+                "Dataset Name",  # Table headers
+                "Technical Indicators",
+                "📈 Dataset Visualization"  # Tab button
+            ]
 
-                for element in interactive_elements:
-                    assert element in html_content, f"Missing interactive element: {element}"
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect to web interface for integration test")
+            for element in interactive_elements:
+                assert element in html_content, f"Missing interactive element: {element}"
 
     @pytest.mark.asyncio
 
     async def test_web_interface_javascript_functions_present(self, base_url):
         """Test that required JavaScript functions are present"""
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(f"{base_url}/")
-                assert response.status_code == 200
+            response = await client.get(f"{base_url}/")
+            assert response.status_code == 200
 
-                html_content = response.text
+            html_content = response.text
 
-                # Verify critical JavaScript functions exist
-                js_functions = [
-                    "sortDatasets(",  # Sort function
-                    "refreshDatasets(",  # Refresh function
-                    "loadDatasets(",  # Load function
-                    "updateDatasetSortIndicators(",  # Sort indicators
-                    "changeDatasetPage(",  # Pagination
-                    "currentDatasetSort",  # Sort state variable
-                    "currentSymbolFilter"  # Filter state variable
-                ]
+            # Verify critical JavaScript functions exist
+            js_functions = [
+                "sortDatasets(",  # Sort function
+                "refreshDatasets(",  # Refresh function
+                "loadDatasets(",  # Load function
+                "updateDatasetSortIndicators(",  # Sort indicators
+                "changeDatasetPage(",  # Pagination
+                "currentDatasetSort",  # Sort state variable
+                "currentSymbolFilter"  # Filter state variable
+            ]
 
-                for js_function in js_functions:
-                    assert js_function in html_content, f"Missing JavaScript function: {js_function}"
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect to web interface for integration test")
-
+            for js_function in js_functions:
+                assert js_function in html_content, f"Missing JavaScript function: {js_function}"
 
 class TestInteractiveDatasetTableRegressionProtection:
     """Tests specifically designed to catch regressions in enhanced functionality"""
@@ -274,90 +252,77 @@ class TestInteractiveDatasetTableRegressionProtection:
     async def test_datasets_api_backwards_compatibility(self, base_url):
         """Ensure old dataset API still works (no parameters)"""
         async with httpx.AsyncClient() as client:
-            try:
-                # Test that basic call without parameters still works
-                response = await client.get(f"{base_url}/api/v1/datasets")
-                assert response.status_code == 200
+            # Test that basic call without parameters still works
+            response = await client.get(f"{base_url}/api/v1/datasets")
+            assert response.status_code == 200
 
-                data = response.json()
+            data = response.json()
 
-                # Verify basic structure is maintained
-                assert "datasets" in data
-                assert "total" in data
+            # Verify basic structure is maintained
+            assert "datasets" in data
+            assert "total" in data
 
-                # Verify dataset objects have required fields
-                if data["datasets"]:
-                    dataset = data["datasets"][0]
-                    legacy_fields = ["dataset_id", "dataset_name", "symbols", "total_sequences"]
-                    for field in legacy_fields:
-                        assert field in dataset, f"Legacy field missing: {field}"
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect to analytics API for integration test")
+            # Verify dataset objects have required fields
+            if data["datasets"]:
+                dataset = data["datasets"][0]
+                legacy_fields = ["dataset_id", "dataset_name", "symbols", "total_sequences"]
+                for field in legacy_fields:
+                    assert field in dataset, f"Legacy field missing: {field}"
 
     @pytest.mark.asyncio
 
     async def test_dataset_table_vs_job_table_consistency(self, base_url):
         """Test that dataset table has similar functionality to job table"""
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(f"{base_url}/")
-                assert response.status_code == 200
+            response = await client.get(f"{base_url}/")
+            assert response.status_code == 200
 
-                html_content = response.text
+            html_content = response.text
 
-                # Both tables should have similar interactive elements
-                common_elements = [
-                    "table-controls",
-                    "interactive-table",
-                    "sort-indicator",
-                    "pagination"
-                ]
+            # Both tables should have similar interactive elements
+            common_elements = [
+                "table-controls",
+                "interactive-table",
+                "sort-indicator",
+                "pagination"
+            ]
 
-                for element in common_elements:
-                    # Should appear at least twice (once for jobs, once for datasets)
-                    assert html_content.count(element) >= 2, f"Element {element} not consistent between tables"
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect to web interface for integration test")
+            for element in common_elements:
+                # Should appear at least twice (once for jobs, once for datasets)
+                assert html_content.count(element) >= 2, f"Element {element} not consistent between tables"
 
     @pytest.mark.asyncio
 
     async def test_critical_user_workflow_preserved(self, base_url):
         """Test the specific workflow the user requested"""
         async with httpx.AsyncClient() as client:
-            try:
-                # User requested: "dataset dashboard where all training datasets are shown in a table with filter and sort"
+            # User requested: "dataset dashboard where all training datasets are shown in a table with filter and sort"
 
-                # 1. Verify datasets are shown in table format
-                response = await client.get(f"{base_url}/")
-                html_content = response.text
-                assert "datasets-table-body" in html_content
-                assert "<th" in html_content  # Table headers present
+            # 1. Verify datasets are shown in table format
+            response = await client.get(f"{base_url}/")
+            html_content = response.text
+            assert "datasets-table-body" in html_content
+            assert "<th" in html_content  # Table headers present
 
-                # 2. Verify filter functionality exists
-                assert "symbol-filter" in html_content
-                assert "Filter by Symbol/Name" in html_content
+            # 2. Verify filter functionality exists
+            assert "symbol-filter" in html_content
+            assert "Filter by Symbol/Name" in html_content
 
-                # 3. Verify sort functionality exists
-                assert "sortDatasets" in html_content
-                assert "sort-indicator" in html_content
+            # 3. Verify sort functionality exists
+            assert "sortDatasets" in html_content
+            assert "sort-indicator" in html_content
 
-                # 4. Test actual API endpoints work
-                datasets_response = await client.get(f"{base_url}/api/v1/datasets")
-                assert datasets_response.status_code == 200
+            # 4. Test actual API endpoints work
+            datasets_response = await client.get(f"{base_url}/api/v1/datasets")
+            assert datasets_response.status_code == 200
 
-                # 5. Test filtering API works
-                filter_response = await client.get(f"{base_url}/api/v1/datasets?symbol_filter=test")
-                assert filter_response.status_code == 200
+            # 5. Test filtering API works
+            filter_response = await client.get(f"{base_url}/api/v1/datasets?symbol_filter=test")
+            assert filter_response.status_code == 200
 
-                # 6. Test sorting API works
-                sort_response = await client.get(f"{base_url}/api/v1/datasets?sort_by=dataset_name&sort_dir=asc")
-                assert sort_response.status_code == 200
-
-            except httpx.ConnectError:
-                pytest.skip("Cannot connect for critical workflow test")
-
+            # 6. Test sorting API works
+            sort_response = await client.get(f"{base_url}/api/v1/datasets?sort_by=dataset_name&sort_dir=asc")
+            assert sort_response.status_code == 200
 
 class TestDatasetTableDataIntegrity:
     """Test that dataset table properly handles real database data"""
@@ -374,38 +339,31 @@ class TestDatasetTableDataIntegrity:
 
     async def test_dataset_table_real_data_compatibility(self, db_connection):
         """Test that enhanced dataset functionality works with real data"""
-        try:
-            # Check if we can query the actual dataset table
-            result = await db_connection.fetchrow("""
-                SELECT dataset_name, symbols, total_sequences, feature_count,
-                       technical_indicators, creation_timestamp, file_size_mb
-                FROM dev_training_dataset
-                LIMIT 1
-            """)
+        # Check if we can query the actual dataset table
+        result = await db_connection.fetchrow("""
+            SELECT dataset_name, symbols, total_sequences, feature_count,
+                   technical_indicators, creation_timestamp, file_size_mb
+            FROM dev_training_dataset
+            LIMIT 1
+        """)
 
-            if result:
-                # Verify the enhanced API can handle this data structure
-                manager = UnifiedAnalyticsManager()
-                await manager.initialize()
+        if result:
+            # Verify the enhanced API can handle this data structure
+            manager = UnifiedAnalyticsManager()
+            await manager.initialize()
 
-                try:
-                    # Test that enhanced functionality works with real data
-                    datasets = await manager.list_datasets(limit=5, sort_by="dataset_name")
-                    assert "datasets" in datasets
-                    assert "total" in datasets
+            # Test that enhanced functionality works with real data
+            datasets = await manager.list_datasets(limit=5, sort_by="dataset_name")
+            assert "datasets" in datasets
+            assert "total" in datasets
 
-                    # Test filtering with real data
-                    if datasets["datasets"]:
-                        first_dataset = datasets["datasets"][0]["dataset_name"]
-                        filtered = await manager.list_datasets(symbol_filter=first_dataset[:4])
-                        assert "datasets" in filtered
+            # Test filtering with real data
+            if datasets["datasets"]:
+                first_dataset = datasets["datasets"][0]["dataset_name"]
+                filtered = await manager.list_datasets(symbol_filter=first_dataset[:4])
+                assert "datasets" in filtered
 
-                finally:
-                    await manager.close()
-
-        except Exception as e:
-            # If we can't connect to real database, test should not fail
-            pytest.skip(f"Cannot test real data compatibility: {e}")
+        pytest.skip(f"Cannot test real data compatibility: {e}")
 
 
 def test_dataset_table_functionality_documentation():

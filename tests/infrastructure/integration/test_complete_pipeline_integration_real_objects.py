@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
@@ -55,13 +49,7 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_uuid_system_consistency_across_pipeline_real_objects(self, real_service, test_data):
         """Real objects version of test_uuid_system_consistency_across_pipeline"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.uuid_system_consistency_across_pipeline_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.uuid_system_consistency_across_pipeline_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_shared_cache_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_shared_cache_integration"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.shared_cache_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.shared_cache_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_timeframe_pipeline_processing_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_timeframe_pipeline_processing"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_timeframe_pipeline_processing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_timeframe_pipeline_processing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_to_end_data_flow_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_end_to_end_data_flow_validation"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_to_end_data_flow_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.end_to_end_data_flow_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_handling_and_recovery_real_objects(self, real_service, test_data):
         """Real objects version of test_error_handling_and_recovery"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_handling_and_recovery_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_handling_and_recovery_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_pipeline_access_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_pipeline_access"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_pipeline_access_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_pipeline_access_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_pipeline_memory_management_real_objects(self, real_service, test_data):
         """Real objects version of test_pipeline_memory_management"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.pipeline_memory_management_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.pipeline_memory_management_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_pipeline_performance_benchmark_real_objects(self, real_service, test_data):
         """Real objects version of test_pipeline_performance_benchmark"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.pipeline_performance_benchmark_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.pipeline_performance_benchmark_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ohlc_data_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_ohlc_data_consistency"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ohlc_data_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ohlc_data_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequence_data_integrity_real_objects(self, real_service, test_data):
         """Real objects version of test_sequence_data_integrity"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequence_data_integrity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sequence_data_integrity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_uuid_consistency_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_uuid_consistency_validation"""
         # Test with real database integration
@@ -296,15 +224,8 @@ class TestRealObjectsCompleteUUIDCacheTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.uuid_consistency_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.uuid_consistency_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

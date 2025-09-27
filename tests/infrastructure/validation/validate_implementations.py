@@ -13,16 +13,11 @@ import importlib.util
 
 def validate_script_import(script_path, module_name):
     """Validate that a script can be imported successfully."""
-    try:
-        spec = importlib.util.spec_from_file_location(module_name, script_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        print(f"✅ {module_name}: Script imports successfully")
-        return module, True
-    except Exception as e:
-        print(f"❌ {module_name}: Import failed - {e}")
-        return None, False
-
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    print(f"✅ {module_name}: Script imports successfully")
+    return module, True
 def validate_tiingo_fundamentals():
     """Validate Tiingo fundamentals implementation."""
     print("\n🔍 Validating Tiingo Fundamentals Implementation...")
@@ -33,45 +28,40 @@ def validate_tiingo_fundamentals():
     if not success:
         return False
 
-    try:
-        # Test class exists and can be instantiated
-        collector_class = getattr(module, 'TiingoFundamentalsCollector')
-        collector = collector_class("test_api_key")
+    # Test class exists and can be instantiated
+    collector_class = getattr(module, 'TiingoFundamentalsCollector')
+    collector = collector_class("test_api_key")
 
-        print(f"✅ TiingoFundamentalsCollector class exists and instantiates")
+    print(f"✅ TiingoFundamentalsCollector class exists and instantiates")
 
-        # Test key attributes
-        assert collector.api_key == "test_api_key"
-        assert collector.base_url == "https://api.tiingo.com/tiingo/fundamentals"
-        assert hasattr(collector, 'stats')
-        print(f"✅ Key attributes configured correctly")
+    # Test key attributes
+    assert collector.api_key == "test_api_key"
+    assert collector.base_url == "https://api.tiingo.com/tiingo/fundamentals"
+    assert hasattr(collector, 'stats')
+    print(f"✅ Key attributes configured correctly")
 
-        # Test DOW 30 symbol restriction
-        assert hasattr(collector, 'get_instruments_for_backfill')
-        print(f"✅ DOW 30 restriction method exists")
+    # Test DOW 30 symbol restriction
+    assert hasattr(collector, 'get_instruments_for_backfill')
+    print(f"✅ DOW 30 restriction method exists")
 
-        # Test API methods exist
-        required_methods = [
-            'fetch_daily_fundamentals',
-            'fetch_statements',
-            'standardize_tiingo_article',
-            'insert_daily_fundamentals',
-            'insert_statements',
-            'ensure_fundamentals_tables'
-        ]
+    # Test API methods exist
+    required_methods = [
+        'fetch_daily_fundamentals',
+        'fetch_statements',
+        'standardize_tiingo_article',
+        'insert_daily_fundamentals',
+        'insert_statements',
+        'ensure_fundamentals_tables'
+    ]
 
-        for method_name in required_methods:
-            if hasattr(collector, method_name):
-                print(f"✅ Method {method_name} exists")
-            else:
-                print(f"❌ Method {method_name} missing")
-                return False
+    for method_name in required_methods:
+        if hasattr(collector, method_name):
+            print(f"✅ Method {method_name} exists")
+        else:
+            print(f"❌ Method {method_name} missing")
+            return False
 
-        return True
-
-    except Exception as e:
-        print(f"❌ TiingoFundamentalsCollector validation failed: {e}")
-        return False
+    return True
 
 def validate_tiingo_news():
     """Validate Tiingo news implementation."""
@@ -83,53 +73,48 @@ def validate_tiingo_news():
     if not success:
         return False
 
-    try:
-        # Test class exists and can be instantiated
-        collector_class = getattr(module, 'TiingoNewsCollector')
-        collector = collector_class("test_api_key")
+    # Test class exists and can be instantiated
+    collector_class = getattr(module, 'TiingoNewsCollector')
+    collector = collector_class("test_api_key")
 
-        print(f"✅ TiingoNewsCollector class exists and instantiates")
+    print(f"✅ TiingoNewsCollector class exists and instantiates")
 
-        # Test key attributes
-        assert collector.api_key == "test_api_key"
-        assert hasattr(collector, 'start_time')
-        assert hasattr(collector, 'total_articles_collected')
-        print(f"✅ Key attributes configured correctly")
+    # Test key attributes
+    assert collector.api_key == "test_api_key"
+    assert hasattr(collector, 'start_time')
+    assert hasattr(collector, 'total_articles_collected')
+    print(f"✅ Key attributes configured correctly")
 
-        # Test critical ID conversion fix
-        test_article = {
-            'id': 83408655,  # Integer ID
-            'publishedDate': '2024-08-27T12:00:00Z',
-            'title': 'Test Article',
-            'url': 'https://example.com'
-        }
+    # Test critical ID conversion fix
+    test_article = {
+        'id': 83408655,  # Integer ID
+        'publishedDate': '2024-08-27T12:00:00Z',
+        'title': 'Test Article',
+        'url': 'https://example.com'
+    }
 
-        standardized = collector.standardize_tiingo_article(test_article)
-        assert standardized['tiingo_id'] == '83408655'  # Should be string
-        assert isinstance(standardized['tiingo_id'], str)
-        print(f"✅ Critical ID conversion fix working (int -> string)")
+    standardized = collector.standardize_tiingo_article(test_article)
+    assert standardized['tiingo_id'] == '83408655'  # Should be string
+    assert isinstance(standardized['tiingo_id'], str)
+    print(f"✅ Critical ID conversion fix working (int -> string)")
 
-        # Test API methods exist
-        required_methods = [
-            'fetch_news_for_symbol_year',
-            'standardize_tiingo_article',
-            'insert_tiingo_news_articles',
-            'ensure_tiingo_news_table',
-            'process_symbol_year_batch'
-        ]
+    # Test API methods exist
+    required_methods = [
+        'fetch_news_for_symbol_year',
+        'standardize_tiingo_article',
+        'insert_tiingo_news_articles',
+        'ensure_tiingo_news_table',
+        'process_symbol_year_batch'
+    ]
 
-        for method_name in required_methods:
-            if hasattr(collector, method_name):
-                print(f"✅ Method {method_name} exists")
-            else:
-                print(f"❌ Method {method_name} missing")
-                return False
+    for method_name in required_methods:
+        if hasattr(collector, method_name):
+            print(f"✅ Method {method_name} exists")
+        else:
+            print(f"❌ Method {method_name} missing")
+            return False
 
-        return True
-
-    except Exception as e:
-        print(f"❌ TiingoNewsCollector validation failed: {e}")
-        return False
+    return True
 
 def validate_news_analysis():
     """Validate news data analysis implementation."""
@@ -141,38 +126,33 @@ def validate_news_analysis():
     if not success:
         return False
 
-    try:
-        # Test class exists and can be instantiated
-        analyzer_class = getattr(module, 'NewsDataAnalyzer')
-        analyzer = analyzer_class()
+    # Test class exists and can be instantiated
+    analyzer_class = getattr(module, 'NewsDataAnalyzer')
+    analyzer = analyzer_class()
 
-        print(f"✅ NewsDataAnalyzer class exists and instantiates")
+    print(f"✅ NewsDataAnalyzer class exists and instantiates")
 
-        # Test vendor configuration
-        assert analyzer.vendors == ['polygon', 'tiingo', 'eodhd']
-        print(f"✅ Multi-vendor configuration correct")
+    # Test vendor configuration
+    assert analyzer.vendors == ['polygon', 'tiingo', 'eodhd']
+    print(f"✅ Multi-vendor configuration correct")
 
-        # Test analysis methods exist
-        required_methods = [
-            'analyze_polygon_news',
-            'analyze_tiingo_news',
-            'analyze_eodhd_news',
-            'analyze_news_coverage',
-            'log_news_analysis_results'
-        ]
+    # Test analysis methods exist
+    required_methods = [
+        'analyze_polygon_news',
+        'analyze_tiingo_news',
+        'analyze_eodhd_news',
+        'analyze_news_coverage',
+        'log_news_analysis_results'
+    ]
 
-        for method_name in required_methods:
-            if hasattr(analyzer, method_name):
-                print(f"✅ Method {method_name} exists")
-            else:
-                print(f"❌ Method {method_name} missing")
-                return False
+    for method_name in required_methods:
+        if hasattr(analyzer, method_name):
+            print(f"✅ Method {method_name} exists")
+        else:
+            print(f"❌ Method {method_name} missing")
+            return False
 
-        return True
-
-    except Exception as e:
-        print(f"❌ NewsDataAnalyzer validation failed: {e}")
-        return False
+    return True
 
 def validate_api_testing():
     """Validate API testing implementations."""

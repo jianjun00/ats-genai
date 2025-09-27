@@ -13,7 +13,7 @@ import logging
 
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.signals.enhanced_indicators import calculate_all_technical_indicators, ResidualReturnIndicatorConfig
-from modeling.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis, LLMProvider
+from domains.ml.modeling.analysis.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis, LLMProvider
 
 logger = logging.getLogger(__name__)
 

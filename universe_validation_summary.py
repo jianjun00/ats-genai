@@ -146,9 +146,8 @@ def validation_summary():
             return validation_passed
 
 if __name__ == "__main__":
-    try:
-        success = validation_summary()
-        sys.exit(0 if success else 1)
+    success = validation_summary()
+    sys.exit(0 if success else 1)
     except Exception as e:
         print(f"❌ Error generating validation summary: {e}")
         import traceback

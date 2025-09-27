@@ -13,8 +13,8 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from schema.types import FieldType, FieldSemantics, FieldDefinition, EntitySchema
-from schema.entities import EXCHANGE_VALUES, INSTRUMENT_TYPE_VALUES, CURRENCY_VALUES
+from domains.ml.schema.types import FieldType, FieldSemantics, FieldDefinition, EntitySchema
+from domains.ml.schema.entities import EXCHANGE_VALUES, INSTRUMENT_TYPE_VALUES, CURRENCY_VALUES
 
 
 class TestFieldDefinition:
@@ -478,20 +478,15 @@ if __name__ == "__main__":
 
         for test_method in test_methods:
             total_tests += 1
-            try:
-                # Handle special methods that need setup
-                if hasattr(instance, 'create_test_schema') and 'schema' in test_method:
-                    # Methods that need test schema setup
-                    getattr(instance, test_method)()
-                else:
-                    getattr(instance, test_method)()
+            # Handle special methods that need setup
+            if hasattr(instance, 'create_test_schema') and 'schema' in test_method:
+                # Methods that need test schema setup
+                getattr(instance, test_method)()
+            else:
+                getattr(instance, test_method)()
 
-                print(f"✅ {test_method}")
-                passed_tests += 1
-
-            except Exception as e:
-                print(f"❌ {test_method}: {e}")
-                traceback.print_exc()
+            print(f"✅ {test_method}")
+            passed_tests += 1
 
     print(f"\\n📊 Test Results")
     print("-" * 20)

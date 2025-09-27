@@ -49,16 +49,12 @@ def test_sync_scripts():
         return False
 
     # Test Prometheus connectivity
-    try:
-        import requests
-        response = requests.get("http://localhost:9091/metrics", timeout=5)
-        if response.status_code == 200:
-            print("✅ Pushgateway accessible")
-        else:
-            print(f"⚠️  Pushgateway returned status {response.status_code}")
-    except Exception as e:
-        print(f"⚠️  Pushgateway not accessible: {e}")
-
+    import requests
+    response = requests.get("http://localhost:9091/metrics", timeout=5)
+    if response.status_code == 200:
+        print("✅ Pushgateway accessible")
+    else:
+        print(f"⚠️  Pushgateway returned status {response.status_code}")
     print()
     print("📋 Setup Summary:")
     print(f"   Service: {service_file}")

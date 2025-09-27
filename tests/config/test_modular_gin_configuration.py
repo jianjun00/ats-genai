@@ -212,12 +212,8 @@ api.reload = False
             gin.clear_config()
             gin.enter_interactive_mode()
             
-            try:
-                gin.parse_config_file(str(config_path), skip_unknown=True)
-                print(f"✅ Successfully loaded {config_name} config")
-            except Exception as e:
-                pytest.fail(f"Failed to load {config_name} config: {e}")
-
+            gin.parse_config_file(str(config_path), skip_unknown=True)
+            print(f"✅ Successfully loaded {config_name} config")
     def test_domain_configs_loadable(self, domain_configs):
         """Test that domain configuration files load without errors"""
         
@@ -243,12 +239,8 @@ api.reload = False
             gin.clear_config()
             gin.enter_interactive_mode()
             
-            try:
-                gin.parse_config_file(str(config_path), skip_unknown=True)
-                print(f"✅ Successfully loaded {config_name} domain config")
-            except Exception as e:
-                pytest.fail(f"Failed to load {config_name} domain config: {e}")
-
+            gin.parse_config_file(str(config_path), skip_unknown=True)
+            print(f"✅ Successfully loaded {config_name} domain config")
     def test_infrastructure_configs_composable(self, infrastructure_configs):
         """Test that infrastructure configs compose correctly"""
         
@@ -284,22 +276,18 @@ api.reload = False
         original_cwd = os.getcwd()
         os.chdir(infrastructure_configs['dev'].parent.parent)
         
-        try:
-            gin.parse_config_file(str(infrastructure_configs['dev']), skip_unknown=True)
-            
-            # Verify base values are loaded
-            fastapi_config = FastAPIConfig()
-            assert fastapi_config.title == "ATS GenAI API"
-            assert fastapi_config.version == "0.1.0"
-            
-            cors_config = CORSConfig()
-            assert cors_config.allow_credentials == True
-            
-            print("✅ Infrastructure configs compose correctly")
-            
-        finally:
-            os.chdir(original_cwd)
-
+        gin.parse_config_file(str(infrastructure_configs['dev']), skip_unknown=True)
+        
+        # Verify base values are loaded
+        fastapi_config = FastAPIConfig()
+        assert fastapi_config.title == "ATS GenAI API"
+        assert fastapi_config.version == "0.1.0"
+        
+        cors_config = CORSConfig()
+        assert cors_config.allow_credentials == True
+        
+        print("✅ Infrastructure configs compose correctly")
+        
     def test_app_configs_complete_composition(self, config_dir, core_configs, domain_configs, infrastructure_configs, app_configs):
         """Test that application configs load complete composed configuration"""
         
@@ -362,22 +350,18 @@ api.reload = False
         original_cwd = os.getcwd()
         os.chdir(config_dir)
         
-        try:
-            gin.parse_config_file(str(app_configs['dev']), skip_unknown=True)
-            
-            # Verify values from different config files are all present
-            print("✅ Development app config loaded successfully")
-            
-            # Test integration configuration
-            gin.clear_config()
-            gin.enter_interactive_mode()
-            
-            gin.parse_config_file(str(app_configs['intg']), skip_unknown=True)
-            print("✅ Integration app config loaded successfully")
-            
-        finally:
-            os.chdir(original_cwd)
-
+        gin.parse_config_file(str(app_configs['dev']), skip_unknown=True)
+        
+        # Verify values from different config files are all present
+        print("✅ Development app config loaded successfully")
+        
+        # Test integration configuration
+        gin.clear_config()
+        gin.enter_interactive_mode()
+        
+        gin.parse_config_file(str(app_configs['intg']), skip_unknown=True)
+        print("✅ Integration app config loaded successfully")
+        
     def test_environment_differences_preserved(self, config_dir, app_configs):
         """Test that environment-specific differences are preserved"""
         
@@ -404,38 +388,34 @@ api.reload = False
         original_cwd = os.getcwd()
         os.chdir(config_dir)
         
-        try:
-            # Load dev config and check values
-            gin.clear_config()
-            gin.enter_interactive_mode()
-            gin.parse_config_file(str(app_configs['dev']), skip_unknown=True)
-            
-            dev_port = gin.query_parameter('api.port')
-            dev_symbols = gin.query_parameter('symbols.default_universe')
-            dev_health_check = gin.query_parameter('monitoring.intervals.health_check')
-            
-            # Load intg config and check values
-            gin.clear_config()
-            gin.enter_interactive_mode()
-            gin.parse_config_file(str(app_configs['intg']), skip_unknown=True)
-            
-            intg_port = gin.query_parameter('api.port')
-            intg_reload = gin.query_parameter('api.reload')
-            intg_health_check = gin.query_parameter('monitoring.intervals.health_check')
-            
-            # Verify differences
-            assert dev_port == 3000
-            assert intg_port == 4000
-            assert dev_symbols == ['AAPL', 'TSLA']  # Overridden in dev
-            assert intg_reload == False  # Set in intg
-            assert dev_health_check == 60  # Faster in dev
-            assert intg_health_check == 120  # Slower in intg
-            
-            print("✅ Environment-specific differences preserved correctly")
-            
-        finally:
-            os.chdir(original_cwd)
-
+        # Load dev config and check values
+        gin.clear_config()
+        gin.enter_interactive_mode()
+        gin.parse_config_file(str(app_configs['dev']), skip_unknown=True)
+        
+        dev_port = gin.query_parameter('api.port')
+        dev_symbols = gin.query_parameter('symbols.default_universe')
+        dev_health_check = gin.query_parameter('monitoring.intervals.health_check')
+        
+        # Load intg config and check values
+        gin.clear_config()
+        gin.enter_interactive_mode()
+        gin.parse_config_file(str(app_configs['intg']), skip_unknown=True)
+        
+        intg_port = gin.query_parameter('api.port')
+        intg_reload = gin.query_parameter('api.reload')
+        intg_health_check = gin.query_parameter('monitoring.intervals.health_check')
+        
+        # Verify differences
+        assert dev_port == 3000
+        assert intg_port == 4000
+        assert dev_symbols == ['AAPL', 'TSLA']  # Overridden in dev
+        assert intg_reload == False  # Set in intg
+        assert dev_health_check == 60  # Faster in dev
+        assert intg_health_check == 120  # Slower in intg
+        
+        print("✅ Environment-specific differences preserved correctly")
+        
     def test_config_validation_rules(self, config_dir):
         """Test configuration validation rules"""
         
@@ -465,21 +445,17 @@ symbols.default_universe = ['AAPL', 'MSFT']
         def symbols(**kwargs):
             return kwargs
         
-        try:
-            gin.parse_config_file(str(legacy_test), skip_unknown=True)
-            
-            # Verify values can be queried old way
-            sharpe_base = gin.query_parameter('thresholds.sharpe_ratio.base')
-            default_universe = gin.query_parameter('symbols.default_universe')
-            
-            assert sharpe_base == 1.2
-            assert default_universe == ['AAPL', 'MSFT']
-            
-            print("✅ Backwards compatibility maintained")
-            
-        except Exception as e:
-            pytest.fail(f"Backwards compatibility broken: {e}")
-
+        gin.parse_config_file(str(legacy_test), skip_unknown=True)
+        
+        # Verify values can be queried old way
+        sharpe_base = gin.query_parameter('thresholds.sharpe_ratio.base')
+        default_universe = gin.query_parameter('symbols.default_universe')
+        
+        assert sharpe_base == 1.2
+        assert default_universe == ['AAPL', 'MSFT']
+        
+        print("✅ Backwards compatibility maintained")
+        
     def test_config_performance(self, config_dir, app_configs):
         """Test that configuration loading performance is acceptable"""
         import time
@@ -491,27 +467,22 @@ symbols.default_universe = ['AAPL', 'MSFT']
         original_cwd = os.getcwd()
         os.chdir(config_dir)
         
-        try:
-            # Time loading complex configuration
-            start_time = time.time()
-            
-            for _ in range(10):  # Load config 10 times
-                gin.clear_config()
-                gin.enter_interactive_mode()
-                gin.parse_config_file(str(app_configs['dev']), skip_unknown=True)
-            
-            total_time = time.time() - start_time
-            avg_time = total_time / 10
-            
-            # Should load in under 1 second on average
-            assert avg_time < 1.0, f"Config loading too slow: {avg_time:.2f}s average"
-            
-            print(f"✅ Configuration loading performance acceptable: {avg_time:.3f}s average")
-            
-        finally:
-            os.chdir(original_cwd)
-
-
+        # Time loading complex configuration
+        start_time = time.time()
+        
+        for _ in range(10):  # Load config 10 times
+            gin.clear_config()
+            gin.enter_interactive_mode()
+            gin.parse_config_file(str(app_configs['dev']), skip_unknown=True)
+        
+        total_time = time.time() - start_time
+        avg_time = total_time / 10
+        
+        # Should load in under 1 second on average
+        assert avg_time < 1.0, f"Config loading too slow: {avg_time:.2f}s average"
+        
+        print(f"✅ Configuration loading performance acceptable: {avg_time:.3f}s average")
+        
 class TestGinConfigurationIntegration:
     """Integration tests with actual Environment class"""
 
@@ -541,16 +512,11 @@ FastAPIConfig.version = "1.0.0"
         # Test environment loading
         os.environ['ENVIRONMENT'] = 'test'
         
-        try:
-            # This should work without the old hardcoded_values.gin
-            env = Environment(gin_config_path=str(app_config))
-            
-            assert env.env_type == EnvironmentType.TEST
-            print("✅ Environment class works with modular configuration")
-            
-        except Exception as e:
-            pytest.fail(f"Environment failed with modular config: {e}")
-
-
+        # This should work without the old hardcoded_values.gin
+        env = Environment(gin_config_path=str(app_config))
+        
+        assert env.env_type == EnvironmentType.TEST
+        print("✅ Environment class works with modular configuration")
+        
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

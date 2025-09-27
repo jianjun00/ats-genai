@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsTrainingDataTableValidation:
@@ -56,13 +51,7 @@ class TestRealObjectsTrainingDataTableValidation:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_table_api_returns_data_real_objects(self, real_service, test_data):
         """Real objects version of test_table_api_returns_data"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsTrainingDataTableValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.table_api_returns_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.table_api_returns_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_table_cell_content_formatting_real_objects(self, real_service, test_data):
         """Real objects version of test_table_cell_content_formatting"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsTrainingDataTableValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.table_cell_content_formatting_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.table_cell_content_formatting_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_format_dataset_support_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_format_dataset_support"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsTrainingDataTableValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_format_dataset_support_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_format_dataset_support_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_table_pagination_and_limits_real_objects(self, real_service, test_data):
         """Real objects version of test_table_pagination_and_limits"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsTrainingDataTableValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.table_pagination_and_limits_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.table_pagination_and_limits_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_table_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_table_handling"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsTrainingDataTableValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_table_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_table_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_table_dom_structure_real_objects(self, real_service, test_data):
         """Real objects version of test_table_dom_structure"""
         # Test with real database integration
@@ -187,15 +146,8 @@ class TestRealObjectsTrainingDataTableValidation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.table_dom_structure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.table_dom_structure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

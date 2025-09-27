@@ -36,32 +36,24 @@ class TestAlphaVantageDailyPrices:
         # Save original value
         original_key = os.environ.get('ALPHA_VANTAGE_API_KEY')
 
-        try:
-            # Test with no API key
-            if 'ALPHA_VANTAGE_API_KEY' in os.environ:
-                del os.environ['ALPHA_VANTAGE_API_KEY']
+        # Test with no API key
+        if 'ALPHA_VANTAGE_API_KEY' in os.environ:
+            del os.environ['ALPHA_VANTAGE_API_KEY']
 
-            # Import after removing env var
-            from domains.market_data.services.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
-            assert ALPHA_VANTAGE_API_KEY is None
+        # Import after removing env var
+        from domains.trading.services.core.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
+        assert ALPHA_VANTAGE_API_KEY is None
 
-            # Test with API key set
-            os.environ['ALPHA_VANTAGE_API_KEY'] = 'test_key_123'
+        # Test with API key set
+        os.environ['ALPHA_VANTAGE_API_KEY'] = 'test_key_123'
 
-            # Need to reimport to pick up new env var
-            import importlib
-            import market_data.eod.daily_price_alphavantage
-            importlib.reload(market_data.eod.daily_price_alphavantage)
+        # Need to reimport to pick up new env var
+        import importlib
+        import market_data.eod.daily_price_alphavantage
+        importlib.reload(market_data.eod.daily_price_alphavantage)
 
-            from domains.market_data.services.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
-            assert ALPHA_VANTAGE_API_KEY == 'test_key_123'
-
-        finally:
-            # Restore original value
-            if original_key:
-                os.environ['ALPHA_VANTAGE_API_KEY'] = original_key
-            elif 'ALPHA_VANTAGE_API_KEY' in os.environ:
-                del os.environ['ALPHA_VANTAGE_API_KEY']
+        from domains.trading.services.core.eod.daily_price_alphavantage import ALPHA_VANTAGE_API_KEY
+        assert ALPHA_VANTAGE_API_KEY == 'test_key_123'
 
     def test_price_record_format(self):
         """Test that price records have the correct format"""
@@ -140,7 +132,7 @@ class TestAlphaVantageIntegration:
         expected_base_url = "https://www.alphavantage.co/query"
         expected_function = "TIME_SERIES_DAILY_ADJUSTED"
 
-        from domains.market_data.services.eod.daily_price_alphavantage import ALPHA_VANTAGE_BASE_URL
+        from domains.trading.services.core.eod.daily_price_alphavantage import ALPHA_VANTAGE_BASE_URL
 
         assert ALPHA_VANTAGE_BASE_URL == expected_base_url
 
@@ -174,11 +166,7 @@ if __name__ == "__main__":
     class BasicTests(unittest.TestCase):
         def test_imports(self):
             """Test that Alpha Vantage modules can be imported"""
-            try:
-                self.assertTrue(True)
-            except ImportError as e:
-                self.fail(f"Failed to import Alpha Vantage modules: {e}")
-
+            self.assertTrue(True)
         def test_basic_functionality(self):
             """Test basic DAO functionality"""
             from domains.market_data.repositories.daily_prices_alphavantage_dao import DailyPricesAlphaVantageDAO

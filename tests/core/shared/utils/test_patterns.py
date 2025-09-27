@@ -310,8 +310,7 @@ def requires_internet():
 def _check_internet_connection() -> bool:
     """Check if internet connection is available."""
     import socket
-    try:
-        socket.create_connection(("8.8.8.8", 53), timeout=3)
-        return True
+    socket.create_connection(("8.8.8.8", 53), timeout=3)
+    return True
     except OSError:
         return False

@@ -10,7 +10,7 @@ import pytest
 import asyncio
 import asyncpg
 import os
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db):
@@ -119,113 +119,104 @@ async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db
     # Verify universe state interval records were created
     conn = await asyncpg.connect(environment.get_database_url())
     
-    try:
-        universe_state_table = environment.get_table_name('universe_state_interval')
-        
-        # Get total record count using correct schema
-        query = f"""
-            SELECT COUNT(*) as total_records
+    universe_state_table = environment.get_table_name('universe_state_interval')
+    
+    # Get total record count using correct schema
+    query = f"""
+        SELECT COUNT(*) as total_records
+        FROM {universe_state_table}
+        WHERE run_id = '{runner.get_environment()._run_uuid}'
+    """
+    
+    print(f"🔍 Querying: {query}")
+    result = await conn.fetchrow(query)
+    total_records = result['total_records'] or 0
+    
+    print(f"📊 Total universe state records: {total_records}")
+    
+    # This should fail the test if no records are generated
+    assert total_records > 0, f"CRITICAL BUG: Zero universe state records generated despite real AAPL data being available. The multi-timeframe training data system is completely broken."
+    
+    # Get sample records to verify content
+    sample_query = f"""
+        SELECT run_id, universe_id, datetime, state_data
+        FROM {universe_state_table}
+        WHERE run_id = '{runner.get_environment()._run_uuid}'
+        ORDER BY datetime
+        LIMIT 5
+    """
+    
+    print(f"🔍 Sample query: {sample_query}")
+    sample_results = await conn.fetch(sample_query)
+    
+    print(f"📋 Sample records:")
+    for i, record in enumerate(sample_results):
+        print(f"   {i+1}. datetime={record['datetime']}, state_data keys={list(record['state_data'].keys()) if record['state_data'] else 'None'}")
+    
+    # Check if we have timeframe-specific data in state_data
+    timeframe_counts = {}
+    for timeframe in ['5m', '15m', '60m']:
+        timeframe_query = f"""
+            SELECT COUNT(*) as count
             FROM {universe_state_table}
             WHERE run_id = '{runner.get_environment()._run_uuid}'
+            AND state_data ? '{timeframe}'
         """
-        
-        print(f"🔍 Querying: {query}")
-        result = await conn.fetchrow(query)
-        total_records = result['total_records'] or 0
-        
-        print(f"📊 Total universe state records: {total_records}")
-        
-        # This should fail the test if no records are generated
-        assert total_records > 0, f"CRITICAL BUG: Zero universe state records generated despite real AAPL data being available. The multi-timeframe training data system is completely broken."
-        
-        # Get sample records to verify content
-        sample_query = f"""
-            SELECT run_id, universe_id, datetime, state_data
-            FROM {universe_state_table}
-            WHERE run_id = '{runner.get_environment()._run_uuid}'
-            ORDER BY datetime
-            LIMIT 5
-        """
-        
-        print(f"🔍 Sample query: {sample_query}")
-        sample_results = await conn.fetch(sample_query)
-        
-        print(f"📋 Sample records:")
-        for i, record in enumerate(sample_results):
-            print(f"   {i+1}. datetime={record['datetime']}, state_data keys={list(record['state_data'].keys()) if record['state_data'] else 'None'}")
-        
-        # Check if we have timeframe-specific data in state_data
-        timeframe_counts = {}
-        for timeframe in ['5m', '15m', '60m']:
-            timeframe_query = f"""
-                SELECT COUNT(*) as count
-                FROM {universe_state_table}
-                WHERE run_id = '{runner.get_environment()._run_uuid}'
-                AND state_data ? '{timeframe}'
-            """
-            result = await conn.fetchrow(timeframe_query)
-            timeframe_counts[timeframe] = result['count']
-        
-        print(f"📊 Timeframe record counts: {timeframe_counts}")
-        
-        # Check for the granularity bug: if all timeframes have the same count, that's the bug
-        if len(set(timeframe_counts.values())) == 1 and list(timeframe_counts.values())[0] > 0:
-            raise AssertionError(f"GRANULARITY BUG DETECTED: All timeframes generated the same number of records ({list(timeframe_counts.values())[0]}). This indicates the bug where all timeframes generate 1 record/hour instead of native frequencies.")
-        
-        # Validate that we have the expected different frequencies
-        # 5m should have the most records, 60m should have the least
-        if timeframe_counts['5m'] <= timeframe_counts['60m']:
-            raise AssertionError(f"INVALID TIMEFRAME FREQUENCIES: 5m ({timeframe_counts['5m']}) should have more records than 60m ({timeframe_counts['60m']})")
-        
-        print("🎉 Multi-timeframe training data system is working correctly!")
-        
-    finally:
-        await conn.close()
-
-
+        result = await conn.fetchrow(timeframe_query)
+        timeframe_counts[timeframe] = result['count']
+    
+    print(f"📊 Timeframe record counts: {timeframe_counts}")
+    
+    # Check for the granularity bug: if all timeframes have the same count, that's the bug
+    if len(set(timeframe_counts.values())) == 1 and list(timeframe_counts.values())[0] > 0:
+        raise AssertionError(f"GRANULARITY BUG DETECTED: All timeframes generated the same number of records ({list(timeframe_counts.values())[0]}). This indicates the bug where all timeframes generate 1 record/hour instead of native frequencies.")
+    
+    # Validate that we have the expected different frequencies
+    # 5m should have the most records, 60m should have the least
+    if timeframe_counts['5m'] <= timeframe_counts['60m']:
+        raise AssertionError(f"INVALID TIMEFRAME FREQUENCIES: 5m ({timeframe_counts['5m']}) should have more records than 60m ({timeframe_counts['60m']})")
+    
+    print("🎉 Multi-timeframe training data system is working correctly!")
+    
 async def setup_test_data(environment: Environment, test_symbol: str = 'AAPL'):
     """Setup minimal test data for AAPL including universe membership."""
     conn = await asyncpg.connect(environment.get_database_url())
     
-    try:
-        # Insert test instrument
-        instrument_table = environment.get_table_name('instrument')
-        await conn.execute(f"""
-            INSERT INTO {instrument_table} (id, symbol, name, active) 
-            VALUES (999999, '{test_symbol}', '{test_symbol} Inc Test', true) 
-            ON CONFLICT (id) DO UPDATE SET symbol = EXCLUDED.symbol, name = EXCLUDED.name
-        """)
-        
-        # Insert instrument xref with correct vendor
-        xrefs_table = environment.get_table_name('instrument_xrefs')
-        vendors_table = environment.get_table_name('vendors')
-        await conn.execute(f"""
-            INSERT INTO {xrefs_table} (instrument_id, symbol, vendor_id) 
-            VALUES (999999, '{test_symbol}', (SELECT id FROM {vendors_table} WHERE name = 'ticker'))
-            ON CONFLICT (instrument_id, vendor_id, start_at) DO UPDATE SET symbol = EXCLUDED.symbol
-        """)
-        
-        # Clear and insert clean universe data
-        universe_table = environment.get_table_name('universe')
-        universe_membership_table = environment.get_table_name('universe_membership')
-        
-        await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id = 1")
-        await conn.execute(f"DELETE FROM {universe_table} WHERE id = 1")
-        
-        await conn.execute(f"""
-            INSERT INTO {universe_table} (id, name) VALUES (1, 'test_universe')
-        """)
-        
-        await conn.execute(f"""
-            INSERT INTO {universe_membership_table} (universe_id, instrument_id) 
-            VALUES (1, 999999)
-        """)
-        
-        print(f"✅ Test data setup completed for {test_symbol}")
-        
-    finally:
-        await conn.close()
-
+    # Insert test instrument
+    instrument_table = environment.get_table_name('instrument')
+    await conn.execute(f"""
+        INSERT INTO {instrument_table} (id, symbol, name, active) 
+        VALUES (999999, '{test_symbol}', '{test_symbol} Inc Test', true) 
+        ON CONFLICT (id) DO UPDATE SET symbol = EXCLUDED.symbol, name = EXCLUDED.name
+    """)
+    
+    # Insert instrument xref with correct vendor
+    xrefs_table = environment.get_table_name('instrument_xrefs')
+    vendors_table = environment.get_table_name('vendors')
+    await conn.execute(f"""
+        INSERT INTO {xrefs_table} (instrument_id, symbol, vendor_id) 
+        VALUES (999999, '{test_symbol}', (SELECT id FROM {vendors_table} WHERE name = 'ticker'))
+        ON CONFLICT (instrument_id, vendor_id, start_at) DO UPDATE SET symbol = EXCLUDED.symbol
+    """)
+    
+    # Clear and insert clean universe data
+    universe_table = environment.get_table_name('universe')
+    universe_membership_table = environment.get_table_name('universe_membership')
+    
+    await conn.execute(f"DELETE FROM {universe_membership_table} WHERE universe_id = 1")
+    await conn.execute(f"DELETE FROM {universe_table} WHERE id = 1")
+    
+    await conn.execute(f"""
+        INSERT INTO {universe_table} (id, name) VALUES (1, 'test_universe')
+    """)
+    
+    await conn.execute(f"""
+        INSERT INTO {universe_membership_table} (universe_id, instrument_id) 
+        VALUES (1, 999999)
+    """)
+    
+    print(f"✅ Test data setup completed for {test_symbol}")
+    
 if __name__ == "__main__":
     # For standalone testing
     pytest.main([__file__, "-v", "--tb=short"])

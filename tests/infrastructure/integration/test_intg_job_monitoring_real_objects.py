@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsINTGJobMonitoring:
@@ -55,13 +49,7 @@ class TestRealObjectsINTGJobMonitoring:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_database_connection_health_real_objects(self, real_service, test_data):
         """Real objects version of test_database_connection_health"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_connection_health_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_connection_health_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_daily_prices_job_status_empty_real_objects(self, real_service, test_data):
         """Real objects version of test_daily_prices_job_status_empty"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.daily_prices_job_status_empty_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.daily_prices_job_status_empty_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_realtime_tables_missing_real_objects(self, real_service, test_data):
         """Real objects version of test_realtime_tables_missing"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.realtime_tables_missing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.realtime_tables_missing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_docker_container_status_real_objects(self, real_service, test_data):
         """Real objects version of test_docker_container_status"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.docker_container_status_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.docker_container_status_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_container_logs_for_errors_real_objects(self, real_service, test_data):
         """Real objects version of test_container_logs_for_errors"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.container_logs_for_errors_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.container_logs_for_errors_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_job_failure_scenarios_real_objects(self, real_service, test_data):
         """Real objects version of test_job_failure_scenarios"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.job_failure_scenarios_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.job_failure_scenarios_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_monitoring_script_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_monitoring_script_creation"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.monitoring_script_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.monitoring_script_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_missing_realtime_tables_real_objects(self, real_service, test_data):
         """Real objects version of test_create_missing_realtime_tables"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_missing_realtime_tables_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_missing_realtime_tables_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_health_endpoint_response_real_objects(self, real_service, test_data):
         """Real objects version of test_health_endpoint_response"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.health_endpoint_response_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.health_endpoint_response_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_job_restart_capability_real_objects(self, real_service, test_data):
         """Real objects version of test_job_restart_capability"""
         # Test with real database integration
@@ -274,15 +208,8 @@ class TestRealObjectsINTGJobMonitoring:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.job_restart_capability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.job_restart_capability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

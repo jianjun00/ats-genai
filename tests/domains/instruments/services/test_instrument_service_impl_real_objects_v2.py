@@ -16,14 +16,14 @@ import pytest
 from datetime import date, datetime
 
 from domains.instruments.services.impl.instrument_service_impl import InstrumentServiceImpl
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.impl.instrument_service_cached import (
     InstrumentDTO,
     InstrumentXrefDTO,
     InstrumentSearchCriteria
 )
-from core.dao.instruments_dao import InstrumentsDAO
-from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from shared.utils.environment import Environment, EnvironmentType
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TestInstrumentServiceImplRealObjects:
@@ -178,40 +178,25 @@ class TestInstrumentServiceImplRealObjects:
         assert first_id > 0
         
         # Attempt to create duplicate (should fail with real constraint)
-        try:
-            second_id = await instrument_service.create_instrument(instrument_dto)
-            
-            # If creation succeeds, there might be business logic handling duplicates
-            if second_id is not None:
-                # Clean up both
-                await real_instruments_dao.delete_instrument(first_id)
-                await real_instruments_dao.delete_instrument(second_id)
-            else:
-                # Cleanup first
-                await real_instruments_dao.delete_instrument(first_id)
-                
-        except Exception as e:
-            # Real constraint violation is expected
-            assert "duplicate" in str(e).lower() or "unique" in str(e).lower() or "constraint" in str(e).lower()
-            
-            # Cleanup
+        second_id = await instrument_service.create_instrument(instrument_dto)
+        
+        # If creation succeeds, there might be business logic handling duplicates
+        if second_id is not None:
+            # Clean up both
             await real_instruments_dao.delete_instrument(first_id)
-
+            await real_instruments_dao.delete_instrument(second_id)
+        else:
+            # Cleanup first
+            await real_instruments_dao.delete_instrument(first_id)
+            
     async def test_error_handling_real_objects(self, instrument_service):
         """Test error handling with actual database exceptions."""
         
         # Test non-existent instrument
-        try:
-            non_existent = await instrument_service.get_instrument(99999999)
-            assert non_existent is None  # Should return None for not found
-        except Exception as e:
-            # Real database error is acceptable
-            assert isinstance(e, Exception)
-        
-        # Test invalid symbol lookup
-        try:
-            invalid_instrument = await instrument_service.get_instrument_by_symbol("INVALID_SYMBOL_XYZ")
-            assert invalid_instrument is None  # Should return None for not found
+        non_existent = await instrument_service.get_instrument(99999999)
+        assert non_existent is None  # Should return None for not found
+        invalid_instrument = await instrument_service.get_instrument_by_symbol("INVALID_SYMBOL_XYZ")
+        assert invalid_instrument is None  # Should return None for not found
         except Exception as e:
             # Real database error is acceptable
             assert isinstance(e, Exception)

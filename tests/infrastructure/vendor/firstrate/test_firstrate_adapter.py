@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter, Tick
+from domains.market_data.services.data_collection.backfill.unified_backfill_orchestrator import FirstRateAdapter, Tick
 
 
 class TestFirstRateAdapter:

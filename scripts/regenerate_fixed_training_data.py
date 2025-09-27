@@ -180,45 +180,38 @@ async def run_fixed_training_data_generation():
 
     print("\n🚀 Starting training data generation with FIXED logic...")
 
-    try:
-        # Initialize the callback (simulate runner.handleStart)
-        class MockRunner:
-            def get_environment(self):
-                return Environment()
-            def get_universe_state_manager(self):
-                return None
+    # Initialize the callback (simulate runner.handleStart)
+    class MockRunner:
+        def get_environment(self):
+            return Environment()
+        def get_universe_state_manager(self):
+            return None
 
-        mock_runner = MockRunner()
-        current_time = datetime.combine(start_date, datetime.min.time())
+    mock_runner = MockRunner()
+    current_time = datetime.combine(start_date, datetime.min.time())
 
-        # Initialize
-        callback.handleStart(mock_runner, current_time)
+    # Initialize
+    callback.handleStart(mock_runner, current_time)
 
-        # Generate a few sample intervals to test the fix
-        print("📈 Generating sample training intervals...")
+    # Generate a few sample intervals to test the fix
+    print("📈 Generating sample training intervals...")
 
-        sample_intervals = [
-            current_time + timedelta(hours=i)
-            for i in range(5)  # Generate 5 sample intervals
-        ]
+    sample_intervals = [
+        current_time + timedelta(hours=i)
+        for i in range(5)  # Generate 5 sample intervals
+    ]
 
-        for i, interval_time in enumerate(sample_intervals):
-            print(f"   Processing interval {i+1}/5: {interval_time}")
-            await callback.handleInterval(mock_runner, interval_time)
+    for i, interval_time in enumerate(sample_intervals):
+        print(f"   Processing interval {i+1}/5: {interval_time}")
+        await callback.handleInterval(mock_runner, interval_time)
 
-        # Finalize
-        await callback.handleEnd(mock_runner, sample_intervals[-1])
+    # Finalize
+    await callback.handleEnd(mock_runner, sample_intervals[-1])
 
-        print("✅ Training data generation completed!")
+    print("✅ Training data generation completed!")
 
-        # Analyze the generated files
-        await analyze_generated_files(output_dir, symbols)
-
-    except Exception as e:
-        print(f"❌ Error during training data generation: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    # Analyze the generated files
+    await analyze_generated_files(output_dir, symbols)
 
     return True
 

@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import date
 import asyncpg
 
-from src.domains.ml.legacy.evaluation.sr_backtester import SRBacktester
+from domains.ml.legacy.evaluation.sr_backtester import SRBacktester
 
 class TestBacktestGeneratesPortfolioFiles:
     """Test that running actual backtests generates portfolio files"""
@@ -17,13 +17,9 @@ class TestBacktestGeneratesPortfolioFiles:
     @pytest.fixture
     async def db_connection(self):
         """Database connection for testing"""
-        try:
-            conn = await asyncpg.connect('postgresql://postgres:postgres@localhost:5433/dev_db')
-            yield conn
-            await conn.close()
-        except Exception as e:
-            pytest.skip(f"Database connection failed: {e}")
-
+        conn = await asyncpg.connect('postgresql://postgres:postgres@localhost:5433/dev_db')
+        yield conn
+        await conn.close()
     @pytest.fixture
     def temp_portfolio_dir(self):
         """Temporary directory for portfolio files during testing"""
@@ -123,65 +119,61 @@ class TestBacktestGeneratesPortfolioFiles:
         end_date = date(2024, 6, 30)
 
         # Run backtest with portfolio file generation
-        try:
-            results = await backtester.backtest_model(
-                model=mock_model,
-                symbols=symbols,
-                start_date=start_date,
-                end_date=end_date,
-                feature_generator=mock_feature_generator,
-                min_predictions_per_symbol=1,  # Lower threshold for testing
-                backtest_run_id=test_backtest_id,
-                save_portfolio_files=True
-            )
+        results = await backtester.backtest_model(
+            model=mock_model,
+            symbols=symbols,
+            start_date=start_date,
+            end_date=end_date,
+            feature_generator=mock_feature_generator,
+            min_predictions_per_symbol=1,  # Lower threshold for testing
+            backtest_run_id=test_backtest_id,
+            save_portfolio_files=True
+        )
 
-            # Verify results were generated
-            assert isinstance(results, dict), "Backtest should return results dictionary"
+        # Verify results were generated
+        assert isinstance(results, dict), "Backtest should return results dictionary"
 
-            # Verify portfolio file was created
-            portfolio_file = Path(temp_portfolio_dir) / f"{test_backtest_id}.json"
-            assert portfolio_file.exists(), f"Portfolio file should be created: {portfolio_file}"
+        # Verify portfolio file was created
+        portfolio_file = Path(temp_portfolio_dir) / f"{test_backtest_id}.json"
+        assert portfolio_file.exists(), f"Portfolio file should be created: {portfolio_file}"
 
-            # Verify file content
-            with open(portfolio_file, 'r') as f:
-                portfolio_data = json.load(f)
+        # Verify file content
+        with open(portfolio_file, 'r') as f:
+            portfolio_data = json.load(f)
 
-            # Verify structure
-            assert 'backtest_metadata' in portfolio_data, "Portfolio file should have backtest_metadata"
-            assert 'daily_snapshots' in portfolio_data, "Portfolio file should have daily_snapshots"
+        # Verify structure
+        assert 'backtest_metadata' in portfolio_data, "Portfolio file should have backtest_metadata"
+        assert 'daily_snapshots' in portfolio_data, "Portfolio file should have daily_snapshots"
 
-            metadata = portfolio_data['backtest_metadata']
-            assert metadata['backtest_run_id'] == test_backtest_id
-            assert metadata['strategy_name'] == f"Support/Resistance Strategy - {test_backtest_id}"
-            assert metadata['universe'] == symbols
+        metadata = portfolio_data['backtest_metadata']
+        assert metadata['backtest_run_id'] == test_backtest_id
+        assert metadata['strategy_name'] == f"Support/Resistance Strategy - {test_backtest_id}"
+        assert metadata['universe'] == symbols
 
-            snapshots = portfolio_data['daily_snapshots']
-            assert len(snapshots) > 0, "Should have at least one daily snapshot"
+        snapshots = portfolio_data['daily_snapshots']
+        assert len(snapshots) > 0, "Should have at least one daily snapshot"
 
-            # Verify snapshot structure
-            snapshot = snapshots[0]
-            required_fields = ['date', 'total_portfolio_value', 'daily_return',
-                             'cumulative_return', 'cash_position', 'holdings',
-                             'sector_allocation', 'top_contributors', 'top_detractors']
+        # Verify snapshot structure
+        snapshot = snapshots[0]
+        required_fields = ['date', 'total_portfolio_value', 'daily_return',
+                         'cumulative_return', 'cash_position', 'holdings',
+                         'sector_allocation', 'top_contributors', 'top_detractors']
 
-            for field in required_fields:
-                assert field in snapshot, f"Snapshot should have {field}"
+        for field in required_fields:
+            assert field in snapshot, f"Snapshot should have {field}"
 
-            # Verify holdings structure
-            holdings = snapshot['holdings']
-            assert len(holdings) > 0, "Should have portfolio holdings"
+        # Verify holdings structure
+        holdings = snapshot['holdings']
+        assert len(holdings) > 0, "Should have portfolio holdings"
 
-            holding = holdings[0]
-            holding_fields = ['symbol', 'shares', 'price', 'market_value',
-                            'weight', 'daily_pnl', 'daily_return', 'sector']
+        holding = holdings[0]
+        holding_fields = ['symbol', 'shares', 'price', 'market_value',
+                        'weight', 'daily_pnl', 'daily_return', 'sector']
 
-            for field in holding_fields:
-                assert field in holding, f"Holding should have {field}"
+        for field in holding_fields:
+            assert field in holding, f"Holding should have {field}"
 
-            print("✅ SRBacktester successfully generated portfolio file")
-
-        except Exception as e:
-            pytest.fail(f"Backtest failed to generate portfolio file: {e}")
+        print("✅ SRBacktester successfully generated portfolio file")
 
     @pytest.mark.asyncio
 
@@ -194,26 +186,22 @@ class TestBacktestGeneratesPortfolioFiles:
         start_date = date(2024, 1, 1)
         end_date = date(2024, 2, 1)
 
-        try:
-            # Run backtest WITHOUT portfolio file generation
-            results = await backtester.backtest_model(
-                model=mock_model,
-                symbols=symbols,
-                start_date=start_date,
-                end_date=end_date,
-                feature_generator=mock_feature_generator,
-                min_predictions_per_symbol=1,
-                backtest_run_id=None,  # No run ID
-                save_portfolio_files=False  # Explicitly disable
-            )
+        # Run backtest WITHOUT portfolio file generation
+        results = await backtester.backtest_model(
+            model=mock_model,
+            symbols=symbols,
+            start_date=start_date,
+            end_date=end_date,
+            feature_generator=mock_feature_generator,
+            min_predictions_per_symbol=1,
+            backtest_run_id=None,  # No run ID
+            save_portfolio_files=False  # Explicitly disable
+        )
 
-            # Should still return results
-            assert isinstance(results, dict), "Backtest should return results even without portfolio files"
+        # Should still return results
+        assert isinstance(results, dict), "Backtest should return results even without portfolio files"
 
-            print("✅ Backtest runs successfully without portfolio generation")
-
-        except Exception as e:
-            pytest.fail(f"Backtest failed when portfolio generation disabled: {e}")
+        print("✅ Backtest runs successfully without portfolio generation")
 
     def test_portfolio_file_workflow_integration(self, temp_portfolio_dir):
         """Test the complete workflow from file generation to API consumption"""
