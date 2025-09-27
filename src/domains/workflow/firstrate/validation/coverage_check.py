@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 import logging
 
 # Add src to Python path
-sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
+# Module is now part of src package - no path manipulation needed
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

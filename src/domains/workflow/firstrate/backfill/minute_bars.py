@@ -7,16 +7,16 @@ for the ATS trading platform with checkpoint-based resumable processing.
 
 Usage:
     # Process all stock symbols (full backfill)
-    PYTHONPATH=src python scripts/populate_firstrate_minute_bars.py --asset-type stock
+    PYTHONPATH=src python -m domains.workflow.firstrate.backfill.minute_bars --asset-type stock
 
     # Process specific symbols only
-    PYTHONPATH=src python scripts/populate_firstrate_minute_bars.py --symbols AAPL,MSFT,GOOGL
+    PYTHONPATH=src python -m domains.workflow.firstrate.backfill.minute_bars --symbols AAPL,MSFT,GOOGL
 
     # Resume from checkpoint
-    PYTHONPATH=src python scripts/populate_firstrate_minute_bars.py --checkpoint-file production.json --resume
+    PYTHONPATH=src python -m domains.workflow.firstrate.backfill.minute_bars --checkpoint-file production.json --resume
 
     # Debug mode with limited symbols
-    PYTHONPATH=src python scripts/populate_firstrate_minute_bars.py --limit 10 --debug
+    PYTHONPATH=src python -m domains.workflow.firstrate.backfill.minute_bars --limit 10 --debug
 """
 
 import os
@@ -31,8 +31,7 @@ from pathlib import Path
 from collections import defaultdict
 import time
 
-# Add src to Python path
-sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
+# Module is now part of src package - no path manipulation needed
 
 from core.vendor.adapters import create_firstrate_adapter, FirstRateAdapter
 from dataclasses import dataclass
