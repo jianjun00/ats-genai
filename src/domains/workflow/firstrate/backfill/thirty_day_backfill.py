@@ -36,6 +36,7 @@ import time
 
 from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
 from core.vendor.adapters import create_firstrate_adapter, FirstRateAdapter
+from domains.ml.services.training_data.utils.run_metadata_tracker import RunMetadataTracker
 from dataclasses import dataclass
 
 @dataclass
@@ -134,11 +135,17 @@ class FirstRate30DayBackfill:
         self,
         data_path: str = "/mnt/d/ats-data/firstrate-data",
         output_path: str = "/mnt/d/ats-data/minute-bars/firstrate",
-        checkpoint_file: str = "firstrate_30day_backfill.json"
+        environment: str = "dev"
     ):
         self.data_path = Path(data_path)
         self.output_path = Path(output_path)
-        self.checkpoint_file = Path(checkpoint_file)
+        self.environment = environment
+        self.run_tracker = RunMetadataTracker(
+            run_type="firstrate_30day_backfill",
+            created_by="thirty_day_backfill.py",
+            environment=environment
+        )
+        self.run_id = None
 
         self.downloader = FirstRateDownloader(base_path=str(self.data_path))
         self.adapter = create_firstrate_adapter(str(self.data_path))
@@ -146,41 +153,6 @@ class FirstRate30DayBackfill:
 
         self.output_path.mkdir(parents=True, exist_ok=True)
 
-        self.checkpoint_data = self.load_checkpoint()
-
-    def load_checkpoint(self) -> Dict:
-        """Load processing checkpoint"""
-        if self.checkpoint_file.exists():
-            try:
-                with open(self.checkpoint_file, 'r') as f:
-                    data = json.load(f)
-                    logger.info(f"📝 Loaded checkpoint: {data.get('symbols_completed', 0)} symbols completed")
-                    return data
-            except Exception as e:
-                logger.error(f"❌ Failed to load checkpoint: {e}")
-
-        return {
-            'downloads_completed': {},
-            'processing_completed': {},
-            'symbols_completed': 0,
-            'last_run': None,
-            'stats': {
-                'downloads_attempted': 0,
-                'downloads_successful': 0,
-                'symbols_processed': 0,
-                'records_written': 0,
-                'merges_performed': 0
-            }
-        }
-
-    def save_checkpoint(self):
-        """Save current processing state"""
-        self.checkpoint_data['last_run'] = datetime.now().isoformat()
-        try:
-            with open(self.checkpoint_file, 'w') as f:
-                json.dump(self.checkpoint_data, f, indent=2)
-        except Exception as e:
-            logger.error(f"❌ Failed to save checkpoint: {e}")
 
     def get_30_day_date_range(self) -> tuple:
         """Get the date range for last 30 days"""
@@ -226,39 +198,33 @@ class FirstRate30DayBackfill:
 
         return ranges
 
-    async def download_30_days(self) -> Dict[str, bool]:
-        """Download the latest 30 days of data for stocks and ETFs"""
-        logger.info("🚀 Starting 30-day data downloads...")
+    async def download_30_days(self, period: str = "month") -> Dict[str, bool]:
+        """Download the latest 30 days of data for stocks and ETFs
+        
+        Args:
+            period: API period parameter - 'month' (30 days), 'week', or 'day'
+        """
+        logger.info(f"🚀 Starting {period} data downloads...")
         
         start_date, end_date = self.get_30_day_date_range()
         logger.info(f"📅 Date range: {start_date} to {end_date}")
 
         jobs = [
-            DownloadJob(asset_type='stock'),
-            DownloadJob(asset_type='etf')
+            DownloadJob(asset_type='stock', period=period),
+            DownloadJob(asset_type='etf', period=period)
         ]
 
         results = {}
         for job in jobs:
-            if job.asset_type in self.checkpoint_data['downloads_completed']:
-                logger.info(f"⏭️  {job.asset_type} download already completed, skipping")
-                results[job.asset_type] = True
-                continue
-
             logger.info(f"📥 Downloading {job.asset_type} data...")
             try:
                 success = await self.downloader.download_daily_data([job], date_override=None)
                 results[job.asset_type] = success[job.asset_type] if success else False
                 
                 if results[job.asset_type]:
-                    self.checkpoint_data['downloads_completed'][job.asset_type] = datetime.now().isoformat()
-                    self.checkpoint_data['stats']['downloads_successful'] += 1
                     logger.info(f"✅ {job.asset_type} download completed")
                 else:
                     logger.error(f"❌ {job.asset_type} download failed")
-                
-                self.checkpoint_data['stats']['downloads_attempted'] += 1
-                self.save_checkpoint()
 
             except Exception as e:
                 logger.error(f"❌ Error downloading {job.asset_type}: {e}")
@@ -317,7 +283,8 @@ class FirstRate30DayBackfill:
         symbol: str,
         zip_files: List[Path],
         start_date: date,
-        end_date: date
+        end_date: date,
+        period: str = "day"
     ) -> int:
         """Process symbol from daily zip files and merge with existing monthly data"""
         import pandas as pd
@@ -331,7 +298,7 @@ class FirstRate30DayBackfill:
         for zip_file in zip_files:
             try:
                 with zipfile.ZipFile(zip_file, 'r') as zf:
-                    txt_file = f"{symbol}_day_1min_adjsplit.txt"
+                    txt_file = f"{symbol}_{period}_1min_adjsplit.txt"
                     if txt_file not in zf.namelist():
                         continue
                     
@@ -384,7 +351,6 @@ class FirstRate30DayBackfill:
                 
                 new_count = len(merged_df) - len(existing_df)
                 logger.info(f"✅ {symbol} {year}-{month:02d}: merged {new_count} new records (was {len(existing_df)}, now {len(merged_df)})")
-                self.checkpoint_data['stats']['merges_performed'] += 1
             else:
                 merged_df = month_df
                 logger.info(f"✅ {symbol} {year}-{month:02d}: created with {len(merged_df)} records")
@@ -399,7 +365,8 @@ class FirstRate30DayBackfill:
         self,
         symbols: List[str],
         start_date: date,
-        end_date: date
+        end_date: date,
+        period: str = "day"
     ) -> Dict:
         """Process all symbols for the date range"""
         logger.info(f"🚀 Processing {len(symbols)} symbols from daily zip files...")
@@ -412,18 +379,16 @@ class FirstRate30DayBackfill:
             logger.info(f"🔄 Processing {symbol} ({i}/{len(symbols)})")
 
             records = await self.process_symbol_from_daily_zips(
-                symbol, zip_files, start_date, end_date
+                symbol, zip_files, start_date, end_date, period=period
             )
             
             total_records += records
-            self.checkpoint_data['stats']['symbols_processed'] += 1
-            self.checkpoint_data['stats']['records_written'] += records
-            self.checkpoint_data['symbols_completed'] += 1
 
-            if (i % 10) == 0:
-                self.save_checkpoint()
-
-        self.save_checkpoint()
+            if (i % 10) == 0 and self.run_id:
+                await self.run_tracker.update_progress(self.run_id, {
+                    'symbols_processed': i,
+                    'records_written': total_records
+                })
 
         return {
             'symbols_processed': len(symbols),
@@ -433,6 +398,7 @@ class FirstRate30DayBackfill:
     async def run_full_backfill(
         self,
         download: bool = True,
+        period: str = "month",
         symbols: Optional[List[str]] = None,
         limit: Optional[int] = None
     ) -> Dict:
@@ -441,10 +407,20 @@ class FirstRate30DayBackfill:
         logger.info(f"📂 Data path: {self.data_path}")
         logger.info(f"💾 Output path: {self.output_path}")
 
+        self.run_id = await self.run_tracker.start_run(parameters={
+            'period': period,
+            'symbols': symbols,
+            'limit': limit,
+            'download': download,
+            'data_path': str(self.data_path),
+            'output_path': str(self.output_path)
+        })
+        logger.info(f"📝 Run ID: {self.run_id}")
+
         start_time = time.time()
 
         if download:
-            download_results = await self.download_30_days()
+            download_results = await self.download_30_days(period=period)
             logger.info(f"📊 Download results: {download_results}")
         else:
             logger.info("⏭️  Skipping download step")
@@ -457,7 +433,7 @@ class FirstRate30DayBackfill:
         
         start_date, end_date = self.get_30_day_date_range()
         
-        process_results = await self.process_all_symbols(symbol_list, start_date, end_date)
+        process_results = await self.process_all_symbols(symbol_list, start_date, end_date, period=period)
 
         elapsed_time = time.time() - start_time
 
@@ -466,9 +442,17 @@ class FirstRate30DayBackfill:
         logger.info(f"📝 Records written: {process_results['total_records']:,}")
         logger.info(f"⏱️  Total time: {elapsed_time:.1f} seconds")
 
+        await self.run_tracker.complete_run(self.run_id, {
+            'symbols_processed': process_results['symbols_processed'],
+            'total_records': process_results['total_records'],
+            'elapsed_time': elapsed_time
+        })
+
         return {
             'success': True,
-            'stats': self.checkpoint_data['stats'],
+            'run_id': self.run_id,
+            'symbols_processed': process_results['symbols_processed'],
+            'total_records': process_results['total_records'],
             'elapsed_time': elapsed_time
         }
 
@@ -480,12 +464,18 @@ def main():
                         help="Run full backfill (download + process)")
     parser.add_argument("--process-only", action="store_true",
                         help="Process only, skip download")
-    parser.add_argument("--data-path", default="/mnt/d/ats-data/firstrate-data",
+    parser.add_argument("--data-path", 
+                        default=os.getenv('ATS_DATA_PATH', '/mnt/d/ats-data') + "/firstrate-data",
                         help="Path to FirstRate data directory")
-    parser.add_argument("--output-path", default="/mnt/d/ats-data/minute-bars/firstrate",
+    parser.add_argument("--output-path",
+                        default=os.getenv('ATS_DATA_PATH', '/mnt/d/ats-data') + "/minute-bars/firstrate",
                         help="Output directory for processed files")
-    parser.add_argument("--checkpoint-file", default="firstrate_30day_backfill.json",
-                        help="Checkpoint file for resumable processing")
+    parser.add_argument("--environment", default="dev",
+                        choices=['dev', 'intg', 'prod'],
+                        help="Environment (dev, intg, prod) for run tracking")
+    parser.add_argument("--period", default="month",
+                        choices=['day', 'week', 'month', 'full'],
+                        help="Download period: day (1 day), week (current week), month (30 days), full (all history)")
     parser.add_argument("--symbols", type=str,
                         help="Specific symbols to process (comma-separated)")
     parser.add_argument("--limit", type=int,
@@ -508,7 +498,7 @@ def main():
     processor = FirstRate30DayBackfill(
         data_path=args.data_path,
         output_path=args.output_path,
-        checkpoint_file=args.checkpoint_file
+        environment=args.environment
     )
 
     try:
@@ -518,21 +508,23 @@ def main():
         
         result = asyncio.run(processor.run_full_backfill(
             download=args.full or not args.process_only,
+            period=args.period,
             symbols=symbols,
             limit=args.limit
         ))
 
         print(f"\n✅ Backfill completed successfully!")
-        print(f"📊 Final stats: {result['stats']}")
+        print(f"📝 Run ID: {result['run_id']}")
+        print(f"📊 Symbols: {result['symbols_processed']}")
+        print(f"📝 Records: {result['total_records']:,}")
+        print(f"⏱️  Time: {result['elapsed_time']:.1f}s")
 
     except KeyboardInterrupt:
         print("\n🛑 Backfill interrupted by user")
-        processor.save_checkpoint()
-        print("💾 Checkpoint saved")
+        raise
 
     except Exception as e:
         print(f"\n❌ Backfill failed: {e}")
-        processor.save_checkpoint()
         raise
 
 
