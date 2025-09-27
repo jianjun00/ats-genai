@@ -34,8 +34,31 @@ import time
 # Add src to Python path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from market_data.agent.firstrate_adapter import FirstRateAdapter, Tick
-from storage.file_based_minute_manager import FileBasedMinuteManager
+from core.vendor.adapters import create_firstrate_adapter, FirstRateAdapter
+from dataclasses import dataclass
+
+@dataclass
+class MinuteBar:
+    """Minute bar data structure"""
+    symbol: str
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+    vendor: str = "firstrate"
+
+@dataclass
+class Tick:
+    """Tick data from FirstRate adapter"""
+    symbol: str
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
 
 logger = logging.getLogger(__name__)
 
@@ -49,15 +72,15 @@ class FirstRateBackfillProcessor:
         output_path: str = "/mnt/d/ats-data/minute-bars/firstrate",  # Host mount point
         checkpoint_file: str = "firstrate_monthly_production.json"
     ):
-        self.adapter = FirstRateAdapter(data_path)
+        self.adapter = create_firstrate_adapter(data_path)
         self.output_path = Path(output_path)
         self.checkpoint_file = Path(checkpoint_file)
 
         # Create output directory
         self.output_path.mkdir(parents=True, exist_ok=True)
 
-        # Initialize minute manager
-        self.minute_manager = FileBasedMinuteManager(str(self.output_path))
+        # Use parquet storage path
+        self.storage_path = self.output_path
 
         # Load checkpoint
         self.checkpoint_data = self.load_checkpoint()
@@ -194,23 +217,30 @@ class FirstRateBackfillProcessor:
 
             # Store using FileBasedMinuteManager
             if ticks:
-                from storage.file_based_minute_manager import MinuteBar
-
-                minute_bars = []
-                for tick in ticks:
-                    bar = MinuteBar(
-                        symbol=tick.symbol,
-                        timestamp=tick.timestamp,
-                        open=tick.open,
-                        high=tick.high,
-                        low=tick.low,
-                        close=tick.close,
-                        volume=tick.volume,
-                        vendor="firstrate"
-                    )
-                    minute_bars.append(bar)
-
-                await self.minute_manager.store_minute_data(symbol, minute_bars)
+                # Convert ticks to parquet and store
+                if ticks:
+                    import pandas as pd
+                    records = []
+                    for tick in ticks:
+                        records.append({
+                            'symbol': tick.symbol,
+                            'timestamp': tick.timestamp,
+                            'open': float(tick.open),
+                            'high': float(tick.high),
+                            'low': float(tick.low),
+                            'close': float(tick.close),
+                            'volume': int(tick.volume),
+                            'vendor': 'firstrate'
+                        })
+                    
+                    df = pd.DataFrame(records)
+                    
+                    # Store as monthly parquet: {symbol}/{year}/{month}.parquet
+                    symbol_dir = self.storage_path / symbol[0] / symbol / str(year) / f"{month:02d}"
+                    symbol_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    parquet_path = symbol_dir / f"{symbol}_{year}_{month:02d}.parquet"
+                    df.to_parquet(parquet_path, engine='pyarrow', compression='snappy', index=False)
                 records_written = len(minute_bars)
 
             # Mark month as completed

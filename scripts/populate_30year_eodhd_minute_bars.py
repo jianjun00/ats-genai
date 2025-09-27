@@ -45,30 +45,22 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 # Set environment type for Gin config system - use DEV for development
 os.environ['ENVIRONMENT_TYPE'] = 'dev'
 
-try:
-    from market_data.agent.eodhd_minute_adapter import EODHDMinuteAdapter, EODHDMinuteBar
-    from storage.file_based_minute_manager import FileBasedMinuteManager, MinuteBar
-    from core.logging.logger_config import get_logger
-    from core.run_context import RunContext
-except ImportError as e:
-    print(f"Warning: Import error {e}. Using fallback imports.")
-    # Fallback to standard logging if core logging not available
-    import logging
-    def get_logger(name):
-        return logging.getLogger(name)
+# Note: This script is deprecated and uses non-existent dependencies
+# Use populate_firstrate_minute_bars.py or other working scripts instead
+import logging
 
-    # We'll need to implement simple versions of the missing classes
-    class EODHDMinuteAdapter:
-        def __init__(self, api_key):
-            self.api_key = api_key
+def get_logger(name):
+    return logging.getLogger(name)
 
-    class FileBasedMinuteManager:
-        def __init__(self, **kwargs):
-            pass
+class EODHDMinuteAdapter:
+    """Stub - real implementation doesn't exist"""
+    def __init__(self, api_key):
+        self.api_key = api_key
 
-    class MinuteBar:
-        def __init__(self, **kwargs):
-            pass
+class MinuteBar:
+    """Stub - use pandas DataFrame instead"""
+    def __init__(self, **kwargs):
+        pass
 
 logger = get_logger(__name__)
 

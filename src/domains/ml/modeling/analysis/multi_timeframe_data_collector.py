@@ -175,7 +175,7 @@ class MultiTimeframeDataCollector:
 
     async def _get_minute_data(self, symbols: List[str], start_date: str, end_date: str,
                              minutes: int = 5) -> pd.DataFrame:
-        """Get minute-level OHLC data - now uses REAL data from FileBasedMinuteManager."""
+        """Get minute-level OHLC data - Note: FileBasedMinuteManager doesn't exist, uses legacy DB."""
 
         if self.use_real_data and hasattr(self, 'minute_manager'):
             return await self._get_real_minute_data(symbols, start_date, end_date, minutes)
@@ -184,7 +184,7 @@ class MultiTimeframeDataCollector:
 
     async def _get_real_minute_data(self, symbols: List[str], start_date: str, end_date: str,
                                    minutes: int = 5) -> pd.DataFrame:
-        """Get REAL minute data from FileBasedMinuteManager."""
+        """Note: FileBasedMinuteManager doesn't exist - this method is deprecated."""
 
         logger.info(f"🎯 Getting REAL minute data for {symbols} from {start_date} to {end_date}")
 
