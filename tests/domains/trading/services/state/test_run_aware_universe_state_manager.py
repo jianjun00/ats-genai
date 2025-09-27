@@ -15,9 +15,9 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from core.run_context import RunContext
-from state.run_aware_universe_state_manager import RunAwareUniverseStateManager, create_run_aware_universe_state_manager
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.shared.run_context import RunContext
+from domains.trading.services.state.run_aware_universe_state_manager import RunAwareUniverseStateManager, create_run_aware_universe_state_manager
+from core.platform.config.environment import Environment, EnvironmentType
 
 class TestRunAwareUniverseStateManager:
     """Test run-aware universe state manager functionality."""

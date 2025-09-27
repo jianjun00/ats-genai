@@ -41,13 +41,8 @@ from collections import defaultdict, Counter
 import glob
 
 # Ray for parallel processing
-try:
-    import ray
-    RAY_AVAILABLE = True
-except ImportError:
-    RAY_AVAILABLE = False
-
-# Add src to Python path
+import ray
+RAY_AVAILABLE = True
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from core.shared.run_aware_logging import setup_run_aware_logging
@@ -153,29 +148,24 @@ def analyze_symbol_trading_days(symbol: str, letter_path: str, trading_days: Lis
     for month in ['08', '09']:
         file_path = Path(letter_path) / symbol / f'2025/{month}' / f'{symbol}_2025_{month}.parquet'
         if file_path.exists():
-            try:
-                df = pd.read_parquet(file_path)
-                df['date'] = pd.to_datetime(df['timestamp']).dt.date
+            df = pd.read_parquet(file_path)
+            df['date'] = pd.to_datetime(df['timestamp']).dt.date
 
-                # Get unique trading dates from this file
-                file_trading_dates = set(df['date'].unique())
-                symbol_trading_dates.update(file_trading_dates)
+            # Get unique trading dates from this file
+            file_trading_dates = set(df['date'].unique())
+            symbol_trading_dates.update(file_trading_dates)
 
-                # Count minute bars for recent trading days only
-                recent_dates = set(trading_days[:10])  # Last 10 trading days
-                recent_bars = df[df['date'].isin(recent_dates)]
-                minute_bars_count += len(recent_bars)
+            # Count minute bars for recent trading days only
+            recent_dates = set(trading_days[:10])  # Last 10 trading days
+            recent_bars = df[df['date'].isin(recent_dates)]
+            minute_bars_count += len(recent_bars)
 
-                # Update last trading date seen
-                if file_trading_dates:
-                    file_last_date = max(file_trading_dates)
-                    if last_trading_date is None or file_last_date > last_trading_date:
-                        last_trading_date = file_last_date
+            # Update last trading date seen
+            if file_trading_dates:
+                file_last_date = max(file_trading_dates)
+                if last_trading_date is None or file_last_date > last_trading_date:
+                    last_trading_date = file_last_date
 
-            except Exception as e:
-                continue
-
-    # Calculate coverage flags
     has_t0 = t0_date in symbol_trading_dates if t0_date else False
     has_t1 = t1_date in symbol_trading_dates if t1_date else False
     has_t2 = t2_date in symbol_trading_dates if t2_date else False
@@ -234,15 +224,10 @@ class MinuteBarValidator:
                 WHERE date >= CURRENT_DATE - INTERVAL '30 days'
                 ORDER BY symbol
                 """
-                try:
-                    result = await conn.fetch(query)
-                    symbols = [r['symbol'] for r in result]
-                    self.logger.info(f"📊 {vendor}: Found {len(symbols)} expected instruments from daily prices")
-                    return symbols
-                except Exception as e:
-                    self.logger.warning(f"⚠️ Could not get expected instruments for {vendor}: {e}")
-                    return []
-
+                result = await conn.fetch(query)
+                symbols = [r['symbol'] for r in result]
+                self.logger.info(f"📊 {vendor}: Found {len(symbols)} expected instruments from daily prices")
+                return symbols
     def get_file_based_instruments(self, vendor: str, days: int = 90) -> Tuple[List[str], int]:
         """Get instruments that have minute bar files for the analysis period"""
         vendor_path = Path(self.minute_bars_path) / vendor
@@ -266,21 +251,16 @@ class MinuteBarValidator:
         file_count = len(parquet_files)
 
         for file_path in parquet_files:
-            try:
-                # Extract symbol from filename
-                filename = Path(file_path).stem  # Remove .parquet
-                if vendor == 'firstrate':
-                    # FirstRate: SYMBOL_YYYY_MM.parquet
-                    symbol = filename.split('_')[0]
-                else:
-                    # Others: SYMBOL_YYYY_MM.parquet
-                    symbol = filename.split('_')[0]
+            # Extract symbol from filename
+            filename = Path(file_path).stem  # Remove .parquet
+            if vendor == 'firstrate':
+                # FirstRate: SYMBOL_YYYY_MM.parquet
+                symbol = filename.split('_')[0]
+            else:
+                # Others: SYMBOL_YYYY_MM.parquet
+                symbol = filename.split('_')[0]
 
-                instruments.add(symbol)
-            except Exception as e:
-                self.logger.debug(f"Could not parse instrument from {file_path}: {e}")
-                continue
-
+            instruments.add(symbol)
         self.logger.info(f"📁 {vendor}: Found {len(instruments)} instruments in {file_count} files")
         return list(instruments), file_count
 
@@ -386,58 +366,53 @@ class MinuteBarValidator:
 
     async def export_prometheus_metrics(self, metrics_list: List[MinuteBarMetrics]) -> bool:
         """Export minute bar validation metrics to Prometheus pushgateway"""
-        try:
-            import requests
+        import requests
 
-            prometheus_metrics = []
-            timestamp = int(datetime.now().timestamp() * 1000)
+        prometheus_metrics = []
+        timestamp = int(datetime.now().timestamp() * 1000)
 
-            for metrics in metrics_list:
-                vendor = metrics.vendor
-                source = metrics.data_source
+        for metrics in metrics_list:
+            vendor = metrics.vendor
+            source = metrics.data_source
 
-                # Missing instruments metrics
-                prometheus_metrics.extend([
-                    f'ats_minute_bars_missing_instruments_count{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_instruments} {timestamp}',
-                    f'ats_minute_bars_missing_instruments_percentage{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_instruments_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_expected_instruments_total{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.total_expected_instruments} {timestamp}',
-                ])
+            # Missing instruments metrics
+            prometheus_metrics.extend([
+                f'ats_minute_bars_missing_instruments_count{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_instruments} {timestamp}',
+                f'ats_minute_bars_missing_instruments_percentage{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_instruments_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_expected_instruments_total{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.total_expected_instruments} {timestamp}',
+            ])
 
-                # Missing periods metrics
-                prometheus_metrics.extend([
-                    f'ats_minute_bars_missing_periods_count{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_periods} {timestamp}',
-                    f'ats_minute_bars_missing_periods_percentage{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_periods_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_expected_periods_total{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.total_expected_periods} {timestamp}',
-                ])
+            # Missing periods metrics
+            prometheus_metrics.extend([
+                f'ats_minute_bars_missing_periods_count{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_periods} {timestamp}',
+                f'ats_minute_bars_missing_periods_percentage{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.missing_periods_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_expected_periods_total{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.total_expected_periods} {timestamp}',
+            ])
 
-                # File count for file-based sources
-                if metrics.data_source == 'file':
-                    prometheus_metrics.append(
-                        f'ats_minute_bars_file_count{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.file_count} {timestamp}'
-                    )
+            # File count for file-based sources
+            if metrics.data_source == 'file':
+                prometheus_metrics.append(
+                    f'ats_minute_bars_file_count{{vendor="{vendor}",source="{source}",environment="intg"}} {metrics.file_count} {timestamp}'
+                )
 
-            # Overall validation timestamp
-            prometheus_metrics.append(f'ats_minute_bars_validation_timestamp{{environment="intg"}} {timestamp}')
+        # Overall validation timestamp
+        prometheus_metrics.append(f'ats_minute_bars_validation_timestamp{{environment="intg"}} {timestamp}')
 
-            # Push to Prometheus gateway
-            metrics_payload = '\n'.join(prometheus_metrics) + '\n'
+        # Push to Prometheus gateway
+        metrics_payload = '\n'.join(prometheus_metrics) + '\n'
 
-            response = requests.post(
-                f"{self.prometheus_gateway_url}/metrics/job/ats-minute-bars-validation/instance/intg",
-                headers={'Content-Type': 'text/plain; version=0.0.4'},
-                data=metrics_payload,
-                timeout=10
-            )
+        response = requests.post(
+            f"{self.prometheus_gateway_url}/metrics/job/ats-minute-bars-validation/instance/intg",
+            headers={'Content-Type': 'text/plain; version=0.0.4'},
+            data=metrics_payload,
+            timeout=10
+        )
 
-            if response.status_code == 200:
-                self.logger.info(f"✅ Successfully exported {len(prometheus_metrics)} metrics to Prometheus")
-                return True
-            else:
-                self.logger.error(f"❌ Failed to export metrics to Prometheus: {response.status_code}")
-                return False
-
-        except Exception as e:
-            self.logger.error(f"❌ Error exporting Prometheus metrics: {e}")
+        if response.status_code == 200:
+            self.logger.info(f"✅ Successfully exported {len(prometheus_metrics)} metrics to Prometheus")
+            return True
+        else:
+            self.logger.error(f"❌ Failed to export metrics to Prometheus: {response.status_code}")
             return False
 
     def validate_daily_coverage(self, vendor: str) -> Optional[DailyCoverageMetrics]:
@@ -470,130 +445,115 @@ class MinuteBarValidator:
         symbols_with_recent_10 = 0
         last_trading_date = None
 
-        try:
-            if vendor == 'firstrate':
-                if RAY_AVAILABLE:
-                    self.logger.info(f"🚀 Using Ray parallel processing for FirstRate analysis")
-                    # Initialize Ray if not already initialized
-                    if not ray.is_initialized():
-                        ray.init(num_cpus=os.cpu_count())
+        if vendor == 'firstrate':
+            if RAY_AVAILABLE:
+                self.logger.info(f"🚀 Using Ray parallel processing for FirstRate analysis")
+                # Initialize Ray if not already initialized
+                if not ray.is_initialized():
+                    ray.init(num_cpus=os.cpu_count())
 
-                    # Collect all symbols across all letters
-                    all_symbol_tasks = []
-                    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-                        letter_path = os.path.join(vendor_path, letter)
-                        if os.path.exists(letter_path):
-                            symbols = [d for d in os.listdir(letter_path)
-                                     if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
-                            total_symbols += len(symbols)
+                # Collect all symbols across all letters
+                all_symbol_tasks = []
+                for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+                    letter_path = os.path.join(vendor_path, letter)
+                    if os.path.exists(letter_path):
+                        symbols = [d for d in os.listdir(letter_path)
+                                 if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
+                        total_symbols += len(symbols)
 
-                            # Create Ray tasks for each symbol
-                            for symbol in symbols:
-                                task = analyze_symbol_trading_days.remote(symbol, letter_path, trading_days)
-                                all_symbol_tasks.append(task)
+                        # Create Ray tasks for each symbol
+                        for symbol in symbols:
+                            task = analyze_symbol_trading_days.remote(symbol, letter_path, trading_days)
+                            all_symbol_tasks.append(task)
 
-                    self.logger.info(f"📊 Processing {total_symbols} symbols in parallel with Ray ({len(all_symbol_tasks)} tasks)")
+                self.logger.info(f"📊 Processing {total_symbols} symbols in parallel with Ray ({len(all_symbol_tasks)} tasks)")
 
-                    # Execute all tasks in parallel and get results
-                    try:
-                        symbol_results = ray.get(all_symbol_tasks)
+                # Execute all tasks in parallel and get results
+                symbol_results = ray.get(all_symbol_tasks)
 
-                        # Aggregate results
-                        symbols_with_t3 = 0
-                        symbols_with_t4 = 0
-                        symbols_with_t5 = 0
-                        total_minute_bars_t1 = 0
-                        total_minute_bars_t2 = 0
-                        total_minute_bars_t3 = 0
-                        total_minute_bars_t4 = 0
-                        total_minute_bars_t5 = 0
+                # Aggregate results
+                symbols_with_t3 = 0
+                symbols_with_t4 = 0
+                symbols_with_t5 = 0
+                total_minute_bars_t1 = 0
+                total_minute_bars_t2 = 0
+                total_minute_bars_t3 = 0
+                total_minute_bars_t4 = 0
+                total_minute_bars_t5 = 0
 
-                        for result in symbol_results:
-                            if result['has_t0']:
+                for result in symbol_results:
+                    if result['has_t0']:
+                        symbols_with_t0 += 1
+                    if result['has_t1']:
+                        symbols_with_t1 += 1
+                    if result['has_t2']:
+                        symbols_with_t2 += 1
+                    if result['has_t3']:
+                        symbols_with_t3 += 1
+                    if result['has_t4']:
+                        symbols_with_t4 += 1
+                    if result['has_t5']:
+                        symbols_with_t5 += 1
+                    if result['has_recent_5']:
+                        symbols_with_recent_5 += 1
+                    if result['has_recent_10']:
+                        symbols_with_recent_10 += 1
+
+                    # Update last trading date
+                    if result['last_trading_date']:
+                        if last_trading_date is None or result['last_trading_date'] > last_trading_date:
+                            last_trading_date = result['last_trading_date']
+
+                self.logger.info(f"📊 Ray parallel processing completed: T-0: {symbols_with_t0}, T-1: {symbols_with_t1}, T-2: {symbols_with_t2}, T-3: {symbols_with_t3}, T-4: {symbols_with_t4}, T-5: {symbols_with_t5}")
+
+                self.logger.warning(f"📊 Ray not available, falling back to sequential processing")
+                # Original sequential code as fallback
+                for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+                    letter_path = os.path.join(vendor_path, letter)
+                    if os.path.exists(letter_path):
+                        symbols = [d for d in os.listdir(letter_path) if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
+                        total_symbols += len(symbols)
+
+                        for symbol in symbols:
+                            symbol_trading_dates = set()
+
+                            # Check recent months for trading data
+                            for month in ['08', '09']:
+                                file_path = os.path.join(letter_path, symbol, f'2025/{month}', f'{symbol}_2025_{month}.parquet')
+                                if os.path.exists(file_path):
+                                    import pandas as pd
+                                    df = pd.read_parquet(file_path)
+                                    df['date'] = pd.to_datetime(df['timestamp']).dt.date
+
+                                    # Get unique trading dates from this file
+                                    file_trading_dates = set(df['date'].unique())
+                                    symbol_trading_dates.update(file_trading_dates)
+
+                                    # Update last trading date seen
+                                    if file_trading_dates:
+                                        file_last_date = max(file_trading_dates)
+                                        if last_trading_date is None or file_last_date > last_trading_date:
+                                            last_trading_date = file_last_date
+
+                            if t0_date in symbol_trading_dates:
                                 symbols_with_t0 += 1
-                            if result['has_t1']:
+                            if t1_date and t1_date in symbol_trading_dates:
                                 symbols_with_t1 += 1
-                            if result['has_t2']:
+                            if t2_date and t2_date in symbol_trading_dates:
                                 symbols_with_t2 += 1
-                            if result['has_t3']:
-                                symbols_with_t3 += 1
-                            if result['has_t4']:
-                                symbols_with_t4 += 1
-                            if result['has_t5']:
-                                symbols_with_t5 += 1
-                            if result['has_recent_5']:
+
+                            # Check recent coverage (last 5 and 10 trading days)
+                            recent_5_found = any(td in symbol_trading_dates for td in trading_days[:5])
+                            recent_10_found = any(td in symbol_trading_dates for td in trading_days[:10])
+
+                            if recent_5_found:
                                 symbols_with_recent_5 += 1
-                            if result['has_recent_10']:
+                            if recent_10_found:
                                 symbols_with_recent_10 += 1
-
-                            # Update last trading date
-                            if result['last_trading_date']:
-                                if last_trading_date is None or result['last_trading_date'] > last_trading_date:
-                                    last_trading_date = result['last_trading_date']
-
-                        self.logger.info(f"📊 Ray parallel processing completed: T-0: {symbols_with_t0}, T-1: {symbols_with_t1}, T-2: {symbols_with_t2}, T-3: {symbols_with_t3}, T-4: {symbols_with_t4}, T-5: {symbols_with_t5}")
-
-                    except Exception as e:
-                        self.logger.error(f"❌ Ray parallel processing failed: {e}")
-                        return None
-                else:
-                    self.logger.warning(f"📊 Ray not available, falling back to sequential processing")
-                    # Original sequential code as fallback
-                    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-                        letter_path = os.path.join(vendor_path, letter)
-                        if os.path.exists(letter_path):
-                            symbols = [d for d in os.listdir(letter_path) if os.path.isdir(os.path.join(letter_path, d)) and not d.isdigit()]
-                            total_symbols += len(symbols)
-
-                            for symbol in symbols:
-                                symbol_trading_dates = set()
-
-                                # Check recent months for trading data
-                                for month in ['08', '09']:
-                                    file_path = os.path.join(letter_path, symbol, f'2025/{month}', f'{symbol}_2025_{month}.parquet')
-                                    if os.path.exists(file_path):
-                                        try:
-                                            import pandas as pd
-                                            df = pd.read_parquet(file_path)
-                                            df['date'] = pd.to_datetime(df['timestamp']).dt.date
-
-                                            # Get unique trading dates from this file
-                                            file_trading_dates = set(df['date'].unique())
-                                            symbol_trading_dates.update(file_trading_dates)
-
-                                            # Update last trading date seen
-                                            if file_trading_dates:
-                                                file_last_date = max(file_trading_dates)
-                                                if last_trading_date is None or file_last_date > last_trading_date:
-                                                    last_trading_date = file_last_date
-
-                                        except Exception as e:
-                                            continue
-
-                                # Check coverage for this symbol
-                                if t0_date in symbol_trading_dates:
-                                    symbols_with_t0 += 1
-                                if t1_date and t1_date in symbol_trading_dates:
-                                    symbols_with_t1 += 1
-                                if t2_date and t2_date in symbol_trading_dates:
-                                    symbols_with_t2 += 1
-
-                                # Check recent coverage (last 5 and 10 trading days)
-                                recent_5_found = any(td in symbol_trading_dates for td in trading_days[:5])
-                                recent_10_found = any(td in symbol_trading_dates for td in trading_days[:10])
-
-                                if recent_5_found:
-                                    symbols_with_recent_5 += 1
-                                if recent_10_found:
-                                    symbols_with_recent_10 += 1
-            else:
-                # Other vendors - simplified implementation for now
-                # TODO: Implement vendor-specific trading day analysis
-                self.logger.warning(f"📊 Trading day analysis not yet implemented for {vendor}")
-                return None
-
-        except Exception as e:
-            self.logger.error(f"❌ Error analyzing trading day coverage for {vendor}: {e}")
+        else:
+            # Other vendors - simplified implementation for now
+            # TODO: Implement vendor-specific trading day analysis
+            self.logger.warning(f"📊 Trading day analysis not yet implemented for {vendor}")
             return None
 
         self.logger.info(f"📅 {vendor} Trading Day Coverage: T-0: {symbols_with_t0}, T-1: {symbols_with_t1}, T-2: {symbols_with_t2}")
@@ -617,68 +577,58 @@ class MinuteBarValidator:
 
     async def export_daily_coverage_metrics(self, daily_metrics_list: List[DailyCoverageMetrics]) -> bool:
         """Export daily coverage metrics to Prometheus"""
-        try:
-            import requests
-        except ImportError:
-            self.logger.warning("📊 Requests not available, skipping Prometheus export")
-            return False
+        import requests
+        prometheus_metrics = []
+        timestamp = int(datetime.now().timestamp() * 1000)
 
-        try:
-            prometheus_metrics = []
-            timestamp = int(datetime.now().timestamp() * 1000)
+        for metrics in daily_metrics_list:
+            vendor = metrics.vendor
 
-            for metrics in daily_metrics_list:
-                vendor = metrics.vendor
+            # Trading day coverage count metrics
+            prometheus_metrics.extend([
+                f'ats_minute_bars_trading_total_symbols{{vendor="{vendor}",environment="intg"}} {metrics.total_symbols} {timestamp}',
+                f'ats_minute_bars_trading_t0_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t0_data} {timestamp}',
+                f'ats_minute_bars_trading_t1_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t1_data} {timestamp}',
+                f'ats_minute_bars_trading_t2_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t2_data} {timestamp}',
+                f'ats_minute_bars_trading_t3_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t3_data} {timestamp}',
+                f'ats_minute_bars_trading_t4_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t4_data} {timestamp}',
+                f'ats_minute_bars_trading_t5_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t5_data} {timestamp}',
+                f'ats_minute_bars_trading_recent_5_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_5_days} {timestamp}',
+                f'ats_minute_bars_trading_recent_10_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_10_days} {timestamp}',
+            ])
 
-                # Trading day coverage count metrics
-                prometheus_metrics.extend([
-                    f'ats_minute_bars_trading_total_symbols{{vendor="{vendor}",environment="intg"}} {metrics.total_symbols} {timestamp}',
-                    f'ats_minute_bars_trading_t0_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t0_data} {timestamp}',
-                    f'ats_minute_bars_trading_t1_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t1_data} {timestamp}',
-                    f'ats_minute_bars_trading_t2_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t2_data} {timestamp}',
-                    f'ats_minute_bars_trading_t3_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t3_data} {timestamp}',
-                    f'ats_minute_bars_trading_t4_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t4_data} {timestamp}',
-                    f'ats_minute_bars_trading_t5_symbols{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_t5_data} {timestamp}',
-                    f'ats_minute_bars_trading_recent_5_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_5_days} {timestamp}',
-                    f'ats_minute_bars_trading_recent_10_days{{vendor="{vendor}",environment="intg"}} {metrics.symbols_with_recent_10_days} {timestamp}',
-                ])
+            # Trading day coverage percentage metrics
+            prometheus_metrics.extend([
+                f'ats_minute_bars_trading_t0_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t0_coverage_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_trading_t1_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t1_coverage_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_trading_t2_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t2_coverage_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_trading_t3_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t3_coverage_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_trading_t4_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t4_coverage_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_trading_t5_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t5_coverage_percentage:.2f} {timestamp}',
+                f'ats_minute_bars_trading_recent_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.recent_coverage_percentage:.2f} {timestamp}',
+            ])
 
-                # Trading day coverage percentage metrics
-                prometheus_metrics.extend([
-                    f'ats_minute_bars_trading_t0_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t0_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_trading_t1_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t1_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_trading_t2_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t2_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_trading_t3_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t3_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_trading_t4_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t4_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_trading_t5_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.t5_coverage_percentage:.2f} {timestamp}',
-                    f'ats_minute_bars_trading_recent_coverage_percentage{{vendor="{vendor}",environment="intg"}} {metrics.recent_coverage_percentage:.2f} {timestamp}',
-                ])
-
-                # Last trading date (as timestamp)
-                last_trading_timestamp = int(datetime.combine(metrics.last_trading_date, datetime.min.time()).timestamp())
-                prometheus_metrics.append(
-                    f'ats_minute_bars_trading_last_date{{vendor="{vendor}",environment="intg"}} {last_trading_timestamp} {timestamp}'
-                )
-
-            # Push to Prometheus gateway
-            metrics_payload = '\n'.join(prometheus_metrics) + '\n'
-
-            response = requests.post(
-                f"{self.prometheus_gateway_url}/metrics/job/ats-minute-bars-daily-coverage/instance/intg",
-                headers={'Content-Type': 'text/plain; version=0.0.4'},
-                data=metrics_payload,
-                timeout=10
+            # Last trading date (as timestamp)
+            last_trading_timestamp = int(datetime.combine(metrics.last_trading_date, datetime.min.time()).timestamp())
+            prometheus_metrics.append(
+                f'ats_minute_bars_trading_last_date{{vendor="{vendor}",environment="intg"}} {last_trading_timestamp} {timestamp}'
             )
 
-            if response.status_code == 200:
-                self.logger.info(f"✅ Successfully exported {len(prometheus_metrics)} daily coverage metrics to Prometheus")
-                return True
-            else:
-                self.logger.error(f"❌ Failed to export daily coverage metrics to Prometheus: {response.status_code}")
-                return False
+        # Push to Prometheus gateway
+        metrics_payload = '\n'.join(prometheus_metrics) + '\n'
 
-        except Exception as e:
-            self.logger.error(f"❌ Error exporting daily coverage Prometheus metrics: {e}")
+        response = requests.post(
+            f"{self.prometheus_gateway_url}/metrics/job/ats-minute-bars-daily-coverage/instance/intg",
+            headers={'Content-Type': 'text/plain; version=0.0.4'},
+            data=metrics_payload,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            self.logger.info(f"✅ Successfully exported {len(prometheus_metrics)} daily coverage metrics to Prometheus")
+            return True
+        else:
+            self.logger.error(f"❌ Failed to export daily coverage metrics to Prometheus: {response.status_code}")
             return False
 
     async def run_validation(self, days: int = 90) -> List[MinuteBarMetrics]:
@@ -688,34 +638,22 @@ class MinuteBarValidator:
         metrics_list = []
 
         for vendor, config in self.vendors.items():
-            try:
-                # Validate file-based data
-                if config['has_files']:
-                    file_metrics = self.validate_file_minute_bars(vendor, days)
-                    metrics_list.append(file_metrics)
+            # Validate file-based data
+            if config['has_files']:
+                file_metrics = self.validate_file_minute_bars(vendor, days)
+                metrics_list.append(file_metrics)
 
-                # Validate database data
-                if config['has_database']:
-                    db_metrics = await self.validate_database_minute_bars(vendor, days)
-                    metrics_list.append(db_metrics)
+            # Validate database data
+            if config['has_database']:
+                db_metrics = await self.validate_database_minute_bars(vendor, days)
+                metrics_list.append(db_metrics)
 
-            except Exception as e:
-                self.logger.error(f"❌ Failed to validate {vendor} minute bars: {e}")
-                continue
-
-        # Validate daily coverage for file-based vendors
         daily_metrics_list = []
         for vendor, config in self.vendors.items():
             if config['has_files']:
-                try:
-                    daily_metrics = self.validate_daily_coverage(vendor)
-                    if daily_metrics:
-                        daily_metrics_list.append(daily_metrics)
-                except Exception as e:
-                    self.logger.error(f"❌ Failed to validate daily coverage for {vendor}: {e}")
-                    continue
-
-        # Export metrics to Prometheus
+                daily_metrics = self.validate_daily_coverage(vendor)
+                if daily_metrics:
+                    daily_metrics_list.append(daily_metrics)
         export_success = await self.export_prometheus_metrics(metrics_list)
         daily_export_success = await self.export_daily_coverage_metrics(daily_metrics_list)
 
@@ -762,41 +700,33 @@ async def main():
     logger.info(f"🔧 Debug mode: {args.debug}")
     logger.info(f"🧪 Dry run mode: {args.dry_run}")
 
-    try:
-        # Initialize validator
-        validator = MinuteBarValidator()
+    # Initialize validator
+    validator = MinuteBarValidator()
 
-        if args.dry_run:
-            logger.info("🧪 DRY RUN: Running validation without metrics export")
-            # Override export method for dry run
-            async def dry_run_export(metrics):
-                logger.info("🧪 DRY RUN: Would export metrics to Prometheus")
-                return True
-            validator.export_prometheus_metrics = dry_run_export
+    if args.dry_run:
+        logger.info("🧪 DRY RUN: Running validation without metrics export")
+        # Override export method for dry run
+        async def dry_run_export(metrics):
+            logger.info("🧪 DRY RUN: Would export metrics to Prometheus")
+            return True
+        validator.export_prometheus_metrics = dry_run_export
 
-        # Run validation
-        metrics_list = await validator.run_validation(days=args.days)
+    # Run validation
+    metrics_list = await validator.run_validation(days=args.days)
 
-        # Print detailed results if debug mode
-        if args.debug:
-            logger.info("📋 Detailed Validation Results:")
-            for metrics in metrics_list:
-                logger.info(f"   📊 {metrics.vendor.upper()} ({metrics.data_source}):")
-                logger.info(f"      • Expected Instruments: {metrics.total_expected_instruments}")
-                logger.info(f"      • Missing Instruments: {metrics.missing_instruments} ({metrics.missing_instruments_percentage:.2f}%)")
-                logger.info(f"      • Expected Periods: {metrics.total_expected_periods:,}")
-                logger.info(f"      • Missing Periods: {metrics.missing_periods:,} ({metrics.missing_periods_percentage:.2f}%)")
-                if metrics.data_source == 'file':
-                    logger.info(f"      • File Count: {metrics.file_count}")
+    # Print detailed results if debug mode
+    if args.debug:
+        logger.info("📋 Detailed Validation Results:")
+        for metrics in metrics_list:
+            logger.info(f"   📊 {metrics.vendor.upper()} ({metrics.data_source}):")
+            logger.info(f"      • Expected Instruments: {metrics.total_expected_instruments}")
+            logger.info(f"      • Missing Instruments: {metrics.missing_instruments} ({metrics.missing_instruments_percentage:.2f}%)")
+            logger.info(f"      • Expected Periods: {metrics.total_expected_periods:,}")
+            logger.info(f"      • Missing Periods: {metrics.missing_periods:,} ({metrics.missing_periods_percentage:.2f}%)")
+            if metrics.data_source == 'file':
+                logger.info(f"      • File Count: {metrics.file_count}")
 
-        logger.info("✅ Minute bar validation completed successfully")
-
-    except Exception as e:
-        logger.error(f"❌ Minute bar validation failed: {e}")
-        if args.debug:
-            import traceback
-            logger.error(f"📋 Full traceback: {traceback.format_exc()}")
-        sys.exit(1)
+    logger.info("✅ Minute bar validation completed successfully")
 
 if __name__ == "__main__":
     asyncio.run(main())

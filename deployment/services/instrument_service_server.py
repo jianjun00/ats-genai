@@ -48,53 +48,37 @@ async def lifespan(app: FastAPI):
     """Manage service lifecycle with proper startup and shutdown."""
     global service_container, health_integration, registry
 
-    try:
-        # Initialize service registry connection
-        registry = get_global_registry()
+    # Initialize service registry connection
+    registry = get_global_registry()
 
-        # Initialize service container
-        service_container = InstrumentServiceContainer(
-            environment=os.getenv('ENVIRONMENT', 'production')
-        )
-        await service_container.initialize()
+    # Initialize service container
+    service_container = InstrumentServiceContainer(
+        environment=os.getenv('ENVIRONMENT', 'production')
+    )
+    await service_container.initialize()
 
-        # Get service implementation
-        service_impl = service_container.get_instrument_service()
+    # Get service implementation
+    service_impl = service_container.get_instrument_service()
 
-        # Initialize health integration
-        health_integration = InstrumentServiceHealthIntegration(
-            service_impl=service_impl,
-            service_name=os.getenv('SERVICE_NAME', 'instrument-service'),
-            service_version=os.getenv('SERVICE_VERSION', '1.0.0'),
-            host=os.getenv('SERVICE_HOST', '0.0.0.0'),
-            port=int(os.getenv('SERVICE_PORT', '8001'))
-        )
+    # Initialize health integration
+    health_integration = InstrumentServiceHealthIntegration(
+        service_impl=service_impl,
+        service_name=os.getenv('SERVICE_NAME', 'instrument-service'),
+        service_version=os.getenv('SERVICE_VERSION', '1.0.0'),
+        host=os.getenv('SERVICE_HOST', '0.0.0.0'),
+        port=int(os.getenv('SERVICE_PORT', '8001'))
+    )
 
-        # Register service with service registry
-        await health_integration.register_service()
+    # Register service with service registry
+    await health_integration.register_service()
 
-        # Start health monitoring
-        await health_integration.start_health_monitoring()
+    # Start health monitoring
+    await health_integration.start_health_monitoring()
 
-        logger.info("Instrument service started successfully")
+    logger.info("Instrument service started successfully")
 
-        yield
+    yield
 
-    except Exception as e:
-        logger.error(f"Failed to start instrument service: {e}")
-        raise
-    finally:
-        # Cleanup
-        try:
-            if health_integration:
-                await health_integration.deregister_service()
-            if service_container:
-                await service_container.shutdown()
-            logger.info("Instrument service shut down successfully")
-        except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
-
-# Create FastAPI app with lifecycle management
 app = FastAPI(
     title="ATS Instrument Service",
     description="Vendor instrument, instrument xrefs, and unified instrument APIs",
@@ -118,24 +102,14 @@ app.include_router(instruments_router)
 @app.get("/health")
 async def service_health():
     """Service-specific health check endpoint."""
-    try:
-        if health_integration:
-            return await health_integration.get_health_status()
-        else:
-            return {
-                "status": "unhealthy",
-                "message": "Health integration not initialized",
-                "service": "instrument-service"
-            }
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
+    if health_integration:
+        return await health_integration.get_health_status()
+    else:
         return {
             "status": "unhealthy",
-            "message": f"Health check failed: {str(e)}",
+            "message": "Health integration not initialized",
             "service": "instrument-service"
         }
-
-# Service info endpoint
 @app.get("/info")
 async def service_info():
     """Get service information."""

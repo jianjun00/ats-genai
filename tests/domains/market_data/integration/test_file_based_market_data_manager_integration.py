@@ -19,14 +19,14 @@ from unittest.mock import Mock, patch, AsyncMock
 import sys
 sys.path.insert(0, 'src')
 
-from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-from state.universe_state_manager import UniverseStateManager
-from domains.ml.legacy.training_data.timeseries_sequence_training_generator import (
+from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteMarketDataManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from domains.ml.services.training_data.timeseries_sequence_training_generator import (
     TrainingDataConfig,
     SequenceWindowBuilder,
     TimeSeriesSequenceTrainingGenerator
 )
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 
 @pytest.fixture
@@ -688,46 +688,21 @@ class TestTimeSeriesTrainingGeneratorIntegration:
         generator = TimeSeriesSequenceTrainingGenerator(training_config, mock_universe_manager_with_real_methods)
 
         # Generate a training example
-        try:
-            result = await generator.generate_training_example(
-                instrument_id=7001,
-                prediction_timestamp=datetime(2025, 9, 5, 15, 0)
-            )
+        result = await generator.generate_training_example(
+            instrument_id=7001,
+            prediction_timestamp=datetime(2025, 9, 5, 15, 0)
+        )
 
-            # Should generate training data structure
-            assert isinstance(result, dict)
+        # Should generate training data structure
+        assert isinstance(result, dict)
 
-            # Should have expected top-level keys
-            expected_keys = ['sequences', 'targets', 'metadata']
-            for key in expected_keys:
-                if key in result:  # Some keys might be optional
-                    print(f"✅ Found expected key: {key}")
+        # Should have expected top-level keys
+        expected_keys = ['sequences', 'targets', 'metadata']
+        for key in expected_keys:
+            if key in result:  # Some keys might be optional
+                print(f"✅ Found expected key: {key}")
 
-            print(f"✅ Training example generated successfully with keys: {list(result.keys())}")
-
-        except Exception as e:
-            # ✅ VALIDATE THAT ERRORS ARE MEANINGFUL (not silent failures)
-            error_msg = str(e)
-            print(f"Training generation error (analyzing for validity): {error_msg}")
-
-            # Check if this is an expected error due to incomplete mock data
-            expected_error_types = [
-                "KeyError",  # Missing expected data columns
-                "ValueError",  # Invalid data shapes or values
-                "AttributeError",  # Missing methods or attributes
-                "IndexError"  # Data alignment issues
-            ]
-
-            error_is_expected = any(err_type in error_msg for err_type in expected_error_types)
-
-            if error_is_expected:
-                print(f"✅ Got expected error type for incomplete mock setup: {type(e).__name__}")
-                assert True  # Expected for incomplete test setup
-            else:
-                print(f"⚠️  Unexpected error type: {type(e).__name__}: {error_msg}")
-                # Re-raise unexpected errors for investigation
-                raise e
-
+        print(f"✅ Training example generated successfully with keys: {list(result.keys())}")
 
 class TestErrorHandlingAndEdgeCases:
     """Test error handling and edge cases."""

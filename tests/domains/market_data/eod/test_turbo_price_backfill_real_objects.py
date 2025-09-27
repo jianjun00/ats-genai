@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsTurboPolygonFetcher:
@@ -55,13 +49,7 @@ class TestRealObjectsTurboPolygonFetcher:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_fetch_symbol_year_success_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_year_success"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_year_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_year_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_symbol_year_rate_limit_retry_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_year_rate_limit_retry"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_year_rate_limit_retry_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_year_rate_limit_retry_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_symbol_year_server_error_retry_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_year_server_error_retry"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_year_server_error_retry_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_year_server_error_retry_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_symbol_year_max_retries_exceeded_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_year_max_retries_exceeded"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_year_max_retries_exceeded_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_year_max_retries_exceeded_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_symbol_year_no_results_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_year_no_results"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_year_no_results_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_year_no_results_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_symbol_data_success_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_data_success"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_data_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_data_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_symbol_data_rate_limit_retry_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_data_rate_limit_retry"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_data_rate_limit_retry_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_data_rate_limit_retry_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_symbol_data_empty_response_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_symbol_data_empty_response"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_symbol_data_empty_response_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_symbol_data_empty_response_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bulk_insert_polygon_success_real_objects(self, real_service, test_data):
         """Real objects version of test_bulk_insert_polygon_success"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bulk_insert_polygon_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bulk_insert_polygon_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bulk_insert_tiingo_success_real_objects(self, real_service, test_data):
         """Real objects version of test_bulk_insert_tiingo_success"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bulk_insert_tiingo_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bulk_insert_tiingo_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bulk_insert_empty_data_real_objects(self, real_service, test_data):
         """Real objects version of test_bulk_insert_empty_data"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bulk_insert_empty_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bulk_insert_empty_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bulk_insert_database_error_real_objects(self, real_service, test_data):
         """Real objects version of test_bulk_insert_database_error"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bulk_insert_database_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bulk_insert_database_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_api_calls_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_api_calls"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_api_calls_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_api_calls_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_handling_in_batch_processing_real_objects(self, real_service, test_data):
         """Real objects version of test_error_handling_in_batch_processing"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_handling_in_batch_processing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_handling_in_batch_processing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_transformation_accuracy_real_objects(self, real_service, test_data):
         """Real objects version of test_data_transformation_accuracy"""
         # Test with real database integration
@@ -384,15 +288,8 @@ class TestRealObjectsTurboPolygonFetcher:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_transformation_accuracy_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.data_transformation_accuracy_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

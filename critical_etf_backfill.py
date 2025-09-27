@@ -62,91 +62,82 @@ class CriticalETFBackfiller:
         rate_limiter = VendorRateLimiters.polygon_free()
         conn = await get_vendor_database_connection()
         
-        try:
-            processed = 0
-            inserted_total = 0
+        processed = 0
+        inserted_total = 0
+        
+        for symbol in CRITICAL_ETFS['polygon']:
+            instrument_id = await self.get_instrument_id(conn, symbol)
+            if not instrument_id:
+                logger.warning(f"⚠️ Symbol {symbol} not found in instruments table")
+                continue
             
-            for symbol in CRITICAL_ETFS['polygon']:
-                instrument_id = await self.get_instrument_id(conn, symbol)
-                if not instrument_id:
-                    logger.warning(f"⚠️ Symbol {symbol} not found in instruments table")
-                    continue
-                
-                logger.info(f"📈 Processing {symbol} (ID: {instrument_id})")
-                
-                # Check existing data
-                env = os.getenv('ENV_TYPE', 'intg').lower()
-                table_name = f'{env}_daily_prices_polygon'
-                
-                existing = await conn.fetchval(f"""
-                    SELECT COUNT(*) FROM {table_name} 
-                    WHERE instrument_id = $1
-                """, instrument_id)
-                
-                if existing > 0:
-                    logger.info(f"⏭️ Skipping {symbol} - already has {existing} records")
-                    continue
-                
-                # Fetch from Polygon API
-                url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{self.start_date}/{self.end_date}"
-                params = {'adjusted': 'true', 'sort': 'asc', 'apikey': api_key}
-                
-                await rate_limiter.wait()
-                
-                try:
-                    response = requests.get(url, params=params, timeout=30)
-                    response.raise_for_status()
-                    data = response.json()
-                    
-                    if data.get('status') != 'OK' or not data.get('results'):
-                        logger.warning(f"⚠️ No data for {symbol}: {data.get('status', 'Unknown')}")
-                        continue
-                    
-                    # Insert price data
-                    rows = []
-                    for result in data['results']:
-                        price_date = date.fromtimestamp(result['t'] / 1000)
-                        rows.append((
-                            price_date,
-                            symbol,
-                            float(result['o']),  # open
-                            float(result['h']),  # high
-                            float(result['l']),  # low
-                            float(result['c']),  # close
-                            int(result['v']),    # volume
-                            instrument_id
-                        ))
-                    
-                    if rows:
-                        inserted = await conn.executemany(f"""
-                            INSERT INTO {table_name} 
-                            (date, symbol, open, high, low, close, volume, instrument_id, created_at, updated_at)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-                            ON CONFLICT (date, instrument_id) DO UPDATE SET
-                                symbol = EXCLUDED.symbol,
-                                open = EXCLUDED.open,
-                                high = EXCLUDED.high,
-                                low = EXCLUDED.low,
-                                close = EXCLUDED.close,
-                                volume = EXCLUDED.volume,
-                                updated_at = NOW()
-                        """, rows)
-                        
-                        inserted_count = len(rows)
-                        inserted_total += inserted_count
-                        processed += 1
-                        
-                        logger.info(f"✅ {symbol}: Inserted {inserted_count} records")
-                    
-                except Exception as e:
-                    logger.error(f"❌ Error processing {symbol}: {e}")
-                    continue
+            logger.info(f"📈 Processing {symbol} (ID: {instrument_id})")
             
-            logger.info(f"🎉 Polygon backfill complete: {processed} ETFs processed, {inserted_total} total records")
+            # Check existing data
+            env = os.getenv('ENV_TYPE', 'intg').lower()
+            table_name = f'{env}_daily_prices_polygon'
             
-        finally:
-            await conn.close()
-
+            existing = await conn.fetchval(f"""
+                SELECT COUNT(*) FROM {table_name} 
+                WHERE instrument_id = $1
+            """, instrument_id)
+            
+            if existing > 0:
+                logger.info(f"⏭️ Skipping {symbol} - already has {existing} records")
+                continue
+            
+            # Fetch from Polygon API
+            url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{self.start_date}/{self.end_date}"
+            params = {'adjusted': 'true', 'sort': 'asc', 'apikey': api_key}
+            
+            await rate_limiter.wait()
+            
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get('status') != 'OK' or not data.get('results'):
+                logger.warning(f"⚠️ No data for {symbol}: {data.get('status', 'Unknown')}")
+                continue
+            
+            # Insert price data
+            rows = []
+            for result in data['results']:
+                price_date = date.fromtimestamp(result['t'] / 1000)
+                rows.append((
+                    price_date,
+                    symbol,
+                    float(result['o']),  # open
+                    float(result['h']),  # high
+                    float(result['l']),  # low
+                    float(result['c']),  # close
+                    int(result['v']),    # volume
+                    instrument_id
+                ))
+            
+            if rows:
+                inserted = await conn.executemany(f"""
+                    INSERT INTO {table_name} 
+                    (date, symbol, open, high, low, close, volume, instrument_id, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+                    ON CONFLICT (date, instrument_id) DO UPDATE SET
+                        symbol = EXCLUDED.symbol,
+                        open = EXCLUDED.open,
+                        high = EXCLUDED.high,
+                        low = EXCLUDED.low,
+                        close = EXCLUDED.close,
+                        volume = EXCLUDED.volume,
+                        updated_at = NOW()
+                """, rows)
+                
+                inserted_count = len(rows)
+                inserted_total += inserted_count
+                processed += 1
+                
+                logger.info(f"✅ {symbol}: Inserted {inserted_count} records")
+            
+        logger.info(f"🎉 Polygon backfill complete: {processed} ETFs processed, {inserted_total} total records")
+        
     async def backfill_eodhd_etfs(self):
         """Backfill missing critical ETFs for EODHD"""
         if not CRITICAL_ETFS['eodhd']:
@@ -159,96 +150,87 @@ class CriticalETFBackfiller:
         rate_limiter = VendorRateLimiters.eodhd()
         conn = await get_vendor_database_connection()
         
-        try:
-            processed = 0
-            inserted_total = 0
+        processed = 0
+        inserted_total = 0
+        
+        for symbol in CRITICAL_ETFS['eodhd']:
+            instrument_id = await self.get_instrument_id(conn, symbol)
+            if not instrument_id:
+                logger.warning(f"⚠️ Symbol {symbol} not found in instruments table")
+                continue
             
-            for symbol in CRITICAL_ETFS['eodhd']:
-                instrument_id = await self.get_instrument_id(conn, symbol)
-                if not instrument_id:
-                    logger.warning(f"⚠️ Symbol {symbol} not found in instruments table")
-                    continue
-                
-                logger.info(f"📈 Processing {symbol} (ID: {instrument_id})")
-                
-                # Check existing data
-                env = os.getenv('ENV_TYPE', 'intg').lower()
-                table_name = f'{env}_daily_prices_eodhd'
-                
-                existing = await conn.fetchval(f"""
-                    SELECT COUNT(*) FROM {table_name} 
-                    WHERE instrument_id = $1
-                """, instrument_id)
-                
-                if existing > 0:
-                    logger.info(f"⏭️ Skipping {symbol} - already has {existing} records")
-                    continue
-                
-                # Fetch from EODHD API
-                url = f"https://eodhistoricaldata.com/api/eod/{symbol}.US"
-                params = {
-                    'api_token': api_key,
-                    'from': self.start_date.isoformat(),
-                    'to': self.end_date.isoformat(),
-                    'fmt': 'json'
-                }
-                
-                await rate_limiter.wait()
-                
-                try:
-                    response = requests.get(url, params=params, timeout=30)
-                    response.raise_for_status()
-                    data = response.json()
-                    
-                    if not data:
-                        logger.warning(f"⚠️ No data for {symbol}")
-                        continue
-                    
-                    # Insert price data
-                    rows = []
-                    for result in data:
-                        price_date = datetime.strptime(result['date'], '%Y-%m-%d').date()
-                        rows.append((
-                            price_date,
-                            symbol,
-                            float(result['open']),
-                            float(result['high']),
-                            float(result['low']),
-                            float(result['close']),
-                            int(result['volume']),
-                            instrument_id
-                        ))
-                    
-                    if rows:
-                        inserted = await conn.executemany(f"""
-                            INSERT INTO {table_name} 
-                            (date, symbol, open, high, low, close, volume, instrument_id, created_at, updated_at)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-                            ON CONFLICT (date, instrument_id) DO UPDATE SET
-                                symbol = EXCLUDED.symbol,
-                                open = EXCLUDED.open,
-                                high = EXCLUDED.high,
-                                low = EXCLUDED.low,
-                                close = EXCLUDED.close,
-                                volume = EXCLUDED.volume,
-                                updated_at = NOW()
-                        """, rows)
-                        
-                        inserted_count = len(rows)
-                        inserted_total += inserted_count
-                        processed += 1
-                        
-                        logger.info(f"✅ {symbol}: Inserted {inserted_count} records")
-                    
-                except Exception as e:
-                    logger.error(f"❌ Error processing {symbol}: {e}")
-                    continue
+            logger.info(f"📈 Processing {symbol} (ID: {instrument_id})")
             
-            logger.info(f"🎉 EODHD backfill complete: {processed} ETFs processed, {inserted_total} total records")
+            # Check existing data
+            env = os.getenv('ENV_TYPE', 'intg').lower()
+            table_name = f'{env}_daily_prices_eodhd'
             
-        finally:
-            await conn.close()
-
+            existing = await conn.fetchval(f"""
+                SELECT COUNT(*) FROM {table_name} 
+                WHERE instrument_id = $1
+            """, instrument_id)
+            
+            if existing > 0:
+                logger.info(f"⏭️ Skipping {symbol} - already has {existing} records")
+                continue
+            
+            # Fetch from EODHD API
+            url = f"https://eodhistoricaldata.com/api/eod/{symbol}.US"
+            params = {
+                'api_token': api_key,
+                'from': self.start_date.isoformat(),
+                'to': self.end_date.isoformat(),
+                'fmt': 'json'
+            }
+            
+            await rate_limiter.wait()
+            
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            
+            if not data:
+                logger.warning(f"⚠️ No data for {symbol}")
+                continue
+            
+            # Insert price data
+            rows = []
+            for result in data:
+                price_date = datetime.strptime(result['date'], '%Y-%m-%d').date()
+                rows.append((
+                    price_date,
+                    symbol,
+                    float(result['open']),
+                    float(result['high']),
+                    float(result['low']),
+                    float(result['close']),
+                    int(result['volume']),
+                    instrument_id
+                ))
+            
+            if rows:
+                inserted = await conn.executemany(f"""
+                    INSERT INTO {table_name} 
+                    (date, symbol, open, high, low, close, volume, instrument_id, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+                    ON CONFLICT (date, instrument_id) DO UPDATE SET
+                        symbol = EXCLUDED.symbol,
+                        open = EXCLUDED.open,
+                        high = EXCLUDED.high,
+                        low = EXCLUDED.low,
+                        close = EXCLUDED.close,
+                        volume = EXCLUDED.volume,
+                        updated_at = NOW()
+                """, rows)
+                
+                inserted_count = len(rows)
+                inserted_total += inserted_count
+                processed += 1
+                
+                logger.info(f"✅ {symbol}: Inserted {inserted_count} records")
+            
+        logger.info(f"🎉 EODHD backfill complete: {processed} ETFs processed, {inserted_total} total records")
+        
 async def main():
     backfiller = CriticalETFBackfiller()
     

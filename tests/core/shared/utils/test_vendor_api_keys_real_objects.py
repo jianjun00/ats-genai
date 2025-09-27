@@ -45,13 +45,7 @@ class TestRealObjectsVendorAPIKeyMapping:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_vendor_mapping_completeness_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_mapping_completeness"""
         # Test with real database integration
@@ -66,14 +60,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_mapping_completeness_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_mapping_completeness_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_mapping_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_mapping_consistency"""
         # Test with real database integration
@@ -88,14 +76,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_mapping_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_mapping_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_api_key_from_environment_variable_real_objects(self, real_service, test_data):
         """Real objects version of test_get_api_key_from_environment_variable"""
         # Test with real database integration
@@ -110,14 +92,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_api_key_from_environment_variable_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_api_key_from_environment_variable_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_api_key_case_insensitive_vendor_real_objects(self, real_service, test_data):
         """Real objects version of test_get_api_key_case_insensitive_vendor"""
         # Test with real database integration
@@ -132,14 +108,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_api_key_case_insensitive_vendor_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_api_key_case_insensitive_vendor_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_api_key_strips_whitespace_real_objects(self, real_service, test_data):
         """Real objects version of test_get_api_key_strips_whitespace"""
         # Test with real database integration
@@ -154,14 +124,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_api_key_strips_whitespace_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_api_key_strips_whitespace_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_unknown_vendor_required_true_real_objects(self, real_service, test_data):
         """Real objects version of test_unknown_vendor_required_true"""
         # Test with real database integration
@@ -176,14 +140,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.unknown_vendor_required_true_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.unknown_vendor_required_true_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_unknown_vendor_required_false_real_objects(self, real_service, test_data):
         """Real objects version of test_unknown_vendor_required_false"""
         # Test with real database integration
@@ -198,14 +156,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.unknown_vendor_required_false_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.unknown_vendor_required_false_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_key_from_polygon_utils_real_objects(self, real_service, test_data):
         """Real objects version of test_api_key_from_polygon_utils"""
         # Test with real database integration
@@ -220,14 +172,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_key_from_polygon_utils_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_key_from_polygon_utils_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_key_from_eodhd_utils_real_objects(self, real_service, test_data):
         """Real objects version of test_api_key_from_eodhd_utils"""
         # Test with real database integration
@@ -242,14 +188,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_key_from_eodhd_utils_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_key_from_eodhd_utils_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_key_from_tiingo_utils_real_objects(self, real_service, test_data):
         """Real objects version of test_api_key_from_tiingo_utils"""
         # Test with real database integration
@@ -264,14 +204,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_key_from_tiingo_utils_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_key_from_tiingo_utils_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_key_from_environment_gin_config_real_objects(self, real_service, test_data):
         """Real objects version of test_api_key_from_environment_gin_config"""
         # Test with real database integration
@@ -286,14 +220,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_key_from_environment_gin_config_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_key_from_environment_gin_config_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_priority_order_environment_wins_real_objects(self, real_service, test_data):
         """Real objects version of test_priority_order_environment_wins"""
         # Test with real database integration
@@ -308,14 +236,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.priority_order_environment_wins_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.priority_order_environment_wins_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_priority_order_utils_over_gin_real_objects(self, real_service, test_data):
         """Real objects version of test_priority_order_utils_over_gin"""
         # Test with real database integration
@@ -330,14 +252,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.priority_order_utils_over_gin_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.priority_order_utils_over_gin_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fallback_to_gin_config_real_objects(self, real_service, test_data):
         """Real objects version of test_fallback_to_gin_config"""
         # Test with real database integration
@@ -352,14 +268,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fallback_to_gin_config_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fallback_to_gin_config_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_api_key_found_required_true_real_objects(self, real_service, test_data):
         """Real objects version of test_no_api_key_found_required_true"""
         # Test with real database integration
@@ -374,14 +284,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_api_key_found_required_true_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_api_key_found_required_true_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_api_key_found_required_false_real_objects(self, real_service, test_data):
         """Real objects version of test_no_api_key_found_required_false"""
         # Test with real database integration
@@ -396,14 +300,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_api_key_found_required_false_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_api_key_found_required_false_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_utils_import_error_handled_gracefully_real_objects(self, real_service, test_data):
         """Real objects version of test_utils_import_error_handled_gracefully"""
         # Test with real database integration
@@ -418,14 +316,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.utils_import_error_handled_gracefully_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.utils_import_error_handled_gracefully_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gin_config_error_handled_gracefully_real_objects(self, real_service, test_data):
         """Real objects version of test_gin_config_error_handled_gracefully"""
         # Test with real database integration
@@ -440,14 +332,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gin_config_error_handled_gracefully_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gin_config_error_handled_gracefully_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_all_keys_with_environment_variables_real_objects(self, real_service, test_data):
         """Real objects version of test_get_all_keys_with_environment_variables"""
         # Test with real database integration
@@ -462,14 +348,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_all_keys_with_environment_variables_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_all_keys_with_environment_variables_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_all_keys_empty_result_real_objects(self, real_service, test_data):
         """Real objects version of test_get_all_keys_empty_result"""
         # Test with real database integration
@@ -484,14 +364,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_all_keys_empty_result_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_all_keys_empty_result_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_all_keys_with_required_vendors_real_objects(self, real_service, test_data):
         """Real objects version of test_get_all_keys_with_required_vendors"""
         # Test with real database integration
@@ -506,14 +380,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_all_keys_with_required_vendors_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_all_keys_with_required_vendors_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_all_keys_partial_availability_real_objects(self, real_service, test_data):
         """Real objects version of test_get_all_keys_partial_availability"""
         # Test with real database integration
@@ -528,14 +396,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_all_keys_partial_availability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_all_keys_partial_availability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_polygon_key_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_polygon_key_valid"""
         # Test with real database integration
@@ -550,14 +412,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_polygon_key_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_polygon_key_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_polygon_key_invalid_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_polygon_key_invalid"""
         # Test with real database integration
@@ -572,14 +428,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_polygon_key_invalid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_polygon_key_invalid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_eodhd_key_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_eodhd_key_valid"""
         # Test with real database integration
@@ -594,14 +444,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_eodhd_key_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_eodhd_key_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_tiingo_key_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_tiingo_key_valid"""
         # Test with real database integration
@@ -616,14 +460,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_tiingo_key_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_tiingo_key_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_alpha_vantage_key_valid_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_alpha_vantage_key_valid"""
         # Test with real database integration
@@ -638,14 +476,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_alpha_vantage_key_valid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_alpha_vantage_key_valid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_alpha_vantage_key_invalid_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_alpha_vantage_key_invalid"""
         # Test with real database integration
@@ -660,14 +492,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_alpha_vantage_key_invalid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_alpha_vantage_key_invalid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_unknown_vendor_defaults_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_unknown_vendor_defaults"""
         # Test with real database integration
@@ -682,14 +508,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_unknown_vendor_defaults_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_unknown_vendor_defaults_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_polygon_api_key_real_objects(self, real_service, test_data):
         """Real objects version of test_get_polygon_api_key"""
         # Test with real database integration
@@ -704,14 +524,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_polygon_api_key_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_polygon_api_key_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_polygon_api_key_with_params_real_objects(self, real_service, test_data):
         """Real objects version of test_get_polygon_api_key_with_params"""
         # Test with real database integration
@@ -726,14 +540,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_polygon_api_key_with_params_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_polygon_api_key_with_params_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_eodhd_api_key_real_objects(self, real_service, test_data):
         """Real objects version of test_get_eodhd_api_key"""
         # Test with real database integration
@@ -748,14 +556,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_eodhd_api_key_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_eodhd_api_key_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_tiingo_api_key_real_objects(self, real_service, test_data):
         """Real objects version of test_get_tiingo_api_key"""
         # Test with real database integration
@@ -770,14 +572,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_tiingo_api_key_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_tiingo_api_key_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_string_vendor_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_string_vendor"""
         # Test with real database integration
@@ -792,14 +588,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_string_vendor_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_string_vendor_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_none_vendor_real_objects(self, real_service, test_data):
         """Real objects version of test_none_vendor"""
         # Test with real database integration
@@ -814,14 +604,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.none_vendor_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.none_vendor_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_api_key_from_environment_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_api_key_from_environment"""
         # Test with real database integration
@@ -836,14 +620,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_api_key_from_environment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_api_key_from_environment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_whitespace_only_api_key_real_objects(self, real_service, test_data):
         """Real objects version of test_whitespace_only_api_key"""
         # Test with real database integration
@@ -858,14 +636,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.whitespace_only_api_key_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.whitespace_only_api_key_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_debug_logging_environment_variable_real_objects(self, real_service, test_data):
         """Real objects version of test_debug_logging_environment_variable"""
         # Test with real database integration
@@ -880,14 +652,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.debug_logging_environment_variable_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.debug_logging_environment_variable_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_debug_logging_utils_system_real_objects(self, real_service, test_data):
         """Real objects version of test_debug_logging_utils_system"""
         # Test with real database integration
@@ -902,14 +668,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.debug_logging_utils_system_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.debug_logging_utils_system_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_debug_logging_gin_config_real_objects(self, real_service, test_data):
         """Real objects version of test_debug_logging_gin_config"""
         # Test with real database integration
@@ -924,15 +684,8 @@ class TestRealObjectsVendorAPIKeyMapping:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.debug_logging_gin_config_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.debug_logging_gin_config_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

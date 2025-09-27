@@ -17,10 +17,10 @@ import torch.nn as nn
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.infrastructure.services_legacy.model_registry_service import (
+from infrastructure.services_legacy.model_registry_service import (
     ModelRegistryService, ModelMetadata, create_input_signature_from_dataset_config
 )
-from src.infrastructure.services_legacy.model_tracker import ModelTracker
+from infrastructure.services_legacy.model_tracker import ModelTracker
 
 class SimpleTestModel(nn.Module):
     """Simple PyTorch model for testing."""
@@ -221,55 +221,47 @@ class TestModelRegistryIntegration(unittest.TestCase):
             last_updated=datetime.now()
         )
 
-        try:
-            model_id = self.registry_service.register_model(test_metadata, model)
+        model_id = self.registry_service.register_model(test_metadata, model)
 
-            # Search for models with compatible input signature
-            compatible_models = self.registry_service.search_models_by_input_signature(
-                required_features=['RSI', 'MACD'],
-                sequence_length=100
-            )
+        # Search for models with compatible input signature
+        compatible_models = self.registry_service.search_models_by_input_signature(
+            required_features=['RSI', 'MACD'],
+            sequence_length=100
+        )
 
-            # Should find our registered model
-            found_model = None
-            for compatible_model in compatible_models:
-                if compatible_model.model_id == model_id:
-                    found_model = compatible_model
-                    break
+        # Should find our registered model
+        found_model = None
+        for compatible_model in compatible_models:
+            if compatible_model.model_id == model_id:
+                found_model = compatible_model
+                break
 
-            self.assertIsNotNone(found_model, "Registered model not found in search results")
-            self.assertEqual(found_model.model_name, 'searchable_test_model')
+        self.assertIsNotNone(found_model, "Registered model not found in search results")
+        self.assertEqual(found_model.model_name, 'searchable_test_model')
 
-            print("✅ Model search functionality test passed")
-
-        except Exception as e:
-            self.skipTest(f"Database operations not available: {e}")
+        print("✅ Model search functionality test passed")
 
     def test_model_registry_statistics(self):
         """Test model registry statistics generation."""
 
-        try:
-            stats = self.registry_service.get_model_statistics()
+        stats = self.registry_service.get_model_statistics()
 
-            # Should return stats structure even if empty
-            self.assertIsInstance(stats, dict)
+        # Should return stats structure even if empty
+        self.assertIsInstance(stats, dict)
 
-            if 'error' not in stats:
-                # Database is available, check structure
-                self.assertIn('overview', stats)
-                self.assertIn('model_type_distribution', stats)
-                self.assertIn('deployment_status_distribution', stats)
+        if 'error' not in stats:
+            # Database is available, check structure
+            self.assertIn('overview', stats)
+            self.assertIn('model_type_distribution', stats)
+            self.assertIn('deployment_status_distribution', stats)
 
-                overview = stats['overview']
-                self.assertIn('total_models', overview)
-                self.assertIn('unique_model_types', overview)
+            overview = stats['overview']
+            self.assertIn('total_models', overview)
+            self.assertIn('unique_model_types', overview)
 
-                print(f"✅ Model registry statistics test passed - {overview.get('total_models', 0)} models in registry")
-            else:
-                print("✅ Model registry statistics test passed (database unavailable)")
-
-        except Exception as e:
-            print(f"⚠️ Model registry statistics test skipped: {e}")
+            print(f"✅ Model registry statistics test passed - {overview.get('total_models', 0)} models in registry")
+        else:
+            print("✅ Model registry statistics test passed (database unavailable)")
 
     def test_deployment_status_management(self):
         """Test model deployment status updates."""
@@ -278,67 +270,63 @@ class TestModelRegistryIntegration(unittest.TestCase):
         if not hasattr(self.registry_service, 'connection') or not self.registry_service.connection:
             self.skipTest("Database not available for deployment testing")
 
-        try:
-            # Create a test model for deployment testing
-            model = SimpleTestModel()
-            input_signature = create_input_signature_from_dataset_config(self.dataset_config)
+        # Create a test model for deployment testing
+        model = SimpleTestModel()
+        input_signature = create_input_signature_from_dataset_config(self.dataset_config)
 
-            test_metadata = ModelMetadata(
-                model_id=0,
-                model_name='deployment_test_model',
-                model_version='v1.0',
-                model_type='feedforward',
-                training_run_id=88888,
-                dataset_id=1,
-                training_duration_seconds=120.0,
-                training_start_time=datetime.now(),
-                training_end_time=datetime.now(),
-                architecture_config={'test': True},
-                parameter_count=1000,
-                model_size_mb=0.05,
-                final_loss=0.3,
-                validation_metrics={},
-                training_metrics={},
-                input_signature=input_signature,
-                output_shape=[1],
-                output_type='regression',
-                model_artifact_path='',
-                checkpoint_path=None,
-                onnx_path=None,
-                tags=['deployment_test'],
-                description='Test model for deployment status testing',
-                created_by='test_user',
-                framework='pytorch',
-                framework_version='2.0.0',
-                python_version='3.9.0',
-                deployment_status='registered',
-                deployment_config=None,
-                creation_timestamp=datetime.now(),
-                last_updated=datetime.now()
+        test_metadata = ModelMetadata(
+            model_id=0,
+            model_name='deployment_test_model',
+            model_version='v1.0',
+            model_type='feedforward',
+            training_run_id=88888,
+            dataset_id=1,
+            training_duration_seconds=120.0,
+            training_start_time=datetime.now(),
+            training_end_time=datetime.now(),
+            architecture_config={'test': True},
+            parameter_count=1000,
+            model_size_mb=0.05,
+            final_loss=0.3,
+            validation_metrics={},
+            training_metrics={},
+            input_signature=input_signature,
+            output_shape=[1],
+            output_type='regression',
+            model_artifact_path='',
+            checkpoint_path=None,
+            onnx_path=None,
+            tags=['deployment_test'],
+            description='Test model for deployment status testing',
+            created_by='test_user',
+            framework='pytorch',
+            framework_version='2.0.0',
+            python_version='3.9.0',
+            deployment_status='registered',
+            deployment_config=None,
+            creation_timestamp=datetime.now(),
+            last_updated=datetime.now()
+        )
+
+        model_id = self.registry_service.register_model(test_metadata, model)
+
+        # Test deployment status updates
+        statuses_to_test = ['staging', 'production', 'retired']
+
+        for status in statuses_to_test:
+            success = self.registry_service.update_deployment_status(
+                model_id,
+                status,
+                {'environment': f'{status}_env', 'endpoint': f'{status}.example.com'}
             )
 
-            model_id = self.registry_service.register_model(test_metadata, model)
+            self.assertTrue(success, f"Failed to update deployment status to {status}")
 
-            # Test deployment status updates
-            statuses_to_test = ['staging', 'production', 'retired']
+            # Verify the update
+            updated_model = self.registry_service.get_model(model_id)
+            self.assertEqual(updated_model.deployment_status, status)
 
-            for status in statuses_to_test:
-                success = self.registry_service.update_deployment_status(
-                    model_id,
-                    status,
-                    {'environment': f'{status}_env', 'endpoint': f'{status}.example.com'}
-                )
-
-                self.assertTrue(success, f"Failed to update deployment status to {status}")
-
-                # Verify the update
-                updated_model = self.registry_service.get_model(model_id)
-                self.assertEqual(updated_model.deployment_status, status)
-
-            print("✅ Deployment status management test passed")
-
-        except Exception as e:
-            self.skipTest(f"Database operations not available for deployment testing: {e}")
+        print("✅ Deployment status management test passed")
 
 class TestModelTrackerDecorator(unittest.TestCase):
     """Test the model tracking decorator functionality."""
@@ -356,7 +344,7 @@ class TestModelTrackerDecorator(unittest.TestCase):
     def test_decorator_functionality(self):
         """Test the @track_model_training decorator."""
 
-        from src.infrastructure.services_legacy.model_tracker import track_model_training
+        from infrastructure.services_legacy.model_tracker import track_model_training
 
         @track_model_training
         def sample_training_function(model_name='test_decorated_model',

@@ -22,11 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 
 def test_custom_json_serializer():
     """Test custom JSON serializer handles datetime objects."""
-    try:
-        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
-    except ImportError:
-        pytest.skip("SequenceStorageManager not available")
-
+    from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
     manager = SequenceStorageManager("/tmp", StorageConfig())
 
     test_data = {
@@ -54,11 +50,7 @@ def test_custom_json_serializer():
 
 def test_json_serializer_with_various_types():
     """Test JSON serializer handles various object types."""
-    try:
-        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
-    except ImportError:
-        pytest.skip("SequenceStorageManager not available")
-
+    from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     manager = SequenceStorageManager("/tmp")
 
     class CustomObject:
@@ -85,11 +77,7 @@ def test_json_serializer_with_various_types():
 @pytest.mark.asyncio
 async def test_datetime_objects_in_training_data():
     """Test that training data with datetime objects can be serialized."""
-    try:
-        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
-    except ImportError:
-        pytest.skip("SequenceStorageManager not available")
-
+    from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     class MockExample:
         def __init__(self):
             self.symbol = "TSLA"
@@ -112,25 +100,13 @@ async def test_datetime_objects_in_training_data():
         examples = [MockExample()]
 
         # Should complete without JSON serialization errors
-        try:
-            result = await manager.save_sequence_batch(examples, "test_batch")
-            assert result is not None
-            assert result.get('batch_id') == "test_batch"
-            assert result.get('example_count') == 1
-        except Exception as e:
-            if "array_record" in str(e):
-                pytest.skip("ArrayRecord package not available")
-            else:
-                raise
-
-
+        result = await manager.save_sequence_batch(examples, "test_batch")
+        assert result is not None
+        assert result.get('batch_id') == "test_batch"
+        assert result.get('example_count') == 1
 def test_datetime_serialization_edge_cases():
     """Test datetime serialization edge cases."""
-    try:
-        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
-    except ImportError:
-        pytest.skip("SequenceStorageManager not available")
-
+    from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     manager = SequenceStorageManager("/tmp")
 
     # Test various datetime formats
@@ -153,11 +129,7 @@ def test_datetime_serialization_edge_cases():
 
 def test_json_serializer_preserves_non_datetime_objects():
     """Test that non-datetime objects are handled correctly."""
-    try:
-        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
-    except ImportError:
-        pytest.skip("SequenceStorageManager not available")
-
+    from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     manager = SequenceStorageManager("/tmp")
 
     # Test that other object types use str() fallback
@@ -177,11 +149,7 @@ def test_json_serializer_preserves_non_datetime_objects():
 
 def test_sequence_record_serialization():
     """Test complete sequence record serialization with datetime objects."""
-    try:
-        from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
-    except ImportError:
-        pytest.skip("SequenceStorageManager not available")
-
+    from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager
     manager = SequenceStorageManager("/tmp")
 
     # Create a realistic sequence record with datetime

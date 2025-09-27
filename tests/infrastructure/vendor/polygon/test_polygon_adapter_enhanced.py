@@ -2,7 +2,7 @@ import pytest
 import requests
 from unittest.mock import patch, MagicMock
 from datetime import datetime, date
-from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
+from domains.market_data.services.vendor_adapters.market_cap.unified_market_cap_provider import PolygonAdapter
 
 
 class TestPolygonAdapterEnhanced:

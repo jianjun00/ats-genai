@@ -99,44 +99,33 @@ class Test1dArrayRecordMissingIssue:
                     file_size = arrayrecord_file.stat().st_size
                     
                     # Try to read the file to count records using run_dev command
-                    try:
-                        import subprocess
-                        result = subprocess.run([
-                            "python3", "scripts/run_dev.py", "arrayrecord", 
-                            "-f", str(arrayrecord_file)
-                        ], capture_output=True, text=True, cwd="/home/jianjun/ats-genai-admin")
-                        
-                        if result.returncode == 0:
-                            # Extract record count from output - look for "Total records: N"
-                            record_count = 0
-                            for line in result.stdout.split('\n'):
-                                if "Total records:" in line:
-                                    record_count = int(line.split(":")[1].strip())
-                                    break
-                                elif "❌ Empty ArrayRecord file" in line:
-                                    record_count = 0
-                                    break
-                        else:
-                            record_count = 0
-                        
-                        timeframe_results[timeframe] = {
-                            "file_exists": True,
-                            "file_size": file_size,
-                            "record_count": record_count,
-                            "file_path": str(arrayrecord_file),
-                            "readable": record_count > 0,
-                            "command_output": result.stdout
-                        }
-                    except Exception as e:
-                        timeframe_results[timeframe] = {
-                            "file_exists": True,
-                            "file_size": file_size,
-                            "record_count": 0,
-                            "file_path": str(arrayrecord_file),
-                            "readable": False,
-                            "error": str(e)
-                        }
-                else:
+                    import subprocess
+                    result = subprocess.run([
+                        "python3", "scripts/run_dev.py", "arrayrecord", 
+                        "-f", str(arrayrecord_file)
+                    ], capture_output=True, text=True, cwd="/home/jianjun/ats-genai-admin")
+                    
+                    if result.returncode == 0:
+                        # Extract record count from output - look for "Total records: N"
+                        record_count = 0
+                        for line in result.stdout.split('\n'):
+                            if "Total records:" in line:
+                                record_count = int(line.split(":")[1].strip())
+                                break
+                            elif "❌ Empty ArrayRecord file" in line:
+                                record_count = 0
+                                break
+                    else:
+                        record_count = 0
+                    
+                    timeframe_results[timeframe] = {
+                        "file_exists": True,
+                        "file_size": file_size,
+                        "record_count": record_count,
+                        "file_path": str(arrayrecord_file),
+                        "readable": record_count > 0,
+                        "command_output": result.stdout
+                    }
                     timeframe_results[timeframe] = {
                         "file_exists": False,
                         "file_size": 0,
@@ -208,47 +197,29 @@ class Test1dArrayRecordMissingIssue:
         print(f"📊 Analyzing {symbol} data from {start_date.date()} to {end_date.date()}")
         
         # Check minute-level source data availability
-        try:
-            minute_data = await real_market_data_manager.get_minute_data(
-                symbol=symbol,
-                start_date=start_date,
-                end_date=end_date
-            )
-            minute_count = len(minute_data) if minute_data is not None else 0
-            print(f"   📊 Raw minute data: {minute_count:,} records")
-        except Exception as e:
-            minute_count = 0
-            print(f"   ❌ Raw minute data error: {e}")
-        
-        # Check 5m aggregated data (known working in production)
-        try:
-            data_5m = await real_market_data_manager.get_aggregated_data(
-                symbol=symbol,
-                timeframe="5m",
-                start_date=start_date,
-                end_date=end_date
-            )
-            count_5m = len(data_5m) if data_5m is not None else 0
-            print(f"   📊 5m aggregated data: {count_5m:,} records")
-        except Exception as e:
-            count_5m = 0
-            print(f"   ❌ 5m aggregated data error: {e}")
-        
-        # Check 1d aggregated data (potentially broken in production)
-        try:
-            data_1d = await real_market_data_manager.get_aggregated_data(
-                symbol=symbol,
-                timeframe="1d",
-                start_date=start_date,
-                end_date=end_date
-            )
-            count_1d = len(data_1d) if data_1d is not None else 0
-            print(f"   📊 1d aggregated data: {count_1d:,} records")
-        except Exception as e:
-            count_1d = 0
-            print(f"   ❌ 1d aggregated data error: {e}")
-        
-        # ANALYSIS RESULTS
+        minute_data = await real_market_data_manager.get_minute_data(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date
+        )
+        minute_count = len(minute_data) if minute_data is not None else 0
+        print(f"   📊 Raw minute data: {minute_count:,} records")
+        data_5m = await real_market_data_manager.get_aggregated_data(
+            symbol=symbol,
+            timeframe="5m",
+            start_date=start_date,
+            end_date=end_date
+        )
+        count_5m = len(data_5m) if data_5m is not None else 0
+        print(f"   📊 5m aggregated data: {count_5m:,} records")
+        data_1d = await real_market_data_manager.get_aggregated_data(
+            symbol=symbol,
+            timeframe="1d",
+            start_date=start_date,
+            end_date=end_date
+        )
+        count_1d = len(data_1d) if data_1d is not None else 0
+        print(f"   📊 1d aggregated data: {count_1d:,} records")
         print(f"\n🔍 ROOT CAUSE ANALYSIS:")
         
         if minute_count == 0:
@@ -326,93 +297,85 @@ class Test1dArrayRecordMissingIssue:
             }
             
             # Run the command and capture output
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd="/home/jianjun/ats-genai-admin",
-                    env=env_vars,
-                    capture_output=True,
-                    text=True,
-                    timeout=300  # 5 minute timeout
-                )
-                
-                print(f"📊 Command return code: {result.returncode}")
-                print(f"📊 Command stdout length: {len(result.stdout)} chars")
-                print(f"📊 Command stderr length: {len(result.stderr)} chars")
-                
-                # Extract debug logging related to ArrayRecord writes
-                debug_lines = []
-                all_output = result.stdout + "\n" + result.stderr
-                
-                for line in all_output.split('\n'):
-                    if "ARRAYRECORD WRITE DEBUG" in line or "ARRAYRECORD WRITE SUCCESS" in line or "ARRAYRECORD WRITE FAILURE" in line:
-                        debug_lines.append(line)
-                
-                print(f"\n🔍 EXTRACTED DEBUG LINES ({len(debug_lines)} total):")
-                for line in debug_lines:
+            result = subprocess.run(
+                cmd,
+                cwd="/home/jianjun/ats-genai-admin",
+                env=env_vars,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
+            )
+            
+            print(f"📊 Command return code: {result.returncode}")
+            print(f"📊 Command stdout length: {len(result.stdout)} chars")
+            print(f"📊 Command stderr length: {len(result.stderr)} chars")
+            
+            # Extract debug logging related to ArrayRecord writes
+            debug_lines = []
+            all_output = result.stdout + "\n" + result.stderr
+            
+            for line in all_output.split('\n'):
+                if "ARRAYRECORD WRITE DEBUG" in line or "ARRAYRECORD WRITE SUCCESS" in line or "ARRAYRECORD WRITE FAILURE" in line:
+                    debug_lines.append(line)
+            
+            print(f"\n🔍 EXTRACTED DEBUG LINES ({len(debug_lines)} total):")
+            for line in debug_lines:
+                print(f"   {line}")
+            
+            # Analyze the debug output to identify differences
+            writes_5m = [line for line in debug_lines if "[5m]" in line]
+            writes_1d = [line for line in debug_lines if "[1d]" in line]
+            
+            print(f"\n📊 ANALYSIS:")
+            print(f"   5m writes captured: {len(writes_5m)}")
+            print(f"   1d writes captured: {len(writes_1d)}")
+            
+            if writes_5m:
+                print(f"\n✅ 5M WRITES (first 3):")
+                for line in writes_5m[:3]:
                     print(f"   {line}")
-                
-                # Analyze the debug output to identify differences
-                writes_5m = [line for line in debug_lines if "[5m]" in line]
-                writes_1d = [line for line in debug_lines if "[1d]" in line]
-                
-                print(f"\n📊 ANALYSIS:")
-                print(f"   5m writes captured: {len(writes_5m)}")
-                print(f"   1d writes captured: {len(writes_1d)}")
-                
-                if writes_5m:
-                    print(f"\n✅ 5M WRITES (first 3):")
-                    for line in writes_5m[:3]:
-                        print(f"   {line}")
-                
-                if writes_1d:
-                    print(f"\n🔍 1D WRITES (first 3):")
-                    for line in writes_1d[:3]:
-                        print(f"   {line}")
-                else:
-                    print(f"\n❌ NO 1D WRITES CAPTURED - This indicates the issue occurs before writing")
-                
-                # Check if any files were actually created
-                dataset_dirs = list(Path(temp_dir).glob("dataset_*"))
-                if dataset_dirs:
-                    dataset_dir = dataset_dirs[0]
-                    aapl_dirs = list(dataset_dir.glob("*AAPL*"))
-                    if aapl_dirs:
-                        aapl_dir = aapl_dirs[0]
-                        timeframe_dirs = [d for d in aapl_dir.iterdir() if d.is_dir()]
-                        print(f"\n📁 Generated timeframe directories: {[d.name for d in timeframe_dirs]}")
-                        
-                        for tf_dir in timeframe_dirs:
-                            arrayrecord_files = list(tf_dir.glob("*.arrayrecord"))
-                            if arrayrecord_files:
-                                file_size = arrayrecord_files[0].stat().st_size
-                                print(f"   {tf_dir.name}: {file_size} bytes")
-                
-                # Save full output for manual analysis
-                debug_log_file = Path(temp_dir) / "debug_output.log"
-                with open(debug_log_file, 'w') as f:
-                    f.write("STDOUT:\n")
-                    f.write(result.stdout)
-                    f.write("\n\nSTDERR:\n")
-                    f.write(result.stderr)
-                
-                print(f"\n💾 Full debug output saved to: {debug_log_file}")
-                
-                return {
-                    "return_code": result.returncode,
-                    "debug_lines": debug_lines,
-                    "writes_5m": writes_5m,
-                    "writes_1d": writes_1d,
-                    "full_output": all_output
-                }
-                
-            except subprocess.TimeoutExpired:
-                print("❌ Command timed out after 5 minutes")
-                assert False, "Training data generation timed out"
-            except Exception as e:
-                print(f"❌ Error running training data generation: {e}")
-                assert False, f"Failed to run training data generation: {e}"
-
+            
+            if writes_1d:
+                print(f"\n🔍 1D WRITES (first 3):")
+                for line in writes_1d[:3]:
+                    print(f"   {line}")
+            else:
+                print(f"\n❌ NO 1D WRITES CAPTURED - This indicates the issue occurs before writing")
+            
+            # Check if any files were actually created
+            dataset_dirs = list(Path(temp_dir).glob("dataset_*"))
+            if dataset_dirs:
+                dataset_dir = dataset_dirs[0]
+                aapl_dirs = list(dataset_dir.glob("*AAPL*"))
+                if aapl_dirs:
+                    aapl_dir = aapl_dirs[0]
+                    timeframe_dirs = [d for d in aapl_dir.iterdir() if d.is_dir()]
+                    print(f"\n📁 Generated timeframe directories: {[d.name for d in timeframe_dirs]}")
+                    
+                    for tf_dir in timeframe_dirs:
+                        arrayrecord_files = list(tf_dir.glob("*.arrayrecord"))
+                        if arrayrecord_files:
+                            file_size = arrayrecord_files[0].stat().st_size
+                            print(f"   {tf_dir.name}: {file_size} bytes")
+            
+            # Save full output for manual analysis
+            debug_log_file = Path(temp_dir) / "debug_output.log"
+            with open(debug_log_file, 'w') as f:
+                f.write("STDOUT:\n")
+                f.write(result.stdout)
+                f.write("\n\nSTDERR:\n")
+                f.write(result.stderr)
+            
+            print(f"\n💾 Full debug output saved to: {debug_log_file}")
+            
+            return {
+                "return_code": result.returncode,
+                "debug_lines": debug_lines,
+                "writes_5m": writes_5m,
+                "writes_1d": writes_1d,
+                "full_output": all_output
+            }
+            
     def test_timeframe_selection_logic_fix(self):
         """Test that the fix correctly generates 1d timeframes in historical training mode."""
         from datetime import datetime

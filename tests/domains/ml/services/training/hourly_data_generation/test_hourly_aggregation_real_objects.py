@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsHourlyAggregation:
@@ -56,13 +51,7 @@ class TestRealObjectsHourlyAggregation:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_aggregate_minutes_to_hourly_basic_real_objects(self, real_service, test_data):
         """Real objects version of test_aggregate_minutes_to_hourly_basic"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsHourlyAggregation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.aggregate_minutes_to_hourly_basic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.aggregate_minutes_to_hourly_basic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_aggregate_minutes_to_hourly_with_universe_manager_real_objects(self, real_service, test_data):
         """Real objects version of test_aggregate_minutes_to_hourly_with_universe_manager"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsHourlyAggregation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.aggregate_minutes_to_hourly_with_universe_manager_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.aggregate_minutes_to_hourly_with_universe_manager_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_minute_data_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_minute_data_handling"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsHourlyAggregation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_minute_data_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_minute_data_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_single_minute_data_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_single_minute_data_handling"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsHourlyAggregation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.single_minute_data_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.single_minute_data_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_period_identification_real_objects(self, real_service, test_data):
         """Real objects version of test_market_period_identification"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsHourlyAggregation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_period_identification_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_period_identification_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_quality_and_types_real_objects(self, real_service, test_data):
         """Real objects version of test_data_quality_and_types"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsHourlyAggregation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_quality_and_types_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_quality_and_types_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hourly_dataframe_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_hourly_dataframe_creation"""
         # Test with real database integration
@@ -209,15 +162,8 @@ class TestRealObjectsHourlyAggregation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hourly_dataframe_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.hourly_dataframe_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

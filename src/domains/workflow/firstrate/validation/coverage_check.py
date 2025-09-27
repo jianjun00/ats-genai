@@ -71,29 +71,24 @@ class FirstRateQuickValidator:
             month_path = symbol_path / f'2025/{month}' / f'{symbol}_2025_{month}.parquet'
             if month_path.exists():
                 months_available.append(f'2025-{month}')
-                try:
-                    df = pd.read_parquet(month_path)
-                    df['date'] = pd.to_datetime(df['timestamp']).dt.date
-                    
-                    # Get unique dates in this file
-                    file_dates = set(df['date'].unique())
-                    symbol_dates.update(file_dates)
-                    
-                    # Count records for recent trading days
-                    recent_dates = set(trading_days[:10])  # Last 10 trading days
-                    recent_records = df[df['date'].isin(recent_dates)]
-                    total_records += len(recent_records)
-                    
-                    # Track latest date
-                    if file_dates:
-                        file_latest = max(file_dates)
-                        if latest_date is None or file_latest > latest_date:
-                            latest_date = file_latest
-                            
-                except Exception as e:
-                    logger.warning(f"Error reading {month_path}: {e}")
-        
-        # Count coverage days in last 10 trading days
+                df = pd.read_parquet(month_path)
+                df['date'] = pd.to_datetime(df['timestamp']).dt.date
+                
+                # Get unique dates in this file
+                file_dates = set(df['date'].unique())
+                symbol_dates.update(file_dates)
+                
+                # Count records for recent trading days
+                recent_dates = set(trading_days[:10])  # Last 10 trading days
+                recent_records = df[df['date'].isin(recent_dates)]
+                total_records += len(recent_records)
+                
+                # Track latest date
+                if file_dates:
+                    file_latest = max(file_dates)
+                    if latest_date is None or file_latest > latest_date:
+                        latest_date = file_latest
+                        
         recent_10_days = set(trading_days[:10])
         coverage_days = len(recent_10_days & symbol_dates)
         recent_data = coverage_days > 0

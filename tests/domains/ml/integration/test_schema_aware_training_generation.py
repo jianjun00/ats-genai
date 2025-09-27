@@ -13,7 +13,7 @@ import os
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.domains.ml.legacy.training_data.generators.training_data_generator import (
+from domains.ml.legacy.training_data.generators.training_data_generator import (
     ResidualReturnTrainingDataGenerator,
     TrainingConfig,
     TrainingDatasetResult,

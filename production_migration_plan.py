@@ -255,13 +255,8 @@ class ProductionMigrationPlanner:
             # Simulate phase-specific validations
             if phase_name == "preparation":
                 # Check if we can access database
-                try:
-                    # This would normally test database connection
-                    phase_result["database_accessible"] = True
-                except Exception as e:
-                    phase_result["issues"].append(f"Database connection issue: {e}")
-                    simulation_results["issues_found"].append(f"Database connection issue in {phase_name}")
-
+                # This would normally test database connection
+                phase_result["database_accessible"] = True
             elif phase_name == "code_analysis":
                 # Analyze codebase
                 codebase_analysis = self.analyze_current_codebase()

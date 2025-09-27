@@ -416,36 +416,31 @@ async def check_training_data_consistency(environment: str = 'dev') -> Dict[str,
 
     conn = await asyncpg.connect(db_url)
 
-    try:
-        results = {
-            'timestamp': datetime.now().isoformat(),
-            'environment': environment,
-            'inconsistencies': [],
-            'summary': {},
-            'suggested_fixes': []
-        }
+    results = {
+        'timestamp': datetime.now().isoformat(),
+        'environment': environment,
+        'inconsistencies': [],
+        'summary': {},
+        'suggested_fixes': []
+    }
 
-        # Run all consistency checks
-        inconsistencies = await _comprehensive_consistency_check(conn)
-        results['inconsistencies'] = inconsistencies
+    # Run all consistency checks
+    inconsistencies = await _comprehensive_consistency_check(conn)
+    results['inconsistencies'] = inconsistencies
 
-        # Generate summary
-        results['summary'] = {
-            'total_inconsistencies': len(inconsistencies),
-            'failed_runs_with_generating_datasets': len([i for i in inconsistencies if i['type'] == 'failed_run_generating_dataset']),
-            'orphaned_datasets': len([i for i in inconsistencies if i['type'] == 'orphaned_dataset']),
-            'completed_runs_with_generating_datasets': len([i for i in inconsistencies if i['type'] == 'completed_run_generating_dataset'])
-        }
+    # Generate summary
+    results['summary'] = {
+        'total_inconsistencies': len(inconsistencies),
+        'failed_runs_with_generating_datasets': len([i for i in inconsistencies if i['type'] == 'failed_run_generating_dataset']),
+        'orphaned_datasets': len([i for i in inconsistencies if i['type'] == 'orphaned_dataset']),
+        'completed_runs_with_generating_datasets': len([i for i in inconsistencies if i['type'] == 'completed_run_generating_dataset'])
+    }
 
-        # Generate suggested fixes
-        if inconsistencies:
-            results['suggested_fixes'] = _generate_fix_suggestions(inconsistencies)
+    # Generate suggested fixes
+    if inconsistencies:
+        results['suggested_fixes'] = _generate_fix_suggestions(inconsistencies)
 
-        return results
-
-    finally:
-        await conn.close()
-
+    return results
 
 async def _comprehensive_consistency_check(conn) -> List[Dict[str, Any]]:
     """Implementation of the comprehensive consistency checker."""

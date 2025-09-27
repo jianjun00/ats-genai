@@ -56,38 +56,32 @@ async def run_batch_backfill():
         for batch_num, batch_symbols in enumerate(batches, 1):
             logger.info(f"\n📦 BATCH {batch_num}: Processing {batch_symbols}")
             
-            try:
-                results = await adapter.incremental_backfill_to_files(
-                    symbols=batch_symbols,
-                    days_back=30,
-                    output_path='/mnt/d/ats-data/minute-bars/firstrate'
-                )
-                
-                batch_processed = len(results.get('symbols_processed', []))
-                batch_written = results.get('files_written', 0)
-                batch_skipped = results.get('files_skipped', 0)
-                
-                total_processed += batch_processed
-                total_files_written += batch_written
-                total_files_skipped += batch_skipped
-                
-                logger.info(f"✅ Batch {batch_num}: {batch_processed}/{len(batch_symbols)} processed, {batch_written} written, {batch_skipped} skipped")
-                
-                # Show which files were updated
-                if batch_written > 0:
-                    for symbol in batch_symbols:
-                        for month in ['08', '09']:
-                            file_path = f"/mnt/d/ats-data/minute-bars/firstrate/{symbol[0]}/{symbol}/2025/{month}/{symbol}_2025_{month}.parquet"
-                            if Path(file_path).exists():
-                                mod_time = datetime.fromtimestamp(Path(file_path).stat().st_mtime)
-                                if (datetime.now() - mod_time).total_seconds() < 300:  # Updated in last 5 minutes
-                                    logger.info(f"  📄 Updated: {symbol}_2025_{month}.parquet")
-                
-            except Exception as e:
-                logger.error(f"❌ Batch {batch_num} failed: {e}")
-                continue
-    
-    # Final summary
+            results = await adapter.incremental_backfill_to_files(
+                symbols=batch_symbols,
+                days_back=30,
+                output_path='/mnt/d/ats-data/minute-bars/firstrate'
+            )
+            
+            batch_processed = len(results.get('symbols_processed', []))
+            batch_written = results.get('files_written', 0)
+            batch_skipped = results.get('files_skipped', 0)
+            
+            total_processed += batch_processed
+            total_files_written += batch_written
+            total_files_skipped += batch_skipped
+            
+            logger.info(f"✅ Batch {batch_num}: {batch_processed}/{len(batch_symbols)} processed, {batch_written} written, {batch_skipped} skipped")
+            
+            # Show which files were updated
+            if batch_written > 0:
+                for symbol in batch_symbols:
+                    for month in ['08', '09']:
+                        file_path = f"/mnt/d/ats-data/minute-bars/firstrate/{symbol[0]}/{symbol}/2025/{month}/{symbol}_2025_{month}.parquet"
+                        if Path(file_path).exists():
+                            mod_time = datetime.fromtimestamp(Path(file_path).stat().st_mtime)
+                            if (datetime.now() - mod_time).total_seconds() < 300:  # Updated in last 5 minutes
+                                logger.info(f"  📄 Updated: {symbol}_2025_{month}.parquet")
+            
     duration = datetime.now() - start_time
     logger.info("\n" + "="*50)
     logger.info("🏁 BATCH BACKFILL COMPLETE")

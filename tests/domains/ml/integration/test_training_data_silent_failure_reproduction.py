@@ -45,46 +45,42 @@ class TestTrainingDataSilentFailure:
             if metadata_file.exists():
                 results['metadata_exists'] = True
                 
-                try:
-                    with open(metadata_file) as f:
-                        metadata = json.load(f)
-                    results['metadata_valid'] = True
-                    results['metadata'] = metadata
-                    
-                    # Check if metadata claims completion
-                    if metadata.get('status') == 'completed':
-                        # Check 2: Dataset directories exist
-                        symbol_dirs = list(dataset_path.glob(f"{metadata['symbols'][0]}_*"))
-                        if symbol_dirs:
-                            results['dataset_directories_exist'] = True
-                            
-                            # Check 3: ArrayRecord files exist
-                            arrayrecord_files = []
-                            for symbol_dir in symbol_dirs:
-                                timeframe_dirs = [d for d in symbol_dir.iterdir() if d.is_dir()]
-                                for timeframe_dir in timeframe_dirs:
-                                    files = list(timeframe_dir.glob("*.arrayrecord"))
-                                    arrayrecord_files.extend(files)
-                            
-                            if arrayrecord_files:
-                                results['arrayrecord_files_exist'] = True
-                                
-                                # Check 4: File sizes are non-zero
-                                non_zero_files = [f for f in arrayrecord_files if f.stat().st_size > 0]
-                                if non_zero_files:
-                                    results['file_sizes_non_zero'] = True
-                                else:
-                                    results['issues_found'].append("ArrayRecord files exist but have zero size")
-                            else:
-                                results['issues_found'].append("No ArrayRecord files found despite completed status")
-                        else:
-                            results['issues_found'].append("No dataset directories found despite completed status")
-                    else:
-                        results['issues_found'].append(f"Metadata status is '{metadata.get('status')}', not 'completed'")
+                with open(metadata_file) as f:
+                    metadata = json.load(f)
+                results['metadata_valid'] = True
+                results['metadata'] = metadata
+                
+                # Check if metadata claims completion
+                if metadata.get('status') == 'completed':
+                    # Check 2: Dataset directories exist
+                    symbol_dirs = list(dataset_path.glob(f"{metadata['symbols'][0]}_*"))
+                    if symbol_dirs:
+                        results['dataset_directories_exist'] = True
                         
-                except json.JSONDecodeError as e:
-                    results['issues_found'].append(f"Invalid JSON in metadata file: {e}")
-            else:
+                        # Check 3: ArrayRecord files exist
+                        arrayrecord_files = []
+                        for symbol_dir in symbol_dirs:
+                            timeframe_dirs = [d for d in symbol_dir.iterdir() if d.is_dir()]
+                            for timeframe_dir in timeframe_dirs:
+                                files = list(timeframe_dir.glob("*.arrayrecord"))
+                                arrayrecord_files.extend(files)
+                        
+                        if arrayrecord_files:
+                            results['arrayrecord_files_exist'] = True
+                            
+                            # Check 4: File sizes are non-zero
+                            non_zero_files = [f for f in arrayrecord_files if f.stat().st_size > 0]
+                            if non_zero_files:
+                                results['file_sizes_non_zero'] = True
+                            else:
+                                results['issues_found'].append("ArrayRecord files exist but have zero size")
+                        else:
+                            results['issues_found'].append("No ArrayRecord files found despite completed status")
+                    else:
+                        results['issues_found'].append("No dataset directories found despite completed status")
+                else:
+                    results['issues_found'].append(f"Metadata status is '{metadata.get('status')}', not 'completed'")
+                    
                 results['issues_found'].append("Metadata file does not exist")
             
             # Overall validation
@@ -147,37 +143,32 @@ class TestTrainingDataSilentFailure:
             if metadata_file.exists():
                 results['metadata_exists'] = True
                 
-                try:
-                    with open(metadata_file) as f:
-                        metadata = json.load(f)
-                    results['metadata_valid'] = True
+                with open(metadata_file) as f:
+                    metadata = json.load(f)
+                results['metadata_valid'] = True
+                
+                # Check 2: Dataset directories exist  
+                symbol_dirs = list(dataset_path.glob("*_*_*"))  # Look for timestamp pattern
+                if symbol_dirs:
+                    results['dataset_directories_exist'] = True
                     
-                    # Check 2: Dataset directories exist  
-                    symbol_dirs = list(dataset_path.glob("*_*_*"))  # Look for timestamp pattern
-                    if symbol_dirs:
-                        results['dataset_directories_exist'] = True
+                    # Check 3: ArrayRecord files exist
+                    arrayrecord_files = []
+                    for symbol_dir in symbol_dirs:
+                        if symbol_dir.is_dir():
+                            timeframe_dirs = [d for d in symbol_dir.iterdir() if d.is_dir()]
+                            for timeframe_dir in timeframe_dirs:
+                                files = list(timeframe_dir.glob("*.arrayrecord"))
+                                arrayrecord_files.extend(files)
+                    
+                    if arrayrecord_files:
+                        results['arrayrecord_files_exist'] = True
                         
-                        # Check 3: ArrayRecord files exist
-                        arrayrecord_files = []
-                        for symbol_dir in symbol_dirs:
-                            if symbol_dir.is_dir():
-                                timeframe_dirs = [d for d in symbol_dir.iterdir() if d.is_dir()]
-                                for timeframe_dir in timeframe_dirs:
-                                    files = list(timeframe_dir.glob("*.arrayrecord"))
-                                    arrayrecord_files.extend(files)
-                        
-                        if arrayrecord_files:
-                            results['arrayrecord_files_exist'] = True
+                        # Check 4: File sizes are non-zero
+                        non_zero_files = [f for f in arrayrecord_files if f.stat().st_size > 0]
+                        if non_zero_files:
+                            results['file_sizes_non_zero'] = True
                             
-                            # Check 4: File sizes are non-zero
-                            non_zero_files = [f for f in arrayrecord_files if f.stat().st_size > 0]
-                            if non_zero_files:
-                                results['file_sizes_non_zero'] = True
-                                
-                except json.JSONDecodeError as e:
-                    results['issues_found'].append(f"Invalid JSON in metadata file: {e}")
-            
-            # Overall validation
             results['validation_passed'] = (
                 results['metadata_exists'] and 
                 results['metadata_valid'] and

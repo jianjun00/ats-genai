@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from core.platform.config.environment import Environment, EnvironmentType
-from domains.ml.services.training_data.runners.training_data_callback_runner import register_training_dataset
+from domains.ml.services.training_data.runners.feature_extraction_runner import register_training_dataset
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 
 
@@ -57,24 +57,11 @@ class TestRunIdTypeError:
         
         # Demonstrate the type error simulation
         print(f"🔍 Type Error Simulation:")
-        try:
-            # Simulate what would happen in the database call with string run_id
-            if isinstance(string_run_id, str):
-                error_msg = (f"invalid input for query argument $2: '{string_run_id}' "
-                           f"('{type(string_run_id).__name__}' object cannot be interpreted as an integer)")
-                raise TypeError(error_msg)
-        except TypeError as e:
-            simulated_error = str(e)
-            print(f"   Simulated error: {simulated_error}")
-            
-            # Verify it matches the expected pattern
-            assert "str" in simulated_error and "integer" in simulated_error, (
-                f"Expected string->integer type error, got: {simulated_error}"
-            )
-            assert string_run_id in simulated_error, (
-                f"Expected run_id {string_run_id} in error message, got: {simulated_error}"
-            )
-        
+        # Simulate what would happen in the database call with string run_id
+        if isinstance(string_run_id, str):
+            error_msg = (f"invalid input for query argument $2: '{string_run_id}' "
+                       f"('{type(string_run_id).__name__}' object cannot be interpreted as an integer)")
+            raise TypeError(error_msg)
         print(f"✅ Successfully reproduced run_id type error pattern")
 
     async def test_run_id_integer_type_success(self):
@@ -105,28 +92,23 @@ class TestRunIdTypeError:
         print(f"   Run ID: {integer_run_id} (type: {type(integer_run_id)})")
         
         # This should work correctly
-        try:
-            dataset_id = await register_training_dataset(
-                environment=environment,
-                symbols=symbols,
-                start_date=start_date,
-                end_date=end_date,
-                config=config,
-                output_dir="/data/training",
-                storage_format="arrayrecord",
-                run_id=integer_run_id  # Integer as expected
-            )
-            
-            assert dataset_id is not None, "Should have created dataset record"
-            assert isinstance(dataset_id, int), "Dataset ID should be an integer"
-            
-            print(f"✅ Successfully created dataset with ID: {dataset_id}")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Unexpected error: {e}")
-            raise
-
+        dataset_id = await register_training_dataset(
+            environment=environment,
+            symbols=symbols,
+            start_date=start_date,
+            end_date=end_date,
+            config=config,
+            output_dir="/data/training",
+            storage_format="arrayrecord",
+            run_id=integer_run_id  # Integer as expected
+        )
+        
+        assert dataset_id is not None, "Should have created dataset record"
+        assert isinstance(dataset_id, int), "Dataset ID should be an integer"
+        
+        print(f"✅ Successfully created dataset with ID: {dataset_id}")
+        return True
+        
     def test_runner_run_context_type_analysis(self):
         """
         Test that documents the type mismatch between runner.run_context.run_id and expected types.
@@ -146,14 +128,10 @@ class TestRunIdTypeError:
         print(f"Type mismatch: {type(runner_run_id) != database_expected_type}")
         
         # Show the error that would occur
-        try:
-            # This simulates what happens in the database call
-            if isinstance(runner_run_id, str):
-                raise TypeError(f"invalid input for query argument: '{runner_run_id}' "
-                              f"('{type(runner_run_id).__name__}' object cannot be interpreted as an integer)")
-        except TypeError as e:
-            print(f"Simulated error: {e}")
-        
+        # This simulates what happens in the database call
+        if isinstance(runner_run_id, str):
+            raise TypeError(f"invalid input for query argument: '{runner_run_id}' "
+                          f"('{type(runner_run_id).__name__}' object cannot be interpreted as an integer)")
         print(f"\n💡 Solution Options:")
         print(f"1. Convert string run_id to integer hash")
         print(f"2. Change database schema to accept string run_id")
@@ -262,33 +240,26 @@ if __name__ == "__main__":
     print("=" * 60)
     
     async def run_tests():
-        try:
-            # Test 1: Reproduce the type error
-            print("\n1. Reproducing run_id type error:")
-            await reproduce_run_id_type_error()
-            
-            # Test 2: Show integer success
-            print("\n2. Testing integer run_id success:")
-            await test_integer_success()
-            
-            # Test 3: Type analysis
-            print("\n3. Run ID type analysis:")
-            test_instance = TestRunIdTypeError()
-            test_instance.test_runner_run_context_type_analysis()
-            
-            # Test 4: Conversion strategies
-            print("\n4. Conversion strategies:")
-            test_instance.test_run_id_conversion_strategies()
-            
-            # Test 5: Auto-generation fix validation
-            print("\n5. Auto-generation fix validation:")
-            test_instance.test_run_id_auto_generation_fix()
-            
-        except Exception as e:
-            print(f"❌ Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        # Test 1: Reproduce the type error
+        print("\n1. Reproducing run_id type error:")
+        await reproduce_run_id_type_error()
+        
+        # Test 2: Show integer success
+        print("\n2. Testing integer run_id success:")
+        await test_integer_success()
+        
+        # Test 3: Type analysis
+        print("\n3. Run ID type analysis:")
+        test_instance = TestRunIdTypeError()
+        test_instance.test_runner_run_context_type_analysis()
+        
+        # Test 4: Conversion strategies
+        print("\n4. Conversion strategies:")
+        test_instance.test_run_id_conversion_strategies()
+        
+        # Test 5: Auto-generation fix validation
+        print("\n5. Auto-generation fix validation:")
+        test_instance.test_run_id_auto_generation_fix()
         
         return True
     

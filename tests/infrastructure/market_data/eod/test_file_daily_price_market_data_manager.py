@@ -2,7 +2,7 @@ import os
 import pytest
 print(f"[IMPORT_DEBUG] Loaded test_file_daily_price_market_data_manager.py from {__file__}")
 from datetime import datetime
-from domains.market_data.services.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
+from domains.trading.services.core.eod.file_daily_price_market_data_manager import FileDailyPriceMarketDataManager
 
 @pytest.fixture(scope="module")
 def vendors_dirs():
@@ -16,8 +16,8 @@ def vendors_dirs():
     }
 
 import pytest_asyncio
-from shared.utils.environment import Environment, EnvironmentType
-from core.dao.vendors_dao import VendorsDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from core.dao.infrastructure.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
@@ -109,87 +109,79 @@ async def test_tiingo_list_date_parsing(tmp_path, unit_test_db):
 
     print(f"[DEBUG][test_tiingo_list_date_parsing] Starting test with tmp_path={tmp_path}, unit_test_db={unit_test_db}")
 
-    try:
-        # 1. Normal bars (control)
-        normal = {'date': '2025-01-02T00:00:00.000Z', 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
-        # 2. Malformed date
-        malformed_date = {'date': 'bad-date-format', 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
-        # 3. Missing date
-        missing_date = {'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
-        # 4. Missing open/close
-        missing_open = {'date': '2025-01-04T00:00:00.000Z', 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
-        missing_close = {'date': '2025-01-05T00:00:00.000Z', 'open': 10, 'high': 15, 'low': 8, 'volume': 1000}
-        # 5. Extra/unexpected fields
-        extra_fields = {'date': '2025-01-06T00:00:00.000Z', 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000, 'foo': 123}
-        # 6. Non-dict row
-        non_dict = "notadict"
-        # 7. Row with 't' field (should be ignored for tiingo, but test mixed)
-        t_field_row = {'t': 1735776000000, 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}  # 2025-01-03
-        # 8. Empty list
-        tiingo_data = [normal, malformed_date, missing_date, missing_open, missing_close, extra_fields, non_dict, t_field_row]
+    # 1. Normal bars (control)
+    normal = {'date': '2025-01-02T00:00:00.000Z', 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
+    # 2. Malformed date
+    malformed_date = {'date': 'bad-date-format', 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
+    # 3. Missing date
+    missing_date = {'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
+    # 4. Missing open/close
+    missing_open = {'date': '2025-01-04T00:00:00.000Z', 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}
+    missing_close = {'date': '2025-01-05T00:00:00.000Z', 'open': 10, 'high': 15, 'low': 8, 'volume': 1000}
+    # 5. Extra/unexpected fields
+    extra_fields = {'date': '2025-01-06T00:00:00.000Z', 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000, 'foo': 123}
+    # 6. Non-dict row
+    non_dict = "notadict"
+    # 7. Row with 't' field (should be ignored for tiingo, but test mixed)
+    t_field_row = {'t': 1735776000000, 'open': 10, 'high': 15, 'low': 8, 'close': 12, 'volume': 1000}  # 2025-01-03
+    # 8. Empty list
+    tiingo_data = [normal, malformed_date, missing_date, missing_open, missing_close, extra_fields, non_dict, t_field_row]
 
-        # Create test data files
-        tiingo_dir = tmp_path / "tiingo"
-        tiingo_dir.mkdir()
-        tiingo_file = tiingo_dir / "tiingo_aapl_response.json"
-        with open(tiingo_file, "w") as f:
-            json.dump(tiingo_data, f)
+    # Create test data files
+    tiingo_dir = tmp_path / "tiingo"
+    tiingo_dir.mkdir()
+    tiingo_file = tiingo_dir / "tiingo_aapl_response.json"
+    with open(tiingo_file, "w") as f:
+        json.dump(tiingo_data, f)
 
-        polygon_dir = tmp_path / "polygon"
-        polygon_dir.mkdir()
-        vendors_dirs = {"polygon": str(polygon_dir), "tiingo": str(tiingo_dir)}
+    polygon_dir = tmp_path / "polygon"
+    polygon_dir.mkdir()
+    vendors_dirs = {"polygon": str(polygon_dir), "tiingo": str(tiingo_dir)}
 
-        print(f"[DEBUG][test_tiingo_list_date_parsing] Created test files in {tmp_path}")
+    print(f"[DEBUG][test_tiingo_list_date_parsing] Created test files in {tmp_path}")
 
-        # Set up environment with test database
-        from shared.utils.environment import Environment, EnvironmentType
-        env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
-        env.get_table_name = lambda table: f"test_{table}"
+    # Set up environment with test database
+    from core.platform.config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+    env.get_table_name = lambda table: f"test_{table}"
 
-        # Mock all database interactions
-        mock_xrefs_dao = MagicMock()
-        mock_xrefs_dao.resolve_instrument_id_by_symbol = AsyncMock(return_value=1)
-        mock_xrefs_dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(return_value="AAPL")
+    # Mock all database interactions
+    mock_xrefs_dao = MagicMock()
+    mock_xrefs_dao.resolve_instrument_id_by_symbol = AsyncMock(return_value=1)
+    mock_xrefs_dao.get_symbol_by_instrument_id_vendor_name = AsyncMock(return_value="AAPL")
 
-        mock_vendors_dao = MagicMock()
-        mock_vendors_core.dao.get_vendor_by_name = AsyncMock(return_value={"id": 1, "name": "ticker"})
+    mock_vendors_dao = MagicMock()
+    mock_vendors_core.dao.get_vendor_by_name = AsyncMock(return_value={"id": 1, "name": "ticker"})
 
-        print("[DEBUG][test_tiingo_list_date_parsing] Setting up mocks...")
+    print("[DEBUG][test_tiingo_list_date_parsing] Setting up mocks...")
 
-        with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
-             patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao):
+    with patch('core.dao.instrument_xrefs_core.dao.InstrumentXrefsDAO', return_value=mock_xrefs_dao), \
+         patch('core.dao.vendors_core.dao.VendorsDAO', return_value=mock_vendors_dao):
 
-            print("[DEBUG][test_tiingo_list_date_parsing] Creating FileDailyPriceMarketDataManager...")
-            mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL"])
+        print("[DEBUG][test_tiingo_list_date_parsing] Creating FileDailyPriceMarketDataManager...")
+        mgr = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env, symbols=["AAPL"])
 
-            print("[DEBUG][test_tiingo_list_date_parsing] Verifying data...")
-            data = mgr.vendor_data["tiingo"]["AAPL"]
+        print("[DEBUG][test_tiingo_list_date_parsing] Verifying data...")
+        data = mgr.vendor_data["tiingo"]["AAPL"]
 
-            # Verify the data was loaded correctly
-            assert isinstance(data, dict), f"Expected dict, got {type(data)}"
+        # Verify the data was loaded correctly
+        assert isinstance(data, dict), f"Expected dict, got {type(data)}"
 
-            # Check that keys are dates for valid rows (normal, missing_open, missing_close, extra_fields)
-            expected_dates = ["2025-01-02", "2025-01-04", "2025-01-05", "2025-01-06"]
-            for d in expected_dates:
-                dt = datetime.strptime(d, "%Y-%m-%d").date()
-                assert dt in data, f"Expected date {d} not found in data: {data.keys()}"
+        # Check that keys are dates for valid rows (normal, missing_open, missing_close, extra_fields)
+        expected_dates = ["2025-01-02", "2025-01-04", "2025-01-05", "2025-01-06"]
+        for d in expected_dates:
+            dt = datetime.strptime(d, "%Y-%m-%d").date()
+            assert dt in data, f"Expected date {d} not found in data: {data.keys()}"
 
-            # The row with a malformed date should not be present
-            assert not any(k for k in data if isinstance(k, str) and k == "bad-date-format"), \
-                f"Found malformed date key in data: {data.keys()}"
+        # The row with a malformed date should not be present
+        assert not any(k for k in data if isinstance(k, str) and k == "bad-date-format"), \
+            f"Found malformed date key in data: {data.keys()}"
 
-            # The row that's not a dict, or missing date/t, should not cause a crash
-            # There should be no key for None
-            assert None not in data, f"Found None key in data: {data.keys()}"
+        # The row that's not a dict, or missing date/t, should not cause a crash
+        # There should be no key for None
+        assert None not in data, f"Found None key in data: {data.keys()}"
 
-            print("[DEBUG][test_tiingo_list_date_parsing] Test completed successfully")
-
-    except Exception as e:
-        print(f"[DEBUG][test_tiingo_list_date_parsing] Test failed with error: {str(e)}")
-        import traceback
-        print(f"[DEBUG][test_tiingo_list_date_parsing] Traceback: {traceback.format_exc()}")
-        raise
-        # The loader should ignore non-dict rows and missing date/t rows gracefully
+        print("[DEBUG][test_tiingo_list_date_parsing] Test completed successfully")
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

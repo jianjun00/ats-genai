@@ -32,26 +32,10 @@ def test_critical_imports():
     import_errors = []
     
     # Core imports that failed before
-    try:
-        from domains.trading.services.core.app.runner import Runner
-    except ImportError as e:
-        import_errors.append(f"Runner import failed: {e}")
-    
-    try:
-        from domains.ml.services.training_data.runners.training_data_callback_runner import main
-    except ImportError as e:
-        import_errors.append(f"Training callback runner import failed: {e}")
-        
-    try:
-        from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
-    except ImportError as e:
-        import_errors.append(f"UnifiedMarketDataManager import failed: {e}")
-        
-    try:
-        from domains.trading.services.state.universe_state_manager import UniverseStateManager
-    except ImportError as e:
-        import_errors.append(f"UniverseStateManager import failed: {e}")
-    
+    from domains.trading.services.core.app.runner import Runner
+    from domains.ml.services.training_data.runners.feature_extraction_runner import main
+    from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
+    from domains.trading.services.state.universe_state_manager import UniverseStateManager
     if import_errors:
         pytest.fail(f"Critical import failures:\n" + "\n".join(import_errors))
 
@@ -204,27 +188,16 @@ class TestUniverseStateManager:
         manager = UniverseStateManager()
         
         # Test method can be called with expected parameters
-        try:
-            result = manager.get_lag_prices(
-                instrument_id=31,
-                cur_datetime=datetime(2025, 7, 1, 14, 0, 0),
-                lag_periods=1,
-                time_interval='1m'
-            )
-            
-            # Should return DataFrame even if empty
-            assert isinstance(result, pd.DataFrame), f"Expected DataFrame, got {type(result)}"
-            
-        except ValueError as e:
-            # Cache insufficient is expected behavior when cache is empty
-            if "cache insufficient" in str(e).lower():
-                # This is expected - cache is empty in test environment
-                print(f"✅ get_lag_prices correctly reports cache insufficient: {e}")
-            else:
-                pytest.fail(f"get_lag_prices failed with unexpected ValueError: {e}")
-        except Exception as e:
-            pytest.fail(f"get_lag_prices failed with valid parameters: {e}")
-
+        result = manager.get_lag_prices(
+            instrument_id=31,
+            cur_datetime=datetime(2025, 7, 1, 14, 0, 0),
+            lag_periods=1,
+            time_interval='1m'
+        )
+        
+        # Should return DataFrame even if empty
+        assert isinstance(result, pd.DataFrame), f"Expected DataFrame, got {type(result)}"
+        
     def test_get_lagged_signals_signature(self):
         """Test get_lagged_signals method has correct signature and behavior."""
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
@@ -234,30 +207,18 @@ class TestUniverseStateManager:
         
         # Test async method can be called with expected parameters
         async def run_test():
-            try:
-                result = await manager.get_lagged_signals(
-                    instrument_id=31,
-                    cur_datetime=datetime(2025, 7, 1, 14, 0, 0),
-                    lag_periods=1,
-                    time_interval='1m',
-                    signal_names=['sma_20', 'ema_12']
-                )
-                
-                # Should return DataFrame even if empty
-                assert isinstance(result, pd.DataFrame), f"Expected DataFrame, got {type(result)}"
-                return True
-                
-            except ValueError as e:
-                # Cache insufficient is expected behavior when cache is empty
-                if "cache insufficient" in str(e).lower():
-                    print(f"✅ get_lagged_signals correctly reports cache insufficient: {e}")
-                    return True
-                else:
-                    pytest.fail(f"get_lagged_signals failed with unexpected ValueError: {e}")
-            except Exception as e:
-                pytest.fail(f"get_lagged_signals failed with valid parameters: {e}")
-        
-        # Run the async test
+            result = await manager.get_lagged_signals(
+                instrument_id=31,
+                cur_datetime=datetime(2025, 7, 1, 14, 0, 0),
+                lag_periods=1,
+                time_interval='1m',
+                signal_names=['sma_20', 'ema_12']
+            )
+            
+            # Should return DataFrame even if empty
+            assert isinstance(result, pd.DataFrame), f"Expected DataFrame, got {type(result)}"
+            return True
+            
         asyncio.run(run_test())
 
 
@@ -311,24 +272,20 @@ class TestFeatureExtraction:
         })
         
         # Test that volume can be processed without NoneType errors
-        try:
-            volume_float = float(data['volume'].iloc[0])
-            assert volume_float == 56512.0, f"Volume conversion failed: {volume_float}"
+        volume_float = float(data['volume'].iloc[0])
+        assert volume_float == 56512.0, f"Volume conversion failed: {volume_float}"
+        
+        # Test feature calculations that use volume
+        volume_features = {
+            'volume_latest': volume_float,
+            'volume_log': np.log(volume_float + 1),
+            'volume_normalized': volume_float / 100000.0
+        }
+        
+        for feature_name, feature_value in volume_features.items():
+            assert not np.isnan(feature_value), f"{feature_name} is NaN"
+            assert np.isfinite(feature_value), f"{feature_name} is not finite"
             
-            # Test feature calculations that use volume
-            volume_features = {
-                'volume_latest': volume_float,
-                'volume_log': np.log(volume_float + 1),
-                'volume_normalized': volume_float / 100000.0
-            }
-            
-            for feature_name, feature_value in volume_features.items():
-                assert not np.isnan(feature_value), f"{feature_name} is NaN"
-                assert np.isfinite(feature_value), f"{feature_name} is not finite"
-                
-        except Exception as e:
-            pytest.fail(f"Volume feature extraction failed: {e}")
-
     def test_none_volume_handling(self):
         """Test graceful handling of None volume values."""
         # Test data with None volume (edge case)
@@ -342,20 +299,15 @@ class TestFeatureExtraction:
         })
         
         # Should handle None gracefully without crashing
-        try:
-            volume_val = data['volume'].iloc[0]
-            if volume_val is None:
-                # Should provide default behavior
-                volume_float = 0.0  # Or np.nan, depending on strategy
-            else:
-                volume_float = float(volume_val)
-                
-            assert isinstance(volume_float, float), f"Volume handling failed: {type(volume_float)}"
+        volume_val = data['volume'].iloc[0]
+        if volume_val is None:
+            # Should provide default behavior
+            volume_float = 0.0  # Or np.nan, depending on strategy
+        else:
+            volume_float = float(volume_val)
             
-        except Exception as e:
-            pytest.fail(f"None volume handling failed: {e}")
-
-
+        assert isinstance(volume_float, float), f"Volume handling failed: {type(volume_float)}"
+        
 class TestEndToEndIntegration:
     """Test complete end-to-end integration flow."""
     
@@ -364,24 +316,20 @@ class TestEndToEndIntegration:
         component_errors = []
         
         # Test core components
-        try:
-            from domains.trading.services.core.app.runner import Runner
-            from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-            from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-            
-            # These should all be importable and instantiable
-            # TrainingDataConfig requires multiple parameters per gin config
-            config = TrainingDataConfig(
-                timeframes=['5m', '15m', '1h'], 
-                feature_types=['ohlcv', 'technical_indicators'],
-                signal_names=['sma_20', 'rsi_14', 'macd']
-            )
-            assert hasattr(config, 'timeframes'), "TrainingDataConfig missing timeframes"
-            assert hasattr(config, 'feature_types'), "TrainingDataConfig missing feature_types"
-            
-        except Exception as e:
-            component_errors.append(f"Component instantiation failed: {e}")
-            
+        from domains.trading.services.core.app.runner import Runner
+        from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+        from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+        
+        # These should all be importable and instantiable
+        # TrainingDataConfig requires multiple parameters per gin config
+        config = TrainingDataConfig(
+            timeframes=['5m', '15m', '1h'], 
+            feature_types=['ohlcv', 'technical_indicators'],
+            signal_names=['sma_20', 'rsi_14', 'macd']
+        )
+        assert hasattr(config, 'timeframes'), "TrainingDataConfig missing timeframes"
+        assert hasattr(config, 'feature_types'), "TrainingDataConfig missing feature_types"
+        
         if component_errors:
             pytest.fail("Pipeline component errors:\n" + "\n".join(component_errors))
 
@@ -394,35 +342,30 @@ class TestEndToEndIntegration:
             parquet_file, expected_df = test_instance.create_mock_parquet_data(temp_dir)
             
             # Test data can flow from file -> adapter -> manager -> training generator
-            try:
-                from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
-                
-                config = MarketDataConfig(
-                    vendors=[VendorType.FIRSTRATE],
-                    storage_backend=StorageBackend.FILE,
-                    file_storage_path=temp_dir
-                )
-                manager = UnifiedMarketDataManager(config)
-                
-                start_date = datetime(2025, 7, 1, 14, 0, 0)
-                end_date = datetime(2025, 7, 1, 14, 1, 0)
-                
-                # This should work end-to-end without crashes
-                result = asyncio.run(manager.get_minute_ohlc_batch(
-                    symbols=["AAPL"],
-                    start=start_date,
-                    end=end_date
-                ))
-                
-                # Verify data integrity through the pipeline
-                assert "AAPL" in result, "Data lost in pipeline"
-                assert result["AAPL"] is not None, "Data corrupted in pipeline"
-                assert "volume" in result["AAPL"], "Volume lost in pipeline"
-                
-            except Exception as e:
-                pytest.fail(f"Data flow integration failed: {e}")
-
-
+            from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
+            
+            config = MarketDataConfig(
+                vendors=[VendorType.FIRSTRATE],
+                storage_backend=StorageBackend.FILE,
+                file_storage_path=temp_dir
+            )
+            manager = UnifiedMarketDataManager(config)
+            
+            start_date = datetime(2025, 7, 1, 14, 0, 0)
+            end_date = datetime(2025, 7, 1, 14, 1, 0)
+            
+            # This should work end-to-end without crashes
+            result = asyncio.run(manager.get_minute_ohlc_batch(
+                symbols=["AAPL"],
+                start=start_date,
+                end=end_date
+            ))
+            
+            # Verify data integrity through the pipeline
+            assert "AAPL" in result, "Data lost in pipeline"
+            assert result["AAPL"] is not None, "Data corrupted in pipeline"
+            assert "volume" in result["AAPL"], "Volume lost in pipeline"
+            
 class TestErrorHandling:
     """Test error handling and edge cases."""
     
@@ -478,21 +421,15 @@ class TestErrorHandling:
             start_date = datetime(2025, 7, 1, 14, 0, 0)
             end_date = datetime(2025, 7, 1, 14, 1, 0)
             
-            try:
-                result = asyncio.run(adapter.get_ohlcv(
-                    symbols=["AAPL"],
-                    start_date=start_date,
-                    end_date=end_date,
-                    timeframe=TimeframeType.MINUTE_1
-                ))
-                
-                # Should not crash, but handle gracefully
-                assert "AAPL" in result, "Malformed data handling failed"
-                
-            except Exception as e:
-                # If it crashes, that's also valuable information
-                assert "volume" in str(e).lower(), f"Unexpected error handling malformed data: {e}"
-
-
+            result = asyncio.run(adapter.get_ohlcv(
+                symbols=["AAPL"],
+                start_date=start_date,
+                end_date=end_date,
+                timeframe=TimeframeType.MINUTE_1
+            ))
+            
+            # Should not crash, but handle gracefully
+            assert "AAPL" in result, "Malformed data handling failed"
+            
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

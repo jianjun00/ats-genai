@@ -1,5 +1,5 @@
 from datetime import datetime
-from state.indicator_interval import IndicatorInterval
+from domains.trading.services.state.indicator_interval import IndicatorInterval
 
 class TestIndicatorInterval:
     """Test cases for IndicatorInterval class."""

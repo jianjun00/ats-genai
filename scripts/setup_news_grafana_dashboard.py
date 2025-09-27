@@ -19,17 +19,8 @@ def setup_news_dashboard():
     print(f"📁 Dashboard file: {dashboard_file}")
 
     # Load dashboard JSON
-    try:
-        with open(dashboard_file, 'r') as f:
-            dashboard_data = json.load(f)
-    except FileNotFoundError:
-        print(f"❌ Dashboard file not found: {dashboard_file}")
-        return False
-    except json.JSONDecodeError as e:
-        print(f"❌ Invalid JSON in dashboard file: {e}")
-        return False
-
-    # Prepare the dashboard import payload
+    with open(dashboard_file, 'r') as f:
+        dashboard_data = json.load(f)
     payload = {
         "dashboard": dashboard_data["dashboard"],
         "overwrite": True,
@@ -43,40 +34,29 @@ def setup_news_dashboard():
         ]
     }
 
-    try:
-        # Try to create the dashboard (no authentication for basic setup)
-        response = requests.post(
-            f"{grafana_url}/api/dashboards/db",
-            headers={"Content-Type": "application/json"},
-            json=payload,
-            timeout=10
-        )
+    # Try to create the dashboard (no authentication for basic setup)
+    response = requests.post(
+        f"{grafana_url}/api/dashboards/db",
+        headers={"Content-Type": "application/json"},
+        json=payload,
+        timeout=10
+    )
 
-        if response.status_code == 200:
-            result = response.json()
-            dashboard_url = f"{grafana_url}/d/{result.get('uid', 'unknown')}/ats-news-ingestion-dashboard"
-            print(f"✅ News dashboard created successfully!")
-            print(f"🔗 Dashboard URL: {dashboard_url}")
-            return True
+    if response.status_code == 200:
+        result = response.json()
+        dashboard_url = f"{grafana_url}/d/{result.get('uid', 'unknown')}/ats-news-ingestion-dashboard"
+        print(f"✅ News dashboard created successfully!")
+        print(f"🔗 Dashboard URL: {dashboard_url}")
+        return True
+    else:
+        print(f"⚠️  Dashboard creation returned status {response.status_code}")
+        if response.status_code == 401:
+            print("🔑 Authentication required. Please manually import the dashboard:")
+            print(f"   1. Go to: {grafana_url}/dashboard/import")
+            print(f"   2. Upload file: {dashboard_file}")
+            print(f"   3. Select 'ATS-INTG-PostgreSQL' as the data source")
         else:
-            print(f"⚠️  Dashboard creation returned status {response.status_code}")
-            if response.status_code == 401:
-                print("🔑 Authentication required. Please manually import the dashboard:")
-                print(f"   1. Go to: {grafana_url}/dashboard/import")
-                print(f"   2. Upload file: {dashboard_file}")
-                print(f"   3. Select 'ATS-INTG-PostgreSQL' as the data source")
-            else:
-                print(f"   Response: {response.text[:200]}...")
-            return False
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to connect to Grafana: {e}")
-        print(f"🔧 Manual setup instructions:")
-        print(f"   1. Access Grafana: {grafana_url}")
-        print(f"   2. Login with: admin/admin")
-        print(f"   3. Go to: Dashboards -> Import")
-        print(f"   4. Upload: {dashboard_file}")
-        print(f"   5. Select PostgreSQL data source: ATS-INTG-PostgreSQL")
+            print(f"   Response: {response.text[:200]}...")
         return False
 
 def verify_data_source():

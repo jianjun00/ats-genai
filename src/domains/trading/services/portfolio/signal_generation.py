@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from domains.trading.services.enhanced_indicators import (
+from domains.trading.services.indicators.enhanced_indicators import (
     calculate_all_technical_indicators
 )
 from domains.trading.services.smart_money_zones import (

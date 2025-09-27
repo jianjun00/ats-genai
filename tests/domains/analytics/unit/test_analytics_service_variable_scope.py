@@ -80,24 +80,17 @@ class TestAnalyticsServiceVariableScope:
                 mock_job_manager_class.return_value = mock_job_manager_instance
 
                 # This should not raise "job_manager not defined" error
-                try:
-                    self.handler.do_GET()
+                self.handler.do_GET()
 
-                    # Verify JobManager was instantiated
-                    mock_job_manager_class.assert_called_once()
+                # Verify JobManager was instantiated
+                mock_job_manager_class.assert_called_once()
 
-                    # Verify schema method was called
-                    mock_job_manager_instance.get_dataset_schema.assert_called_once_with('test_table')
+                # Verify schema method was called
+                mock_job_manager_instance.get_dataset_schema.assert_called_once_with('test_table')
 
-                    # Verify response was written
-                    output = self.handler.wfile.getvalue().decode('utf-8')
-                    assert 'test_table' in output
-
-                except NameError as e:
-                    if "job_manager" in str(e):
-                        pytest.fail("job_manager variable scope issue not fixed in schema endpoint")
-                    else:
-                        raise
+                # Verify response was written
+                output = self.handler.wfile.getvalue().decode('utf-8')
+                assert 'test_table' in output
 
     def test_column_values_endpoint_job_manager_scope(self):
         """Test that column values endpoint properly creates job_manager in scope"""
@@ -116,20 +109,13 @@ class TestAnalyticsServiceVariableScope:
                     }
                     mock_job_manager_class.return_value = mock_job_manager_instance
 
-                    try:
-                        self.handler.do_GET()
+                    self.handler.do_GET()
 
-                        # Verify JobManager was instantiated
-                        mock_job_manager_class.assert_called_once()
+                    # Verify JobManager was instantiated
+                    mock_job_manager_class.assert_called_once()
 
-                        # Verify column values method was called
-                        mock_job_manager_instance.get_column_values.assert_called_once_with('test_table', 'test_col', 5)
-
-                    except NameError as e:
-                        if "job_manager" in str(e):
-                            pytest.fail("job_manager variable scope issue not fixed in column values endpoint")
-                        else:
-                            raise
+                    # Verify column values method was called
+                    mock_job_manager_instance.get_column_values.assert_called_once_with('test_table', 'test_col', 5)
 
     def test_job_stats_endpoint_job_manager_scope(self):
         """Test that job stats endpoint properly creates job_manager in scope"""
@@ -144,20 +130,13 @@ class TestAnalyticsServiceVariableScope:
                 mock_job_manager_instance.get_job_stats.return_value = {'total_jobs': 5}
                 mock_job_manager_class.return_value = mock_job_manager_instance
 
-                try:
-                    self.handler.do_GET()
+                self.handler.do_GET()
 
-                    # Verify JobManager was instantiated
-                    mock_job_manager_class.assert_called_once()
+                # Verify JobManager was instantiated
+                mock_job_manager_class.assert_called_once()
 
-                    # Verify job stats method was called
-                    mock_job_manager_instance.get_job_stats.assert_called_once()
-
-                except NameError as e:
-                    if "job_manager" in str(e):
-                        pytest.fail("job_manager variable scope issue not fixed in job stats endpoint")
-                    else:
-                        raise
+                # Verify job stats method was called
+                mock_job_manager_instance.get_job_stats.assert_called_once()
 
     def test_recent_jobs_endpoint_job_manager_scope(self):
         """Test that recent jobs endpoint properly creates job_manager in scope"""
@@ -172,17 +151,10 @@ class TestAnalyticsServiceVariableScope:
                 mock_job_manager_instance.get_recent_jobs.return_value = []
                 mock_job_manager_class.return_value = mock_job_manager_instance
 
-                try:
-                    self.handler.do_GET()
+                self.handler.do_GET()
 
-                    mock_job_manager_class.assert_called_once()
-                    mock_job_manager_instance.get_recent_jobs.assert_called_once_with(15)
-
-                except NameError as e:
-                    if "job_manager" in str(e):
-                        pytest.fail("job_manager variable scope issue not fixed in recent jobs endpoint")
-                    else:
-                        raise
+                mock_job_manager_class.assert_called_once()
+                mock_job_manager_instance.get_recent_jobs.assert_called_once_with(15)
 
     def test_collection_status_endpoint_job_manager_scope(self):
         """Test that collection status endpoint properly creates job_manager in scope"""
@@ -206,16 +178,9 @@ class TestAnalyticsServiceVariableScope:
 
                 mock_loop.run_until_complete.return_value = {'status': 'ok'}
 
-                try:
-                    self.handler.do_GET()
+                self.handler.do_GET()
 
-                    mock_job_manager_class.assert_called_once()
-
-                except NameError as e:
-                    if "job_manager" in str(e):
-                        pytest.fail("job_manager variable scope issue not fixed in collection status endpoint")
-                    else:
-                        raise
+                mock_job_manager_class.assert_called_once()
 
     def test_timeseries_endpoint_job_manager_scope(self):
         """Test that timeseries endpoint properly creates job_manager in scope"""
@@ -232,17 +197,10 @@ class TestAnalyticsServiceVariableScope:
                 }
                 mock_job_manager_class.return_value = mock_job_manager_instance
 
-                try:
-                    self.handler.do_GET()
+                self.handler.do_GET()
 
-                    mock_job_manager_class.assert_called_once()
-                    mock_job_manager_instance.get_timeseries_data.assert_called_once_with('test_table', 'price', 'date')
-
-                except NameError as e:
-                    if "job_manager" in str(e):
-                        pytest.fail("job_manager variable scope issue not fixed in timeseries endpoint")
-                    else:
-                        raise
+                mock_job_manager_class.assert_called_once()
+                mock_job_manager_instance.get_timeseries_data.assert_called_once_with('test_table', 'price', 'date')
 
     def test_filtered_data_endpoint_job_manager_scope(self):
         """Test that filtered data endpoint properly creates job_manager in scope"""
@@ -266,19 +224,12 @@ class TestAnalyticsServiceVariableScope:
                 }
                 mock_job_manager_class.return_value = mock_job_manager_instance
 
-                try:
-                    self.handler.do_POST()
+                self.handler.do_POST()
 
-                    mock_job_manager_class.assert_called_once()
-                    mock_job_manager_instance.get_filtered_data.assert_called_once_with(
-                        'test_table', {}, 1, 10
-                    )
-
-                except NameError as e:
-                    if "job_manager" in str(e):
-                        pytest.fail("job_manager variable scope issue not fixed in filtered data endpoint")
-                    else:
-                        raise
+                mock_job_manager_class.assert_called_once()
+                mock_job_manager_instance.get_filtered_data.assert_called_once_with(
+                    'test_table', {}, 1, 10
+                )
 
     def test_no_global_job_manager_dependency(self):
         """Test that endpoints don't depend on global job_manager variable"""
@@ -333,21 +284,14 @@ class TestJobManagerErrorHandling:
 
         # Mock a connection error scenario
         with mock.patch('psycopg2.connect', side_effect=Exception("Connection failed")):
-            try:
-                # This should handle the error gracefully
-                result = job_manager.get_job_stats()
-                # Either returns error dict or raises controlled exception
-                if isinstance(result, dict) and "error" in result:
-                    assert True, "Connection error handled gracefully"
-                else:
-                    # If no error dict, should be valid stats
-                    assert isinstance(result, dict), "Should return valid stats dict"
-            except Exception as e:
-                # Exception should be informative
-                assert "connection" in str(e).lower() or "error" in str(e).lower(), \
-                       "Exception should indicate connection issue"
-
-
+            # This should handle the error gracefully
+            result = job_manager.get_job_stats()
+            # Either returns error dict or raises controlled exception
+            if isinstance(result, dict) and "error" in result:
+                assert True, "Connection error handled gracefully"
+            else:
+                # If no error dict, should be valid stats
+                assert isinstance(result, dict), "Should return valid stats dict"
 if __name__ == "__main__":
     # Run tests directly
     import subprocess

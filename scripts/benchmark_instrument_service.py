@@ -67,12 +67,7 @@ class InstrumentServiceBenchmark:
             
             # Warmup
             for _ in range(5):
-                try:
-                    await operation_func()
-                except:
-                    pass
-            
-            # Benchmark runs
+                await operation_func()
             iterations = 100
             latencies = []
             success_count = 0
@@ -81,15 +76,10 @@ class InstrumentServiceBenchmark:
             
             for _ in range(iterations):
                 op_start = time.perf_counter()
-                try:
-                    result = await operation_func()
-                    op_end = time.perf_counter()
-                    latencies.append((op_end - op_start) * 1000)  # ms
-                    success_count += 1
-                except Exception as e:
-                    print(f"    Operation failed: {e}")
-                    pass
-            
+                result = await operation_func()
+                op_end = time.perf_counter()
+                latencies.append((op_end - op_start) * 1000)  # ms
+                success_count += 1
             total_time = time.time() - start_time
             
             if latencies:
@@ -125,12 +115,8 @@ class InstrumentServiceBenchmark:
         results = {}
         
         async def test_operation():
-            try:
-                await self.service.validate_symbol("AAPL")
-                return True
-            except:
-                return False
-        
+            await self.service.validate_symbol("AAPL")
+            return True
         for concurrency in concurrency_levels:
             print(f"  Testing concurrency level: {concurrency}")
             
@@ -185,15 +171,10 @@ class InstrumentServiceBenchmark:
             
             while time.time() < end_time:
                 op_start = time.perf_counter()
-                try:
-                    await self.service.validate_symbol("AAPL")
-                    op_end = time.perf_counter()
-                    response_times.append((op_end - op_start) * 1000)
-                    successful_operations += 1
-                except:
-                    failed_operations += 1
-                
-                # Rate limiting
+                await self.service.validate_symbol("AAPL")
+                op_end = time.perf_counter()
+                response_times.append((op_end - op_start) * 1000)
+                successful_operations += 1
                 await asyncio.sleep(interval_seconds)
         
         # Run load test
@@ -289,32 +270,26 @@ class InstrumentServiceBenchmark:
             'benchmarks': {}
         }
         
-        try:
-            # Single operation benchmarks
-            all_results['benchmarks']['single_operations'] = await self.run_single_operation_benchmarks()
-            
-            # Concurrency benchmarks
-            all_results['benchmarks']['concurrency'] = await self.run_concurrency_benchmarks()
-            
-            # Monitoring performance test
-            all_results['benchmarks']['monitoring_impact'] = await self.run_monitoring_performance_test()
-            
-            # Optional sustained load test
-            if include_load_test:
-                all_results['benchmarks']['sustained_load'] = await self.run_sustained_load_test(load_test_duration)
-            
-            benchmark_duration = time.time() - benchmark_start
-            all_results['metadata']['total_benchmark_time_s'] = benchmark_duration
-            
-            print(f"\n✅ Benchmark completed in {benchmark_duration:.1f} seconds")
-            
-            return all_results
-            
-        except Exception as e:
-            print(f"\n❌ Benchmark failed: {e}")
-            all_results['error'] = str(e)
-            return all_results
-    
+        # Single operation benchmarks
+        all_results['benchmarks']['single_operations'] = await self.run_single_operation_benchmarks()
+        
+        # Concurrency benchmarks
+        all_results['benchmarks']['concurrency'] = await self.run_concurrency_benchmarks()
+        
+        # Monitoring performance test
+        all_results['benchmarks']['monitoring_impact'] = await self.run_monitoring_performance_test()
+        
+        # Optional sustained load test
+        if include_load_test:
+            all_results['benchmarks']['sustained_load'] = await self.run_sustained_load_test(load_test_duration)
+        
+        benchmark_duration = time.time() - benchmark_start
+        all_results['metadata']['total_benchmark_time_s'] = benchmark_duration
+        
+        print(f"\n✅ Benchmark completed in {benchmark_duration:.1f} seconds")
+        
+        return all_results
+        
     def generate_report(self, results: dict) -> str:
         """Generate human-readable benchmark report"""
         report = []
@@ -402,36 +377,28 @@ async def main():
     # Create and run benchmark
     benchmark = InstrumentServiceBenchmark(args.environment)
     
-    try:
-        await benchmark.initialize()
-        
-        results = await benchmark.run_comprehensive_benchmark(
-            include_load_test=not args.no_load_test,
-            load_test_duration=args.load_duration
-        )
-        
-        # Save JSON results
-        if args.output:
-            with open(args.output, 'w') as f:
-                json.dump(results, f, indent=2)
-            print(f"📁 Results saved to {args.output}")
-        
-        # Generate and save report
-        report = benchmark.generate_report(results)
-        
-        if args.report:
-            with open(args.report, 'w') as f:
-                f.write(report)
-            print(f"📄 Report saved to {args.report}")
-        else:
-            print("\n" + report)
-        
-    except KeyboardInterrupt:
-        print("\n⚠️  Benchmark interrupted by user")
-    except Exception as e:
-        print(f"\n❌ Benchmark failed: {e}")
-        sys.exit(1)
-
-
+    await benchmark.initialize()
+    
+    results = await benchmark.run_comprehensive_benchmark(
+        include_load_test=not args.no_load_test,
+        load_test_duration=args.load_duration
+    )
+    
+    # Save JSON results
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"📁 Results saved to {args.output}")
+    
+    # Generate and save report
+    report = benchmark.generate_report(results)
+    
+    if args.report:
+        with open(args.report, 'w') as f:
+            f.write(report)
+        print(f"📄 Report saved to {args.report}")
+    else:
+        print("\n" + report)
+    
 if __name__ == "__main__":
     asyncio.run(main())

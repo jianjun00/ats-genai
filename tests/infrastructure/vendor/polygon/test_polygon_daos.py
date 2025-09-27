@@ -108,14 +108,13 @@ async def debug_table_existence(db_url, table_name):
     import logging
     logging.debug(f"[DEBUG] Checking existence of table '{table_name}' in DB: {db_url}")
     pool = await asyncpg.create_pool(db_url)
-    try:
-        async with pool.acquire() as conn:
-            # Print all tables in DB
-            tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public'")
-            logging.debug(f"[DEBUG] All tables in DB: {[t['tablename'] for t in tables]}")
-            result = await conn.fetchval("SELECT to_regclass($1)", table_name)
-            exists = result is not None
-            logging.debug(f"[DEBUG] Table '{table_name}' exists: {exists}")
-            return exists
+    async with pool.acquire() as conn:
+        # Print all tables in DB
+        tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+        logging.debug(f"[DEBUG] All tables in DB: {[t['tablename'] for t in tables]}")
+        result = await conn.fetchval("SELECT to_regclass($1)", table_name)
+        exists = result is not None
+        logging.debug(f"[DEBUG] Table '{table_name}' exists: {exists}")
+        return exists
     finally:
         await pool.close()

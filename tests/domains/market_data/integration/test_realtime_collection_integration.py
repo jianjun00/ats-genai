@@ -22,7 +22,7 @@ import time
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.data_collection.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
 
 logger = logging.getLogger(__name__)
 
@@ -30,69 +30,63 @@ logger = logging.getLogger(__name__)
 async def integration_db_pool():
     """Database pool for integration testing"""
     dsn = "postgresql://postgres:intg_password@localhost:4432/intg_db"
-    try:
-        pool = await asyncpg.create_pool(dsn, min_size=2, max_size=8)
+    pool = await asyncpg.create_pool(dsn, min_size=2, max_size=8)
 
-        # Ensure tables exist
-        async with pool.acquire() as conn:
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS intg_one_minute_live_tiingo (
-                    id BIGSERIAL PRIMARY KEY,
-                    symbol VARCHAR(10) NOT NULL,
-                    timestamp TIMESTAMPTZ NOT NULL,
-                    open_price DECIMAL(20,6),
-                    high_price DECIMAL(20,6),
-                    low_price DECIMAL(20,6),
-                    close_price DECIMAL(20,6),
-                    volume BIGINT,
-                    vendor VARCHAR(20) DEFAULT 'tiingo',
-                    data_latency_ms INTEGER,
-                    quality_score DECIMAL(5,3),
-                    received_at TIMESTAMPTZ DEFAULT NOW(),
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    UNIQUE(symbol, timestamp)
-                );
-            """)
+    # Ensure tables exist
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS intg_one_minute_live_tiingo (
+                id BIGSERIAL PRIMARY KEY,
+                symbol VARCHAR(10) NOT NULL,
+                timestamp TIMESTAMPTZ NOT NULL,
+                open_price DECIMAL(20,6),
+                high_price DECIMAL(20,6),
+                low_price DECIMAL(20,6),
+                close_price DECIMAL(20,6),
+                volume BIGINT,
+                vendor VARCHAR(20) DEFAULT 'tiingo',
+                data_latency_ms INTEGER,
+                quality_score DECIMAL(5,3),
+                received_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(symbol, timestamp)
+            );
+        """)
 
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS intg_one_minute_live_polygon (
-                    id BIGSERIAL PRIMARY KEY,
-                    symbol VARCHAR(10) NOT NULL,
-                    timestamp TIMESTAMPTZ NOT NULL,
-                    open_price DECIMAL(20,6),
-                    high_price DECIMAL(20,6),
-                    low_price DECIMAL(20,6),
-                    close_price DECIMAL(20,6),
-                    volume BIGINT,
-                    vwap DECIMAL(20,6),
-                    trade_count INTEGER,
-                    vendor VARCHAR(20) DEFAULT 'polygon',
-                    data_latency_ms INTEGER,
-                    quality_score DECIMAL(5,3),
-                    received_at TIMESTAMPTZ DEFAULT NOW(),
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    UNIQUE(symbol, timestamp)
-                );
-            """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS intg_one_minute_live_polygon (
+                id BIGSERIAL PRIMARY KEY,
+                symbol VARCHAR(10) NOT NULL,
+                timestamp TIMESTAMPTZ NOT NULL,
+                open_price DECIMAL(20,6),
+                high_price DECIMAL(20,6),
+                low_price DECIMAL(20,6),
+                close_price DECIMAL(20,6),
+                volume BIGINT,
+                vwap DECIMAL(20,6),
+                trade_count INTEGER,
+                vendor VARCHAR(20) DEFAULT 'polygon',
+                data_latency_ms INTEGER,
+                quality_score DECIMAL(5,3),
+                received_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(symbol, timestamp)
+            );
+        """)
 
-            # Create indexes
-            await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_intg_tiingo_live_symbol_timestamp
-                ON intg_one_minute_live_tiingo(symbol, timestamp);
-            """)
+        # Create indexes
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_intg_tiingo_live_symbol_timestamp
+            ON intg_one_minute_live_tiingo(symbol, timestamp);
+        """)
 
-            await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_intg_polygon_live_symbol_timestamp
-                ON intg_one_minute_live_polygon(symbol, timestamp);
-            """)
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_intg_polygon_live_symbol_timestamp
+            ON intg_one_minute_live_polygon(symbol, timestamp);
+        """)
 
-        yield pool
-        await pool.close()
-
-    except Exception as e:
-        logger.warning(f"Cannot connect to integration database: {e}")
-        pytest.skip("Integration database not available")
-
+    yield pool
+    await pool.close()
 
 class TestDatabaseIntegration:
     """Integration tests for database operations"""

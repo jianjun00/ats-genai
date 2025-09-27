@@ -33,7 +33,7 @@ class TestAnalyticsEventsServiceMigration:
     @pytest.fixture
     def mock_instrument_dto(self):
         """Mock InstrumentDTO for testing"""
-        from domains.instruments.services.interfaces.instrument_service_interface import InstrumentDTO
+        from domains.instruments.services.impl.instrument_service_cached import InstrumentDTO
         return InstrumentDTO(
             id=123,
             symbol="AAPL", 

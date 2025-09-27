@@ -197,24 +197,19 @@ class SlackNotifier:
             ]
         }
 
-        try:
-            response = requests.post(
-                self.webhook_url,
-                json=payload,
-                timeout=10,
-                headers={'Content-Type': 'application/json'}
-            )
+        response = requests.post(
+            self.webhook_url,
+            json=payload,
+            timeout=10,
+            headers={'Content-Type': 'application/json'}
+        )
 
-            if response.status_code == 200:
-                self.last_alerts[alert_type] = datetime.now()
-                logger.info(f"Slack alert sent: {alert_type}")
-                return True
-            else:
-                logger.error(f"Slack webhook failed: {response.status_code} - {response.text}")
-                return False
-
-        except Exception as e:
-            logger.error(f"Failed to send Slack alert: {e}")
+        if response.status_code == 200:
+            self.last_alerts[alert_type] = datetime.now()
+            logger.info(f"Slack alert sent: {alert_type}")
+            return True
+        else:
+            logger.error(f"Slack webhook failed: {response.status_code} - {response.text}")
             return False
 
 class WSLSystemMonitor:
@@ -238,20 +233,16 @@ class WSLSystemMonitor:
 
     def load_config(self):
         """Load configuration from JSON file."""
-        try:
-            with open(self.config_file, 'r') as f:
-                config = json.load(f)
+        with open(self.config_file, 'r') as f:
+            config = json.load(f)
 
-            # Update thresholds
-            if 'thresholds' in config:
-                for key, value in config['thresholds'].items():
-                    if hasattr(self.thresholds, key):
-                        setattr(self.thresholds, key, value)
+        # Update thresholds
+        if 'thresholds' in config:
+            for key, value in config['thresholds'].items():
+                if hasattr(self.thresholds, key):
+                    setattr(self.thresholds, key, value)
 
-            logger.info(f"Configuration loaded from {self.config_file}")
-
-        except Exception as e:
-            logger.error(f"Failed to load configuration: {e}")
+        logger.info(f"Configuration loaded from {self.config_file}")
 
     def get_system_metrics(self) -> SystemMetrics:
         """Collect comprehensive system metrics."""
@@ -264,12 +255,7 @@ class WSLSystemMonitor:
         cpu_percent = psutil.cpu_percent(interval=1)
         cpu_count = psutil.cpu_count()
 
-        try:
-            load_avg = list(os.getloadavg()) if hasattr(os, 'getloadavg') else None
-        except:
-            load_avg = None
-
-        # Memory metrics
+        load_avg = list(os.getloadavg()) if hasattr(os, 'getloadavg') else None
         memory = psutil.virtual_memory()
         swap = psutil.swap_memory()
 
@@ -322,61 +308,45 @@ class WSLSystemMonitor:
 
     def get_docker_metrics(self) -> tuple[int, int]:
         """Get Docker container metrics."""
-        try:
-            result = subprocess.run(['docker', 'ps', '-a', '--format', '{{.Status}}'],
-                                  capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                statuses = result.stdout.strip().split('\n')
-                total = len([s for s in statuses if s.strip()])
-                running = len([s for s in statuses if s.startswith('Up')])
-                return total, running
-        except Exception as e:
-            logger.warning(f"Failed to get Docker metrics: {e}")
-
+        result = subprocess.run(['docker', 'ps', '-a', '--format', '{{.Status}}'],
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            statuses = result.stdout.strip().split('\n')
+            total = len([s for s in statuses if s.strip()])
+            running = len([s for s in statuses if s.startswith('Up')])
+            return total, running
         return 0, 0
 
     def get_postgres_metrics(self) -> tuple[Optional[int], str]:
         """Get PostgreSQL connection metrics."""
-        try:
-            result = subprocess.run([
-                'python3', 'scripts/run_dev.py', 'query',
-                '--query', 'SELECT count(*) FROM pg_stat_activity'
-            ], capture_output=True, text=True, timeout=10)
+        result = subprocess.run([
+            'python3', 'scripts/run_dev.py', 'query',
+            '--query', 'SELECT count(*) FROM pg_stat_activity'
+        ], capture_output=True, text=True, timeout=10)
 
-            if result.returncode == 0:
-                # Parse connection count from output
-                lines = result.stdout.strip().split('\n')
-                for line in lines:
-                    if line.strip().isdigit():
-                        return int(line.strip()), "connected"
-
-        except Exception as e:
-            logger.warning(f"Failed to get PostgreSQL metrics: {e}")
+        if result.returncode == 0:
+            # Parse connection count from output
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                if line.strip().isdigit():
+                    return int(line.strip()), "connected"
 
         return None, "unavailable"
 
     def check_ats_backfill_status(self) -> bool:
         """Check if ATS backfill is currently active."""
-        try:
-            result = subprocess.run(['pgrep', '-f', 'polygon_30year_minute_backfill'],
-                                  capture_output=True, timeout=5)
-            return result.returncode == 0
-        except:
-            return False
-
+        result = subprocess.run(['pgrep', '-f', 'polygon_30year_minute_backfill'],
+                              capture_output=True, timeout=5)
+        return result.returncode == 0
     def get_ats_data_size(self) -> float:
         """Get ATS data directory size in GB."""
-        try:
-            ats_data_path = Path('/mnt/d/ats-data')
-            if ats_data_path.exists():
-                result = subprocess.run(['du', '-sb', str(ats_data_path)],
-                                      capture_output=True, text=True, timeout=30)
-                if result.returncode == 0:
-                    size_bytes = int(result.stdout.split()[0])
-                    return size_bytes / (1024**3)  # Convert to GB
-        except Exception as e:
-            logger.warning(f"Failed to get ATS data size: {e}")
-
+        ats_data_path = Path('/mnt/d/ats-data')
+        if ats_data_path.exists():
+            result = subprocess.run(['du', '-sb', str(ats_data_path)],
+                                  capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                size_bytes = int(result.stdout.split()[0])
+                return size_bytes / (1024**3)  # Convert to GB
         return 0.0
 
     def analyze_stress_conditions(self, metrics: SystemMetrics) -> List[Dict[str, Any]]:
@@ -490,57 +460,49 @@ class WSLSystemMonitor:
 
     def run_monitoring_cycle(self):
         """Run one complete monitoring cycle."""
-        try:
-            # Collect metrics
-            metrics = self.get_system_metrics()
-            self.metrics_history.append(metrics)
+        # Collect metrics
+        metrics = self.get_system_metrics()
+        self.metrics_history.append(metrics)
 
-            # Log basic metrics
-            logger.info(f"System Status - CPU: {metrics.cpu_percent:.1f}%, "
-                       f"Memory: {metrics.memory_percent:.1f}%, "
-                       f"Disk: {metrics.disk_percent:.1f}%, "
-                       f"Processes: {metrics.process_count}, "
-                       f"ATS Backfill: {'Active' if metrics.ats_backfill_active else 'Inactive'}")
+        # Log basic metrics
+        logger.info(f"System Status - CPU: {metrics.cpu_percent:.1f}%, "
+                   f"Memory: {metrics.memory_percent:.1f}%, "
+                   f"Disk: {metrics.disk_percent:.1f}%, "
+                   f"Processes: {metrics.process_count}, "
+                   f"ATS Backfill: {'Active' if metrics.ats_backfill_active else 'Inactive'}")
 
-            # Analyze stress conditions
-            stress_alerts = self.analyze_stress_conditions(metrics)
-            recovery_alerts = self.check_recovery_conditions(metrics)
+        # Analyze stress conditions
+        stress_alerts = self.analyze_stress_conditions(metrics)
+        recovery_alerts = self.check_recovery_conditions(metrics)
 
-            # Send alerts
-            all_alerts = stress_alerts + recovery_alerts
-            for alert in all_alerts:
-                self.slack_notifier.send_alert(
-                    alert_type=alert['type'],
-                    title=alert['title'],
-                    message=alert['message'],
-                    metrics=metrics,
-                    severity=alert['severity']
-                )
+        # Send alerts
+        all_alerts = stress_alerts + recovery_alerts
+        for alert in all_alerts:
+            self.slack_notifier.send_alert(
+                alert_type=alert['type'],
+                title=alert['title'],
+                message=alert['message'],
+                metrics=metrics,
+                severity=alert['severity']
+            )
 
-                # Update alert state tracking
-                if alert['severity'] in ['warning', 'critical']:
-                    self.last_alert_states[alert['type']] = True
-                elif alert['severity'] == 'recovery':
-                    original_condition = alert['type'].replace('_recovery', '')
-                    self.last_alert_states[original_condition] = False
+            # Update alert state tracking
+            if alert['severity'] in ['warning', 'critical']:
+                self.last_alert_states[alert['type']] = True
+            elif alert['severity'] == 'recovery':
+                original_condition = alert['type'].replace('_recovery', '')
+                self.last_alert_states[original_condition] = False
 
-            # Save metrics to file for historical analysis
-            self.save_metrics_history(metrics)
-
-        except Exception as e:
-            logger.error(f"Error in monitoring cycle: {e}")
+        # Save metrics to file for historical analysis
+        self.save_metrics_history(metrics)
 
     def save_metrics_history(self, metrics: SystemMetrics):
         """Save metrics to historical data file."""
-        try:
-            history_file = Path('/mnt/d/ats-logs/monitoring/system_metrics_history.jsonl')
-            history_file.parent.mkdir(parents=True, exist_ok=True)
+        history_file = Path('/mnt/d/ats-logs/monitoring/system_metrics_history.jsonl')
+        history_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(history_file, 'a') as f:
-                f.write(json.dumps(metrics.to_dict()) + '\n')
-
-        except Exception as e:
-            logger.warning(f"Failed to save metrics history: {e}")
+        with open(history_file, 'a') as f:
+            f.write(json.dumps(metrics.to_dict()) + '\n')
 
     def run_continuous_monitoring(self, interval_seconds: int = 60):
         """Run continuous monitoring loop."""
@@ -550,16 +512,8 @@ class WSLSystemMonitor:
                    f"Disk {self.thresholds.disk_warning}%/{self.thresholds.disk_critical}%")
 
         while True:
-            try:
-                self.run_monitoring_cycle()
-                time.sleep(interval_seconds)
-
-            except KeyboardInterrupt:
-                logger.info("Monitoring stopped by user")
-                break
-            except Exception as e:
-                logger.error(f"Unexpected error in monitoring loop: {e}")
-                time.sleep(30)  # Wait before retrying
+            self.run_monitoring_cycle()
+            time.sleep(interval_seconds)
 
 def main():
     """Main entry point for WSL system monitor."""

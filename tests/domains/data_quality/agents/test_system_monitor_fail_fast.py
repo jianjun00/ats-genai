@@ -11,7 +11,7 @@ These tests verify that:
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock, MagicMock
-from src.domains.data_quality.agents.system_monitor import SystemHealthMonitor, DatabaseConnectionError, SystemMonitorError
+from domains.data_quality.agents.system_monitor import SystemHealthMonitor, DatabaseConnectionError, SystemMonitorError
 
 class TestSystemHealthMonitorFailFast:
     """Test fail-fast behavior in system monitoring"""
@@ -165,7 +165,7 @@ class TestSystemHealthMonitorFailFast:
     async def test_configuration_loading_failure_fails_fast(self, mock_config):
         """Test that configuration loading failures are not masked"""
         # Mock configuration loading failure
-        from src.core.config.secure_config_loader import SecurityConfigurationError
+        from core.config.secure_config_loader import SecurityConfigurationError
         mock_config.get_database_connection_params.side_effect = SecurityConfigurationError(
             "Configuration not loaded"
         )
@@ -283,11 +283,8 @@ class TestLegacyVsNewBehavior:
         
         The old code pattern:
         ```python
-        try:
-            # real operation
-            return real_result
-        except Exception:
-            return 0  # DANGEROUS: Masks all failures
+        # real operation
+        return real_result
         ```
         
         This test documents why this was problematic and ensures the new
@@ -315,7 +312,7 @@ class TestLegacyVsNewBehavior:
         3. Track database availability separately from connection count
         4. Implement proper retry logic for transient failures
         """
-        from src.domains.data_quality.agents.system_monitor import DatabaseConnectionError, SystemMonitorError
+        from domains.data_quality.agents.system_monitor import DatabaseConnectionError, SystemMonitorError
         
         # Verify proper exception types exist for monitoring
         assert issubclass(DatabaseConnectionError, Exception)

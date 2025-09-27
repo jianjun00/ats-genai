@@ -37,22 +37,17 @@ class SigNozINTGConfigurator:
             }
         }
 
-        try:
-            response = requests.post(
-                f"{self.signoz_url}/api/v1/organizations",
-                json=org_config,
-                headers=self.headers
-            )
+        response = requests.post(
+            f"{self.signoz_url}/api/v1/organizations",
+            json=org_config,
+            headers=self.headers
+        )
 
-            if response.status_code == 201:
-                logger.info("✅ ATS-INTG organization created successfully")
-                return response.json()
-            else:
-                logger.warning(f"Organization creation response: {response.status_code}")
-                return {}
-
-        except Exception as e:
-            logger.error(f"Failed to create organization: {e}")
+        if response.status_code == 201:
+            logger.info("✅ ATS-INTG organization created successfully")
+            return response.json()
+        else:
+            logger.warning(f"Organization creation response: {response.status_code}")
             return {}
 
     def setup_intg_services(self) -> List[Dict]:

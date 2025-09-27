@@ -333,18 +333,11 @@ class TestHLCIndicators:
             print(f"\n📋 {test_name}")
             print("-" * 60)
 
-            try:
-                if test_func():
-                    passed_tests += 1
-                    self.test_results[test_name] = "PASS"
-                else:
-                    self.test_results[test_name] = "FAIL"
-            except Exception as e:
-                self.errors.append(f"{test_name}: Exception - {str(e)}")
-                self.test_results[test_name] = "ERROR"
-                print(f"❌ Test failed with exception: {e}")
-
-        # Summary
+            if test_func():
+                passed_tests += 1
+                self.test_results[test_name] = "PASS"
+            else:
+                self.test_results[test_name] = "FAIL"
         print("\n" + "=" * 80)
         print("🎯 TEST SUITE SUMMARY")
         print("=" * 80)

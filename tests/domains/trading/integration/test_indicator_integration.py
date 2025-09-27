@@ -23,16 +23,10 @@ from typing import List, Optional
 # Add src to path to import indicators
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-try:
-    from domains.trading.services.indicator import (
-        PL, L11, H11, Z1B, Z2B, EBot, ETop, Z5T, Z6T,
-        FiveNineSell, FiveNineBuy
-    )
-except ImportError as e:
-    print(f"❌ Cannot import indicators: {e}")
-    print("Make sure to run: PYTHONPATH=src python test_indicator_integration.py")
-    sys.exit(1)
-
+from domains.trading.services.indicators import (
+    PL, L11, H11, Z1B, Z2B, EBot, ETop, Z5T, Z6T,
+    FiveNineSell, FiveNineBuy
+)
 @dataclass
 class TestInstrumentInterval:
     """Test implementation of InstrumentInterval."""
@@ -105,33 +99,28 @@ class IndicatorIntegrationTests:
         success = True
 
         for name, indicator_class in self.hlc_indicators.items():
-            try:
-                indicator = indicator_class()
+            indicator = indicator_class()
 
-                # Check basic properties
-                if not hasattr(indicator, 'update'):
-                    self.errors.append(f"{name}: Missing update method")
-                    success = False
-
-                if not hasattr(indicator, 'get_value'):
-                    self.errors.append(f"{name}: Missing get_value method")
-                    success = False
-
-                if not hasattr(indicator, 'status'):
-                    self.errors.append(f"{name}: Missing status attribute")
-                    success = False
-
-                # Initial state should be appropriate
-                initial_value = indicator.get_value()
-                if initial_value is not None:
-                    self.errors.append(f"{name}: Initial value should be None, got {initial_value}")
-                    success = False
-
-                print(f"  ✅ {name}: Instantiated successfully")
-
-            except Exception as e:
-                self.errors.append(f"{name}: Instantiation failed - {e}")
+            # Check basic properties
+            if not hasattr(indicator, 'update'):
+                self.errors.append(f"{name}: Missing update method")
                 success = False
+
+            if not hasattr(indicator, 'get_value'):
+                self.errors.append(f"{name}: Missing get_value method")
+                success = False
+
+            if not hasattr(indicator, 'status'):
+                self.errors.append(f"{name}: Missing status attribute")
+                success = False
+
+            # Initial state should be appropriate
+            initial_value = indicator.get_value()
+            if initial_value is not None:
+                self.errors.append(f"{name}: Initial value should be None, got {initial_value}")
+                success = False
+
+            print(f"  ✅ {name}: Instantiated successfully")
 
         if success:
             print("✅ All HLC indicators instantiate correctly")
@@ -147,33 +136,28 @@ class IndicatorIntegrationTests:
         success = True
 
         for name, indicator_class in self.five_nine_indicators.items():
-            try:
-                indicator = indicator_class()
+            indicator = indicator_class()
 
-                # Check basic properties
-                if not hasattr(indicator, 'update'):
-                    self.errors.append(f"{name}: Missing update method")
-                    success = False
-
-                if not hasattr(indicator, 'get_value'):
-                    self.errors.append(f"{name}: Missing get_value method")
-                    success = False
-
-                if not hasattr(indicator, 'status'):
-                    self.errors.append(f"{name}: Missing status attribute")
-                    success = False
-
-                # Initial state
-                initial_value = indicator.get_value()
-                if initial_value is not None:
-                    self.errors.append(f"{name}: Initial value should be None, got {initial_value}")
-                    success = False
-
-                print(f"  ✅ {name}: Instantiated successfully")
-
-            except Exception as e:
-                self.errors.append(f"{name}: Instantiation failed - {e}")
+            # Check basic properties
+            if not hasattr(indicator, 'update'):
+                self.errors.append(f"{name}: Missing update method")
                 success = False
+
+            if not hasattr(indicator, 'get_value'):
+                self.errors.append(f"{name}: Missing get_value method")
+                success = False
+
+            if not hasattr(indicator, 'status'):
+                self.errors.append(f"{name}: Missing status attribute")
+                success = False
+
+            # Initial state
+            initial_value = indicator.get_value()
+            if initial_value is not None:
+                self.errors.append(f"{name}: Initial value should be None, got {initial_value}")
+                success = False
+
+            print(f"  ✅ {name}: Instantiated successfully")
 
         if success:
             print("✅ All Five Nine indicators instantiate correctly")
@@ -207,47 +191,42 @@ class IndicatorIntegrationTests:
         }
 
         for name, indicator_class in self.hlc_indicators.items():
-            try:
-                indicator = indicator_class()
+            indicator = indicator_class()
 
-                # Update with test intervals
-                indicator.update(test_intervals)
+            # Update with test intervals
+            indicator.update(test_intervals)
 
-                # Check status
-                if indicator.status != 'ok':
-                    self.errors.append(f"{name}: Expected status 'ok', got '{indicator.status}'")
-                    success = False
-                    continue
-
-                # Get calculated value
-                calculated_value = indicator.get_value()
-
-                if calculated_value is None:
-                    self.errors.append(f"{name}: Calculated value is None")
-                    success = False
-                    continue
-
-                # Validate against expected value
-                if name in expected_values:
-                    expected = expected_values[name]
-                    error = abs(calculated_value - expected)
-                    relative_error = (error / abs(expected)) * 100 if expected != 0 else 0
-
-                    # Tolerance: 0.5% relative error or 1.0 absolute error
-                    if relative_error > 0.5 and error > 1.0:
-                        self.errors.append(
-                            f"{name}: Expected {expected:.4f}, got {calculated_value:.4f}, "
-                            f"error {error:.4f} ({relative_error:.3f}%)"
-                        )
-                        success = False
-                    else:
-                        print(f"  ✅ {name}: {calculated_value:.2f} (expected {expected:.2f}, error {error:.4f})")
-                else:
-                    print(f"  ✅ {name}: {calculated_value:.2f} (no validation reference)")
-
-            except Exception as e:
-                self.errors.append(f"{name}: Calculation failed - {e}")
+            # Check status
+            if indicator.status != 'ok':
+                self.errors.append(f"{name}: Expected status 'ok', got '{indicator.status}'")
                 success = False
+                continue
+
+            # Get calculated value
+            calculated_value = indicator.get_value()
+
+            if calculated_value is None:
+                self.errors.append(f"{name}: Calculated value is None")
+                success = False
+                continue
+
+            # Validate against expected value
+            if name in expected_values:
+                expected = expected_values[name]
+                error = abs(calculated_value - expected)
+                relative_error = (error / abs(expected)) * 100 if expected != 0 else 0
+
+                # Tolerance: 0.5% relative error or 1.0 absolute error
+                if relative_error > 0.5 and error > 1.0:
+                    self.errors.append(
+                        f"{name}: Expected {expected:.4f}, got {calculated_value:.4f}, "
+                        f"error {error:.4f} ({relative_error:.3f}%)"
+                    )
+                    success = False
+                else:
+                    print(f"  ✅ {name}: {calculated_value:.2f} (expected {expected:.2f}, error {error:.4f})")
+            else:
+                print(f"  ✅ {name}: {calculated_value:.2f} (no validation reference)")
 
         if success:
             print("✅ All HLC indicator calculations validated")
@@ -281,39 +260,34 @@ class IndicatorIntegrationTests:
         ]
 
         for name, indicator_class, expected in test_cases:
-            try:
-                indicator = indicator_class()
+            indicator = indicator_class()
 
-                # Update with test intervals
-                indicator.update(test_intervals)
+            # Update with test intervals
+            indicator.update(test_intervals)
 
-                # Check status
-                if indicator.status != 'ok':
-                    self.errors.append(f"{name}: Expected status 'ok', got '{indicator.status}'")
-                    success = False
-                    continue
-
-                # Get calculated value
-                calculated_value = indicator.get_value()
-
-                if calculated_value is None:
-                    self.errors.append(f"{name}: Calculated value is None")
-                    success = False
-                    continue
-
-                # Validate calculation
-                error = abs(calculated_value - expected)
-                if error > 0.001:  # Very tight tolerance for simple arithmetic
-                    self.errors.append(
-                        f"{name}: Expected {expected:.4f}, got {calculated_value:.4f}, error {error:.6f}"
-                    )
-                    success = False
-                else:
-                    print(f"  ✅ {name}: {calculated_value:.2f} (expected {expected:.2f})")
-
-            except Exception as e:
-                self.errors.append(f"{name}: Calculation failed - {e}")
+            # Check status
+            if indicator.status != 'ok':
+                self.errors.append(f"{name}: Expected status 'ok', got '{indicator.status}'")
                 success = False
+                continue
+
+            # Get calculated value
+            calculated_value = indicator.get_value()
+
+            if calculated_value is None:
+                self.errors.append(f"{name}: Calculated value is None")
+                success = False
+                continue
+
+            # Validate calculation
+            error = abs(calculated_value - expected)
+            if error > 0.001:  # Very tight tolerance for simple arithmetic
+                self.errors.append(
+                    f"{name}: Expected {expected:.4f}, got {calculated_value:.4f}, error {error:.6f}"
+                )
+                success = False
+            else:
+                print(f"  ✅ {name}: {calculated_value:.2f} (expected {expected:.2f})")
 
         if success:
             print("✅ All Five Nine indicator calculations validated")
@@ -338,7 +312,21 @@ class IndicatorIntegrationTests:
         for case_name, intervals in insufficient_test_cases:
             # Test HLC indicators (need 3+ intervals)
             for name, indicator_class in self.hlc_indicators.items():
-                try:
+                indicator = indicator_class()
+                indicator.update(intervals)
+
+                # Should have invalid status
+                if indicator.status == 'ok':
+                    self.errors.append(f"{name} with {case_name}: Should have invalid status, got 'ok'")
+                    success = False
+
+                # Value should be None
+                if indicator.get_value() is not None:
+                    self.errors.append(f"{name} with {case_name}: Value should be None")
+                    success = False
+
+            if len(intervals) < 2:
+                for name, indicator_class in self.five_nine_indicators.items():
                     indicator = indicator_class()
                     indicator.update(intervals)
 
@@ -351,31 +339,6 @@ class IndicatorIntegrationTests:
                     if indicator.get_value() is not None:
                         self.errors.append(f"{name} with {case_name}: Value should be None")
                         success = False
-
-                except Exception as e:
-                    # Exception is acceptable for invalid data
-                    pass
-
-            # Test Five Nine indicators (need 2+ intervals)
-            if len(intervals) < 2:
-                for name, indicator_class in self.five_nine_indicators.items():
-                    try:
-                        indicator = indicator_class()
-                        indicator.update(intervals)
-
-                        # Should have invalid status
-                        if indicator.status == 'ok':
-                            self.errors.append(f"{name} with {case_name}: Should have invalid status, got 'ok'")
-                            success = False
-
-                        # Value should be None
-                        if indicator.get_value() is not None:
-                            self.errors.append(f"{name} with {case_name}: Value should be None")
-                            success = False
-
-                    except Exception as e:
-                        # Exception is acceptable for invalid data
-                        pass
 
         if success:
             print("✅ Insufficient data handling validated")
@@ -401,48 +364,34 @@ class IndicatorIntegrationTests:
         all_indicators = {**self.hlc_indicators, **self.five_nine_indicators}
 
         for name, indicator_class in all_indicators.items():
-            try:
-                indicator = indicator_class()
-                indicator.update(invalid_intervals)
+            indicator = indicator_class()
+            indicator.update(invalid_intervals)
 
-                # Should handle invalid status gracefully
-                if indicator.status == 'ok':
-                    self.errors.append(f"{name}: Should reject invalid status intervals")
-                    success = False
+            # Should handle invalid status gracefully
+            if indicator.status == 'ok':
+                self.errors.append(f"{name}: Should reject invalid status intervals")
+                success = False
 
-                if indicator.get_value() is not None:
-                    self.errors.append(f"{name}: Should return None for invalid data")
-                    success = False
+            if indicator.get_value() is not None:
+                self.errors.append(f"{name}: Should return None for invalid data")
+                success = False
 
-            except Exception as e:
-                # Exception is acceptable for invalid data
-                pass
+        nan_intervals = [
+            TestInstrumentInterval(float('nan'), 90, 95),
+            TestInstrumentInterval(110, float('nan'), 105),
+            TestInstrumentInterval(120, 110, float('nan')),
+        ]
 
-        # Test with NaN values (if the implementation handles them)
-        try:
-            nan_intervals = [
-                TestInstrumentInterval(float('nan'), 90, 95),
-                TestInstrumentInterval(110, float('nan'), 105),
-                TestInstrumentInterval(120, 110, float('nan')),
-            ]
+        for name, indicator_class in all_indicators.items():
+            indicator = indicator_class()
+            indicator.update(nan_intervals)
 
-            for name, indicator_class in all_indicators.items():
-                try:
-                    indicator = indicator_class()
-                    indicator.update(nan_intervals)
+            # Should handle NaN gracefully
+            if indicator.status == 'ok':
+                self.errors.append(f"{name}: Should reject NaN values")
+                success = False
 
-                    # Should handle NaN gracefully
-                    if indicator.status == 'ok':
-                        self.errors.append(f"{name}: Should reject NaN values")
-                        success = False
-
-                except Exception as e:
-                    # Exception is expected and acceptable for NaN data
-                    pass
-
-        except ValueError:
-            # NaN intervals may fail validation in __post_init__, which is acceptable
-            pass
+        pass
 
         if success:
             print("✅ Invalid data handling validated")
@@ -542,40 +491,35 @@ class IndicatorIntegrationTests:
         all_indicators = {**self.hlc_indicators, **self.five_nine_indicators}
 
         for name, indicator_class in all_indicators.items():
-            try:
-                indicator = indicator_class()
+            indicator = indicator_class()
 
-                # First update
-                indicator.update(test_intervals_1)
-                first_value = indicator.get_value()
-                first_status = indicator.status
-                first_update_time = indicator.update_at
+            # First update
+            indicator.update(test_intervals_1)
+            first_value = indicator.get_value()
+            first_status = indicator.status
+            first_update_time = indicator.update_at
 
-                # Second update with different data
-                time.sleep(0.001)  # Ensure different timestamp
-                indicator.update(test_intervals_2)
-                second_value = indicator.get_value()
-                second_status = indicator.status
-                second_update_time = indicator.update_at
+            # Second update with different data
+            time.sleep(0.001)  # Ensure different timestamp
+            indicator.update(test_intervals_2)
+            second_value = indicator.get_value()
+            second_status = indicator.status
+            second_update_time = indicator.update_at
 
-                # State should be updated
-                if second_update_time <= first_update_time:
-                    self.errors.append(f"{name}: Update time not advancing")
-                    success = False
-
-                # Values should potentially be different (unless data is identical)
-                # We don't enforce this as identical inputs should give identical outputs
-
-                # Status should be managed properly
-                if second_status != 'ok' and len(test_intervals_2) >= (3 if name in self.hlc_indicators else 2):
-                    self.errors.append(f"{name}: Unexpected status '{second_status}' with sufficient data")
-                    success = False
-
-                print(f"  ✅ {name}: State management validated")
-
-            except Exception as e:
-                self.errors.append(f"{name}: State management failed - {e}")
+            # State should be updated
+            if second_update_time <= first_update_time:
+                self.errors.append(f"{name}: Update time not advancing")
                 success = False
+
+            # Values should potentially be different (unless data is identical)
+            # We don't enforce this as identical inputs should give identical outputs
+
+            # Status should be managed properly
+            if second_status != 'ok' and len(test_intervals_2) >= (3 if name in self.hlc_indicators else 2):
+                self.errors.append(f"{name}: Unexpected status '{second_status}' with sufficient data")
+                success = False
+
+            print(f"  ✅ {name}: State management validated")
 
         if success:
             print("✅ State management validated")
@@ -610,17 +554,11 @@ class IndicatorIntegrationTests:
             print(f"\n📋 {test_name}")
             print("-" * 50)
 
-            try:
-                if test_func():
-                    passed_tests += 1
-                    self.test_results[test_name] = "PASS"
-                else:
-                    self.test_results[test_name] = "FAIL"
-            except Exception as e:
-                self.errors.append(f"{test_name}: Exception - {str(e)}")
-                self.test_results[test_name] = "ERROR"
-                print(f"❌ Test failed with exception: {e}")
-
+            if test_func():
+                passed_tests += 1
+                self.test_results[test_name] = "PASS"
+            else:
+                self.test_results[test_name] = "FAIL"
         total_time = time.time() - start_time
 
         # Summary

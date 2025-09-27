@@ -172,246 +172,227 @@ class DatasetServiceTrainingPipeline:
             description=f"Unified loss transformer for {training_config['symbols']} using dataset service"
         )
 
-        try:
-            # Create dataset loader
-            dataset_loader = self.dataset_client.create_data_loader(training_config)
+        # Create dataset loader
+        dataset_loader = self.dataset_client.create_data_loader(training_config)
 
-            # Create model
-            model = SimpleTransformer(
-                input_dim=training_config['input_dim'],
-                d_model=training_config['d_model'],
-                sequence_length=training_config['sequence_length']
-            )
+        # Create model
+        model = SimpleTransformer(
+            input_dim=training_config['input_dim'],
+            d_model=training_config['d_model'],
+            sequence_length=training_config['sequence_length']
+        )
 
-            # Count model parameters and track architecture
-            model_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-            logger.info(f"📊 Model has {model_parameters:,} trainable parameters")
+        # Count model parameters and track architecture
+        model_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        logger.info(f"📊 Model has {model_parameters:,} trainable parameters")
 
-            # Track model architecture
-            architecture_config = {
-                'input_dim': training_config['input_dim'],
-                'd_model': training_config['d_model'],
-                'sequence_length': training_config['sequence_length'],
-                'parameter_count': model_parameters,
-                'loss_function': 'SimplifiedFinancialLoss',
-                'optimizer': 'Adam',
-                'learning_rate': training_config['learning_rate']
+        # Track model architecture
+        architecture_config = {
+            'input_dim': training_config['input_dim'],
+            'd_model': training_config['d_model'],
+            'sequence_length': training_config['sequence_length'],
+            'parameter_count': model_parameters,
+            'loss_function': 'SimplifiedFinancialLoss',
+            'optimizer': 'Adam',
+            'learning_rate': training_config['learning_rate']
+        }
+        self.model_tracker.track_architecture(model, architecture_config)
+
+        # Create loss function and optimizer
+        loss_fn = SimplifiedFinancialLoss(
+            alpha_cvar=training_config['alpha_cvar'],
+            lambda_drawdown=training_config['lambda_drawdown']
+        )
+        optimizer = torch.optim.Adam(model.parameters(), lr=training_config['learning_rate'])
+
+        # Training loop
+        num_epochs = training_config['num_epochs']
+        training_history = []
+
+        for epoch in range(num_epochs):
+            model.train()
+            epoch_losses = []
+            batch_count = 0
+
+            # Use batch iterator from dataset service
+            for X_batch, y_batch in dataset_loader.get_batch_iterator(training_config['batch_size']):
+
+                # Convert to PyTorch tensors
+                if len(X_batch.shape) == 2:
+                    # Reshape 2D to 3D: (batch_size, sequence_length, features)
+                    batch_size = X_batch.shape[0]
+                    feature_count = X_batch.shape[1]
+                    sequence_length = training_config['sequence_length']
+
+                    # Reshape to sequences
+                    if batch_size >= sequence_length:
+                        X_batch = X_batch[:batch_size//sequence_length*sequence_length]
+                        X_batch = X_batch.reshape(-1, sequence_length, feature_count)
+                        y_batch = y_batch[:len(X_batch)]
+
+                X_tensor = torch.tensor(X_batch, dtype=torch.float32)
+                y_tensor = torch.tensor(y_batch, dtype=torch.float32).unsqueeze(-1) if len(y_batch.shape) == 1 else torch.tensor(y_batch, dtype=torch.float32)
+
+                # Skip if batch too small
+                if len(X_tensor) < 2:
+                    continue
+
+                # Forward pass
+                predictions = model(X_tensor)
+
+                # Calculate loss
+                loss = loss_fn(predictions, y_tensor)
+
+                # Backward pass
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                epoch_losses.append(loss.item())
+                batch_count += 1
+
+                # Limit batches per epoch for demo
+                if batch_count >= 20:
+                    break
+
+            if epoch_losses:
+                avg_loss = np.mean(epoch_losses)
+                training_history.append(avg_loss)
+
+                logger.info(f"Epoch {epoch + 1}/{num_epochs}, Avg Loss: {avg_loss:.6f} ({len(epoch_losses)} batches)")
+
+                # Track training step
+                self.model_tracker.track_training_step(
+                    epoch=epoch + 1,
+                    loss=avg_loss,
+                    metrics={
+                        'batches_processed': batch_count,
+                        'batch_size': training_config['batch_size']
+                    }
+                )
+
+                # Update training progress in runs table
+                self.job_tracker.update_training_progress(
+                    epoch=epoch + 1,
+                    loss=avg_loss,
+                    metrics={
+                        'batches_processed': batch_count,
+                        'batch_size': training_config['batch_size'],
+                        'dataset_id': training_config['dataset_id']
+                    }
+                )
+            else:
+                logger.warning(f"Epoch {epoch + 1}: No valid batches processed")
+
+        # Calculate final evaluation metrics
+        model.eval()
+        final_metrics = self._calculate_final_metrics(model, dataset_loader, training_config)
+        final_metrics['training_history'] = training_history
+        final_metrics['model_parameters'] = model_parameters
+
+        # Register model in model registry
+        model_id = self.model_tracker.register_model(
+            model=model,
+            final_metrics=final_metrics,
+            additional_tags=['dataset_service_integration']
+        )
+
+        # Save model with comprehensive metadata
+        model_path = f"unified_loss_transformer_dataset_service_run_{run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+
+        model_metadata = {
+            'model_state_dict': model.state_dict(),
+            'training_config': training_config,
+            'dataset_metadata': {
+                'dataset_id': training_config['dataset_id'],
+                'dataset_name': training_config['dataset_name'],
+                'data_quality_score': training_config['data_quality_score'],
+                'total_sequences': training_config['total_sequences']
+            },
+            'final_metrics': final_metrics,
+            'run_id': run_id,
+            'model_id': model_id,  # Add model registry ID
+            'data_source_validation': 'Dataset service managed - zero synthetic data',
+            'model_parameters': model_parameters
+        }
+
+        torch.save(model_metadata, model_path)
+        logger.info(f"✅ Model saved: {model_path}")
+
+        # Complete job tracking
+        self.job_tracker.complete_training_job(
+            model_output_path=model_path,
+            final_metrics=final_metrics
+        )
+
+        return {
+            'success': True,
+            'run_id': run_id,
+            'model_id': model_id,  # Add model registry ID
+            'model_path': model_path,
+            'final_metrics': final_metrics,
+            'dataset_info': {
+                'dataset_id': training_config['dataset_id'],
+                'dataset_name': training_config['dataset_name'],
+                'total_sequences': training_config['total_sequences']
             }
-            self.model_tracker.track_architecture(model, architecture_config)
-
-            # Create loss function and optimizer
-            loss_fn = SimplifiedFinancialLoss(
-                alpha_cvar=training_config['alpha_cvar'],
-                lambda_drawdown=training_config['lambda_drawdown']
-            )
-            optimizer = torch.optim.Adam(model.parameters(), lr=training_config['learning_rate'])
-
-            # Training loop
-            num_epochs = training_config['num_epochs']
-            training_history = []
-
-            for epoch in range(num_epochs):
-                model.train()
-                epoch_losses = []
-                batch_count = 0
-
-                # Use batch iterator from dataset service
-                for X_batch, y_batch in dataset_loader.get_batch_iterator(training_config['batch_size']):
-
-                    # Convert to PyTorch tensors
-                    if len(X_batch.shape) == 2:
-                        # Reshape 2D to 3D: (batch_size, sequence_length, features)
-                        batch_size = X_batch.shape[0]
-                        feature_count = X_batch.shape[1]
-                        sequence_length = training_config['sequence_length']
-
-                        # Reshape to sequences
-                        if batch_size >= sequence_length:
-                            X_batch = X_batch[:batch_size//sequence_length*sequence_length]
-                            X_batch = X_batch.reshape(-1, sequence_length, feature_count)
-                            y_batch = y_batch[:len(X_batch)]
-
-                    X_tensor = torch.tensor(X_batch, dtype=torch.float32)
-                    y_tensor = torch.tensor(y_batch, dtype=torch.float32).unsqueeze(-1) if len(y_batch.shape) == 1 else torch.tensor(y_batch, dtype=torch.float32)
-
-                    # Skip if batch too small
-                    if len(X_tensor) < 2:
-                        continue
-
-                    # Forward pass
-                    predictions = model(X_tensor)
-
-                    # Calculate loss
-                    loss = loss_fn(predictions, y_tensor)
-
-                    # Backward pass
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-
-                    epoch_losses.append(loss.item())
-                    batch_count += 1
-
-                    # Limit batches per epoch for demo
-                    if batch_count >= 20:
-                        break
-
-                if epoch_losses:
-                    avg_loss = np.mean(epoch_losses)
-                    training_history.append(avg_loss)
-
-                    logger.info(f"Epoch {epoch + 1}/{num_epochs}, Avg Loss: {avg_loss:.6f} ({len(epoch_losses)} batches)")
-
-                    # Track training step
-                    self.model_tracker.track_training_step(
-                        epoch=epoch + 1,
-                        loss=avg_loss,
-                        metrics={
-                            'batches_processed': batch_count,
-                            'batch_size': training_config['batch_size']
-                        }
-                    )
-
-                    # Update training progress in runs table
-                    self.job_tracker.update_training_progress(
-                        epoch=epoch + 1,
-                        loss=avg_loss,
-                        metrics={
-                            'batches_processed': batch_count,
-                            'batch_size': training_config['batch_size'],
-                            'dataset_id': training_config['dataset_id']
-                        }
-                    )
-                else:
-                    logger.warning(f"Epoch {epoch + 1}: No valid batches processed")
-
-            # Calculate final evaluation metrics
-            model.eval()
-            final_metrics = self._calculate_final_metrics(model, dataset_loader, training_config)
-            final_metrics['training_history'] = training_history
-            final_metrics['model_parameters'] = model_parameters
-
-            # Register model in model registry
-            model_id = self.model_tracker.register_model(
-                model=model,
-                final_metrics=final_metrics,
-                additional_tags=['dataset_service_integration']
-            )
-
-            # Save model with comprehensive metadata
-            model_path = f"unified_loss_transformer_dataset_service_run_{run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
-
-            model_metadata = {
-                'model_state_dict': model.state_dict(),
-                'training_config': training_config,
-                'dataset_metadata': {
-                    'dataset_id': training_config['dataset_id'],
-                    'dataset_name': training_config['dataset_name'],
-                    'data_quality_score': training_config['data_quality_score'],
-                    'total_sequences': training_config['total_sequences']
-                },
-                'final_metrics': final_metrics,
-                'run_id': run_id,
-                'model_id': model_id,  # Add model registry ID
-                'data_source_validation': 'Dataset service managed - zero synthetic data',
-                'model_parameters': model_parameters
-            }
-
-            torch.save(model_metadata, model_path)
-            logger.info(f"✅ Model saved: {model_path}")
-
-            # Complete job tracking
-            self.job_tracker.complete_training_job(
-                model_output_path=model_path,
-                final_metrics=final_metrics
-            )
-
-            return {
-                'success': True,
-                'run_id': run_id,
-                'model_id': model_id,  # Add model registry ID
-                'model_path': model_path,
-                'final_metrics': final_metrics,
-                'dataset_info': {
-                    'dataset_id': training_config['dataset_id'],
-                    'dataset_name': training_config['dataset_name'],
-                    'total_sequences': training_config['total_sequences']
-                }
-            }
-
-        except Exception as e:
-            # Mark training job as failed
-            error_message = f"Dataset service training failed: {str(e)}"
-            self.job_tracker.fail_training_job(error_message)
-
-            logger.error(f"❌ Training failed: {e}")
-            raise
+        }
 
     def _calculate_final_metrics(self, model, dataset_loader, training_config) -> Dict[str, Any]:
         """Calculate comprehensive final evaluation metrics."""
 
-        try:
-            # Get a sample for evaluation
-            X_sample, y_sample = dataset_loader.get_sample(sample_size=1000)
+        # Get a sample for evaluation
+        X_sample, y_sample = dataset_loader.get_sample(sample_size=1000)
 
-            if len(X_sample) == 0:
-                logger.warning("⚠️ No sample data available for final metrics")
-                return {'final_loss': 0.0, 'evaluation_warning': 'No sample data available'}
+        if len(X_sample) == 0:
+            logger.warning("⚠️ No sample data available for final metrics")
+            return {'final_loss': 0.0, 'evaluation_warning': 'No sample data available'}
 
-            # Ensure proper shape
-            if len(X_sample.shape) == 2:
-                sequence_length = training_config['sequence_length']
-                feature_count = X_sample.shape[1]
-                sample_size = len(X_sample)
+        # Ensure proper shape
+        if len(X_sample.shape) == 2:
+            sequence_length = training_config['sequence_length']
+            feature_count = X_sample.shape[1]
+            sample_size = len(X_sample)
 
-                if sample_size >= sequence_length:
-                    X_sample = X_sample[:sample_size//sequence_length*sequence_length]
-                    X_sample = X_sample.reshape(-1, sequence_length, feature_count)
-                    y_sample = y_sample[:len(X_sample)]
+            if sample_size >= sequence_length:
+                X_sample = X_sample[:sample_size//sequence_length*sequence_length]
+                X_sample = X_sample.reshape(-1, sequence_length, feature_count)
+                y_sample = y_sample[:len(X_sample)]
 
-            X_tensor = torch.tensor(X_sample, dtype=torch.float32)
-            y_tensor = torch.tensor(y_sample, dtype=torch.float32).unsqueeze(-1) if len(y_sample.shape) == 1 else torch.tensor(y_sample, dtype=torch.float32)
+        X_tensor = torch.tensor(X_sample, dtype=torch.float32)
+        y_tensor = torch.tensor(y_sample, dtype=torch.float32).unsqueeze(-1) if len(y_sample.shape) == 1 else torch.tensor(y_sample, dtype=torch.float32)
 
-            with torch.no_grad():
-                predictions = model(X_tensor)
-                final_mse = torch.nn.functional.mse_loss(predictions, y_tensor).item()
-                final_mae = torch.nn.functional.l1_loss(predictions, y_tensor).item()
+        with torch.no_grad():
+            predictions = model(X_tensor)
+            final_mse = torch.nn.functional.mse_loss(predictions, y_tensor).item()
+            final_mae = torch.nn.functional.l1_loss(predictions, y_tensor).item()
 
-                # Additional metrics
-                prediction_std = torch.std(predictions).item()
-                target_std = torch.std(y_tensor).item()
+            # Additional metrics
+            prediction_std = torch.std(predictions).item()
+            target_std = torch.std(y_tensor).item()
 
-                if len(predictions) > 1:
-                    correlation = np.corrcoef(
-                        predictions.squeeze().numpy(),
-                        y_tensor.squeeze().numpy()
-                    )[0, 1] if not np.isnan(np.corrcoef(predictions.squeeze().numpy(), y_tensor.squeeze().numpy())[0, 1]) else 0.0
-                else:
-                    correlation = 0.0
+            if len(predictions) > 1:
+                correlation = np.corrcoef(
+                    predictions.squeeze().numpy(),
+                    y_tensor.squeeze().numpy()
+                )[0, 1] if not np.isnan(np.corrcoef(predictions.squeeze().numpy(), y_tensor.squeeze().numpy())[0, 1]) else 0.0
+            else:
+                correlation = 0.0
 
-            final_metrics = {
-                'final_loss': final_mse,
-                'final_mse': final_mse,
-                'final_mae': final_mae,
-                'correlation_coefficient': correlation,
-                'prediction_std': prediction_std,
-                'target_std': target_std,
-                'evaluation_sample_size': len(X_sample),
-                'data_source_validation': 'Dataset service - real data only',
-                'synthetic_data_detected': False,
-                'data_quality_score': training_config['data_quality_score']
-            }
+        final_metrics = {
+            'final_loss': final_mse,
+            'final_mse': final_mse,
+            'final_mae': final_mae,
+            'correlation_coefficient': correlation,
+            'prediction_std': prediction_std,
+            'target_std': target_std,
+            'evaluation_sample_size': len(X_sample),
+            'data_source_validation': 'Dataset service - real data only',
+            'synthetic_data_detected': False,
+            'data_quality_score': training_config['data_quality_score']
+        }
 
-            return final_metrics
-
-        except Exception as e:
-            logger.error(f"❌ Final metrics calculation failed: {e}")
-            return {
-                'final_loss': 0.0,
-                'evaluation_error': str(e),
-                'synthetic_data_detected': False,
-                'data_source_validation': 'Dataset service - real data only'
-            }
+        return final_metrics
 
 def main():
     """Main training function using dataset service."""
@@ -429,45 +410,34 @@ def main():
     min_sequences = 1000
     min_quality = 0.7
 
-    try:
-        # Find suitable training dataset
-        dataset_config = pipeline.find_training_dataset(
-            symbols=target_symbols,
-            min_sequences=min_sequences,
-            min_quality=min_quality
-        )
+    # Find suitable training dataset
+    dataset_config = pipeline.find_training_dataset(
+        symbols=target_symbols,
+        min_sequences=min_sequences,
+        min_quality=min_quality
+    )
 
-        if not dataset_config:
-            logger.error("❌ No suitable dataset found - training cannot proceed")
-            logger.error("Ensure datasets are registered in dataset service")
-            return
+    if not dataset_config:
+        logger.error("❌ No suitable dataset found - training cannot proceed")
+        logger.error("Ensure datasets are registered in dataset service")
+        return
 
-        # Create training configuration
-        training_config = pipeline.create_training_configuration(dataset_config)
+    # Create training configuration
+    training_config = pipeline.create_training_configuration(dataset_config)
 
-        # Execute training
-        results = pipeline.train_model(training_config)
+    # Execute training
+    results = pipeline.train_model(training_config)
 
-        if results['success']:
-            logger.info("🎯 TRAINING COMPLETED SUCCESSFULLY")
-            logger.info(f"   Run ID: {results['run_id']}")
-            logger.info(f"   Model: {results['model_path']}")
-            logger.info(f"   Dataset: {results['dataset_info']['dataset_name']}")
-            logger.info(f"   Final MSE: {results['final_metrics']['final_mse']:.6f}")
-            logger.info(f"   Data Quality: {results['final_metrics']['data_quality_score']:.3f}")
-            logger.info("✅ ZERO SYNTHETIC DATA - All data sourced through dataset service")
-        else:
-            logger.error("❌ Training completed with issues")
-
-    except Exception as e:
-        logger.error(f"❌ Dataset service training failed: {e}")
-        logger.error("This indicates issues with:")
-        logger.error("1. Dataset service configuration")
-        logger.error("2. Dataset availability or accessibility")
-        logger.error("3. Database connectivity")
-        logger.error("4. File system access")
-        logger.error("🚨 DO NOT FALL BACK TO SYNTHETIC DATA - Fix the dataset service issue")
-        raise
+    if results['success']:
+        logger.info("🎯 TRAINING COMPLETED SUCCESSFULLY")
+        logger.info(f"   Run ID: {results['run_id']}")
+        logger.info(f"   Model: {results['model_path']}")
+        logger.info(f"   Dataset: {results['dataset_info']['dataset_name']}")
+        logger.info(f"   Final MSE: {results['final_metrics']['final_mse']:.6f}")
+        logger.info(f"   Data Quality: {results['final_metrics']['data_quality_score']:.3f}")
+        logger.info("✅ ZERO SYNTHETIC DATA - All data sourced through dataset service")
+    else:
+        logger.error("❌ Training completed with issues")
 
 if __name__ == "__main__":
     main()

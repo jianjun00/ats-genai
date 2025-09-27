@@ -39,71 +39,40 @@ class APITester:
         
         url = f"{self.base_url}{endpoint}"
         
-        try:
-            if method.upper() == "GET":
-                async with self.session.get(url) as response:
-                    status = response.status
-                    try:
-                        response_data = await response.json()
-                    except:
-                        response_data = await response.text()
-            
-            elif method.upper() == "POST":
-                async with self.session.post(url, json=data) as response:
-                    status = response.status
-                    try:
-                        response_data = await response.json()
-                    except:
-                        response_data = await response.text()
-            
-            elif method.upper() == "PUT":
-                async with self.session.put(url, json=data) as response:
-                    status = response.status
-                    try:
-                        response_data = await response.json()
-                    except:
-                        response_data = await response.text()
-            
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-            
-            passed = status in expected_status
-            
-            result = {
-                "endpoint": endpoint,
-                "method": method.upper(),
-                "description": description,
-                "status_code": status,
-                "expected_status": expected_status,
-                "passed": passed,
-                "response_preview": str(response_data)[:200] if response_data else "",
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            self.test_results.append(result)
-            
-            status_icon = "✅" if passed else "❌"
-            print(f"  {status_icon} {method.upper()} {endpoint} - {status} - {description}")
-            
-            return result
-            
-        except Exception as e:
-            result = {
-                "endpoint": endpoint,
-                "method": method.upper(),
-                "description": description,
-                "status_code": 0,
-                "expected_status": expected_status,
-                "passed": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            self.test_results.append(result)
-            print(f"  ❌ {method.upper()} {endpoint} - ERROR - {str(e)}")
-            
-            return result
-    
+        if method.upper() == "GET":
+            async with self.session.get(url) as response:
+                status = response.status
+                response_data = await response.json()
+        elif method.upper() == "POST":
+            async with self.session.post(url, json=data) as response:
+                status = response.status
+                response_data = await response.json()
+        elif method.upper() == "PUT":
+            async with self.session.put(url, json=data) as response:
+                status = response.status
+                response_data = await response.json()
+            raise ValueError(f"Unsupported method: {method}")
+        
+        passed = status in expected_status
+        
+        result = {
+            "endpoint": endpoint,
+            "method": method.upper(),
+            "description": description,
+            "status_code": status,
+            "expected_status": expected_status,
+            "passed": passed,
+            "response_preview": str(response_data)[:200] if response_data else "",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        self.test_results.append(result)
+        
+        status_icon = "✅" if passed else "❌"
+        print(f"  {status_icon} {method.upper()} {endpoint} - {status} - {description}")
+        
+        return result
+        
     async def test_all_endpoints(self):
         """Test all API endpoints"""
         

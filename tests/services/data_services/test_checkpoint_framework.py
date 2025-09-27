@@ -246,58 +246,46 @@ class GenericJobRunner:
         self.current_checkpoint: Optional[CheckpointState] = None
 
     async def run(self):
-        try:
-            await self.checkpoint_manager.setup_checkpoint_tables()
+        await self.checkpoint_manager.setup_checkpoint_tables()
 
-            all_items = await self.job.get_iteration_items()
-            job_id, checkpoint = await self.checkpoint_manager.get_or_create_job_run(
-                self.job.config, len(all_items))
-            self.job.job_id = job_id
-            self.current_checkpoint = checkpoint
+        all_items = await self.job.get_iteration_items()
+        job_id, checkpoint = await self.checkpoint_manager.get_or_create_job_run(
+            self.job.config, len(all_items))
+        self.job.job_id = job_id
+        self.current_checkpoint = checkpoint
 
-            item_type = self.job.config.iteration_type.value
-            await self.checkpoint_manager.initialize_items(job_id, all_items, item_type)
+        item_type = self.job.config.iteration_type.value
+        await self.checkpoint_manager.initialize_items(job_id, all_items, item_type)
 
-            async with aiohttp.ClientSession() as session:
-                while True:
-                    pending_items = await self.checkpoint_manager.get_next_items(
-                        job_id, item_type, self.job.config.batch_size)
+        async with aiohttp.ClientSession() as session:
+            while True:
+                pending_items = await self.checkpoint_manager.get_next_items(
+                    job_id, item_type, self.job.config.batch_size)
 
-                    if not pending_items:
-                        break
+                if not pending_items:
+                    break
 
-                    for item_key in pending_items:
-                        try:
-                            await self.checkpoint_manager.mark_item_processing(job_id, item_key, item_type)
+                for item_key in pending_items:
+                    await self.checkpoint_manager.mark_item_processing(job_id, item_key, item_type)
 
-                            result, error = await self.job.process_item(item_key, session)
+                    result, error = await self.job.process_item(item_key, session)
 
-                            if error:
-                                await self.checkpoint_manager.mark_item_failed(job_id, item_key, item_type, error)
-                                self.current_checkpoint.error_count += 1
-                                continue
+                    if error:
+                        await self.checkpoint_manager.mark_item_failed(job_id, item_key, item_type, error)
+                        self.current_checkpoint.error_count += 1
+                        continue
 
-                            records_count = await self.job.store_result(item_key, result)
-                            await self.checkpoint_manager.mark_item_completed(job_id, item_key, item_type, records_count)
-                            self.current_checkpoint.processed_count += 1
-                            self.current_checkpoint.last_successful_item = item_key
+                    records_count = await self.job.store_result(item_key, result)
+                    await self.checkpoint_manager.mark_item_completed(job_id, item_key, item_type, records_count)
+                    self.current_checkpoint.processed_count += 1
+                    self.current_checkpoint.last_successful_item = item_key
 
-                            await asyncio.sleep(self.job.config.rate_limit_delay)
+                    await asyncio.sleep(self.job.config.rate_limit_delay)
 
-                        except Exception as e:
-                            await self.checkpoint_manager.mark_item_failed(job_id, item_key, item_type, str(e))
-                            self.current_checkpoint.error_count += 1
+                await self.checkpoint_manager.update_checkpoint(job_id, self.current_checkpoint)
 
-                    await self.checkpoint_manager.update_checkpoint(job_id, self.current_checkpoint)
+        await self.checkpoint_manager.mark_job_completed(job_id)
 
-            await self.checkpoint_manager.mark_job_completed(job_id)
-
-        except Exception as e:
-            if self.job.job_id:
-                await self.checkpoint_manager.mark_job_failed(self.job.job_id, str(e))
-            raise
-
-# Test Classes
 class TestCheckpointManager:
     """Unit tests for CheckpointManager"""
 
@@ -761,13 +749,7 @@ class TestErrorHandlingAndRecovery:
         # Override to handle db failures gracefully
         original_mark_completed = checkpoint_manager.mark_item_completed
         async def safe_mark_completed(*args, **kwargs):
-            try:
-                return await original_mark_completed(*args, **kwargs)
-            except asyncpg.ConnectionDoesNotExistError:
-                # Simulate connection recovery
-                await asyncio.sleep(0.1)
-                return await original_mark_completed(*args, **kwargs)
-
+            return await original_mark_completed(*args, **kwargs)
         checkpoint_manager.mark_item_completed = safe_mark_completed
 
         runner = GenericJobRunner(job, checkpoint_manager)

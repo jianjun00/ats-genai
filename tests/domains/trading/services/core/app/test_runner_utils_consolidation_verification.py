@@ -124,22 +124,17 @@ def test_imports_use_correct_path():
         for file in files:
             if file.endswith('.py'):
                 file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                        
-                    # Check for various import patterns (skip test files with examples)
-                    if 'from app.runner_utils import' in content and 'test_runner_utils_consolidation_verification.py' not in file_path:
-                        incorrect_imports.append((file_path, 'app.runner_utils'))
-                    elif 'from infrastructure.services_legacy.core.app.runner_utils import' in content:
-                        incorrect_imports.append((file_path, 'infrastructure.services_legacy.core.app.runner_utils'))
-                    elif 'from domains.trading.services.core.app.runner_utils import' in content:
-                        correct_imports.append((file_path, 'domains.trading.services.core.app.runner_utils'))
-                        
-                except (UnicodeDecodeError, PermissionError):
-                    # Skip files that can't be read
-                    continue
-    
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    
+                # Check for various import patterns (skip test files with examples)
+                if 'from app.runner_utils import' in content and 'test_runner_utils_consolidation_verification.py' not in file_path:
+                    incorrect_imports.append((file_path, 'app.runner_utils'))
+                elif 'from domains.core.app.runner_utils import' in content:
+                    incorrect_imports.append((file_path, 'infrastructure.services_legacy.core.app.runner_utils'))
+                elif 'from domains.trading.services.core.app.runner_utils import' in content:
+                    correct_imports.append((file_path, 'domains.trading.services.core.app.runner_utils'))
+                    
     print(f"Correct imports found: {len(correct_imports)}")
     for file_path, import_path in correct_imports:
         print(f"  ✅ {file_path} → {import_path}")

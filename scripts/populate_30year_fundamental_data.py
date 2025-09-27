@@ -121,43 +121,38 @@ class Comprehensive30YearFundamentalPopulator:
         """Initialize vendor adapters based on available API keys"""
 
         for vendor in self.vendors:
-            try:
-                if vendor == 'polygon':
-                    api_key = os.getenv('POLYGON_API_KEY')
-                    if api_key:
-                        self.adapters[vendor] = PolygonFundamentalsAdapter(api_key)
-                        logger.info(f"✅ Polygon adapter initialized")
-                    else:
-                        logger.warning(f"❌ POLYGON_API_KEY not found, skipping Polygon")
+            if vendor == 'polygon':
+                api_key = os.getenv('POLYGON_API_KEY')
+                if api_key:
+                    self.adapters[vendor] = PolygonFundamentalsAdapter(api_key)
+                    logger.info(f"✅ Polygon adapter initialized")
+                else:
+                    logger.warning(f"❌ POLYGON_API_KEY not found, skipping Polygon")
 
-                elif vendor == 'fmp':
-                    api_key = os.getenv('FMP_API_KEY')
-                    if api_key:
-                        self.adapters[vendor] = FMPFundamentalsAdapter(api_key)
-                        logger.info(f"✅ FMP adapter initialized")
-                    else:
-                        logger.warning(f"❌ FMP_API_KEY not found, skipping FMP")
+            elif vendor == 'fmp':
+                api_key = os.getenv('FMP_API_KEY')
+                if api_key:
+                    self.adapters[vendor] = FMPFundamentalsAdapter(api_key)
+                    logger.info(f"✅ FMP adapter initialized")
+                else:
+                    logger.warning(f"❌ FMP_API_KEY not found, skipping FMP")
 
-                elif vendor == 'tiingo':
-                    api_key = os.getenv('TIINGO_API_KEY')
-                    if api_key:
-                        self.adapters[vendor] = TiingoFundamentalsAdapter(api_key)
-                        logger.info(f"✅ Tiingo adapter initialized")
-                    else:
-                        logger.warning(f"❌ TIINGO_API_KEY not found, skipping Tiingo")
+            elif vendor == 'tiingo':
+                api_key = os.getenv('TIINGO_API_KEY')
+                if api_key:
+                    self.adapters[vendor] = TiingoFundamentalsAdapter(api_key)
+                    logger.info(f"✅ Tiingo adapter initialized")
+                else:
+                    logger.warning(f"❌ TIINGO_API_KEY not found, skipping Tiingo")
 
-                elif vendor == 'eodhd':
-                    api_key = os.getenv('EODHD_API_KEY')
-                    if api_key:
-                        self.adapters[vendor] = EODHDFundamentalsAdapter(api_key)
-                        logger.info(f"✅ EODHD adapter initialized")
-                    else:
-                        logger.warning(f"❌ EODHD_API_KEY not found, skipping EODHD")
+            elif vendor == 'eodhd':
+                api_key = os.getenv('EODHD_API_KEY')
+                if api_key:
+                    self.adapters[vendor] = EODHDFundamentalsAdapter(api_key)
+                    logger.info(f"✅ EODHD adapter initialized")
+                else:
+                    logger.warning(f"❌ EODHD_API_KEY not found, skipping EODHD")
 
-            except Exception as e:
-                logger.error(f"Failed to initialize {vendor} adapter: {e}")
-
-        # Update vendors list to only include successfully initialized adapters
         self.vendors = list(self.adapters.keys())
         logger.info(f"Successfully initialized adapters: {self.vendors}")
 
@@ -168,54 +163,40 @@ class Comprehensive30YearFundamentalPopulator:
         """Load the complete universe of instruments from dev database"""
         logger.info("Loading instrument universe from dev database...")
 
-        try:
-            # Use proper configuration system - set ENVIRONMENT=dev for dev database
-            os.environ['ENVIRONMENT'] = 'dev'
-            env = Environment()
-            logger.info(f"Using environment config: {env.get_database_config()}")
+        # Use proper configuration system - set ENVIRONMENT=dev for dev database
+        os.environ['ENVIRONMENT'] = 'dev'
+        env = Environment()
+        logger.info(f"Using environment config: {env.get_database_config()}")
 
-            # Create database connection pool using the configured environment
-            pool = await env.database.create_pool_with_retry(max_retries=3)
+        # Create database connection pool using the configured environment
+        pool = await env.database.create_pool_with_retry(max_retries=3)
 
-            # Query for ALL active instruments from dev_instrument table
-            query = f"""
-            SELECT DISTINCT symbol
-            FROM {env.get_table_name('instruments')}
-            WHERE active = true
-              AND symbol IS NOT NULL
-              AND symbol != ''
-              AND symbol != 'NULL'
-              AND symbol ~ '^[A-Z]{{1,5}}$'  -- US equities pattern
-            ORDER BY symbol
-            """
+        # Query for ALL active instruments from dev_instrument table
+        query = f"""
+        SELECT DISTINCT symbol
+        FROM {env.get_table_name('instruments')}
+        WHERE active = true
+          AND symbol IS NOT NULL
+          AND symbol != ''
+          AND symbol != 'NULL'
+          AND symbol ~ '^[A-Z]{{1,5}}$'  -- US equities pattern
+        ORDER BY symbol
+        """
 
-            async with pool.acquire() as conn:
-                rows = await conn.fetch(query)
-                self.universe_symbols = {row['symbol'] for row in rows}
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query)
+            self.universe_symbols = {row['symbol'] for row in rows}
 
-            await pool.close()
-            logger.info(f"Loaded {len(self.universe_symbols)} US equity symbols from dev database")
+        await pool.close()
+        logger.info(f"Loaded {len(self.universe_symbols)} US equity symbols from dev database")
 
-            if self.debug:
-                # Limit to small subset for debugging
-                self.universe_symbols = set(list(self.universe_symbols)[:5])
-                logger.info(f"DEBUG mode: Limited to {len(self.universe_symbols)} symbols")
-            else:
-                logger.info(f"🚀 FULL PRODUCTION MODE: Processing complete universe of {len(self.universe_symbols)} symbols over 30 years (1994-2025)")
-                logger.info(f"📈 This will be a MASSIVE 30-year fundamental data backfill across {len(self.vendors)} vendors")
-
-        except Exception as e:
-            logger.error(f"Failed to load universe from database: {e}")
-            logger.warning("Falling back to major symbols for emergency fallback...")
-
-            # Emergency fallback to major symbols
-            self.universe_symbols = {
-                'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM',
-                'JNJ', 'V', 'PG', 'UNH', 'DIS', 'NFLX', 'CRM', 'ADBE', 'KO',
-                'WMT', 'BAC', 'HD', 'PFE', 'MA', 'T', 'VZ', 'MRK', 'INTC'
-            }
-            logger.warning(f"⚠️  Using final fallback universe: {len(self.universe_symbols)} symbols")
-            logger.warning(f"📋 This is NOT the full universe - only major stocks for emergency fallback")
+        if self.debug:
+            # Limit to small subset for debugging
+            self.universe_symbols = set(list(self.universe_symbols)[:5])
+            logger.info(f"DEBUG mode: Limited to {len(self.universe_symbols)} symbols")
+        else:
+            logger.info(f"🚀 FULL PRODUCTION MODE: Processing complete universe of {len(self.universe_symbols)} symbols over 30 years (1994-2025)")
+            logger.info(f"📈 This will be a MASSIVE 30-year fundamental data backfill across {len(self.vendors)} vendors")
 
     async def create_checkpoint(self,
                                 start_date: date,
@@ -257,31 +238,22 @@ class Comprehensive30YearFundamentalPopulator:
             logger.info(f"No checkpoint file found at {file_path}")
             return None
 
-        try:
-            async with aiofiles.open(file_path, 'r') as f:
-                data = json.loads(await f.read())
+        async with aiofiles.open(file_path, 'r') as f:
+            data = json.loads(await f.read())
 
-            checkpoint = FundamentalPopulationCheckpoint(**data)
-            logger.info(f"Loaded checkpoint: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols processed")
-            return checkpoint
-
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            return None
+        checkpoint = FundamentalPopulationCheckpoint(**data)
+        logger.info(f"Loaded checkpoint: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols processed")
+        return checkpoint
 
     async def save_checkpoint(self, checkpoint: FundamentalPopulationCheckpoint):
         """Save checkpoint to file"""
-        try:
-            checkpoint.last_update_timestamp = datetime.now().isoformat()
+        checkpoint.last_update_timestamp = datetime.now().isoformat()
 
-            async with aiofiles.open(self.checkpoint_file, 'w') as f:
-                await f.write(json.dumps(asdict(checkpoint), indent=2))
+        async with aiofiles.open(self.checkpoint_file, 'w') as f:
+            await f.write(json.dumps(asdict(checkpoint), indent=2))
 
-            if self.debug:
-                logger.debug(f"Checkpoint saved: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols")
-
-        except Exception as e:
-            logger.error(f"Failed to save checkpoint: {e}")
+        if self.debug:
+            logger.debug(f"Checkpoint saved: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols")
 
     async def populate_symbol_fundamentals(self,
                                          symbol: str,
@@ -319,39 +291,25 @@ class Comprehensive30YearFundamentalPopulator:
 
             vendor_start_time = time.time()
 
-            try:
-                logger.info(f"{symbol}: Fetching fundamentals from {vendor}")
+            logger.info(f"{symbol}: Fetching fundamentals from {vendor}")
 
-                # Fetch fundamental data from this vendor
-                fundamentals = await self.adapters[vendor].fetch_fundamentals(
-                    symbol, start_date, end_date
-                )
+            # Fetch fundamental data from this vendor
+            fundamentals = await self.adapters[vendor].fetch_fundamentals(
+                symbol, start_date, end_date
+            )
 
-                vendor_stats['records'] = len(fundamentals)
-                vendor_stats['api_calls'] = 1
-                self.stats['total_api_calls'][vendor] += 1
+            vendor_stats['records'] = len(fundamentals)
+            vendor_stats['api_calls'] = 1
+            self.stats['total_api_calls'][vendor] += 1
 
-                # Calculate quality score based on data completeness
-                if fundamentals:
-                    complete_records = sum(1 for f in fundamentals if f.revenue is not None)
-                    vendor_stats['quality_score'] = complete_records / len(fundamentals) if fundamentals else 0.0
+            # Calculate quality score based on data completeness
+            if fundamentals:
+                complete_records = sum(1 for f in fundamentals if f.revenue is not None)
+                vendor_stats['quality_score'] = complete_records / len(fundamentals) if fundamentals else 0.0
 
-                all_fundamentals.extend(fundamentals)
+            all_fundamentals.extend(fundamentals)
 
-                logger.info(f"{symbol}: Got {len(fundamentals)} fundamental records from {vendor}")
-
-            except Exception as e:
-                error_msg = f"Error fetching {symbol} from {vendor}: {e}"
-                logger.error(error_msg)
-                vendor_stats['errors'].append({
-                    'timestamp': datetime.now().isoformat(),
-                    'error': str(e)
-                })
-
-                if "rate limit" in str(e).lower() or "429" in str(e):
-                    logger.warning(f"{vendor}: Rate limit hit for {symbol}, waiting 60 seconds...")
-                    await asyncio.sleep(60)
-                    self.stats['rate_limit_delays'][vendor] += 1
+            logger.info(f"{symbol}: Got {len(fundamentals)} fundamental records from {vendor}")
 
             vendor_stats['processing_time'] = time.time() - vendor_start_time
             symbol_stats['vendor_results'][vendor] = vendor_stats
@@ -361,18 +319,10 @@ class Comprehensive30YearFundamentalPopulator:
 
         # Store the data in database
         if all_fundamentals:
-            try:
-                stored_count = await self._store_fundamental_data(all_fundamentals)
-                symbol_stats['records_stored'] = stored_count
-                self.stats['total_records_collected'] += symbol_stats['records_collected']
-                self.stats['total_records_stored'] += symbol_stats['records_stored']
-            except Exception as e:
-                logger.error(f"Failed to store fundamental data for {symbol}: {e}")
-                symbol_stats['errors'].append({
-                    'timestamp': datetime.now().isoformat(),
-                    'error': f"Database storage failed: {e}"
-                })
-
+            stored_count = await self._store_fundamental_data(all_fundamentals)
+            symbol_stats['records_stored'] = stored_count
+            self.stats['total_records_collected'] += symbol_stats['records_collected']
+            self.stats['total_records_stored'] += symbol_stats['records_stored']
             logger.info(f"{symbol}: {symbol_stats['records_collected']} records collected, "
                        f"{symbol_stats['records_stored']} stored across {len(self.vendors)} vendors")
         else:
@@ -386,104 +336,99 @@ class Comprehensive30YearFundamentalPopulator:
         if not fundamentals:
             return 0
 
-        try:
-            # Use proper configuration system
-            os.environ['ENVIRONMENT'] = 'dev'
-            env = Environment()
+        # Use proper configuration system
+        os.environ['ENVIRONMENT'] = 'dev'
+        env = Environment()
 
-            # Create database connection
-            pool = await env.database.create_pool_with_retry(max_retries=3)
+        # Create database connection
+        pool = await env.database.create_pool_with_retry(max_retries=3)
 
-            stored_count = 0
-            insert_query = f"""
-            INSERT INTO {env.get_table_name('fundamental_data')} (
-                symbol, date, vendor, fiscal_period, revenue, gross_profit, operating_income,
-                net_income, ebitda, eps, total_assets, total_liabilities, shareholders_equity,
-                current_assets, current_liabilities, total_debt, operating_cash_flow,
-                investing_cash_flow, financing_cash_flow, free_cash_flow, market_cap,
-                pe_ratio, pb_ratio, debt_to_equity, roe, roa, current_ratio, quick_ratio,
-                quality_score, raw_data
-            ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
-            ) ON CONFLICT (symbol, date, vendor, fiscal_period) DO UPDATE SET
-                revenue = EXCLUDED.revenue,
-                gross_profit = EXCLUDED.gross_profit,
-                operating_income = EXCLUDED.operating_income,
-                net_income = EXCLUDED.net_income,
-                ebitda = EXCLUDED.ebitda,
-                eps = EXCLUDED.eps,
-                total_assets = EXCLUDED.total_assets,
-                total_liabilities = EXCLUDED.total_liabilities,
-                shareholders_equity = EXCLUDED.shareholders_equity,
-                current_assets = EXCLUDED.current_assets,
-                current_liabilities = EXCLUDED.current_liabilities,
-                total_debt = EXCLUDED.total_debt,
-                operating_cash_flow = EXCLUDED.operating_cash_flow,
-                investing_cash_flow = EXCLUDED.investing_cash_flow,
-                financing_cash_flow = EXCLUDED.financing_cash_flow,
-                free_cash_flow = EXCLUDED.free_cash_flow,
-                market_cap = EXCLUDED.market_cap,
-                pe_ratio = EXCLUDED.pe_ratio,
-                pb_ratio = EXCLUDED.pb_ratio,
-                debt_to_equity = EXCLUDED.debt_to_equity,
-                roe = EXCLUDED.roe,
-                roa = EXCLUDED.roa,
-                current_ratio = EXCLUDED.current_ratio,
-                quick_ratio = EXCLUDED.quick_ratio,
-                quality_score = EXCLUDED.quality_score,
-                raw_data = EXCLUDED.raw_data,
-                updated_at = NOW()
-            """
+        stored_count = 0
+        insert_query = f"""
+        INSERT INTO {env.get_table_name('fundamental_data')} (
+            symbol, date, vendor, fiscal_period, revenue, gross_profit, operating_income,
+            net_income, ebitda, eps, total_assets, total_liabilities, shareholders_equity,
+            current_assets, current_liabilities, total_debt, operating_cash_flow,
+            investing_cash_flow, financing_cash_flow, free_cash_flow, market_cap,
+            pe_ratio, pb_ratio, debt_to_equity, roe, roa, current_ratio, quick_ratio,
+            quality_score, raw_data
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+            $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
+        ) ON CONFLICT (symbol, date, vendor, fiscal_period) DO UPDATE SET
+            revenue = EXCLUDED.revenue,
+            gross_profit = EXCLUDED.gross_profit,
+            operating_income = EXCLUDED.operating_income,
+            net_income = EXCLUDED.net_income,
+            ebitda = EXCLUDED.ebitda,
+            eps = EXCLUDED.eps,
+            total_assets = EXCLUDED.total_assets,
+            total_liabilities = EXCLUDED.total_liabilities,
+            shareholders_equity = EXCLUDED.shareholders_equity,
+            current_assets = EXCLUDED.current_assets,
+            current_liabilities = EXCLUDED.current_liabilities,
+            total_debt = EXCLUDED.total_debt,
+            operating_cash_flow = EXCLUDED.operating_cash_flow,
+            investing_cash_flow = EXCLUDED.investing_cash_flow,
+            financing_cash_flow = EXCLUDED.financing_cash_flow,
+            free_cash_flow = EXCLUDED.free_cash_flow,
+            market_cap = EXCLUDED.market_cap,
+            pe_ratio = EXCLUDED.pe_ratio,
+            pb_ratio = EXCLUDED.pb_ratio,
+            debt_to_equity = EXCLUDED.debt_to_equity,
+            roe = EXCLUDED.roe,
+            roa = EXCLUDED.roa,
+            current_ratio = EXCLUDED.current_ratio,
+            quick_ratio = EXCLUDED.quick_ratio,
+            quality_score = EXCLUDED.quality_score,
+            raw_data = EXCLUDED.raw_data,
+            updated_at = NOW()
+        """
 
-            async with pool.acquire() as conn:
-                async with conn.transaction():
-                    for fundamental in fundamentals:
-                        # Calculate quality score based on data completeness
-                        key_fields = [fundamental.revenue, fundamental.net_income, fundamental.total_assets]
-                        quality_score = sum(1 for field in key_fields if field is not None) / len(key_fields)
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                for fundamental in fundamentals:
+                    # Calculate quality score based on data completeness
+                    key_fields = [fundamental.revenue, fundamental.net_income, fundamental.total_assets]
+                    quality_score = sum(1 for field in key_fields if field is not None) / len(key_fields)
 
-                        await conn.execute(
-                            insert_query,
-                            fundamental.symbol,
-                            fundamental.date,
-                            fundamental.vendor,
-                            fundamental.fiscal_period,
-                            fundamental.revenue,
-                            fundamental.gross_profit,
-                            fundamental.operating_income,
-                            fundamental.net_income,
-                            fundamental.ebitda,
-                            fundamental.eps,
-                            fundamental.total_assets,
-                            fundamental.total_liabilities,
-                            fundamental.shareholders_equity,
-                            fundamental.current_assets,
-                            fundamental.current_liabilities,
-                            fundamental.total_debt,
-                            fundamental.operating_cash_flow,
-                            fundamental.investing_cash_flow,
-                            fundamental.financing_cash_flow,
-                            fundamental.free_cash_flow,
-                            fundamental.market_cap,
-                            fundamental.pe_ratio,
-                            fundamental.pb_ratio,
-                            fundamental.debt_to_equity,
-                            fundamental.roe,
-                            fundamental.roa,
-                            fundamental.current_ratio,
-                            fundamental.quick_ratio,
-                            quality_score,
-                            json.dumps(fundamental.raw_data) if fundamental.raw_data else None
-                        )
-                        stored_count += 1
+                    await conn.execute(
+                        insert_query,
+                        fundamental.symbol,
+                        fundamental.date,
+                        fundamental.vendor,
+                        fundamental.fiscal_period,
+                        fundamental.revenue,
+                        fundamental.gross_profit,
+                        fundamental.operating_income,
+                        fundamental.net_income,
+                        fundamental.ebitda,
+                        fundamental.eps,
+                        fundamental.total_assets,
+                        fundamental.total_liabilities,
+                        fundamental.shareholders_equity,
+                        fundamental.current_assets,
+                        fundamental.current_liabilities,
+                        fundamental.total_debt,
+                        fundamental.operating_cash_flow,
+                        fundamental.investing_cash_flow,
+                        fundamental.financing_cash_flow,
+                        fundamental.free_cash_flow,
+                        fundamental.market_cap,
+                        fundamental.pe_ratio,
+                        fundamental.pb_ratio,
+                        fundamental.debt_to_equity,
+                        fundamental.roe,
+                        fundamental.roa,
+                        fundamental.current_ratio,
+                        fundamental.quick_ratio,
+                        quality_score,
+                        json.dumps(fundamental.raw_data) if fundamental.raw_data else None
+                    )
+                    stored_count += 1
 
-            await pool.close()
-            return stored_count
-
-        except Exception as e:
-            logger.error(f"Database storage error: {e}")
-            raise
+        await pool.close()
+        return stored_count
 
     async def run_full_population(self,
                                   start_date: date,
@@ -518,60 +463,53 @@ class Comprehensive30YearFundamentalPopulator:
         quality_count = 0
 
         for i, symbol in enumerate(sorted(target_symbols)):
-            try:
-                self.checkpoint.current_symbol = symbol
-                await self.save_checkpoint(self.checkpoint)
+            self.checkpoint.current_symbol = symbol
+            await self.save_checkpoint(self.checkpoint)
 
-                symbol_stats = await self.populate_symbol_fundamentals(symbol, start_date, end_date)
+            symbol_stats = await self.populate_symbol_fundamentals(symbol, start_date, end_date)
 
-                # Update checkpoint based on results
-                if symbol_stats['errors'] or not any(symbol_stats['vendor_results'].values()):
-                    self.checkpoint.symbols_failed.append(symbol)
-                    self.stats['symbols_failed'] += 1
-                else:
-                    self.checkpoint.symbols_completed.append(symbol)
-                    self.stats['symbols_completed'] += 1
-
-                    # Calculate average quality across vendors for this symbol
-                    vendor_qualities = [score for score in symbol_stats['quality_scores'].values() if score > 0]
-                    if vendor_qualities:
-                        avg_quality = sum(vendor_qualities) / len(vendor_qualities)
-                        total_quality_score += avg_quality
-                        quality_count += 1
-
-                self.checkpoint.processed_symbols += 1
-                self.checkpoint.total_records_stored = self.stats['total_records_stored']
-                self.checkpoint.total_api_calls = self.stats['total_api_calls']
-                self.checkpoint.rate_limit_delays = self.stats['rate_limit_delays']
-                self.checkpoint.quality_scores[symbol] = symbol_stats['quality_scores']
-
-                self.stats['symbols_processed'] += 1
-
-                # Calculate average quality score
-                if quality_count > 0:
-                    self.stats['average_quality_score'] = total_quality_score / quality_count
-
-                # Update checkpoint every symbol
-                await self.save_checkpoint(self.checkpoint)
-
-                # Progress report
-                progress = (self.checkpoint.processed_symbols / self.checkpoint.total_symbols) * 100
-                estimated_remaining = (len(target_symbols) - i - 1) * symbol_stats['processing_time']
-                estimated_remaining_hours = estimated_remaining / 3600
-
-                total_api_calls = sum(self.stats['total_api_calls'].values())
-
-                logger.info(f"Progress: {self.checkpoint.processed_symbols}/{self.checkpoint.total_symbols} "
-                           f"({progress:.1f}%) - Current: {symbol}")
-                logger.info(f"Quality: {self.stats['average_quality_score']:.3f}, "
-                           f"API calls: {total_api_calls:,}, "
-                           f"Estimated remaining: {estimated_remaining_hours:.1f}h")
-
-            except Exception as e:
-                logger.error(f"Critical error processing {symbol}: {e}")
+            # Update checkpoint based on results
+            if symbol_stats['errors'] or not any(symbol_stats['vendor_results'].values()):
                 self.checkpoint.symbols_failed.append(symbol)
                 self.stats['symbols_failed'] += 1
-                self.checkpoint.processed_symbols += 1
+            else:
+                self.checkpoint.symbols_completed.append(symbol)
+                self.stats['symbols_completed'] += 1
+
+                # Calculate average quality across vendors for this symbol
+                vendor_qualities = [score for score in symbol_stats['quality_scores'].values() if score > 0]
+                if vendor_qualities:
+                    avg_quality = sum(vendor_qualities) / len(vendor_qualities)
+                    total_quality_score += avg_quality
+                    quality_count += 1
+
+            self.checkpoint.processed_symbols += 1
+            self.checkpoint.total_records_stored = self.stats['total_records_stored']
+            self.checkpoint.total_api_calls = self.stats['total_api_calls']
+            self.checkpoint.rate_limit_delays = self.stats['rate_limit_delays']
+            self.checkpoint.quality_scores[symbol] = symbol_stats['quality_scores']
+
+            self.stats['symbols_processed'] += 1
+
+            # Calculate average quality score
+            if quality_count > 0:
+                self.stats['average_quality_score'] = total_quality_score / quality_count
+
+            # Update checkpoint every symbol
+            await self.save_checkpoint(self.checkpoint)
+
+            # Progress report
+            progress = (self.checkpoint.processed_symbols / self.checkpoint.total_symbols) * 100
+            estimated_remaining = (len(target_symbols) - i - 1) * symbol_stats['processing_time']
+            estimated_remaining_hours = estimated_remaining / 3600
+
+            total_api_calls = sum(self.stats['total_api_calls'].values())
+
+            logger.info(f"Progress: {self.checkpoint.processed_symbols}/{self.checkpoint.total_symbols} "
+                       f"({progress:.1f}%) - Current: {symbol}")
+            logger.info(f"Quality: {self.stats['average_quality_score']:.3f}, "
+                       f"API calls: {total_api_calls:,}, "
+                       f"Estimated remaining: {estimated_remaining_hours:.1f}h")
 
         logger.info("Comprehensive fundamental population complete")
         await self._print_final_stats()
@@ -653,31 +591,25 @@ async def main():
         debug=args.debug
     )
 
-    try:
-        if args.resume:
-            # TODO: Implement resume functionality
-            logger.error("Resume functionality not yet implemented")
-            return
-        else:
-            # Start new population
-            start_date = date.fromisoformat(args.start_date)
-            end_date = date.fromisoformat(args.end_date)
+    if args.resume:
+        # TODO: Implement resume functionality
+        logger.error("Resume functionality not yet implemented")
+        return
+    else:
+        # Start new population
+        start_date = date.fromisoformat(args.start_date)
+        end_date = date.fromisoformat(args.end_date)
 
-            symbols = None
-            if args.symbols:
-                symbols = [s.strip() for s in args.symbols.split(',')]
+        symbols = None
+        if args.symbols:
+            symbols = [s.strip() for s in args.symbols.split(',')]
 
-            await populator.run_full_population(
-                start_date=start_date,
-                end_date=end_date,
-                limit=args.limit,
-                symbols=symbols
-            )
-
-    except KeyboardInterrupt:
-        logger.info("Population interrupted by user")
-    except Exception as e:
-        logger.error(f"Population failed: {e}")
+        await populator.run_full_population(
+            start_date=start_date,
+            end_date=end_date,
+            limit=args.limit,
+            symbols=symbols
+        )
 
     logger.info("Comprehensive 30-year fundamental population script completed")
 

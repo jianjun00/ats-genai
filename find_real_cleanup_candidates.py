@@ -108,22 +108,18 @@ def find_unused_imports_and_functions():
     # Look for empty or minimal files
     for file_path in Path('src').rglob('*.py'):
         if file_path.stat().st_size < 100:  # Very small files
-            try:
-                with open(file_path) as f:
-                    content = f.read().strip()
-                if not content or content == '# TODO: Implement' or content.count('\n') < 3:
-                    recommendations.append({
-                        'name': str(file_path),
-                        'type': 'file',
-                        'category': 'empty_or_minimal',
-                        'size_kb': file_path.stat().st_size / 1024,
-                        'reason': 'Empty or minimal implementation',
-                        'action': 'remove_file',
-                        'safety': 'medium'
-                    })
-            except:
-                pass
-
+            with open(file_path) as f:
+                content = f.read().strip()
+            if not content or content == '# TODO: Implement' or content.count('\n') < 3:
+                recommendations.append({
+                    'name': str(file_path),
+                    'type': 'file',
+                    'category': 'empty_or_minimal',
+                    'size_kb': file_path.stat().st_size / 1024,
+                    'reason': 'Empty or minimal implementation',
+                    'action': 'remove_file',
+                    'safety': 'medium'
+                })
     return recommendations
 
 
@@ -136,37 +132,33 @@ def find_unused_functions_in_specific_files():
     # Check analytics service for unused private methods
     analytics_file = Path('src/services/analytics_service.py')
     if analytics_file.exists():
-        try:
-            with open(analytics_file) as f:
-                content = f.read()
+        with open(analytics_file) as f:
+            content = f.read()
 
-            # Parse AST to find methods
-            tree = ast.parse(content)
+        # Parse AST to find methods
+        tree = ast.parse(content)
 
-            # Look for private methods that might be unused
-            private_methods = []
-            for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef) and node.name.startswith('_'):
-                    private_methods.append(node.name)
+        # Look for private methods that might be unused
+        private_methods = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name.startswith('_'):
+                private_methods.append(node.name)
 
-            # These are likely unused based on naming patterns
-            likely_unused = [method for method in private_methods
-                           if any(pattern in method for pattern in
-                                ['_debug_', '_test_', '_sample_', '_demo_'])]
+        # These are likely unused based on naming patterns
+        likely_unused = [method for method in private_methods
+                       if any(pattern in method for pattern in
+                            ['_debug_', '_test_', '_sample_', '_demo_'])]
 
-            for method in likely_unused:
-                candidates.append({
-                    'name': f'src.services.analytics_service.{method}',
-                    'type': 'function',
-                    'category': 'private_debug_method',
-                    'file': str(analytics_file),
-                    'reason': 'Private debug/test method likely unused',
-                    'action': 'remove_function',
-                    'safety': 'medium'
-                })
-
-        except Exception as e:
-            print(f"⚠️ Could not analyze {analytics_file}: {e}")
+        for method in likely_unused:
+            candidates.append({
+                'name': f'src.services.analytics_service.{method}',
+                'type': 'function',
+                'category': 'private_debug_method',
+                'file': str(analytics_file),
+                'reason': 'Private debug/test method likely unused',
+                'action': 'remove_function',
+                'safety': 'medium'
+            })
 
     return candidates
 
@@ -180,56 +172,52 @@ def analyze_import_usage():
     py_files = list(Path('src').rglob('*.py'))[:20]  # Sample for demo
 
     for file_path in py_files:
-        try:
-            with open(file_path) as f:
-                content = f.read()
+        with open(file_path) as f:
+            content = f.read()
 
-            # Look for imports that are clearly unused (simple heuristic)
-            lines = content.split('\n')
-            imports = []
+        # Look for imports that are clearly unused (simple heuristic)
+        lines = content.split('\n')
+        imports = []
 
-            for line in lines:
-                line = line.strip()
-                if line.startswith('import ') or line.startswith('from '):
-                    # Extract imported names
-                    if ' as ' in line:
-                        # Handle "import x as y"
-                        imported_name = line.split(' as ')[-1].strip()
-                    elif line.startswith('from '):
-                        # Handle "from x import y"
-                        parts = line.split(' import ')
-                        if len(parts) > 1:
-                            imported_name = parts[1].split(',')[0].strip()
-                        else:
-                            continue
+        for line in lines:
+            line = line.strip()
+            if line.startswith('import ') or line.startswith('from '):
+                # Extract imported names
+                if ' as ' in line:
+                    # Handle "import x as y"
+                    imported_name = line.split(' as ')[-1].strip()
+                elif line.startswith('from '):
+                    # Handle "from x import y"
+                    parts = line.split(' import ')
+                    if len(parts) > 1:
+                        imported_name = parts[1].split(',')[0].strip()
                     else:
-                        # Handle "import x"
-                        imported_name = line.replace('import ', '').split('.')[0].strip()
+                        continue
+                else:
+                    # Handle "import x"
+                    imported_name = line.replace('import ', '').split('.')[0].strip()
 
-                    # Check if imported name is used in the file
-                    if imported_name and len(imported_name) > 2:  # Avoid short names
-                        usage_count = content.count(imported_name)
-                        if usage_count <= 1:  # Only the import line itself
-                            imports.append({
-                                'line': line,
-                                'imported_name': imported_name,
-                                'usage_count': usage_count
-                            })
+                # Check if imported name is used in the file
+                if imported_name and len(imported_name) > 2:  # Avoid short names
+                    usage_count = content.count(imported_name)
+                    if usage_count <= 1:  # Only the import line itself
+                        imports.append({
+                            'line': line,
+                            'imported_name': imported_name,
+                            'usage_count': usage_count
+                        })
 
-            if imports:
-                candidates.append({
-                    'name': str(file_path),
-                    'type': 'file_with_unused_imports',
-                    'category': 'unused_imports',
-                    'unused_imports': len(imports),
-                    'imports': imports[:3],  # Sample
-                    'reason': f'{len(imports)} potentially unused imports',
-                    'action': 'remove_unused_imports',
-                    'safety': 'high'
-                })
-
-        except Exception as e:
-            pass  # Skip files that can't be read
+        if imports:
+            candidates.append({
+                'name': str(file_path),
+                'type': 'file_with_unused_imports',
+                'category': 'unused_imports',
+                'unused_imports': len(imports),
+                'imports': imports[:3],  # Sample
+                'reason': f'{len(imports)} potentially unused imports',
+                'action': 'remove_unused_imports',
+                'safety': 'high'
+            })
 
     return candidates
 

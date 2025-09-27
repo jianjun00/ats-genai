@@ -31,12 +31,7 @@ def get_file_hash(file_path: str) -> str:
 
 def read_arrayrecord_metadata(file_path: str) -> Tuple[List[str], int]:
     """Read column names and record count from ArrayRecord file"""
-    try:
-        from array_record.python.array_record_module import ArrayRecordReader
-    except ImportError:
-        print("ERROR: array_record package not installed. Install with: pip install array_record")
-        sys.exit(1)
-
+    from array_record.python.array_record_module import ArrayRecordReader
     reader = ArrayRecordReader(str(file_path))
     total_records = reader.num_records()
 
@@ -51,15 +46,7 @@ def read_arrayrecord_metadata(file_path: str) -> Tuple[List[str], int]:
 
     # Parse column names - handle both JSON and Python list format
     column_names_str = first_record.decode('utf-8') if isinstance(first_record, bytes) else str(first_record)
-    try:
-        column_names = json.loads(column_names_str)
-    except json.JSONDecodeError:
-        try:
-            column_names = ast.literal_eval(column_names_str)
-        except (ValueError, SyntaxError) as e:
-            raise ValueError(f"Failed to parse column names: {e}")
-
-    # Total records minus metadata record
+    column_names = json.loads(column_names_str)
     record_count = total_records - 1
 
     return column_names, record_count
@@ -147,34 +134,29 @@ def main():
         file_hash = get_file_hash(file_path)
 
         # ArrayRecord metadata
-        try:
-            column_names, record_count = read_arrayrecord_metadata(file_path)
+        column_names, record_count = read_arrayrecord_metadata(file_path)
 
-            # Timeframe distribution
-            tf_distribution = analyze_timeframe_distribution(column_names)
+        # Timeframe distribution
+        tf_distribution = analyze_timeframe_distribution(column_names)
 
-            # Feature type analysis
-            feature_types = analyze_feature_types(column_names)
+        # Feature type analysis
+        feature_types = analyze_feature_types(column_names)
 
-            file_analysis[timeframe] = {
-                'path': file_path,
-                'size': file_size,
-                'hash': file_hash,
-                'column_count': len(column_names),
-                'record_count': record_count,
-                'timeframe_dist': tf_distribution,
-                'feature_types': feature_types,
-                'columns': column_names
-            }
+        file_analysis[timeframe] = {
+            'path': file_path,
+            'size': file_size,
+            'hash': file_hash,
+            'column_count': len(column_names),
+            'record_count': record_count,
+            'timeframe_dist': tf_distribution,
+            'feature_types': feature_types,
+            'columns': column_names
+        }
 
-            print(f"  ✓ File size: {file_size:,} bytes")
-            print(f"  ✓ MD5 hash: {file_hash}")
-            print(f"  ✓ Columns: {len(column_names)}")
-            print(f"  ✓ Records: {record_count:,}")
-
-        except Exception as e:
-            print(f"  ❌ Error analyzing {timeframe}: {e}")
-            file_analysis[timeframe] = {'error': str(e)}
+        print(f"  ✓ File size: {file_size:,} bytes")
+        print(f"  ✓ MD5 hash: {file_hash}")
+        print(f"  ✓ Columns: {len(column_names)}")
+        print(f"  ✓ Records: {record_count:,}")
 
     print()
     print("🚨 BUG DETECTION RESULTS")
@@ -261,35 +243,30 @@ def main():
 
     # Save detailed analysis to file
     output_file = "arrayrecord_bug_analysis.json"
-    try:
-        # Prepare serializable data
-        serializable_analysis = {}
-        for tf, info in file_analysis.items():
-            if 'columns' in info:
-                # Don't save full column list, just summaries
-                serializable_analysis[tf] = {
-                    'size': info['size'],
-                    'hash': info['hash'],
-                    'column_count': info['column_count'],
-                    'record_count': info['record_count'],
-                    'timeframe_dist_counts': {k: len(v) for k, v in info['timeframe_dist'].items()},
-                    'feature_type_counts': {k: len(v) for k, v in info['feature_types'].items()}
-                }
-            else:
-                serializable_analysis[tf] = info
+    # Prepare serializable data
+    serializable_analysis = {}
+    for tf, info in file_analysis.items():
+        if 'columns' in info:
+            # Don't save full column list, just summaries
+            serializable_analysis[tf] = {
+                'size': info['size'],
+                'hash': info['hash'],
+                'column_count': info['column_count'],
+                'record_count': info['record_count'],
+                'timeframe_dist_counts': {k: len(v) for k, v in info['timeframe_dist'].items()},
+                'feature_type_counts': {k: len(v) for k, v in info['feature_types'].items()}
+            }
+        else:
+            serializable_analysis[tf] = info
 
-        with open(output_file, 'w') as f:
-            json.dump({
-                'dataset_path': dataset_path,
-                'analysis_timestamp': str(np.datetime64('now')),
-                'bug_detected': len(set(hashes)) < len(hashes) if hashes else False,
-                'file_analysis': serializable_analysis
-            }, f, indent=2)
+    with open(output_file, 'w') as f:
+        json.dump({
+            'dataset_path': dataset_path,
+            'analysis_timestamp': str(np.datetime64('now')),
+            'bug_detected': len(set(hashes)) < len(hashes) if hashes else False,
+            'file_analysis': serializable_analysis
+        }, f, indent=2)
 
-        print(f"\n📄 Detailed analysis saved to: {output_file}")
-    except Exception as e:
-        print(f"\n⚠️  Could not save analysis file: {e}")
-
-
+    print(f"\n📄 Detailed analysis saved to: {output_file}")
 if __name__ == "__main__":
     main()

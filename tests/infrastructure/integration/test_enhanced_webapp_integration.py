@@ -45,18 +45,10 @@ class TestEnhancedWebappIntegration:
         max_retries = 15
         webapp_ready = False
         for i in range(max_retries):
-            try:
-                response = requests.get('http://localhost:3000/health', timeout=2)
-                if response.status_code == 200:
-                    webapp_ready = True
-                    break
-            except requests.exceptions.ConnectionError:
-                time.sleep(2)
-                if process.poll() is not None:
-                    # Process died during startup
-                    stdout, stderr = process.communicate()
-                    pytest.fail(f"Webapp died during startup. Output: {stdout}")
-
+            response = requests.get('http://localhost:3000/health', timeout=2)
+            if response.status_code == 200:
+                webapp_ready = True
+                break
         if not webapp_ready:
             # Get process output for debugging
             process.terminate()
@@ -67,25 +59,15 @@ class TestEnhancedWebappIntegration:
 
         # Cleanup
         process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-
+        process.wait(timeout=5)
     def test_webapp_startup_and_health_check(self, webapp_process):
         """Test that webapp actually starts and responds to health check"""
         # Wait for webapp to be ready
         max_retries = 30
         for _ in range(max_retries):
-            try:
-                response = requests.get('http://localhost:3000/health', timeout=5)
-                if response.status_code == 200:
-                    break
-            except requests.exceptions.ConnectionError:
-                time.sleep(1)
-        else:
-            # Get process output for debugging
+            response = requests.get('http://localhost:3000/health', timeout=5)
+            if response.status_code == 200:
+                break
             stdout, stderr = webapp_process.communicate(timeout=5)
             pytest.fail(f"Webapp failed to start. STDOUT: {stdout.decode()}, STDERR: {stderr.decode()}")
 

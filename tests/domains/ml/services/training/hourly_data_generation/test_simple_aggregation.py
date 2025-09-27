@@ -16,7 +16,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
 # Import directly without Gin configuration
-from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner
+# TrainingDataJobRunner class does not exist in feature_extraction_runner
 
 
 class SimpleTrainingDataJobConfig:

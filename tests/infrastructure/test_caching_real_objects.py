@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsCacheEntry:
@@ -55,13 +49,7 @@ class TestRealObjectsCacheEntry:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_cache_entry_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_entry_creation"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_entry_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cache_entry_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cache_entry_expiration_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_entry_expiration"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_entry_expiration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cache_entry_expiration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cache_entry_touch_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_entry_touch"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_entry_touch_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cache_entry_touch_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_basic_operations_real_objects(self, real_service, test_data):
         """Real objects version of test_basic_operations"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.basic_operations_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.basic_operations_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ttl_expiration_real_objects(self, real_service, test_data):
         """Real objects version of test_ttl_expiration"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ttl_expiration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ttl_expiration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cache_metrics_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_metrics"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_metrics_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cache_metrics_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cache_layering_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_layering"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_layering_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cache_layering_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_write_through_real_objects(self, real_service, test_data):
         """Real objects version of test_write_through"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.write_through_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.write_through_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cache_invalidation_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_invalidation"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_invalidation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cache_invalidation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tag_based_invalidation_real_objects(self, real_service, test_data):
         """Real objects version of test_tag_based_invalidation"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tag_based_invalidation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.tag_based_invalidation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_query_optimizer_real_objects(self, real_service, test_data):
         """Real objects version of test_query_optimizer"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.query_optimizer_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.query_optimizer_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_query_builder_real_objects(self, real_service, test_data):
         """Real objects version of test_query_builder"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.query_builder_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.query_builder_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cache_key_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_key_generation"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_key_generation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cache_key_generation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_response_caching_real_objects(self, real_service, test_data):
         """Real objects version of test_response_caching"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.response_caching_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.response_caching_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_operation_profiling_real_objects(self, real_service, test_data):
         """Real objects version of test_operation_profiling"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.operation_profiling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.operation_profiling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_summary_real_objects(self, real_service, test_data):
         """Real objects version of test_performance_summary"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.performance_summary_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.performance_summary_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_profile_decorator_real_objects(self, real_service, test_data):
         """Real objects version of test_profile_decorator"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.profile_decorator_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.profile_decorator_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_function_real_objects(self, real_service, test_data):
         """Real objects version of test_function"""
         # Test with real database integration
@@ -450,14 +336,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.function_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.function_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cached_decorator_real_objects(self, real_service, test_data):
         """Real objects version of test_cached_decorator"""
         # Test with real database integration
@@ -472,14 +352,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cached_decorator_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cached_decorator_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_integration_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_integration_scenario"""
         # Test with real database integration
@@ -494,15 +368,8 @@ class TestRealObjectsCacheEntry:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.integration_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.integration_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

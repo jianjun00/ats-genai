@@ -312,13 +312,8 @@ def run_all_tests():
     failed = 0
 
     for test in tests:
-        try:
-            test()
-            passed += 1
-        except Exception as e:
-            print(f"❌ {test.__name__} FAILED: {e}")
-            failed += 1
-
+        test()
+        passed += 1
     print("\n" + "=" * 80)
     print(f"📊 Test Results: {passed} passed, {failed} failed")
 

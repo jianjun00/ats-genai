@@ -16,8 +16,8 @@ import psycopg2
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.infrastructure.services_legacy.dataset_service import DatasetService
-from src.clients.dataset_client import DatasetClient
+from infrastructure.services_legacy.dataset_service import DatasetService
+from core.shared.clients.dataset_client import DatasetClient
 from scripts.eda_with_dataset_service import EDAAnalyzer
 
 class TestDatasetServiceIntegration(unittest.TestCase):
@@ -35,14 +35,9 @@ class TestDatasetServiceIntegration(unittest.TestCase):
         }
 
         # Test database connectivity
-        try:
-            conn = psycopg2.connect(**cls.db_config)
-            conn.close()
-            cls.db_available = True
-        except Exception as e:
-            print(f"Database not available for integration tests: {e}")
-            cls.db_available = False
-
+        conn = psycopg2.connect(**cls.db_config)
+        conn.close()
+        cls.db_available = True
     def setUp(self):
         """Set up test environment."""
         if not self.db_available:

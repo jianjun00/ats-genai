@@ -31,33 +31,29 @@ def find_critical_broken_imports():
 
 def check_critical_imports_in_file(file_path):
     """Check imports in a specific critical file"""
-    try:
-        with open(file_path, 'r') as f:
-            lines = f.readlines()
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+    
+    broken_imports = []
+    for line_no, line in enumerate(lines, 1):
+        line = line.strip()
+        if line.startswith('from ') or line.startswith('import '):
+            # Check for suspicious import patterns
+            if any(pattern in line for pattern in [
+                'database_manager', 'DatabaseManager',
+                'connection_manager', 'ConnectionManager', 
+                'universe_manager', 'UniverseManager',
+                'training_dataset_dao', 'TrainingDatasetDAO',
+                'monthly_training_data_dao', 'MonthlyTrainingDataDAO'
+            ]):
+                broken_imports.append((line_no, line))
+    
+    if broken_imports:
+        for line_no, import_line in broken_imports:
+            print(f"  ❌ Line {line_no}: {import_line}")
+    else:
+        print("  ✅ No critical broken imports found")
         
-        broken_imports = []
-        for line_no, line in enumerate(lines, 1):
-            line = line.strip()
-            if line.startswith('from ') or line.startswith('import '):
-                # Check for suspicious import patterns
-                if any(pattern in line for pattern in [
-                    'database_manager', 'DatabaseManager',
-                    'connection_manager', 'ConnectionManager', 
-                    'universe_manager', 'UniverseManager',
-                    'training_dataset_dao', 'TrainingDatasetDAO',
-                    'monthly_training_data_dao', 'MonthlyTrainingDataDAO'
-                ]):
-                    broken_imports.append((line_no, line))
-        
-        if broken_imports:
-            for line_no, import_line in broken_imports:
-                print(f"  ❌ Line {line_no}: {import_line}")
-        else:
-            print("  ✅ No critical broken imports found")
-            
-    except Exception as e:
-        print(f"  ❌ Error reading file: {e}")
-
 def check_database_manager_references():
     """Find all references to the non-existent DatabaseManager"""
     print("\n🔍 SEARCHING FOR DatabaseManager REFERENCES")

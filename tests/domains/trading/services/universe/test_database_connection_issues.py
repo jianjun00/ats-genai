@@ -7,8 +7,8 @@ These tests identify and reproduce the connection problems before fixing them.
 import pytest
 import asyncio
 from unittest.mock import Mock
-from core.shared.utils.environment import Environment
-from domains.trading.services.dynamic_modeling_universe import DynamicModelingUniverse
+from core.platform.config.environment import Environment
+from domains.trading.services.universe.dynamic_modeling_universe import DynamicModelingUniverse
 
 class TestDatabaseConnectionIssues:
     """Test database connection configuration and compatibility issues"""
@@ -17,53 +17,39 @@ class TestDatabaseConnectionIssues:
         """Test that Environment returns expected database config format"""
         env = Environment()
 
-        try:
-            db_config = env.get_database_config()
+        db_config = env.get_database_config()
 
-            # Log what we actually get
-            print(f"Database config keys: {list(db_config.keys())}")
-            print(f"Database config: {db_config}")
+        # Log what we actually get
+        print(f"Database config keys: {list(db_config.keys())}")
+        print(f"Database config: {db_config}")
 
-            # Test expected keys are present
-            expected_keys = ['host', 'port', 'user', 'password', 'database']
-            for key in expected_keys:
-                assert key in db_config or db_config.get(key) is not None, f"Missing or None: {key}"
+        # Test expected keys are present
+        expected_keys = ['host', 'port', 'user', 'password', 'database']
+        for key in expected_keys:
+            assert key in db_config or db_config.get(key) is not None, f"Missing or None: {key}"
 
-            # Test no unexpected keys that would break asyncpg
-            asyncpg_compatible_keys = {
-                'host', 'port', 'user', 'password', 'database',
-                'timeout', 'connection_class', 'ssl', 'passfile'
-            }
+        # Test no unexpected keys that would break asyncpg
+        asyncpg_compatible_keys = {
+            'host', 'port', 'user', 'password', 'database',
+            'timeout', 'connection_class', 'ssl', 'passfile'
+        }
 
-            unexpected_keys = set(db_config.keys()) - asyncpg_compatible_keys
-            if unexpected_keys:
-                print(f"WARNING: Unexpected keys that may break asyncpg: {unexpected_keys}")
-
-        except AttributeError as e:
-            pytest.fail(f"Environment.get_database_config() method not found: {e}")
-        except Exception as e:
-            print(f"Error getting database config: {e}")
-            raise
+        unexpected_keys = set(db_config.keys()) - asyncpg_compatible_keys
+        if unexpected_keys:
+            print(f"WARNING: Unexpected keys that may break asyncpg: {unexpected_keys}")
 
     def test_environment_database_url_fallback(self):
         """Test that Environment has database URL fallback"""
         env = Environment()
 
-        try:
-            db_url = env.get_database_url()
-            print(f"Database URL: {db_url}")
+        db_url = env.get_database_url()
+        print(f"Database URL: {db_url}")
 
-            # Should be a valid postgres URL format
-            if db_url:
-                assert db_url.startswith(('postgresql://', 'postgres://')), f"Invalid URL format: {db_url}"
-            else:
-                print("WARNING: No database URL configured")
-
-        except AttributeError as e:
-            pytest.fail(f"Environment.get_database_url() method not found: {e}")
-        except Exception as e:
-            print(f"Error getting database URL: {e}")
-            raise
+        # Should be a valid postgres URL format
+        if db_url:
+            assert db_url.startswith(('postgresql://', 'postgres://')), f"Invalid URL format: {db_url}"
+        else:
+            print("WARNING: No database URL configured")
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -74,45 +60,32 @@ class TestDatabaseConnectionIssues:
         env = Environment()
 
         # Test with get_database_config()
-        try:
-            db_config = env.get_database_config()
-            print(f"Testing asyncpg with config: {db_config}")
+        db_config = env.get_database_config()
+        print(f"Testing asyncpg with config: {db_config}")
 
-            # This should fail and show us what's wrong
-            with pytest.raises((TypeError, Exception)) as exc_info:
-                pool = await asyncpg.create_pool(**db_config)
-                await pool.close()
+        # This should fail and show us what's wrong
+        with pytest.raises((TypeError, Exception)) as exc_info:
+            pool = await asyncpg.create_pool(**db_config)
+            await pool.close()
 
-            print(f"Expected error with full config: {exc_info.value}")
+        print(f"Expected error with full config: {exc_info.value}")
 
-            # Now test with filtered config
-            asyncpg_config = {
-                k: v for k, v in db_config.items()
-                if k in ['host', 'port', 'user', 'password', 'database'] and v is not None
-            }
-            print(f"Filtered config: {asyncpg_config}")
+        # Now test with filtered config
+        asyncpg_config = {
+            k: v for k, v in db_config.items()
+            if k in ['host', 'port', 'user', 'password', 'database'] and v is not None
+        }
+        print(f"Filtered config: {asyncpg_config}")
 
-            # This might still fail due to missing database, but shouldn't have parameter errors
-            try:
-                pool = await asyncpg.create_pool(**asyncpg_config)
-                await pool.close()
-                print("✅ Connection successful with filtered config")
-            except Exception as e:
-                print(f"Connection failed with filtered config (expected if DB not running): {e}")
-                # This is expected if database isn't running
-                assert "connect" in str(e).lower() or "connection" in str(e).lower()
-
-        except AttributeError:
-            # Fall back to URL test
-            db_url = env.get_database_url()
-            if db_url:
-                try:
-                    pool = await asyncpg.create_pool(db_url)
-                    await pool.close()
-                    print("✅ Connection successful with URL")
-                except Exception as e:
-                    print(f"Connection failed with URL (expected if DB not running): {e}")
-
+        # This might still fail due to missing database, but shouldn't have parameter errors
+        pool = await asyncpg.create_pool(**asyncpg_config)
+        await pool.close()
+        print("✅ Connection successful with filtered config")
+        db_url = env.get_database_url()
+        if db_url:
+            pool = await asyncpg.create_pool(db_url)
+            await pool.close()
+            print("✅ Connection successful with URL")
     def test_universe_initialization_error_handling(self):
         """Test that DynamicModelingUniverse handles connection errors gracefully"""
         env = Mock(spec=Environment)

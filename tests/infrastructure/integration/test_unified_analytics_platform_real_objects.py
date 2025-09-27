@@ -15,8 +15,8 @@ and provides authentic validation of business functionality.
 import pytest
 from datetime import date, datetime, timedelta
 
-from shared.utils.environment import Environment, EnvironmentType
-from core.dao.instruments_dao import InstrumentsDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 
 
 class TestAnalyticsPlatformIntegrationRealObjects:
@@ -38,23 +38,17 @@ class TestAnalyticsPlatformIntegrationRealObjects:
         # Create real test data
         test_ids = []
         
-        try:
-            # Add actual test data creation here
-            test_id = await dao.create_instrument(
-                symbol="TEST_SYMBOL",
-                name="Test Instrument Inc.",
-                exchange="NASDAQ",
-                sector="Technology"
-            )
-            test_ids.append(test_id)
-            
-            yield {'test_ids': test_ids, 'test_data': 'placeholder'}
-            
-        finally:
-            # Cleanup
-            for test_id in test_ids:
-                await dao.delete_instrument(test_id)
-
+        # Add actual test data creation here
+        test_id = await dao.create_instrument(
+            symbol="TEST_SYMBOL",
+            name="Test Instrument Inc.",
+            exchange="NASDAQ",
+            sector="Technology"
+        )
+        test_ids.append(test_id)
+        
+        yield {'test_ids': test_ids, 'test_data': 'placeholder'}
+        
     async def test_real_objects_placeholder(self, test_environment, test_data):
         """Placeholder test demonstrating real objects pattern."""
         # Replace with actual business logic tests using real objects

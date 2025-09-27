@@ -11,15 +11,15 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../src'))
 
-from domains.market_data.services.eod.unified_daily_price_validator import (
+from domains.trading.services.core.eod.unified_daily_price_validator import (
     UnifiedDailyPriceValidator,
     ValidationStatus,
     VendorPrice,
     ValidationResult,
     UnifiedPrice
 )
-from domains.market_data.services.eod.unified_daily_price_pipeline import UnifiedDailyPricePipeline
-from shared.utils.environment import Environment
+from domains.trading.services.core.eod.unified_daily_price_pipeline import UnifiedDailyPricePipeline
+from core.platform.config.environment import Environment
 
 
 class TestUnifiedDailyPriceValidator:

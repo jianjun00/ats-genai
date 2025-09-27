@@ -17,8 +17,8 @@ from unittest.mock import Mock, AsyncMock, patch
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 from domains.ml.services.storage.sequence_storage_manager import ArrayRecordStorageManager
-from core.shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteMarketDataManager
 
 
 class TestTrainingDataGenerationSteps:
@@ -292,30 +292,19 @@ TrainingDataConfig.feature_types = ['ohlcv']
         mock_env = Mock()
 
         # Test that manager can be created (even if path doesn't exist in test)
-        try:
-            manager = FileBasedMinuteMarketDataManager(mock_env, base_path)
-            assert manager.base_path == Path(base_path)
-            assert str(manager.base_path) == base_path
-        except FileNotFoundError:
-            # Expected in test environment where minute-bars don't exist
-            pass
-
-        # Test ArrayRecord storage manager
+        manager = FileBasedMinuteMarketDataManager(mock_env, base_path)
+        assert manager.base_path == Path(base_path)
+        assert str(manager.base_path) == base_path
         storage_manager = ArrayRecordStorageManager(temp_dir)
         assert storage_manager.base_path == Path(temp_dir)
 
         # Test writer creation (mock ArrayRecord since it may not be available)
-        try:
-            pass
+        pass
 
-            test_file = os.path.join(temp_dir, "test.arrayrecord")
-            writer = storage_manager.create_arrayrecord_writer(test_file)
-            assert writer is not None
-            writer.close()
-
-        except ImportError:
-            # ArrayRecord not available in test environment
-            pytest.skip("ArrayRecord not available for testing")
+        test_file = os.path.join(temp_dir, "test.arrayrecord")
+        writer = storage_manager.create_arrayrecord_writer(test_file)
+        assert writer is not None
+        writer.close()
 
     def test_step7_post_generation_analysis(self, temp_dir):
         """
@@ -456,45 +445,26 @@ TrainingDataConfig.feature_types = ['ohlcv']
         This test specifically targets the AAPL file writing failure issue.
         Tests the actual ArrayRecord writing process step-by-step.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-        except ImportError:
-            pytest.skip("ArrayRecord not available - this is likely the root cause of AAPL failure")
-
-        # Test basic ArrayRecord operations
+        import array_record.python.array_record_module as array_record
         test_file = os.path.join(temp_dir, "debug_test.arrayrecord")
 
         # Test writer creation
-        try:
-            writer = array_record.ArrayRecordWriter(test_file, 'group_size:1')
-            assert writer is not None
-        except Exception as e:
-            pytest.fail(f"Failed to create ArrayRecord writer: {e}")
-
-        # Test writing binary data
+        writer = array_record.ArrayRecordWriter(test_file, 'group_size:1')
+        assert writer is not None
         test_data = b"test_binary_data_12345"
-        try:
-            writer.write(test_data)
-            writer.close()
-        except Exception as e:
-            pytest.fail(f"Failed to write data to ArrayRecord: {e}")
-
-        # Verify file was created
+        writer.write(test_data)
+        writer.close()
         assert os.path.exists(test_file)
         file_size = os.path.getsize(test_file)
         assert file_size > 0, f"ArrayRecord file has zero size: {file_size} bytes"
 
         # Test reading the file back
-        try:
-            reader = array_record.ArrayRecordReader(test_file)
-            records = list(reader)
-            reader.close()
+        reader = array_record.ArrayRecordReader(test_file)
+        records = list(reader)
+        reader.close()
 
-            assert len(records) == 1
-            assert records[0] == test_data
-
-        except Exception as e:
-            pytest.fail(f"Failed to read ArrayRecord file: {e}")
+        assert len(records) == 1
+        assert records[0] == test_data
 
     def test_minute_data_access_debugging(self):
         """
@@ -515,14 +485,8 @@ TrainingDataConfig.feature_types = ['ohlcv']
         from infrastructure.storage.file_based_minute_manager import FileBasedMinuteManager
 
         # Test with container path (correct)
-        try:
-            manager_container = FileBasedMinuteManager(container_path)
-            assert str(manager_container.base_path) == container_path
-        except Exception as e:
-            # Expected in test environment where path doesn't exist
-            pass
-
-        # Test path string conversion (this was a bug)
+        manager_container = FileBasedMinuteManager(container_path)
+        assert str(manager_container.base_path) == container_path
         from pathlib import Path
         path_obj = Path(container_path)
         path_str = str(path_obj)
@@ -567,22 +531,18 @@ TrainingDataConfig.feature_types = ['ohlcv']
             callback.dataset_id = dataset_id
 
             # Test the critical initialization step
-            try:
-                await callback._initialize_dataset_structure()
+            await callback._initialize_dataset_structure()
 
-                # Verify writers were created
-                assert len(callback.array_record_writers) > 0
+            # Verify writers were created
+            assert len(callback.array_record_writers) > 0
 
-                # Check expected writer keys
-                expected_timeframes = ['5m', '15m', '1h', '1d']
-                for symbol in sample_args.symbols:
-                    for timeframe in expected_timeframes:
-                        writer_key = f"{symbol}_{timeframe}"
-                        if writer_key not in callback.array_record_writers:
-                            pytest.fail(f"Missing ArrayRecord writer for {writer_key}")
-
-            except Exception as e:
-                pytest.fail(f"Dataset structure initialization failed: {e}")
+            # Check expected writer keys
+            expected_timeframes = ['5m', '15m', '1h', '1d']
+            for symbol in sample_args.symbols:
+                for timeframe in expected_timeframes:
+                    writer_key = f"{symbol}_{timeframe}"
+                    if writer_key not in callback.array_record_writers:
+                        pytest.fail(f"Missing ArrayRecord writer for {writer_key}")
 
     def test_debug_logging_functionality(self, temp_dir, caplog):
         """

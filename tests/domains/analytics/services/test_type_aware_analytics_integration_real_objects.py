@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.analytics.services.analytics_service import AnalyticsService
-from domains.analytics.dao.analytics_dao import AnalyticsDAO
-from infrastructure.web.analytics_service import AnalyticsWebService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService
+from domains.analytics.repositories.events_dao import EventsDAO
+from infrastructure.web.analytics_service_fail_fast import AnalyticsServiceError as AnalyticsWebService
 
 
 class MockDatabase:
@@ -36,12 +31,12 @@ class MockDatabase:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return AnalyticsDAO(test_environment)  # Real DAO integration needed
+        # return EventsDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
         """Real service implementation"""
-        return AnalyticsService(test_environment)
+        return UnifiedAnalyticsService(test_environment)
     
     @pytest.fixture
     async def test_data(self, real_dao):
@@ -56,13 +51,7 @@ class MockDatabase:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_instrument_intelligent_filters_real_objects(self, real_service, test_data):
         """Real objects version of test_instrument_intelligent_filters"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.instrument_intelligent_filters_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.instrument_intelligent_filters_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_price_data_intelligent_filters_real_objects(self, real_service, test_data):
         """Real objects version of test_price_data_intelligent_filters"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.price_data_intelligent_filters_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.price_data_intelligent_filters_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_legacy_fallback_for_unknown_table_real_objects(self, real_service, test_data):
         """Real objects version of test_legacy_fallback_for_unknown_table"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.legacy_fallback_for_unknown_table_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.legacy_fallback_for_unknown_table_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_enum_values_performance_optimization_real_objects(self, real_service, test_data):
         """Real objects version of test_enum_values_performance_optimization"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.enum_values_performance_optimization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.enum_values_performance_optimization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_searchable_string_column_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_searchable_string_column"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_searchable_string_column_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_searchable_string_column_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_categorical_enum_column_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_categorical_enum_column"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_categorical_enum_column_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_categorical_enum_column_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_numeric_range_column_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_numeric_range_column"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_numeric_range_column_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_numeric_range_column_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_date_range_column_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_date_range_column"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_date_range_column_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_date_range_column_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_boolean_column_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_boolean_column"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_boolean_column_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_boolean_column_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_unknown_column_fallback_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_unknown_column_fallback"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_unknown_column_fallback_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_unknown_column_fallback_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_enum_query_optimization_real_objects(self, real_service, test_data):
         """Real objects version of test_enum_query_optimization"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.enum_query_optimization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.enum_query_optimization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_searchable_field_optimization_real_objects(self, real_service, test_data):
         """Real objects version of test_searchable_field_optimization"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.searchable_field_optimization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.searchable_field_optimization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_numeric_range_optimization_real_objects(self, real_service, test_data):
         """Real objects version of test_numeric_range_optimization"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.numeric_range_optimization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.numeric_range_optimization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complete_filter_generation_flow_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_filter_generation_flow"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_filter_generation_flow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.complete_filter_generation_flow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_type_system_validation_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_type_system_validation_integration"""
         # Test with real database integration
@@ -385,14 +290,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.type_system_validation_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.type_system_validation_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_comparison_typed_vs_legacy_real_objects(self, real_service, test_data):
         """Real objects version of test_performance_comparison_typed_vs_legacy"""
         # Test with real database integration
@@ -407,15 +306,8 @@ class MockDatabase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.performance_comparison_typed_vs_legacy_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.performance_comparison_typed_vs_legacy_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

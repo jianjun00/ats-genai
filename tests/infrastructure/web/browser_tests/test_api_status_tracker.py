@@ -251,33 +251,21 @@ async def main():
     tracker = APIStatusTracker()
 
     if not args.skip_db:
-        try:
-            await tracker.initialize()
-            logger.info("✅ Database connection initialized")
-        except Exception as e:
-            logger.warning(f"⚠️ Database initialization failed: {e}")
-            logger.info("📝 Continuing with in-memory tracking only...")
-    else:
+        await tracker.initialize()
+        logger.info("✅ Database connection initialized")
         logger.info("⚠️ Skipping database operations (--skip-db)")
 
-    try:
-        # Run tests based on arguments
-        if args.test_all_vendors:
-            await test_all_vendors(tracker)
-        else:
-            await simulate_api_requests(tracker, args.simulate_requests)
+    # Run tests based on arguments
+    if args.test_all_vendors:
+        await test_all_vendors(tracker)
+    else:
+        await simulate_api_requests(tracker, args.simulate_requests)
 
-        # Display results
-        await display_metrics_summary(tracker)
-        await test_prometheus_metrics(tracker)
+    # Display results
+    await display_metrics_summary(tracker)
+    await test_prometheus_metrics(tracker)
 
-        logger.info("✅ All tests completed successfully!")
-
-    except Exception as e:
-        logger.error(f"❌ Test failed: {e}")
-        raise
-    finally:
-        await tracker.close()
+    logger.info("✅ All tests completed successfully!")
 
 if __name__ == "__main__":
     asyncio.run(main())

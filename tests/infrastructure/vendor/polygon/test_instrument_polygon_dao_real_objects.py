@@ -10,12 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
 # from infrastructure.vendor.polygon.client import PolygonClient
 # from infrastructure.vendor.polygon.dao import PolygonDAO
@@ -56,13 +51,7 @@ class TestRealObjectsInstrumentPolygonDAO:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_count_instruments_success_real_objects(self, real_service, test_data):
         """Real objects version of test_count_instruments_success"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.count_instruments_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.count_instruments_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_count_instruments_empty_result_real_objects(self, real_service, test_data):
         """Real objects version of test_count_instruments_empty_result"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.count_instruments_empty_result_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.count_instruments_empty_result_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_count_instruments_pool_close_timeout_real_objects(self, real_service, test_data):
         """Real objects version of test_count_instruments_pool_close_timeout"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.count_instruments_pool_close_timeout_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.count_instruments_pool_close_timeout_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_latest_update_timestamp_success_real_objects(self, real_service, test_data):
         """Real objects version of test_get_latest_update_timestamp_success"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_laupdate_timestamp_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_laupdate_timestamp_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_latest_update_timestamp_no_data_real_objects(self, real_service, test_data):
         """Real objects version of test_get_latest_update_timestamp_no_data"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_laupdate_timestamp_no_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_laupdate_timestamp_no_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_insert_instrument_success_real_objects(self, real_service, test_data):
         """Real objects version of test_insert_instrument_success"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.insert_instrument_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.insert_instrument_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_instrument_by_symbol_success_real_objects(self, real_service, test_data):
         """Real objects version of test_get_instrument_by_symbol_success"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_instrument_by_symbol_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_instrument_by_symbol_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_instrument_by_symbol_not_found_real_objects(self, real_service, test_data):
         """Real objects version of test_get_instrument_by_symbol_not_found"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_instrument_by_symbol_not_found_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_instrument_by_symbol_not_found_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_all_symbols_success_real_objects(self, real_service, test_data):
         """Real objects version of test_get_all_symbols_success"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_all_symbols_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_all_symbols_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_all_symbols_empty_table_real_objects(self, real_service, test_data):
         """Real objects version of test_get_all_symbols_empty_table"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_all_symbols_empty_table_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_all_symbols_empty_table_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_connection_error_real_objects(self, real_service, test_data):
         """Real objects version of test_database_connection_error"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_connection_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_connection_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sql_injection_protection_real_objects(self, real_service, test_data):
         """Real objects version of test_sql_injection_protection"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sql_injection_protection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sql_injection_protection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_dao_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_dao_initialization"""
         # Test with real database integration
@@ -341,15 +258,8 @@ class TestRealObjectsInstrumentPolygonDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.dao_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.dao_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

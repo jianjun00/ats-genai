@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsDataThroughputBenchmarks:
@@ -55,13 +49,7 @@ class TestRealObjectsDataThroughputBenchmarks:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_minute_bar_processing_throughput_real_objects(self, real_service, test_data):
         """Real objects version of test_minute_bar_processing_throughput"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.minute_bar_processing_throughput_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.minute_bar_processing_throughput_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_symbol_processing_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_symbol_processing"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_symbol_processing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_symbol_processing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_single_bar_processing_latency_real_objects(self, real_service, test_data):
         """Real objects version of test_single_bar_processing_latency"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.single_bar_processing_latency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.single_bar_processing_latency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_operation_latency_real_objects(self, real_service, test_data):
         """Real objects version of test_database_operation_latency"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_operation_latency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_operation_latency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_memory_usage_during_high_throughput_real_objects(self, real_service, test_data):
         """Real objects version of test_memory_usage_during_high_throughput"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.memory_usage_during_high_throughput_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.memory_usage_during_high_throughput_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gap_detection_memory_efficiency_real_objects(self, real_service, test_data):
         """Real objects version of test_gap_detection_memory_efficiency"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gap_detection_memory_efficiency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gap_detection_memory_efficiency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_backfill_concurrency_limits_real_objects(self, real_service, test_data):
         """Real objects version of test_backfill_concurrency_limits"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.backfill_concurrency_limits_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.backfill_concurrency_limits_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_gap_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_gap_detection"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_gap_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_gap_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_batch_insert_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_batch_insert_performance"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.batch_insert_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.batch_insert_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_response_time_simulation_real_objects(self, real_service, test_data):
         """Real objects version of test_api_response_time_simulation"""
         # Test with real database integration
@@ -274,15 +208,8 @@ class TestRealObjectsDataThroughputBenchmarks:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_response_time_simulation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.api_response_time_simulation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

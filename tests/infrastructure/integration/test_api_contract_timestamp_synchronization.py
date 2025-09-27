@@ -31,35 +31,26 @@ class TestAPIContractTimestampSync:
         print("🔧 Setting up API contract tests...")
 
         # Verify analytics service is running
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                pytest.skip("Analytics service not running")
-        except requests.ConnectionError:
-            pytest.skip("Analytics service not accessible")
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            pytest.skip("Analytics service not running")
+        datasets_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets")
+        datasets = datasets_response.json()['datasets']
 
-        # Get test dataset and sequence for all tests
-        try:
-            datasets_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets")
-            datasets = datasets_response.json()['datasets']
+        if len(datasets) == 0:
+            pytest.skip("No training datasets available")
 
-            if len(datasets) == 0:
-                pytest.skip("No training datasets available")
+        cls.test_dataset_id = datasets[0]['id']
 
-            cls.test_dataset_id = datasets[0]['id']
+        sequences_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets/{cls.test_dataset_id}/sequences")
+        sequences = sequences_response.json()['sequences']
 
-            sequences_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets/{cls.test_dataset_id}/sequences")
-            sequences = sequences_response.json()['sequences']
+        if len(sequences) == 0:
+            pytest.skip("No sequences available for testing")
 
-            if len(sequences) == 0:
-                pytest.skip("No sequences available for testing")
+        cls.test_sequence_id = sequences[0]
 
-            cls.test_sequence_id = sequences[0]
-
-            print(f"📊 Using test dataset {cls.test_dataset_id}, sequence {cls.test_sequence_id}")
-
-        except Exception as e:
-            pytest.skip(f"Could not set up test data: {e}")
+        print(f"📊 Using test dataset {cls.test_dataset_id}, sequence {cls.test_sequence_id}")
 
     def test_1h_navigation_endpoint_contract(self):
         """Test 1-hour navigation endpoint contract compliance."""
@@ -397,17 +388,13 @@ class TestAPIContractTimestampSync:
             assert response.status_code in [400, 404, 422, 500], f"Expected error status, got {response.status_code}"
             assert response.headers.get('content-type') == 'application/json', "Error response should be JSON"
 
-            try:
-                error_data = response.json()
-                # Error response should have error field
-                assert 'error' in error_data, "Error response should have 'error' field"
-                assert isinstance(error_data['error'], str), "Error field should be string"
-                assert len(error_data['error']) > 0, "Error message should not be empty"
+            error_data = response.json()
+            # Error response should have error field
+            assert 'error' in error_data, "Error response should have 'error' field"
+            assert isinstance(error_data['error'], str), "Error field should be string"
+            assert len(error_data['error']) > 0, "Error message should not be empty"
 
-                print(f"    ✅ {case_name}: HTTP {response.status_code}, error: {error_data['error'][:50]}...")
-
-            except json.JSONDecodeError:
-                pytest.fail(f"Error response should be valid JSON for {case_name}")
+            print(f"    ✅ {case_name}: HTTP {response.status_code}, error: {error_data['error'][:50]}...")
 
         print("  🎉 Error handling contract validation successful")
 

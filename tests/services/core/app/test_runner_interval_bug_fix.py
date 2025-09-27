@@ -30,7 +30,7 @@ from unittest.mock import Mock, patch
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../src'))
 
-from services.app.runner import Runner
+from domains.trading.services.core.app.runner import Runner
 from core.platform.config.environment import Environment, EnvironmentType
 
 class TestRunnerIntervalBugFix:

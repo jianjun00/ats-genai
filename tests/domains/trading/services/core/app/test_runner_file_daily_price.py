@@ -22,7 +22,7 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
-    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig(indicators={})
     # Insert test data
     import asyncpg
@@ -54,8 +54,8 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
         await conn.close()
         await conn.close()
     await insert_test_data()
-    from domains.trading.services.indicator_config import IndicatorConfig
-    from domains.trading.services.indicator import ETop, EBot, PL
+    from domains.trading.services.indicators_config import IndicatorConfig
+    from domains.trading.services.indicators import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -92,19 +92,14 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                 print(f'[DEBUG][TEST]   Sample file exists: {os.path.exists(sample_path)}')
                 print(f'[DEBUG][TEST]   Sample file size: {os.path.getsize(sample_path) if os.path.exists(sample_path) else 0} bytes')
                 # Try to read and parse the sample file
-                try:
-                    with open(sample_path, 'r') as f:
-                        content = f.read()
-                        print(f'[DEBUG][TEST]   Sample file content (first 200 chars): {content[:200]}...')
-                        try:
-                            json_content = json.loads(content)
-                            print(f'[DEBUG][TEST]   Successfully parsed JSON, type: {type(json_content)}')
-                            if isinstance(json_content, dict):
-                                print(f'[DEBUG][TEST]   JSON keys: {list(json_content.keys())}')
-                        except json.JSONDecodeError as e:
-                            print(f'[DEBUG][TEST]   Failed to parse JSON: {e}')
-                except Exception as e:
-                    print(f'[DEBUG][TEST]   Error reading sample file: {e}')
+                with open(sample_path, 'r') as f:
+                    content = f.read()
+                    print(f'[DEBUG][TEST]   Sample file content (first 200 chars): {content[:200]}...')
+                    json_content = json.loads(content)
+                    print(f'[DEBUG][TEST]   Successfully parsed JSON, type: {type(json_content)}')
+                    if isinstance(json_content, dict):
+                        print(f'[DEBUG][TEST]   JSON keys: {list(json_content.keys())}')
+                print(f'[DEBUG][TEST]   Error reading sample file: {e}')
     print('\n' + '='*80)
     print('[DEBUG][TEST] Creating FileDailyPriceMarketDataManager instance...')
     market_data_manager = await FileDailyPriceMarketDataManager.create_async(vendors_dirs, env)
@@ -126,24 +121,21 @@ async def test_runner_with_file_daily_price_market_data_manager_30days(tmp_path,
                     break
     # Debug: Check what's in the universe_membership table
     conn = await asyncpg.connect(unit_test_db)
-    try:
-        universe_members = await conn.fetch(f"""
-            SELECT * FROM {env.get_table_name('universe_membership')}
-            WHERE universe_id = 1
-        """)
-        print(f'[DEBUG][TEST] Universe membership: {universe_members}')
-        # Check instrument_xrefs
-        xrefs = await conn.fetch(f"""
-            SELECT * FROM {env.get_table_name('instrument_xrefs')}
-        """)
-        print(f'[DEBUG][TEST] Instrument xrefs: {xrefs}')
-        # Check instruments
-        instruments = await conn.fetch(f"""
-            SELECT * FROM {env.get_table_name('instruments')}
-        """)
-        print(f'[DEBUG][TEST] Instruments: {instruments}')
-    finally:
-        await conn.close()
+    universe_members = await conn.fetch(f"""
+        SELECT * FROM {env.get_table_name('universe_membership')}
+        WHERE universe_id = 1
+    """)
+    print(f'[DEBUG][TEST] Universe membership: {universe_members}')
+    # Check instrument_xrefs
+    xrefs = await conn.fetch(f"""
+        SELECT * FROM {env.get_table_name('instrument_xrefs')}
+    """)
+    print(f'[DEBUG][TEST] Instrument xrefs: {xrefs}')
+    # Check instruments
+    instruments = await conn.fetch(f"""
+        SELECT * FROM {env.get_table_name('instruments')}
+    """)
+    print(f'[DEBUG][TEST] Instruments: {instruments}')
     instrument_ids = list(market_data_manager._id_to_symbol.keys())
     output_dir = os.path.join(tmp_path, 'universe_state_30days')
     from datetime import datetime
@@ -302,7 +294,7 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     vendors_dirs = {'polygon': polygon_dir, 'tiingo': tiingo_dir}
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
-    from domains.trading.services.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators_config import IndicatorConfig
     env.get_indicator_config = lambda: IndicatorConfig(indicators={})
     # Patch UniverseManager and UniverseDB to avoid real DB access
     # Use FileDailyPriceMarketDataManager
@@ -365,8 +357,8 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
     await conn.close()
     # Create and patch a UniverseStateIntervalBuilder instance directly
     # Provide a minimal valid indicator_config for UniverseStateIntervalBuilder
-    from domains.trading.services.indicator_config import IndicatorConfig
-    from domains.trading.services.indicator import ETop, EBot, PL
+    from domains.trading.services.indicators_config import IndicatorConfig
+    from domains.trading.services.indicators import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -454,7 +446,7 @@ async def test_runner_with_file_daily_price_market_data_manager(tmp_path, unit_t
 async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     import asyncpg
     async def insert_test_data():
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
         env.get_table_name = lambda table: f"test_{table}"
         conn = await asyncpg.connect(unit_test_db)
@@ -481,7 +473,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
         await conn.close()
     await insert_test_data()
     # Insert test data
-    from core.shared.utils.environment import Environment, EnvironmentType
+    from core.platform.config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
     import asyncpg
@@ -509,8 +501,8 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
         """)
         await conn.close()
     await insert_test_data()
-    from domains.trading.services.indicator_config import IndicatorConfig
-    from domains.trading.services.indicator import ETop, EBot, PL
+    from domains.trading.services.indicators_config import IndicatorConfig
+    from domains.trading.services.indicators import ETop, EBot, PL
     indicator_config = IndicatorConfig(indicators={
         'ETop': ETop,
         'EBot': EBot,
@@ -531,7 +523,7 @@ async def test_runner_file_daily_price_7days_print(tmp_path, unit_test_db):
     from datetime import datetime
     start_date = datetime.strptime('2025-07-20', '%Y-%m-%d').date()
     end_date = datetime.strptime('2025-07-27', '%Y-%m-%d').date()
-    from core.shared.utils.environment import Environment, EnvironmentType
+    from core.platform.config.environment import Environment, EnvironmentType
     env = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
     env.get_table_name = lambda table: f"test_{table}"
     df = await run_file_daily_price_ohlcv(

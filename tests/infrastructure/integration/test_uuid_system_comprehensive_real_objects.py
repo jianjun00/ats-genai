@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsUUIDSystemComprehensive:
@@ -55,13 +49,7 @@ class TestRealObjectsUUIDSystemComprehensive:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_environment_uuid_storage_and_retrieval_real_objects(self, real_service, test_data):
         """Real objects version of test_environment_uuid_storage_and_retrieval"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.environment_uuid_storage_and_retrieval_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.environment_uuid_storage_and_retrieval_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_environment_uuid_requirement_enforcement_real_objects(self, real_service, test_data):
         """Real objects version of test_environment_uuid_requirement_enforcement"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.environment_uuid_requirement_enforcement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.environment_uuid_requirement_enforcement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_environment_initialization_with_uuid_real_objects(self, real_service, test_data):
         """Real objects version of test_environment_initialization_with_uuid"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.environment_initialization_with_uuid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.environment_initialization_with_uuid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_sets_uuid_in_environment_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_sets_uuid_in_environment"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_sets_uuid_in_environment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_sets_uuid_in_environment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_instrument_interval_dao_uses_environment_uuid_real_objects(self, real_service, test_data):
         """Real objects version of test_instrument_interval_dao_uses_environment_uuid"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.instrument_interval_dao_uses_environment_uuid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.instrument_interval_dao_uses_environment_uuid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_universe_state_interval_dao_uses_environment_uuid_real_objects(self, real_service, test_data):
         """Real objects version of test_universe_state_interval_dao_uses_environment_uuid"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.universe_state_interval_dao_uses_environment_uuid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.universe_state_interval_dao_uses_environment_uuid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_dao_priority_environment_uuid_over_parameter_real_objects(self, real_service, test_data):
         """Real objects version of test_dao_priority_environment_uuid_over_parameter"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.dao_priority_environment_uuid_over_parameter_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.dao_priority_environment_uuid_over_parameter_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multiple_dao_instances_use_same_environment_uuid_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_dao_instances_use_same_environment_uuid"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multiple_dao_instances_use_same_environment_uuid_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multiple_dao_instances_use_same_environment_uuid_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_uuid_uniqueness_across_runs_real_objects(self, real_service, test_data):
         """Real objects version of test_uuid_uniqueness_across_runs"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.uuid_uniqueness_across_runs_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.uuid_uniqueness_across_runs_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_to_end_uuid_system_real_objects(self, real_service, test_data):
         """Real objects version of test_end_to_end_uuid_system"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_to_end_uuid_system_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.end_to_end_uuid_system_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_uuid_system_constraint_violation_prevention_real_objects(self, real_service, test_data):
         """Real objects version of test_uuid_system_constraint_violation_prevention"""
         # Test with real database integration
@@ -296,15 +224,8 @@ class TestRealObjectsUUIDSystemComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.uuid_system_constraint_violation_prevention_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.uuid_system_constraint_violation_prevention_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

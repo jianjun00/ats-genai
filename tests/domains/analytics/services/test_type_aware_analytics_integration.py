@@ -13,7 +13,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from schema.registry import schema_registry
+from domains.ml.schema.registry import schema_registry
 
 
 class MockDatabase:
@@ -138,14 +138,8 @@ class MockDatabase:
 
 
 # Import after setting up the path to avoid dependency issues
-try:
-    from services.type_aware_analytics_service import TypeAwareAnalyticsService
-    SERVICE_AVAILABLE = True
-except ImportError:
-    SERVICE_AVAILABLE = False
-    print("⚠️  TypeAwareAnalyticsService not available (missing FastAPI dependency)")
-
-
+from domains.analytics.services.type_aware_analytics_standalone import TypeAwareAnalyticsService
+SERVICE_AVAILABLE = True
 class TestTypeAwareIntelligentFilters:
     """Test intelligent filter generation based on field types."""
 
@@ -153,7 +147,7 @@ class TestTypeAwareIntelligentFilters:
         """Set up test environment."""
         self.mock_db = MockDatabase()
         if SERVICE_AVAILABLE:
-            self.service = TypeAwareAnalyticsService(self.mock_db)
+            self.service = TypeAwareUnifiedAnalyticsService(self.mock_db)
 
     @pytest.mark.asyncio
 
@@ -292,7 +286,7 @@ class TestTypeAwareColumnAnalysis:
         """Set up test environment."""
         self.mock_db = MockDatabase()
         if SERVICE_AVAILABLE:
-            self.service = TypeAwareAnalyticsService(self.mock_db)
+            self.service = TypeAwareUnifiedAnalyticsService(self.mock_db)
 
     @pytest.mark.asyncio
 
@@ -419,7 +413,7 @@ class TestTypeAwareQueryOptimization:
         """Set up test environment."""
         self.mock_db = MockDatabase()
         if SERVICE_AVAILABLE:
-            self.service = TypeAwareAnalyticsService(self.mock_db)
+            self.service = TypeAwareUnifiedAnalyticsService(self.mock_db)
 
     @pytest.mark.asyncio
 
@@ -567,7 +561,7 @@ class TestTypeSystemIntegrationBehavior:
             return
 
         mock_db = MockDatabase()
-        service = TypeAwareAnalyticsService(mock_db)
+        service = TypeAwareUnifiedAnalyticsService(mock_db)
 
         # Test typed approach
         mock_db.clear_log()
@@ -619,20 +613,14 @@ async def run_all_integration_tests():
 
         for test_method in test_methods:
             total_tests += 1
-            try:
-                # Set up method if it exists
-                if hasattr(instance, 'setup_method'):
-                    instance.setup_method()
+            # Set up method if it exists
+            if hasattr(instance, 'setup_method'):
+                instance.setup_method()
 
-                # Run the test
-                await getattr(instance, test_method)()
-                print(f"✅ {test_method}")
-                passed_tests += 1
-
-            except Exception as e:
-                print(f"❌ {test_method}: {e}")
-                import traceback
-                traceback.print_exc()
+            # Run the test
+            await getattr(instance, test_method)()
+            print(f"✅ {test_method}")
+            passed_tests += 1
 
     print(f"\\n📊 Integration Test Results")
     print("-" * 30)

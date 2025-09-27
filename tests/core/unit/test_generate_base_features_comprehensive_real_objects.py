@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsGenerateBaseFeaturesComprehensive:
@@ -55,13 +49,7 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_historical_data_amount_is_configurable_real_objects(self, real_service, test_data):
         """Real objects version of test_historical_data_amount_is_configurable"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.historical_data_amount_is_configurable_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.historical_data_amount_is_configurable_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_future_leakage_strict_timing_real_objects(self, real_service, test_data):
         """Real objects version of test_no_future_leakage_strict_timing"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_future_leakage_strict_timing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_future_leakage_strict_timing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_uses_prediction_timestamp_not_date_real_objects(self, real_service, test_data):
         """Real objects version of test_uses_prediction_timestamp_not_date"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.uses_prediction_timestamp_not_date_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.uses_prediction_timestamp_not_date_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_handles_insufficient_historical_data_real_objects(self, real_service, test_data):
         """Real objects version of test_handles_insufficient_historical_data"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.handles_insufficient_historical_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.handles_insufficient_historical_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_handles_no_historical_data_real_objects(self, real_service, test_data):
         """Real objects version of test_handles_no_historical_data"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.handles_no_historical_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.handles_no_historical_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_feature_extractor_called_with_base_timeframe_real_objects(self, real_service, test_data):
         """Real objects version of test_feature_extractor_called_with_base_timeframe"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.feature_extractor_called_with_base_timeframe_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.feature_extractor_called_with_base_timeframe_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_returns_feature_dictionary_real_objects(self, real_service, test_data):
         """Real objects version of test_returns_feature_dictionary"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.returns_feature_dictionary_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.returns_feature_dictionary_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_lookback_period_calculation_logic_real_objects(self, real_service, test_data):
         """Real objects version of test_lookback_period_calculation_logic"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.lookback_period_calculation_logic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.lookback_period_calculation_logic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_handling_universe_manager_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_error_handling_universe_manager_failure"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_handling_universe_manager_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_handling_universe_manager_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_handling_feature_extractor_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_error_handling_feature_extractor_failure"""
         # Test with real database integration
@@ -274,15 +208,8 @@ class TestRealObjectsGenerateBaseFeaturesComprehensive:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_handling_feature_extractor_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.error_handling_feature_extractor_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

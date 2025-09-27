@@ -16,14 +16,9 @@ from pathlib import Path
 
 def test_arrayrecord_import_path():
     """Test that ArrayRecord classes can be imported correctly."""
-    try:
-        from array_record.python.array_record_module import ArrayRecordWriter, ArrayRecordReader
-        assert ArrayRecordWriter is not None
-        assert ArrayRecordReader is not None
-    except ImportError as e:
-        pytest.fail(f"ArrayRecord import failed: {e}")
-
-
+    from array_record.python.array_record_module import ArrayRecordWriter, ArrayRecordReader
+    assert ArrayRecordWriter is not None
+    assert ArrayRecordReader is not None
 def test_arrayrecord_writer_instantiation():
     """Test that ArrayRecordWriter can be instantiated."""
     pytest.importorskip("array_record")
@@ -31,13 +26,8 @@ def test_arrayrecord_writer_instantiation():
     from array_record.python.array_record_module import ArrayRecordWriter
 
     with tempfile.NamedTemporaryFile(suffix='.arrayrecord') as f:
-        try:
-            writer = ArrayRecordWriter(f.name, 'group_size:1')
-            assert writer is not None
-        except Exception as e:
-            pytest.fail(f"ArrayRecordWriter instantiation failed: {e}")
-
-
+        writer = ArrayRecordWriter(f.name, 'group_size:1')
+        assert writer is not None
 def test_array_record_package_structure():
     """Verify ArrayRecord package has expected structure."""
     pytest.importorskip("array_record")
@@ -70,23 +60,18 @@ def test_arrayrecord_writer_basic_functionality():
     with tempfile.NamedTemporaryFile(suffix='.arrayrecord', delete=False) as f:
         file_path = f.name
 
-    try:
-        # Write data
-        with ArrayRecordWriter(file_path, 'group_size:1') as writer:
-            data_bytes = json.dumps(test_data).encode()
-            writer.write_record(data_bytes)
+    # Write data
+    with ArrayRecordWriter(file_path, 'group_size:1') as writer:
+        data_bytes = json.dumps(test_data).encode()
+        writer.write_record(data_bytes)
 
-        # Read data back
-        with ArrayRecordReader(file_path) as reader:
-            records = list(reader)
-            assert len(records) == 1
+    # Read data back
+    with ArrayRecordReader(file_path) as reader:
+        records = list(reader)
+        assert len(records) == 1
 
-            read_data = json.loads(records[0].decode())
-            assert read_data == test_data
-
-    finally:
-        Path(file_path).unlink(missing_ok=True)
-
+        read_data = json.loads(records[0].decode())
+        assert read_data == test_data
 
 @pytest.mark.skipif(
     not pytest.importorskip("array_record", reason="array_record not available"),
@@ -114,18 +99,13 @@ def test_arrayrecord_with_datetime_serialization():
     with tempfile.NamedTemporaryFile(suffix='.arrayrecord', delete=False) as f:
         file_path = f.name
 
-    try:
-        with ArrayRecordWriter(file_path, 'group_size:1') as writer:
-            # Should not raise TypeError with custom serializer
-            data_bytes = json.dumps(test_data, default=custom_json_serializer).encode()
-            writer.write_record(data_bytes)
+    with ArrayRecordWriter(file_path, 'group_size:1') as writer:
+        # Should not raise TypeError with custom serializer
+        data_bytes = json.dumps(test_data, default=custom_json_serializer).encode()
+        writer.write_record(data_bytes)
 
-        # Verify file was created and has content
-        assert Path(file_path).stat().st_size > 0
-
-    finally:
-        Path(file_path).unlink(missing_ok=True)
-
+    # Verify file was created and has content
+    assert Path(file_path).stat().st_size > 0
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

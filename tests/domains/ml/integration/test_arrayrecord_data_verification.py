@@ -52,13 +52,8 @@ class TestArrayRecordDataVerification:
 
     def test_arrayrecord_can_be_imported(self):
         """Test that we can import ArrayRecord library."""
-        try:
-            print("✅ ArrayRecord library available")
-            return True
-        except ImportError:
-            print("❌ ArrayRecord library not available - installing...")
-            pytest.skip("ArrayRecord library not available")
-
+        print("✅ ArrayRecord library available")
+        return True
     def test_arrayrecord_contains_real_data(self):
         """Test that ArrayRecord files contain real training data (not empty/dummy data)."""
         if not self.test_arrayrecord_can_be_imported():
@@ -76,43 +71,38 @@ class TestArrayRecordDataVerification:
         test_file = sorted(tsla_files, key=lambda x: x.stat().st_mtime)[-1]
         print(f"Testing file: {test_file}")
 
-        try:
-            # Read the ArrayRecord file
-            reader = array_record.ArrayRecordReader(str(test_file))
+        # Read the ArrayRecord file
+        reader = array_record.ArrayRecordReader(str(test_file))
 
-            # Get basic info using correct API
-            num_records = reader.num_records()
-            print(f"Number of records: {num_records}")
-            assert num_records > 0, "ArrayRecord file is empty"
+        # Get basic info using correct API
+        num_records = reader.num_records()
+        print(f"Number of records: {num_records}")
+        assert num_records > 0, "ArrayRecord file is empty"
 
-            # Read first few records
-            records_to_check = min(5, num_records)
-            for i in range(records_to_check):
-                reader.seek(i)  # Seek to record position
-                record = reader.read()  # Read the record
-                print(f"Record {i} type: {type(record)}, size: {len(record) if hasattr(record, '__len__') else 'no len'}")
+        # Read first few records
+        records_to_check = min(5, num_records)
+        for i in range(records_to_check):
+            reader.seek(i)  # Seek to record position
+            record = reader.read()  # Read the record
+            print(f"Record {i} type: {type(record)}, size: {len(record) if hasattr(record, '__len__') else 'no len'}")
 
-                # Verify record is not None/empty
-                assert record is not None, f"Record {i} is None"
+            # Verify record is not None/empty
+            assert record is not None, f"Record {i} is None"
 
-                # Check if record has data
-                if hasattr(record, '__len__'):
-                    assert len(record) > 0, f"Record {i} is empty"
-                elif hasattr(record, 'tobytes'):
-                    data_bytes = record.tobytes()
-                    assert len(data_bytes) > 0, f"Record {i} has no data bytes"
-                    print(f"Record {i} data bytes: {len(data_bytes)} bytes")
+            # Check if record has data
+            if hasattr(record, '__len__'):
+                assert len(record) > 0, f"Record {i} is empty"
+            elif hasattr(record, 'tobytes'):
+                data_bytes = record.tobytes()
+                assert len(data_bytes) > 0, f"Record {i} has no data bytes"
+                print(f"Record {i} data bytes: {len(data_bytes)} bytes")
 
-                # Print first bit of data for verification
-                if hasattr(record, 'tobytes'):
-                    data_sample = record.tobytes()[:50]  # First 50 bytes
-                    print(f"Record {i} data sample: {data_sample}")
-                elif isinstance(record, (bytes, str)):
-                    print(f"Record {i} content sample: {record[:50]}")
-
-        except Exception as e:
-            print(f"Error reading ArrayRecord file: {e}")
-            pytest.fail(f"Failed to read ArrayRecord file {test_file}: {e}")
+            # Print first bit of data for verification
+            if hasattr(record, 'tobytes'):
+                data_sample = record.tobytes()[:50]  # First 50 bytes
+                print(f"Record {i} data sample: {data_sample}")
+            elif isinstance(record, (bytes, str)):
+                print(f"Record {i} content sample: {record[:50]}")
 
     def test_training_data_has_real_price_values(self):
         """Test that training data contains realistic price values."""
@@ -130,32 +120,25 @@ class TestArrayRecordDataVerification:
         test_file = sorted(tsla_files, key=lambda x: x.stat().st_mtime)[-1]
         print(f"Testing price data in: {test_file}")
 
-        try:
-            reader = array_record.ArrayRecordReader(str(test_file))
+        reader = array_record.ArrayRecordReader(str(test_file))
 
-            if len(reader) == 0:
-                pytest.skip("ArrayRecord file is empty")
+        if len(reader) == 0:
+            pytest.skip("ArrayRecord file is empty")
 
-            # Check first record for realistic price data
-            record = reader[0]
+        # Check first record for realistic price data
+        record = reader[0]
 
-            # Look for price-related fields (exact structure depends on schema)
-            print(f"Sample record structure: {type(record)}")
-            print(f"Sample record: {record}")
+        # Look for price-related fields (exact structure depends on schema)
+        print(f"Sample record structure: {type(record)}")
+        print(f"Sample record: {record}")
 
-            # Basic verification that we have numerical data
-            if hasattr(record, 'tobytes'):
-                data_bytes = record.tobytes()
-                assert len(data_bytes) > 0, "Record contains no data bytes"
-                print(f"Record data length: {len(data_bytes)} bytes")
+        # Basic verification that we have numerical data
+        if hasattr(record, 'tobytes'):
+            data_bytes = record.tobytes()
+            assert len(data_bytes) > 0, "Record contains no data bytes"
+            print(f"Record data length: {len(data_bytes)} bytes")
 
-            print("✅ ArrayRecord contains data structures")
-
-        except Exception as e:
-            print(f"Error analyzing price data: {e}")
-            # Don't fail the test if we can't analyze the exact structure,
-            # just verify the files are readable
-            print("⚠️ Could not analyze exact price structure, but files are readable")
+        print("✅ ArrayRecord contains data structures")
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

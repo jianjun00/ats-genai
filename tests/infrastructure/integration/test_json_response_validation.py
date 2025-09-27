@@ -24,25 +24,16 @@ class TestJSONResponseValidation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Check if analytics service is running."""
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                cls.skipTest(cls, "Analytics service not running")
-        except requests.exceptions.RequestException:
-            cls.skipTest(cls, "Analytics service not accessible")
-
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            cls.skipTest(cls, "Analytics service not running")
     def validate_json_response(self, response):
         """Helper method to validate JSON responses."""
         # Check that response is valid JSON
         self.assertEqual(response.status_code, 200)
 
         # Parse JSON
-        try:
-            data = response.json()
-        except json.JSONDecodeError as e:
-            self.fail(f"Invalid JSON response: {e}")
-
-        # Check for NaN values in the raw response text
+        data = response.json()
         response_text = response.text
         self.assertNotIn('NaN', response_text, "Found NaN in JSON response")
         self.assertNotIn('Infinity', response_text, "Found Infinity in JSON response")
@@ -187,13 +178,8 @@ class TestJSONResponseValidation(unittest.TestCase):
 
         # Even error responses should be valid JSON
         if response.status_code != 404:  # Allow 404s
-            try:
-                data = response.json()
-                self.check_no_nan_values(data, "error_response")
-            except json.JSONDecodeError:
-                pass  # Error responses might not be JSON
-
-        # Test with invalid sequence parameters
+            data = response.json()
+            self.check_no_nan_values(data, "error_response")
         response = requests.get(f"{self.BASE_URL}/api/v1/training-datasets/1/sequences/invalid_sequence/multi-timeframe")
 
         if response.status_code == 200:

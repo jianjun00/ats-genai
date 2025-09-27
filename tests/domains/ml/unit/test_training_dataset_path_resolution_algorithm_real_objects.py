@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
@@ -56,13 +51,7 @@ class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_path_resolution_uses_correct_run_id_real_objects(self, real_service, test_data):
         """Real objects version of test_path_resolution_uses_correct_run_id"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.path_resolution_uses_correct_run_id_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.path_resolution_uses_correct_run_id_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_specific_directory_search_real_objects(self, real_service, test_data):
         """Real objects version of test_run_specific_directory_search"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_specific_directory_search_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_specific_directory_search_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fallback_search_when_run_directory_missing_real_objects(self, real_service, test_data):
         """Real objects version of test_fallback_search_when_run_directory_missing"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fallback_search_when_run_directory_missing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fallback_search_when_run_directory_missing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_symbol_matching_case_insensitive_real_objects(self, real_service, test_data):
         """Real objects version of test_symbol_matching_case_insensitive"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.symbol_matching_case_insensitive_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.symbol_matching_case_insensitive_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multiple_base_paths_search_order_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_base_paths_search_order"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multiple_base_paths_search_order_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multiple_base_paths_search_order_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_path_construction_logic_real_objects(self, real_service, test_data):
         """Real objects version of test_path_construction_logic"""
         # Test with real database integration
@@ -187,15 +146,8 @@ class TestRealObjectsTrainingDatasetPathResolutionAlgorithm:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.path_construction_logic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.path_construction_logic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

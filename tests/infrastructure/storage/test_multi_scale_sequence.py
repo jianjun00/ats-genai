@@ -13,14 +13,14 @@ import torch
 from datetime import datetime, timedelta
 from typing import List, Dict
 
-from src.storage.multi_scale_sequence import (
+from domains.trading.services.core.minute.multi_scale_sequence import (
     ScaleFeatures,
     EventSequence,
     MarketEvent,
     TimeScale,
     create_multi_scale_sequence
 )
-from src.domains.analytics.events.event_integration import EventType
+from domains.analytics.events.event_integration import EventType
 
 class TestScaleFeatures:
     """Test ScaleFeatures data structure."""

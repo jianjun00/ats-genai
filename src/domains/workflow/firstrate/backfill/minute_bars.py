@@ -87,23 +87,19 @@ class FirstRateBackfillProcessor:
     def load_checkpoint(self) -> Dict:
         """Load processing checkpoint from file"""
         if self.checkpoint_file.exists():
-            try:
-                with open(self.checkpoint_file, 'r') as f:
-                    data = json.load(f)
+            with open(self.checkpoint_file, 'r') as f:
+                data = json.load(f)
 
-                    # Convert date strings back to date objects in inventory
-                    if 'symbol_inventory' in data and data['symbol_inventory']:
-                        for symbol, info in data['symbol_inventory'].items():
-                            if 'min_date' in info and isinstance(info['min_date'], str):
-                                info['min_date'] = datetime.fromisoformat(info['min_date']).date()
-                            if 'max_date' in info and isinstance(info['max_date'], str):
-                                info['max_date'] = datetime.fromisoformat(info['max_date']).date()
+                # Convert date strings back to date objects in inventory
+                if 'symbol_inventory' in data and data['symbol_inventory']:
+                    for symbol, info in data['symbol_inventory'].items():
+                        if 'min_date' in info and isinstance(info['min_date'], str):
+                            info['min_date'] = datetime.fromisoformat(info['min_date']).date()
+                        if 'max_date' in info and isinstance(info['max_date'], str):
+                            info['max_date'] = datetime.fromisoformat(info['max_date']).date()
 
-                    logger.info(f"📝 Loaded checkpoint: {len(data.get('completed_months', {}))} symbols processed")
-                    return data
-            except Exception as e:
-                logger.error(f"❌ Failed to load checkpoint: {e}")
-
+                logger.info(f"📝 Loaded checkpoint: {len(data.get('completed_months', {}))} symbols processed")
+                return data
         return {
             'completed_months': {},
             'failed_months': {},
@@ -120,29 +116,25 @@ class FirstRateBackfillProcessor:
     def save_checkpoint(self):
         """Save current processing state"""
         self.checkpoint_data['last_processed'] = datetime.now().isoformat()
-        try:
-            # Create a serializable copy of the data
-            serializable_data = {}
-            for key, value in self.checkpoint_data.items():
-                if key == 'symbol_inventory' and value:
-                    # Convert date objects to strings in inventory
-                    serializable_inventory = {}
-                    for symbol, info in value.items():
-                        serializable_info = info.copy()
-                        if 'min_date' in serializable_info and serializable_info['min_date']:
-                            serializable_info['min_date'] = serializable_info['min_date'].isoformat()
-                        if 'max_date' in serializable_info and serializable_info['max_date']:
-                            serializable_info['max_date'] = serializable_info['max_date'].isoformat()
-                        serializable_inventory[symbol] = serializable_info
-                    serializable_data[key] = serializable_inventory
-                else:
-                    serializable_data[key] = value
+        # Create a serializable copy of the data
+        serializable_data = {}
+        for key, value in self.checkpoint_data.items():
+            if key == 'symbol_inventory' and value:
+                # Convert date objects to strings in inventory
+                serializable_inventory = {}
+                for symbol, info in value.items():
+                    serializable_info = info.copy()
+                    if 'min_date' in serializable_info and serializable_info['min_date']:
+                        serializable_info['min_date'] = serializable_info['min_date'].isoformat()
+                    if 'max_date' in serializable_info and serializable_info['max_date']:
+                        serializable_info['max_date'] = serializable_info['max_date'].isoformat()
+                    serializable_inventory[symbol] = serializable_info
+                serializable_data[key] = serializable_inventory
+            else:
+                serializable_data[key] = value
 
-            with open(self.checkpoint_file, 'w') as f:
-                json.dump(serializable_data, f, indent=2)
-        except Exception as e:
-            logger.error(f"❌ Failed to save checkpoint: {e}")
-
+        with open(self.checkpoint_file, 'w') as f:
+            json.dump(serializable_data, f, indent=2)
     def build_symbol_inventory(self, asset_type: str = 'stock') -> Dict[str, Dict]:
         """Build inventory of all available symbols from zip files"""
         logger.info("Building symbol inventory from zip files...")
@@ -190,26 +182,26 @@ class FirstRateBackfillProcessor:
             month_key in self.checkpoint_data['completed_months'][symbol]):
             return 0  # Already processed
 
-        try:
-            # Get ticks for this month
-            ticks = []
-            month_start = date(year, month, 1)
+        # Get ticks for this month
+        ticks = []
+        month_start = date(year, month, 1)
 
-            # Get next month for end boundary
-            if month == 12:
-                month_end = date(year + 1, 1, 1) - timedelta(days=1)
-            else:
-                month_end = date(year, month + 1, 1) - timedelta(days=1)
+        # Get next month for end boundary
+        if month == 12:
+            month_end = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            month_end = date(year, month + 1, 1) - timedelta(days=1)
 
-            # Extract ticks from adapter
-            zip_file = Path(zip_file_path)
-            tick_generator = self.adapter.process_minute_data_from_zip(
-                zip_file, symbol, month_start, month_end
-            )
+        # Extract ticks from adapter
+        zip_file = Path(zip_file_path)
+        tick_generator = self.adapter.process_minute_data_from_zip(
+            zip_file, symbol, month_start, month_end
+        )
 
-            for tick in tick_generator:
-                ticks.append(tick)
+        for tick in tick_generator:
+            ticks.append(tick)
 
+<<<<<<< Updated upstream:src/domains/workflow/firstrate/backfill/minute_bars.py
             if not ticks:
                 logger.debug(f"   No data for {symbol} {month_key}")
                 return 0
@@ -263,7 +255,44 @@ class FirstRateBackfillProcessor:
             self.checkpoint_data['failed_months'][symbol].append(month_key)
 
             self.checkpoint_data['processing_stats']['errors'] += 1
+=======
+        if not ticks:
+            logger.debug(f"   No data for {symbol} {month_key}")
+>>>>>>> Stashed changes:scripts/populate_firstrate_minute_bars.py
             return 0
+
+        # Store using FileBasedMinuteManager
+        if ticks:
+            from storage.file_based_minute_manager import MinuteBar
+
+            minute_bars = []
+            for tick in ticks:
+                bar = MinuteBar(
+                    symbol=tick.symbol,
+                    timestamp=tick.timestamp,
+                    open=tick.open,
+                    high=tick.high,
+                    low=tick.low,
+                    close=tick.close,
+                    volume=tick.volume,
+                    vendor="firstrate"
+                )
+                minute_bars.append(bar)
+
+            await self.minute_manager.store_minute_data(symbol, minute_bars)
+            records_written = len(minute_bars)
+
+        # Mark month as completed
+        if symbol not in self.checkpoint_data['completed_months']:
+            self.checkpoint_data['completed_months'][symbol] = []
+        self.checkpoint_data['completed_months'][symbol].append(month_key)
+
+        # Update stats
+        self.checkpoint_data['processing_stats']['months_processed'] += 1
+        self.checkpoint_data['processing_stats']['records_written'] += records_written
+
+        logger.info(f"✅ {symbol} {month_key}: {records_written:,} records")
+        return records_written
 
     async def process_symbol(self, symbol: str, symbol_info: Dict) -> int:
         """Process all months for a single symbol"""
@@ -354,19 +383,12 @@ class FirstRateBackfillProcessor:
 
             logger.info(f"🔄 Progress: {i}/{len(symbol_inventory)} symbols")
 
-            try:
-                records = await self.process_symbol(symbol, info)
-                total_records += records
+            records = await self.process_symbol(symbol, info)
+            total_records += records
 
-                # Save checkpoint after each symbol
-                self.save_checkpoint()
+            # Save checkpoint after each symbol
+            self.save_checkpoint()
 
-            except Exception as e:
-                logger.error(f"❌ Failed to process {symbol}: {e}")
-                self.checkpoint_data['processing_stats']['errors'] += 1
-                continue
-
-        # Final statistics
         elapsed_time = time.time() - start_time
         stats = self.checkpoint_data['processing_stats']
 
@@ -428,27 +450,15 @@ def main():
     )
 
     # Run backfill
-    try:
-        result = asyncio.run(processor.run_backfill(
-            asset_type=args.asset_type,
-            symbols=symbols,
-            limit=args.limit,
-            resume=args.resume
-        ))
+    result = asyncio.run(processor.run_backfill(
+        asset_type=args.asset_type,
+        symbols=symbols,
+        limit=args.limit,
+        resume=args.resume
+    ))
 
-        print(f"\n✅ Backfill completed successfully!")
-        print(f"📊 Final stats: {result['processing_stats']}")
-
-    except KeyboardInterrupt:
-        print("\n🛑 Backfill interrupted by user")
-        processor.save_checkpoint()
-        print("💾 Checkpoint saved - use --resume to continue")
-
-    except Exception as e:
-        print(f"\n❌ Backfill failed: {e}")
-        processor.save_checkpoint()
-        raise
-
+    print(f"\n✅ Backfill completed successfully!")
+    print(f"📊 Final stats: {result['processing_stats']}")
 
 if __name__ == "__main__":
     main()

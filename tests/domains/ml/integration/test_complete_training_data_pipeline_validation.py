@@ -51,26 +51,18 @@ class TestCompleteTrainingDataPipeline:
 
         for service_name, endpoint in services:
             if service_name == "analytics":
-                try:
-                    response = requests.get(endpoint, timeout=5)
-                    assert response.status_code == 200, f"Analytics service not healthy: {response.status_code}"
-                except requests.ConnectionError:
-                    pytest.fail(f"Analytics service not accessible at {endpoint}")
-
+                response = requests.get(endpoint, timeout=5)
+                assert response.status_code == 200, f"Analytics service not healthy: {response.status_code}"
             elif service_name == "postgres":
-                try:
-                    # Test database connection
-                    import subprocess
-                    result = subprocess.run([
-                        "PGPASSWORD=dev_password", "psql",
-                        "-h", "localhost", "-p", "3432",
-                        "-U", "postgres", "-d", "dev_db",
-                        "-c", "SELECT 1"
-                    ], capture_output=True, text=True, timeout=10)
-                    assert result.returncode == 0, f"Database not accessible: {result.stderr}"
-                except Exception as e:
-                    pytest.fail(f"Database connection failed: {e}")
-
+                # Test database connection
+                import subprocess
+                result = subprocess.run([
+                    "PGPASSWORD=dev_password", "psql",
+                    "-h", "localhost", "-p", "3432",
+                    "-U", "postgres", "-d", "dev_db",
+                    "-c", "SELECT 1"
+                ], capture_output=True, text=True, timeout=10)
+                assert result.returncode == 0, f"Database not accessible: {result.stderr}"
     def test_training_data_generation_creates_usable_files(self, temp_training_dir):
         """Test that training data generation creates files that can actually be used."""
 
@@ -210,34 +202,27 @@ class TestCompleteTrainingDataPipeline:
         print(f"✅ Visualization API path matching validation passed - {len(set(matching_files))} unique files found")
 
         # Step 3: CRITICAL - Verify files can actually be read by ArrayRecord
-        try:
-            from array_record.python.array_record_module import ArrayRecordReader
+        from array_record.python.array_record_module import ArrayRecordReader
 
-            for file_path in arrayrecord_files[:2]:  # Test first 2 files
-                print(f"Testing ArrayRecord readability: {file_path}")
+        for file_path in arrayrecord_files[:2]:  # Test first 2 files
+            print(f"Testing ArrayRecord readability: {file_path}")
 
-                with ArrayRecordReader(str(file_path)) as reader:
-                    records = list(reader)
-                    assert len(records) > 0, f"ArrayRecord file is empty: {file_path}"
+            with ArrayRecordReader(str(file_path)) as reader:
+                records = list(reader)
+                assert len(records) > 0, f"ArrayRecord file is empty: {file_path}"
 
-                    # Verify first record is valid JSON
-                    first_record = records[0]
-                    assert isinstance(first_record, bytes), "ArrayRecord should return bytes"
+                # Verify first record is valid JSON
+                first_record = records[0]
+                assert isinstance(first_record, bytes), "ArrayRecord should return bytes"
 
-                    record_data = json.loads(first_record.decode())
-                    assert isinstance(record_data, dict), "Record should be valid JSON dict"
+                record_data = json.loads(first_record.decode())
+                assert isinstance(record_data, dict), "Record should be valid JSON dict"
 
-                    # Verify expected structure for visualization
-                    assert "features" in record_data, "Record should have features"
-                    assert "labels" in record_data, "Record should have labels"
+                # Verify expected structure for visualization
+                assert "features" in record_data, "Record should have features"
+                assert "labels" in record_data, "Record should have labels"
 
-                    print(f"✅ ArrayRecord file is readable: {file_path.name} ({len(records)} records)")
-
-        except ImportError:
-            pytest.fail("ArrayRecord package not available - this is required for the pipeline")
-
-        except Exception as e:
-            pytest.fail(f"ArrayRecord files cannot be read: {e}")
+                print(f"✅ ArrayRecord file is readable: {file_path.name} ({len(records)} records)")
 
     def test_training_data_in_database_matches_files(self):
         """Test that database records match actual files on disk."""
@@ -352,84 +337,75 @@ class TestCompleteTrainingDataPipeline:
             context = await browser.new_context()
             page = await context.new_page()
 
-            try:
-                # Navigate to EDA page
-                await page.goto("http://localhost:3000/eda")
-                await page.wait_for_load_state("networkidle")
+            # Navigate to EDA page
+            await page.goto("http://localhost:3000/eda")
+            await page.wait_for_load_state("networkidle")
 
-                # Click Training Datasets tab
-                training_tab = page.get_by_role("button", name="🤖 Training Datasets")
-                await training_tab.click()
-                await page.wait_for_timeout(2000)
+            # Click Training Datasets tab
+            training_tab = page.get_by_role("button", name="🤖 Training Datasets")
+            await training_tab.click()
+            await page.wait_for_timeout(2000)
 
-                # Select first dataset
-                dataset_selector = page.locator("#dataset-selector")
-                dataset_options = await dataset_selector.locator("option").count()
+            # Select first dataset
+            dataset_selector = page.locator("#dataset-selector")
+            dataset_options = await dataset_selector.locator("option").count()
 
-                if dataset_options <= 1:  # Only default "Choose a dataset..." option
-                    pytest.fail("No training datasets available in frontend - dataset loading failed")
+            if dataset_options <= 1:  # Only default "Choose a dataset..." option
+                pytest.fail("No training datasets available in frontend - dataset loading failed")
 
-                await dataset_selector.select_option(index=1)
-                await page.wait_for_timeout(3000)
+            await dataset_selector.select_option(index=1)
+            await page.wait_for_timeout(3000)
 
-                # Select first sequence
-                sequence_selector = page.locator("#sequence-selector")
-                sequence_options = await sequence_selector.locator("option").count()
+            # Select first sequence
+            sequence_selector = page.locator("#sequence-selector")
+            sequence_options = await sequence_selector.locator("option").count()
 
-                # THIS IS THE CRITICAL TEST - sequences should be available
-                assert sequence_options > 1, "No sequences available - this indicates ArrayRecord files not accessible"
+            # THIS IS THE CRITICAL TEST - sequences should be available
+            assert sequence_options > 1, "No sequences available - this indicates ArrayRecord files not accessible"
 
-                await sequence_selector.select_option(index=1)
-                await page.wait_for_timeout(5000)  # Wait for visualization to load
+            await sequence_selector.select_option(index=1)
+            await page.wait_for_timeout(5000)  # Wait for visualization to load
 
-                # CRITICAL: Verify Plotly chart actually loaded with data
-                plotly_selectors = [".plotly", ".js-plotly-plot", ".plotly-graph-div"]
-                plotly_found = False
+            # CRITICAL: Verify Plotly chart actually loaded with data
+            plotly_selectors = [".plotly", ".js-plotly-plot", ".plotly-graph-div"]
+            plotly_found = False
 
-                for selector in plotly_selectors:
-                    element = page.locator(selector)
-                    if await element.count() > 0:
-                        plotly_found = True
-                        print(f"✅ Found Plotly element: {selector}")
-                        break
+            for selector in plotly_selectors:
+                element = page.locator(selector)
+                if await element.count() > 0:
+                    plotly_found = True
+                    print(f"✅ Found Plotly element: {selector}")
+                    break
 
-                assert plotly_found, "No Plotly visualization rendered - data not reaching frontend"
+            assert plotly_found, "No Plotly visualization rendered - data not reaching frontend"
 
-                # Verify sequence data table has actual data
-                table_selectors = ["#sequence-data-table", "table:has(th:contains('Open'))"]
-                table_found = False
+            # Verify sequence data table has actual data
+            table_selectors = ["#sequence-data-table", "table:has(th:contains('Open'))"]
+            table_found = False
 
-                for selector in table_selectors:
-                    try:
-                        table = page.locator(selector)
-                        if await table.count() > 0:
-                            table_text = await table.inner_text()
+            for selector in table_selectors:
+                table = page.locator(selector)
+                if await table.count() > 0:
+                    table_text = await table.inner_text()
 
-                            # CRITICAL: Should not show "No sequence data available"
-                            assert "No sequence data available" not in table_text, \
-                                "Sequence data table shows no data - visualization pipeline failed"
+                    # CRITICAL: Should not show "No sequence data available"
+                    assert "No sequence data available" not in table_text, \
+                        "Sequence data table shows no data - visualization pipeline failed"
 
-                            # Should have actual data rows
-                            rows = table.locator("tr")
-                            row_count = await rows.count()
-                            assert row_count > 1, "Sequence data table has no data rows"
+                    # Should have actual data rows
+                    rows = table.locator("tr")
+                    row_count = await rows.count()
+                    assert row_count > 1, "Sequence data table has no data rows"
 
-                            table_found = True
-                            print(f"✅ Sequence data table has {row_count - 1} data rows")
-                            break
-                    except Exception:
-                        continue
+                    table_found = True
+                    print(f"✅ Sequence data table has {row_count - 1} data rows")
+                    break
+            assert table_found, "No sequence data table found or accessible"
 
-                assert table_found, "No sequence data table found or accessible"
+            print("✅ Complete frontend workflow works - training data pipeline validated")
 
-                print("✅ Complete frontend workflow works - training data pipeline validated")
-
-                # Take screenshot for debugging if needed
-                await page.screenshot(path="/tmp/successful_training_pipeline_test.png", full_page=True)
-
-            finally:
-                await context.close()
-                await browser.close()
+            # Take screenshot for debugging if needed
+            await page.screenshot(path="/tmp/successful_training_pipeline_test.png", full_page=True)
 
     def test_pipeline_performance_and_file_sizes(self):
         """Test that generated files are reasonable size and performance is acceptable."""

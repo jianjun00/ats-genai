@@ -17,7 +17,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TestDataPopulationIssues:
@@ -189,19 +189,12 @@ class TestDataPopulationIssues:
         # Test connection error handling
         async def fetch_with_retry(session, url, max_retries=3):
             for attempt in range(max_retries):
-                try:
-                    async with session.get(url) as response:
-                        if response.status == 200:
-                            return await response.json()
-                        elif response.status == 429:
-                            await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                            continue
-                except aiohttp.ClientError:
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(2 ** attempt)
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    elif response.status == 429:
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
                         continue
-                    else:
-                        return None
             return None
 
         # Mock session with connection errors
@@ -310,23 +303,14 @@ class TestDataPopulationIssues:
         async def connect_with_retry(connection_params, max_retries=3):
             """Robust database connection with retry logic."""
             for attempt in range(max_retries):
-                try:
-                    # Mock connection attempt
-                    if attempt < 2:  # Fail first two attempts
-                        raise asyncpg.exceptions.ConnectionDoesNotExistError("Connection failed")
+                # Mock connection attempt
+                if attempt < 2:  # Fail first two attempts
+                    raise asyncpg.exceptions.ConnectionDoesNotExistError("Connection failed")
 
-                    # Success on third attempt
-                    mock_conn = AsyncMock()
-                    return mock_conn
+                # Success on third attempt
+                mock_conn = AsyncMock()
+                return mock_conn
 
-                except asyncpg.exceptions.ConnectionDoesNotExistError:
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                        continue
-                    else:
-                        raise
-
-        # Test connection retry logic
         conn = await connect_with_retry({"host": "postgres"})
         assert conn is not None
 

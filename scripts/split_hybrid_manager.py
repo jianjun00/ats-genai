@@ -100,15 +100,9 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 # Optional pyarrow import for Parquet support
-try:
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-    PYARROW_AVAILABLE = True
-except ImportError:
-    pa = None
-    pq = None
-    PYARROW_AVAILABLE = False
-
+import pyarrow as pa
+import pyarrow.parquet as pq
+PYARROW_AVAILABLE = True
 from core.config.environment import env
 from .hybrid_storage.config import StorageConfig, DataGap
 

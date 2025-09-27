@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class under:
@@ -55,13 +49,7 @@ class under:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_data_df_initialization_prevents_nameerror_real_objects(self, real_service, test_data):
         """Real objects version of test_data_df_initialization_prevents_nameerror"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_df_initialization_prevents_nameerror_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_df_initialization_prevents_nameerror_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ohlcv_data_preserved_when_signals_empty_real_objects(self, real_service, test_data):
         """Real objects version of test_ohlcv_data_preserved_when_signals_empty"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ohlcv_data_preserved_when_signals_empty_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ohlcv_data_preserved_when_signals_empty_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ohlcv_data_merged_with_signals_when_available_real_objects(self, real_service, test_data):
         """Real objects version of test_ohlcv_data_merged_with_signals_when_available"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ohlcv_data_merged_with_signals_when_available_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ohlcv_data_merged_with_signals_when_available_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_ohlcv_data_handled_gracefully_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_ohlcv_data_handled_gracefully"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_ohlcv_data_handled_gracefully_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_ohlcv_data_handled_gracefully_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_df_copy_prevents_mutation_real_objects(self, real_service, test_data):
         """Real objects version of test_data_df_copy_prevents_mutation"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_df_copy_prevents_mutation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_df_copy_prevents_mutation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fix_maintains_feature_extraction_accuracy_real_objects(self, real_service, test_data):
         """Real objects version of test_fix_maintains_feature_extraction_accuracy"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fix_maintains_feature_extraction_accuracy_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fix_maintains_feature_extraction_accuracy_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_debugging_output_confirms_fix_real_objects(self, real_service, test_data):
         """Real objects version of test_debugging_output_confirms_fix"""
         # Test with real database integration
@@ -208,15 +160,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.debugging_output_confirms_fix_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.debugging_output_confirms_fix_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

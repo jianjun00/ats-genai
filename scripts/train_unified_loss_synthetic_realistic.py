@@ -353,173 +353,108 @@ def train_unified_loss_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"🔧 Device: {device}")
 
-    try:
-        # Generate realistic training data
-        features, targets = generate_realistic_aapl_data(num_samples=10000, seq_len=24)
+    # Generate realistic training data
+    features, targets = generate_realistic_aapl_data(num_samples=10000, seq_len=24)
 
-        # Split data (80/20 train/test)
-        train_size = int(0.8 * len(features))
+    # Split data (80/20 train/test)
+    train_size = int(0.8 * len(features))
 
-        train_features = features[:train_size]
-        test_features = features[train_size:]
+    train_features = features[:train_size]
+    test_features = features[train_size:]
 
-        train_targets = {k: v[:train_size] for k, v in targets.items()}
-        test_targets = {k: v[train_size:] for k, v in targets.items()}
+    train_targets = {k: v[:train_size] for k, v in targets.items()}
+    test_targets = {k: v[train_size:] for k, v in targets.items()}
 
-        logger.info(f"📊 Training set: {len(train_features):,} sequences")
-        logger.info(f"📊 Test set: {len(test_features):,} sequences")
+    logger.info(f"📊 Training set: {len(train_features):,} sequences")
+    logger.info(f"📊 Test set: {len(test_features):,} sequences")
 
-        # Initialize model and loss function
-        model = UnifiedTransformer(
-            seq_len=24,
-            d_model=128,
-            nhead=8,
-            num_layers=4,
-            dropout=0.1
-        ).to(device)
+    # Initialize model and loss function
+    model = UnifiedTransformer(
+        seq_len=24,
+        d_model=128,
+        nhead=8,
+        num_layers=4,
+        dropout=0.1
+    ).to(device)
 
-        loss_function = FinancialAVLoss(
-            num_tasks=5,
-            alpha_cvar=0.05,
-            lambda_drawdown=2.0,
-            gamma_focal=2.0
-        ).to(device)
+    loss_function = FinancialAVLoss(
+        num_tasks=5,
+        alpha_cvar=0.05,
+        lambda_drawdown=2.0,
+        gamma_focal=2.0
+    ).to(device)
 
-        # Count parameters
-        total_params = sum(p.numel() for p in model.parameters())
-        logger.info(f"🏗️ Model parameters: {total_params:,}")
+    # Count parameters
+    total_params = sum(p.numel() for p in model.parameters())
+    logger.info(f"🏗️ Model parameters: {total_params:,}")
 
-        # Optimizer with learning rate scheduling
-        optimizer = torch.optim.AdamW(
-            list(model.parameters()) + list(loss_function.parameters()),
-            lr=0.001,
-            weight_decay=1e-5,
-            betas=(0.9, 0.999)
-        )
+    # Optimizer with learning rate scheduling
+    optimizer = torch.optim.AdamW(
+        list(model.parameters()) + list(loss_function.parameters()),
+        lr=0.001,
+        weight_decay=1e-5,
+        betas=(0.9, 0.999)
+    )
 
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=0.003,
-            epochs=100,
-            steps_per_epoch=len(train_features) // 64 + 1
-        )
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=0.003,
+        epochs=100,
+        steps_per_epoch=len(train_features) // 64 + 1
+    )
 
-        # Training configuration
-        batch_size = 64
-        num_epochs = 100
-        best_loss = float('inf')
-        training_losses = []
-        validation_losses = []
-        patience_counter = 0
-        patience = 15
+    # Training configuration
+    batch_size = 64
+    num_epochs = 100
+    best_loss = float('inf')
+    training_losses = []
+    validation_losses = []
+    patience_counter = 0
+    patience = 15
 
-        logger.info(f"🚀 Starting training for {num_epochs} epochs...")
-        logger.info(f"   Batch size: {batch_size}")
-        logger.info(f"   Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
+    logger.info(f"🚀 Starting training for {num_epochs} epochs...")
+    logger.info(f"   Batch size: {batch_size}")
+    logger.info(f"   Learning rate: {optimizer.param_groups[0]['lr']:.6f}")
 
-        for epoch in range(num_epochs):
-            # Training phase
-            model.train()
-            epoch_losses = []
+    for epoch in range(num_epochs):
+        # Training phase
+        model.train()
+        epoch_losses = []
 
-            # Shuffle training data
-            indices = np.random.permutation(len(train_features))
+        # Shuffle training data
+        indices = np.random.permutation(len(train_features))
 
-            for i in range(0, len(train_features), batch_size):
-                batch_indices = indices[i:i+batch_size]
+        for i in range(0, len(train_features), batch_size):
+            batch_indices = indices[i:i+batch_size]
 
-                # Create batch
-                batch_features = torch.tensor(train_features[batch_indices]).to(device)
-                batch_targets = {
-                    k: torch.tensor(v[batch_indices]).to(device)
-                    for k, v in train_targets.items()
-                }
+            # Create batch
+            batch_features = torch.tensor(train_features[batch_indices]).to(device)
+            batch_targets = {
+                k: torch.tensor(v[batch_indices]).to(device)
+                for k, v in train_targets.items()
+            }
 
-                # Forward pass
-                optimizer.zero_grad()
-                outputs = model(batch_features)
-                loss_components = loss_function(outputs, batch_targets)
+            # Forward pass
+            optimizer.zero_grad()
+            outputs = model(batch_features)
+            loss_components = loss_function(outputs, batch_targets)
 
-                # Backward pass
-                loss_components['total_loss'].backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                torch.nn.utils.clip_grad_norm_(loss_function.parameters(), max_norm=1.0)
+            # Backward pass
+            loss_components['total_loss'].backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(loss_function.parameters(), max_norm=1.0)
 
-                optimizer.step()
-                scheduler.step()
+            optimizer.step()
+            scheduler.step()
 
-                epoch_losses.append(loss_components['total_loss'].item())
+            epoch_losses.append(loss_components['total_loss'].item())
 
-            avg_train_loss = np.mean(epoch_losses)
-            training_losses.append(avg_train_loss)
+        avg_train_loss = np.mean(epoch_losses)
+        training_losses.append(avg_train_loss)
 
-            # Validation phase
-            model.eval()
-            val_losses = []
-
-            with torch.no_grad():
-                for i in range(0, len(test_features), batch_size):
-                    batch_features = torch.tensor(test_features[i:i+batch_size]).to(device)
-                    batch_targets = {
-                        k: torch.tensor(v[i:i+batch_size]).to(device)
-                        for k, v in test_targets.items()
-                    }
-
-                    outputs = model(batch_features)
-                    loss_components = loss_function(outputs, batch_targets)
-                    val_losses.append(loss_components['total_loss'].item())
-
-            avg_val_loss = np.mean(val_losses)
-            validation_losses.append(avg_val_loss)
-
-            # Model checkpointing
-            if avg_val_loss < best_loss:
-                best_loss = avg_val_loss
-                patience_counter = 0
-
-                # Save best model
-                model_path = '/data/models/unified_transformer_best.pth'
-                os.makedirs(os.path.dirname(model_path), exist_ok=True)
-
-                torch.save({
-                    'model_state_dict': model.state_dict(),
-                    'loss_state_dict': loss_function.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'scheduler_state_dict': scheduler.state_dict(),
-                    'epoch': epoch,
-                    'train_loss': avg_train_loss,
-                    'val_loss': avg_val_loss,
-                    'uncertainty_weights': loss_function.log_vars.detach().cpu().numpy()
-                }, model_path)
-
-            else:
-                patience_counter += 1
-
-            # Logging
-            if epoch % 10 == 0:
-                uncertainty_weights = torch.exp(-loss_function.log_vars).detach().cpu().numpy()
-                logger.info(f"Epoch {epoch:3d}: Train={avg_train_loss:.4f}, Val={avg_val_loss:.4f}, "
-                          f"LR={optimizer.param_groups[0]['lr']:.6f}")
-                logger.info(f"          Uncertainties: {uncertainty_weights}")
-
-            # Early stopping
-            if patience_counter >= patience:
-                logger.info(f"Early stopping at epoch {epoch} (patience={patience})")
-                break
-
-        logger.info(f"✅ Training completed. Best validation loss: {best_loss:.4f}")
-
-        # Final evaluation
-        logger.info("📊 Final model evaluation...")
-
-        # Load best model
-        checkpoint = torch.load(model_path, map_location=device)
-        model.load_state_dict(checkpoint['model_state_dict'])
+        # Validation phase
         model.eval()
-
-        # Generate predictions
-        test_predictions = []
-        test_actuals = []
+        val_losses = []
 
         with torch.no_grad():
             for i in range(0, len(test_features), batch_size):
@@ -530,126 +465,183 @@ def train_unified_loss_model():
                 }
 
                 outputs = model(batch_features)
-                test_predictions.append(outputs['price_movement'].cpu().numpy())
-                test_actuals.append(batch_targets['price_movement'].cpu().numpy())
+                loss_components = loss_function(outputs, batch_targets)
+                val_losses.append(loss_components['total_loss'].item())
 
-        # Combine predictions and actuals
-        predictions = np.concatenate(test_predictions, axis=0).flatten()
-        actuals = np.concatenate(test_actuals, axis=0).flatten()
+        avg_val_loss = np.mean(val_losses)
+        validation_losses.append(avg_val_loss)
 
-        # Calculate comprehensive metrics
-        metrics = calculate_financial_metrics(predictions)
+        # Model checkpointing
+        if avg_val_loss < best_loss:
+            best_loss = avg_val_loss
+            patience_counter = 0
 
-        # Additional evaluation metrics
-        directional_accuracy = np.mean(np.sign(predictions) == np.sign(actuals))
-        correlation = np.corrcoef(predictions, actuals)[0, 1] if len(predictions) > 1 else 0.0
-        mse = np.mean((predictions - actuals) ** 2)
-        mae = np.mean(np.abs(predictions - actuals))
+            # Save best model
+            model_path = '/data/models/unified_transformer_best.pth'
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
-        # Print comprehensive results
-        logger.info("\n" + "="*60)
-        logger.info("📈 COMPREHENSIVE EVALUATION RESULTS")
-        logger.info("="*60)
-        logger.info("🏆 PERFORMANCE METRICS:")
-        logger.info(f"   📊 Sharpe Ratio: {metrics['sharpe_ratio']:.3f}")
-        logger.info(f"   📊 Information Ratio: {metrics['information_ratio']:.3f}")
-        logger.info(f"   📉 Maximum Drawdown: {metrics['max_drawdown']:.4f}")
-        logger.info(f"   📈 Total Return: {metrics['total_return']:.4f}")
-        logger.info(f"   📈 Annualized Return: {metrics['annualized_return']:.1%}")
-        logger.info(f"   📊 Volatility: {metrics['volatility']:.1%}")
-        logger.info("")
-        logger.info("🎯 PREDICTION ACCURACY:")
-        logger.info(f"   🎯 Directional Accuracy: {directional_accuracy:.1%}")
-        logger.info(f"   🔗 Correlation: {correlation:.4f}")
-        logger.info(f"   📊 MSE: {mse:.6f}")
-        logger.info(f"   📊 MAE: {mae:.6f}")
-        logger.info("")
-        logger.info("🔬 CROSS-DOMAIN INSIGHTS:")
-        uncertainty_weights = torch.exp(-torch.tensor(checkpoint['uncertainty_weights'])).numpy()
-        logger.info(f"   🚗 Multi-task uncertainties: {uncertainty_weights}")
-        logger.info(f"   💰 CVaR penalty: Active (α={loss_function.alpha_cvar})")
-        logger.info(f"   📉 Drawdown penalty: {loss_function.lambda_drawdown}x weight")
-        logger.info(f"   🔥 Focal loss enhancement: γ={loss_function.gamma_focal}")
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'loss_state_dict': loss_function.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'epoch': epoch,
+                'train_loss': avg_train_loss,
+                'val_loss': avg_val_loss,
+                'uncertainty_weights': loss_function.log_vars.detach().cpu().numpy()
+            }, model_path)
 
-        # Save comprehensive results
-        results = {
-            'model_path': model_path,
-            'training_config': {
-                'seq_len': 24,
-                'd_model': 128,
-                'nhead': 8,
-                'num_layers': 4,
-                'batch_size': batch_size,
-                'num_epochs': epoch + 1,
-                'total_parameters': total_params
-            },
-            'training_history': {
-                'training_losses': training_losses,
-                'validation_losses': validation_losses,
-                'best_epoch': checkpoint['epoch'],
-                'best_train_loss': float(checkpoint['train_loss']),
-                'best_val_loss': float(checkpoint['val_loss'])
-            },
-            'evaluation_metrics': {
-                'sharpe_ratio': metrics['sharpe_ratio'],
-                'information_ratio': metrics['information_ratio'],
-                'max_drawdown': metrics['max_drawdown'],
-                'total_return': metrics['total_return'],
-                'annualized_return': metrics['annualized_return'],
-                'volatility': metrics['volatility'],
-                'directional_accuracy': float(directional_accuracy),
-                'correlation': float(correlation),
-                'mse': float(mse),
-                'mae': float(mae)
-            },
-            'cross_domain_insights': {
-                'uncertainty_weights': uncertainty_weights.tolist(),
-                'cvar_alpha': loss_function.alpha_cvar,
-                'drawdown_lambda': loss_function.lambda_drawdown,
-                'focal_gamma': loss_function.gamma_focal
-            },
-            'data_info': {
-                'train_samples': len(train_features),
-                'test_samples': len(test_features),
-                'features_shape': list(features.shape),
-                'target_regime_distribution': np.bincount(targets['regime_change']).tolist()
-            }
-        }
-
-        # Save results
-        results_path = '/data/models/unified_loss_training_results.json'
-        with open(results_path, 'w') as f:
-            json.dump(results, f, indent=2)
-
-        logger.info(f"💾 Complete results saved to: {results_path}")
-
-        # Production readiness assessment
-        production_ready = (
-            metrics['sharpe_ratio'] > 0.5 and  # Reasonable Sharpe ratio
-            metrics['max_drawdown'] < 0.2 and  # Acceptable drawdown
-            directional_accuracy > 0.52 and    # Better than random
-            correlation > 0.1                  # Some predictive power
-        )
-
-        logger.info(f"\n🚀 Production Readiness: {'✅ READY' if production_ready else '❌ NEEDS IMPROVEMENT'}")
-
-        if production_ready:
-            logger.info("🎉 UNIFIED LOSS MODEL TRAINING SUCCESSFUL!")
-            logger.info("✅ Cross-domain research synthesis validated")
-            logger.info("✅ Autonomous driving insights integrated")
-            logger.info("✅ Financial trading insights integrated")
-            logger.info("✅ Model ready for deployment")
         else:
-            logger.info("⚠️ Model needs further optimization for production use")
+            patience_counter += 1
 
-        return True
+        # Logging
+        if epoch % 10 == 0:
+            uncertainty_weights = torch.exp(-loss_function.log_vars).detach().cpu().numpy()
+            logger.info(f"Epoch {epoch:3d}: Train={avg_train_loss:.4f}, Val={avg_val_loss:.4f}, "
+                      f"LR={optimizer.param_groups[0]['lr']:.6f}")
+            logger.info(f"          Uncertainties: {uncertainty_weights}")
 
-    except Exception as e:
-        logger.error(f"❌ Training failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+        # Early stopping
+        if patience_counter >= patience:
+            logger.info(f"Early stopping at epoch {epoch} (patience={patience})")
+            break
 
+    logger.info(f"✅ Training completed. Best validation loss: {best_loss:.4f}")
+
+    # Final evaluation
+    logger.info("📊 Final model evaluation...")
+
+    # Load best model
+    checkpoint = torch.load(model_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
+
+    # Generate predictions
+    test_predictions = []
+    test_actuals = []
+
+    with torch.no_grad():
+        for i in range(0, len(test_features), batch_size):
+            batch_features = torch.tensor(test_features[i:i+batch_size]).to(device)
+            batch_targets = {
+                k: torch.tensor(v[i:i+batch_size]).to(device)
+                for k, v in test_targets.items()
+            }
+
+            outputs = model(batch_features)
+            test_predictions.append(outputs['price_movement'].cpu().numpy())
+            test_actuals.append(batch_targets['price_movement'].cpu().numpy())
+
+    # Combine predictions and actuals
+    predictions = np.concatenate(test_predictions, axis=0).flatten()
+    actuals = np.concatenate(test_actuals, axis=0).flatten()
+
+    # Calculate comprehensive metrics
+    metrics = calculate_financial_metrics(predictions)
+
+    # Additional evaluation metrics
+    directional_accuracy = np.mean(np.sign(predictions) == np.sign(actuals))
+    correlation = np.corrcoef(predictions, actuals)[0, 1] if len(predictions) > 1 else 0.0
+    mse = np.mean((predictions - actuals) ** 2)
+    mae = np.mean(np.abs(predictions - actuals))
+
+    # Print comprehensive results
+    logger.info("\n" + "="*60)
+    logger.info("📈 COMPREHENSIVE EVALUATION RESULTS")
+    logger.info("="*60)
+    logger.info("🏆 PERFORMANCE METRICS:")
+    logger.info(f"   📊 Sharpe Ratio: {metrics['sharpe_ratio']:.3f}")
+    logger.info(f"   📊 Information Ratio: {metrics['information_ratio']:.3f}")
+    logger.info(f"   📉 Maximum Drawdown: {metrics['max_drawdown']:.4f}")
+    logger.info(f"   📈 Total Return: {metrics['total_return']:.4f}")
+    logger.info(f"   📈 Annualized Return: {metrics['annualized_return']:.1%}")
+    logger.info(f"   📊 Volatility: {metrics['volatility']:.1%}")
+    logger.info("")
+    logger.info("🎯 PREDICTION ACCURACY:")
+    logger.info(f"   🎯 Directional Accuracy: {directional_accuracy:.1%}")
+    logger.info(f"   🔗 Correlation: {correlation:.4f}")
+    logger.info(f"   📊 MSE: {mse:.6f}")
+    logger.info(f"   📊 MAE: {mae:.6f}")
+    logger.info("")
+    logger.info("🔬 CROSS-DOMAIN INSIGHTS:")
+    uncertainty_weights = torch.exp(-torch.tensor(checkpoint['uncertainty_weights'])).numpy()
+    logger.info(f"   🚗 Multi-task uncertainties: {uncertainty_weights}")
+    logger.info(f"   💰 CVaR penalty: Active (α={loss_function.alpha_cvar})")
+    logger.info(f"   📉 Drawdown penalty: {loss_function.lambda_drawdown}x weight")
+    logger.info(f"   🔥 Focal loss enhancement: γ={loss_function.gamma_focal}")
+
+    # Save comprehensive results
+    results = {
+        'model_path': model_path,
+        'training_config': {
+            'seq_len': 24,
+            'd_model': 128,
+            'nhead': 8,
+            'num_layers': 4,
+            'batch_size': batch_size,
+            'num_epochs': epoch + 1,
+            'total_parameters': total_params
+        },
+        'training_history': {
+            'training_losses': training_losses,
+            'validation_losses': validation_losses,
+            'best_epoch': checkpoint['epoch'],
+            'best_train_loss': float(checkpoint['train_loss']),
+            'best_val_loss': float(checkpoint['val_loss'])
+        },
+        'evaluation_metrics': {
+            'sharpe_ratio': metrics['sharpe_ratio'],
+            'information_ratio': metrics['information_ratio'],
+            'max_drawdown': metrics['max_drawdown'],
+            'total_return': metrics['total_return'],
+            'annualized_return': metrics['annualized_return'],
+            'volatility': metrics['volatility'],
+            'directional_accuracy': float(directional_accuracy),
+            'correlation': float(correlation),
+            'mse': float(mse),
+            'mae': float(mae)
+        },
+        'cross_domain_insights': {
+            'uncertainty_weights': uncertainty_weights.tolist(),
+            'cvar_alpha': loss_function.alpha_cvar,
+            'drawdown_lambda': loss_function.lambda_drawdown,
+            'focal_gamma': loss_function.gamma_focal
+        },
+        'data_info': {
+            'train_samples': len(train_features),
+            'test_samples': len(test_features),
+            'features_shape': list(features.shape),
+            'target_regime_distribution': np.bincount(targets['regime_change']).tolist()
+        }
+    }
+
+    # Save results
+    results_path = '/data/models/unified_loss_training_results.json'
+    with open(results_path, 'w') as f:
+        json.dump(results, f, indent=2)
+
+    logger.info(f"💾 Complete results saved to: {results_path}")
+
+    # Production readiness assessment
+    production_ready = (
+        metrics['sharpe_ratio'] > 0.5 and  # Reasonable Sharpe ratio
+        metrics['max_drawdown'] < 0.2 and  # Acceptable drawdown
+        directional_accuracy > 0.52 and    # Better than random
+        correlation > 0.1                  # Some predictive power
+    )
+
+    logger.info(f"\n🚀 Production Readiness: {'✅ READY' if production_ready else '❌ NEEDS IMPROVEMENT'}")
+
+    if production_ready:
+        logger.info("🎉 UNIFIED LOSS MODEL TRAINING SUCCESSFUL!")
+        logger.info("✅ Cross-domain research synthesis validated")
+        logger.info("✅ Autonomous driving insights integrated")
+        logger.info("✅ Financial trading insights integrated")
+        logger.info("✅ Model ready for deployment")
+    else:
+        logger.info("⚠️ Model needs further optimization for production use")
+
+    return True
 
 if __name__ == "__main__":
     success = train_unified_loss_model()

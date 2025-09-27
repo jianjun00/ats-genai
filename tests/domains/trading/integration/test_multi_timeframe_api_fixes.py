@@ -264,29 +264,14 @@ class TestMultiTimeframeAPIFixes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Response should be valid JSON
-        try:
-            data = response.json()
-        except json.JSONDecodeError as e:
-            self.fail(f"Response is not valid JSON: {e}")
-
-        # Should be able to serialize back to JSON
-        try:
-            json_str = json.dumps(data)
-            parsed_back = json.loads(json_str)
-            self.assertEqual(data, parsed_back)
-        except (TypeError, ValueError) as e:
-            self.fail(f"Data cannot be JSON serialized: {e}")
-
-
+        data = response.json()
+        json_str = json.dumps(data)
+        parsed_back = json.loads(json_str)
+        self.assertEqual(data, parsed_back)
 if __name__ == '__main__':
     # Check if analytics service is running
-    try:
-        response = requests.get("http://localhost:3000/health", timeout=5)
-        if response.status_code != 200:
-            print("Analytics service not healthy - skipping integration tests")
-            sys.exit(0)
-    except requests.RequestException:
-        print("Analytics service not running - skipping integration tests")
+    response = requests.get("http://localhost:3000/health", timeout=5)
+    if response.status_code != 200:
+        print("Analytics service not healthy - skipping integration tests")
         sys.exit(0)
-
     unittest.main()

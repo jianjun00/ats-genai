@@ -7,7 +7,7 @@ import json
 from unittest.mock import patch
 import re
 
-from src.domains.analytics.services.analytics_service import UnifiedAnalyticsService as AnalyticsService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService as AnalyticsService
 
 
 class TestSequenceSelectionCriticalFixes:
@@ -16,7 +16,7 @@ class TestSequenceSelectionCriticalFixes:
     @pytest.fixture
     def analytics_service(self):
         """Create analytics service instance for testing"""
-        return AnalyticsService()
+        return UnifiedAnalyticsService()
 
     def test_nan_json_serialization_handling(self, analytics_service):
         """Test NaN values are properly handled in JSON serialization"""
@@ -35,12 +35,8 @@ class TestSequenceSelectionCriticalFixes:
         }
 
         # Test JSON serialization doesn't fail with NaN values
-        try:
-            json_str = json.dumps(mock_data, default=str)
-            assert 'nan' in json_str or 'null' in json_str
-        except (TypeError, ValueError) as e:
-            pytest.fail(f"JSON serialization failed with NaN values: {e}")
-
+        json_str = json.dumps(mock_data, default=str)
+        assert 'nan' in json_str or 'null' in json_str
     def test_javascript_template_literal_syntax(self, analytics_service):
         """Test JavaScript template literal syntax is correct"""
 

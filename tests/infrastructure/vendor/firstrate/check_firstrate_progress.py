@@ -9,7 +9,7 @@ from pathlib import Path
 # Add src to Python path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
+from domains.market_data.services.data_collection.backfill.unified_backfill_orchestrator import FirstRateAdapter
 
 def check_progress():
     """Check what symbols are available vs processed"""

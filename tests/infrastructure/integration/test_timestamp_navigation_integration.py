@@ -30,13 +30,9 @@ class TestTimestampNavigationIntegration:
         print("🔧 Setting up timestamp navigation integration tests...")
 
         # Check if analytics service is running
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                pytest.skip("Analytics service not running - start with: python scripts/run_dev.py start --service analytics")
-        except requests.ConnectionError:
-            pytest.skip("Analytics service not accessible - start with: python scripts/run_dev.py start --service analytics")
-
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            pytest.skip("Analytics service not running - start with: python scripts/run_dev.py start --service analytics")
     def test_1h_navigation_endpoint_integration(self):
         """Test 1-hour navigation endpoint integration."""
         print("🎯 Testing 1-hour navigation endpoint...")

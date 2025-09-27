@@ -12,20 +12,15 @@ class TestVolumeProfileVisualizationStructure(unittest.TestCase):
 
     def test_visualization_imports(self):
         """Test that visualization modules can be imported (structure only)."""
-        try:
-            # Test import of visualization module structure
-            import importlib.util
+        # Test import of visualization module structure
+        import importlib.util
 
-            viz_path = os.path.join(os.path.dirname(__file__), '../../src/visualization/volume_profile_chart.py')
-            spec = importlib.util.spec_from_file_location("volume_profile_chart", viz_path)
+        viz_path = os.path.join(os.path.dirname(__file__), '../../src/visualization/volume_profile_chart.py')
+        spec = importlib.util.spec_from_file_location("volume_profile_chart", viz_path)
 
-            # This will fail if matplotlib is not available, but that's expected
-            # We're testing the code structure, not the actual visualization
-            self.assertTrue(os.path.exists(viz_path), "Visualization module file exists")
-
-        except ImportError:
-            # Expected when matplotlib is not available
-            pass
+        # This will fail if matplotlib is not available, but that's expected
+        # We're testing the code structure, not the actual visualization
+        self.assertTrue(os.path.exists(viz_path), "Visualization module file exists")
 
     def test_visualization_file_structure(self):
         """Test that visualization file has correct structure."""

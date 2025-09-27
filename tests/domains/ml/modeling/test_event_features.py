@@ -16,7 +16,7 @@ from domains.ml.services.event_features import (
     EventSequenceExtractor,
     flatten_event_features_for_model
 )
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 @pytest.fixture
 def mock_connection_pool():

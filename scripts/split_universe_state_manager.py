@@ -77,15 +77,9 @@ from typing import Optional, List, Dict, Any
 import logging
 
 # Optional pyarrow import for Parquet support
-try:
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-    PYARROW_AVAILABLE = True
-except ImportError:
-    pa = None
-    pq = None
-    PYARROW_AVAILABLE = False
-
+import pyarrow as pa
+import pyarrow.parquet as pq
+PYARROW_AVAILABLE = True
 logger = logging.getLogger(__name__)
 
 class StorageManager:
@@ -255,25 +249,20 @@ class UniverseStateManager:
 
         logger.info(f"💾 Saving universe state for timestamp {timestamp}")
 
-        try:
-            # Save using storage manager
-            filepath = self.storage_manager.save_parquet(universe_data, timestamp, partition_cols)
+        # Save using storage manager
+        filepath = self.storage_manager.save_parquet(universe_data, timestamp, partition_cols)
 
-            # Save metadata if enabled
-            if self.write_metadata:
-                state_metadata = self.metadata_manager.create_metadata(
-                    universe_data,
-                    timestamp,
-                    metadata.get('data_sources', []) if metadata else []
-                )
-                self.metadata_manager.save_metadata(state_metadata, filepath)
+        # Save metadata if enabled
+        if self.write_metadata:
+            state_metadata = self.metadata_manager.create_metadata(
+                universe_data,
+                timestamp,
+                metadata.get('data_sources', []) if metadata else []
+            )
+            self.metadata_manager.save_metadata(state_metadata, filepath)
 
-            logger.info(f"✅ Successfully saved universe state: {len(universe_data)} records")
-            return str(filepath)
-
-        except Exception as e:
-            logger.error(f"❌ Failed to save universe state: {e}")
-            raise
+        logger.info(f"✅ Successfully saved universe state: {len(universe_data)} records")
+        return str(filepath)
 
     def load_universe_state(self, timestamp: Optional[str] = None,
                            filters: Optional[List] = None,
@@ -288,16 +277,11 @@ class UniverseStateManager:
             logger.warning("⚠️ No universe state data available")
             return pd.DataFrame()
 
-        try:
-            # Load using storage manager
-            df = self.storage_manager.load_parquet(timestamp, columns, filters)
+        # Load using storage manager
+        df = self.storage_manager.load_parquet(timestamp, columns, filters)
 
-            logger.info(f"📊 Loaded universe state: {len(df)} records for {timestamp}")
-            return df
-
-        except Exception as e:
-            logger.error(f"❌ Failed to load universe state: {e}")
-            return pd.DataFrame()
+        logger.info(f"📊 Loaded universe state: {len(df)} records for {timestamp}")
+        return df
 
     def get_latest_timestamp(self) -> Optional[str]:
         """Get the most recent timestamp."""

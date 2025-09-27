@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsUnifiedDailyPriceValidator:
@@ -55,13 +49,7 @@ class TestRealObjectsUnifiedDailyPriceValidator:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_vendor_price_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_price_creation"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_price_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_price_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validation_result_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_validation_result_creation"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validation_result_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validation_result_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_statistical_validation_normal_price_real_objects(self, real_service, test_data):
         """Real objects version of test_statistical_validation_normal_price"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.statistical_validation_normal_price_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.statistical_validation_normal_price_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_statistical_validation_outlier_real_objects(self, real_service, test_data):
         """Real objects version of test_statistical_validation_outlier"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.statistical_validation_outlier_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.statistical_validation_outlier_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_statistical_validation_manual_review_real_objects(self, real_service, test_data):
         """Real objects version of test_statistical_validation_manual_review"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.statistical_validation_manual_review_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.statistical_validation_manual_review_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_reconciliation_single_vendor_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_reconciliation_single_vendor"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_reconciliation_single_vendor_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_reconciliation_single_vendor_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_reconciliation_consensus_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_reconciliation_consensus"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_reconciliation_consensus_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_reconciliation_consensus_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_reconciliation_disagreement_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_reconciliation_disagreement"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_reconciliation_disagreement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_reconciliation_disagreement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_reconciliation_no_data_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_reconciliation_no_data"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_reconciliation_no_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_reconciliation_no_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_run_record_real_objects(self, real_service, test_data):
         """Real objects version of test_create_run_record"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_run_record_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_run_record_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_update_run_record_real_objects(self, real_service, test_data):
         """Real objects version of test_update_run_record"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.update_run_record_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.update_run_record_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_symbols_to_process_explicit_real_objects(self, real_service, test_data):
         """Real objects version of test_get_symbols_to_process_explicit"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_symbols_to_process_explicit_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_symbols_to_process_explicit_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_symbols_to_process_from_universe_real_objects(self, real_service, test_data):
         """Real objects version of test_get_symbols_to_process_from_universe"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_symbols_to_process_from_universe_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_symbols_to_process_from_universe_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_store_unified_price_real_objects(self, real_service, test_data):
         """Real objects version of test_store_unified_price"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.store_unified_price_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.store_unified_price_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_to_end_validation_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_end_to_end_validation_scenario"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_to_end_validation_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.end_to_end_validation_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_holiday_detection_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_holiday_detection_scenario"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.holiday_detection_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.holiday_detection_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_corporate_action_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_corporate_action_scenario"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.corporate_action_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.corporate_action_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extreme_price_values_real_objects(self, real_service, test_data):
         """Real objects version of test_extreme_price_values"""
         # Test with real database integration
@@ -450,14 +336,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extreme_price_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extreme_price_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_historical_data_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_historical_data"""
         # Test with real database integration
@@ -472,14 +352,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_historical_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_historical_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_type_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_data_type_validation"""
         # Test with real database integration
@@ -494,14 +368,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_type_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_type_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_large_batch_processing_real_objects(self, real_service, test_data):
         """Real objects version of test_large_batch_processing"""
         # Test with real database integration
@@ -516,15 +384,8 @@ class TestRealObjectsUnifiedDailyPriceValidator:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.large_batch_processing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.large_batch_processing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

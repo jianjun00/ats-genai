@@ -10,12 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
 # from infrastructure.vendor.tiingo.client import TiingoClient
 # from infrastructure.vendor.tiingo.dao import TiingoDAO
@@ -56,13 +51,7 @@ class TestRealObjectsTiingoEndDateInterpretation:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_parse_date_function_real_objects(self, real_service, test_data):
         """Real objects version of test_parse_date_function"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.parse_date_function_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.parse_date_function_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_date_interpretation_logic_real_objects(self, real_service, test_data):
         """Real objects version of test_end_date_interpretation_logic"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_date_interpretation_logic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.end_date_interpretation_logic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tiingo_instrument_population_active_stock_real_objects(self, real_service, test_data):
         """Real objects version of test_tiingo_instrument_population_active_stock"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tiingo_instrument_population_active_stock_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.tiingo_instrument_population_active_stock_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tiingo_instrument_population_truly_delisted_real_objects(self, real_service, test_data):
         """Real objects version of test_tiingo_instrument_population_truly_delisted"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tiingo_instrument_population_truly_delisted_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.tiingo_instrument_population_truly_delisted_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_major_stocks_are_active_real_objects(self, real_service, test_data):
         """Real objects version of test_major_stocks_are_active"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.major_stocks_are_active_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.major_stocks_are_active_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_active_percentage_is_reasonable_real_objects(self, real_service, test_data):
         """Real objects version of test_active_percentage_is_reasonable"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.active_percentage_is_reasonable_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.active_percentage_is_reasonable_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fix_script_exists_and_runnable_real_objects(self, real_service, test_data):
         """Real objects version of test_fix_script_exists_and_runnable"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fix_script_exists_and_runnable_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fix_script_exists_and_runnable_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_batch_fix_logic_real_objects(self, real_service, test_data):
         """Real objects version of test_batch_fix_logic"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.batch_fix_logic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.batch_fix_logic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tiingo_api_response_parsing_real_objects(self, real_service, test_data):
         """Real objects version of test_tiingo_api_response_parsing"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tiingo_api_response_parsing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.tiingo_api_response_parsing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_full_population_and_fix_workflow_real_objects(self, real_service, test_data):
         """Real objects version of test_full_population_and_fix_workflow"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.full_population_and_fix_workflow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.full_population_and_fix_workflow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_prevent_future_regression_real_objects(self, real_service, test_data):
         """Real objects version of test_prevent_future_regression"""
         # Test with real database integration
@@ -297,15 +226,8 @@ class TestRealObjectsTiingoEndDateInterpretation:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.prevent_future_regression_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.prevent_future_regression_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

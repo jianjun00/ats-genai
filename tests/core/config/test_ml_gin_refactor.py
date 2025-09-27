@@ -140,41 +140,8 @@ if __name__ == "__main__":
     print("🧪 Testing ML and Neural Network Files Gin Configuration Refactoring")
     print("=" * 75)
 
-    try:
-        test_agent_networks_config()
-        test_cross_scale_attention_config()
-        test_ml_hardcoded_values_gin_updated()
-        test_ml_configuration_completeness()
-        test_gin_import_and_decorator()
-
-        print("\n🎉 All ML and neural network gin configuration tests passed!")
-        print("✅ Hardcoded values successfully moved to gin configuration!")
-
-        print("\n📋 ML Refactoring Summary:")
-        print("  • 2 major neural network modules refactored")
-        print("  • 26+ ML hyperparameters moved to gin configuration")
-        print("  • All critical neural architecture parameters are configurable")
-        print("  • Complete ML training and model architecture flexibility")
-        print("  • Comprehensive gin configuration file updated")
-        print("  • Backward compatibility maintained through default values")
-
-        print("\n🧠 Refactored ML Modules:")
-        print("  • Agent Networks (17 parameters)")
-        print("    - AgentConfig: Architecture, learning rates, behavior settings")
-        print("    - NetworkConfig: Multi-agent topology and communication")
-        print("  • Cross-Scale Attention (9 parameters)")
-        print("    - AttentionConfig: Model dimensions, attention heads, positional encoding")
-
-        print("\n🔬 ML Configuration Impact:")
-        print("  • Neural network hyperparameter tuning via configuration")
-        print("  • Multi-agent system behavior configuration")
-        print("  • Attention mechanism architectural flexibility")
-        print("  • Environment-specific ML model optimization")
-
-        print("\n🚀 ML and neural network refactoring is complete and validated!")
-
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    test_agent_networks_config()
+    test_cross_scale_attention_config()
+    test_ml_hardcoded_values_gin_updated()
+    test_ml_configuration_completeness()
+    test_gin_import_and_decorator()

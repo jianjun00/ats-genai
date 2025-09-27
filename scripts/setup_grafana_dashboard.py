@@ -53,12 +53,8 @@ class GrafanaDashboardSetup:
 
     def _check_grafana_running(self):
         """Check if Grafana is already running"""
-        try:
-            response = requests.get(f"{self.grafana_url}/api/health", timeout=5)
-            return response.status_code == 200
-        except:
-            return False
-
+        response = requests.get(f"{self.grafana_url}/api/health", timeout=5)
+        return response.status_code == 200
     def _start_grafana_container(self):
         """Start Grafana container"""
         cmd = [
@@ -71,27 +67,20 @@ class GrafanaDashboardSetup:
             "grafana/grafana:latest"
         ]
 
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode == 0:
-                print("✅ Grafana container started")
-            else:
-                print(f"⚠️ Grafana container might already exist: {result.stderr}")
-                # Try to start existing container
-                subprocess.run(["docker", "start", "ats-grafana"], capture_output=True)
-        except Exception as e:
-            print(f"❌ Failed to start Grafana: {e}")
-
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ Grafana container started")
+        else:
+            print(f"⚠️ Grafana container might already exist: {result.stderr}")
+            # Try to start existing container
+            subprocess.run(["docker", "start", "ats-grafana"], capture_output=True)
     def _wait_for_grafana(self, max_attempts=30):
         """Wait for Grafana to be ready"""
         for i in range(max_attempts):
-            try:
-                response = requests.get(f"{self.grafana_url}/api/health", timeout=2)
-                if response.status_code == 200:
-                    print("✅ Grafana is ready")
-                    return True
-            except:
-                pass
+            response = requests.get(f"{self.grafana_url}/api/health", timeout=2)
+            if response.status_code == 200:
+                print("✅ Grafana is ready")
+                return True
             time.sleep(2)
             print(f"⏳ Waiting for Grafana... ({i+1}/{max_attempts})")
         return False
@@ -113,66 +102,56 @@ class GrafanaDashboardSetup:
             }
         }
 
-        try:
-            response = requests.post(
-                f"{self.grafana_url}/api/datasources",
-                auth=(self.grafana_user, self.grafana_pass),
-                headers={"Content-Type": "application/json"},
-                json=datasource_config
-            )
+        response = requests.post(
+            f"{self.grafana_url}/api/datasources",
+            auth=(self.grafana_user, self.grafana_pass),
+            headers={"Content-Type": "application/json"},
+            json=datasource_config
+        )
 
-            if response.status_code in [200, 409]:  # 409 = already exists
-                print("✅ Prometheus datasource configured")
-                return True
-            else:
-                print(f"❌ Datasource configuration failed: {response.status_code} {response.text}")
-                return False
-
-        except Exception as e:
-            print(f"❌ Error configuring datasource: {e}")
+        if response.status_code in [200, 409]:  # 409 = already exists
+            print("✅ Prometheus datasource configured")
+            return True
+        else:
+            print(f"❌ Datasource configuration failed: {response.status_code} {response.text}")
             return False
 
     def _import_dashboard(self):
         """Import the ATS Daily Prices Quality dashboard"""
         dashboard_file = "/home/jianjun/ats-genai-model/config/dashboards/ats-daily-prices-quality-grafana.json"
 
-        try:
-            # Load dashboard JSON
-            with open(dashboard_file, 'r') as f:
-                dashboard_json = json.load(f)
+        # Load dashboard JSON
+        with open(dashboard_file, 'r') as f:
+            dashboard_json = json.load(f)
 
-            # Prepare import payload
-            import_payload = {
-                "dashboard": dashboard_json["dashboard"],
-                "overwrite": True,
-                "inputs": [
-                    {
-                        "name": "DS_PROMETHEUS",
-                        "type": "datasource",
-                        "pluginId": "prometheus",
-                        "value": "Prometheus-Pushgateway"
-                    }
-                ]
-            }
+        # Prepare import payload
+        import_payload = {
+            "dashboard": dashboard_json["dashboard"],
+            "overwrite": True,
+            "inputs": [
+                {
+                    "name": "DS_PROMETHEUS",
+                    "type": "datasource",
+                    "pluginId": "prometheus",
+                    "value": "Prometheus-Pushgateway"
+                }
+            ]
+        }
 
-            response = requests.post(
-                f"{self.grafana_url}/api/dashboards/import",
-                auth=(self.grafana_user, self.grafana_pass),
-                headers={"Content-Type": "application/json"},
-                json=import_payload
-            )
+        response = requests.post(
+            f"{self.grafana_url}/api/dashboards/import",
+            auth=(self.grafana_user, self.grafana_pass),
+            headers={"Content-Type": "application/json"},
+            json=import_payload
+        )
 
-            if response.status_code == 200:
-                result = response.json()
-                dashboard_uid = result.get('uid', result.get('slug', 'unknown'))
-                print(f"✅ Dashboard imported with UID: {dashboard_uid}")
-                return dashboard_uid
-            else:
-                print(f"❌ Dashboard import failed: {response.status_code} {response.text}")
-                return None
-
-        except Exception as e:
-            print(f"❌ Error importing dashboard: {e}")
+        if response.status_code == 200:
+            result = response.json()
+            dashboard_uid = result.get('uid', result.get('slug', 'unknown'))
+            print(f"✅ Dashboard imported with UID: {dashboard_uid}")
+            return dashboard_uid
+        else:
+            print(f"❌ Dashboard import failed: {response.status_code} {response.text}")
             return None
 
     def verify_dashboard_working(self):
@@ -180,33 +159,28 @@ class GrafanaDashboardSetup:
         print("🔍 Verifying dashboard functionality...")
 
         # Check if metrics are available
-        try:
-            response = requests.get(f"{self.pushgateway_url}/metrics")
-            metrics_text = response.text
+        response = requests.get(f"{self.pushgateway_url}/metrics")
+        metrics_text = response.text
 
-            # Check for our specific metrics
-            required_metrics = [
-                "ats_daily_price_polygon_coverage_percent",
-                "ats_daily_price_polygon_missing_symbols_total"
-            ]
+        # Check for our specific metrics
+        required_metrics = [
+            "ats_daily_price_polygon_coverage_percent",
+            "ats_daily_price_polygon_missing_symbols_total"
+        ]
 
-            found_metrics = []
-            for metric in required_metrics:
-                if metric in metrics_text:
-                    found_metrics.append(metric)
-                    print(f"✅ Found metric: {metric}")
-                else:
-                    print(f"❌ Missing metric: {metric}")
-
-            if len(found_metrics) == len(required_metrics):
-                print("✅ All required metrics are available")
-                return True
+        found_metrics = []
+        for metric in required_metrics:
+            if metric in metrics_text:
+                found_metrics.append(metric)
+                print(f"✅ Found metric: {metric}")
             else:
-                print(f"⚠️ Only {len(found_metrics)}/{len(required_metrics)} metrics found")
-                return False
+                print(f"❌ Missing metric: {metric}")
 
-        except Exception as e:
-            print(f"❌ Error verifying metrics: {e}")
+        if len(found_metrics) == len(required_metrics):
+            print("✅ All required metrics are available")
+            return True
+        else:
+            print(f"⚠️ Only {len(found_metrics)}/{len(required_metrics)} metrics found")
             return False
 
 def main():

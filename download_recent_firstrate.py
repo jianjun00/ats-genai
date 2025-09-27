@@ -31,16 +31,11 @@ async def download_recent_data():
         download_date = date.today() - timedelta(days=days_ago)
         print(f"📥 Attempting download for {download_date}")
         
-        try:
-            results = await downloader.download_daily_data(jobs, download_date)
-            if results.get("stock", False):
-                print(f"✅ Downloaded data for {download_date}")
-            else:
-                print(f"❌ No data for {download_date}")
-        except Exception as e:
-            print(f"⚠️ Error downloading {download_date}: {e}")
-    
-    # Check what files we now have
+        results = await downloader.download_daily_data(jobs, download_date)
+        if results.get("stock", False):
+            print(f"✅ Downloaded data for {download_date}")
+        else:
+            print(f"❌ No data for {download_date}")
     data_path = Path("/mnt/d/ats-data/firstrate-data/daily/stock")
     if data_path.exists():
         recent_files = sorted([f for f in data_path.glob("*.zip") if f.stat().st_mtime > datetime.now().timestamp() - 7*24*3600])

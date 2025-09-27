@@ -13,26 +13,22 @@ def main():
     # Check checkpoint file
     checkpoint_file = Path("/data/firstrate_delisted_backfill_checkpoint.json")
     if checkpoint_file.exists():
-        try:
-            with open(checkpoint_file, 'r') as f:
-                checkpoint = json.load(f)
+        with open(checkpoint_file, 'r') as f:
+            checkpoint = json.load(f)
 
-            stats = checkpoint.get('stats', {})
+        stats = checkpoint.get('stats', {})
 
-            print(f"\n📝 Checkpoint Status:")
-            print(f"   Archives processed: {len(stats.get('processed_archives', []))}/5")
-            print(f"   Symbols processed: {stats.get('symbols_processed', 0):,}")
-            print(f"   Symbols with data: {stats.get('symbols_with_data', 0):,}")
-            print(f"   Total records: {stats.get('total_records', 0):,}")
-            print(f"   Processing errors: {stats.get('errors', 0)}")
-            print(f"   Last updated: {checkpoint.get('last_updated', 'Unknown')}")
+        print(f"\n📝 Checkpoint Status:")
+        print(f"   Archives processed: {len(stats.get('processed_archives', []))}/5")
+        print(f"   Symbols processed: {stats.get('symbols_processed', 0):,}")
+        print(f"   Symbols with data: {stats.get('symbols_with_data', 0):,}")
+        print(f"   Total records: {stats.get('total_records', 0):,}")
+        print(f"   Processing errors: {stats.get('errors', 0)}")
+        print(f"   Last updated: {checkpoint.get('last_updated', 'Unknown')}")
 
-            if stats.get('processed_archives'):
-                print(f"   Completed archives: {', '.join(stats['processed_archives'])}")
+        if stats.get('processed_archives'):
+            print(f"   Completed archives: {', '.join(stats['processed_archives'])}")
 
-        except Exception as e:
-            print(f"❌ Error reading checkpoint: {e}")
-    else:
         print("⚠️  No checkpoint file found yet")
 
     # Check output directory structure

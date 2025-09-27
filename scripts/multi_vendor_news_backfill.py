@@ -154,41 +154,36 @@ class NewsVendorCollector:
 
     async def store_article(self, article: NewsArticle) -> Tuple[bool, str]:
         """Store article in database."""
-        try:
-            # Check if article already exists
-            existing = await self.db_conn.fetchrow(
-                "SELECT id FROM intg_realtime_news WHERE article_id = $1",
-                article.article_id
-            )
+        # Check if article already exists
+        existing = await self.db_conn.fetchrow(
+            "SELECT id FROM intg_realtime_news WHERE article_id = $1",
+            article.article_id
+        )
 
-            if existing:
-                # Update existing article
-                await self.db_conn.execute("""
-                    UPDATE intg_realtime_news
-                    SET title = $2, summary = $3, content = $4, author = $5,
-                        article_url = $6, image_url = $7, tickers = $8,
-                        sentiment_score = $9, keywords = $10, category = $11,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE article_id = $1
-                """, article.article_id, article.title, article.summary, article.content,
-                    article.author, article.article_url, article.image_url, article.tickers,
-                    article.sentiment_score, article.keywords, article.category)
-                return True, "updated"
-            else:
-                # Insert new article
-                await self.db_conn.execute("""
-                    INSERT INTO intg_realtime_news
-                    (article_id, title, summary, content, published_utc, author, article_url,
-                     image_url, vendor, tickers, sentiment_score, keywords, category, created_at, updated_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """, article.article_id, article.title, article.summary, article.content,
-                    article.published_utc, article.author, article.article_url, article.image_url,
-                    article.vendor, article.tickers, article.sentiment_score, article.keywords, article.category)
-                return True, "inserted"
-
-        except Exception as e:
-            logger.warning(f"Error storing article {article.article_id}: {e}")
-            return False, f"error: {e}"
+        if existing:
+            # Update existing article
+            await self.db_conn.execute("""
+                UPDATE intg_realtime_news
+                SET title = $2, summary = $3, content = $4, author = $5,
+                    article_url = $6, image_url = $7, tickers = $8,
+                    sentiment_score = $9, keywords = $10, category = $11,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE article_id = $1
+            """, article.article_id, article.title, article.summary, article.content,
+                article.author, article.article_url, article.image_url, article.tickers,
+                article.sentiment_score, article.keywords, article.category)
+            return True, "updated"
+        else:
+            # Insert new article
+            await self.db_conn.execute("""
+                INSERT INTO intg_realtime_news
+                (article_id, title, summary, content, published_utc, author, article_url,
+                 image_url, vendor, tickers, sentiment_score, keywords, category, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, article.article_id, article.title, article.summary, article.content,
+                article.published_utc, article.author, article.article_url, article.image_url,
+                article.vendor, article.tickers, article.sentiment_score, article.keywords, article.category)
+            return True, "inserted"
 
 class TiingoNewsCollector(NewsVendorCollector):
     """Tiingo news collector."""
@@ -210,42 +205,32 @@ class TiingoNewsCollector(NewsVendorCollector):
         if symbols:
             params['tickers'] = ','.join(symbols)
 
-        try:
-            async with self.session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
+        async with self.session.get(url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
 
-                    for item in data:
-                        try:
-                            published_utc = datetime.fromisoformat(item['publishedDate'].replace('Z', '+00:00'))
+                for item in data:
+                    published_utc = datetime.fromisoformat(item['publishedDate'].replace('Z', '+00:00'))
 
-                            article = NewsArticle(
-                                article_id=self.generate_article_id('tiingo', item['title'], published_utc),
-                                title=item['title'],
-                                summary=item.get('description', '')[:1000],  # Limit length
-                                content=item.get('description', ''),
-                                published_utc=published_utc,
-                                author=item.get('source', 'Tiingo'),
-                                article_url=item.get('url', ''),
-                                image_url=None,
-                                vendor='tiingo',
-                                tickers=item.get('tickers', []),
-                                sentiment_score=self.calculate_sentiment(item['title'], item.get('description', '')),
-                                keywords=self.extract_keywords(item['title'] + ' ' + item.get('description', '')),
-                                category='financial'
-                            )
+                    article = NewsArticle(
+                        article_id=self.generate_article_id('tiingo', item['title'], published_utc),
+                        title=item['title'],
+                        summary=item.get('description', '')[:1000],  # Limit length
+                        content=item.get('description', ''),
+                        published_utc=published_utc,
+                        author=item.get('source', 'Tiingo'),
+                        article_url=item.get('url', ''),
+                        image_url=None,
+                        vendor='tiingo',
+                        tickers=item.get('tickers', []),
+                        sentiment_score=self.calculate_sentiment(item['title'], item.get('description', '')),
+                        keywords=self.extract_keywords(item['title'] + ' ' + item.get('description', '')),
+                        category='financial'
+                    )
 
-                            articles.append(article)
+                    articles.append(article)
 
-                        except Exception as e:
-                            logger.warning(f"Error parsing Tiingo article: {e}")
-                            continue
-
-                else:
-                    logger.error(f"Tiingo API error: {response.status}")
-
-        except Exception as e:
-            logger.error(f"Tiingo API request failed: {e}")
+                logger.error(f"Tiingo API error: {response.status}")
 
         return articles
 
@@ -283,42 +268,33 @@ class PolygonNewsCollector(NewsVendorCollector):
         if symbols:
             params['ticker'] = ','.join(symbols)
 
-        try:
-            async with self.session.get(base_url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
+        async with self.session.get(base_url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
 
-                    if data.get('status') == 'OK' and data.get('results'):
-                        for item in data['results']:
-                            try:
-                                published_utc = datetime.fromisoformat(item['published_utc'].replace('Z', '+00:00'))
+                if data.get('status') == 'OK' and data.get('results'):
+                    for item in data['results']:
+                        published_utc = datetime.fromisoformat(item['published_utc'].replace('Z', '+00:00'))
 
-                                article = NewsArticle(
-                                    article_id=self.generate_article_id('polygon', item['title'], published_utc),
-                                    title=item['title'],
-                                    summary=item.get('description', '')[:1000],
-                                    content=item.get('description', ''),
-                                    published_utc=published_utc,
-                                    author=item.get('author', item.get('publisher', {}).get('name', 'Polygon')),
-                                    article_url=item.get('article_url', ''),
-                                    image_url=item.get('image_url'),
-                                    vendor='polygon',
-                                    tickers=item.get('tickers', []),
-                                    sentiment_score=self.calculate_sentiment(item['title'], item.get('description', '')),
-                                    keywords=self.extract_keywords(item['title'] + ' ' + item.get('description', '')),
-                                    category=item.get('keywords', [{}])[0].get('keyword') if item.get('keywords') else 'market'
-                                )
+                        article = NewsArticle(
+                            article_id=self.generate_article_id('polygon', item['title'], published_utc),
+                            title=item['title'],
+                            summary=item.get('description', '')[:1000],
+                            content=item.get('description', ''),
+                            published_utc=published_utc,
+                            author=item.get('author', item.get('publisher', {}).get('name', 'Polygon')),
+                            article_url=item.get('article_url', ''),
+                            image_url=item.get('image_url'),
+                            vendor='polygon',
+                            tickers=item.get('tickers', []),
+                            sentiment_score=self.calculate_sentiment(item['title'], item.get('description', '')),
+                            keywords=self.extract_keywords(item['title'] + ' ' + item.get('description', '')),
+                            category=item.get('keywords', [{}])[0].get('keyword') if item.get('keywords') else 'market'
+                        )
 
-                                articles.append(article)
+                        articles.append(article)
 
-                            except Exception as e:
-                                logger.warning(f"Error parsing Polygon article: {e}")
-                                continue
-                else:
-                    logger.error(f"Polygon API error: {response.status}")
-
-        except Exception as e:
-            logger.error(f"Polygon API request failed: {e}")
+                logger.error(f"Polygon API error: {response.status}")
 
         return articles
 
@@ -355,42 +331,33 @@ class EODHDNewsCollector(NewsVendorCollector):
         if symbols:
             params['s'] = ','.join([f"{s}.US" for s in symbols])  # EODHD uses .US format
 
-        try:
-            async with self.session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
+        async with self.session.get(url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
 
-                    if isinstance(data, list):
-                        for item in data:
-                            try:
-                                published_utc = datetime.fromtimestamp(item['date'], tz=timezone.utc)
+                if isinstance(data, list):
+                    for item in data:
+                        published_utc = datetime.fromtimestamp(item['date'], tz=timezone.utc)
 
-                                article = NewsArticle(
-                                    article_id=self.generate_article_id('eodhd', item['title'], published_utc),
-                                    title=item['title'],
-                                    summary=item.get('content', '')[:1000],
-                                    content=item.get('content', ''),
-                                    published_utc=published_utc,
-                                    author=item.get('author', 'EODHD'),
-                                    article_url=item.get('link', ''),
-                                    image_url=None,
-                                    vendor='eodhd',
-                                    tickers=self.extract_tickers(item.get('title', '') + ' ' + item.get('content', '')),
-                                    sentiment_score=self.calculate_sentiment(item['title'], item.get('content', '')),
-                                    keywords=self.extract_keywords(item['title'] + ' ' + item.get('content', '')),
-                                    category='economic'
-                                )
+                        article = NewsArticle(
+                            article_id=self.generate_article_id('eodhd', item['title'], published_utc),
+                            title=item['title'],
+                            summary=item.get('content', '')[:1000],
+                            content=item.get('content', ''),
+                            published_utc=published_utc,
+                            author=item.get('author', 'EODHD'),
+                            article_url=item.get('link', ''),
+                            image_url=None,
+                            vendor='eodhd',
+                            tickers=self.extract_tickers(item.get('title', '') + ' ' + item.get('content', '')),
+                            sentiment_score=self.calculate_sentiment(item['title'], item.get('content', '')),
+                            keywords=self.extract_keywords(item['title'] + ' ' + item.get('content', '')),
+                            category='economic'
+                        )
 
-                                articles.append(article)
+                        articles.append(article)
 
-                            except Exception as e:
-                                logger.warning(f"Error parsing EODHD article: {e}")
-                                continue
-                else:
-                    logger.error(f"EODHD API error: {response.status}")
-
-        except Exception as e:
-            logger.error(f"EODHD API request failed: {e}")
+                logger.error(f"EODHD API error: {response.status}")
 
         return articles
 
@@ -494,45 +461,30 @@ class MultiVendorNewsBackfill:
             return result
 
         async with self.db_pool.acquire() as conn:
-            try:
-                await collector.initialize(conn)
+            await collector.initialize(conn)
 
-                logger.info(f"🔄 Starting {vendor_name} news backfill from {start_date} to {end_date}")
+            logger.info(f"🔄 Starting {vendor_name} news backfill from {start_date} to {end_date}")
 
-                # Fetch articles
-                articles = await collector.fetch_news(start_date, end_date, symbols)
-                result.articles_fetched = len(articles)
-                result.api_calls_made = 1
+            # Fetch articles
+            articles = await collector.fetch_news(start_date, end_date, symbols)
+            result.articles_fetched = len(articles)
+            result.api_calls_made = 1
 
-                logger.info(f"📰 Fetched {len(articles)} articles from {vendor_name}")
+            logger.info(f"📰 Fetched {len(articles)} articles from {vendor_name}")
 
-                # Store articles
-                for article in articles:
-                    try:
-                        stored, action = await collector.store_article(article)
-                        if stored:
-                            if action == "inserted":
-                                result.articles_stored += 1
-                            elif action == "updated":
-                                result.articles_updated += 1
-                        else:
-                            result.articles_skipped += 1
-                            if not action.startswith("error"):
-                                result.errors.append(action)
-                    except Exception as e:
-                        result.errors.append(f"Store error: {e}")
-                        result.articles_skipped += 1
-
-                # Rate limiting
-                await asyncio.sleep(config.rate_limit_seconds)
-
-            except Exception as e:
-                error_msg = f"{vendor_name} backfill failed: {e}"
-                logger.error(error_msg)
-                result.errors.append(error_msg)
-
-            finally:
-                await collector.cleanup()
+            # Store articles
+            for article in articles:
+                stored, action = await collector.store_article(article)
+                if stored:
+                    if action == "inserted":
+                        result.articles_stored += 1
+                    elif action == "updated":
+                        result.articles_updated += 1
+                else:
+                    result.articles_skipped += 1
+                    if not action.startswith("error"):
+                        result.errors.append(action)
+            await asyncio.sleep(config.rate_limit_seconds)
 
         result.execution_time_seconds = time.time() - start_time
         logger.info(f"✅ {vendor_name} backfill completed: {result.articles_stored} stored, {result.articles_updated} updated")
@@ -555,27 +507,11 @@ class MultiVendorNewsBackfill:
                 logger.error(f"❌ Unknown vendor: {vendor}")
                 continue
 
-            try:
-                result = await self.backfill_vendor_news(vendor, start_date, end_date, symbols)
-                results[vendor] = result
+            result = await self.backfill_vendor_news(vendor, start_date, end_date, symbols)
+            results[vendor] = result
 
-                if result.errors:
-                    logger.warning(f"⚠️ {vendor} had {len(result.errors)} errors")
-
-            except Exception as e:
-                logger.error(f"❌ {vendor} backfill failed: {e}")
-                results[vendor] = NewsBackfillResult(
-                    vendor=vendor,
-                    articles_fetched=0,
-                    articles_stored=0,
-                    articles_updated=0,
-                    articles_skipped=0,
-                    api_calls_made=0,
-                    execution_time_seconds=0,
-                    errors=[str(e)],
-                    date_range_start=start_date,
-                    date_range_end=end_date
-                )
+            if result.errors:
+                logger.warning(f"⚠️ {vendor} had {len(result.errors)} errors")
 
         return results
 
@@ -613,17 +549,13 @@ async def send_slack_notification(results: Dict[str, NewsBackfillResult]):
     if total_errors > 5:
         message += f"\n⚠️ **Warning: {total_errors} errors detected - please review logs**"
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            payload = {"text": message}
-            async with session.post(webhook_url, json=payload) as resp:
-                if resp.status == 200:
-                    logger.info("✅ Slack notification sent")
-                else:
-                    logger.error(f"❌ Failed to send Slack notification: {resp.status}")
-    except Exception as e:
-        logger.error(f"❌ Error sending Slack notification: {e}")
-
+    async with aiohttp.ClientSession() as session:
+        payload = {"text": message}
+        async with session.post(webhook_url, json=payload) as resp:
+            if resp.status == 200:
+                logger.info("✅ Slack notification sent")
+            else:
+                logger.error(f"❌ Failed to send Slack notification: {resp.status}")
 async def main():
     """Main function."""
     parser = argparse.ArgumentParser(description='Multi-Vendor News Backfill System')
@@ -673,43 +605,39 @@ async def main():
 
     # Run backfill
     backfill = MultiVendorNewsBackfill()
-    try:
-        await backfill.initialize()
-        results = await backfill.run_backfill(vendors, start_date, end_date, symbols)
+    await backfill.initialize()
+    results = await backfill.run_backfill(vendors, start_date, end_date, symbols)
 
-        # Send notifications
-        if not args.no_slack and results:
-            await send_slack_notification(results)
+    # Send notifications
+    if not args.no_slack and results:
+        await send_slack_notification(results)
 
-        # Print final summary
-        logger.info("\n" + "="*80)
-        logger.info("NEWS BACKFILL COMPLETED")
-        logger.info("="*80)
+    # Print final summary
+    logger.info("\n" + "="*80)
+    logger.info("NEWS BACKFILL COMPLETED")
+    logger.info("="*80)
 
-        total_fetched = 0
-        total_stored = 0
-        total_errors = 0
+    total_fetched = 0
+    total_stored = 0
+    total_errors = 0
 
-        for vendor, result in results.items():
-            logger.info(f"{vendor.upper()}: {result.articles_fetched} fetched, "
-                       f"{result.articles_stored} stored, {result.articles_updated} updated, "
-                       f"{len(result.errors)} errors")
-            total_fetched += result.articles_fetched
-            total_stored += result.articles_stored
-            total_errors += len(result.errors)
+    for vendor, result in results.items():
+        logger.info(f"{vendor.upper()}: {result.articles_fetched} fetched, "
+                   f"{result.articles_stored} stored, {result.articles_updated} updated, "
+                   f"{len(result.errors)} errors")
+        total_fetched += result.articles_fetched
+        total_stored += result.articles_stored
+        total_errors += len(result.errors)
 
-        logger.info(f"\nTOTALS: {total_fetched} fetched, {total_stored} stored, {total_errors} errors")
+    logger.info(f"\nTOTALS: {total_fetched} fetched, {total_stored} stored, {total_errors} errors")
 
-        # Exit with appropriate code
-        if total_errors > 0:
-            logger.warning(f"⚠️ Completed with {total_errors} errors")
-            exit(1)
-        else:
-            logger.info("✅ News backfill completed successfully")
-            exit(0)
-
-    finally:
-        await backfill.cleanup()
+    # Exit with appropriate code
+    if total_errors > 0:
+        logger.warning(f"⚠️ Completed with {total_errors} errors")
+        exit(1)
+    else:
+        logger.info("✅ News backfill completed successfully")
+        exit(0)
 
 if __name__ == "__main__":
     asyncio.run(main())

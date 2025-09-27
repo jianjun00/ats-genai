@@ -21,7 +21,7 @@ import os
 import sys
 sys.path.append('src')
 
-from domains.market_data.services.realtime.weekly_backfill import (
+from domains.market_data.services.data_collection.realtime.weekly_backfill import (
     WeeklyBackfillEngine,
     BackfillJob,
     BackfillStatus

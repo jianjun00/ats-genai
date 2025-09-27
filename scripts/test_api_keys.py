@@ -22,82 +22,61 @@ logger = logging.getLogger(__name__)
 
 def test_eodhd_key(api_key):
     """Test EODHD API key"""
-    try:
-        url = f"https://eodhd.com/api/exchanges-list/?api_token={api_key}&fmt=json"
-        response = requests.get(url, timeout=10)
+    url = f"https://eodhd.com/api/exchanges-list/?api_token={api_key}&fmt=json"
+    response = requests.get(url, timeout=10)
 
-        if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, list) and len(data) > 0:
-                logger.info(f"✅ EODHD key valid - found {len(data)} exchanges")
-                return True
-            else:
-                logger.error("❌ EODHD key valid but returned empty data")
-                return False
+    if response.status_code == 200:
+        data = response.json()
+        if isinstance(data, list) and len(data) > 0:
+            logger.info(f"✅ EODHD key valid - found {len(data)} exchanges")
+            return True
         else:
-            logger.error(f"❌ EODHD key invalid - status: {response.status_code}, response: {response.text}")
+            logger.error("❌ EODHD key valid but returned empty data")
             return False
-    except Exception as e:
-        logger.error(f"❌ EODHD test failed: {e}")
+    else:
+        logger.error(f"❌ EODHD key invalid - status: {response.status_code}, response: {response.text}")
         return False
-
 def test_polygon_key(api_key):
     """Test Polygon API key"""
-    try:
-        url = f"https://api.polygon.io/v1/marketstatus/now?apikey={api_key}"
-        response = requests.get(url, timeout=10)
+    url = f"https://api.polygon.io/v1/marketstatus/now?apikey={api_key}"
+    response = requests.get(url, timeout=10)
 
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('status') == 'OK':
-                logger.info("✅ Polygon key valid")
-                return True
-            else:
-                logger.error(f"❌ Polygon key invalid - response: {data}")
-                return False
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('status') == 'OK':
+            logger.info("✅ Polygon key valid")
+            return True
         else:
-            logger.error(f"❌ Polygon key invalid - status: {response.status_code}")
+            logger.error(f"❌ Polygon key invalid - response: {data}")
             return False
-    except Exception as e:
-        logger.error(f"❌ Polygon test failed: {e}")
+    else:
+        logger.error(f"❌ Polygon key invalid - status: {response.status_code}")
         return False
-
 def test_tiingo_key(api_key):
     """Test Tiingo API key"""
-    try:
-        url = f"https://api.tiingo.com/api/test?token={api_key}"
-        response = requests.get(url, timeout=10)
+    url = f"https://api.tiingo.com/api/test?token={api_key}"
+    response = requests.get(url, timeout=10)
 
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('message') == 'You successfully sent a request':
-                logger.info("✅ Tiingo key valid")
-                return True
-            else:
-                logger.error(f"❌ Tiingo key invalid - response: {data}")
-                return False
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('message') == 'You successfully sent a request':
+            logger.info("✅ Tiingo key valid")
+            return True
         else:
-            logger.error(f"❌ Tiingo key invalid - status: {response.status_code}")
+            logger.error(f"❌ Tiingo key invalid - response: {data}")
             return False
-    except Exception as e:
-        logger.error(f"❌ Tiingo test failed: {e}")
+    else:
+        logger.error(f"❌ Tiingo key invalid - status: {response.status_code}")
         return False
-
 def main():
     """Test all API keys"""
 
     logger.info("🔑 Testing API Keys Configuration")
     logger.info("=" * 50)
 
-    try:
-        from config.environment import Environment, EnvironmentType
-        env = Environment(env_type=EnvironmentType.DEV)
-        logger.info(f"✅ Environment initialized: {env.env_type.value}")
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize environment: {e}")
-        return 1
-
-    # Test each vendor
+    from config.environment import Environment, EnvironmentType
+    env = Environment(env_type=EnvironmentType.DEV)
+    logger.info(f"✅ Environment initialized: {env.env_type.value}")
     vendors = ['eodhd', 'polygon', 'tiingo']
     test_functions = {
         'eodhd': test_eodhd_key,

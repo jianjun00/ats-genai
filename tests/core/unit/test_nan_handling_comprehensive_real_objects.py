@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsNaNHandling:
@@ -55,13 +49,7 @@ class TestRealObjectsNaNHandling:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_sanitize_float_nan_real_objects(self, real_service, test_data):
         """Real objects version of test_sanitize_float_nan"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sanitize_float_nan_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sanitize_float_nan_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sanitize_float_infinity_real_objects(self, real_service, test_data):
         """Real objects version of test_sanitize_float_infinity"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sanitize_float_infinity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sanitize_float_infinity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sanitize_numpy_nan_real_objects(self, real_service, test_data):
         """Real objects version of test_sanitize_numpy_nan"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sanitize_numpy_nan_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sanitize_numpy_nan_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sanitize_training_features_with_nan_real_objects(self, real_service, test_data):
         """Real objects version of test_sanitize_training_features_with_nan"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sanitize_training_features_with_nan_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sanitize_training_features_with_nan_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sanitize_ohlc_data_with_nan_real_objects(self, real_service, test_data):
         """Real objects version of test_sanitize_ohlc_data_with_nan"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sanitize_ohlc_data_with_nan_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sanitize_ohlc_data_with_nan_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_json_serialization_safety_real_objects(self, real_service, test_data):
         """Real objects version of test_json_serialization_safety"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.json_serialization_safety_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.json_serialization_safety_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_json_serializable_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_json_serializable"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_json_serializable_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_json_serializable_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_safe_json_dumps_real_objects(self, real_service, test_data):
         """Real objects version of test_safe_json_dumps"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.safe_json_dumps_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.safe_json_dumps_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_api_response_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_api_response"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_api_response_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_api_response_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_arrayrecord_nan_handling_simulation_real_objects(self, real_service, test_data):
         """Real objects version of test_arrayrecord_nan_handling_simulation"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.arrayrecord_nan_handling_simulation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.arrayrecord_nan_handling_simulation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_data_structures_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_data_structures"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_data_structures_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_data_structures_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_nested_nan_structures_real_objects(self, real_service, test_data):
         """Real objects version of test_nested_nan_structures"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.nested_nan_structures_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.nested_nan_structures_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_mixed_types_with_nan_real_objects(self, real_service, test_data):
         """Real objects version of test_mixed_types_with_nan"""
         # Test with real database integration
@@ -340,15 +256,8 @@ class TestRealObjectsNaNHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.mixed_types_with_nan_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.mixed_types_with_nan_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -21,61 +21,37 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 @pytest.mark.integration
 def test_training_datasets_table_exists():
     """Verify training datasets table uses correct plural naming."""
-    try:
-        from core.database.connection_manager import get_raw_connection
-    except ImportError:
-        pytest.skip("Database connection manager not available")
+    from core.database.connection_manager import get_raw_connection
+    with get_raw_connection("dev") as conn:
+        with conn.cursor() as cursor:
+            # Test that plural table name exists
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables
+                WHERE table_name = 'dev_training_dataset'
+            """)
+            result = cursor.fetchone()
+            assert result is not None, "dev_training_dataset table not found"
 
-    try:
-        with get_raw_connection("dev") as conn:
-            with conn.cursor() as cursor:
-                # Test that plural table name exists
-                cursor.execute("""
-                    SELECT table_name FROM information_schema.tables
-                    WHERE table_name = 'dev_training_dataset'
-                """)
-                result = cursor.fetchone()
-                assert result is not None, "dev_training_dataset table not found"
-
-                # Test that old singular name doesn't exist (if migration was done)
-                cursor.execute("""
-                    SELECT table_name FROM information_schema.tables
-                    WHERE table_name = 'dev_training_dataset'
-                """)
-                result = cursor.fetchone()
-                # Note: This might exist during transition period, so we just warn
-                if result is not None:
-                    print("Warning: Old singular table name still exists")
-    except Exception as e:
-        if "could not connect" in str(e).lower():
-            pytest.skip("Database not available for testing")
-        raise
-
-
+            # Test that old singular name doesn't exist (if migration was done)
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables
+                WHERE table_name = 'dev_training_dataset'
+            """)
+            result = cursor.fetchone()
+            # Note: This might exist during transition period, so we just warn
+            if result is not None:
+                print("Warning: Old singular table name still exists")
 @pytest.mark.integration
 def test_analytics_service_table_names():
     """Test that analytics service uses correct table names."""
-    try:
-        from domains.analytics.services.analytics_service import AnalyticsService
-    except ImportError:
-        pytest.skip("AnalyticsService not available")
-
-    service = AnalyticsService()
+    from domains.analytics.services.analytics_service import UnifiedAnalyticsService
+    service = UnifiedAnalyticsService()
 
     # Test that get_training_datasets method works
     # This will fail if using wrong table name
-    try:
-        datasets = service.get_training_datasets()
-        assert isinstance(datasets, dict)
-        assert "datasets" in datasets
-    except Exception as e:
-        if "does not exist" in str(e) and "training_dataset" in str(e) and "training_datasets" not in str(e):
-            pytest.fail("Analytics service using incorrect table name (singular)")
-        elif "could not connect" in str(e).lower():
-            pytest.skip("Database not available for testing")
-        # Other errors might be legitimate (empty table, etc.)
-
-
+    datasets = service.get_training_datasets()
+    assert isinstance(datasets, dict)
+    assert "datasets" in datasets
 def test_table_name_generation_logic():
     """Test that table name generation follows consistent patterns."""
     # Test the pattern used in analytics service
@@ -96,11 +72,7 @@ def test_table_name_generation_logic():
 @pytest.mark.integration
 def test_training_datasets_table_schema():
     """Test that training datasets table has expected columns."""
-    try:
-        from core.database.connection_manager import get_raw_connection
-    except ImportError:
-        pytest.skip("Database connection manager not available")
-
+    from core.database.connection_manager import get_raw_connection
     expected_columns = [
         'id', 'dataset_name', 'total_sequences', 'sequence_length',
         'feature_count', 'label_count', 'data_quality_score',
@@ -109,64 +81,39 @@ def test_training_datasets_table_schema():
         'date_range_end', 'created_at'
     ]
 
-    try:
-        with get_raw_connection("dev") as conn:
-            with conn.cursor() as cursor:
-                # Get column information
-                cursor.execute("""
-                    SELECT column_name FROM information_schema.columns
-                    WHERE table_name = 'dev_training_dataset'
-                    ORDER BY ordinal_position
-                """)
+    with get_raw_connection("dev") as conn:
+        with conn.cursor() as cursor:
+            # Get column information
+            cursor.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'dev_training_dataset'
+                ORDER BY ordinal_position
+            """)
 
-                actual_columns = [row[0] for row in cursor.fetchall()]
+            actual_columns = [row[0] for row in cursor.fetchall()]
 
-                if not actual_columns:
-                    pytest.skip("dev_training_dataset table not found or empty schema")
+            if not actual_columns:
+                pytest.skip("dev_training_dataset table not found or empty schema")
 
-                # Check that key columns exist
-                key_columns = ['id', 'dataset_name', 'created_at']
-                for col in key_columns:
-                    assert col in actual_columns, f"Key column '{col}' missing from dev_training_dataset"
-
-    except Exception as e:
-        if "could not connect" in str(e).lower():
-            pytest.skip("Database not available for testing")
-        raise
-
+            # Check that key columns exist
+            key_columns = ['id', 'dataset_name', 'created_at']
+            for col in key_columns:
+                assert col in actual_columns, f"Key column '{col}' missing from dev_training_dataset"
 
 @pytest.mark.integration
 def test_sequences_api_table_query():
     """Test that sequences API queries correct table."""
-    try:
-        from domains.analytics.services.analytics_service import AnalyticsService
-    except ImportError:
-        pytest.skip("AnalyticsService not available")
-
-    service = AnalyticsService()
+    from domains.analytics.services.analytics_service import UnifiedAnalyticsService
+    service = UnifiedAnalyticsService()
 
     # Test get_training_dataset_sequences method
-    try:
-        # Use a likely-to-exist dataset ID or handle empty case gracefully
-        result = service.get_training_dataset_sequences(1)
+    # Use a likely-to-exist dataset ID or handle empty case gracefully
+    result = service.get_training_dataset_sequences(1)
 
-        assert isinstance(result, dict)
-        assert "datasets" in result
-        assert "sequences" in result
-        assert "total_count" in result
-
-    except Exception as e:
-        if "does not exist" in str(e) and "training_dataset" in str(e) and "training_datasets" not in str(e):
-            pytest.fail(f"Sequences API using incorrect table name: {e}")
-        elif "could not connect" in str(e).lower():
-            pytest.skip("Database not available for testing")
-        elif "not found" in str(e).lower():
-            # Dataset not found is OK for this test
-            pass
-        else:
-            # Re-raise other errors for investigation
-            raise
-
+    assert isinstance(result, dict)
+    assert "datasets" in result
+    assert "sequences" in result
+    assert "total_count" in result
 
 @pytest.mark.integration
 def test_environment_based_table_naming():
@@ -192,42 +139,31 @@ def test_environment_based_table_naming():
 @pytest.mark.integration
 def test_column_naming_consistency():
     """Test that column names follow consistent patterns."""
-    try:
-        from core.database.connection_manager import get_raw_connection
-    except ImportError:
-        pytest.skip("Database connection manager not available")
+    from core.database.connection_manager import get_raw_connection
+    with get_raw_connection("dev") as conn:
+        with conn.cursor() as cursor:
+            # Check for common column naming issues
+            cursor.execute("""
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = 'dev_training_dataset'
+            """)
 
-    try:
-        with get_raw_connection("dev") as conn:
-            with conn.cursor() as cursor:
-                # Check for common column naming issues
-                cursor.execute("""
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_name = 'dev_training_dataset'
-                """)
+            columns = dict(cursor.fetchall())
 
-                columns = dict(cursor.fetchall())
+            if not columns:
+                pytest.skip("dev_training_dataset table not found")
 
-                if not columns:
-                    pytest.skip("dev_training_dataset table not found")
+            # Test timestamp column naming (should be created_at, not creation_timestamp)
+            timestamp_columns = [col for col in columns.keys() if 'timestamp' in col or 'created' in col]
 
-                # Test timestamp column naming (should be created_at, not creation_timestamp)
-                timestamp_columns = [col for col in columns.keys() if 'timestamp' in col or 'created' in col]
+            if timestamp_columns:
+                # If we have timestamp columns, prefer created_at
+                preferred_names = ['created_at', 'updated_at']
+                found_preferred = any(col in preferred_names for col in timestamp_columns)
 
-                if timestamp_columns:
-                    # If we have timestamp columns, prefer created_at
-                    preferred_names = ['created_at', 'updated_at']
-                    found_preferred = any(col in preferred_names for col in timestamp_columns)
-
-                    if not found_preferred:
-                        print(f"Warning: Timestamp columns found but none match preferred names: {timestamp_columns}")
-
-    except Exception as e:
-        if "could not connect" in str(e).lower():
-            pytest.skip("Database not available for testing")
-        raise
-
+                if not found_preferred:
+                    print(f"Warning: Timestamp columns found but none match preferred names: {timestamp_columns}")
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -58,14 +58,9 @@ def test_comprehensive_indicator_extraction():
     print("=" * 70)
 
     # Load gin configuration to include BXTrender indicators
-    try:
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
-        gin.parse_config_file(config_path)
-        print(f"📋 Loaded gin config from: {config_path}")
-    except Exception as e:
-        print(f"⚠️  Could not load gin config: {e}")
-
-    # Generate test data
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
+    gin.parse_config_file(config_path)
+    print(f"📋 Loaded gin config from: {config_path}")
     data = generate_comprehensive_test_data(100)
     print(f"📊 Generated test data: {len(data)} periods")
 
@@ -175,12 +170,8 @@ def create_visualization_training_sample():
     print("=" * 70)
 
     # Load gin configuration to include BXTrender indicators
-    try:
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
-        gin.parse_config_file(config_path)
-    except Exception as e:
-        print(f"⚠️  Could not load gin config: {e}")
-
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
+    gin.parse_config_file(config_path)
     data = generate_comprehensive_test_data(50)
     config = TrainingDataConfig()
     extractor = MultiTimeframeFeatureExtractor(config)
@@ -234,12 +225,8 @@ def test_edge_cases():
     print("=" * 70)
 
     # Load gin configuration to include BXTrender indicators
-    try:
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
-        gin.parse_config_file(config_path)
-    except Exception as e:
-        print(f"⚠️  Could not load gin config: {e}")
-
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
+    gin.parse_config_file(config_path)
     config = TrainingDataConfig()
     extractor = MultiTimeframeFeatureExtractor(config)
 
@@ -262,19 +249,15 @@ def test_edge_cases():
 
     for case_name, test_data in edge_cases:
         print(f"\n🧪 Testing: {case_name}")
-        try:
-            features = extractor.extract_all_features(test_data, '1h')
-            print(f"   ✅ Extracted {len(features)} features")
+        features = extractor.extract_all_features(test_data, '1h')
+        print(f"   ✅ Extracted {len(features)} features")
 
-            # Check for NaN values
-            nan_features = {k: v for k, v in features.items() if pd.isna(v)}
-            if nan_features:
-                print(f"   ⚠️  {len(nan_features)} NaN features")
-            else:
-                print(f"   ✅ No NaN features")
-
-        except Exception as e:
-            print(f"   ❌ Error: {str(e)}")
+        # Check for NaN values
+        nan_features = {k: v for k, v in features.items() if pd.isna(v)}
+        if nan_features:
+            print(f"   ⚠️  {len(nan_features)} NaN features")
+        else:
+            print(f"   ✅ No NaN features")
 
     print(f"\n✅ Edge case testing completed")
 

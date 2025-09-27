@@ -62,13 +62,8 @@ class TestSuiteAnalyzer:
 
         # Analyze each test file
         for test_file in test_files:
-            try:
-                metrics = self._analyze_test_file(test_file)
-                self.metrics.append(metrics)
-            except Exception as e:
-                print(f"⚠️  Error analyzing {test_file}: {e}")
-
-        # Generate analysis report
+            metrics = self._analyze_test_file(test_file)
+            self.metrics.append(metrics)
         return self._generate_analysis_report()
 
     def _analyze_test_file(self, file_path: Path) -> TestMetrics:
@@ -76,13 +71,7 @@ class TestSuiteAnalyzer:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        try:
-            tree = ast.parse(content)
-        except SyntaxError:
-            # Fallback to text analysis
-            return self._analyze_file_text(file_path, content)
-
-        # AST-based analysis
+        tree = ast.parse(content)
         analyzer = TestFileASTAnalyzer()
         analyzer.visit(tree)
 
@@ -215,24 +204,16 @@ class TestSuiteAnalyzer:
         """Measure execution times for all tests."""
         print("⏱️  Measuring test execution times...")
 
-        try:
-            # Run pytest with timing
-            result = subprocess.run([
-                'python', '-m', 'pytest',
-                '--tb=no', '-v', '--durations=0',
-                str(self.test_dir)
-            ], capture_output=True, text=True, timeout=300)
+        # Run pytest with timing
+        result = subprocess.run([
+            'python', '-m', 'pytest',
+            '--tb=no', '-v', '--durations=0',
+            str(self.test_dir)
+        ], capture_output=True, text=True, timeout=300)
 
-            # Parse timing results
-            timing_data = self._parse_pytest_timing(result.stdout)
-            return timing_data
-
-        except subprocess.TimeoutExpired:
-            print("⚠️  Test execution timed out after 5 minutes")
-            return {}
-        except Exception as e:
-            print(f"⚠️  Error measuring test times: {e}")
-            return {}
+        # Parse timing results
+        timing_data = self._parse_pytest_timing(result.stdout)
+        return timing_data
 
     def _parse_pytest_timing(self, output: str) -> Dict[str, float]:
         """Parse pytest timing output."""
@@ -243,11 +224,7 @@ class TestSuiteAnalyzer:
         matches = re.findall(timing_pattern, output)
 
         for time_str, test_name in matches:
-            try:
-                timing_data[test_name] = float(time_str)
-            except ValueError:
-                continue
-
+            timing_data[test_name] = float(time_str)
         return timing_data
 
     def generate_optimization_script(self, output_file: str):

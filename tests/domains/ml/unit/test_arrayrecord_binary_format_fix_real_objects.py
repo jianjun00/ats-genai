@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class under:
@@ -56,13 +51,7 @@ class under:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_binary_format_efficiency_vs_json_real_objects(self, real_service, test_data):
         """Real objects version of test_binary_format_efficiency_vs_json"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.binary_format_efficiency_vs_json_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.binary_format_efficiency_vs_json_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_binary_format_arrayrecord_compatibility_real_objects(self, real_service, test_data):
         """Real objects version of test_binary_format_arrayrecord_compatibility"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.binary_format_arrayrecord_compatibility_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.binary_format_arrayrecord_compatibility_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_write_interval_to_writer_uses_binary_format_real_objects(self, real_service, test_data):
         """Real objects version of test_write_interval_to_writer_uses_binary_format"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.write_interval_to_writer_uses_binary_format_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.write_interval_to_writer_uses_binary_format_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_binary_format_handles_variable_indicators_real_objects(self, real_service, test_data):
         """Real objects version of test_binary_format_handles_variable_indicators"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.binary_format_handles_variable_indicators_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.binary_format_handles_variable_indicators_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_binary_format_debugging_output_real_objects(self, real_service, test_data):
         """Real objects version of test_binary_format_debugging_output"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.binary_format_debugging_output_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.binary_format_debugging_output_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_regression_prevention_json_format_blocked_real_objects(self, real_service, test_data):
         """Real objects version of test_regression_prevention_json_format_blocked"""
         # Test with real database integration
@@ -187,15 +146,8 @@ class under:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.regression_prevention_json_format_blocked_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.regression_prevention_json_format_blocked_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

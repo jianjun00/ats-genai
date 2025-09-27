@@ -289,9 +289,8 @@ def research_entry_exit_patterns():
             return True
 
 if __name__ == "__main__":
-    try:
-        success = research_entry_exit_patterns()
-        sys.exit(0 if success else 1)
+    success = research_entry_exit_patterns()
+    sys.exit(0 if success else 1)
     except Exception as e:
         print(f"❌ Error researching patterns: {e}")
         import traceback

@@ -23,22 +23,15 @@ async def setup_and_test_integration():
     
     # Check if analytics service is running
     import requests
-    try:
-        response = requests.get("http://localhost:4000/health", timeout=5)
-        if response.status_code != 200:
-            print("❌ Analytics service not responding at localhost:4000")
-            print("💡 Start it with: docker-compose -f docker-compose.intg.yml up -d")
-            return False
-        
-        health_data = response.json()
-        print(f"✅ Analytics service is healthy: {health_data.get('service', 'Unknown')}")
-        
-    except Exception as e:
-        print(f"❌ Cannot connect to analytics service: {e}")
+    response = requests.get("http://localhost:4000/health", timeout=5)
+    if response.status_code != 200:
+        print("❌ Analytics service not responding at localhost:4000")
         print("💡 Start it with: docker-compose -f docker-compose.intg.yml up -d")
         return False
     
-    # Initialize integration (using mock API key for demo)
+    health_data = response.json()
+    print(f"✅ Analytics service is healthy: {health_data.get('service', 'Unknown')}")
+    
     print("\n📋 Initializing financial events integration...")
     integration = AnalyticsEventIntegration(
         xai_api_key="demo_api_key_for_testing",
@@ -190,13 +183,9 @@ async def main():
         show_api_examples()
         
         # Offer to open dashboard
-        try:
-            import webbrowser
-            print(f"\n🌐 Opening analytics dashboard in browser...")
-            webbrowser.open("http://localhost:4000")
-        except:
-            print(f"\n🌐 Open http://localhost:4000 in your browser to view the dashboard")
-    else:
+        import webbrowser
+        print(f"\n🌐 Opening analytics dashboard in browser...")
+        webbrowser.open("http://localhost:4000")
         print("\n❌ Integration setup failed. Please check the requirements and try again.")
 
 if __name__ == "__main__":

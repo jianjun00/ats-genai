@@ -94,12 +94,7 @@ class TestDatasetDetailPageRegressionProtection:
             assert response.status_code == 200, f"{description} endpoint failed: {response.status_code} {response.text}"
 
             # Must return valid JSON
-            try:
-                json_data = response.json()
-            except json.JSONDecodeError as e:
-                assert False, f"{description} endpoint returned invalid JSON: {e}"
-
-            # Must not return generic error responses
+            json_data = response.json()
             assert "error" not in json_data or json_data.get("error") != "Not implemented", f"{description} endpoint not implemented"
             assert json_data != {}, f"{description} endpoint returned empty response"
 
@@ -139,11 +134,7 @@ class TestDatasetDetailPageRegressionProtection:
 
         # Check created_at is a valid timestamp
         if detail_data["created_at"]:
-            try:
-                datetime.fromisoformat(detail_data["created_at"])
-            except ValueError:
-                assert False, f"Invalid created_at timestamp: {detail_data['created_at']}"
-
+            datetime.fromisoformat(detail_data["created_at"])
         print("   ✅ Dataset detail response has complete, high-quality data")
 
     def test_sequence_detail_functionality_depth(self):
@@ -174,13 +165,9 @@ class TestDatasetDetailPageRegressionProtection:
         assert seq_data["start_date"] is not None, "Sequence must have start_date"
         assert seq_data["end_date"] is not None, "Sequence must have end_date"
 
-        try:
-            start_dt = datetime.fromisoformat(seq_data["start_date"])
-            end_dt = datetime.fromisoformat(seq_data["end_date"])
-            assert start_dt < end_dt, "Start date must be before end date"
-        except ValueError as e:
-            assert False, f"Invalid sequence date format: {e}"
-
+        start_dt = datetime.fromisoformat(seq_data["start_date"])
+        end_dt = datetime.fromisoformat(seq_data["end_date"])
+        assert start_dt < end_dt, "Start date must be before end date"
         print("   ✅ Sequence detail provides meaningful, specific data")
 
     def test_ohlc_data_richness_and_authenticity(self):
@@ -229,12 +216,7 @@ class TestDatasetDetailPageRegressionProtection:
 
             # Timestamp validation
             assert isinstance(point["timestamp"], str), f"Timestamp must be string in point {i+1}"
-            try:
-                datetime.fromisoformat(point["timestamp"])
-            except ValueError:
-                assert False, f"Invalid timestamp format in point {i+1}: {point['timestamp']}"
-
-        # Check for price variation (not flat/constant mock data)
+            datetime.fromisoformat(point["timestamp"])
         prices = [point["close"] for point in ohlc_array[:10]]
         price_variance = max(prices) - min(prices)
         assert price_variance > 0, "OHLC data shows no price variation (suspicious of mock/flat data)"
@@ -344,13 +326,8 @@ class TestDatasetDetailPageRegressionProtection:
         assert invalid_response.status_code in [404, 400], f"Invalid dataset ID should return 404/400, got {invalid_response.status_code}"
 
         # Should return JSON error, not HTML or plain text
-        try:
-            error_data = invalid_response.json()
-            assert "error" in error_data or "message" in error_data, "Error response should have error/message field"
-        except json.JSONDecodeError:
-            assert False, "Error response should be valid JSON, not HTML/text"
-
-        # Test invalid sequence ID
+        error_data = invalid_response.json()
+        assert "error" in error_data or "message" in error_data, "Error response should have error/message field"
         datasets_response = requests.get(f"{TEST_BASE_URL}/api/v1/datasets?limit=1", timeout=10)
         dataset_id = datasets_response.json()["datasets"][0]["dataset_id"]
 
@@ -383,15 +360,9 @@ def run_dataset_detail_regression_protection_tests():
     for test_name, test_func in tests:
         print(f"\\n🧪 Running: {test_name}")
         print("-" * 60)
-        try:
-            test_func()
-            print(f"✅ PASSED: {test_name}")
-            passed += 1
-        except Exception as e:
-            print(f"❌ FAILED: {test_name}")
-            print(f"   Error: {e}")
-            failed += 1
-
+        test_func()
+        print(f"✅ PASSED: {test_name}")
+        passed += 1
     print("\\n" + "=" * 80)
     print("📊 DATASET DETAIL PAGE REGRESSION PROTECTION SUMMARY")
     print("=" * 80)

@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsDatabaseConstraintsRegression:
@@ -55,13 +49,7 @@ class TestRealObjectsDatabaseConstraintsRegression:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_instrument_interval_constraint_definition_real_objects(self, real_service, test_data):
         """Real objects version of test_instrument_interval_constraint_definition"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsDatabaseConstraintsRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.instrument_interval_constraint_definition_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.instrument_interval_constraint_definition_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_uuid_deduplication_system_real_objects(self, real_service, test_data):
         """Real objects version of test_uuid_deduplication_system"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsDatabaseConstraintsRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.uuid_deduplication_system_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.uuid_deduplication_system_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_run_scenarios_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_run_scenarios"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsDatabaseConstraintsRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_run_scenarios_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_run_scenarios_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_connection_patterns_real_objects(self, real_service, test_data):
         """Real objects version of test_database_connection_patterns"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsDatabaseConstraintsRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_connection_patterns_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_connection_patterns_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_instrument_interval_data_integrity_real_objects(self, real_service, test_data):
         """Real objects version of test_instrument_interval_data_integrity"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsDatabaseConstraintsRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.instrument_interval_data_integrity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.instrument_interval_data_integrity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_foreign_key_relationships_real_objects(self, real_service, test_data):
         """Real objects version of test_foreign_key_relationships"""
         # Test with real database integration
@@ -186,15 +144,8 @@ class TestRealObjectsDatabaseConstraintsRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.foreign_key_relationships_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.foreign_key_relationships_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

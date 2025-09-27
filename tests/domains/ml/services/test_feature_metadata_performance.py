@@ -16,10 +16,10 @@ from unittest.mock import Mock, patch
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from domains.ml.legacy.training_data.generators.training_data_metadata import (
+from domains.ml.services.training_data.generators.training_data_metadata import (
     TrainingDataMetadataManager, FeatureType
 )
-from services.dataset_service import DatasetService
+from infrastructure.services_legacy.data_services.dataset_service import DatasetService
 
 class TestFeatureMetadataPerformance:
     """Test performance of feature metadata operations."""

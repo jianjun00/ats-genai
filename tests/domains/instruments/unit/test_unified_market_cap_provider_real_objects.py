@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.instruments.services.instrument_service import InstrumentService
-from domains.instruments.dao.instruments_dao import InstrumentsDAO
-from domains.instruments.dao.secmaster_dao import SecmasterDAO
+from domains.instruments.services.impl.instrument_service_cached import InstrumentService
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from domains.instruments.repositories.secmaster_dao import SecmasterDAO
 
 
 class TestRealObjectsUnifiedMarketCapProvider:
@@ -56,13 +51,7 @@ class TestRealObjectsUnifiedMarketCapProvider:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_init_real_objects(self, real_service, test_data):
         """Real objects version of test_init"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_connect_and_disconnect_real_objects(self, real_service, test_data):
         """Real objects version of test_connect_and_disconnect"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.connect_and_disconnect_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.connect_and_disconnect_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_fundamental_market_cap_sources_real_objects(self, real_service, test_data):
         """Real objects version of test_get_fundamental_market_cap_sources"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_fundamental_market_cap_sources_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_fundamental_market_cap_sources_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_price_based_market_cap_real_objects(self, real_service, test_data):
         """Real objects version of test_get_price_based_market_cap"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_price_based_market_cap_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_price_based_market_cap_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_shares_outstanding_from_fundamental_real_objects(self, real_service, test_data):
         """Real objects version of test_get_shares_outstanding_from_fundamental"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_shares_outstanding_from_fundamental_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_shares_outstanding_from_fundamental_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_shares_outstanding_from_database_real_objects(self, real_service, test_data):
         """Real objects version of test_get_shares_outstanding_from_database"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_shares_outstanding_from_database_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_shares_outstanding_from_database_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_historical_market_cap_estimate_real_objects(self, real_service, test_data):
         """Real objects version of test_get_historical_market_cap_estimate"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_historical_market_cap_estimate_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_historical_market_cap_estimate_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_unified_market_cap_single_source_real_objects(self, real_service, test_data):
         """Real objects version of test_create_unified_market_cap_single_source"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_unified_market_cap_single_source_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_unified_market_cap_single_source_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_unified_market_cap_consensus_real_objects(self, real_service, test_data):
         """Real objects version of test_create_unified_market_cap_consensus"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_unified_market_cap_consensus_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_unified_market_cap_consensus_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_unified_market_cap_disagreement_real_objects(self, real_service, test_data):
         """Real objects version of test_create_unified_market_cap_disagreement"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_unified_market_cap_disagreement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_unified_market_cap_disagreement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_unified_market_cap_outlier_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_create_unified_market_cap_outlier_detection"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_unified_market_cap_outlier_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_unified_market_cap_outlier_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_unified_market_cap_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_get_unified_market_cap_integration"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_unified_market_cap_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_unified_market_cap_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_list_symbols_with_market_cap_data_real_objects(self, real_service, test_data):
         """Real objects version of test_list_symbols_with_market_cap_data"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.list_symbols_with_market_cap_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.list_symbols_with_market_cap_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_market_cap_history_real_objects(self, real_service, test_data):
         """Real objects version of test_get_market_cap_history"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_market_cap_history_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_market_cap_history_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_error_handling"""
         # Test with real database integration
@@ -385,14 +290,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_confidence_filtering_real_objects(self, real_service, test_data):
         """Real objects version of test_confidence_filtering"""
         # Test with real database integration
@@ -407,15 +306,8 @@ class TestRealObjectsUnifiedMarketCapProvider:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.confidence_filtering_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.confidence_filtering_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

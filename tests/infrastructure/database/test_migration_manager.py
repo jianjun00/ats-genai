@@ -52,13 +52,12 @@ async def test_table_prefix_application(unit_test_db_clean):
     # Verify that tables have correct prefix
     import asyncpg
     pool = await asyncpg.create_pool(unit_test_db_clean)
-    try:
-        async with pool.acquire() as conn:
-            # Check if prefixed table exists
-            result = await conn.fetchval("""
-                SELECT COUNT(*) FROM information_schema.tables
-                WHERE table_name = 'test_db_version'
-            """)
-            assert result == 1
+    async with pool.acquire() as conn:
+        # Check if prefixed table exists
+        result = await conn.fetchval("""
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_name = 'test_db_version'
+        """)
+        assert result == 1
     finally:
         await pool.close()

@@ -82,45 +82,27 @@ def test_gin_file_loading():
 
     # Load our hardcoded values configuration
     if os.path.exists("config/hardcoded_values.gin"):
-        try:
-            gin.parse_config_file("config/hardcoded_values.gin")
-            print("✅ Successfully loaded hardcoded_values.gin")
+        gin.parse_config_file("config/hardcoded_values.gin")
+        print("✅ Successfully loaded hardcoded_values.gin")
 
-            # Test that some values were loaded
-            from simple_main import ApiConfig
-            from analytics_api_dynamic import MockDataConfig
+        # Test that some values were loaded
+        from simple_main import ApiConfig
+        from analytics_api_dynamic import MockDataConfig
 
-            api_config = ApiConfig()
-            mock_config = MockDataConfig()
+        api_config = ApiConfig()
+        mock_config = MockDataConfig()
 
-            # These should be the values from the gin file
-            assert api_config.port == 8080  # From gin file
-            assert 'AAPL' in mock_config.default_universe  # From gin file
-            assert mock_config.lookback_days == 30  # From gin file
+        # These should be the values from the gin file
+        assert api_config.port == 8080  # From gin file
+        assert 'AAPL' in mock_config.default_universe  # From gin file
+        assert mock_config.lookback_days == 30  # From gin file
 
-            print("✅ Gin file values loaded correctly")
-            return True
-        except Exception as e:
-            print(f"⚠️ Error loading gin file: {e}")
-            return False
-    else:
+        print("✅ Gin file values loaded correctly")
+        return True
         print("⚠️ Gin file not found, skipping file loading test")
         return True
 
 if __name__ == "__main__":
-    print("🧪 Testing Gin Configuration Refactor")
-    print("=" * 50)
-
-    try:
-        test_simple_main_gin_config()
-        test_analytics_api_gin_config()
-        test_gin_file_loading()
-
-        print("\n🎉 All gin configuration tests passed!")
-        print("✅ Hardcoded values successfully moved to gin config")
-
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    test_simple_main_gin_config()
+    test_analytics_api_gin_config()
+    test_gin_file_loading()

@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from services.dataset_service import DatasetService
+from infrastructure.services_legacy.data_services.dataset_service import DatasetService
 
 class TestDatasetServiceFeatureMetadata:
     """Test dataset service feature metadata functionality."""

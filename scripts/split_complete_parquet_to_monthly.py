@@ -44,66 +44,61 @@ def split_complete_parquet_to_monthly(complete_file_path, output_base_dir=None, 
 
     print(f"🔄 Processing {symbol}: {complete_file_path}")
 
-    try:
-        # Read the complete parquet file
-        df = pd.read_parquet(complete_file_path)
-        print(f"📊 Loaded {len(df):,} records from {complete_file.name}")
+    # Read the complete parquet file
+    df = pd.read_parquet(complete_file_path)
+    print(f"📊 Loaded {len(df):,} records from {complete_file.name}")
 
-        # Ensure timestamp column exists and is datetime
-        timestamp_cols = [col for col in df.columns if 'timestamp' in col.lower() or 'time' in col.lower() or 'date' in col.lower()]
-        if not timestamp_cols:
-            print(f"❌ No timestamp column found in {complete_file.name}")
-            print(f"Available columns: {list(df.columns)}")
-            return False
+    # Ensure timestamp column exists and is datetime
+    timestamp_cols = [col for col in df.columns if 'timestamp' in col.lower() or 'time' in col.lower() or 'date' in col.lower()]
+    if not timestamp_cols:
+        print(f"❌ No timestamp column found in {complete_file.name}")
+        print(f"Available columns: {list(df.columns)}")
+        return False
 
-        timestamp_col = timestamp_cols[0]
-        print(f"📅 Using timestamp column: {timestamp_col}")
+    timestamp_col = timestamp_cols[0]
+    print(f"📅 Using timestamp column: {timestamp_col}")
 
-        # Convert to datetime if needed
-        if not pd.api.types.is_datetime64_any_dtype(df[timestamp_col]):
-            df[timestamp_col] = pd.to_datetime(df[timestamp_col])
+    # Convert to datetime if needed
+    if not pd.api.types.is_datetime64_any_dtype(df[timestamp_col]):
+        df[timestamp_col] = pd.to_datetime(df[timestamp_col])
 
-        # Extract year-month combinations
-        df['year'] = df[timestamp_col].dt.year
-        df['month'] = df[timestamp_col].dt.month
+    # Extract year-month combinations
+    df['year'] = df[timestamp_col].dt.year
+    df['month'] = df[timestamp_col].dt.month
 
-        # Group by year-month and save monthly files
-        monthly_groups = df.groupby(['year', 'month'])
-        total_monthly_files = 0
-        total_records_written = 0
+    # Group by year-month and save monthly files
+    monthly_groups = df.groupby(['year', 'month'])
+    total_monthly_files = 0
+    total_records_written = 0
 
-        for (year, month), group_df in monthly_groups:
-            # Create monthly directory structure
-            monthly_dir = output_base_dir / str(year) / f"{month:02d}"
-            monthly_dir.mkdir(parents=True, exist_ok=True)
+    for (year, month), group_df in monthly_groups:
+        # Create monthly directory structure
+        monthly_dir = output_base_dir / str(year) / f"{month:02d}"
+        monthly_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create monthly filename
-            monthly_file = monthly_dir / f"{symbol}_{year}_{month:02d}.parquet"
+        # Create monthly filename
+        monthly_file = monthly_dir / f"{symbol}_{year}_{month:02d}.parquet"
 
-            # Remove the temporary year/month columns before saving
-            monthly_data = group_df.drop(['year', 'month'], axis=1)
+        # Remove the temporary year/month columns before saving
+        monthly_data = group_df.drop(['year', 'month'], axis=1)
 
-            # Save monthly file
-            monthly_data.to_parquet(monthly_file, engine='auto', index=False)
+        # Save monthly file
+        monthly_data.to_parquet(monthly_file, engine='auto', index=False)
 
-            record_count = len(monthly_data)
-            total_monthly_files += 1
-            total_records_written += record_count
+        record_count = len(monthly_data)
+        total_monthly_files += 1
+        total_records_written += record_count
 
-            print(f"✅ Created {monthly_file.relative_to(output_base_dir)} ({record_count:,} records)")
+        print(f"✅ Created {monthly_file.relative_to(output_base_dir)} ({record_count:,} records)")
 
-        print(f"🎉 Split complete! Created {total_monthly_files} monthly files with {total_records_written:,} total records")
+    print(f"🎉 Split complete! Created {total_monthly_files} monthly files with {total_records_written:,} total records")
 
-        # Verify record count matches
-        if total_records_written == len(df):
-            print(f"✅ Record count verified: {total_records_written:,} records")
-            return True
-        else:
-            print(f"⚠️ Record count mismatch: Original {len(df):,}, Written {total_records_written:,}")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error processing {complete_file_path}: {e}")
+    # Verify record count matches
+    if total_records_written == len(df):
+        print(f"✅ Record count verified: {total_records_written:,} records")
+        return True
+    else:
+        print(f"⚠️ Record count mismatch: Original {len(df):,}, Written {total_records_written:,}")
         return False
 
 def find_complete_parquet_files(base_dir="/mnt/d/ats-data/minute-bars/firstrate"):

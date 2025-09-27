@@ -35,35 +35,26 @@ class TestTimestampNavigationPerformance:
         print("🔧 Setting up performance tests...")
 
         # Check analytics service availability
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                pytest.skip("Analytics service not running")
-        except requests.ConnectionError:
-            pytest.skip("Analytics service not accessible")
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            pytest.skip("Analytics service not running")
+        datasets_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets")
+        datasets = datasets_response.json()['datasets']
 
-        # Get test data
-        try:
-            datasets_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets")
-            datasets = datasets_response.json()['datasets']
+        if len(datasets) == 0:
+            pytest.skip("No training datasets available")
 
-            if len(datasets) == 0:
-                pytest.skip("No training datasets available")
+        cls.test_dataset_id = datasets[0]['id']
 
-            cls.test_dataset_id = datasets[0]['id']
+        sequences_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets/{cls.test_dataset_id}/sequences")
+        sequences = sequences_response.json()['sequences']
 
-            sequences_response = requests.get(f"{cls.BASE_URL}/api/v1/training-datasets/{cls.test_dataset_id}/sequences")
-            sequences = sequences_response.json()['sequences']
+        if len(sequences) == 0:
+            pytest.skip("No sequences available")
 
-            if len(sequences) == 0:
-                pytest.skip("No sequences available")
+        cls.test_sequence_id = sequences[0]
 
-            cls.test_sequence_id = sequences[0]
-
-            print(f"📊 Performance testing with dataset {cls.test_dataset_id}, sequence {cls.test_sequence_id}")
-
-        except Exception as e:
-            pytest.skip(f"Could not set up test data: {e}")
+        print(f"📊 Performance testing with dataset {cls.test_dataset_id}, sequence {cls.test_sequence_id}")
 
     def test_single_request_performance(self):
         """Test single request performance for both endpoints."""
@@ -213,36 +204,31 @@ class TestTimestampNavigationPerformance:
 
             async def make_workflow_request(session: aiohttp.ClientSession, position: int):
                 """Make complete navigation workflow request."""
-                try:
-                    # 1h navigation
-                    nav_url = f"{self.BASE_URL}/api/v1/training-datasets/{self.test_dataset_id}/sequences/{self.test_sequence_id}/1h?row_index={position}"
+                # 1h navigation
+                nav_url = f"{self.BASE_URL}/api/v1/training-datasets/{self.test_dataset_id}/sequences/{self.test_sequence_id}/1h?row_index={position}"
 
-                    start_time = time.time()
-                    async with session.get(nav_url) as nav_response:
-                        if nav_response.status == 200:
-                            nav_data = await nav_response.json()
+                start_time = time.time()
+                async with session.get(nav_url) as nav_response:
+                    if nav_response.status == 200:
+                        nav_data = await nav_response.json()
 
-                            if nav_data.get('success'):
-                                timestamp = nav_data['timestamp']
+                        if nav_data.get('success'):
+                            timestamp = nav_data['timestamp']
 
-                                # Multi-timeframe
-                                multi_url = f"{self.BASE_URL}/api/v1/training-datasets/{self.test_dataset_id}/sequences/{self.test_sequence_id}/multi-timeframe?timestamp={timestamp}"
+                            # Multi-timeframe
+                            multi_url = f"{self.BASE_URL}/api/v1/training-datasets/{self.test_dataset_id}/sequences/{self.test_sequence_id}/multi-timeframe?timestamp={timestamp}"
 
-                                async with session.get(multi_url) as multi_response:
-                                    workflow_time = time.time() - start_time
+                            async with session.get(multi_url) as multi_response:
+                                workflow_time = time.time() - start_time
 
-                                    return {
-                                        'position': position,
-                                        'success': multi_response.status == 200,
-                                        'time': workflow_time
-                                    }
+                                return {
+                                    'position': position,
+                                    'success': multi_response.status == 200,
+                                    'time': workflow_time
+                                }
 
-                    return {'position': position, 'success': False, 'time': time.time() - start_time}
+                return {'position': position, 'success': False, 'time': time.time() - start_time}
 
-                except Exception as e:
-                    return {'position': position, 'success': False, 'error': str(e), 'time': 0}
-
-            # Execute concurrent requests
             start_time = time.time()
 
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
@@ -353,52 +339,28 @@ class TestTimestampNavigationPerformance:
 
             request_start = time.time()
 
-            try:
-                # Only test 1h navigation for rapid stress (simpler)
-                nav_response = requests.get(
-                    f"{self.BASE_URL}/api/v1/training-datasets/{self.test_dataset_id}/sequences/{self.test_sequence_id}/1h?row_index={position}",
-                    timeout=5.0  # Short timeout for stress test
-                )
+            # Only test 1h navigation for rapid stress (simpler)
+            nav_response = requests.get(
+                f"{self.BASE_URL}/api/v1/training-datasets/{self.test_dataset_id}/sequences/{self.test_sequence_id}/1h?row_index={position}",
+                timeout=5.0  # Short timeout for stress test
+            )
 
-                request_time = time.time() - request_start
+            request_time = time.time() - request_start
 
-                result = {
-                    'request_id': i,
-                    'position': position,
-                    'success': nav_response.status_code == 200,
-                    'response_time': request_time,
-                    'status_code': nav_response.status_code
-                }
+            result = {
+                'request_id': i,
+                'position': position,
+                'success': nav_response.status_code == 200,
+                'response_time': request_time,
+                'status_code': nav_response.status_code
+            }
 
-                if nav_response.status_code == 200:
-                    try:
-                        nav_data = nav_response.json()
-                        result['api_success'] = nav_data.get('success', False)
-                        result['table_rows'] = len(nav_data.get('table_data', []))
-                    except:
-                        result['api_success'] = False
+            if nav_response.status_code == 200:
+                nav_data = nav_response.json()
+                result['api_success'] = nav_data.get('success', False)
+                result['table_rows'] = len(nav_data.get('table_data', []))
+            results.append(result)
 
-                results.append(result)
-
-            except requests.Timeout:
-                results.append({
-                    'request_id': i,
-                    'position': position,
-                    'success': False,
-                    'response_time': 5.0,
-                    'timeout': True
-                })
-
-            except Exception as e:
-                results.append({
-                    'request_id': i,
-                    'position': position,
-                    'success': False,
-                    'error': str(e),
-                    'response_time': 0
-                })
-
-            # Wait before next request (simulate rapid clicking)
             time.sleep(request_interval)
 
         total_time = time.time() - start_time

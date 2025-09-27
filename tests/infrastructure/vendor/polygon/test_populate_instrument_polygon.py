@@ -8,7 +8,7 @@ import asyncio
 # Add src to PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
-from vendor.polygon.services.populate_instrument_polygon import parse_date, fetch_and_store_instruments
+from infrastructure.vendor.polygon.services.populate_instrument_polygon import parse_date, fetch_and_store_instruments
 
 
 class TestPopulateInstrumentPolygon(unittest.TestCase):
@@ -93,14 +93,9 @@ class TestPopulateInstrumentPolygon(unittest.TestCase):
                             import importlib
                             with patch('secmaster.populate_instrument_polygon.Environment'):
                                 with patch('secmaster.populate_instrument_polygon.set_polygon_api_key'):
-                                    try:
-                                        # This will run the __main__ block
-                                        import secmaster.populate_instrument_polygon
-                                        importlib.reload(secmaster.populate_instrument_polygon)
-                                    except SystemExit:
-                                        pass
-
-                                    # Verify the correct config file was used
+                                    # This will run the __main__ block
+                                    import secmaster.populate_instrument_polygon
+                                    importlib.reload(secmaster.populate_instrument_polygon)
                                     mock_parse.assert_called_once()
                                     self.assertIn('config/app_docker.gin', mock_parse.call_args[0][0])
 

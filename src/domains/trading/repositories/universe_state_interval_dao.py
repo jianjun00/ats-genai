@@ -1,5 +1,5 @@
-from .instrument_interval_dao import InstrumentIntervalDAO
-from .instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
+from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
+from domains.instruments.repositories.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
 from typing import Optional, Dict

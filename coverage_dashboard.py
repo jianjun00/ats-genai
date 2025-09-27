@@ -32,27 +32,22 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
         path = parsed_path.path
         query_params = parse_qs(parsed_path.query)
         
-        try:
-            if path == '/' or path == '/dashboard':
-                self.serve_dashboard()
-            elif path == '/api/coverage-summary':
-                self.serve_coverage_summary()
-            elif path == '/api/priority-gaps':
-                self.serve_priority_gaps()
-            elif path == '/api/coverage-trend':
-                self.serve_coverage_trend()
-            elif path == '/api/backfill-queue':
-                self.serve_backfill_queue()
-            elif path == '/api/recent-operations':
-                self.serve_recent_operations()
-            elif path == '/health':
-                self.serve_health()
-            else:
-                self.send_error(404, "Not Found")
-        except Exception as e:
-            logger.error(f"Error handling request {path}: {e}")
-            self.send_error(500, f"Internal Server Error: {str(e)}")
-    
+        if path == '/' or path == '/dashboard':
+            self.serve_dashboard()
+        elif path == '/api/coverage-summary':
+            self.serve_coverage_summary()
+        elif path == '/api/priority-gaps':
+            self.serve_priority_gaps()
+        elif path == '/api/coverage-trend':
+            self.serve_coverage_trend()
+        elif path == '/api/backfill-queue':
+            self.serve_backfill_queue()
+        elif path == '/api/recent-operations':
+            self.serve_recent_operations()
+        elif path == '/health':
+            self.serve_health()
+        else:
+            self.send_error(404, "Not Found")
     def serve_dashboard(self):
         """Serve the main dashboard HTML."""
         html_content = self.generate_dashboard_html()
@@ -620,14 +615,7 @@ class CoverageDashboardServer:
         logger.info("   /api/recent-operations - Recent backfill operations")
         logger.info("   /health - Health check")
         
-        try:
-            self.server.serve_forever()
-        except KeyboardInterrupt:
-            logger.info("👋 Dashboard server stopped by user")
-        finally:
-            if self.db_pool:
-                asyncio.run(self.db_pool.close())
-    
+        self.server.serve_forever()
     async def close(self):
         """Close database connections and server."""
         if self.db_pool:
@@ -658,20 +646,15 @@ async def main():
     
     dashboard = CoverageDashboardServer(db_config, port, host)
     
-    try:
-        await dashboard.initialize()
+    await dashboard.initialize()
+    
+    # Run server in thread to allow async cleanup
+    server_thread = threading.Thread(target=dashboard.run_server, daemon=True)
+    server_thread.start()
+    
+    # Keep main thread alive
+    while True:
+        await asyncio.sleep(1)
         
-        # Run server in thread to allow async cleanup
-        server_thread = threading.Thread(target=dashboard.run_server, daemon=True)
-        server_thread.start()
-        
-        # Keep main thread alive
-        while True:
-            await asyncio.sleep(1)
-            
-    except KeyboardInterrupt:
-        logger.info("Shutting down dashboard...")
-        await dashboard.close()
-
 if __name__ == "__main__":
     asyncio.run(main())

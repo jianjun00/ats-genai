@@ -48,35 +48,25 @@ class SharedUtilitiesMonitor:
 
         start_time = time.time()
         for vendor in vendors:
-            try:
-                if vendor == 'polygon':
-                    from core.shared.utils.vendor_api_keys import get_polygon_api_key
-                    key = get_polygon_api_key(required=False)
-                elif vendor == 'tiingo':
-                    from core.shared.utils.vendor_api_keys import get_tiingo_api_key
-                    key = get_tiingo_api_key(required=False)
-                elif vendor == 'eodhd':
-                    from core.shared.utils.vendor_api_keys import get_eodhd_api_key
-                    key = get_eodhd_api_key(required=False)
-                elif vendor == 'alpha_vantage':
-                    from core.shared.utils.vendor_api_keys import get_alpha_vantage_api_key
-                    key = get_alpha_vantage_api_key(required=False)
+            if vendor == 'polygon':
+                from core.shared.utils.vendor_api_keys import get_polygon_api_key
+                key = get_polygon_api_key(required=False)
+            elif vendor == 'tiingo':
+                from core.shared.utils.vendor_api_keys import get_tiingo_api_key
+                key = get_tiingo_api_key(required=False)
+            elif vendor == 'eodhd':
+                from core.shared.utils.vendor_api_keys import get_eodhd_api_key
+                key = get_eodhd_api_key(required=False)
+            elif vendor == 'alpha_vantage':
+                from core.shared.utils.vendor_api_keys import get_alpha_vantage_api_key
+                key = get_alpha_vantage_api_key(required=False)
 
-                results["checks"][vendor] = {
-                    "available": key is not None,
-                    "valid_format": len(key) > 10 if key else False,
-                    "resolution_time_ms": (time.time() - start_time) * 1000
-                }
+            results["checks"][vendor] = {
+                "available": key is not None,
+                "valid_format": len(key) > 10 if key else False,
+                "resolution_time_ms": (time.time() - start_time) * 1000
+            }
 
-            except Exception as e:
-                results["checks"][vendor] = {
-                    "available": False,
-                    "error": str(e),
-                    "resolution_time_ms": (time.time() - start_time) * 1000
-                }
-                results["alerts"].append(f"API key resolution failed for {vendor}: {e}")
-
-        # Calculate overall health
         total_checks = len(vendors)
         successful_checks = sum(1 for check in results["checks"].values() if check.get("available", False))
         resolution_successful = sum(1 for check in results["checks"].values() if "error" not in check)
@@ -116,28 +106,18 @@ class SharedUtilitiesMonitor:
 
         for env in environments:
             start_time = time.time()
-            try:
-                from core.shared.utils.database_connections import get_database_pool, get_table_name
+            from core.shared.utils.database_connections import get_database_pool, get_table_name
 
-                # Test pool creation (without actually connecting in this demo)
-                table_name = get_table_name('test_monitoring', env)
-                expected_name = f"{env}_test_monitoring"
+            # Test pool creation (without actually connecting in this demo)
+            table_name = get_table_name('test_monitoring', env)
+            expected_name = f"{env}_test_monitoring"
 
-                results["checks"][env] = {
-                    "pool_available": True,  # Would test actual connection in production
-                    "table_naming_correct": table_name == expected_name,
-                    "connection_time_ms": (time.time() - start_time) * 1000
-                }
+            results["checks"][env] = {
+                "pool_available": True,  # Would test actual connection in production
+                "table_naming_correct": table_name == expected_name,
+                "connection_time_ms": (time.time() - start_time) * 1000
+            }
 
-            except Exception as e:
-                results["checks"][env] = {
-                    "pool_available": False,
-                    "error": str(e),
-                    "connection_time_ms": (time.time() - start_time) * 1000
-                }
-                results["alerts"].append(f"Database connection failed for {env}: {e}")
-
-        # Calculate health metrics
         total_envs = len(environments)
         healthy_envs = sum(1 for check in results["checks"].values() if check.get("pool_available", False))
         success_rate = healthy_envs / total_envs if total_envs > 0 else 0
@@ -167,42 +147,31 @@ class SharedUtilitiesMonitor:
 
         for vendor in vendors:
             start_time = time.time()
-            try:
-                from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+            from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
 
-                # Test statistics
-                stats = BackfillStats()
-                stats.records_fetched = 100
-                stats.api_calls_made = 10
+            # Test statistics
+            stats = BackfillStats()
+            stats.records_fetched = 100
+            stats.api_calls_made = 10
 
-                # Test rate limiter creation
-                if vendor == 'polygon_free':
-                    limiter = VendorRateLimiters.polygon_free()
-                elif vendor == 'polygon_paid':
-                    limiter = VendorRateLimiters.polygon_paid()
-                elif vendor == 'tiingo':
-                    limiter = VendorRateLimiters.tiingo()
-                elif vendor == 'eodhd':
-                    limiter = VendorRateLimiters.eodhd()
-                elif vendor == 'alpha_vantage':
-                    limiter = VendorRateLimiters.alpha_vantage()
+            # Test rate limiter creation
+            if vendor == 'polygon_free':
+                limiter = VendorRateLimiters.polygon_free()
+            elif vendor == 'polygon_paid':
+                limiter = VendorRateLimiters.polygon_paid()
+            elif vendor == 'tiingo':
+                limiter = VendorRateLimiters.tiingo()
+            elif vendor == 'eodhd':
+                limiter = VendorRateLimiters.eodhd()
+            elif vendor == 'alpha_vantage':
+                limiter = VendorRateLimiters.alpha_vantage()
 
-                results["checks"][vendor] = {
-                    "stats_available": hasattr(stats, 'success_rate'),
-                    "rate_limiter_created": limiter is not None,
-                    "initialization_time_ms": (time.time() - start_time) * 1000
-                }
+            results["checks"][vendor] = {
+                "stats_available": hasattr(stats, 'success_rate'),
+                "rate_limiter_created": limiter is not None,
+                "initialization_time_ms": (time.time() - start_time) * 1000
+            }
 
-            except Exception as e:
-                results["checks"][vendor] = {
-                    "stats_available": False,
-                    "rate_limiter_created": False,
-                    "error": str(e),
-                    "initialization_time_ms": (time.time() - start_time) * 1000
-                }
-                results["alerts"].append(f"Backfill framework failed for {vendor}: {e}")
-
-        # Calculate health metrics
         total_vendors = len(vendors)
         healthy_vendors = sum(1 for check in results["checks"].values()
                              if check.get("stats_available", False) and check.get("rate_limiter_created", False))
@@ -355,15 +324,10 @@ async def main():
 
     if args.dashboard:
         print("🚀 Starting Real-Time Monitoring Dashboard...")
-        try:
-            while True:
-                health_report = await monitor.run_comprehensive_health_check()
-                monitor.display_dashboard(health_report)
-                await asyncio.sleep(args.interval)
-        except KeyboardInterrupt:
-            print(f"\n✋ Monitoring stopped by user")
-            return
-
+        while True:
+            health_report = await monitor.run_comprehensive_health_check()
+            monitor.display_dashboard(health_report)
+            await asyncio.sleep(args.interval)
     elif args.check_all or args.report:
         print("🔍 Running comprehensive health check...")
         health_report = await monitor.run_comprehensive_health_check()

@@ -27,8 +27,9 @@ import pytest
 import asyncio
 import os
 import asyncpg
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
-from tests.utils.test_data_setup import setup_single_symbol_test
+from core.platform.config.environment import Environment, EnvironmentType
+# FIXME: tests.utils module does not exist
+# from tests.utils.test_data_setup import setup_single_symbol_test
 
 @pytest.mark.asyncio
 async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db):
@@ -145,11 +146,7 @@ async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db
         state_data = record['state_data']
         if isinstance(state_data, str):
             import json
-            try:
-                state_data = json.loads(state_data)
-            except:
-                state_data = None
-        
+            state_data = json.loads(state_data)
         print(f"   {i+1}. duration={record['duration']}, start_time={record['start_date_time']}, state_data keys={list(state_data.keys()) if state_data else 'None'}")
     
     # Count records by duration (this is the correct way since we now have duration column)
@@ -233,12 +230,7 @@ async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db
                 state_data = record['state_data']
                 if isinstance(state_data, str):
                     import json
-                    try:
-                        state_data = json.loads(state_data)
-                    except:
-                        state_data = None
-                
-                # Validate timestamp alignment
+                    state_data = json.loads(state_data)
                 duration_minutes = {'5m': 5, '15m': 15, '60m': 60}[timeframe]
                 expected_duration = (end_time - start_time).total_seconds() / 60
                 
@@ -285,15 +277,14 @@ async def setup_test_data(environment: Environment, test_symbol: str = 'AAPL'):
     """Setup test data using shared utility."""
     conn = await asyncpg.connect(environment.get_database_url())
     
-    try:
-        # Use shared test data setup utility
-        await setup_single_symbol_test(
-            environment=environment,
-            db_connection=conn,
-            symbol=test_symbol,
-            instrument_id=999999,
-            universe_id=1
-        )
-        
+    # Use shared test data setup utility
+    await setup_single_symbol_test(
+        environment=environment,
+        db_connection=conn,
+        symbol=test_symbol,
+        instrument_id=999999,
+        universe_id=1
+    )
+    
     finally:
         await conn.close()

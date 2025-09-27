@@ -72,38 +72,23 @@ class NewsCollectionTestRunner:
         for category in categories:
             print(f"\n📋 Running {category.upper()} tests...")
 
-            try:
-                if category == 'unit':
-                    result = self.run_unit_tests()
-                elif category == 'integration':
-                    result = self.run_integration_tests()
-                elif category == 'monitoring':
-                    result = asyncio.run(self.run_monitoring_tests())
-                elif category == 'end_to_end':
-                    result = self.run_end_to_end_tests()
-                else:
-                    result = {'status': 'SKIPPED', 'reason': f'Unknown category: {category}'}
+            if category == 'unit':
+                result = self.run_unit_tests()
+            elif category == 'integration':
+                result = self.run_integration_tests()
+            elif category == 'monitoring':
+                result = asyncio.run(self.run_monitoring_tests())
+            elif category == 'end_to_end':
+                result = self.run_end_to_end_tests()
+            else:
+                result = {'status': 'SKIPPED', 'reason': f'Unknown category: {category}'}
 
-                self.test_results['categories'][category] = result
+            self.test_results['categories'][category] = result
 
-                if result['status'] == 'FAILED' and fail_fast:
-                    print(f"❌ Fast failure on {category} tests")
-                    break
+            if result['status'] == 'FAILED' and fail_fast:
+                print(f"❌ Fast failure on {category} tests")
+                break
 
-            except Exception as e:
-                error_result = {
-                    'status': 'ERROR',
-                    'error': str(e),
-                    'tests_run': 0,
-                    'tests_passed': 0,
-                    'tests_failed': 1
-                }
-                self.test_results['categories'][category] = error_result
-
-                if fail_fast:
-                    break
-
-        # Calculate overall results
         self._calculate_overall_results()
 
         return self.test_results
@@ -124,41 +109,23 @@ class NewsCollectionTestRunner:
         for test_file in test_files:
             self._ensure_unit_test_exists(test_file)
 
-        try:
-            cmd = [
-                'python', '-m', 'pytest',
-                'tests/integration/test_news_collection_comprehensive.py',
-                '-v', '--tb=short',
-                '-k', 'test_polygon_api_date_format or test_news_insertion'
-            ]
+        cmd = [
+            'python', '-m', 'pytest',
+            'tests/integration/test_news_collection_comprehensive.py',
+            '-v', '--tb=short',
+            '-k', 'test_polygon_api_date_format or test_news_insertion'
+        ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
-            return {
-                'status': 'PASSED' if result.returncode == 0 else 'FAILED',
-                'output': result.stdout,
-                'errors': result.stderr,
-                'tests_run': self._count_tests_from_output(result.stdout),
-                'tests_passed': self._count_passed_from_output(result.stdout),
-                'tests_failed': self._count_failed_from_output(result.stdout)
-            }
-
-        except subprocess.TimeoutExpired:
-            return {
-                'status': 'TIMEOUT',
-                'error': 'Unit tests timed out after 60 seconds',
-                'tests_run': 0,
-                'tests_passed': 0,
-                'tests_failed': 1
-            }
-        except Exception as e:
-            return {
-                'status': 'ERROR',
-                'error': str(e),
-                'tests_run': 0,
-                'tests_passed': 0,
-                'tests_failed': 1
-            }
+        return {
+            'status': 'PASSED' if result.returncode == 0 else 'FAILED',
+            'output': result.stdout,
+            'errors': result.stderr,
+            'tests_run': self._count_tests_from_output(result.stdout),
+            'tests_passed': self._count_passed_from_output(result.stdout),
+            'tests_failed': self._count_failed_from_output(result.stdout)
+        }
 
     def run_integration_tests(self) -> Dict[str, Any]:
         """Run integration tests for news collection workflow"""
@@ -166,33 +133,23 @@ class NewsCollectionTestRunner:
         print("  🔗 API integration tests...")
         print("  🔗 Duplicate handling tests...")
 
-        try:
-            cmd = [
-                'python', '-m', 'pytest',
-                'tests/integration/test_news_collection_comprehensive.py',
-                '-v', '--tb=short',
-                f'--environment={self.environment}'
-            ]
+        cmd = [
+            'python', '-m', 'pytest',
+            'tests/integration/test_news_collection_comprehensive.py',
+            '-v', '--tb=short',
+            f'--environment={self.environment}'
+        ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
-            return {
-                'status': 'PASSED' if result.returncode == 0 else 'FAILED',
-                'output': result.stdout,
-                'errors': result.stderr,
-                'tests_run': self._count_tests_from_output(result.stdout),
-                'tests_passed': self._count_passed_from_output(result.stdout),
-                'tests_failed': self._count_failed_from_output(result.stdout)
-            }
-
-        except Exception as e:
-            return {
-                'status': 'ERROR',
-                'error': str(e),
-                'tests_run': 0,
-                'tests_passed': 0,
-                'tests_failed': 1
-            }
+        return {
+            'status': 'PASSED' if result.returncode == 0 else 'FAILED',
+            'output': result.stdout,
+            'errors': result.stderr,
+            'tests_run': self._count_tests_from_output(result.stdout),
+            'tests_passed': self._count_passed_from_output(result.stdout),
+            'tests_failed': self._count_failed_from_output(result.stdout)
+        }
 
     async def run_monitoring_tests(self) -> Dict[str, Any]:
         """Run monitoring tests for production health"""
@@ -200,35 +157,25 @@ class NewsCollectionTestRunner:
         print("  📊 Gap detection...")
         print("  📊 Quality metrics...")
 
-        try:
-            # Import and run monitoring tests
-            from tests.monitoring.test_news_data_monitoring import NewsDataMonitor
+        # Import and run monitoring tests
+        from tests.monitoring.test_news_data_monitoring import NewsDataMonitor
 
-            monitor = NewsDataMonitor(self.environment)
-            results = await monitor.run_all_checks()
+        monitor = NewsDataMonitor(self.environment)
+        results = await monitor.run_all_checks()
 
-            # Count successful checks
-            total_checks = len(results['checks'])
-            passed_checks = sum(1 for check in results['checks'].values() if check.get('passed', False))
-            failed_checks = total_checks - passed_checks
+        # Count successful checks
+        total_checks = len(results['checks'])
+        passed_checks = sum(1 for check in results['checks'].values() if check.get('passed', False))
+        failed_checks = total_checks - passed_checks
 
-            return {
-                'status': 'PASSED' if results['overall_health'] == 'HEALTHY' else 'FAILED',
-                'monitoring_results': results,
-                'tests_run': total_checks,
-                'tests_passed': passed_checks,
-                'tests_failed': failed_checks,
-                'alerts': results.get('alerts', [])
-            }
-
-        except Exception as e:
-            return {
-                'status': 'ERROR',
-                'error': str(e),
-                'tests_run': 0,
-                'tests_passed': 0,
-                'tests_failed': 1
-            }
+        return {
+            'status': 'PASSED' if results['overall_health'] == 'HEALTHY' else 'FAILED',
+            'monitoring_results': results,
+            'tests_run': total_checks,
+            'tests_passed': passed_checks,
+            'tests_failed': failed_checks,
+            'alerts': results.get('alerts', [])
+        }
 
     def run_end_to_end_tests(self) -> Dict[str, Any]:
         """Run end-to-end workflow tests"""
@@ -236,48 +183,38 @@ class NewsCollectionTestRunner:
         print("  🌐 API to database pipeline...")
         print("  🌐 Error recovery tests...")
 
-        try:
-            # Test a complete mini-backfill workflow
-            cmd = [
-                'python', 'scripts/polygon_news_backfill.py',
-                '--start-date', '2025-09-10',
-                '--end-date', '2025-09-11',
-                f'--environment', self.environment,
-                '--limit-per-request', '5',
-                '--max-requests', '1',
-                '--dry-run'  # Don't actually insert data
-            ]
+        # Test a complete mini-backfill workflow
+        cmd = [
+            'python', 'scripts/polygon_news_backfill.py',
+            '--start-date', '2025-09-10',
+            '--end-date', '2025-09-11',
+            f'--environment', self.environment,
+            '--limit-per-request', '5',
+            '--max-requests', '1',
+            '--dry-run'  # Don't actually insert data
+        ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
-            # Check for successful dry run
-            success_indicators = [
-                'Backfill completed successfully',
-                'Success rate: 100.0%',
-                'DRY RUN'
-            ]
+        # Check for successful dry run
+        success_indicators = [
+            'Backfill completed successfully',
+            'Success rate: 100.0%',
+            'DRY RUN'
+        ]
 
-            output_lower = result.stdout.lower() + result.stderr.lower()
-            success_count = sum(1 for indicator in success_indicators if indicator.lower() in output_lower)
+        output_lower = result.stdout.lower() + result.stderr.lower()
+        success_count = sum(1 for indicator in success_indicators if indicator.lower() in output_lower)
 
-            return {
-                'status': 'PASSED' if result.returncode == 0 and success_count >= 2 else 'FAILED',
-                'output': result.stdout,
-                'errors': result.stderr,
-                'tests_run': 1,
-                'tests_passed': 1 if result.returncode == 0 else 0,
-                'tests_failed': 0 if result.returncode == 0 else 1,
-                'success_indicators_found': success_count
-            }
-
-        except Exception as e:
-            return {
-                'status': 'ERROR',
-                'error': str(e),
-                'tests_run': 1,
-                'tests_passed': 0,
-                'tests_failed': 1
-            }
+        return {
+            'status': 'PASSED' if result.returncode == 0 and success_count >= 2 else 'FAILED',
+            'output': result.stdout,
+            'errors': result.stderr,
+            'tests_run': 1,
+            'tests_passed': 1 if result.returncode == 0 else 0,
+            'tests_failed': 0 if result.returncode == 0 else 1,
+            'success_indicators_found': success_count
+        }
 
     def _ensure_unit_test_exists(self, test_file: str):
         """Create basic unit test file if it doesn't exist"""
@@ -303,10 +240,7 @@ def test_placeholder():
         if 'collected' in output:
             for line in output.split('\n'):
                 if 'collected' in line and 'item' in line:
-                    try:
-                        return int(line.split('collected')[1].split('item')[0].strip())
-                    except:
-                        pass
+                    return int(line.split('collected')[1].split('item')[0].strip())
         return 0
 
     def _count_passed_from_output(self, output: str) -> int:
@@ -314,13 +248,10 @@ def test_placeholder():
         if 'passed' in output:
             for line in output.split('\n'):
                 if 'passed' in line and ('failed' in line or 'error' in line or line.strip().endswith('passed')):
-                    try:
-                        parts = line.split()
-                        for i, part in enumerate(parts):
-                            if part == 'passed' and i > 0:
-                                return int(parts[i-1])
-                    except:
-                        pass
+                    parts = line.split()
+                    for i, part in enumerate(parts):
+                        if part == 'passed' and i > 0:
+                            return int(parts[i-1])
         return 0
 
     def _count_failed_from_output(self, output: str) -> int:
@@ -328,13 +259,10 @@ def test_placeholder():
         if 'failed' in output:
             for line in output.split('\n'):
                 if 'failed' in line:
-                    try:
-                        parts = line.split()
-                        for i, part in enumerate(parts):
-                            if part == 'failed' and i > 0:
-                                return int(parts[i-1])
-                    except:
-                        pass
+                    parts = line.split()
+                    for i, part in enumerate(parts):
+                        if part == 'failed' and i > 0:
+                            return int(parts[i-1])
         return 0
 
     def _calculate_overall_results(self):

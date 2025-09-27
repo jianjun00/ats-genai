@@ -28,7 +28,7 @@ import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.ml.legacy.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
+from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.legacy.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 
 # Configure logging
@@ -52,21 +52,15 @@ def ray_cluster():
 @pytest.fixture
 async def test_db_connection():
     """Create test database connection."""
-    try:
-        connection = await asyncpg.connect(
-            host="localhost",
-            port=3432,
-            user="postgres",
-            password="dev_password",
-            database="dev_db"
-        )
-        yield connection
-        await connection.close()
-    except Exception as e:
-        logger.warning(f"Could not connect to test database: {e}")
-        yield None
-
-
+    connection = await asyncpg.connect(
+        host="localhost",
+        port=3432,
+        user="postgres",
+        password="dev_password",
+        database="dev_db"
+    )
+    yield connection
+    await connection.close()
 @pytest.fixture
 def temp_output_dir():
     """Create temporary output directory for tests."""
@@ -117,7 +111,7 @@ class TestRayTrainingDataEndToEnd:
         symbols = ['AAPL', 'TSLA']
 
         # Create Ray-enabled callback
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=test_storage_manager,
             output_dir=str(temp_output_dir),
@@ -181,7 +175,7 @@ class TestRayTrainingDataEndToEnd:
         symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL']  # 4 symbols for better parallelization
 
         # Test sequential processing
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=test_storage_manager,
             output_dir=str(temp_output_dir / "sequential"),
@@ -189,7 +183,7 @@ class TestRayTrainingDataEndToEnd:
         )
 
         # Test Ray parallel processing
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=test_storage_manager,
             output_dir=str(temp_output_dir / "parallel"),
@@ -231,7 +225,7 @@ class TestRayTrainingDataEndToEnd:
         """Test Ray error recovery in integration scenario."""
         symbols = ['AAPL', 'TSLA']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=test_storage_manager,
             output_dir=str(temp_output_dir),
@@ -265,7 +259,7 @@ class TestRayTrainingDataEndToEnd:
 
         symbols = ['AAPL', 'TSLA']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=test_storage_manager,
             output_dir=str(temp_output_dir),
@@ -290,14 +284,9 @@ class TestRayTrainingDataEndToEnd:
         assert len(callback.daily_examples) > 0
 
         # Test database query during Ray processing
-        try:
-            result = await test_db_connection.fetch("SELECT version();")
-            assert len(result) > 0
-            logger.info("Database connectivity maintained during Ray processing")
-        except Exception as e:
-            logger.warning(f"Database query failed during Ray test: {e}")
-
-
+        result = await test_db_connection.fetch("SELECT version();")
+        assert len(result) > 0
+        logger.info("Database connectivity maintained during Ray processing")
 class TestRayFileSystemIntegration:
     """Test Ray integration with file system operations."""
 
@@ -307,7 +296,7 @@ class TestRayFileSystemIntegration:
         symbols = ['AAPL', 'TSLA']
 
         # Create callback with file-based storage
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_output_dir),
             save_format="riegeli",
@@ -335,7 +324,7 @@ class TestRayFileSystemIntegration:
         """Test concurrent file access with Ray workers."""
         symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_output_dir),
             enable_ray_parallel=True,
@@ -369,7 +358,7 @@ class TestRayResilience:
         """Test recovery when Ray workers fail."""
         symbols = ['AAPL', 'TSLA', 'MSFT']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=test_storage_manager,
             output_dir=str(temp_output_dir),
@@ -397,7 +386,7 @@ class TestRayResilience:
         """Test behavior when some (but not all) Ray workers fail."""
         symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=test_storage_manager,
             output_dir=str(temp_output_dir),

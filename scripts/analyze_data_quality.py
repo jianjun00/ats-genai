@@ -578,15 +578,11 @@ def comprehensive_data_quality_test():
         del report['ml_validation']['clean_targets']
 
     report_path = '/data/models/data_quality_analysis_report.json'
-    try:
-        import os
-        os.makedirs(os.path.dirname(report_path), exist_ok=True)
-        with open(report_path, 'w') as f:
-            json.dump(report, f, indent=2, default=str)
-        logger.info(f"💾 Comprehensive report saved: {report_path}")
-    except Exception as e:
-        logger.warning(f"Could not save report: {e}")
-
+    import os
+    os.makedirs(os.path.dirname(report_path), exist_ok=True)
+    with open(report_path, 'w') as f:
+        json.dump(report, f, indent=2, default=str)
+    logger.info(f"💾 Comprehensive report saved: {report_path}")
     logger.info("\n🎉 COMPREHENSIVE DATA QUALITY ANALYSIS COMPLETE!")
     logger.info("✅ Framework ready for production data validation")
 
@@ -594,10 +590,9 @@ def comprehensive_data_quality_test():
 
 
 if __name__ == "__main__":
-    try:
-        report = comprehensive_data_quality_test()
-        logger.info("✅ Data quality analysis completed successfully")
-        sys.exit(0)
+    report = comprehensive_data_quality_test()
+    logger.info("✅ Data quality analysis completed successfully")
+    sys.exit(0)
     except Exception as e:
         logger.error(f"❌ Data quality analysis failed: {e}")
         import traceback

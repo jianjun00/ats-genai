@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsRunnerRunIdIntegration:
@@ -36,7 +31,7 @@ class TestRealObjectsRunnerRunIdIntegration:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsRunnerRunIdIntegration:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_runner_automatic_run_context_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_automatic_run_context_creation"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_automatic_run_context_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_automatic_run_context_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_with_provided_run_context_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_with_provided_run_context"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_with_provided_run_context_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_with_provided_run_context_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_run_isolation_disabled_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_run_isolation_disabled"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_run_isolation_disabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_run_isolation_disabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_metadata_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_metadata_creation"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_metadata_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_metadata_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_logging_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_logging_integration"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_logging_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_logging_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_directory_structure_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_directory_structure_creation"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_directory_structure_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_directory_structure_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multiple_runners_isolation_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_runners_isolation"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multiple_runners_isolation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multiple_runners_isolation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_universe_state_manager_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_universe_state_manager_integration"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_universe_state_manager_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_universe_state_manager_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_legacy_behavior_default_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_legacy_behavior_default"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_legacy_behavior_default_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_legacy_behavior_default_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_with_existing_universe_state_manager_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_with_existing_universe_state_manager"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_with_existing_universe_state_manager_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_with_existing_universe_state_manager_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_test_environment_behavior_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_test_environment_behavior"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_environment_behavior_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_environment_behavior_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_invalid_dates_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_invalid_dates"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_invalid_dates_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_invalid_dates_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_with_none_run_context_and_disabled_isolation_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_with_none_run_context_and_disabled_isolation"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_with_none_run_context_and_disabled_isolation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.runner_with_none_run_context_and_disabled_isolation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_runner_creation_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_runner_creation_performance"""
         # Test with real database integration
@@ -363,15 +274,8 @@ class TestRealObjectsRunnerRunIdIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.runner_creation_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.runner_creation_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, 'src')
 
 from src.universe.modeling_universe_creator import ModelingUniverseCreator, ModelingStock
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 class TestModelingUniverseCreatorCore:
     """Test core initialization and business logic."""

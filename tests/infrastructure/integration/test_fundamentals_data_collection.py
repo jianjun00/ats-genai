@@ -196,46 +196,42 @@ class TestDatabaseSchema:
         """Test creation of fundamentals table with proper schema"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            collector = SimplePolygonFundamentalsCollector("test_key")
-            await collector.ensure_fundamentals_table(pool)
+        collector = SimplePolygonFundamentalsCollector("test_key")
+        await collector.ensure_fundamentals_table(pool)
 
-            # Verify table exists and has correct structure
-            async with pool.acquire() as conn:
-                # Check table exists
-                exists = await conn.fetchval("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables
-                        WHERE table_name = 'dev_fundamental_polygon'
-                    )
-                """)
-                assert exists, "Fundamentals table should exist"
-
-                # Check critical columns exist
-                columns = await conn.fetch("""
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
+        # Verify table exists and has correct structure
+        async with pool.acquire() as conn:
+            # Check table exists
+            exists = await conn.fetchval("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables
                     WHERE table_name = 'dev_fundamental_polygon'
-                """)
+                )
+            """)
+            assert exists, "Fundamentals table should exist"
 
-                column_names = [col['column_name'] for col in columns]
-                required_columns = [
-                    'symbol', 'fiscal_year', 'timeframe', 'total_assets',
-                    'total_revenue', 'net_income', 'balance_sheet'
-                ]
+            # Check critical columns exist
+            columns = await conn.fetch("""
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = 'dev_fundamental_polygon'
+            """)
 
-                for col in required_columns:
-                    assert col in column_names, f"Required column {col} missing"
+            column_names = [col['column_name'] for col in columns]
+            required_columns = [
+                'symbol', 'fiscal_year', 'timeframe', 'total_assets',
+                'total_revenue', 'net_income', 'balance_sheet'
+            ]
 
-            await pool.close()
+            for col in required_columns:
+                assert col in column_names, f"Required column {col} missing"
 
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -243,34 +239,30 @@ class TestDatabaseSchema:
         """Test insertion and retrieval of financial records"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            collector = SimplePolygonFundamentalsCollector("test_key")
+        collector = SimplePolygonFundamentalsCollector("test_key")
 
-            # Insert test record
-            test_records = [sample_standardized_financial]
-            inserted = await collector.insert_polygon_financials(pool, test_records)
-            assert inserted == 1, f"Expected 1 record inserted, got {inserted}"
+        # Insert test record
+        test_records = [sample_standardized_financial]
+        inserted = await collector.insert_polygon_financials(pool, test_records)
+        assert inserted == 1, f"Expected 1 record inserted, got {inserted}"
 
-            # Retrieve and verify
-            async with pool.acquire() as conn:
-                record = await conn.fetchrow("""
-                    SELECT * FROM dev_fundamental_polygon
-                    WHERE symbol = $1 AND fiscal_year = $2 AND timeframe = $3
-                """, 'AAPL', '2024', 'annual')
+        # Retrieve and verify
+        async with pool.acquire() as conn:
+            record = await conn.fetchrow("""
+                SELECT * FROM dev_fundamental_polygon
+                WHERE symbol = $1 AND fiscal_year = $2 AND timeframe = $3
+            """, 'AAPL', '2024', 'annual')
 
-                assert record is not None, "Record should be retrievable"
-                assert record['total_revenue'] == 391035000000, "Revenue should match"
-                assert record['company_name'] == 'Apple Inc.', "Company name should match"
+            assert record is not None, "Record should be retrievable"
+            assert record['total_revenue'] == 391035000000, "Revenue should match"
+            assert record['company_name'] == 'Apple Inc.', "Company name should match"
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -278,35 +270,31 @@ class TestDatabaseSchema:
         """Test proper handling of duplicate records (upsert behavior)"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=10.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=10.0)
 
-            collector = SimplePolygonFundamentalsCollector("test_key")
+        collector = SimplePolygonFundamentalsCollector("test_key")
 
-            # Insert same record twice
-            test_records = [sample_standardized_financial]
-            inserted1 = await collector.insert_polygon_financials(pool, test_records)
-            inserted2 = await collector.insert_polygon_financials(pool, test_records)
+        # Insert same record twice
+        test_records = [sample_standardized_financial]
+        inserted1 = await collector.insert_polygon_financials(pool, test_records)
+        inserted2 = await collector.insert_polygon_financials(pool, test_records)
 
-            assert inserted1 == 1, "First insert should succeed"
-            assert inserted2 == 1, "Second insert should update (upsert)"
+        assert inserted1 == 1, "First insert should succeed"
+        assert inserted2 == 1, "Second insert should update (upsert)"
 
-            # Verify only one record exists
-            async with pool.acquire() as conn:
-                count = await conn.fetchval("""
-                    SELECT COUNT(*) FROM dev_fundamental_polygon
-                    WHERE symbol = $1 AND fiscal_year = $2 AND timeframe = $3
-                """, 'AAPL', '2024', 'annual')
+        # Verify only one record exists
+        async with pool.acquire() as conn:
+            count = await conn.fetchval("""
+                SELECT COUNT(*) FROM dev_fundamental_polygon
+                WHERE symbol = $1 AND fiscal_year = $2 AND timeframe = $3
+            """, 'AAPL', '2024', 'annual')
 
-                assert count == 1, f"Expected 1 record after upsert, got {count}"
+            assert count == 1, f"Expected 1 record after upsert, got {count}"
 
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available for testing: {e}")
+        await pool.close()
 
 class TestDataQuality:
     """Test data quality validation and integrity checks"""
@@ -447,47 +435,42 @@ class TestEndToEndIntegration:
         """Test complete fundamentals collection workflow"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
         from core.shared.utils.database import Database
-        from core.shared.utils.environment import Environment, EnvironmentType
+        from core.platform.config.environment import Environment, EnvironmentType
 
-        try:
-            env = Environment(EnvironmentType.DEV)
-            pool = await Database.create_connection_pool(env=env, timeout=30.0)
+        env = Environment(EnvironmentType.DEV)
+        pool = await Database.create_connection_pool(env=env, timeout=30.0)
 
-            api_key = os.getenv('POLYGON_API_KEY')
-            if not api_key:
-                pytest.skip("POLYGON_API_KEY not available for integration test")
+        api_key = os.getenv('POLYGON_API_KEY')
+        if not api_key:
+            pytest.skip("POLYGON_API_KEY not available for integration test")
 
-            async with SimplePolygonFundamentalsCollector(api_key) as collector:
-                # Test symbol selection
-                symbols = await collector.get_priority_symbols(pool, limit=2)
-                assert len(symbols) > 0, "Should return at least one symbol"
+        async with SimplePolygonFundamentalsCollector(api_key) as collector:
+            # Test symbol selection
+            symbols = await collector.get_priority_symbols(pool, limit=2)
+            assert len(symbols) > 0, "Should return at least one symbol"
 
-                # Test data collection for one symbol
-                test_symbol = symbols[0]
-                records = await collector.fetch_financials_for_symbol(test_symbol, 'annual')
+            # Test data collection for one symbol
+            test_symbol = symbols[0]
+            records = await collector.fetch_financials_for_symbol(test_symbol, 'annual')
 
-                if records:  # Only test if we get data
-                    # Test database insertion
-                    inserted = await collector.insert_polygon_financials(pool, records[:1])
-                    assert inserted == 1, "Should successfully insert record"
+            if records:  # Only test if we get data
+                # Test database insertion
+                inserted = await collector.insert_polygon_financials(pool, records[:1])
+                assert inserted == 1, "Should successfully insert record"
 
-                    # Test data retrieval
-                    async with pool.acquire() as conn:
-                        retrieved = await conn.fetchrow("""
-                            SELECT * FROM dev_fundamental_polygon
-                            WHERE symbol = $1
-                            ORDER BY created_at DESC LIMIT 1
-                        """, test_symbol)
+                # Test data retrieval
+                async with pool.acquire() as conn:
+                    retrieved = await conn.fetchrow("""
+                        SELECT * FROM dev_fundamental_polygon
+                        WHERE symbol = $1
+                        ORDER BY created_at DESC LIMIT 1
+                    """, test_symbol)
 
-                        assert retrieved is not None, "Should retrieve inserted record"
-                        assert retrieved['symbol'] == test_symbol, "Symbol should match"
+                    assert retrieved is not None, "Should retrieve inserted record"
+                    assert retrieved['symbol'] == test_symbol, "Symbol should match"
 
-            await pool.close()
+        await pool.close()
 
-        except Exception as e:
-            pytest.skip(f"Integration test failed due to external dependency: {e}")
-
-# Test runner configuration
 if __name__ == "__main__":
     # Run tests with proper configuration
     import sys

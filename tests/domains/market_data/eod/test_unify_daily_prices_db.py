@@ -1,9 +1,9 @@
 import pytest
 from datetime import date
-from shared.utils.environment import Environment, EnvironmentType
-from domains.market_data.services.eod.unify_daily_price_polygon import DatabaseDailyPricesUnifier
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.trading.services.core.eod.enhanced_eod_service import DatabaseDailyPricesUnifier
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from core.dao.vendors_dao import VendorsDAO
+from core.dao.infrastructure.vendors_dao import VendorsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 from vendor.tiingo.core.dao.daily_price_tiingo_dao import DailyPricesTiingoDAO
 from vendor.polygon.core.dao.daily_price_polygon_dao import DailyPricesPolygonDAO

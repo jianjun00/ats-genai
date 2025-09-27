@@ -84,40 +84,19 @@ async def test_reproduce_duplicate_run_id_constraint_violation():
     
     timestamp = start_date_time.isoformat()
     
-    try:
-        # First save should succeed
-        print("🔹 Attempting first save...")
-        result1 = await manager1.save_universe_state(timestamp, metadata)
-        print(f"✅ First save succeeded: {result1}")
-        
-        # Second save with same parameters should fail with constraint violation
-        print("🔹 Attempting second save with same run_id...")
-        result2 = await manager2.save_universe_state(timestamp, metadata)
-        print(f"❌ Second save unexpectedly succeeded: {result2}")
-        
-        # If we get here, the test failed to reproduce the issue
-        pytest.fail("Expected constraint violation did not occur - both saves succeeded unexpectedly")
-        
-    except Exception as e:
-        error_str = str(e)
-        print(f"🚨 Caught expected error: {error_str}")
-        
-        # Verify this is the exact constraint violation we're trying to reproduce
-        if "duplicate key value violates unique constraint" in error_str:
-            if "intg_universe_state_interval_universe_id_duration_start_date_ru" in error_str:
-                print("✅ Successfully reproduced the constraint violation error!")
-                print(f"✅ Constraint details: universe_id={universe_id}, duration={duration}, start_date_time={start_date_time}")
-                
-                # This is the expected failure - the test reproduced the issue
-                # In debug-first methodology, this failing test is GOOD - it shows the problem
-                assert True, "Constraint violation successfully reproduced"
-            else:
-                pytest.fail(f"Wrong constraint violation: {error_str}")
-        else:
-            # Some other error occurred
-            pytest.fail(f"Unexpected error (not constraint violation): {error_str}")
-
-
+    # First save should succeed
+    print("🔹 Attempting first save...")
+    result1 = await manager1.save_universe_state(timestamp, metadata)
+    print(f"✅ First save succeeded: {result1}")
+    
+    # Second save with same parameters should fail with constraint violation
+    print("🔹 Attempting second save with same run_id...")
+    result2 = await manager2.save_universe_state(timestamp, metadata)
+    print(f"❌ Second save unexpectedly succeeded: {result2}")
+    
+    # If we get here, the test failed to reproduce the issue
+    pytest.fail("Expected constraint violation did not occur - both saves succeeded unexpectedly")
+    
 async def test_show_run_id_collision_mechanism():
     """
     This test demonstrates WHY the constraint violation happens.

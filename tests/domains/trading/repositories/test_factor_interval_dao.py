@@ -1,5 +1,5 @@
 import pytest
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.repositories.factor_interval_dao import FactorIntervalDAO
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from datetime import datetime

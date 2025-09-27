@@ -22,7 +22,7 @@ from typing import List, Dict, Any
 import json
 import uuid
 
-from domains.market_data.services.news.realtime_news_ingestion import (
+from domains.market_data.services.vendor_adapters.news.realtime_news_ingestion import (
     create_realtime_news_service
 )
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient, LLMResponse
@@ -425,27 +425,21 @@ class TestNewsSystemLoadTests:
             # Generate and process articles continuously
             articles = test_articles_generator(5)  # Small batches
 
-            try:
-                batch_results = await asyncio.gather(
-                    *[news_service._process_article(article) for article in articles],
-                    return_exceptions=True
-                )
+            batch_results = await asyncio.gather(
+                *[news_service._process_article(article) for article in articles],
+                return_exceptions=True
+            )
 
-                successful = len([r for r in batch_results if not isinstance(r, Exception)])
-                failed = len(batch_results) - successful
+            successful = len([r for r in batch_results if not isinstance(r, Exception)])
+            failed = len(batch_results) - successful
 
-                processed_count += successful
-                error_count += failed
+            processed_count += successful
+            error_count += failed
 
-                # Sample metrics periodically
-                if processed_count % 10 == 0:
-                    performance_metrics.sample_system_metrics()
+            # Sample metrics periodically
+            if processed_count % 10 == 0:
+                performance_metrics.sample_system_metrics()
 
-            except Exception as e:
-                error_count += len(articles)
-                print(f"Batch processing error: {e}")
-
-            # Brief pause between batches
             await asyncio.sleep(2)
 
         performance_metrics.stop_monitoring()

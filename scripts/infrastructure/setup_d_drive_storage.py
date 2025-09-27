@@ -39,19 +39,15 @@ def detect_d_drive_path():
 
 def get_disk_usage(path):
     """Get disk usage statistics for given path"""
-    try:
-        usage = shutil.disk_usage(path)
-        return {
-            'total': usage.total,
-            'used': usage.used,
-            'free': usage.free,
-            'total_gb': round(usage.total / (1024**3), 2),
-            'used_gb': round(usage.used / (1024**3), 2),
-            'free_gb': round(usage.free / (1024**3), 2)
-        }
-    except Exception as e:
-        return {'error': str(e)}
-
+    usage = shutil.disk_usage(path)
+    return {
+        'total': usage.total,
+        'used': usage.used,
+        'free': usage.free,
+        'total_gb': round(usage.total / (1024**3), 2),
+        'used_gb': round(usage.used / (1024**3), 2),
+        'free_gb': round(usage.free / (1024**3), 2)
+    }
 def estimate_storage_requirements():
     """Estimate storage requirements for 30 years of minute data"""
 
@@ -101,14 +97,9 @@ def create_directory_structure(base_path):
 
     for dir_name in directories:
         dir_path = Path(base_path) / "ats-data" / dir_name
-        try:
-            dir_path.mkdir(parents=True, exist_ok=True)
-            created_dirs.append(str(dir_path))
-            print(f"✅ Created: {dir_path}")
-        except Exception as e:
-            failed_dirs.append({'path': str(dir_path), 'error': str(e)})
-            print(f"❌ Failed: {dir_path} - {e}")
-
+        dir_path.mkdir(parents=True, exist_ok=True)
+        created_dirs.append(str(dir_path))
+        print(f"✅ Created: {dir_path}")
     return created_dirs, failed_dirs
 
 def create_test_file(base_path):
@@ -116,21 +107,17 @@ def create_test_file(base_path):
 
     test_file = Path(base_path) / "ats-data" / "test_write.txt"
 
-    try:
-        with open(test_file, 'w') as f:
-            f.write(f"Test write at {datetime.now()}\n")
+    with open(test_file, 'w') as f:
+        f.write(f"Test write at {datetime.now()}\n")
 
-        # Try to read it back
-        with open(test_file, 'r') as f:
-            content = f.read()
+    # Try to read it back
+    with open(test_file, 'r') as f:
+        content = f.read()
 
-        # Clean up
-        test_file.unlink()
+    # Clean up
+    test_file.unlink()
 
-        return True, "Write test successful"
-
-    except Exception as e:
-        return False, f"Write test failed: {e}"
+    return True, "Write test successful"
 
 def generate_env_config(d_drive_path):
     """Generate environment configuration for the population script"""

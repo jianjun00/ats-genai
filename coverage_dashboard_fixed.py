@@ -29,27 +29,22 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
         path = parsed_path.path
         query_params = parse_qs(parsed_path.query)
         
-        try:
-            if path == '/' or path == '/dashboard':
-                self.serve_dashboard()
-            elif path == '/api/coverage-summary':
-                self.serve_coverage_summary()
-            elif path == '/api/priority-gaps':
-                self.serve_priority_gaps()
-            elif path == '/api/coverage-trend':
-                self.serve_coverage_trend()
-            elif path == '/api/backfill-queue':
-                self.serve_backfill_queue()
-            elif path == '/api/recent-operations':
-                self.serve_recent_operations()
-            elif path == '/health':
-                self.serve_health()
-            else:
-                self.send_error(404, "Not Found")
-        except Exception as e:
-            logger.error(f"Error handling request {path}: {e}")
-            self.send_error(500, f"Internal Server Error: {str(e)}")
-    
+        if path == '/' or path == '/dashboard':
+            self.serve_dashboard()
+        elif path == '/api/coverage-summary':
+            self.serve_coverage_summary()
+        elif path == '/api/priority-gaps':
+            self.serve_priority_gaps()
+        elif path == '/api/coverage-trend':
+            self.serve_coverage_trend()
+        elif path == '/api/backfill-queue':
+            self.serve_backfill_queue()
+        elif path == '/api/recent-operations':
+            self.serve_recent_operations()
+        elif path == '/health':
+            self.serve_health()
+        else:
+            self.send_error(404, "Not Found")
     def serve_dashboard(self):
         """Serve the main dashboard HTML."""
         html_content = self.generate_dashboard_html()
@@ -60,42 +55,32 @@ class CoverageDashboardHandler(BaseHTTPRequestHandler):
     
     def execute_db_query(self, query):
         """Execute database query synchronously."""
-        try:
-            # Get database config from server
-            db_config = getattr(self.server, 'db_config', {
-                'host': 'localhost',
-                'port': 4432,
-                'user': 'postgres',
-                'password': 'intg_password',
-                'database': 'intg_db'
-            })
-            
-            async def run_query():
-                conn = await asyncpg.connect(
-                    host=db_config['host'],
-                    port=db_config['port'],
-                    user=db_config['user'],
-                    password=db_config['password'],
-                    database=db_config['database']
-                )
-                try:
-                    result = await conn.fetch(query)
-                    return result
-                finally:
-                    await conn.close()
-            
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                result = loop.run_until_complete(run_query())
-                return result
-            finally:
-                loop.close()
-                
-        except Exception as e:
-            logger.error(f"Database query error: {e}")
-            return None
-    
+        # Get database config from server
+        db_config = getattr(self.server, 'db_config', {
+            'host': 'localhost',
+            'port': 4432,
+            'user': 'postgres',
+            'password': 'intg_password',
+            'database': 'intg_db'
+        })
+        
+        async def run_query():
+            conn = await asyncpg.connect(
+                host=db_config['host'],
+                port=db_config['port'],
+                user=db_config['user'],
+                password=db_config['password'],
+                database=db_config['database']
+            )
+            result = await conn.fetch(query)
+            return result
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(run_query())
+        return result
+        logger.error(f"Database query error: {e}")
+        return None
+
     def serve_coverage_summary(self):
         """Serve coverage summary data."""
         query = """
@@ -697,13 +682,6 @@ def main():
     
     logger.info(f"🚀 Coverage Dashboard Server running at http://{host}:{port}")
     
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        logger.info("👋 Dashboard server stopped by user")
-    except Exception as e:
-        logger.error(f"❌ Server error: {e}")
-        raise
-
+    server.serve_forever()
 if __name__ == "__main__":
     main()

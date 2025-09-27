@@ -95,18 +95,13 @@ class TestDatasetFixVerification:
                 # Should not get 500 errors or file not found errors
                 assert response.status != 500, f"Endpoint {endpoint} returned server error"
 
-                try:
-                    data = await response.json()
+                data = await response.json()
 
-                    # Check that there are no file system errors
-                    if "detail" in data:
-                        assert "No such file or directory" not in data["detail"], f"File error in {endpoint}: {data['detail']}"
+                # Check that there are no file system errors
+                if "detail" in data:
+                    assert "No such file or directory" not in data["detail"], f"File error in {endpoint}: {data['detail']}"
 
-                    logger.info(f"✅ Endpoint {endpoint} works without file errors")
-
-                except json.JSONDecodeError:
-                    # Non-JSON response is also acceptable for some cases
-                    pass
+                logger.info(f"✅ Endpoint {endpoint} works without file errors")
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio

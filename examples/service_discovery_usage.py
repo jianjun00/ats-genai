@@ -195,25 +195,15 @@ async def example_service_client():
         logger.info("Making service calls...")
 
         # Example GET request
-        try:
-            response = await client.get("/json")
-            if response.status == 200:
-                data = await response.json()
-                logger.info(f"GET /json successful: {data.get('url', 'N/A')}")
-        except Exception as e:
-            logger.error(f"GET request failed: {str(e)}")
-
-        # Example POST request
-        try:
-            test_data = {"message": "Hello from service client", "timestamp": datetime.utcnow().isoformat()}
-            response = await client.post("/post", json_data=test_data)
-            if response.status == 200:
-                result = await response.json()
-                logger.info(f"POST /post successful: received {len(result.get('json', {}))} fields")
-        except Exception as e:
-            logger.error(f"POST request failed: {str(e)}")
-
-        # Display client statistics
+        response = await client.get("/json")
+        if response.status == 200:
+            data = await response.json()
+            logger.info(f"GET /json successful: {data.get('url', 'N/A')}")
+        test_data = {"message": "Hello from service client", "timestamp": datetime.utcnow().isoformat()}
+        response = await client.post("/post", json_data=test_data)
+        if response.status == 200:
+            result = await response.json()
+            logger.info(f"POST /post successful: received {len(result.get('json', {}))} fields")
         stats = client.get_stats()
         logger.info(f"Client Stats: {stats['total_requests']} requests, "
                    f"{stats['success_rate']:.1f}% success rate, "
@@ -247,25 +237,20 @@ async def example_convenience_functions():
 
     await registry.register_service(jsonplaceholder_service)
 
-    try:
-        # Get JSON data using convenience function
-        post_data = await get_service_json("jsonplaceholder", "/posts/1")
-        logger.info(f"Retrieved post: '{post_data.get('title', 'N/A')[:50]}...'")
+    # Get JSON data using convenience function
+    post_data = await get_service_json("jsonplaceholder", "/posts/1")
+    logger.info(f"Retrieved post: '{post_data.get('title', 'N/A')[:50]}...'")
 
-        # Post JSON data using convenience function
-        new_post = {
-            "title": "Example Post",
-            "body": "This is an example post created via service client",
-            "userId": 1
-        }
+    # Post JSON data using convenience function
+    new_post = {
+        "title": "Example Post",
+        "body": "This is an example post created via service client",
+        "userId": 1
+    }
 
-        created_post = await post_service_json("jsonplaceholder", "/posts", new_post)
-        logger.info(f"Created post with ID: {created_post.get('id')}")
+    created_post = await post_service_json("jsonplaceholder", "/posts", new_post)
+    logger.info(f"Created post with ID: {created_post.get('id')}")
 
-    except Exception as e:
-        logger.error(f"Convenience function call failed: {str(e)}")
-
-    # Clean up
     await registry.deregister_service("jsonplaceholder", "jsonplaceholder-1")
     await shutdown_service_registry()
 
@@ -376,14 +361,9 @@ async def main():
     ]
 
     for name, example_func in examples:
-        try:
-            logger.info(f"\n{'='*20} {name} {'='*20}")
-            await example_func()
-            logger.info(f"✅ {name} completed successfully")
-        except Exception as e:
-            logger.error(f"❌ {name} failed: {str(e)}")
-
-        # Brief pause between examples
+        logger.info(f"\n{'='*20} {name} {'='*20}")
+        await example_func()
+        logger.info(f"✅ {name} completed successfully")
         await asyncio.sleep(1)
 
     logger.info("\n🎉 All service discovery examples completed!")

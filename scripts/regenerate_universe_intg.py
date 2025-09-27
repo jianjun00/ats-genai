@@ -109,27 +109,13 @@ def regenerate_high_volume_universe():
             ]
 
             for symbol, start_date, end_date, reason in historical_examples:
-                try:
-                    cursor.execute("""
-                        INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
-                        SELECT 2, %s, %s::timestamp, %s::timestamp, i.id
-                        FROM intg_instrument i
-                        WHERE i.symbol = %s
-                    """, (symbol, start_date, end_date, symbol))
-                    print(f"   📉 Added historical exit: {symbol} ({reason})")
-                except Exception as e:
-                    # Create instrument if missing
-                    cursor.execute("SELECT MAX(id) FROM intg_instrument")
-                    max_id = cursor.fetchone()['max'] or 90000
-                    new_id = max_id + 1
-
-                    cursor.execute("INSERT INTO intg_instrument (id, symbol) VALUES (%s, %s)", (new_id, symbol))
-                    cursor.execute("""
-                        INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
-                        VALUES (2, %s, %s::timestamp, %s::timestamp, %s)
-                    """, (symbol, start_date, end_date, new_id))
-                    print(f"   📉 Created instrument and added: {symbol} ({reason})")
-
+                cursor.execute("""
+                    INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
+                    SELECT 2, %s, %s::timestamp, %s::timestamp, i.id
+                    FROM intg_instrument i
+                    WHERE i.symbol = %s
+                """, (symbol, start_date, end_date, symbol))
+                print(f"   📉 Added historical exit: {symbol} ({reason})")
             print("📈 Step 4: Adding recent AI boom additions...")
 
             # Add recent additions due to AI boom (showing entry patterns)
@@ -140,22 +126,18 @@ def regenerate_high_volume_universe():
             ]
 
             for symbol, start_date, reason in ai_boom_additions:
-                try:
-                    cursor.execute("""
-                        INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
-                        SELECT 2, %s, %s::timestamp, NULL, i.id
-                        FROM intg_instrument i
-                        WHERE i.symbol = %s
-                        AND NOT EXISTS (
-                            SELECT 1 FROM intg_universe_membership um
-                            WHERE um.universe_id = 2 AND um.symbol = %s AND um.end_at IS NULL
-                        )
-                    """, (symbol, start_date, symbol, symbol))
-                    if cursor.rowcount > 0:
-                        print(f"   📈 Added AI boom entry: {symbol} ({reason})")
-                except Exception as e:
-                    print(f"   ⚠️  Skipped {symbol}: {str(e)[:50]}...")
-
+                cursor.execute("""
+                    INSERT INTO intg_universe_membership (universe_id, symbol, start_at, end_at, instrument_id)
+                    SELECT 2, %s, %s::timestamp, NULL, i.id
+                    FROM intg_instrument i
+                    WHERE i.symbol = %s
+                    AND NOT EXISTS (
+                        SELECT 1 FROM intg_universe_membership um
+                        WHERE um.universe_id = 2 AND um.symbol = %s AND um.end_at IS NULL
+                    )
+                """, (symbol, start_date, symbol, symbol))
+                if cursor.rowcount > 0:
+                    print(f"   📈 Added AI boom entry: {symbol} ({reason})")
             print("📊 Step 5: Generating final statistics...")
 
             # Get final statistics
@@ -206,9 +188,8 @@ def regenerate_high_volume_universe():
             return True
 
 if __name__ == "__main__":
-    try:
-        success = regenerate_high_volume_universe()
-        sys.exit(0 if success else 1)
+    success = regenerate_high_volume_universe()
+    sys.exit(0 if success else 1)
     except Exception as e:
         print(f"❌ Error regenerating universe: {e}")
         import traceback

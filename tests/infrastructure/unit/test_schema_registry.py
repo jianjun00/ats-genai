@@ -559,7 +559,7 @@ class TestGlobalRegistryFunctions:
 
     def test_global_convenience_functions(self):
         """Test global convenience functions."""
-        from schema.registry import get_field_definition, is_table_typed, get_table_entity_name
+        from domains.ml.schema.registry import get_field_definition, is_table_typed, get_table_entity_name
 
         # Test get_field_definition
         field_def = get_field_definition("dev_instrument", "symbol")
@@ -606,15 +606,9 @@ if __name__ == "__main__":
 
         for test_method in test_methods:
             total_tests += 1
-            try:
-                getattr(instance, test_method)()
-                print(f"✅ {test_method}")
-                passed_tests += 1
-
-            except Exception as e:
-                print(f"❌ {test_method}: {e}")
-                # Uncomment for detailed error info
-                # traceback.print_exc()
+            getattr(instance, test_method)()
+            print(f"✅ {test_method}")
+            passed_tests += 1
 
     print(f"\\n📊 Test Results")
     print("-" * 20)

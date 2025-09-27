@@ -14,7 +14,7 @@ import json
 from datetime import datetime, date
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.modeling.training_data_generator import (
+from domains.ml.services.training_data.generators.training_data_generator import (
     generate_residual_return_training_data
 )
 from src.schema.training_schema import TrainingDatasetSchema, FeatureType
@@ -117,7 +117,7 @@ def sample_training_result():
     )
 
     from src.schema.training_schema import ValidationResult
-    from src.modeling.training_data_generator import TrainingDatasetResult
+    from domains.ml.services.training_data.generators.training_data_generator import TrainingDatasetResult
 
     return TrainingDatasetResult(
         dataset_path='/tmp/eda_test',

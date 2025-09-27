@@ -28,7 +28,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator, TrainingDataConfig
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 class MockUniverseStateManager:
     """

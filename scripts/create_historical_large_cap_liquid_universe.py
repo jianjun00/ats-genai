@@ -126,30 +126,23 @@ class HistoricalUniverseBuilder:
         # Initialize universe builder
         await self.universe_builder.initialize()
 
-        try:
-            # Process historical data year by year
-            if daily_processing:
-                await self._process_daily_sequential(start_year, end_year)
-            elif parallel_batches:
-                await self._process_parallel_batches(start_year, end_year)
-            else:
-                await self._process_monthly_batches(start_year, end_year)
+        # Process historical data year by year
+        if daily_processing:
+            await self._process_daily_sequential(start_year, end_year)
+        elif parallel_batches:
+            await self._process_parallel_batches(start_year, end_year)
+        else:
+            await self._process_monthly_batches(start_year, end_year)
 
-            # Generate final statistics
-            final_stats = await self._generate_final_statistics()
+        # Generate final statistics
+        final_stats = await self._generate_final_statistics()
 
-            logger.info(f"✅ Historical universe creation completed!")
-            logger.info(f"📊 Total days processed: {self.stats['total_days_processed']:,}")
-            logger.info(f"📈 Entries processed: {self.stats['entries_processed']:,}")
-            logger.info(f"📉 Exits processed: {self.stats['exits_processed']:,}")
+        logger.info(f"✅ Historical universe creation completed!")
+        logger.info(f"📊 Total days processed: {self.stats['total_days_processed']:,}")
+        logger.info(f"📈 Entries processed: {self.stats['entries_processed']:,}")
+        logger.info(f"📉 Exits processed: {self.stats['exits_processed']:,}")
 
-            return final_stats
-
-        except Exception as e:
-            logger.error(f"❌ Historical universe creation failed: {e}")
-            raise
-        finally:
-            await self.universe_builder.close()
+        return final_stats
 
     async def _process_monthly_batches(self, start_year: int, end_year: int):
         """Process universe updates in monthly batches for efficiency."""
@@ -169,41 +162,34 @@ class HistoricalUniverseBuilder:
 
             logger.info(f"📅 Processing batch {batch_count + 1}: {current_date} to {month_end}")
 
-            try:
-                # Process all trading days in the month
-                trading_days = await self._get_trading_days(current_date, month_end)
+            # Process all trading days in the month
+            trading_days = await self._get_trading_days(current_date, month_end)
 
-                for trading_day in trading_days:
-                    # Update universe for this day
-                    daily_changes = await self.universe_builder.run_daily_update(trading_day)
+            for trading_day in trading_days:
+                # Update universe for this day
+                daily_changes = await self.universe_builder.run_daily_update(trading_day)
 
-                    # Track statistics
-                    if daily_changes:
-                        self.stats['entries_processed'] += len(daily_changes.get('added', []))
-                        self.stats['exits_processed'] += len(daily_changes.get('removed', []))
+                # Track statistics
+                if daily_changes:
+                    self.stats['entries_processed'] += len(daily_changes.get('added', []))
+                    self.stats['exits_processed'] += len(daily_changes.get('removed', []))
 
-                    self.stats['total_days_processed'] += 1
+                self.stats['total_days_processed'] += 1
 
-                    # Progress logging
-                    if self.stats['total_days_processed'] % 100 == 0:
-                        logger.info(f"📊 Progress: {self.stats['total_days_processed']:,} days processed")
+                # Progress logging
+                if self.stats['total_days_processed'] % 100 == 0:
+                    logger.info(f"📊 Progress: {self.stats['total_days_processed']:,} days processed")
 
-                # Save checkpoint periodically
-                if batch_count % 3 == 0:  # Every 3 months
-                    await self._save_progress_checkpoint(current_date)
+            # Save checkpoint periodically
+            if batch_count % 3 == 0:  # Every 3 months
+                await self._save_progress_checkpoint(current_date)
 
-                # Track yearly statistics
-                if current_date.month == 12:
-                    universe_size = await self._get_universe_size_at_date(month_end)
-                    self.stats['universe_size_by_year'][current_date.year] = universe_size
-                    logger.info(f"📈 {current_date.year} year-end universe size: {universe_size}")
+            # Track yearly statistics
+            if current_date.month == 12:
+                universe_size = await self._get_universe_size_at_date(month_end)
+                self.stats['universe_size_by_year'][current_date.year] = universe_size
+                logger.info(f"📈 {current_date.year} year-end universe size: {universe_size}")
 
-            except Exception as e:
-                error_msg = f"Batch {batch_count + 1} ({current_date} to {month_end}): {str(e)}"
-                self.stats['processing_errors'].append(error_msg)
-                logger.error(f"❌ {error_msg}")
-
-            # Move to next month
             if current_date.month == 12:
                 current_date = current_date.replace(year=current_date.year + 1, month=1)
             else:
@@ -227,31 +213,25 @@ class HistoricalUniverseBuilder:
         while current_date <= end_date:
             # Skip weekends (basic filter - could be enhanced with trading calendar)
             if current_date.weekday() < 5:  # Monday=0, Friday=4
-                try:
-                    # Update universe for this trading day
-                    daily_changes = await self.universe_builder.run_daily_update(current_date)
+                # Update universe for this trading day
+                daily_changes = await self.universe_builder.run_daily_update(current_date)
 
-                    # Track statistics
-                    if daily_changes:
-                        self.stats['entries_processed'] += len(daily_changes.get('added', []))
-                        self.stats['exits_processed'] += len(daily_changes.get('removed', []))
+                # Track statistics
+                if daily_changes:
+                    self.stats['entries_processed'] += len(daily_changes.get('added', []))
+                    self.stats['exits_processed'] += len(daily_changes.get('removed', []))
 
-                    self.stats['total_days_processed'] += 1
+                self.stats['total_days_processed'] += 1
 
-                    # Progress logging
-                    if day_count % 250 == 0:  # Approximately yearly
-                        universe_size = await self._get_universe_size_at_date(current_date)
-                        logger.info(f"📊 {current_date}: {universe_size} stocks in universe "
-                                   f"({self.stats['total_days_processed']:,} days processed)")
+                # Progress logging
+                if day_count % 250 == 0:  # Approximately yearly
+                    universe_size = await self._get_universe_size_at_date(current_date)
+                    logger.info(f"📊 {current_date}: {universe_size} stocks in universe "
+                               f"({self.stats['total_days_processed']:,} days processed)")
 
-                    # Save checkpoint periodically
-                    if day_count % self.progress_checkpoint_days == 0:
-                        await self._save_progress_checkpoint(current_date)
-
-                except Exception as e:
-                    error_msg = f"Day {current_date}: {str(e)}"
-                    self.stats['processing_errors'].append(error_msg)
-                    logger.error(f"❌ {error_msg}")
+                # Save checkpoint periodically
+                if day_count % self.progress_checkpoint_days == 0:
+                    await self._save_progress_checkpoint(current_date)
 
                 day_count += 1
 
@@ -321,17 +301,13 @@ class HistoricalUniverseBuilder:
 
         while current_date <= end_date:
             if current_date.weekday() < 5:  # Trading days only
-                try:
-                    daily_changes = await self.universe_builder.run_daily_update(current_date)
+                daily_changes = await self.universe_builder.run_daily_update(current_date)
 
-                    if daily_changes:
-                        entries += len(daily_changes.get('added', []))
-                        exits += len(daily_changes.get('removed', []))
+                if daily_changes:
+                    entries += len(daily_changes.get('added', []))
+                    exits += len(daily_changes.get('removed', []))
 
-                    days_processed += 1
-
-                except Exception as e:
-                    logger.error(f"❌ Error processing {current_date}: {e}")
+                days_processed += 1
 
             current_date += timedelta(days=1)
 
@@ -360,136 +336,118 @@ class HistoricalUniverseBuilder:
     async def _get_universe_size_at_date(self, target_date: date) -> int:
         """Get universe size at a specific date."""
 
-        try:
-            query = f"""
-            SELECT COUNT(*) as universe_size
-            FROM {self.env.get_table_name('universe_tracking')}
-            WHERE universe_name = $1
-              AND entry_date <= $2
-              AND (removal_date IS NULL OR removal_date > $2)
-            """
+        query = f"""
+        SELECT COUNT(*) as universe_size
+        FROM {self.env.get_table_name('universe_tracking')}
+        WHERE universe_name = $1
+          AND entry_date <= $2
+          AND (removal_date IS NULL OR removal_date > $2)
+        """
 
-            async with self.universe_builder.db_pool.acquire() as conn:
-                result = await conn.fetchval(query, self.universe_builder.universe_name, target_date)
-                return result or 0
-
-        except Exception as e:
-            logger.error(f"❌ Error getting universe size for {target_date}: {e}")
-            return 0
+        async with self.universe_builder.db_pool.acquire() as conn:
+            result = await conn.fetchval(query, self.universe_builder.universe_name, target_date)
+            return result or 0
 
     async def _save_progress_checkpoint(self, current_date: date):
         """Save progress checkpoint to file."""
 
-        try:
-            checkpoint_data = {
-                'universe_name': self.universe_builder.universe_name,
-                'current_date': current_date.isoformat(),
-                'stats': self.stats,
-                'timestamp': datetime.now().isoformat()
-            }
+        checkpoint_data = {
+            'universe_name': self.universe_builder.universe_name,
+            'current_date': current_date.isoformat(),
+            'stats': self.stats,
+            'timestamp': datetime.now().isoformat()
+        }
 
-            checkpoint_file = Path(f"/tmp/universe_checkpoint_{current_date.strftime('%Y%m%d')}.json")
+        checkpoint_file = Path(f"/tmp/universe_checkpoint_{current_date.strftime('%Y%m%d')}.json")
 
-            with open(checkpoint_file, 'w') as f:
-                json.dump(checkpoint_data, f, indent=2, default=str)
+        with open(checkpoint_file, 'w') as f:
+            json.dump(checkpoint_data, f, indent=2, default=str)
 
-            self.stats['checkpoints_saved'] += 1
-            logger.info(f"💾 Saved progress checkpoint: {checkpoint_file}")
-
-        except Exception as e:
-            logger.error(f"❌ Error saving checkpoint: {e}")
+        self.stats['checkpoints_saved'] += 1
+        logger.info(f"💾 Saved progress checkpoint: {checkpoint_file}")
 
     async def _generate_final_statistics(self) -> Dict:
         """Generate comprehensive final statistics."""
 
-        try:
-            # Get current universe size
-            current_size = await self._get_universe_size_at_date(date.today())
+        # Get current universe size
+        current_size = await self._get_universe_size_at_date(date.today())
 
-            # Get universe composition by year
-            yearly_stats = {}
-            for year in range(self.start_year, self.end_year + 1):
-                year_end = date(year, 12, 31)
-                if year_end <= date.today():
-                    size = await self._get_universe_size_at_date(year_end)
-                    yearly_stats[year] = size
+        # Get universe composition by year
+        yearly_stats = {}
+        for year in range(self.start_year, self.end_year + 1):
+            year_end = date(year, 12, 31)
+            if year_end <= date.today():
+                size = await self._get_universe_size_at_date(year_end)
+                yearly_stats[year] = size
 
-            # Calculate processing duration
-            duration = datetime.now() - self.stats['start_time']
+        # Calculate processing duration
+        duration = datetime.now() - self.stats['start_time']
 
-            final_stats = {
-                'universe_name': self.universe_builder.universe_name,
-                'criteria': {
-                    'min_market_cap_millions': self.universe_builder.min_market_cap_millions,
-                    'min_dollar_volume_millions': self.universe_builder.min_dollar_volume_millions,
-                    'lookback_days': self.universe_builder.lookback_days,
-                    'grace_period_days': self.universe_builder.grace_period_days
-                },
-                'time_period': {
-                    'start_year': self.start_year,
-                    'end_year': self.end_year,
-                    'start_date': f"{self.start_year}-01-01",
-                    'end_date': f"{self.end_year}-12-31"
-                },
-                'processing_stats': {
-                    'total_days_processed': self.stats['total_days_processed'],
-                    'entries_processed': self.stats['entries_processed'],
-                    'exits_processed': self.stats['exits_processed'],
-                    'processing_errors': len(self.stats['processing_errors']),
-                    'checkpoints_saved': self.stats['checkpoints_saved'],
-                    'processing_duration': str(duration)
-                },
-                'universe_stats': {
-                    'current_size': current_size,
-                    'yearly_sizes': yearly_stats,
-                    'avg_yearly_size': sum(yearly_stats.values()) / len(yearly_stats) if yearly_stats else 0
-                },
-                'completion_timestamp': datetime.now().isoformat()
-            }
+        final_stats = {
+            'universe_name': self.universe_builder.universe_name,
+            'criteria': {
+                'min_market_cap_millions': self.universe_builder.min_market_cap_millions,
+                'min_dollar_volume_millions': self.universe_builder.min_dollar_volume_millions,
+                'lookback_days': self.universe_builder.lookback_days,
+                'grace_period_days': self.universe_builder.grace_period_days
+            },
+            'time_period': {
+                'start_year': self.start_year,
+                'end_year': self.end_year,
+                'start_date': f"{self.start_year}-01-01",
+                'end_date': f"{self.end_year}-12-31"
+            },
+            'processing_stats': {
+                'total_days_processed': self.stats['total_days_processed'],
+                'entries_processed': self.stats['entries_processed'],
+                'exits_processed': self.stats['exits_processed'],
+                'processing_errors': len(self.stats['processing_errors']),
+                'checkpoints_saved': self.stats['checkpoints_saved'],
+                'processing_duration': str(duration)
+            },
+            'universe_stats': {
+                'current_size': current_size,
+                'yearly_sizes': yearly_stats,
+                'avg_yearly_size': sum(yearly_stats.values()) / len(yearly_stats) if yearly_stats else 0
+            },
+            'completion_timestamp': datetime.now().isoformat()
+        }
 
-            return final_stats
-
-        except Exception as e:
-            logger.error(f"❌ Error generating final statistics: {e}")
-            return {'error': str(e)}
+        return final_stats
 
 async def export_universe_summary(builder: HistoricalUniverseBuilder, output_file: str):
     """Export universe composition summary."""
 
-    try:
-        # Get current universe composition
-        query = f"""
-        SELECT
-            t.symbol,
-            t.entry_date,
-            t.removal_date,
-            t.avg_market_cap / 1000000 as avg_market_cap_millions,
-            t.avg_dollar_volume / 1000000 as avg_dollar_volume_millions,
-            CASE
-                WHEN t.removal_date IS NULL THEN 'Active'
-                ELSE 'Removed'
-            END as status
-        FROM {builder.env.get_table_name('universe_tracking')} t
-        WHERE t.universe_name = $1
-        ORDER BY t.entry_date DESC, t.symbol
-        """
+    # Get current universe composition
+    query = f"""
+    SELECT
+        t.symbol,
+        t.entry_date,
+        t.removal_date,
+        t.avg_market_cap / 1000000 as avg_market_cap_millions,
+        t.avg_dollar_volume / 1000000 as avg_dollar_volume_millions,
+        CASE
+            WHEN t.removal_date IS NULL THEN 'Active'
+            ELSE 'Removed'
+        END as status
+    FROM {builder.env.get_table_name('universe_tracking')} t
+    WHERE t.universe_name = $1
+    ORDER BY t.entry_date DESC, t.symbol
+    """
 
-        async with builder.universe_builder.db_pool.acquire() as conn:
-            rows = await conn.fetch(query, builder.universe_builder.universe_name)
+    async with builder.universe_builder.db_pool.acquire() as conn:
+        rows = await conn.fetch(query, builder.universe_builder.universe_name)
 
-        # Convert to DataFrame and export
-        df = pd.DataFrame(rows)
+    # Convert to DataFrame and export
+    df = pd.DataFrame(rows)
 
-        if not df.empty:
-            df.to_csv(output_file, index=False)
-            logger.info(f"📊 Exported universe summary to {output_file}")
-            logger.info(f"📈 Total universe history: {len(df):,} entries")
-            logger.info(f"📈 Currently active: {len(df[df['status'] == 'Active']):,} stocks")
-        else:
-            logger.warning("⚠️ No universe data found to export")
-
-    except Exception as e:
-        logger.error(f"❌ Error exporting universe summary: {e}")
+    if not df.empty:
+        df.to_csv(output_file, index=False)
+        logger.info(f"📊 Exported universe summary to {output_file}")
+        logger.info(f"📈 Total universe history: {len(df):,} entries")
+        logger.info(f"📈 Currently active: {len(df[df['status'] == 'Active']):,} stocks")
+    else:
+        logger.warning("⚠️ No universe data found to export")
 
 async def main():
     """Main function for historical universe creation."""
@@ -517,44 +475,35 @@ async def main():
     # Initialize builder
     builder = HistoricalUniverseBuilder(environment=args.environment)
 
-    try:
-        # Create historical universe
-        final_stats = await builder.create_historical_universe(
-            start_year=args.start_year,
-            end_year=args.end_year,
-            daily_processing=args.daily_updates,
-            parallel_batches=args.parallel_processing
-        )
+    # Create historical universe
+    final_stats = await builder.create_historical_universe(
+        start_year=args.start_year,
+        end_year=args.end_year,
+        daily_processing=args.daily_updates,
+        parallel_batches=args.parallel_processing
+    )
 
-        # Display final results
-        logger.info("="*60)
-        logger.info("UNIVERSE CREATION COMPLETED")
-        logger.info("="*60)
-        logger.info(f"📊 Universe: {final_stats.get('universe_name', 'Unknown')}")
-        logger.info(f"📅 Period: {final_stats.get('time_period', {}).get('start_date', 'Unknown')} to "
-                   f"{final_stats.get('time_period', {}).get('end_date', 'Unknown')}")
-        logger.info(f"📈 Current size: {final_stats.get('universe_stats', {}).get('current_size', 0):,} stocks")
-        logger.info(f"📊 Total entries: {final_stats.get('processing_stats', {}).get('entries_processed', 0):,}")
-        logger.info(f"📉 Total exits: {final_stats.get('processing_stats', {}).get('exits_processed', 0):,}")
-        logger.info(f"⏱️ Processing time: {final_stats.get('processing_stats', {}).get('processing_duration', 'Unknown')}")
+    # Display final results
+    logger.info("="*60)
+    logger.info("UNIVERSE CREATION COMPLETED")
+    logger.info("="*60)
+    logger.info(f"📊 Universe: {final_stats.get('universe_name', 'Unknown')}")
+    logger.info(f"📅 Period: {final_stats.get('time_period', {}).get('start_date', 'Unknown')} to "
+               f"{final_stats.get('time_period', {}).get('end_date', 'Unknown')}")
+    logger.info(f"📈 Current size: {final_stats.get('universe_stats', {}).get('current_size', 0):,} stocks")
+    logger.info(f"📊 Total entries: {final_stats.get('processing_stats', {}).get('entries_processed', 0):,}")
+    logger.info(f"📉 Total exits: {final_stats.get('processing_stats', {}).get('exits_processed', 0):,}")
+    logger.info(f"⏱️ Processing time: {final_stats.get('processing_stats', {}).get('processing_duration', 'Unknown')}")
 
-        # Export summary if requested
-        if args.export_summary:
-            await export_universe_summary(builder, args.output_file)
+    # Export summary if requested
+    if args.export_summary:
+        await export_universe_summary(builder, args.output_file)
 
-        # Save final statistics
-        stats_file = f"universe_creation_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(stats_file, 'w') as f:
-            json.dump(final_stats, f, indent=2, default=str)
-        logger.info(f"💾 Final statistics saved to {stats_file}")
-
-    except KeyboardInterrupt:
-        logger.info("📤 Received keyboard interrupt")
-    except Exception as e:
-        logger.error(f"❌ Universe creation failed: {e}")
-        raise
-    finally:
-        logger.info("✅ Historical universe creation process completed")
+    # Save final statistics
+    stats_file = f"universe_creation_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(stats_file, 'w') as f:
+        json.dump(final_stats, f, indent=2, default=str)
+    logger.info(f"💾 Final statistics saved to {stats_file}")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsRunnerTradingHours:
@@ -36,7 +31,7 @@ class TestRealObjectsRunnerTradingHours:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsRunnerTradingHours:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_trading_hours_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_trading_hours_initialization"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trading_hours_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trading_hours_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_within_trading_hours_during_market_real_objects(self, real_service, test_data):
         """Real objects version of test_is_within_trading_hours_during_market"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_within_trading_hours_during_market_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_within_trading_hours_during_market_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_within_trading_hours_before_market_real_objects(self, real_service, test_data):
         """Real objects version of test_is_within_trading_hours_before_market"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_within_trading_hours_before_market_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_within_trading_hours_before_market_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_within_trading_hours_after_market_real_objects(self, real_service, test_data):
         """Real objects version of test_is_within_trading_hours_after_market"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_within_trading_hours_after_market_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_within_trading_hours_after_market_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_within_trading_hours_at_market_open_real_objects(self, real_service, test_data):
         """Real objects version of test_is_within_trading_hours_at_market_open"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_within_trading_hours_at_market_open_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_within_trading_hours_at_market_open_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_within_trading_hours_at_market_close_real_objects(self, real_service, test_data):
         """Real objects version of test_is_within_trading_hours_at_market_close"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_within_trading_hours_at_market_close_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_within_trading_hours_at_market_close_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_trading_hours_filter_disabled_real_objects(self, real_service, test_data):
         """Real objects version of test_trading_hours_filter_disabled"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trading_hours_filter_disabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trading_hours_filter_disabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_timezone_conversion_during_est_real_objects(self, real_service, test_data):
         """Real objects version of test_timezone_conversion_during_est"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.timezone_conversion_during_est_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.timezone_conversion_during_est_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_trading_hours_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_trading_hours_error_handling"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trading_hours_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trading_hours_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_trading_hours_boundary_conditions_real_objects(self, real_service, test_data):
         """Real objects version of test_trading_hours_boundary_conditions"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trading_hours_boundary_conditions_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trading_hours_boundary_conditions_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_iter_events_filters_intervals_real_objects(self, real_service, test_data):
         """Real objects version of test_iter_events_filters_intervals"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.iter_events_filters_intervals_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.iter_events_filters_intervals_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_original_problem_reproduction_real_objects(self, real_service, test_data):
         """Real objects version of test_original_problem_reproduction"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.original_problem_reproduction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.original_problem_reproduction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fixed_behavior_with_trading_hours_real_objects(self, real_service, test_data):
         """Real objects version of test_fixed_behavior_with_trading_hours"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fixed_behavior_with_trading_hours_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fixed_behavior_with_trading_hours_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_hours_generate_intervals_real_objects(self, real_service, test_data):
         """Real objects version of test_market_hours_generate_intervals"""
         # Test with real database integration
@@ -363,15 +274,8 @@ class TestRealObjectsRunnerTradingHours:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_hours_generate_intervals_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.market_hours_generate_intervals_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -48,107 +48,91 @@ class TestArrayRecordDataValidation(unittest.TestCase):
         if not self.sample_arrayrecord_files:
             self.skipTest("No ArrayRecord files available")
 
-        try:
-            from array_record.python.array_record_module import ArrayRecordReader
-        except ImportError:
-            self.skipTest("ArrayRecord library not available")
-
+        from array_record.python.array_record_module import ArrayRecordReader
         for file_path in self.sample_arrayrecord_files[:3]:  # Test first 3 files
             with self.subTest(file=str(file_path)):
                 print(f"\n📁 Testing ArrayRecord file: {file_path}")
 
-                try:
-                    reader = ArrayRecordReader(str(file_path))
+                reader = ArrayRecordReader(str(file_path))
 
-                    # Check basic structure
-                    total_records = reader.num_records()
-                    self.assertGreaterEqual(total_records, 2,
-                                          f"ArrayRecord should have at least 2 records (columns + data)")
+                # Check basic structure
+                total_records = reader.num_records()
+                self.assertGreaterEqual(total_records, 2,
+                                      f"ArrayRecord should have at least 2 records (columns + data)")
 
-                    print(f"   Records: {total_records}")
+                print(f"   Records: {total_records}")
 
-                    # Test reading columns (record 0)
-                    reader.seek(0)
-                    columns_record = reader.read()
-                    columns_str = columns_record.decode('utf-8')
-                    columns = ast.literal_eval(columns_str)
+                # Test reading columns (record 0)
+                reader.seek(0)
+                columns_record = reader.read()
+                columns_str = columns_record.decode('utf-8')
+                columns = ast.literal_eval(columns_str)
 
-                    self.assertIsInstance(columns, list, "Columns should be a list")
-                    self.assertGreater(len(columns), 0, "Should have columns")
-                    print(f"   Columns: {len(columns)}")
+                self.assertIsInstance(columns, list, "Columns should be a list")
+                self.assertGreater(len(columns), 0, "Should have columns")
+                print(f"   Columns: {len(columns)}")
 
-                    # Test reading data (record 1)
-                    reader.seek(1)
-                    data_record = reader.read()
-                    training_array = np.frombuffer(data_record, dtype=np.float32)
+                # Test reading data (record 1)
+                reader.seek(1)
+                data_record = reader.read()
+                training_array = np.frombuffer(data_record, dtype=np.float32)
 
-                    self.assertEqual(len(training_array), len(columns),
-                                   "Data array length should match columns length")
+                self.assertEqual(len(training_array), len(columns),
+                               "Data array length should match columns length")
 
-                    reader.close()
-                    print(f"   ✅ Basic structure validation passed")
-
-                except Exception as e:
-                    self.fail(f"Failed to read ArrayRecord {file_path}: {e}")
+                reader.close()
+                print(f"   ✅ Basic structure validation passed")
 
     def test_arrayrecord_nan_detection(self):
         """Test detection of NaN values in ArrayRecord files."""
         if not self.sample_arrayrecord_files:
             self.skipTest("No ArrayRecord files available")
 
-        try:
-            from array_record.python.array_record_module import ArrayRecordReader
-        except ImportError:
-            self.skipTest("ArrayRecord library not available")
-
+        from array_record.python.array_record_module import ArrayRecordReader
         nan_files = []
         clean_files = []
 
         for file_path in self.sample_arrayrecord_files[:5]:  # Test first 5 files
             print(f"\n🔍 Checking for NaN values: {file_path}")
 
-            try:
-                reader = ArrayRecordReader(str(file_path))
+            reader = ArrayRecordReader(str(file_path))
 
-                # Read columns
-                reader.seek(0)
-                columns_record = reader.read()
-                columns = ast.literal_eval(columns_record.decode('utf-8'))
+            # Read columns
+            reader.seek(0)
+            columns_record = reader.read()
+            columns = ast.literal_eval(columns_record.decode('utf-8'))
 
-                # Read data
-                reader.seek(1)
-                data_record = reader.read()
-                training_array = np.frombuffer(data_record, dtype=np.float32)
+            # Read data
+            reader.seek(1)
+            data_record = reader.read()
+            training_array = np.frombuffer(data_record, dtype=np.float32)
 
-                # Check for NaN values
-                nan_mask = np.isnan(training_array)
-                nan_count = np.sum(nan_mask)
-                inf_mask = np.isinf(training_array)
-                inf_count = np.sum(inf_mask)
+            # Check for NaN values
+            nan_mask = np.isnan(training_array)
+            nan_count = np.sum(nan_mask)
+            inf_mask = np.isinf(training_array)
+            inf_count = np.sum(inf_mask)
 
-                total_problematic = nan_count + inf_count
+            total_problematic = nan_count + inf_count
 
-                if total_problematic > 0:
-                    nan_files.append((file_path, nan_count, inf_count))
-                    print(f"   ❌ Found {nan_count} NaN and {inf_count} Inf values")
+            if total_problematic > 0:
+                nan_files.append((file_path, nan_count, inf_count))
+                print(f"   ❌ Found {nan_count} NaN and {inf_count} Inf values")
 
-                    # Report which columns have NaN/Inf
-                    problematic_columns = []
-                    for i, (is_nan, is_inf) in enumerate(zip(nan_mask, inf_mask)):
-                        if is_nan or is_inf:
-                            col_name = columns[i] if i < len(columns) else f"column_{i}"
-                            value_type = "NaN" if is_nan else "Inf"
-                            problematic_columns.append(f"{col_name}({value_type})")
+                # Report which columns have NaN/Inf
+                problematic_columns = []
+                for i, (is_nan, is_inf) in enumerate(zip(nan_mask, inf_mask)):
+                    if is_nan or is_inf:
+                        col_name = columns[i] if i < len(columns) else f"column_{i}"
+                        value_type = "NaN" if is_nan else "Inf"
+                        problematic_columns.append(f"{col_name}({value_type})")
 
-                    print(f"   Problematic columns: {problematic_columns[:10]}...")  # Show first 10
-                else:
-                    clean_files.append(file_path)
-                    print(f"   ✅ No NaN or Inf values found")
+                print(f"   Problematic columns: {problematic_columns[:10]}...")  # Show first 10
+            else:
+                clean_files.append(file_path)
+                print(f"   ✅ No NaN or Inf values found")
 
-                reader.close()
-
-            except Exception as e:
-                print(f"   ⚠️  Error reading {file_path}: {e}")
+            reader.close()
 
         print(f"\n📊 NaN Detection Summary:")
         print(f"   Files with NaN/Inf: {len(nan_files)}")
@@ -166,190 +150,166 @@ class TestArrayRecordDataValidation(unittest.TestCase):
         if not self.sample_arrayrecord_files:
             self.skipTest("No ArrayRecord files available")
 
-        try:
-            from array_record.python.array_record_module import ArrayRecordReader
-        except ImportError:
-            self.skipTest("ArrayRecord library not available")
-
+        from array_record.python.array_record_module import ArrayRecordReader
         for file_path in self.sample_arrayrecord_files[:2]:  # Test first 2 files
             with self.subTest(file=str(file_path)):
                 print(f"\n🧼 Testing sanitization: {file_path}")
 
-                try:
-                    reader = ArrayRecordReader(str(file_path))
+                reader = ArrayRecordReader(str(file_path))
 
-                    # Read columns and data
-                    reader.seek(0)
-                    columns_record = reader.read()
-                    columns = ast.literal_eval(columns_record.decode('utf-8'))
+                # Read columns and data
+                reader.seek(0)
+                columns_record = reader.read()
+                columns = ast.literal_eval(columns_record.decode('utf-8'))
 
-                    reader.seek(1)
-                    data_record = reader.read()
-                    training_array = np.frombuffer(data_record, dtype=np.float32)
+                reader.seek(1)
+                data_record = reader.read()
+                training_array = np.frombuffer(data_record, dtype=np.float32)
 
-                    reader.close()
+                reader.close()
 
-                    # Create feature dictionary (similar to analytics service)
-                    original_features = {}
-                    for i, col_name in enumerate(columns):
-                        if i < len(training_array):
-                            original_features[col_name] = float(training_array[i])
+                # Create feature dictionary (similar to analytics service)
+                original_features = {}
+                for i, col_name in enumerate(columns):
+                    if i < len(training_array):
+                        original_features[col_name] = float(training_array[i])
 
-                    # Count problematic values before sanitization
-                    original_nan_count = sum(1 for v in original_features.values()
-                                           if isinstance(v, float) and math.isnan(v))
-                    original_inf_count = sum(1 for v in original_features.values()
-                                           if isinstance(v, float) and math.isinf(v))
+                # Count problematic values before sanitization
+                original_nan_count = sum(1 for v in original_features.values()
+                                       if isinstance(v, float) and math.isnan(v))
+                original_inf_count = sum(1 for v in original_features.values()
+                                       if isinstance(v, float) and math.isinf(v))
 
-                    # Apply sanitization
-                    sanitized_features = sanitize_training_features(original_features)
+                # Apply sanitization
+                sanitized_features = sanitize_training_features(original_features)
 
-                    # Count problematic values after sanitization
-                    sanitized_nan_count = sum(1 for v in sanitized_features.values()
-                                            if isinstance(v, float) and math.isnan(v))
-                    sanitized_inf_count = sum(1 for v in sanitized_features.values()
-                                            if isinstance(v, float) and math.isinf(v))
+                # Count problematic values after sanitization
+                sanitized_nan_count = sum(1 for v in sanitized_features.values()
+                                        if isinstance(v, float) and math.isnan(v))
+                sanitized_inf_count = sum(1 for v in sanitized_features.values()
+                                        if isinstance(v, float) and math.isinf(v))
 
-                    print(f"   Before sanitization: {original_nan_count} NaN, {original_inf_count} Inf")
-                    print(f"   After sanitization:  {sanitized_nan_count} NaN, {sanitized_inf_count} Inf")
+                print(f"   Before sanitization: {original_nan_count} NaN, {original_inf_count} Inf")
+                print(f"   After sanitization:  {sanitized_nan_count} NaN, {sanitized_inf_count} Inf")
 
-                    # Verify sanitization worked
-                    self.assertEqual(sanitized_nan_count, 0, "Sanitization should remove all NaN values")
-                    self.assertEqual(sanitized_inf_count, 0, "Sanitization should remove all Inf values")
+                # Verify sanitization worked
+                self.assertEqual(sanitized_nan_count, 0, "Sanitization should remove all NaN values")
+                self.assertEqual(sanitized_inf_count, 0, "Sanitization should remove all Inf values")
 
-                    # Test JSON serialization
-                    import json
-                    json_str = json.dumps(sanitized_features)
-                    self.assertNotIn('NaN', json_str)
-                    self.assertNotIn('Infinity', json_str)
+                # Test JSON serialization
+                import json
+                json_str = json.dumps(sanitized_features)
+                self.assertNotIn('NaN', json_str)
+                self.assertNotIn('Infinity', json_str)
 
-                    print(f"   ✅ Sanitization successful, JSON serializable")
-
-                except Exception as e:
-                    self.fail(f"Sanitization test failed for {file_path}: {e}")
+                print(f"   ✅ Sanitization successful, JSON serializable")
 
     def test_arrayrecord_feature_types_validation(self):
         """Test that features have expected types and ranges."""
         if not self.sample_arrayrecord_files:
             self.skipTest("No ArrayRecord files available")
 
-        try:
-            from array_record.python.array_record_module import ArrayRecordReader
-        except ImportError:
-            self.skipTest("ArrayRecord library not available")
-
+        from array_record.python.array_record_module import ArrayRecordReader
         for file_path in self.sample_arrayrecord_files[:2]:
             with self.subTest(file=str(file_path)):
                 print(f"\n🔍 Validating feature types: {file_path}")
 
-                try:
-                    reader = ArrayRecordReader(str(file_path))
+                reader = ArrayRecordReader(str(file_path))
 
-                    # Read data
-                    reader.seek(0)
-                    columns_record = reader.read()
-                    columns = ast.literal_eval(columns_record.decode('utf-8'))
+                # Read data
+                reader.seek(0)
+                columns_record = reader.read()
+                columns = ast.literal_eval(columns_record.decode('utf-8'))
 
-                    reader.seek(1)
-                    data_record = reader.read()
-                    training_array = np.frombuffer(data_record, dtype=np.float32)
+                reader.seek(1)
+                data_record = reader.read()
+                training_array = np.frombuffer(data_record, dtype=np.float32)
 
-                    reader.close()
+                reader.close()
 
-                    # Analyze feature types
-                    ohlcv_features = 0
-                    timeframe_features = {'5m': 0, '15m': 0, '1h': 0, '1d': 0, '1w': 0}
-                    indicator_features = 0
+                # Analyze feature types
+                ohlcv_features = 0
+                timeframe_features = {'5m': 0, '15m': 0, '1h': 0, '1d': 0, '1w': 0}
+                indicator_features = 0
 
-                    for col_name in columns:
-                        # Check for OHLCV features
-                        if any(ohlcv in col_name.lower() for ohlcv in ['open', 'high', 'low', 'close', 'volume', 'vwap']):
-                            ohlcv_features += 1
+                for col_name in columns:
+                    # Check for OHLCV features
+                    if any(ohlcv in col_name.lower() for ohlcv in ['open', 'high', 'low', 'close', 'volume', 'vwap']):
+                        ohlcv_features += 1
 
-                        # Check for timeframe features
-                        for tf in timeframe_features:
-                            if col_name.startswith(tf):
-                                timeframe_features[tf] += 1
+                    # Check for timeframe features
+                    for tf in timeframe_features:
+                        if col_name.startswith(tf):
+                            timeframe_features[tf] += 1
 
-                        # Check for indicator features (features not in basic OHLCV)
-                        if not any(basic in col_name.lower() for basic in ['open', 'high', 'low', 'close', 'volume', 'vwap', 'timestamp']):
-                            indicator_features += 1
+                    # Check for indicator features (features not in basic OHLCV)
+                    if not any(basic in col_name.lower() for basic in ['open', 'high', 'low', 'close', 'volume', 'vwap', 'timestamp']):
+                        indicator_features += 1
 
-                    print(f"   Feature analysis:")
-                    print(f"     OHLCV features: {ohlcv_features}")
-                    print(f"     Timeframe breakdown: {timeframe_features}")
-                    print(f"     Indicator features: {indicator_features}")
-                    print(f"     Total features: {len(columns)}")
+                print(f"   Feature analysis:")
+                print(f"     OHLCV features: {ohlcv_features}")
+                print(f"     Timeframe breakdown: {timeframe_features}")
+                print(f"     Indicator features: {indicator_features}")
+                print(f"     Total features: {len(columns)}")
 
-                    # Validate expected structure for training data
-                    self.assertGreater(ohlcv_features, 0, "Should have OHLCV features")
-                    self.assertGreater(len(columns), 100, "Should have substantial number of features")
+                # Validate expected structure for training data
+                self.assertGreater(ohlcv_features, 0, "Should have OHLCV features")
+                self.assertGreater(len(columns), 100, "Should have substantial number of features")
 
-                    # Check for multi-timeframe structure
-                    has_multi_timeframe = sum(timeframe_features.values()) > 0
-                    if has_multi_timeframe:
-                        print(f"   ✅ Multi-timeframe structure detected")
-                    else:
-                        print(f"   ⚠️  No clear multi-timeframe structure")
-
-                except Exception as e:
-                    self.fail(f"Feature type validation failed for {file_path}: {e}")
+                # Check for multi-timeframe structure
+                has_multi_timeframe = sum(timeframe_features.values()) > 0
+                if has_multi_timeframe:
+                    print(f"   ✅ Multi-timeframe structure detected")
+                else:
+                    print(f"   ⚠️  No clear multi-timeframe structure")
 
     def test_arrayrecord_json_compatibility(self):
         """Test that ArrayRecord data can be safely converted to JSON."""
         if not self.sample_arrayrecord_files:
             self.skipTest("No ArrayRecord files available")
 
-        try:
-            from array_record.python.array_record_module import ArrayRecordReader
-        except ImportError:
-            self.skipTest("ArrayRecord library not available")
-
+        from array_record.python.array_record_module import ArrayRecordReader
         import json
 
         for file_path in self.sample_arrayrecord_files[:2]:
             with self.subTest(file=str(file_path)):
                 print(f"\n🔄 Testing JSON compatibility: {file_path}")
 
-                try:
-                    reader = ArrayRecordReader(str(file_path))
+                reader = ArrayRecordReader(str(file_path))
 
-                    # Read data
-                    reader.seek(0)
-                    columns_record = reader.read()
-                    columns = ast.literal_eval(columns_record.decode('utf-8'))
+                # Read data
+                reader.seek(0)
+                columns_record = reader.read()
+                columns = ast.literal_eval(columns_record.decode('utf-8'))
 
-                    reader.seek(1)
-                    data_record = reader.read()
-                    training_array = np.frombuffer(data_record, dtype=np.float32)
+                reader.seek(1)
+                data_record = reader.read()
+                training_array = np.frombuffer(data_record, dtype=np.float32)
 
-                    reader.close()
+                reader.close()
 
-                    # Create feature row (simulate analytics service behavior)
-                    feature_row = {}
-                    for i, col_name in enumerate(columns):
-                        val = training_array[i]
-                        # Apply the fixed NaN handling
-                        if math.isnan(val):
-                            val = 0.0
-                        feature_row[col_name] = float(val)
+                # Create feature row (simulate analytics service behavior)
+                feature_row = {}
+                for i, col_name in enumerate(columns):
+                    val = training_array[i]
+                    # Apply the fixed NaN handling
+                    if math.isnan(val):
+                        val = 0.0
+                    feature_row[col_name] = float(val)
 
-                    # Test JSON serialization
-                    json_str = json.dumps(feature_row)
+                # Test JSON serialization
+                json_str = json.dumps(feature_row)
 
-                    # Verify no problematic values in JSON
-                    self.assertNotIn('NaN', json_str, "JSON should not contain NaN")
-                    self.assertNotIn('Infinity', json_str, "JSON should not contain Infinity")
-                    self.assertNotIn('-Infinity', json_str, "JSON should not contain -Infinity")
+                # Verify no problematic values in JSON
+                self.assertNotIn('NaN', json_str, "JSON should not contain NaN")
+                self.assertNotIn('Infinity', json_str, "JSON should not contain Infinity")
+                self.assertNotIn('-Infinity', json_str, "JSON should not contain -Infinity")
 
-                    # Test parsing
-                    parsed = json.loads(json_str)
-                    self.assertEqual(len(parsed), len(feature_row))
+                # Test parsing
+                parsed = json.loads(json_str)
+                self.assertEqual(len(parsed), len(feature_row))
 
-                    print(f"   ✅ JSON serialization successful ({len(json_str)} characters)")
-
-                except Exception as e:
-                    self.fail(f"JSON compatibility test failed for {file_path}: {e}")
+                print(f"   ✅ JSON serialization successful ({len(json_str)} characters)")
 
 class TestArrayRecordEdgeCases(unittest.TestCase):
     """Test edge cases in ArrayRecord data handling."""
@@ -359,12 +319,7 @@ class TestArrayRecordEdgeCases(unittest.TestCase):
         # This test would be more relevant with actual corrupted files
         # For now, test the error handling paths
 
-        try:
-            from array_record.python.array_record_module import ArrayRecordReader
-        except ImportError:
-            self.skipTest("ArrayRecord library not available")
-
-        # Test with non-existent file
+        from array_record.python.array_record_module import ArrayRecordReader
         with self.assertRaises(Exception):
             reader = ArrayRecordReader("/nonexistent/path/file.arrayrecord")
 

@@ -130,77 +130,67 @@ class APIStatusTracker:
 
     async def initialize(self):
         """Initialize database connections and create tables."""
-        try:
-            # Database connection for INTG environment
-            db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
+        # Database connection for INTG environment
+        db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
 
-            self.db_pool = await asyncpg.create_pool(
-                db_url,
-                min_size=2,
-                max_size=10,
-                command_timeout=60
-            )
+        self.db_pool = await asyncpg.create_pool(
+            db_url,
+            min_size=2,
+            max_size=10,
+            command_timeout=60
+        )
 
-            # Create API status tracking table
-            await self.create_tables()
+        # Create API status tracking table
+        await self.create_tables()
 
-            logger.info("✅ API Status Tracker initialized")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize API Status Tracker: {e}")
-            raise
+        logger.info("✅ API Status Tracker initialized")
 
     async def create_tables(self):
         """Create database tables for API status tracking."""
-        try:
-            async with self.db_pool.acquire() as conn:
-                # Create API requests table
-                await conn.execute("""
-                    CREATE TABLE IF NOT EXISTS intg_api_requests (
-                        id SERIAL PRIMARY KEY,
-                        vendor VARCHAR(50) NOT NULL,
-                        api_endpoint VARCHAR(100) NOT NULL,
-                        status_code INTEGER NOT NULL,
-                        latency_ms FLOAT NOT NULL,
-                        response_size_bytes INTEGER,
-                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                        error_message TEXT,
-                        symbol VARCHAR(20),
-                        request_url TEXT,
+        async with self.db_pool.acquire() as conn:
+            # Create API requests table
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS intg_api_requests (
+                    id SERIAL PRIMARY KEY,
+                    vendor VARCHAR(50) NOT NULL,
+                    api_endpoint VARCHAR(100) NOT NULL,
+                    status_code INTEGER NOT NULL,
+                    latency_ms FLOAT NOT NULL,
+                    response_size_bytes INTEGER,
+                    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    error_message TEXT,
+                    symbol VARCHAR(20),
+                    request_url TEXT,
 
-                        -- Indexes for efficient querying
-                        INDEX idx_api_requests_vendor_timestamp (vendor, timestamp),
-                        INDEX idx_api_requests_status_timestamp (status_code, timestamp),
-                        INDEX idx_api_requests_endpoint_timestamp (api_endpoint, timestamp)
-                    )
-                """)
+                    -- Indexes for efficient querying
+                    INDEX idx_api_requests_vendor_timestamp (vendor, timestamp),
+                    INDEX idx_api_requests_status_timestamp (status_code, timestamp),
+                    INDEX idx_api_requests_endpoint_timestamp (api_endpoint, timestamp)
+                )
+            """)
 
-                # Create API status summary table (for fast dashboard queries)
-                await conn.execute("""
-                    CREATE TABLE IF NOT EXISTS intg_api_status_summary (
-                        id SERIAL PRIMARY KEY,
-                        vendor VARCHAR(50) NOT NULL,
-                        api_endpoint VARCHAR(100) NOT NULL,
-                        date DATE NOT NULL,
-                        hour INTEGER NOT NULL, -- 0-23
-                        success_count INTEGER DEFAULT 0,
-                        error_count INTEGER DEFAULT 0,
-                        rate_limit_count INTEGER DEFAULT 0,
-                        total_requests INTEGER DEFAULT 0,
-                        avg_latency_ms FLOAT DEFAULT 0,
-                        max_latency_ms FLOAT DEFAULT 0,
-                        total_response_size_bytes BIGINT DEFAULT 0,
-                        last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            # Create API status summary table (for fast dashboard queries)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS intg_api_status_summary (
+                    id SERIAL PRIMARY KEY,
+                    vendor VARCHAR(50) NOT NULL,
+                    api_endpoint VARCHAR(100) NOT NULL,
+                    date DATE NOT NULL,
+                    hour INTEGER NOT NULL, -- 0-23
+                    success_count INTEGER DEFAULT 0,
+                    error_count INTEGER DEFAULT 0,
+                    rate_limit_count INTEGER DEFAULT 0,
+                    total_requests INTEGER DEFAULT 0,
+                    avg_latency_ms FLOAT DEFAULT 0,
+                    max_latency_ms FLOAT DEFAULT 0,
+                    total_response_size_bytes BIGINT DEFAULT 0,
+                    last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
-                        UNIQUE(vendor, api_endpoint, date, hour)
-                    )
-                """)
+                    UNIQUE(vendor, api_endpoint, date, hour)
+                )
+            """)
 
-                logger.info("✅ API status tracking tables created")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to create API status tables: {e}")
-            raise
+            logger.info("✅ API status tracking tables created")
 
     async def close(self):
         """Close database connections."""
@@ -231,260 +221,236 @@ class APIStatusTracker:
             symbol: Symbol being requested (for context)
             request_url: Full request URL (for debugging)
         """
-        try:
-            # Create record
-            record = APIRequestRecord(
-                vendor=vendor,
-                api_endpoint=api_endpoint,
-                status_code=status_code,
-                latency_ms=latency_ms,
-                response_size_bytes=response_size_bytes,
-                error_message=error_message,
-                symbol=symbol,
-                request_url=request_url
-            )
+        # Create record
+        record = APIRequestRecord(
+            vendor=vendor,
+            api_endpoint=api_endpoint,
+            status_code=status_code,
+            latency_ms=latency_ms,
+            response_size_bytes=response_size_bytes,
+            error_message=error_message,
+            symbol=symbol,
+            request_url=request_url
+        )
 
-            # Update in-memory metrics
-            self.request_counts[vendor][status_code] += 1
-            self.api_endpoint_counts[vendor][api_endpoint][status_code] += 1
-            self.latency_stats[vendor].append(latency_ms)
+        # Update in-memory metrics
+        self.request_counts[vendor][status_code] += 1
+        self.api_endpoint_counts[vendor][api_endpoint][status_code] += 1
+        self.latency_stats[vendor].append(latency_ms)
 
-            # Track rate limiting
-            vendor_config = self.vendor_configs.get(vendor, {})
-            rate_limit_codes = vendor_config.get('rate_limit_codes', [429])
-            if status_code in rate_limit_codes:
-                self.rate_limit_events[vendor] += 1
+        # Track rate limiting
+        vendor_config = self.vendor_configs.get(vendor, {})
+        rate_limit_codes = vendor_config.get('rate_limit_codes', [429])
+        if status_code in rate_limit_codes:
+            self.rate_limit_events[vendor] += 1
 
-            # Track error messages
-            if error_message and status_code >= 400:
-                self.error_messages[vendor].append({
-                    'timestamp': record.timestamp,
-                    'status_code': status_code,
-                    'message': error_message,
-                    'endpoint': api_endpoint
-                })
+        # Track error messages
+        if error_message and status_code >= 400:
+            self.error_messages[vendor].append({
+                'timestamp': record.timestamp,
+                'status_code': status_code,
+                'message': error_message,
+                'endpoint': api_endpoint
+            })
 
-            # Add to recent requests (keep only last N)
-            vendor_recent = self.recent_requests[vendor]
-            vendor_recent.append(record)
-            if len(vendor_recent) > self.max_recent_requests:
-                vendor_recent.pop(0)  # Remove oldest
+        # Add to recent requests (keep only last N)
+        vendor_recent = self.recent_requests[vendor]
+        vendor_recent.append(record)
+        if len(vendor_recent) > self.max_recent_requests:
+            vendor_recent.pop(0)  # Remove oldest
 
-            # Persist to database (fire-and-forget)
-            asyncio.create_task(self._persist_record(record))
+        # Persist to database (fire-and-forget)
+        asyncio.create_task(self._persist_record(record))
 
-            # Clear cache to force refresh
-            self.metrics_cache = {}
+        # Clear cache to force refresh
+        self.metrics_cache = {}
 
-            logger.debug(f"📊 Tracked {vendor} {api_endpoint} request: {status_code} ({latency_ms:.1f}ms)")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to track API request: {e}")
+        logger.debug(f"📊 Tracked {vendor} {api_endpoint} request: {status_code} ({latency_ms:.1f}ms)")
 
     async def _persist_record(self, record: APIRequestRecord):
         """Persist API request record to database."""
-        try:
-            if not self.db_pool:
-                return
+        if not self.db_pool:
+            return
 
-            async with self.db_pool.acquire() as conn:
-                # Insert request record
-                await conn.execute("""
-                    INSERT INTO intg_api_requests
-                    (vendor, api_endpoint, status_code, latency_ms, response_size_bytes,
-                     timestamp, error_message, symbol, request_url)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                """,
-                record.vendor, record.api_endpoint, record.status_code,
-                record.latency_ms, record.response_size_bytes, record.timestamp,
-                record.error_message, record.symbol, record.request_url)
+        async with self.db_pool.acquire() as conn:
+            # Insert request record
+            await conn.execute("""
+                INSERT INTO intg_api_requests
+                (vendor, api_endpoint, status_code, latency_ms, response_size_bytes,
+                 timestamp, error_message, symbol, request_url)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            """,
+            record.vendor, record.api_endpoint, record.status_code,
+            record.latency_ms, record.response_size_bytes, record.timestamp,
+            record.error_message, record.symbol, record.request_url)
 
-                # Update hourly summary
-                await self._update_hourly_summary(conn, record)
-
-        except Exception as e:
-            logger.error(f"❌ Failed to persist API request record: {e}")
+            # Update hourly summary
+            await self._update_hourly_summary(conn, record)
 
     async def _update_hourly_summary(self, conn, record: APIRequestRecord):
         """Update hourly summary statistics."""
-        try:
-            date_part = record.timestamp.date()
-            hour_part = record.timestamp.hour
+        date_part = record.timestamp.date()
+        hour_part = record.timestamp.hour
 
-            # Determine if this is a success, error, or rate limit
-            is_success = 1 if record.status_code < 400 else 0
-            is_error = 1 if record.status_code >= 400 else 0
-            is_rate_limit = 1 if record.status_code in self.vendor_configs.get(record.vendor, {}).get('rate_limit_codes', [429]) else 0
+        # Determine if this is a success, error, or rate limit
+        is_success = 1 if record.status_code < 400 else 0
+        is_error = 1 if record.status_code >= 400 else 0
+        is_rate_limit = 1 if record.status_code in self.vendor_configs.get(record.vendor, {}).get('rate_limit_codes', [429]) else 0
 
-            # Upsert summary record
-            await conn.execute("""
-                INSERT INTO intg_api_status_summary
-                (vendor, api_endpoint, date, hour, success_count, error_count, rate_limit_count,
-                 total_requests, avg_latency_ms, max_latency_ms, total_response_size_bytes)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8, $8, COALESCE($9, 0))
-                ON CONFLICT (vendor, api_endpoint, date, hour)
-                DO UPDATE SET
-                    success_count = intg_api_status_summary.success_count + $5,
-                    error_count = intg_api_status_summary.error_count + $6,
-                    rate_limit_count = intg_api_status_summary.rate_limit_count + $7,
-                    total_requests = intg_api_status_summary.total_requests + 1,
-                    avg_latency_ms = (intg_api_status_summary.avg_latency_ms * intg_api_status_summary.total_requests + $8) / (intg_api_status_summary.total_requests + 1),
-                    max_latency_ms = GREATEST(intg_api_status_summary.max_latency_ms, $8),
-                    total_response_size_bytes = intg_api_status_summary.total_response_size_bytes + COALESCE($9, 0),
-                    last_updated = NOW()
-            """,
-            record.vendor, record.api_endpoint, date_part, hour_part,
-            is_success, is_error, is_rate_limit, record.latency_ms, record.response_size_bytes)
-
-        except Exception as e:
-            logger.error(f"❌ Failed to update hourly summary: {e}")
+        # Upsert summary record
+        await conn.execute("""
+            INSERT INTO intg_api_status_summary
+            (vendor, api_endpoint, date, hour, success_count, error_count, rate_limit_count,
+             total_requests, avg_latency_ms, max_latency_ms, total_response_size_bytes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8, $8, COALESCE($9, 0))
+            ON CONFLICT (vendor, api_endpoint, date, hour)
+            DO UPDATE SET
+                success_count = intg_api_status_summary.success_count + $5,
+                error_count = intg_api_status_summary.error_count + $6,
+                rate_limit_count = intg_api_status_summary.rate_limit_count + $7,
+                total_requests = intg_api_status_summary.total_requests + 1,
+                avg_latency_ms = (intg_api_status_summary.avg_latency_ms * intg_api_status_summary.total_requests + $8) / (intg_api_status_summary.total_requests + 1),
+                max_latency_ms = GREATEST(intg_api_status_summary.max_latency_ms, $8),
+                total_response_size_bytes = intg_api_status_summary.total_response_size_bytes + COALESCE($9, 0),
+                last_updated = NOW()
+        """,
+        record.vendor, record.api_endpoint, date_part, hour_part,
+        is_success, is_error, is_rate_limit, record.latency_ms, record.response_size_bytes)
 
     def get_metrics_summary(self) -> Dict:
         """Get current metrics summary for all vendors."""
-        try:
-            summary = {
-                'vendors': {},
-                'totals': {
-                    'total_requests': 0,
-                    'total_errors': 0,
-                    'total_rate_limits': 0,
-                    'avg_latency_ms': 0
-                },
-                'timestamp': datetime.now().isoformat()
+        summary = {
+            'vendors': {},
+            'totals': {
+                'total_requests': 0,
+                'total_errors': 0,
+                'total_rate_limits': 0,
+                'avg_latency_ms': 0
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+
+        all_latencies = []
+
+        for vendor in self.request_counts:
+            vendor_data = {
+                'total_requests': sum(self.request_counts[vendor].values()),
+                'status_codes': dict(self.request_counts[vendor]),
+                'endpoints': {},
+                'rate_limits': self.rate_limit_events.get(vendor, 0),
+                'avg_latency_ms': 0,
+                'max_latency_ms': 0,
+                'recent_errors': []
             }
 
-            all_latencies = []
+            # Calculate latency stats
+            if vendor in self.latency_stats and self.latency_stats[vendor]:
+                latencies = self.latency_stats[vendor]
+                vendor_data['avg_latency_ms'] = sum(latencies) / len(latencies)
+                vendor_data['max_latency_ms'] = max(latencies)
+                all_latencies.extend(latencies)
 
-            for vendor in self.request_counts:
-                vendor_data = {
-                    'total_requests': sum(self.request_counts[vendor].values()),
-                    'status_codes': dict(self.request_counts[vendor]),
-                    'endpoints': {},
-                    'rate_limits': self.rate_limit_events.get(vendor, 0),
-                    'avg_latency_ms': 0,
-                    'max_latency_ms': 0,
-                    'recent_errors': []
-                }
+            # Add endpoint breakdown
+            if vendor in self.api_endpoint_counts:
+                for endpoint, status_counts in self.api_endpoint_counts[vendor].items():
+                    vendor_data['endpoints'][endpoint] = {
+                        'total_requests': sum(status_counts.values()),
+                        'status_codes': dict(status_counts),
+                        'success_rate': (status_counts.get(200, 0) / sum(status_counts.values())) * 100 if status_counts else 0
+                    }
 
-                # Calculate latency stats
-                if vendor in self.latency_stats and self.latency_stats[vendor]:
-                    latencies = self.latency_stats[vendor]
-                    vendor_data['avg_latency_ms'] = sum(latencies) / len(latencies)
-                    vendor_data['max_latency_ms'] = max(latencies)
-                    all_latencies.extend(latencies)
+            # Add recent errors (last 5)
+            if vendor in self.error_messages:
+                vendor_data['recent_errors'] = self.error_messages[vendor][-5:]
 
-                # Add endpoint breakdown
-                if vendor in self.api_endpoint_counts:
-                    for endpoint, status_counts in self.api_endpoint_counts[vendor].items():
-                        vendor_data['endpoints'][endpoint] = {
-                            'total_requests': sum(status_counts.values()),
-                            'status_codes': dict(status_counts),
-                            'success_rate': (status_counts.get(200, 0) / sum(status_counts.values())) * 100 if status_counts else 0
-                        }
+            # Calculate success rate
+            success_requests = sum(count for status, count in self.request_counts[vendor].items() if status < 400)
+            vendor_data['success_rate'] = (success_requests / vendor_data['total_requests']) * 100 if vendor_data['total_requests'] else 0
 
-                # Add recent errors (last 5)
-                if vendor in self.error_messages:
-                    vendor_data['recent_errors'] = self.error_messages[vendor][-5:]
+            summary['vendors'][vendor] = vendor_data
 
-                # Calculate success rate
-                success_requests = sum(count for status, count in self.request_counts[vendor].items() if status < 400)
-                vendor_data['success_rate'] = (success_requests / vendor_data['total_requests']) * 100 if vendor_data['total_requests'] else 0
+            # Update totals
+            summary['totals']['total_requests'] += vendor_data['total_requests']
+            summary['totals']['total_errors'] += sum(count for status, count in self.request_counts[vendor].items() if status >= 400)
+            summary['totals']['total_rate_limits'] += vendor_data['rate_limits']
 
-                summary['vendors'][vendor] = vendor_data
+        # Calculate overall average latency
+        if all_latencies:
+            summary['totals']['avg_latency_ms'] = sum(all_latencies) / len(all_latencies)
 
-                # Update totals
-                summary['totals']['total_requests'] += vendor_data['total_requests']
-                summary['totals']['total_errors'] += sum(count for status, count in self.request_counts[vendor].items() if status >= 400)
-                summary['totals']['total_rate_limits'] += vendor_data['rate_limits']
-
-            # Calculate overall average latency
-            if all_latencies:
-                summary['totals']['avg_latency_ms'] = sum(all_latencies) / len(all_latencies)
-
-            return summary
-
-        except Exception as e:
-            logger.error(f"❌ Failed to get metrics summary: {e}")
-            return {}
+        return summary
 
     def get_prometheus_metrics(self) -> str:
         """Generate Prometheus-compatible metrics string."""
-        try:
-            # Check cache
-            now = time.time()
-            if now < self.cache_expiry and self.metrics_cache:
-                return self.metrics_cache.get('prometheus', '')
+        # Check cache
+        now = time.time()
+        if now < self.cache_expiry and self.metrics_cache:
+            return self.metrics_cache.get('prometheus', '')
 
-            metrics_lines = []
-            timestamp = int(now)
+        metrics_lines = []
+        timestamp = int(now)
 
-            # Total request metrics by vendor and status code
-            for vendor, status_counts in self.request_counts.items():
+        # Total request metrics by vendor and status code
+        for vendor, status_counts in self.request_counts.items():
+            for status_code, count in status_counts.items():
+                metrics_lines.append(f'ats_api_requests_total{{vendor="{vendor}",status_code="{status_code}"}} {count} {timestamp}')
+
+        # API endpoint metrics
+        for vendor, endpoints in self.api_endpoint_counts.items():
+            for endpoint, status_counts in endpoints.items():
                 for status_code, count in status_counts.items():
-                    metrics_lines.append(f'ats_api_requests_total{{vendor="{vendor}",status_code="{status_code}"}} {count} {timestamp}')
+                    metrics_lines.append(f'ats_api_endpoint_requests{{vendor="{vendor}",endpoint="{endpoint}",status_code="{status_code}"}} {count} {timestamp}')
 
-            # API endpoint metrics
-            for vendor, endpoints in self.api_endpoint_counts.items():
-                for endpoint, status_counts in endpoints.items():
-                    for status_code, count in status_counts.items():
-                        metrics_lines.append(f'ats_api_endpoint_requests{{vendor="{vendor}",endpoint="{endpoint}",status_code="{status_code}"}} {count} {timestamp}')
+        # Latency metrics
+        for vendor, latencies in self.latency_stats.items():
+            if latencies:
+                avg_latency = sum(latencies) / len(latencies)
+                max_latency = max(latencies)
+                metrics_lines.append(f'ats_api_latency_avg_ms{{vendor="{vendor}"}} {avg_latency:.2f} {timestamp}')
+                metrics_lines.append(f'ats_api_latency_max_ms{{vendor="{vendor}"}} {max_latency:.2f} {timestamp}')
 
-            # Latency metrics
-            for vendor, latencies in self.latency_stats.items():
-                if latencies:
-                    avg_latency = sum(latencies) / len(latencies)
-                    max_latency = max(latencies)
-                    metrics_lines.append(f'ats_api_latency_avg_ms{{vendor="{vendor}"}} {avg_latency:.2f} {timestamp}')
-                    metrics_lines.append(f'ats_api_latency_max_ms{{vendor="{vendor}"}} {max_latency:.2f} {timestamp}')
+        # Rate limiting metrics
+        for vendor, count in self.rate_limit_events.items():
+            metrics_lines.append(f'ats_api_rate_limits_total{{vendor="{vendor}"}} {count} {timestamp}')
 
-            # Rate limiting metrics
-            for vendor, count in self.rate_limit_events.items():
-                metrics_lines.append(f'ats_api_rate_limits_total{{vendor="{vendor}"}} {count} {timestamp}')
+        # Success rate metrics
+        for vendor, status_counts in self.request_counts.items():
+            total_requests = sum(status_counts.values())
+            success_requests = sum(count for status, count in status_counts.items() if status < 400)
+            success_rate = (success_requests / total_requests) * 100 if total_requests else 0
+            metrics_lines.append(f'ats_api_success_rate_percent{{vendor="{vendor}"}} {success_rate:.2f} {timestamp}')
 
-            # Success rate metrics
-            for vendor, status_counts in self.request_counts.items():
-                total_requests = sum(status_counts.values())
-                success_requests = sum(count for status, count in status_counts.items() if status < 400)
-                success_rate = (success_requests / total_requests) * 100 if total_requests else 0
-                metrics_lines.append(f'ats_api_success_rate_percent{{vendor="{vendor}"}} {success_rate:.2f} {timestamp}')
+        # Error count metrics
+        for vendor, status_counts in self.request_counts.items():
+            error_count = sum(count for status, count in status_counts.items() if status >= 400)
+            metrics_lines.append(f'ats_api_errors_total{{vendor="{vendor}"}} {error_count} {timestamp}')
 
-            # Error count metrics
-            for vendor, status_counts in self.request_counts.items():
-                error_count = sum(count for status, count in status_counts.items() if status >= 400)
-                metrics_lines.append(f'ats_api_errors_total{{vendor="{vendor}"}} {error_count} {timestamp}')
+        # Add help and type information
+        help_lines = [
+            "# HELP ats_api_requests_total Total API requests by vendor and status code",
+            "# TYPE ats_api_requests_total counter",
+            "# HELP ats_api_endpoint_requests API requests by vendor, endpoint and status code",
+            "# TYPE ats_api_endpoint_requests counter",
+            "# HELP ats_api_latency_avg_ms Average API request latency by vendor",
+            "# TYPE ats_api_latency_avg_ms gauge",
+            "# HELP ats_api_latency_max_ms Maximum API request latency by vendor",
+            "# TYPE ats_api_latency_max_ms gauge",
+            "# HELP ats_api_rate_limits_total Total rate limit events by vendor",
+            "# TYPE ats_api_rate_limits_total counter",
+            "# HELP ats_api_success_rate_percent Success rate percentage by vendor",
+            "# TYPE ats_api_success_rate_percent gauge",
+            "# HELP ats_api_errors_total Total API errors by vendor",
+            "# TYPE ats_api_errors_total counter"
+        ]
 
-            # Add help and type information
-            help_lines = [
-                "# HELP ats_api_requests_total Total API requests by vendor and status code",
-                "# TYPE ats_api_requests_total counter",
-                "# HELP ats_api_endpoint_requests API requests by vendor, endpoint and status code",
-                "# TYPE ats_api_endpoint_requests counter",
-                "# HELP ats_api_latency_avg_ms Average API request latency by vendor",
-                "# TYPE ats_api_latency_avg_ms gauge",
-                "# HELP ats_api_latency_max_ms Maximum API request latency by vendor",
-                "# TYPE ats_api_latency_max_ms gauge",
-                "# HELP ats_api_rate_limits_total Total rate limit events by vendor",
-                "# TYPE ats_api_rate_limits_total counter",
-                "# HELP ats_api_success_rate_percent Success rate percentage by vendor",
-                "# TYPE ats_api_success_rate_percent gauge",
-                "# HELP ats_api_errors_total Total API errors by vendor",
-                "# TYPE ats_api_errors_total counter"
-            ]
+        result = "\n".join(help_lines + [""] + metrics_lines) + "\n"
 
-            result = "\n".join(help_lines + [""] + metrics_lines) + "\n"
+        # Update cache
+        self.metrics_cache = {'prometheus': result}
+        self.cache_expiry = now + self.cache_duration
 
-            # Update cache
-            self.metrics_cache = {'prometheus': result}
-            self.cache_expiry = now + self.cache_duration
+        return result
 
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ Failed to generate Prometheus metrics: {e}")
-            return ""
-
-
-# Singleton instance for global tracking
 _global_tracker = None
 
 def get_global_tracker() -> APIStatusTracker:

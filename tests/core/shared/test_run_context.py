@@ -14,7 +14,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from core.run_context import (
+from core.shared.run_context import (
     RunContext, RunIdGenerator, RunContextManager,
     create_run_context, get_run_manager
 )
@@ -248,13 +248,9 @@ class TestConvenienceFunctions:
             original_base = get_run_manager().base_artifacts_dir
             get_run_manager().base_artifacts_dir = Path(temp_dir)
 
-            try:
-                run_context = create_run_context(metadata={"test": "global"})
-                assert run_context.run_id.startswith("run_")
-                assert run_context.metadata["test"] == "global"
-            finally:
-                get_run_manager().base_artifacts_dir = original_base
-
+            run_context = create_run_context(metadata={"test": "global"})
+            assert run_context.run_id.startswith("run_")
+            assert run_context.metadata["test"] == "global"
     def test_get_run_manager(self):
         """Test getting global run manager."""
         manager1 = get_run_manager()

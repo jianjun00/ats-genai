@@ -137,52 +137,47 @@ class TestNewsAnalyticsDashboard:
         await loading_indicator.wait_for(state="visible", timeout=5000)
 
         # Wait for results or "no events" message (with longer timeout for API response)
-        try:
-            # Wait for either results table or no results message
-            await page.wait_for_function('''
-                document.querySelector('table') ||
-                document.querySelector('text="No news events found"') ||
-                document.querySelector('text="Error loading news events"')
-            ''', timeout=10000)
+        # Wait for either results table or no results message
+        await page.wait_for_function('''
+            document.querySelector('table') ||
+            document.querySelector('text="No news events found"') ||
+            document.querySelector('text="Error loading news events"')
+        ''', timeout=10000)
 
-            # Check if we got results
-            table = page.locator('table')
-            table_exists = await table.count() > 0
+        # Check if we got results
+        table = page.locator('table')
+        table_exists = await table.count() > 0
 
-            if table_exists:
-                # Verify table headers
-                headers = ['Date/Time', 'Ticker', 'Signal', 'Confidence', 'Sentiment', 'Title', 'Action']
-                for header in headers:
-                    header_element = page.locator(f'th:has-text("{header}")')
-                    await header_element.wait_for(state="visible")
+        if table_exists:
+            # Verify table headers
+            headers = ['Date/Time', 'Ticker', 'Signal', 'Confidence', 'Sentiment', 'Title', 'Action']
+            for header in headers:
+                header_element = page.locator(f'th:has-text("{header}")')
+                await header_element.wait_for(state="visible")
 
-                # Count rows to verify data
-                rows = await page.locator('tbody tr').count()
-                print(f"✅ News search successful: Found {rows} events for TSLA")
+            # Count rows to verify data
+            rows = await page.locator('tbody tr').count()
+            print(f"✅ News search successful: Found {rows} events for TSLA")
 
-                # Verify "View Charts" buttons are present
-                view_charts_buttons = page.locator('button:has-text("📊 View Charts")')
-                button_count = await view_charts_buttons.count()
-                assert button_count > 0, "Should have at least one View Charts button"
+            # Verify "View Charts" buttons are present
+            view_charts_buttons = page.locator('button:has-text("📊 View Charts")')
+            button_count = await view_charts_buttons.count()
+            assert button_count > 0, "Should have at least one View Charts button"
 
+        else:
+            # Check for no results or error message
+            no_results = page.locator('text="No news events found"')
+            error_message = page.locator('text="Error loading news events"')
+
+            no_results_visible = await no_results.is_visible()
+            error_visible = await error_message.is_visible()
+
+            if no_results_visible:
+                print("✅ News search completed: No events found for TSLA in date range")
+            elif error_visible:
+                print("⚠️ News search encountered API error (expected if OHLC service not fully configured)")
             else:
-                # Check for no results or error message
-                no_results = page.locator('text="No news events found"')
-                error_message = page.locator('text="Error loading news events"')
-
-                no_results_visible = await no_results.is_visible()
-                error_visible = await error_message.is_visible()
-
-                if no_results_visible:
-                    print("✅ News search completed: No events found for TSLA in date range")
-                elif error_visible:
-                    print("⚠️ News search encountered API error (expected if OHLC service not fully configured)")
-                else:
-                    print("✅ News search completed with unknown result state")
-
-        except Exception as e:
-            print(f"⚠️ News search test completed with exception: {e}")
-            # This is acceptable as we may not have complete data setup
+                print("✅ News search completed with unknown result state")
 
     @pytest.mark.asyncio
     async def test_ohlc_charts_interface(self, page: Page):

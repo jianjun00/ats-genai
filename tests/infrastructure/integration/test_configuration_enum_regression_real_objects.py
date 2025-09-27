@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsEnumUsageRegression:
@@ -55,13 +49,7 @@ class TestRealObjectsEnumUsageRegression:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_storage_backend_enum_usage_real_objects(self, real_service, test_data):
         """Real objects version of test_storage_backend_enum_usage"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.storage_backend_enum_usage_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.storage_backend_enum_usage_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_type_enum_usage_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_type_enum_usage"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_type_enum_usage_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_type_enum_usage_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_timeframe_type_enum_usage_real_objects(self, real_service, test_data):
         """Real objects version of test_timeframe_type_enum_usage"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.timeframe_type_enum_usage_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.timeframe_type_enum_usage_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gin_config_file_loading_real_objects(self, real_service, test_data):
         """Real objects version of test_gin_config_file_loading"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gin_config_file_loading_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gin_config_file_loading_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gin_config_parameter_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_gin_config_parameter_validation"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gin_config_parameter_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gin_config_parameter_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_environment_variable_resolution_real_objects(self, real_service, test_data):
         """Real objects version of test_environment_variable_resolution"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.environment_variable_resolution_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.environment_variable_resolution_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_undefined_variable_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_undefined_variable_detection"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.undefined_variable_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.undefined_variable_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_api_key_environment_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_api_key_environment_handling"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.api_key_environment_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.api_key_environment_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_critical_import_paths_real_objects(self, real_service, test_data):
         """Real objects version of test_critical_import_paths"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.critical_import_paths_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.critical_import_paths_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_pythonpath_configuration_real_objects(self, real_service, test_data):
         """Real objects version of test_pythonpath_configuration"""
         # Test with real database integration
@@ -274,15 +208,8 @@ class TestRealObjectsEnumUsageRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.pythonpath_configuration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.pythonpath_configuration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

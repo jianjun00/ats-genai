@@ -389,13 +389,8 @@ class TestDatabaseConnectionManager:
         with patch('shared.utils.database_connections.get_database_pool') as mock_get_pool:
             mock_get_pool.return_value = mock_pool
 
-            try:
-                async with DatabaseConnectionManager('dev') as pool:
-                    raise Exception("Test exception")
-            except Exception as e:
-                assert str(e) == "Test exception"
-
-            # Pool should still be closed even when exception occurs
+            async with DatabaseConnectionManager('dev') as pool:
+                raise Exception("Test exception")
             mock_pool.close.assert_called_once()
 
     @pytest.mark.asyncio

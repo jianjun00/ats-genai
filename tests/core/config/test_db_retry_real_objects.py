@@ -10,15 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
-
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TestRealObjectsRetryAsync:
@@ -55,13 +47,7 @@ class TestRealObjectsRetryAsync:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_retry_async_success_first_attempt_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_success_first_attempt"""
         # Test with real database integration
@@ -76,14 +62,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_success_first_attempt_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_success_first_attempt_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_success_after_retries_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_success_after_retries"""
         # Test with real database integration
@@ -98,14 +78,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_success_after_retries_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_success_after_retries_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_all_attempts_fail_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_all_attempts_fail"""
         # Test with real database integration
@@ -120,14 +94,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_all_attempts_fail_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_all_attempts_fail_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_custom_exceptions_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_custom_exceptions"""
         # Test with real database integration
@@ -142,14 +110,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_custom_exceptions_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_custom_exceptions_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_zero_retries_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_zero_retries"""
         # Test with real database integration
@@ -164,14 +126,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_zero_retries_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_zero_retries_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_custom_backoff_factor_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_custom_backoff_factor"""
         # Test with real database integration
@@ -186,14 +142,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_custom_backoff_factor_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_custom_backoff_factor_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_detailed_logging_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_detailed_logging"""
         # Test with real database integration
@@ -208,14 +158,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_detailed_logging_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_detailed_logging_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_function_name_in_logs_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_function_name_in_logs"""
         # Test with real database integration
@@ -230,14 +174,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_function_name_in_logs_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_function_name_in_logs_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_operation_real_objects(self, real_service, test_data):
         """Real objects version of test_database_operation"""
         # Test with real database integration
@@ -252,14 +190,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_operation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_operation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_preserves_return_types_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_preserves_return_types"""
         # Test with real database integration
@@ -274,14 +206,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_preserves_return_types_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_preserves_return_types_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_success_first_attempt_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_success_first_attempt"""
         # Test with real database integration
@@ -296,14 +222,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_success_first_attempt_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_success_first_attempt_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_success_after_retries_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_success_after_retries"""
         # Test with real database integration
@@ -318,14 +238,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_success_after_retries_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_success_after_retries_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_all_attempts_fail_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_all_attempts_fail"""
         # Test with real database integration
@@ -340,14 +254,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_all_attempts_fail_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_all_attempts_fail_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_custom_exceptions_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_custom_exceptions"""
         # Test with real database integration
@@ -362,14 +270,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_custom_exceptions_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_custom_exceptions_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_zero_retries_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_zero_retries"""
         # Test with real database integration
@@ -384,14 +286,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_zero_retries_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_zero_retries_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_custom_backoff_factor_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_custom_backoff_factor"""
         # Test with real database integration
@@ -406,14 +302,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_custom_backoff_factor_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_custom_backoff_factor_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_detailed_logging_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_detailed_logging"""
         # Test with real database integration
@@ -428,14 +318,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_detailed_logging_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_detailed_logging_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_function_name_in_logs_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_function_name_in_logs"""
         # Test with real database integration
@@ -450,14 +334,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_function_name_in_logs_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_function_name_in_logs_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_operation_real_objects(self, real_service, test_data):
         """Real objects version of test_database_operation"""
         # Test with real database integration
@@ -472,14 +350,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_operation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_operation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_preserves_return_types_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_preserves_return_types"""
         # Test with real database integration
@@ -494,14 +366,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_preserves_return_types_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_preserves_return_types_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_with_coroutine_exceptions_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_with_coroutine_exceptions"""
         # Test with real database integration
@@ -516,14 +382,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_with_coroutine_exceptions_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_with_coroutine_exceptions_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_with_multiple_exception_types_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_with_multiple_exception_types"""
         # Test with real database integration
@@ -538,14 +398,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_with_multiple_exception_types_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_with_multiple_exception_types_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_large_delay_values_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_large_delay_values"""
         # Test with real database integration
@@ -560,14 +414,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_large_delay_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_large_delay_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_with_complex_return_values_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_with_complex_return_values"""
         # Test with real database integration
@@ -582,14 +430,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_with_complex_return_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_with_complex_return_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_exception_chaining_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_exception_chaining"""
         # Test with real database integration
@@ -604,14 +446,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_exception_chaining_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_async_exception_chaining_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_sync_memory_efficiency_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_sync_memory_efficiency"""
         # Test with real database integration
@@ -626,14 +462,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_sync_memory_efficiency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.retry_sync_memory_efficiency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_retry_async_concurrent_calls_real_objects(self, real_service, test_data):
         """Real objects version of test_retry_async_concurrent_calls"""
         # Test with real database integration
@@ -648,15 +478,8 @@ class TestRealObjectsRetryAsync:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.retry_async_concurrent_calls_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.retry_async_concurrent_calls_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

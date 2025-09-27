@@ -18,7 +18,7 @@ from domains.analytics.events.analysis.support_resistance_detector import (
     Timeframe
 )
 from domains.analytics.events.processors.support_resistance_processor import SupportResistanceProcessor
-from config.environment import Environment
+from core.platform.config.environment import Environment
 
 class TestSupportResistanceE2E:
     """End-to-end validation of complete S/R system"""
@@ -26,54 +26,50 @@ class TestSupportResistanceE2E:
     @pytest.fixture
     async def full_system_setup(self):
         """Set up complete system with database"""
-        try:
-            env = Environment()
-            pool = await env.database.create_pool_with_retry(max_retries=3)
-            conn = await pool.acquire()
+        env = Environment()
+        pool = await env.database.create_pool_with_retry(max_retries=3)
+        conn = await pool.acquire()
 
-            # Clean test data
-            await self._cleanup_e2e_data(conn)
+        # Clean test data
+        await self._cleanup_e2e_data(conn)
 
-            # Set up processor with database
-            config = {
-                'processing_interval_seconds': 30,
-                'batch_size': 5,
-                'max_concurrent_symbols': 3,
-                'min_data_points': 50,
-                'enable_cross_timeframe_validation': True,
-                'alert_thresholds': {
-                    'strong_level_test': 0.8,
-                    'level_break': 0.7,
-                    'confluence_level': 0.85
-                },
-                'timeframe_priorities': [Timeframe.DAILY, Timeframe.INTRADAY_1H],
-                'detector_config': {
-                    'pivot_lookback': 20,
-                    'cluster_epsilon': 0.02,
-                    'proximity_tolerance': 0.005,
-                    'psychological_levels': True,
-                    'volume_profile_levels': True
-                }
+        # Set up processor with database
+        config = {
+            'processing_interval_seconds': 30,
+            'batch_size': 5,
+            'max_concurrent_symbols': 3,
+            'min_data_points': 50,
+            'enable_cross_timeframe_validation': True,
+            'alert_thresholds': {
+                'strong_level_test': 0.8,
+                'level_break': 0.7,
+                'confluence_level': 0.85
+            },
+            'timeframe_priorities': [Timeframe.DAILY, Timeframe.INTRADAY_1H],
+            'detector_config': {
+                'pivot_lookback': 20,
+                'cluster_epsilon': 0.02,
+                'proximity_tolerance': 0.005,
+                'psychological_levels': True,
+                'volume_profile_levels': True
             }
+        }
 
-            processor = SupportResistanceProcessor(config)
-            processor.db_pool = pool
-            processor.active_symbols = {'E2E_TEST_AAPL', 'E2E_TEST_MSFT'}
-            await processor._initialize_processing_state()
+        processor = SupportResistanceProcessor(config)
+        processor.db_pool = pool
+        processor.active_symbols = {'E2E_TEST_AAPL', 'E2E_TEST_MSFT'}
+        await processor._initialize_processing_state()
 
-            yield {
-                'processor': processor,
-                'connection': conn,
-                'pool': pool
-            }
+        yield {
+            'processor': processor,
+            'connection': conn,
+            'pool': pool
+        }
 
-            # Cleanup
-            await self._cleanup_e2e_data(conn)
-            await pool.release(conn)
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Full system setup failed: {e}")
+        # Cleanup
+        await self._cleanup_e2e_data(conn)
+        await pool.release(conn)
+        await pool.close()
 
     async def _cleanup_e2e_data(self, conn):
         """Clean up E2E test data"""
@@ -84,11 +80,7 @@ class TestSupportResistanceE2E:
         ]
 
         for query in cleanup_queries:
-            try:
-                await conn.execute(query)
-            except Exception as e:
-                print(f"E2E cleanup warning: {e}")
-
+            await conn.execute(query)
     @pytest.fixture
     def market_scenario_trending_with_levels(self):
         """Create realistic trending market with clear S/R levels"""
@@ -591,13 +583,8 @@ class TestSupportResistanceE2E:
 
         initial_error_count = processor.stats['errors']
 
-        try:
-            await processor.process_market_data_update('E2E_INVALID', invalid_data, Timeframe.DAILY)
-            print("  ✓ System handled invalid data gracefully")
-        except Exception as e:
-            print(f"  ✓ System properly raised exception for invalid data: {type(e).__name__}")
-
-        # Test 2: Empty data handling
+        await processor.process_market_data_update('E2E_INVALID', invalid_data, Timeframe.DAILY)
+        print("  ✓ System handled invalid data gracefully")
         print("Testing empty data handling...")
 
         empty_data = pd.DataFrame()

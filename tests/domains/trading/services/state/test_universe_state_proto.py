@@ -1,9 +1,9 @@
 from datetime import datetime
-from core.calendars.time_duration import TimeDuration
-from state.universe_state import UniverseStateInterval
-from state.factor_interval import FactorInterval
-from state.instrument_interval import InstrumentInterval
-from state.indicator_interval import IndicatorInterval
+from core.business.calendars.time_duration import TimeDuration
+from domains.trading.services.state.universe_state import UniverseStateInterval
+from domains.trading.services.state.factor_interval import FactorInterval
+from domains.trading.services.state.instrument_interval import InstrumentInterval
+from domains.trading.services.state.indicator_interval import IndicatorInterval
 
 def make_sample_universe_state():
     # Minimal, but covers all nested fields for roundtrip

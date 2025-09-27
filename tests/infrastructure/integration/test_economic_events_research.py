@@ -45,74 +45,60 @@ class EconomicEventsResearcher:
         """Test Polygon economic calendar events"""
         print("🔍 Testing Polygon Economic Events...")
 
-        try:
-            # Economic calendar endpoint
-            url = "https://api.polygon.io/v1/marketstatus/upcoming"
-            params = {
-                'apikey': self.polygon_key
-            }
+        # Economic calendar endpoint
+        url = "https://api.polygon.io/v1/marketstatus/upcoming"
+        params = {
+            'apikey': self.polygon_key
+        }
 
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
+        async with session.get(url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
 
-                    events = data.get('results', [])
+                events = data.get('results', [])
 
-                    self.results['polygon'] = {
-                        'events': events[:10],  # Sample first 10
-                        'total_count': len(events),
-                        'status': 'success',
-                        'data_types': list(set([event.get('event', 'unknown') for event in events[:5]])),
-                        'sample_event': events[0] if events else None
-                    }
+                self.results['polygon'] = {
+                    'events': events[:10],  # Sample first 10
+                    'total_count': len(events),
+                    'status': 'success',
+                    'data_types': list(set([event.get('event', 'unknown') for event in events[:5]])),
+                    'sample_event': events[0] if events else None
+                }
 
-                    print(f"✅ Polygon: Found {len(events)} upcoming market events")
-                    if events:
-                        print(f"   Sample event: {events[0].get('event', 'N/A')} on {events[0].get('date', 'N/A')}")
+                print(f"✅ Polygon: Found {len(events)} upcoming market events")
+                if events:
+                    print(f"   Sample event: {events[0].get('event', 'N/A')} on {events[0].get('date', 'N/A')}")
 
-                else:
-                    self.results['polygon'] = {
-                        'events': [],
-                        'status': 'error',
-                        'error': f"HTTP {response.status}"
-                    }
-                    print(f"❌ Polygon: HTTP {response.status}")
+            else:
+                self.results['polygon'] = {
+                    'events': [],
+                    'status': 'error',
+                    'error': f"HTTP {response.status}"
+                }
+                print(f"❌ Polygon: HTTP {response.status}")
 
-        except Exception as e:
-            self.results['polygon'] = {
-                'events': [],
-                'status': 'error',
-                'error': str(e)
-            }
-            print(f"💥 Polygon: {e}")
+        indicators_url = "https://api.polygon.io/v1/indicators/ma/SPY"
+        params = {
+            'timestamp.gte': self.start_date.strftime('%Y-%m-%d'),
+            'limit': 10,
+            'apikey': self.polygon_key
+        }
 
-        # Also test economic indicators
-        try:
-            indicators_url = "https://api.polygon.io/v1/indicators/ma/SPY"
-            params = {
-                'timestamp.gte': self.start_date.strftime('%Y-%m-%d'),
-                'limit': 10,
-                'apikey': self.polygon_key
-            }
+        async with session.get(indicators_url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
+                indicators = data.get('results', {}).get('values', [])
 
-            async with session.get(indicators_url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    indicators = data.get('results', {}).get('values', [])
+                if 'indicators' not in self.results['polygon']:
+                    self.results['polygon']['indicators'] = {}
 
-                    if 'indicators' not in self.results['polygon']:
-                        self.results['polygon']['indicators'] = {}
+                self.results['polygon']['indicators'] = {
+                    'available': len(indicators) > 0,
+                    'count': len(indicators),
+                    'sample': indicators[:3] if indicators else []
+                }
 
-                    self.results['polygon']['indicators'] = {
-                        'available': len(indicators) > 0,
-                        'count': len(indicators),
-                        'sample': indicators[:3] if indicators else []
-                    }
-
-                    print(f"✅ Polygon Indicators: {len(indicators)} technical indicators available")
-
-        except Exception as e:
-            print(f"⚠️ Polygon Indicators: {e}")
+                print(f"✅ Polygon Indicators: {len(indicators)} technical indicators available")
 
         return self.results['polygon']
 
@@ -120,82 +106,68 @@ class EconomicEventsResearcher:
         """Test Tiingo news and fundamentals events"""
         print("🔍 Testing Tiingo Economic Events...")
 
-        try:
-            # Tiingo News API for economic news
-            url = "https://api.tiingo.com/tiingo/news"
-            params = {
-                'sortBy': 'publishedDate',
-                'startDate': self.start_date.strftime('%Y-%m-%d'),
-                'endDate': self.end_date.strftime('%Y-%m-%d'),
-                'tags': 'economics,macro,fed,gdp,inflation',
-                'token': self.tiingo_key
-            }
+        # Tiingo News API for economic news
+        url = "https://api.tiingo.com/tiingo/news"
+        params = {
+            'sortBy': 'publishedDate',
+            'startDate': self.start_date.strftime('%Y-%m-%d'),
+            'endDate': self.end_date.strftime('%Y-%m-%d'),
+            'tags': 'economics,macro,fed,gdp,inflation',
+            'token': self.tiingo_key
+        }
 
-            headers = {'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/json'}
 
-            async with session.get(url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    events = await response.json()
+        async with session.get(url, params=params, headers=headers) as response:
+            if response.status == 200:
+                events = await response.json()
 
-                    if isinstance(events, list):
-                        self.results['tiingo'] = {
-                            'events': events[:10],  # Sample first 10
-                            'total_count': len(events),
-                            'status': 'success',
-                            'data_types': ['economic_news', 'macro_analysis'],
-                            'sample_event': events[0] if events else None
-                        }
+                if isinstance(events, list):
+                    self.results['tiingo'] = {
+                        'events': events[:10],  # Sample first 10
+                        'total_count': len(events),
+                        'status': 'success',
+                        'data_types': ['economic_news', 'macro_analysis'],
+                        'sample_event': events[0] if events else None
+                    }
 
-                        print(f"✅ Tiingo: Found {len(events)} economic news events")
-                        if events:
-                            print(f"   Sample: {events[0].get('title', 'N/A')[:60]}...")
-                    else:
-                        print("📭 Tiingo: Unexpected response format")
-                        self.results['tiingo'] = {
-                            'events': [],
-                            'status': 'empty',
-                            'error': 'Unexpected response format'
-                        }
+                    print(f"✅ Tiingo: Found {len(events)} economic news events")
+                    if events:
+                        print(f"   Sample: {events[0].get('title', 'N/A')[:60]}...")
                 else:
+                    print("📭 Tiingo: Unexpected response format")
                     self.results['tiingo'] = {
                         'events': [],
-                        'status': 'error',
-                        'error': f"HTTP {response.status}"
+                        'status': 'empty',
+                        'error': 'Unexpected response format'
                     }
-                    print(f"❌ Tiingo: HTTP {response.status}")
+            else:
+                self.results['tiingo'] = {
+                    'events': [],
+                    'status': 'error',
+                    'error': f"HTTP {response.status}"
+                }
+                print(f"❌ Tiingo: HTTP {response.status}")
 
-        except Exception as e:
-            self.results['tiingo'] = {
-                'events': [],
-                'status': 'error',
-                'error': str(e)
-            }
-            print(f"💥 Tiingo: {e}")
+        fundamentals_url = "https://api.tiingo.com/tiingo/fundamentals/SPY/daily"
+        params = {
+            'startDate': (self.end_date - timedelta(days=90)).strftime('%Y-%m-%d'),
+            'token': self.tiingo_key
+        }
 
-        # Also test fundamentals data
-        try:
-            fundamentals_url = "https://api.tiingo.com/tiingo/fundamentals/SPY/daily"
-            params = {
-                'startDate': (self.end_date - timedelta(days=90)).strftime('%Y-%m-%d'),
-                'token': self.tiingo_key
-            }
+        async with session.get(fundamentals_url, params=params, headers=headers) as response:
+            if response.status == 200:
+                data = await response.json()
 
-            async with session.get(fundamentals_url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
+                if 'fundamentals' not in self.results['tiingo']:
+                    self.results['tiingo']['fundamentals'] = {}
 
-                    if 'fundamentals' not in self.results['tiingo']:
-                        self.results['tiingo']['fundamentals'] = {}
+                self.results['tiingo']['fundamentals'] = {
+                    'available': len(data) > 0 if isinstance(data, list) else bool(data),
+                    'sample': data[:2] if isinstance(data, list) else data
+                }
 
-                    self.results['tiingo']['fundamentals'] = {
-                        'available': len(data) > 0 if isinstance(data, list) else bool(data),
-                        'sample': data[:2] if isinstance(data, list) else data
-                    }
-
-                    print("✅ Tiingo Fundamentals: Available")
-
-        except Exception as e:
-            print(f"⚠️ Tiingo Fundamentals: {e}")
+                print("✅ Tiingo Fundamentals: Available")
 
         return self.results['tiingo']
 
@@ -203,82 +175,68 @@ class EconomicEventsResearcher:
         """Test EODHD economic calendar"""
         print("🔍 Testing EODHD Economic Events...")
 
-        try:
-            # EODHD Economic Calendar
-            url = "https://eodhd.com/api/economic-events"
-            params = {
-                'from': self.start_date.strftime('%Y-%m-%d'),
-                'to': self.end_date.strftime('%Y-%m-%d'),
-                'country': 'US',
-                'fmt': 'json',
-                'api_token': self.eodhd_key
-            }
+        # EODHD Economic Calendar
+        url = "https://eodhd.com/api/economic-events"
+        params = {
+            'from': self.start_date.strftime('%Y-%m-%d'),
+            'to': self.end_date.strftime('%Y-%m-%d'),
+            'country': 'US',
+            'fmt': 'json',
+            'api_token': self.eodhd_key
+        }
 
-            async with session.get(url, params=params) as response:
-                if response.status == 200:
-                    events = await response.json()
+        async with session.get(url, params=params) as response:
+            if response.status == 200:
+                events = await response.json()
 
-                    if isinstance(events, list):
-                        self.results['eodhd'] = {
-                            'events': events[:10],  # Sample first 10
-                            'total_count': len(events),
-                            'status': 'success',
-                            'data_types': list(set([event.get('event', 'unknown') for event in events[:5]])),
-                            'sample_event': events[0] if events else None
-                        }
+                if isinstance(events, list):
+                    self.results['eodhd'] = {
+                        'events': events[:10],  # Sample first 10
+                        'total_count': len(events),
+                        'status': 'success',
+                        'data_types': list(set([event.get('event', 'unknown') for event in events[:5]])),
+                        'sample_event': events[0] if events else None
+                    }
 
-                        print(f"✅ EODHD: Found {len(events)} economic calendar events")
-                        if events:
-                            print(f"   Sample: {events[0].get('event', 'N/A')} on {events[0].get('date', 'N/A')}")
-                    else:
-                        print("📭 EODHD: Unexpected response format")
-                        self.results['eodhd'] = {
-                            'events': [],
-                            'status': 'empty',
-                            'error': 'Unexpected response format'
-                        }
+                    print(f"✅ EODHD: Found {len(events)} economic calendar events")
+                    if events:
+                        print(f"   Sample: {events[0].get('event', 'N/A')} on {events[0].get('date', 'N/A')}")
                 else:
+                    print("📭 EODHD: Unexpected response format")
                     self.results['eodhd'] = {
                         'events': [],
-                        'status': 'error',
-                        'error': f"HTTP {response.status}"
+                        'status': 'empty',
+                        'error': 'Unexpected response format'
                     }
-                    print(f"❌ EODHD: HTTP {response.status}")
+            else:
+                self.results['eodhd'] = {
+                    'events': [],
+                    'status': 'error',
+                    'error': f"HTTP {response.status}"
+                }
+                print(f"❌ EODHD: HTTP {response.status}")
 
-        except Exception as e:
-            self.results['eodhd'] = {
-                'events': [],
-                'status': 'error',
-                'error': str(e)
-            }
-            print(f"💥 EODHD: {e}")
+        macro_url = "https://eodhd.com/api/macro-indicator"
+        params = {
+            'country': 'US',
+            'indicator': 'gdp_growth_rate',
+            'fmt': 'json',
+            'api_token': self.eodhd_key
+        }
 
-        # Also test macro indicators
-        try:
-            macro_url = "https://eodhd.com/api/macro-indicator"
-            params = {
-                'country': 'US',
-                'indicator': 'gdp_growth_rate',
-                'fmt': 'json',
-                'api_token': self.eodhd_key
-            }
+        async with session.get(macro_url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
 
-            async with session.get(macro_url, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
+                if 'macro_indicators' not in self.results['eodhd']:
+                    self.results['eodhd']['macro_indicators'] = {}
 
-                    if 'macro_indicators' not in self.results['eodhd']:
-                        self.results['eodhd']['macro_indicators'] = {}
+                self.results['eodhd']['macro_indicators'] = {
+                    'available': len(data) > 0 if isinstance(data, list) else bool(data),
+                    'sample': data[:3] if isinstance(data, list) else data
+                }
 
-                    self.results['eodhd']['macro_indicators'] = {
-                        'available': len(data) > 0 if isinstance(data, list) else bool(data),
-                        'sample': data[:3] if isinstance(data, list) else data
-                    }
-
-                    print("✅ EODHD Macro Indicators: Available")
-
-        except Exception as e:
-            print(f"⚠️ EODHD Macro Indicators: {e}")
+                print("✅ EODHD Macro Indicators: Available")
 
         return self.results['eodhd']
 

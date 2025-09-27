@@ -23,11 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 @pytest.mark.integration
 def test_tsla_firstrate_data_discovery():
     """Test that TSLA data can be found in FirstRate directory structure."""
-    try:
-        from storage.file_based_minute_manager import FileBasedMinuteManager
-    except ImportError:
-        pytest.skip("FileBasedMinuteManager not available")
-
+    from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteManager
     base_path = "/data/minute-bars"
     if not Path(base_path).exists():
         # Try alternative path
@@ -41,25 +37,11 @@ def test_tsla_firstrate_data_discovery():
     start_date = datetime(2025, 8, 1)
     end_date = datetime(2025, 8, 2)
 
-    try:
-        data = manager.get_minute_data("TSLA", start_date, end_date)
-        assert data is not None, "TSLA data not found via FirstRate path"
-        assert len(data) > 0, "TSLA data is empty"
+    data = manager.get_minute_data("TSLA", start_date, end_date)
+    assert data is not None, "TSLA data not found via FirstRate path"
+    assert len(data) > 0, "TSLA data is empty"
 
-        print(f"✅ Found TSLA data: {len(data)} records")
-
-    except FileNotFoundError as e:
-        # Check if FirstRate directory exists
-        firstrate_path = Path(base_path) / "firstrate"
-        if not firstrate_path.exists():
-            pytest.skip("FirstRate directory not found - may not be available in test environment")
-
-        tsla_path = firstrate_path / "T" / "TSLA"
-        if not tsla_path.exists():
-            pytest.skip("TSLA directory not found in FirstRate structure")
-
-        pytest.fail(f"TSLA data not accessible despite directory existing: {e}")
-
+    print(f"✅ Found TSLA data: {len(data)} records")
 
 def test_firstrate_directory_structure():
     """Test that FirstRate directory structure is correctly detected."""
@@ -115,12 +97,7 @@ def test_firstrate_directory_structure():
 @pytest.mark.integration
 def test_file_path_resolution_priority():
     """Test that FirstRate path is checked before standard paths."""
-    try:
-        from storage.file_based_minute_manager import FileBasedMinuteManager
-    except ImportError:
-        pytest.skip("FileBasedMinuteManager not available")
-
-    # Mock the path resolution to test priority
+    from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteManager
     base_path = "/data/minute-bars"
     if not Path(base_path).exists():
         base_path = "/mnt/d/ats-data/minute-bars"
@@ -134,28 +111,19 @@ def test_file_path_resolution_priority():
         test_date = datetime(2025, 8, 1)
 
         # Test FirstRate path generation
-        try:
-            file_path = manager._get_monthly_file_path("TSLA", test_date)
-            print(f"Generated file path: {file_path}")
+        file_path = manager._get_monthly_file_path("TSLA", test_date)
+        print(f"Generated file path: {file_path}")
 
-            # Should prefer FirstRate structure for TSLA
-            if "firstrate" in str(file_path):
-                assert "/firstrate/T/TSLA/" in str(file_path), "Should use FirstRate T/TSLA structure"
-                print("✅ FirstRate path priority working correctly")
-            else:
-                print("⚠️ FirstRate structure not found, using fallback path")
-
-        except Exception as e:
-            print(f"Path resolution test failed: {e}")
-
+        # Should prefer FirstRate structure for TSLA
+        if "firstrate" in str(file_path):
+            assert "/firstrate/T/TSLA/" in str(file_path), "Should use FirstRate T/TSLA structure"
+            print("✅ FirstRate path priority working correctly")
+        else:
+            print("⚠️ FirstRate structure not found, using fallback path")
 
 def test_tsla_vs_other_symbols_path_handling():
     """Test that TSLA uses FirstRate while other symbols use standard paths."""
-    try:
-        from storage.file_based_minute_manager import FileBasedMinuteManager
-    except ImportError:
-        pytest.skip("FileBasedMinuteManager not available")
-
+    from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteManager
     base_path = "/data/minute-bars"
     if not Path(base_path).exists():
         base_path = "/mnt/d/ats-data/minute-bars"
@@ -168,32 +136,23 @@ def test_tsla_vs_other_symbols_path_handling():
     symbols_to_test = ["TSLA", "AAPL", "MSFT"]
 
     for symbol in symbols_to_test:
-        try:
-            # Don't actually load data, just test path resolution
-            if hasattr(manager, '_get_monthly_file_path'):
-                file_path = manager._get_monthly_file_path(symbol, test_date)
-                print(f"{symbol} path: {file_path}")
+        # Don't actually load data, just test path resolution
+        if hasattr(manager, '_get_monthly_file_path'):
+            file_path = manager._get_monthly_file_path(symbol, test_date)
+            print(f"{symbol} path: {file_path}")
 
-                if symbol == "TSLA":
-                    # TSLA should prefer FirstRate if available
-                    if Path(base_path, "firstrate", "T", "TSLA").exists():
-                        assert "/firstrate/T/TSLA/" in str(file_path), f"TSLA should use FirstRate path"
-                else:
-                    # Other symbols should use standard paths
-                    # (May also use FirstRate if available, but different structure)
-                    assert str(file_path), f"Should generate path for {symbol}"
-
-        except Exception as e:
-            print(f"Path test failed for {symbol}: {e}")
-
+            if symbol == "TSLA":
+                # TSLA should prefer FirstRate if available
+                if Path(base_path, "firstrate", "T", "TSLA").exists():
+                    assert "/firstrate/T/TSLA/" in str(file_path), f"TSLA should use FirstRate path"
+            else:
+                # Other symbols should use standard paths
+                # (May also use FirstRate if available, but different structure)
+                assert str(file_path), f"Should generate path for {symbol}"
 
 def test_monthly_file_path_structure():
     """Test that monthly file paths follow expected naming convention."""
-    try:
-        from storage.file_based_minute_manager import FileBasedMinuteManager
-    except ImportError:
-        pytest.skip("FileBasedMinuteManager not available")
-
+    from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteManager
     base_path = "/data/minute-bars"
     if not Path(base_path).exists():
         base_path = "/mnt/d/ats-data/minute-bars"

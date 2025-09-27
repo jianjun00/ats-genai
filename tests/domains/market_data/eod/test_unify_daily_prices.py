@@ -2,8 +2,8 @@ import json
 import pytest
 from datetime import datetime
 from pathlib import Path
-from domains.market_data.services.eod.unify_daily_prices import FileDailyPricesUnifier
-from domains.market_data.services.eod.unify_daily_price_polygon import FileDailyPricesUnifier, DailyPricesUnifierBase
+from domains.trading.services.core.eod.unify_daily_prices import FileDailyPricesUnifier
+from domains.trading.services.core.eod.enhanced_eod_service import FileDailyPricesUnifier, DailyPricesUnifierBase
 
 def load_fixture_prices(log_dir, symbol, provider):
     """
@@ -54,12 +54,9 @@ def compare_prices(tiingo, polygon, close_threshold=0.01):
                 if t_val is None or p_val is None:
                     diffs.append(f"{k}: tiingo={t_val}, polygon={p_val}")
                 else:
-                    try:
-                        t_val = float(t_val)
-                        p_val = float(p_val)
-                        if abs(t_val - p_val) > max(abs(t_val), abs(p_val)) * close_threshold:
-                            diffs.append(f"{k}: tiingo={t_val}, polygon={p_val}")
-                    except Exception:
+                    t_val = float(t_val)
+                    p_val = float(p_val)
+                    if abs(t_val - p_val) > max(abs(t_val), abs(p_val)) * close_threshold:
                         diffs.append(f"{k}: tiingo={t_val}, polygon={p_val}")
             if not diffs:
                 stats['close_enough'] += 1

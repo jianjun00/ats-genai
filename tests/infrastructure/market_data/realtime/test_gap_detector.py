@@ -21,7 +21,7 @@ import os
 import sys
 sys.path.append('src')
 
-from domains.market_data.services.realtime.gap_detector import (
+from domains.market_data.services.data_collection.realtime.gap_detector import (
     GapDetectionEngine,
     DataGap
 )

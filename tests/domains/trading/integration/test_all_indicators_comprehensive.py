@@ -179,16 +179,10 @@ class ComprehensiveIndicatorTestSuite:
             # Test HLC indicators (need 3 intervals)
             if len(intervals) < 3:
                 for indicator_name in self.hlc_coefficients.keys():
-                    try:
-                        hlc_features = self.extract_hlc_features(intervals)
-                        # This should raise an exception
-                        self.errors.append(f"HLC feature extraction should fail for {case_name}")
-                        success = False
-                    except ValueError:
-                        # Expected behavior
-                        pass
-
-        # Test invalid interval data
+                    hlc_features = self.extract_hlc_features(intervals)
+                    # This should raise an exception
+                    self.errors.append(f"HLC feature extraction should fail for {case_name}")
+                    success = False
         invalid_intervals = [
             # High < Low
             ("High < Low", ValueError, lambda: MockInterval(90, 100, 95)),
@@ -198,15 +192,9 @@ class ComprehensiveIndicatorTestSuite:
         ]
 
         for case_name, expected_exception, interval_creator in invalid_intervals:
-            try:
-                interval_creator()
-                self.errors.append(f"Should raise {expected_exception.__name__} for {case_name}")
-                success = False
-            except expected_exception:
-                # Expected behavior
-                pass
-
-        # Test NaN and infinite values
+            interval_creator()
+            self.errors.append(f"Should raise {expected_exception.__name__} for {case_name}")
+            success = False
         nan_inf_cases = [
             ("NaN high", MockInterval(float('nan'), 90, 95)),
             ("Infinite low", MockInterval(100, float('inf'), 95)),
@@ -215,15 +203,10 @@ class ComprehensiveIndicatorTestSuite:
 
         for case_name, interval in nan_inf_cases:
             # These should be detected and handled gracefully
-            try:
-                if math.isnan(interval.high) or math.isnan(interval.low) or math.isnan(interval.close):
-                    pass  # Expected to be invalid
-                elif math.isinf(interval.high) or math.isinf(interval.low) or math.isinf(interval.close):
-                    pass  # Expected to be invalid
-            except:
-                # Any exception is acceptable for invalid data
-                pass
-
+            if math.isnan(interval.high) or math.isnan(interval.low) or math.isnan(interval.close):
+                pass  # Expected to be invalid
+            elif math.isinf(interval.high) or math.isinf(interval.low) or math.isinf(interval.close):
+                pass  # Expected to be invalid
         if success:
             print("✅ Input validation tests passed")
         else:
@@ -328,25 +311,19 @@ class ComprehensiveIndicatorTestSuite:
             hlc_features = self.extract_hlc_features(intervals)
 
             for indicator_name in self.hlc_coefficients.keys():
-                try:
-                    result = self.calculate_hlc_expected(indicator_name, hlc_features)
+                result = self.calculate_hlc_expected(indicator_name, hlc_features)
 
-                    # Check for invalid results
-                    if math.isnan(result) or math.isinf(result):
-                        self.errors.append(f"{indicator_name} with {scenario_name} produced invalid result: {result}")
-                        success = False
-
-                    # Check reasonable bounds (result should be in reasonable range relative to input)
-                    input_range = max(hlc_features) - min(hlc_features)
-                    if input_range > 0 and abs(result) > 1000 * max(hlc_features):
-                        self.errors.append(f"{indicator_name} with {scenario_name} result {result} seems unreasonably large")
-                        success = False
-
-                except Exception as e:
-                    self.errors.append(f"{indicator_name} with {scenario_name} raised exception: {e}")
+                # Check for invalid results
+                if math.isnan(result) or math.isinf(result):
+                    self.errors.append(f"{indicator_name} with {scenario_name} produced invalid result: {result}")
                     success = False
 
-            # Test Five Nine indicators
+                # Check reasonable bounds (result should be in reasonable range relative to input)
+                input_range = max(hlc_features) - min(hlc_features)
+                if input_range > 0 and abs(result) > 1000 * max(hlc_features):
+                    self.errors.append(f"{indicator_name} with {scenario_name} result {result} seems unreasonably large")
+                    success = False
+
             if len(intervals) >= 2:
                 sell_result = self.calculate_five_nine_sell_mock(intervals[-2:])
                 buy_result = self.calculate_five_nine_buy_mock(intervals[-2:])
@@ -379,39 +356,34 @@ class ComprehensiveIndicatorTestSuite:
             intervals = [MockInterval(h, l, c) for h, l, c in scenario_data]
 
             # Test that calculations complete successfully
-            try:
-                # HLC indicators
-                hlc_features = self.extract_hlc_features(intervals)
-                hlc_results = {}
+            # HLC indicators
+            hlc_features = self.extract_hlc_features(intervals)
+            hlc_results = {}
 
-                for indicator_name in self.hlc_coefficients.keys():
-                    hlc_results[indicator_name] = self.calculate_hlc_expected(indicator_name, hlc_features)
+            for indicator_name in self.hlc_coefficients.keys():
+                hlc_results[indicator_name] = self.calculate_hlc_expected(indicator_name, hlc_features)
 
-                # Five Nine indicators
-                sell_result = self.calculate_five_nine_sell_mock(intervals[-2:])
-                buy_result = self.calculate_five_nine_buy_mock(intervals[-2:])
+            # Five Nine indicators
+            sell_result = self.calculate_five_nine_sell_mock(intervals[-2:])
+            buy_result = self.calculate_five_nine_buy_mock(intervals[-2:])
 
-                # Validate results are reasonable
-                for name, result in hlc_results.items():
-                    if not isinstance(result, (int, float)) or math.isnan(result) or math.isinf(result):
-                        self.errors.append(f"{name} in {scenario_name} produced invalid result: {result}")
-                        success = False
+            # Validate results are reasonable
+            for name, result in hlc_results.items():
+                if not isinstance(result, (int, float)) or math.isnan(result) or math.isinf(result):
+                    self.errors.append(f"{name} in {scenario_name} produced invalid result: {result}")
+                    success = False
 
-                # Five Nine specific validations
-                if scenario_name == "Flash crash":
-                    # In a crash, buy level should be significantly lower
-                    if buy_result >= sell_result:
-                        print(f"  ⚠️ Note: In {scenario_name}, buy level ({buy_result:.2f}) >= sell level ({sell_result:.2f})")
-                elif scenario_name == "Strong uptrend":
-                    # In uptrend, levels should generally be higher
-                    if sell_result < max(interval.high for interval in intervals[-2:]):
-                        print(f"  📈 {scenario_name}: Sell level {sell_result:.2f} below recent highs (expected)")
+            # Five Nine specific validations
+            if scenario_name == "Flash crash":
+                # In a crash, buy level should be significantly lower
+                if buy_result >= sell_result:
+                    print(f"  ⚠️ Note: In {scenario_name}, buy level ({buy_result:.2f}) >= sell level ({sell_result:.2f})")
+            elif scenario_name == "Strong uptrend":
+                # In uptrend, levels should generally be higher
+                if sell_result < max(interval.high for interval in intervals[-2:]):
+                    print(f"  📈 {scenario_name}: Sell level {sell_result:.2f} below recent highs (expected)")
 
-                print(f"  📊 {scenario_name}: Sell={sell_result:.2f}, Buy={buy_result:.2f}")
-
-            except Exception as e:
-                self.errors.append(f"{scenario_name} scenario failed: {e}")
-                success = False
+            print(f"  📊 {scenario_name}: Sell={sell_result:.2f}, Buy={buy_result:.2f}")
 
         if success:
             print("✅ Market scenarios handled correctly")
@@ -607,41 +579,36 @@ class ComprehensiveIndicatorTestSuite:
         ]
 
         for scenario_name, scenario_data in stress_scenarios:
-            try:
-                intervals = [MockInterval(max(h, l), min(h, l), c) for h, l, c in scenario_data]  # Ensure h >= l
+            intervals = [MockInterval(max(h, l), min(h, l), c) for h, l, c in scenario_data]  # Ensure h >= l
 
-                # Test multiple points in the scenario
-                for i in range(3, len(intervals)):
-                    test_intervals = intervals[i-3:i]
-                    hlc_features = self.extract_hlc_features(test_intervals)
+            # Test multiple points in the scenario
+            for i in range(3, len(intervals)):
+                test_intervals = intervals[i-3:i]
+                hlc_features = self.extract_hlc_features(test_intervals)
 
-                    # Test all HLC indicators
-                    for indicator_name in self.hlc_coefficients.keys():
-                        result = self.calculate_hlc_expected(indicator_name, hlc_features)
+                # Test all HLC indicators
+                for indicator_name in self.hlc_coefficients.keys():
+                    result = self.calculate_hlc_expected(indicator_name, hlc_features)
 
-                        if math.isnan(result) or math.isinf(result):
-                            self.errors.append(f"{indicator_name} in {scenario_name} at position {i} produced invalid result: {result}")
-                            success = False
+                    if math.isnan(result) or math.isinf(result):
+                        self.errors.append(f"{indicator_name} in {scenario_name} at position {i} produced invalid result: {result}")
+                        success = False
 
-                    # Test Five Nine indicators
-                    if i >= 2:
-                        five_nine_intervals = intervals[i-2:i]
-                        sell_result = self.calculate_five_nine_sell_mock(five_nine_intervals)
-                        buy_result = self.calculate_five_nine_buy_mock(five_nine_intervals)
+                # Test Five Nine indicators
+                if i >= 2:
+                    five_nine_intervals = intervals[i-2:i]
+                    sell_result = self.calculate_five_nine_sell_mock(five_nine_intervals)
+                    buy_result = self.calculate_five_nine_buy_mock(five_nine_intervals)
 
-                        if sell_result is not None and (math.isnan(sell_result) or math.isinf(sell_result)):
-                            self.errors.append(f"Five Nine Sell in {scenario_name} at position {i} produced invalid result: {sell_result}")
-                            success = False
+                    if sell_result is not None and (math.isnan(sell_result) or math.isinf(sell_result)):
+                        self.errors.append(f"Five Nine Sell in {scenario_name} at position {i} produced invalid result: {sell_result}")
+                        success = False
 
-                        if buy_result is not None and (math.isnan(buy_result) or math.isinf(buy_result)):
-                            self.errors.append(f"Five Nine Buy in {scenario_name} at position {i} produced invalid result: {buy_result}")
-                            success = False
+                    if buy_result is not None and (math.isnan(buy_result) or math.isinf(buy_result)):
+                        self.errors.append(f"Five Nine Buy in {scenario_name} at position {i} produced invalid result: {buy_result}")
+                        success = False
 
-                print(f"  🧪 {scenario_name}: Processed {len(intervals)} intervals successfully")
-
-            except Exception as e:
-                self.errors.append(f"Stress test {scenario_name} failed: {e}")
-                success = False
+            print(f"  🧪 {scenario_name}: Processed {len(intervals)} intervals successfully")
 
         if success:
             print("✅ Stress scenarios handled correctly")
@@ -768,17 +735,11 @@ class ComprehensiveIndicatorTestSuite:
 
             test_start_time = time.time()
 
-            try:
-                if test_func():
-                    passed_tests += 1
-                    self.test_results[test_name] = "PASS"
-                else:
-                    self.test_results[test_name] = "FAIL"
-            except Exception as e:
-                self.errors.append(f"{test_name}: Exception - {str(e)}")
-                self.test_results[test_name] = "ERROR"
-                print(f"❌ Test failed with exception: {e}")
-
+            if test_func():
+                passed_tests += 1
+                self.test_results[test_name] = "PASS"
+            else:
+                self.test_results[test_name] = "FAIL"
             test_end_time = time.time()
             test_duration = test_end_time - test_start_time
             print(f"   ⏱️ Completed in {test_duration:.3f}s")

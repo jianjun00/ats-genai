@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from sentiment.social_media_analyzer import (
+from domains.analytics.services.sentiment.social_media_analyzer import (
     SocialMediaPost,
     SocialSentimentMetrics,
     SocialTradingSignal,

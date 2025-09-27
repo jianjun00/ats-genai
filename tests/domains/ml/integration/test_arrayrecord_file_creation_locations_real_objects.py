@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsArrayRecordFileCreationLocations:
@@ -56,13 +51,7 @@ class TestRealObjectsArrayRecordFileCreationLocations:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_arrayrecord_files_created_in_correct_locations_real_objects(self, real_service, test_data):
         """Real objects version of test_arrayrecord_files_created_in_correct_locations"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsArrayRecordFileCreationLocations:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.arrayrecord_files_created_in_correct_locations_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.arrayrecord_files_created_in_correct_locations_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_arrayrecord_filename_format_real_objects(self, real_service, test_data):
         """Real objects version of test_arrayrecord_filename_format"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsArrayRecordFileCreationLocations:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.arrayrecord_filename_format_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.arrayrecord_filename_format_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_metadata_json_files_created_alongside_arrayrecord_real_objects(self, real_service, test_data):
         """Real objects version of test_metadata_json_files_created_alongside_arrayrecord"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsArrayRecordFileCreationLocations:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.metadata_json_files_created_alongside_arrayrecord_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.metadata_json_files_created_alongside_arrayrecord_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_directory_structure_matches_expected_pattern_real_objects(self, real_service, test_data):
         """Real objects version of test_directory_structure_matches_expected_pattern"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsArrayRecordFileCreationLocations:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.directory_structure_matches_expected_pattern_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.directory_structure_matches_expected_pattern_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_real_file_paths_match_visualization_api_glob_patterns_real_objects(self, real_service, test_data):
         """Real objects version of test_real_file_paths_match_visualization_api_glob_patterns"""
         # Test with real database integration
@@ -165,15 +130,8 @@ class TestRealObjectsArrayRecordFileCreationLocations:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.real_file_paths_match_visualization_api_glob_patterns_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.real_file_paths_match_visualization_api_glob_patterns_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

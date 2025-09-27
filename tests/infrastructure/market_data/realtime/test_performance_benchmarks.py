@@ -23,9 +23,9 @@ import statistics
 import sys
 sys.path.append('src')
 
-from domains.market_data.services.realtime.streaming_collector import RealtimeStreamingCollector, MinuteBar
-from domains.market_data.services.realtime.gap_detector import GapDetectionEngine
-from domains.market_data.services.realtime.weekly_backfill import WeeklyBackfillEngine
+from domains.market_data.services.data_collection.realtime.streaming_collector import RealtimeStreamingCollector, MinuteBar
+from domains.market_data.services.data_collection.realtime.gap_detector import GapDetectionEngine
+from domains.market_data.services.data_collection.realtime.weekly_backfill import WeeklyBackfillEngine
 
 @pytest.mark.benchmark
 class TestDataThroughputBenchmarks:
@@ -339,7 +339,7 @@ class TestMemoryUsageBenchmarks:
             base_time = datetime.now(timezone.utc)
 
             for i in range(10000):  # 10,000 gaps
-                from domains.market_data.services.realtime.gap_detector import DataGap
+                from domains.market_data.services.data_collection.realtime.gap_detector import DataGap
                 gap = DataGap(
                     vendor='polygon',
                     symbol=f'SYM{i % 1000:04d}',

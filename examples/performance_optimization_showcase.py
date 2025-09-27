@@ -533,8 +533,7 @@ if __name__ == "__main__":
     print("   Demonstrating advanced performance optimization")
     print("   capabilities of the service architecture.\n")
 
-    try:
-        asyncio.run(main())
+    asyncio.run(main())
     except KeyboardInterrupt:
         print("\n🛑 Showcase interrupted by user")
     except Exception as e:

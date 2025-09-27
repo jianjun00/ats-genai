@@ -97,19 +97,11 @@ class AgentTestSuiteFailFast:
     async def _wait_for_service_ready(self, max_attempts: int = 10, delay: float = 2.0):
         """Wait for service to be ready - FAIL FAST with clear error"""
         for attempt in range(max_attempts):
-            try:
-                response = requests.get(f"{BASE_URL}/health", timeout=5)
-                if response.status_code == 200:
-                    health_data = response.json()
-                    if health_data.get('status') == 'healthy':
-                        return  # Success
-            except requests.ConnectionError:
-                # Expected during restart - continue waiting
-                pass
-            except requests.Timeout:
-                # Expected during restart - continue waiting  
-                pass
-            
+            response = requests.get(f"{BASE_URL}/health", timeout=5)
+            if response.status_code == 200:
+                health_data = response.json()
+                if health_data.get('status') == 'healthy':
+                    return  # Success
             await asyncio.sleep(delay)
         
         # If we get here, service never came back up - FAIL CLEARLY

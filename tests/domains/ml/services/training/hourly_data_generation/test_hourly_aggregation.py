@@ -16,7 +16,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
+# TrainingDataJobRunner class does not exist in feature_extraction_runner, TrainingDataJobConfig
 
 class TestHourlyAggregation(unittest.TestCase):
     """Test hourly aggregation logic independently."""

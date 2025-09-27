@@ -11,11 +11,11 @@ from datetime import date
 from vendor.fmp.core.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
 from vendor.polygon.core.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental
 from vendor.tiingo.core.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
-from domains.market_data.services.fundamentals.unified_fundamental_provider import (
+from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import (
     UnifiedFundamentalProvider,
     ValidationStatus
 )
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 @pytest.fixture
@@ -106,36 +106,30 @@ class TestFundamentalsDAOIntegration:
         # Cleanup any existing test data
         await dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
 
-        try:
-            # Test insertion
-            insert_result = await dao.insert_fundamental(sample_fmp_test_data)
-            assert insert_result is True
+        # Test insertion
+        insert_result = await dao.insert_fundamental(sample_fmp_test_data)
+        assert insert_result is True
 
-            # Test retrieval
-            retrieved = await dao.get_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
-            assert retrieved is not None
-            assert retrieved.symbol == sample_fmp_test_data.symbol
-            assert retrieved.vendor == "fmp"
-            assert retrieved.revenue == sample_fmp_test_data.revenue
+        # Test retrieval
+        retrieved = await dao.get_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
+        assert retrieved is not None
+        assert retrieved.symbol == sample_fmp_test_data.symbol
+        assert retrieved.vendor == "fmp"
+        assert retrieved.revenue == sample_fmp_test_data.revenue
 
-            # Test listing
-            fundamentals_list = await dao.list_fundamentals(sample_fmp_test_data.symbol)
-            assert len(fundamentals_list) >= 1
-            assert any(f.date == sample_fmp_test_data.date for f in fundamentals_list)
+        # Test listing
+        fundamentals_list = await dao.list_fundamentals(sample_fmp_test_data.symbol)
+        assert len(fundamentals_list) >= 1
+        assert any(f.date == sample_fmp_test_data.date for f in fundamentals_list)
 
-            # Test symbols with data
-            symbols = await dao.get_symbols_with_data()
-            assert sample_fmp_test_data.symbol in symbols
+        # Test symbols with data
+        symbols = await dao.get_symbols_with_data()
+        assert sample_fmp_test_data.symbol in symbols
 
-            # Test latest fundamental
-            latest = await dao.get_latest_fundamental(sample_fmp_test_data.symbol)
-            assert latest is not None
-            assert latest.symbol == sample_fmp_test_data.symbol
-
-        finally:
-            # Cleanup
-            delete_result = await dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
-            assert delete_result is True
+        # Test latest fundamental
+        latest = await dao.get_latest_fundamental(sample_fmp_test_data.symbol)
+        assert latest is not None
+        assert latest.symbol == sample_fmp_test_data.symbol
 
     @pytest.mark.asyncio
 
@@ -146,21 +140,16 @@ class TestFundamentalsDAOIntegration:
         # Cleanup any existing test data
         await dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
 
-        try:
-            # Test insertion
-            insert_result = await dao.insert_fundamental(sample_polygon_test_data)
-            assert insert_result is True
+        # Test insertion
+        insert_result = await dao.insert_fundamental(sample_polygon_test_data)
+        assert insert_result is True
 
-            # Test retrieval
-            retrieved = await dao.get_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
-            assert retrieved is not None
-            assert retrieved.symbol == sample_polygon_test_data.symbol
-            assert retrieved.vendor == "polygon"
-            assert retrieved.revenue == sample_polygon_test_data.revenue
-
-        finally:
-            # Cleanup
-            await dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
+        # Test retrieval
+        retrieved = await dao.get_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
+        assert retrieved is not None
+        assert retrieved.symbol == sample_polygon_test_data.symbol
+        assert retrieved.vendor == "polygon"
+        assert retrieved.revenue == sample_polygon_test_data.revenue
 
     @pytest.mark.asyncio
 
@@ -171,22 +160,16 @@ class TestFundamentalsDAOIntegration:
         # Cleanup any existing test data
         await dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
 
-        try:
-            # Test insertion
-            insert_result = await dao.insert_fundamental(sample_tiingo_test_data)
-            assert insert_result is True
+        # Test insertion
+        insert_result = await dao.insert_fundamental(sample_tiingo_test_data)
+        assert insert_result is True
 
-            # Test retrieval
-            retrieved = await dao.get_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
-            assert retrieved is not None
-            assert retrieved.symbol == sample_tiingo_test_data.symbol
-            assert retrieved.vendor == "tiingo"
-            assert retrieved.revenue == sample_tiingo_test_data.revenue
-
-        finally:
-            # Cleanup
-            await dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
-
+        # Test retrieval
+        retrieved = await dao.get_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
+        assert retrieved is not None
+        assert retrieved.symbol == sample_tiingo_test_data.symbol
+        assert retrieved.vendor == "tiingo"
+        assert retrieved.revenue == sample_tiingo_test_data.revenue
 
 @pytest.mark.integration
 class TestUnifiedFundamentalProviderIntegration:
@@ -209,36 +192,29 @@ class TestUnifiedFundamentalProviderIntegration:
         await polygon_core.dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
         await tiingo_core.dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
 
-        try:
-            # Insert test data across all vendors
-            await fmp_core.dao.insert_fundamental(sample_fmp_test_data)
-            await polygon_core.dao.insert_fundamental(sample_polygon_test_data)
-            await tiingo_core.dao.insert_fundamental(sample_tiingo_test_data)
+        # Insert test data across all vendors
+        await fmp_core.dao.insert_fundamental(sample_fmp_test_data)
+        await polygon_core.dao.insert_fundamental(sample_polygon_test_data)
+        await tiingo_core.dao.insert_fundamental(sample_tiingo_test_data)
 
-            # Test unified fundamental retrieval
-            unified_result = await provider.get_unified_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
+        # Test unified fundamental retrieval
+        unified_result = await provider.get_unified_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
 
-            assert unified_result is not None
-            assert unified_result.symbol == sample_fmp_test_data.symbol
-            assert unified_result.date == sample_fmp_test_data.date
-            assert len(unified_result.vendor_data) == 3
-            assert unified_result.status in [ValidationStatus.CONSENSUS, ValidationStatus.MAJORITY_CONSENSUS]
-            assert unified_result.confidence_score > 0.0
+        assert unified_result is not None
+        assert unified_result.symbol == sample_fmp_test_data.symbol
+        assert unified_result.date == sample_fmp_test_data.date
+        assert len(unified_result.vendor_data) == 3
+        assert unified_result.status in [ValidationStatus.CONSENSUS, ValidationStatus.MAJORITY_CONSENSUS]
+        assert unified_result.confidence_score > 0.0
 
-            # Verify all vendors are represented
-            vendors = {vd.vendor for vd in unified_result.vendor_data}
-            assert vendors == {"fmp", "polygon", "tiingo"}
+        # Verify all vendors are represented
+        vendors = {vd.vendor for vd in unified_result.vendor_data}
+        assert vendors == {"fmp", "polygon", "tiingo"}
 
-            # Test validation metadata
-            assert unified_result.validation_metadata is not None
-            assert 'disagreements' in unified_result.validation_metadata
-            assert 'outliers' in unified_result.validation_metadata
-
-        finally:
-            # Cleanup test data
-            await fmp_core.dao.delete_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
-            await polygon_core.dao.delete_fundamental(sample_polygon_test_data.symbol, sample_polygon_test_data.date)
-            await tiingo_core.dao.delete_fundamental(sample_tiingo_test_data.symbol, sample_tiingo_test_data.date)
+        # Test validation metadata
+        assert unified_result.validation_metadata is not None
+        assert 'disagreements' in unified_result.validation_metadata
+        assert 'outliers' in unified_result.validation_metadata
 
     @pytest.mark.asyncio
 
@@ -261,13 +237,12 @@ class TestUnifiedFundamentalProviderIntegration:
 
         # Test that we can successfully insert with all fields
         # This will fail if the database schema doesn't match our DAO
-        try:
-            result = await dao.insert_fundamental(sample_fmp_test_data)
-            assert result is True
+        result = await dao.insert_fundamental(sample_fmp_test_data)
+        assert result is True
 
-            # Verify retrieval preserves all fields
-            retrieved = await dao.get_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
-            assert retrieved is not None
+        # Verify retrieval preserves all fields
+        retrieved = await dao.get_fundamental(sample_fmp_test_data.symbol, sample_fmp_test_data.date)
+        assert retrieved is not None
 
         finally:
             # Cleanup

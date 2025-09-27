@@ -275,14 +275,13 @@ def test_integrated_timeframe_processing_flow():
 if __name__ == '__main__':
     print("🧪 Running UniverseStateBuilder timeframe processing debug tests...\n")
     
-    try:
-        test_universe_state_builder_timeframe_boundary_logic()
-        test_universe_state_interval_creation_and_caching()
-        test_training_data_generator_fail_fast_behavior()
-        test_integrated_timeframe_processing_flow()
-        
-        print(f"\n🎉 All debug tests passed! The architectural fix is working correctly.")
-        
+    test_universe_state_builder_timeframe_boundary_logic()
+    test_universe_state_interval_creation_and_caching()
+    test_training_data_generator_fail_fast_behavior()
+    test_integrated_timeframe_processing_flow()
+    
+    print(f"\n🎉 All debug tests passed! The architectural fix is working correctly.")
+    
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback

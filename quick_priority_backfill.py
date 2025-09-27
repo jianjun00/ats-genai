@@ -48,47 +48,41 @@ async def run_quick_backfill():
         logger.info(f"📁 Found {len(files)} FirstRate files for past 30 days")
         
         # Process critical symbols
-        try:
-            results = await adapter.incremental_backfill_to_files(
-                symbols=critical_symbols,
-                days_back=30,
-                output_path='/mnt/d/ats-data/minute-bars/firstrate'
-            )
+        results = await adapter.incremental_backfill_to_files(
+            symbols=critical_symbols,
+            days_back=30,
+            output_path='/mnt/d/ats-data/minute-bars/firstrate'
+        )
+        
+        processed = len(results.get('symbols_processed', []))
+        written = results.get('files_written', 0)
+        skipped = results.get('files_skipped', 0)
+        
+        # Summary
+        duration = datetime.now() - start_time
+        logger.info("="*50)
+        logger.info("🏁 QUICK PRIORITY BACKFILL COMPLETE")
+        logger.info("="*50)
+        logger.info(f"⏱️ Total duration: {duration}")
+        logger.info(f"📊 Symbols processed: {processed}/{len(critical_symbols)}")
+        logger.info(f"📄 Files written (updated): {written}")
+        logger.info(f"⏭️ Files skipped (no changes): {skipped}")
+        
+        if written > 0:
+            logger.info(f"🎯 SUCCESS: Updated {written} critical files!")
             
-            processed = len(results.get('symbols_processed', []))
-            written = results.get('files_written', 0)
-            skipped = results.get('files_skipped', 0)
+            # Show examples of updated files
+            logger.info("\n📁 Updated files:")
+            for symbol in critical_symbols:
+                for month in ['08', '09']:
+                    file_path = f"/mnt/d/ats-data/minute-bars/firstrate/{symbol[0]}/{symbol}/2025/{month}/{symbol}_2025_{month}.parquet"
+                    if Path(file_path).exists():
+                        mod_time = datetime.fromtimestamp(Path(file_path).stat().st_mtime)
+                        # Show if modified in last hour (recently updated)
+                        if (datetime.now() - mod_time).total_seconds() < 3600:
+                            logger.info(f"  ✅ {symbol}: {symbol}_2025_{month}.parquet (updated: {mod_time})")
+        else:
+            logger.info("ℹ️ All critical files were already up to date")
             
-            # Summary
-            duration = datetime.now() - start_time
-            logger.info("="*50)
-            logger.info("🏁 QUICK PRIORITY BACKFILL COMPLETE")
-            logger.info("="*50)
-            logger.info(f"⏱️ Total duration: {duration}")
-            logger.info(f"📊 Symbols processed: {processed}/{len(critical_symbols)}")
-            logger.info(f"📄 Files written (updated): {written}")
-            logger.info(f"⏭️ Files skipped (no changes): {skipped}")
-            
-            if written > 0:
-                logger.info(f"🎯 SUCCESS: Updated {written} critical files!")
-                
-                # Show examples of updated files
-                logger.info("\n📁 Updated files:")
-                for symbol in critical_symbols:
-                    for month in ['08', '09']:
-                        file_path = f"/mnt/d/ats-data/minute-bars/firstrate/{symbol[0]}/{symbol}/2025/{month}/{symbol}_2025_{month}.parquet"
-                        if Path(file_path).exists():
-                            mod_time = datetime.fromtimestamp(Path(file_path).stat().st_mtime)
-                            # Show if modified in last hour (recently updated)
-                            if (datetime.now() - mod_time).total_seconds() < 3600:
-                                logger.info(f"  ✅ {symbol}: {symbol}_2025_{month}.parquet (updated: {mod_time})")
-            else:
-                logger.info("ℹ️ All critical files were already up to date")
-                
-        except Exception as e:
-            logger.error(f"❌ Quick backfill failed: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-
 if __name__ == "__main__":
     asyncio.run(run_quick_backfill())

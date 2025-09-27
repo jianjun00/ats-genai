@@ -157,56 +157,51 @@ class TestSingleFileMultiDayArrayRecord:
         with tempfile.NamedTemporaryFile(suffix='.arrayrecord', delete=False) as temp_file:
             temp_path = temp_file.name
 
-        try:
-            # Write proper binary data
-            writer = array_record_module.ArrayRecordWriter(temp_path, 'group_size:1')
+        # Write proper binary data
+        writer = array_record_module.ArrayRecordWriter(temp_path, 'group_size:1')
 
-            # Create binary record (NOT JSON)
-            symbol = "TEST"
-            timestamp = 1688169600.0  # Unix timestamp
-            symbol_bytes = symbol.encode('utf-8')
-            symbol_len = len(symbol_bytes)
+        # Create binary record (NOT JSON)
+        symbol = "TEST"
+        timestamp = 1688169600.0  # Unix timestamp
+        symbol_bytes = symbol.encode('utf-8')
+        symbol_len = len(symbol_bytes)
 
-            # Binary format: timestamp + symbol_len + symbol + OHLCV
-            binary_record = struct.pack(
-                f'>dI{symbol_len}sfffff',
-                timestamp,                    # 8 bytes: double
-                symbol_len,                   # 4 bytes: uint32
-                symbol_bytes,                 # variable: string
-                301.50,                       # 4 bytes: open
-                317.66,                       # 4 bytes: high
-                293.21,                       # 4 bytes: low
-                300.64,                       # 4 bytes: close
-                101573404.0                   # 4 bytes: volume
-            )
+        # Binary format: timestamp + symbol_len + symbol + OHLCV
+        binary_record = struct.pack(
+            f'>dI{symbol_len}sfffff',
+            timestamp,                    # 8 bytes: double
+            symbol_len,                   # 4 bytes: uint32
+            symbol_bytes,                 # variable: string
+            301.50,                       # 4 bytes: open
+            317.66,                       # 4 bytes: high
+            293.21,                       # 4 bytes: low
+            300.64,                       # 4 bytes: close
+            101573404.0                   # 4 bytes: volume
+        )
 
-            writer.write(binary_record)
-            writer.close()
+        writer.write(binary_record)
+        writer.close()
 
-            # Verify we can read it back as binary
-            reader = array_record_module.ArrayRecordReader(temp_path)
-            record_count = reader.num_records()
+        # Verify we can read it back as binary
+        reader = array_record_module.ArrayRecordReader(temp_path)
+        record_count = reader.num_records()
 
-            assert record_count == 1, f"Should have 1 record, got {record_count}"
+        assert record_count == 1, f"Should have 1 record, got {record_count}"
 
-            # Read the record
-            record_data = reader.read()
-            reader.close()
+        # Read the record
+        record_data = reader.read()
+        reader.close()
 
-            # Verify it's binary data
-            assert isinstance(record_data, bytes), "Record should be binary data"
-            assert len(record_data) > 0, "Record should contain data"
+        # Verify it's binary data
+        assert isinstance(record_data, bytes), "Record should be binary data"
+        assert len(record_data) > 0, "Record should contain data"
 
-            # Verify it's NOT JSON
-            assert not record_data.startswith(b'{'), "Record should NOT start with JSON"
-            assert b'"timestamp"' not in record_data, "Record should NOT contain JSON keys"
+        # Verify it's NOT JSON
+        assert not record_data.startswith(b'{'), "Record should NOT start with JSON"
+        assert b'"timestamp"' not in record_data, "Record should NOT contain JSON keys"
 
-            print(f"   ✅ Verified binary format: {len(record_data)} bytes")
-            print(f"   ✅ NOT JSON format")
-
-        finally:
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
+        print(f"   ✅ Verified binary format: {len(record_data)} bytes")
+        print(f"   ✅ NOT JSON format")
 
     def test_chronological_ordering_requirement(self):
         """

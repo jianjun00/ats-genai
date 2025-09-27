@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from sentiment.sentiment_integrator import (
+from domains.analytics.services.sentiment.sentiment_integrator import (
     UnifiedSentimentSignal,
     SentimentBasedPrediction,
     SentimentFeatureExtractor,
@@ -17,8 +17,8 @@ from sentiment.sentiment_integrator import (
     generate_sentiment_enhanced_predictions,
     analyze_unified_sentiment
 )
-from sentiment.news_sentiment_analyzer import SentimentSignal, NewsArticle
-from sentiment.social_media_analyzer import SocialTradingSignal, SocialSentimentMetrics, SocialMediaPost
+from domains.analytics.services.sentiment.news_sentiment_analyzer import SentimentSignal, NewsArticle
+from domains.analytics.services.sentiment.social_media_analyzer import SocialTradingSignal, SocialSentimentMetrics, SocialMediaPost
 
 @pytest.fixture
 def mock_connection_pool():

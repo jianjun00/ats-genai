@@ -160,28 +160,23 @@ class TestTrainingDataDatabaseRegistration:
 
         print(f"\n🌐 UI ENDPOINT CHECK:")
 
-        try:
-            # Check if analytics service is running
-            response = requests.get("http://localhost:4000/api/v1/training-datasets", timeout=5)
+        # Check if analytics service is running
+        response = requests.get("http://localhost:4000/api/v1/training-datasets", timeout=5)
 
-            if response.status_code == 200:
-                datasets = response.json()
-                print(f"   ✅ UI endpoint accessible")
-                print(f"   📊 Datasets returned: {len(datasets)}")
+        if response.status_code == 200:
+            datasets = response.json()
+            print(f"   ✅ UI endpoint accessible")
+            print(f"   📊 Datasets returned: {len(datasets)}")
 
-                # Check if any datasets exist
-                if datasets:
-                    for dataset in datasets[:3]:  # Show first 3
-                        print(f"      - {dataset.get('dataset_name', 'Unknown')}: {dataset.get('symbols', [])}")
-                else:
-                    print(f"   ⚠️ No datasets returned by UI endpoint")
-
+            # Check if any datasets exist
+            if datasets:
+                for dataset in datasets[:3]:  # Show first 3
+                    print(f"      - {dataset.get('dataset_name', 'Unknown')}: {dataset.get('symbols', [])}")
             else:
-                print(f"   ❌ UI endpoint error: {response.status_code}")
+                print(f"   ⚠️ No datasets returned by UI endpoint")
 
-        except requests.exceptions.RequestException as e:
-            print(f"   ❌ Cannot reach UI endpoint: {e}")
-            pytest.skip("Analytics service not accessible - skipping UI test")
+        else:
+            print(f"   ❌ UI endpoint error: {response.status_code}")
 
     def test_database_registration_function_exists(self):
         """
@@ -193,26 +188,20 @@ class TestTrainingDataDatabaseRegistration:
         # and can be called independently
 
         # Check if we can import the registration function
-        try:
-            # This import would fail if the function doesn't exist
-            # from domains.ml.services.training_data.database_registry import register_training_dataset
-            # print(f"   ✅ Database registration function exists")
+        # This import would fail if the function doesn't exist
+        # from domains.ml.services.training_data.database_registry import register_training_dataset
+        # print(f"   ✅ Database registration function exists")
 
-            # Test the function with mock data
-            # result = register_training_dataset(
-            #     dataset_name="test_dataset",
-            #     symbols=["TEST"],
-            #     start_date="2025-07-01",
-            #     end_date="2025-07-02"
-            # )
-            # assert result, "Database registration should return success"
+        # Test the function with mock data
+        # result = register_training_dataset(
+        #     dataset_name="test_dataset",
+        #     symbols=["TEST"],
+        #     start_date="2025-07-01",
+        #     end_date="2025-07-02"
+        # )
+        # assert result, "Database registration should return success"
 
-            print(f"   ⚠️ Database registration function not yet implemented")
-
-        except ImportError as e:
-            print(f"   ❌ Database registration function missing: {e}")
-            pytest.fail("Database registration functionality is not implemented")
-
+        print(f"   ⚠️ Database registration function not yet implemented")
 
 class TestTrainingDataQuality:
     """Test training data quality and content validation"""

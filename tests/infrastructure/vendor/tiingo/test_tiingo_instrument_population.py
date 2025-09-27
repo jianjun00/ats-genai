@@ -29,12 +29,7 @@ class TestTiingoInstrumentPopulation:
             """Parse date string to date object"""
             if not date_str or pd.isna(date_str):
                 return None
-            try:
-                return pd.to_datetime(date_str).date()
-            except Exception:
-                return None
-
-        # Test valid date formats
+            return pd.to_datetime(date_str).date()
         assert parse_date("2023-12-25") == date(2023, 12, 25)
         assert parse_date("2023-01-01") == date(2023, 1, 1)
         assert parse_date("1999-12-31") == date(1999, 12, 31)
@@ -137,12 +132,7 @@ TSLA,NASDAQ,Stock,USD,2010-06-29,"""
         def parse_date(date_str):
             if not date_str or pd.isna(date_str):
                 return None
-            try:
-                return pd.to_datetime(date_str).date()
-            except Exception:
-                return None
-
-        # Sample data with various edge cases
+            return pd.to_datetime(date_str).date()
         sample_data = pd.DataFrame({
             'ticker': ['AAPL', 'MSFT ', '  GOOGL  ', 'AMZN', ''],
             'exchange': ['NASDAQ', 'NYSE  ', '  BATS', None, 'PINK'],
@@ -352,35 +342,17 @@ TSLA,NASDAQ,Stock,USD,2010-06-29,"""
             raise Exception("Database constraint violation")
 
         # Verify exceptions are properly defined
-        try:
-            simulate_download_failure()
-        except Exception as e:
-            assert "Network timeout" in str(e)
-
-        try:
-            simulate_zip_corruption()
-        except zipfile.BadZipFile as e:
-            assert "corrupted" in str(e)
-
-        try:
-            simulate_csv_parsing_error()
-        except pd.errors.EmptyDataError as e:
-            assert "No data" in str(e)
-
-        # Test error recovery logic
+        simulate_download_failure()
+        simulate_zip_corruption()
+        simulate_csv_parsing_error()
         def process_batch_with_error_recovery(batch_data: List, max_retries: int = 3):
             """Simulate batch processing with error recovery"""
             retry_count = 0
             while retry_count < max_retries:
-                try:
-                    # Simulate processing
-                    if retry_count < 2:  # Fail first 2 attempts
-                        raise Exception("Temporary database error")
-                    return True  # Success on 3rd attempt
-                except Exception as e:
-                    retry_count += 1
-                    if retry_count >= max_retries:
-                        raise e
+                # Simulate processing
+                if retry_count < 2:  # Fail first 2 attempts
+                    raise Exception("Temporary database error")
+                return True  # Success on 3rd attempt
             return False
 
         # Test successful retry

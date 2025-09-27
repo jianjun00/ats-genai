@@ -10,12 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
 # from infrastructure.vendor.firstrate.client import FirstRateClient
 # from infrastructure.vendor.firstrate.dao import FirstRateDAO
@@ -56,13 +51,7 @@ class TestRealObjectsFirstRateAdapter:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_adapter_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_adapter_initialization"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.adapter_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.adapter_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_available_zip_files_real_objects(self, real_service, test_data):
         """Real objects version of test_get_available_zip_files"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_available_zip_files_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_available_zip_files_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_symbols_from_zip_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_symbols_from_zip"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_symbols_from_zip_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_symbols_from_zip_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_timezone_conversion_real_objects(self, real_service, test_data):
         """Real objects version of test_timezone_conversion"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.timezone_conversion_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.timezone_conversion_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_date_range_filtering_real_objects(self, real_service, test_data):
         """Real objects version of test_date_range_filtering"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.date_range_filtering_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.date_range_filtering_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_date_range_for_symbol_real_objects(self, real_service, test_data):
         """Real objects version of test_get_date_range_for_symbol"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_date_range_for_symbol_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_date_range_for_symbol_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_symbol_inventory_real_objects(self, real_service, test_data):
         """Real objects version of test_get_symbol_inventory"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_symbol_inventory_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_symbol_inventory_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_symbol_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_symbol_handling"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_symbol_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_symbol_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_invalid_data_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_invalid_data_handling"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.invalid_data_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.invalid_data_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_instruments_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_instruments"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_instruments_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_instruments_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_abstract_methods_not_implemented_real_objects(self, real_service, test_data):
         """Real objects version of test_abstract_methods_not_implemented"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.abstract_methods_not_implemented_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.abstract_methods_not_implemented_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_dst_transition_real_objects(self, real_service, test_data):
         """Real objects version of test_dst_transition"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.dst_transition_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.dst_transition_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tick_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_tick_creation"""
         # Test with real database integration
@@ -341,15 +258,8 @@ class TestRealObjectsFirstRateAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tick_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.tick_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

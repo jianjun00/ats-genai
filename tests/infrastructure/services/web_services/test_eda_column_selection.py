@@ -158,32 +158,31 @@ if __name__ == "__main__":
     test_suite = TestEDAColumnSelection()
     test_suite.setup_class()
 
-    try:
-        print("🧪 Testing EDA Column Selection...")
-        test_suite.test_health_endpoint()
-        print("✅ Health endpoint test passed")
+    print("🧪 Testing EDA Column Selection...")
+    test_suite.test_health_endpoint()
+    print("✅ Health endpoint test passed")
 
-        test_suite.test_datasets_endpoint_returns_data()
-        print("✅ Datasets endpoint test passed")
+    test_suite.test_datasets_endpoint_returns_data()
+    print("✅ Datasets endpoint test passed")
 
-        test_suite.test_schema_endpoint_tiingo_instruments()
-        print("✅ Tiingo schema test passed")
+    test_suite.test_schema_endpoint_tiingo_instruments()
+    print("✅ Tiingo schema test passed")
 
-        test_suite.test_schema_endpoint_polygon_prices()
-        print("✅ Polygon schema test passed")
+    test_suite.test_schema_endpoint_polygon_prices()
+    print("✅ Polygon schema test passed")
 
-        test_suite.test_schema_endpoint_nonexistent_dataset()
-        print("✅ Non-existent dataset test passed")
+    test_suite.test_schema_endpoint_nonexistent_dataset()
+    print("✅ Non-existent dataset test passed")
 
-        test_suite.test_column_dropdown_filtering_logic()
-        print("✅ Column dropdown filtering test passed")
+    test_suite.test_column_dropdown_filtering_logic()
+    print("✅ Column dropdown filtering test passed")
 
-        test_suite.test_column_selection_integration_flow()
-        print("✅ Integration flow test passed")
+    test_suite.test_column_selection_integration_flow()
+    print("✅ Integration flow test passed")
 
-        print("\n🎉 All column selection tests passed!")
+    print("\n🎉 All column selection tests passed!")
 
-        test_manual_column_selection_verification()
+    test_manual_column_selection_verification()
 
     except Exception as e:
         print(f"❌ Test failed: {e}")

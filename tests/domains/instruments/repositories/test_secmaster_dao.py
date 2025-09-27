@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, date
 from typing import List, Dict
 from domains.instruments.repositories.secmaster_dao import SecMasterDAO
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 class TestSecMasterDAO:
     """Comprehensive test coverage for SecMasterDAO."""

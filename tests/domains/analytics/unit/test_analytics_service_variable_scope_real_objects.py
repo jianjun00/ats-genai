@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.analytics.services.analytics_service import AnalyticsService
-from domains.analytics.dao.analytics_dao import AnalyticsDAO
-from infrastructure.web.analytics_service import AnalyticsWebService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService
+from domains.analytics.repositories.events_dao import EventsDAO
+from infrastructure.web.analytics_service_fail_fast import AnalyticsServiceError as AnalyticsWebService
 
 
 class TestRealObjectsAnalyticsServiceVariableScope:
@@ -36,12 +31,12 @@ class TestRealObjectsAnalyticsServiceVariableScope:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return AnalyticsDAO(test_environment)  # Real DAO integration needed
+        # return EventsDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
         """Real service implementation"""
-        return AnalyticsService(test_environment)
+        return UnifiedAnalyticsService(test_environment)
     
     @pytest.fixture
     async def test_data(self, real_dao):
@@ -56,13 +51,7 @@ class TestRealObjectsAnalyticsServiceVariableScope:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_job_manager_import_available_real_objects(self, real_service, test_data):
         """Real objects version of test_job_manager_import_available"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.job_manager_import_available_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.job_manager_import_available_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_schema_endpoint_job_manager_scope_real_objects(self, real_service, test_data):
         """Real objects version of test_schema_endpoint_job_manager_scope"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.schema_endpoint_job_manager_scope_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.schema_endpoint_job_manager_scope_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_column_values_endpoint_job_manager_scope_real_objects(self, real_service, test_data):
         """Real objects version of test_column_values_endpoint_job_manager_scope"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.column_values_endpoint_job_manager_scope_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.column_values_endpoint_job_manager_scope_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_job_stats_endpoint_job_manager_scope_real_objects(self, real_service, test_data):
         """Real objects version of test_job_stats_endpoint_job_manager_scope"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.job_stats_endpoint_job_manager_scope_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.job_stats_endpoint_job_manager_scope_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_recent_jobs_endpoint_job_manager_scope_real_objects(self, real_service, test_data):
         """Real objects version of test_recent_jobs_endpoint_job_manager_scope"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.recent_jobs_endpoint_job_manager_scope_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.recent_jobs_endpoint_job_manager_scope_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_collection_status_endpoint_job_manager_scope_real_objects(self, real_service, test_data):
         """Real objects version of test_collection_status_endpoint_job_manager_scope"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.collection_status_endpoint_job_manager_scope_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.collection_status_endpoint_job_manager_scope_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_timeseries_endpoint_job_manager_scope_real_objects(self, real_service, test_data):
         """Real objects version of test_timeseries_endpoint_job_manager_scope"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.timeseries_endpoint_job_manager_scope_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.timeseries_endpoint_job_manager_scope_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_filtered_data_endpoint_job_manager_scope_real_objects(self, real_service, test_data):
         """Real objects version of test_filtered_data_endpoint_job_manager_scope"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.filtered_data_endpoint_job_manager_scope_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.filtered_data_endpoint_job_manager_scope_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_global_job_manager_dependency_real_objects(self, real_service, test_data):
         """Real objects version of test_no_global_job_manager_dependency"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_global_job_manager_dependency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_global_job_manager_dependency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_job_manager_database_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_job_manager_database_error_handling"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.job_manager_database_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.job_manager_database_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_job_manager_connection_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_job_manager_connection_error_handling"""
         # Test with real database integration
@@ -297,15 +226,8 @@ class TestRealObjectsAnalyticsServiceVariableScope:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.job_manager_connection_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.job_manager_connection_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

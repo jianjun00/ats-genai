@@ -22,8 +22,8 @@ from datetime import datetime, timedelta
 
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from shared.utils.environment import Environment, EnvironmentType
-from core.dao.instruments_dao import InstrumentsDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 
 
 class TestTrainingDataCallbackRealObjects:
@@ -244,16 +244,9 @@ class TestTrainingDataCallbackRealObjects:
         # Test empty data handling
         empty_df = pd.DataFrame()
         
-        try:
-            result = await callback_instance.extract_qr4_features(empty_df, timeframe='5m')
-            # If processing succeeds with empty data, that's acceptable
-            assert result is not None or result is None
-        except Exception as e:
-            # Real error with specific information
-            assert isinstance(e, Exception)
-            assert "empty" in str(e).lower() or "data" in str(e).lower()
-        
-        # Test invalid timeframe handling
+        result = await callback_instance.extract_qr4_features(empty_df, timeframe='5m')
+        # If processing succeeds with empty data, that's acceptable
+        assert result is not None or result is None
         valid_data = pd.DataFrame({
             'symbol': ['TEST'],
             'timestamp': [datetime.now()],
@@ -264,14 +257,9 @@ class TestTrainingDataCallbackRealObjects:
             'volume': [1000]
         })
         
-        try:
-            result = await callback_instance.extract_qr4_features(valid_data, timeframe='invalid')
-            # Should handle gracefully or raise specific error
-            assert result is not None or result is None
-        except Exception as e:
-            assert isinstance(e, Exception)
-            print(f"Expected error for invalid timeframe: {e}")
-
+        result = await callback_instance.extract_qr4_features(valid_data, timeframe='invalid')
+        # Should handle gracefully or raise specific error
+        assert result is not None or result is None
     async def test_data_validation_real_objects(self, callback_instance, test_market_data):
         """Test data validation with real constraint checking."""
         market_df = test_market_data['data']

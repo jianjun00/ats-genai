@@ -58,73 +58,61 @@ def test_eodhd(api_key):
     ]
 
     for i, url in enumerate(endpoints):
-        try:
-            logger.info(f"   Testing endpoint {i+1}/{len(endpoints)}...")
-            response = requests.get(url, timeout=10)
+        logger.info(f"   Testing endpoint {i+1}/{len(endpoints)}...")
+        response = requests.get(url, timeout=10)
 
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, list) and len(data) > 0:
-                    logger.info(f"   ✅ EODHD key VALID - Endpoint {i+1} returned {len(data)} records")
-                    return
-                elif isinstance(data, dict) and data:
-                    logger.info(f"   ✅ EODHD key VALID - Endpoint {i+1} returned data: {list(data.keys())[:3]}...")
-                    return
-                else:
-                    logger.warning(f"   ⚠️  Endpoint {i+1} returned empty data")
+        if response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list) and len(data) > 0:
+                logger.info(f"   ✅ EODHD key VALID - Endpoint {i+1} returned {len(data)} records")
+                return
+            elif isinstance(data, dict) and data:
+                logger.info(f"   ✅ EODHD key VALID - Endpoint {i+1} returned data: {list(data.keys())[:3]}...")
+                return
             else:
-                logger.warning(f"   ⚠️  Endpoint {i+1} failed - Status: {response.status_code}, Response: {response.text[:100]}")
-        except Exception as e:
-            logger.warning(f"   ⚠️  Endpoint {i+1} error: {e}")
-
+                logger.warning(f"   ⚠️  Endpoint {i+1} returned empty data")
+        else:
+            logger.warning(f"   ⚠️  Endpoint {i+1} failed - Status: {response.status_code}, Response: {response.text[:100]}")
     logger.error("   ❌ All EODHD endpoints failed")
 
 def test_polygon(api_key):
     """Test Polygon API key"""
-    try:
-        # Try different Polygon endpoints
-        urls = [
-            f"https://api.polygon.io/v1/marketstatus/now?apikey={api_key}",
-            f"https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/2023-01-01/2023-01-05?apikey={api_key}",
-            f"https://api.polygon.io/v2/aggs/ticker/MSFT/range/1/minute/2023-12-01/2023-12-01?apikey={api_key}"
-        ]
+    # Try different Polygon endpoints
+    urls = [
+        f"https://api.polygon.io/v1/marketstatus/now?apikey={api_key}",
+        f"https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/2023-01-01/2023-01-05?apikey={api_key}",
+        f"https://api.polygon.io/v2/aggs/ticker/MSFT/range/1/minute/2023-12-01/2023-12-01?apikey={api_key}"
+    ]
 
-        for i, url in enumerate(urls):
-            logger.info(f"   Testing Polygon endpoint {i+1}/{len(urls)}...")
-            response = requests.get(url, timeout=10)
-
-            if response.status_code == 200:
-                data = response.json()
-                if 'market' in data or 'results' in data or 'status' in data:
-                    logger.info(f"   ✅ Polygon key VALID - Endpoint {i+1} worked")
-                    return
-                else:
-                    logger.warning(f"   ⚠️  Polygon endpoint {i+1} returned unexpected data")
-            else:
-                logger.warning(f"   ⚠️  Polygon endpoint {i+1} failed - Status: {response.status_code}")
-
-        logger.error("   ❌ All Polygon endpoints failed")
-    except Exception as e:
-        logger.error(f"   ❌ Polygon test failed: {e}")
-
-def test_tiingo(api_key):
-    """Test Tiingo API key"""
-    try:
-        url = f"https://api.tiingo.com/api/test?token={api_key}"
-        headers = {'Content-Type': 'application/json'}
-        response = requests.get(url, headers=headers, timeout=5)
+    for i, url in enumerate(urls):
+        logger.info(f"   Testing Polygon endpoint {i+1}/{len(urls)}...")
+        response = requests.get(url, timeout=10)
 
         if response.status_code == 200:
             data = response.json()
-            if data.get('message') == 'You successfully sent a request':
-                logger.info("   ✅ Tiingo key VALID")
+            if 'market' in data or 'results' in data or 'status' in data:
+                logger.info(f"   ✅ Polygon key VALID - Endpoint {i+1} worked")
+                return
             else:
-                logger.error(f"   ❌ Tiingo key invalid - {data}")
+                logger.warning(f"   ⚠️  Polygon endpoint {i+1} returned unexpected data")
         else:
-            logger.error(f"   ❌ Tiingo key INVALID - Status: {response.status_code}")
-    except Exception as e:
-        logger.error(f"   ❌ Tiingo test failed: {e}")
+            logger.warning(f"   ⚠️  Polygon endpoint {i+1} failed - Status: {response.status_code}")
 
+    logger.error("   ❌ All Polygon endpoints failed")
+def test_tiingo(api_key):
+    """Test Tiingo API key"""
+    url = f"https://api.tiingo.com/api/test?token={api_key}"
+    headers = {'Content-Type': 'application/json'}
+    response = requests.get(url, headers=headers, timeout=5)
+
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('message') == 'You successfully sent a request':
+            logger.info("   ✅ Tiingo key VALID")
+        else:
+            logger.error(f"   ❌ Tiingo key invalid - {data}")
+    else:
+        logger.error(f"   ❌ Tiingo key INVALID - Status: {response.status_code}")
 def main():
     test_centralized_keys()
 

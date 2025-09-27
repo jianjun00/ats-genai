@@ -18,7 +18,7 @@ from domains.ml.services.multi_timeframe_analyzer import (
     analyze_multi_timeframe_patterns
 )
 from domains.ml.services.llm_pattern_recognition import LLMPatternRecognizer, PatternAnalysis
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 @pytest.fixture
 def sample_daily_data():

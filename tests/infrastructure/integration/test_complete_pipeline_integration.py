@@ -35,7 +35,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from domains.trading.services.state.universe_state import UniverseStateInterval
-from core.shared.data_handling.utils.environment import Environment
+from core.platform.config.environment import Environment
 from domains.trading.services.core.app.runner import Runner
 
 
@@ -277,14 +277,9 @@ class TestCompleteUUIDCacheTrainingPipeline:
         # Test UUID system error handling
         mock_environment.get_run_uuid.side_effect = Exception("UUID system error")
         
-        try:
-            # Should handle UUID errors gracefully
-            current_time = datetime(2025, 7, 1, 10, 0, 0)
-            await universe_state_builder.handleInterval(mock_runner, current_time)
-        except Exception as e:
-            assert "uuid" in str(e).lower() or "error" in str(e).lower()
-        
-        # Reset UUID system
+        # Should handle UUID errors gracefully
+        current_time = datetime(2025, 7, 1, 10, 0, 0)
+        await universe_state_builder.handleInterval(mock_runner, current_time)
         mock_environment.get_run_uuid.side_effect = None
         mock_environment.get_run_uuid.return_value = "recovery-uuid-123"
         
@@ -292,27 +287,18 @@ class TestCompleteUUIDCacheTrainingPipeline:
         original_add_method = universe_state_manager.add_interval_to_rolling_cache
         universe_state_manager.add_interval_to_rolling_cache = Mock(side_effect=Exception("Cache error"))
         
-        try:
-            # Mock instrument xrefs DAO
-            with patch('core.dao.instruments.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_xrefs_dao:
-                mock_dao_instance = mock_xrefs_dao.return_value
-                mock_dao_instance.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={1: 'AAPL'})
-                
-                await universe_state_builder.handleInterval(mock_runner, current_time)
-        except Exception as e:
-            assert "cache" in str(e).lower() or "error" in str(e).lower()
-        
-        # Restore cache method
+        # Mock instrument xrefs DAO
+        with patch('core.dao.instruments.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_xrefs_dao:
+            mock_dao_instance = mock_xrefs_dao.return_value
+            mock_dao_instance.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={1: 'AAPL'})
+            
+            await universe_state_builder.handleInterval(mock_runner, current_time)
         universe_state_manager.add_interval_to_rolling_cache = original_add_method
         
         # Test training callback error handling
         training_data_callback.training_dataset_dao.insert_training_dataset.side_effect = Exception("Database error")
         
-        try:
-            await training_data_callback.initialize()
-        except Exception as e:
-            assert "database" in str(e).lower() or "error" in str(e).lower()
-
+        await training_data_callback.initialize()
     async def test_concurrent_pipeline_access(self, universe_state_manager, universe_state_builder, mock_runner):
         """Test concurrent access to the pipeline components."""
         results = []
@@ -320,26 +306,21 @@ class TestCompleteUUIDCacheTrainingPipeline:
         
         async def concurrent_worker(worker_id):
             """Worker function for concurrent pipeline access."""
-            try:
-                current_time = datetime(2025, 7, 1, 9, 30, 0) + timedelta(minutes=worker_id)
+            current_time = datetime(2025, 7, 1, 9, 30, 0) + timedelta(minutes=worker_id)
+            
+            # Mock instrument xrefs DAO
+            with patch('core.dao.instruments.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_xrefs_dao:
+                mock_dao_instance = mock_xrefs_dao.return_value
+                mock_dao_instance.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={1: 'AAPL'})
                 
-                # Mock instrument xrefs DAO
-                with patch('core.dao.instruments.instrument_xrefs_dao.InstrumentXrefsDAO') as mock_xrefs_dao:
-                    mock_dao_instance = mock_xrefs_dao.return_value
-                    mock_dao_instance.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={1: 'AAPL'})
-                    
-                    # Each worker processes through the pipeline
-                    await universe_state_builder.handleInterval(mock_runner, current_time)
-                    
-                    # Access cache data
-                    history = universe_state_manager.get_instrument_history_for_timeframe(1, "1m")
-                    
-                    results.append(f"Worker {worker_id} completed, cache_size={len(history)}")
-                    
-            except Exception as e:
-                exceptions.append(f"Worker {worker_id} failed: {e}")
-        
-        # Run multiple concurrent workers
+                # Each worker processes through the pipeline
+                await universe_state_builder.handleInterval(mock_runner, current_time)
+                
+                # Access cache data
+                history = universe_state_manager.get_instrument_history_for_timeframe(1, "1m")
+                
+                results.append(f"Worker {worker_id} completed, cache_size={len(history)}")
+                
         tasks = []
         for i in range(5):
             task = asyncio.create_task(concurrent_worker(i))

@@ -1,7 +1,7 @@
 import pytest
 from datetime import date
-from domains.market_data.services.agent.models import ReconciledRecord
-from domains.market_data.services.agent.reconciled_record_dao import ReconciledRecordDAO
+from domains.market_data.services.core.agent.models import ReconciledRecord
+from domains.market_data.services.core.agent.reconciled_record_dao import ReconciledRecordDAO
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

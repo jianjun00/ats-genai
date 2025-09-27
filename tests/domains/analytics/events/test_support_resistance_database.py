@@ -13,7 +13,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from config.environment import Environment
+from core.platform.config.environment import Environment
 
 class TestSupportResistanceDatabase:
     """Test database schema and operations for S/R system"""
@@ -44,11 +44,7 @@ class TestSupportResistanceDatabase:
         ]
 
         for query in cleanup_queries:
-            try:
-                await conn.execute(query)
-            except Exception as e:
-                print(f"Cleanup warning: {e}")
-
+            await conn.execute(query)
     async def test_schema_exists(self, db_connection):
         """Test that all required S/R tables and types exist"""
         # Test custom types

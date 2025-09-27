@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsDatasetDetail404Regression:
@@ -55,13 +49,7 @@ class TestRealObjectsDatasetDetail404Regression:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_original_failing_url_now_works_real_objects(self, real_service, test_data):
         """Real objects version of test_original_failing_url_now_works"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsDatasetDetail404Regression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.original_failing_url_now_works_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.original_failing_url_now_works_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_dataset_5_api_endpoint_works_real_objects(self, real_service, test_data):
         """Real objects version of test_dataset_5_api_endpoint_works"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsDatasetDetail404Regression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.dataset_5_api_endpoint_works_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.dataset_5_api_endpoint_works_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_json_detail_not_found_responses_real_objects(self, real_service, test_data):
         """Real objects version of test_no_json_detail_not_found_responses"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsDatasetDetail404Regression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_json_detail_not_found_responses_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_json_detail_not_found_responses_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_page_loads_with_real_dataset_content_real_objects(self, real_service, test_data):
         """Real objects version of test_page_loads_with_real_dataset_content"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsDatasetDetail404Regression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.page_loads_with_real_dataset_content_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.page_loads_with_real_dataset_content_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_all_supporting_apis_work_real_objects(self, real_service, test_data):
         """Real objects version of test_all_supporting_apis_work"""
         # Test with real database integration
@@ -164,15 +128,8 @@ class TestRealObjectsDatasetDetail404Regression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.all_supporting_apis_work_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.all_supporting_apis_work_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

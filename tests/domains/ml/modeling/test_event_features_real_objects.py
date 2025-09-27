@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsEventPattern:
@@ -56,13 +51,7 @@ class TestRealObjectsEventPattern:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_event_pattern_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_event_pattern_creation"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.event_pattern_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.event_pattern_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_event_features_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_event_features_creation"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.event_features_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.event_features_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_upcoming_events_real_objects(self, real_service, test_data):
         """Real objects version of test_get_upcoming_events"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_upcoming_events_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_upcoming_events_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_economic_events_no_table_real_objects(self, real_service, test_data):
         """Real objects version of test_get_economic_events_no_table"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_economic_events_no_table_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_economic_events_no_table_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_company_events_real_objects(self, real_service, test_data):
         """Real objects version of test_get_company_events"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_company_events_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_company_events_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_options_expirations_real_objects(self, real_service, test_data):
         """Real objects version of test_get_options_expirations"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_options_expirations_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_options_expirations_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_calendar_events_real_objects(self, real_service, test_data):
         """Real objects version of test_get_calendar_events"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_calendar_events_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_calendar_events_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_event_features_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_event_features"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_event_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_event_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_historical_event_pattern_real_objects(self, real_service, test_data):
         """Real objects version of test_get_historical_event_pattern"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_historical_event_pattern_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_historical_event_pattern_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_event_reaction_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_event_reaction"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_event_reaction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_event_reaction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_default_pattern_real_objects(self, real_service, test_data):
         """Real objects version of test_create_default_pattern"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_default_pattern_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_default_pattern_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_pre_event_sequences_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_pre_event_sequences"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_pre_event_sequences_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_pre_event_sequences_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calculate_event_proximity_score_real_objects(self, real_service, test_data):
         """Real objects version of test_calculate_event_proximity_score"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calculate_event_proximity_score_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calculate_event_proximity_score_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calculate_importance_weighted_score_real_objects(self, real_service, test_data):
         """Real objects version of test_calculate_importance_weighted_score"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calculate_importance_weighted_score_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calculate_importance_weighted_score_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_flatten_event_features_for_model_real_objects(self, real_service, test_data):
         """Real objects version of test_flatten_event_features_for_model"""
         # Test with real database integration
@@ -385,14 +290,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.flatten_event_features_for_model_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.flatten_event_features_for_model_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_flatten_empty_event_features_real_objects(self, real_service, test_data):
         """Real objects version of test_flatten_empty_event_features"""
         # Test with real database integration
@@ -407,14 +306,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.flatten_empty_event_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.flatten_empty_event_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_flatten_large_sequence_truncation_real_objects(self, real_service, test_data):
         """Real objects version of test_flatten_large_sequence_truncation"""
         # Test with real database integration
@@ -429,14 +322,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.flatten_large_sequence_truncation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.flatten_large_sequence_truncation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_event_features_no_upcoming_events_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_event_features_no_upcoming_events"""
         # Test with real database integration
@@ -451,14 +338,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_event_features_no_upcoming_events_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_event_features_no_upcoming_events_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_event_features_exception_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_event_features_exception_handling"""
         # Test with real database integration
@@ -473,14 +354,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_event_features_exception_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_event_features_exception_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_analyze_event_reaction_no_data_real_objects(self, real_service, test_data):
         """Real objects version of test_analyze_event_reaction_no_data"""
         # Test with real database integration
@@ -495,14 +370,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.analyze_event_reaction_no_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.analyze_event_reaction_no_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_options_expiration_edge_dates_real_objects(self, real_service, test_data):
         """Real objects version of test_options_expiration_edge_dates"""
         # Test with real database integration
@@ -517,14 +386,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.options_expiration_edge_dates_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.options_expiration_edge_dates_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calendar_events_year_boundary_real_objects(self, real_service, test_data):
         """Real objects version of test_calendar_events_year_boundary"""
         # Test with real database integration
@@ -539,14 +402,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calendar_events_year_boundary_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calendar_events_year_boundary_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_integration_workflow_real_objects(self, real_service, test_data):
         """Real objects version of test_integration_workflow"""
         # Test with real database integration
@@ -561,15 +418,8 @@ class TestRealObjectsEventPattern:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.integration_workflow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.integration_workflow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

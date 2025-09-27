@@ -25,13 +25,9 @@ class TestEDAThreadingServerFix:
         # Wait for service to be ready
         max_retries = 10
         for i in range(max_retries):
-            try:
-                response = requests.get(f"{cls.base_url}/health", timeout=5)
-                if response.status_code == 200:
-                    break
-            except:
-                time.sleep(2)
-        else:
+            response = requests.get(f"{cls.base_url}/health", timeout=5)
+            if response.status_code == 200:
+                break
             raise Exception("EDA service not available after 20 seconds")
 
     def test_single_request_baseline(self):
@@ -215,62 +211,54 @@ class TestEDAThreadingServerFix:
 def test_threading_server_regression():
     """Regression test to ensure threading server is properly configured."""
     # This is a static code check that can be run without the service running
-    try:
-        sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
-        # We can't directly import the service due to its structure, so we check the file
-        with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
-            content = f.read()
+    sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
+    # We can't directly import the service due to its structure, so we check the file
+    with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
+        content = f.read()
 
-        # Verify that ThreadingHTTPServer is used instead of HTTPServer
-        assert "ThreadingHTTPServer" in content, "Service should use ThreadingHTTPServer for concurrent requests"
-        assert "from http.server import" in content and "ThreadingHTTPServer" in content, "ThreadingHTTPServer should be imported"
+    # Verify that ThreadingHTTPServer is used instead of HTTPServer
+    assert "ThreadingHTTPServer" in content, "Service should use ThreadingHTTPServer for concurrent requests"
+    assert "from http.server import" in content and "ThreadingHTTPServer" in content, "ThreadingHTTPServer should be imported"
 
-        # Verify the server creation line
-        server_creation_lines = [line for line in content.split('\n') if 'ThreadingHTTPServer' in line and 'server =' in line]
-        assert len(server_creation_lines) > 0, "ThreadingHTTPServer should be instantiated"
+    # Verify the server creation line
+    server_creation_lines = [line for line in content.split('\n') if 'ThreadingHTTPServer' in line and 'server =' in line]
+    assert len(server_creation_lines) > 0, "ThreadingHTTPServer should be instantiated"
 
-        print("✅ Threading server regression check passed")
-
-    except FileNotFoundError:
-        pytest.skip("Analytics service file not found")
-    except Exception as e:
-        pytest.fail(f"Threading server regression check failed: {e}")
-
+    print("✅ Threading server regression check passed")
 
 if __name__ == "__main__":
     # Run threading server tests
     test_suite = TestEDAThreadingServerFix()
     test_suite.setup_class()
 
-    try:
-        print("🧪 Testing EDA Threading Server Fix...")
+    print("🧪 Testing EDA Threading Server Fix...")
 
-        test_suite.test_single_request_baseline()
-        print("✅ Single request baseline test passed")
+    test_suite.test_single_request_baseline()
+    print("✅ Single request baseline test passed")
 
-        test_suite.test_concurrent_datasets_requests()
-        print("✅ Concurrent datasets requests test passed")
+    test_suite.test_concurrent_datasets_requests()
+    print("✅ Concurrent datasets requests test passed")
 
-        test_suite.test_concurrent_schema_requests()
-        print("✅ Concurrent schema requests test passed")
+    test_suite.test_concurrent_schema_requests()
+    print("✅ Concurrent schema requests test passed")
 
-        test_suite.test_mixed_concurrent_requests()
-        print("✅ Mixed concurrent requests test passed")
+    test_suite.test_mixed_concurrent_requests()
+    print("✅ Mixed concurrent requests test passed")
 
-        test_suite.test_rapid_sequential_requests_no_blocking()
-        print("✅ Rapid sequential requests test passed")
+    test_suite.test_rapid_sequential_requests_no_blocking()
+    print("✅ Rapid sequential requests test passed")
 
-        test_suite.test_concurrent_analysis_requests()
-        print("✅ Concurrent analysis requests test passed")
+    test_suite.test_concurrent_analysis_requests()
+    print("✅ Concurrent analysis requests test passed")
 
-        test_suite.test_server_resilience_under_load()
-        print("✅ Server resilience under load test passed")
+    test_suite.test_server_resilience_under_load()
+    print("✅ Server resilience under load test passed")
 
-        test_threading_server_regression()
+    test_threading_server_regression()
 
-        print("\n🎉 All threading server tests passed!")
-        print("✅ Service can handle concurrent requests without blocking")
-        print("✅ JavaScript polling won't cause service timeouts")
+    print("\n🎉 All threading server tests passed!")
+    print("✅ Service can handle concurrent requests without blocking")
+    print("✅ JavaScript polling won't cause service timeouts")
 
     except Exception as e:
         print(f"❌ Threading server test failed: {e}")

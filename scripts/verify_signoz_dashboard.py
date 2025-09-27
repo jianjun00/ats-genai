@@ -27,18 +27,13 @@ class SignOzDashboardVerifier:
     def test_authentication(self):
         """Test API authentication"""
         print("🔑 Testing SignOz API authentication...")
-        try:
-            response = requests.get(f"{self.signoz_url}/api/v1/dashboards", headers=self.headers)
-            if response.status_code == 200:
-                print("✅ Authentication successful")
-                return True
-            else:
-                print(f"❌ Authentication failed: {response.status_code}")
-                return False
-        except Exception as e:
-            print(f"❌ Authentication test failed: {e}")
+        response = requests.get(f"{self.signoz_url}/api/v1/dashboards", headers=self.headers)
+        if response.status_code == 200:
+            print("✅ Authentication successful")
+            return True
+        else:
+            print(f"❌ Authentication failed: {response.status_code}")
             return False
-
     def verify_metrics_availability(self):
         """Verify our daily prices metrics are available through SignOz"""
         print("\n📊 Verifying metrics availability...")
@@ -55,71 +50,62 @@ class SignOzDashboardVerifier:
         available_metrics = []
 
         for metric in metrics_to_test:
-            try:
-                # Use Prometheus-compatible query endpoint
-                url = f"{self.signoz_url}/api/v1/query"
-                params = {"query": metric}
+            # Use Prometheus-compatible query endpoint
+            url = f"{self.signoz_url}/api/v1/query"
+            params = {"query": metric}
 
-                response = requests.get(url, headers=self.headers, params=params)
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get('data', {}).get('result'):
-                        print(f"✅ {metric}: {len(data['data']['result'])} series found")
-                        available_metrics.append(metric)
-                    else:
-                        print(f"⚠️ {metric}: Available but no data")
-                        available_metrics.append(metric)
+            response = requests.get(url, headers=self.headers, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('data', {}).get('result'):
+                    print(f"✅ {metric}: {len(data['data']['result'])} series found")
+                    available_metrics.append(metric)
                 else:
-                    print(f"❌ {metric}: HTTP {response.status_code}")
-            except Exception as e:
-                print(f"❌ {metric}: Error - {e}")
-
+                    print(f"⚠️ {metric}: Available but no data")
+                    available_metrics.append(metric)
+            else:
+                print(f"❌ {metric}: HTTP {response.status_code}")
         return available_metrics
 
     def test_query_range_api(self):
         """Test SignOz API v4 query_range endpoint"""
         print("\n🔍 Testing SignOz API v4 query_range...")
 
-        try:
-            # Use proper SignOz v4 API endpoint
-            url = f"{self.signoz_url}/api/v4/query_range"
+        # Use proper SignOz v4 API endpoint
+        url = f"{self.signoz_url}/api/v4/query_range"
 
-            # Calculate time range (last hour)
-            end_time = int(time.time() * 1000000000)  # SignOz uses nanoseconds
-            start_time = end_time - (3600 * 1000000000)  # 1 hour ago
+        # Calculate time range (last hour)
+        end_time = int(time.time() * 1000000000)  # SignOz uses nanoseconds
+        start_time = end_time - (3600 * 1000000000)  # 1 hour ago
 
-            payload = {
-                "start": start_time,
-                "end": end_time,
-                "step": 60,
-                "queries": [
-                    {
-                        "query": "ats_daily_price_polygon_coverage_percent",
-                        "name": "coverage_test",
-                        "legend": "Coverage Test"
-                    }
-                ],
-                "compositeQuery": {
-                    "buildOptions": {
-                        "queryType": "promql",
-                        "promqlOptions": {}
-                    },
-                    "queryType": "promql"
+        payload = {
+            "start": start_time,
+            "end": end_time,
+            "step": 60,
+            "queries": [
+                {
+                    "query": "ats_daily_price_polygon_coverage_percent",
+                    "name": "coverage_test",
+                    "legend": "Coverage Test"
                 }
+            ],
+            "compositeQuery": {
+                "buildOptions": {
+                    "queryType": "promql",
+                    "promqlOptions": {}
+                },
+                "queryType": "promql"
             }
+        }
 
-            response = requests.post(url, headers=self.headers, json=payload)
-            print(f"API v4 Response Status: {response.status_code}")
+        response = requests.post(url, headers=self.headers, json=payload)
+        print(f"API v4 Response Status: {response.status_code}")
 
-            if response.status_code == 200:
-                print("✅ SignOz API v4 query_range working")
-                return True
-            else:
-                print(f"⚠️ API v4 returned: {response.text[:200]}")
-                return False
-
-        except Exception as e:
-            print(f"❌ API v4 test failed: {e}")
+        if response.status_code == 200:
+            print("✅ SignOz API v4 query_range working")
+            return True
+        else:
+            print(f"⚠️ API v4 returned: {response.text[:200]}")
             return False
 
     def create_proper_dashboard(self):
@@ -235,22 +221,17 @@ class SignOzDashboardVerifier:
             }
         }
 
-        try:
-            url = f"{self.signoz_url}/api/v1/dashboards"
-            response = requests.post(url, headers=self.headers, json=dashboard_config)
+        url = f"{self.signoz_url}/api/v1/dashboards"
+        response = requests.post(url, headers=self.headers, json=dashboard_config)
 
-            if response.status_code == 200:
-                data = response.json()
-                dashboard_id = data.get('data', {}).get('id')
-                print(f"✅ Dashboard created successfully: {dashboard_id}")
-                return dashboard_id
-            else:
-                print(f"❌ Dashboard creation failed: {response.status_code}")
-                print(f"Response: {response.text[:500]}")
-                return None
-
-        except Exception as e:
-            print(f"❌ Dashboard creation error: {e}")
+        if response.status_code == 200:
+            data = response.json()
+            dashboard_id = data.get('data', {}).get('id')
+            print(f"✅ Dashboard created successfully: {dashboard_id}")
+            return dashboard_id
+        else:
+            print(f"❌ Dashboard creation failed: {response.status_code}")
+            print(f"Response: {response.text[:500]}")
             return None
 
     def verify_dashboard_panels(self, dashboard_id):
@@ -258,53 +239,44 @@ class SignOzDashboardVerifier:
         print(f"\n🔍 Verifying dashboard panels for {dashboard_id}...")
 
         # Get dashboard configuration
-        try:
-            url = f"{self.signoz_url}/api/v1/dashboards/{dashboard_id}"
-            response = requests.get(url, headers=self.headers)
+        url = f"{self.signoz_url}/api/v1/dashboards/{dashboard_id}"
+        response = requests.get(url, headers=self.headers)
 
-            if response.status_code == 200:
-                dashboard = response.json()
-                widgets = dashboard.get('data', {}).get('data', {}).get('widgets', [])
+        if response.status_code == 200:
+            dashboard = response.json()
+            widgets = dashboard.get('data', {}).get('data', {}).get('widgets', [])
 
-                print(f"✅ Dashboard retrieved: {len(widgets)} panels found")
+            print(f"✅ Dashboard retrieved: {len(widgets)} panels found")
 
-                # Test each panel's query
-                for widget in widgets:
-                    panel_title = widget.get('title', 'Unknown')
-                    query_info = widget.get('query', {})
-                    promql_queries = query_info.get('promql', [])
+            # Test each panel's query
+            for widget in widgets:
+                panel_title = widget.get('title', 'Unknown')
+                query_info = widget.get('query', {})
+                promql_queries = query_info.get('promql', [])
 
-                    print(f"\n🧪 Testing panel: {panel_title}")
+                print(f"\n🧪 Testing panel: {panel_title}")
 
-                    for query_obj in promql_queries:
-                        query = query_obj.get('query')
-                        if query:
-                            success = self._test_panel_query(query)
-                            if success:
-                                print(f"  ✅ Query works: {query}")
-                            else:
-                                print(f"  ❌ Query failed: {query}")
+                for query_obj in promql_queries:
+                    query = query_obj.get('query')
+                    if query:
+                        success = self._test_panel_query(query)
+                        if success:
+                            print(f"  ✅ Query works: {query}")
+                        else:
+                            print(f"  ❌ Query failed: {query}")
 
-                return True
-            else:
-                print(f"❌ Failed to retrieve dashboard: {response.status_code}")
-                return False
-
-        except Exception as e:
-            print(f"❌ Dashboard verification error: {e}")
+            return True
+        else:
+            print(f"❌ Failed to retrieve dashboard: {response.status_code}")
             return False
 
     def _test_panel_query(self, query):
         """Test individual panel query"""
-        try:
-            url = f"{self.signoz_url}/api/v1/query"
-            params = {"query": query}
+        url = f"{self.signoz_url}/api/v1/query"
+        params = {"query": query}
 
-            response = requests.get(url, headers=self.headers, params=params)
-            return response.status_code == 200
-        except:
-            return False
-
+        response = requests.get(url, headers=self.headers, params=params)
+        return response.status_code == 200
     def generate_summary_report(self, dashboard_id, available_metrics):
         """Generate comprehensive verification report"""
         print("\n" + "="*60)

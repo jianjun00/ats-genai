@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any, Iterator, Tuple
 import numpy as np
 import pandas as pd
 
-from ..services.dataset_service import DatasetService, DatasetMetadata
+from infrastructure.services_legacy.data_services.dataset_service import DatasetService, DatasetMetadata
 
 logger = logging.getLogger(__name__)
 

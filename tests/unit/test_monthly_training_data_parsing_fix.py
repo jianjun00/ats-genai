@@ -167,28 +167,20 @@ class TestMonthlyTrainingDataParsingFix:
             if len(parts) < 5:
                 if len(parts) >= 4:
                     # Try legacy format parsing
-                    try:
-                        symbol = parts[0]
-                        timeframe = parts[1]
-                        year = int(parts[2])
-                        month = int(parts[3])
-                        print(f"     ✅ Legacy format parsed: {symbol}, {timeframe}, {year}, {month}")
-                    except (ValueError, IndexError):
-                        print(f"     ✅ Invalid legacy format skipped gracefully")
-                else:
+                    symbol = parts[0]
+                    timeframe = parts[1]
+                    year = int(parts[2])
+                    month = int(parts[3])
+                    print(f"     ✅ Legacy format parsed: {symbol}, {timeframe}, {year}, {month}")
                     print(f"     ✅ Insufficient parts, skipped gracefully")
             else:
                 # Try new format parsing
-                try:
-                    symbol = parts[0]
-                    feature_group = parts[1]
-                    timeframe = parts[2]
-                    year = int(parts[3])
-                    month = int(parts[4])
-                    print(f"     ✅ New format parsed: {symbol}, {timeframe}, {year}, {month}")
-                except (ValueError, IndexError):
-                    print(f"     ✅ Invalid new format skipped gracefully")
-        
+                symbol = parts[0]
+                feature_group = parts[1]
+                timeframe = parts[2]
+                year = int(parts[3])
+                month = int(parts[4])
+                print(f"     ✅ New format parsed: {symbol}, {timeframe}, {year}, {month}")
         print("   ✅ Invalid formats handled gracefully")
 
 

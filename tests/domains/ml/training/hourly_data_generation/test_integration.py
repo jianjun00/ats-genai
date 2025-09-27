@@ -20,8 +20,8 @@ import shutil
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
-from storage.file_based_minute_manager import FileBasedMinuteManager
+# TrainingDataJobRunner class does not exist in feature_extraction_runner, TrainingDataJobConfig
+from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteManager
 
 
 class TestHourlyTrainingDataIntegration(unittest.TestCase):

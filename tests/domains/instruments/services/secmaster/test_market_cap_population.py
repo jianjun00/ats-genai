@@ -16,8 +16,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from core.shared.utils.environment import Environment, EnvironmentType
-from core.dao.daily_market_cap_dao import DailyMarketCapDAO
+from core.platform.config.environment import Environment, EnvironmentType
+from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 
 
 class TestMarketCapPopulation:
@@ -76,7 +76,7 @@ class TestMarketCapPopulation:
     @pytest.mark.asyncio
     async def test_polygon_market_cap_fetcher_direct_market_cap(self, mock_polygon_response):
         """Test fetching direct market cap from Polygon API."""
-        from src.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
+        from domains.instruments.services.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
 
         fetcher = PolygonMarketCapFetcher("test_api_key")
 
@@ -98,7 +98,7 @@ class TestMarketCapPopulation:
     @pytest.mark.asyncio
     async def test_polygon_market_cap_fetcher_rate_limit_handling(self):
         """Test rate limit handling in Polygon fetcher."""
-        from src.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
+        from domains.instruments.services.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
 
         fetcher = PolygonMarketCapFetcher("test_api_key")
 
@@ -127,7 +127,7 @@ class TestMarketCapPopulation:
     @pytest.mark.asyncio
     async def test_polygon_market_cap_fetcher_api_error(self):
         """Test handling of API errors."""
-        from src.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
+        from domains.instruments.services.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
 
         fetcher = PolygonMarketCapFetcher("test_api_key")
 
@@ -262,7 +262,7 @@ class TestMarketCapPopulation:
     @pytest.mark.asyncio
     async def test_error_handling_and_recovery(self):
         """Test error handling and recovery mechanisms."""
-        from src.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
+        from domains.instruments.services.secmaster.populate_market_cap_polygon import PolygonMarketCapFetcher
 
         fetcher = PolygonMarketCapFetcher("test_api_key")
 
@@ -645,29 +645,20 @@ class TestMarketCapPopulation:
             # Test database connection error
             mock_connect.side_effect = Exception("Database connection failed")
 
-            try:
-                conn = await asyncpg.connect(
-                    host='postgres', port=5432, user='postgres',
-                    password='dev_password', database='dev_db'
-                )
-                assert False, "Should have raised exception"
-            except Exception as e:
-                assert str(e) == "Database connection failed"
-
-            # Test instrument creation error
+            conn = await asyncpg.connect(
+                host='postgres', port=5432, user='postgres',
+                password='dev_password', database='dev_db'
+            )
+            assert False, "Should have raised exception"
             mock_connect.side_effect = None
             mock_connect.return_value = mock_conn
             mock_conn.fetchval.side_effect = Exception("Instrument creation failed")
 
-            try:
-                result = await mock_conn.fetchval(
-                    "INSERT INTO dev_instrument (symbol, name, exchange, is_active) VALUES ($1, $2, 'NYSE', true) RETURNING id",
-                    "TEST", "Test Corp"
-                )
-                assert False, "Should have raised exception"
-            except Exception as e:
-                assert str(e) == "Instrument creation failed"
-
+            result = await mock_conn.fetchval(
+                "INSERT INTO dev_instrument (symbol, name, exchange, is_active) VALUES ($1, $2, 'NYSE', true) RETURNING id",
+                "TEST", "Test Corp"
+            )
+            assert False, "Should have raised exception"
     def test_working_solution_progress_tracking(self):
         """Test progress tracking logic in the working solution."""
         total_instruments = 10000

@@ -40,17 +40,13 @@ async def download_30_days_data():
         if download_date.weekday() >= 5:  # Saturday=5, Sunday=6
             continue
             
-        try:
-            logger.info(f"📥 Downloading {download_date}")
-            results = await downloader.download_daily_data(jobs, download_date)
-            if results.get("stock", False):
-                success_count += 1
-                logger.info(f"✅ Downloaded {download_date}")
-            else:
-                logger.info(f"⏭️ No data for {download_date}")
-        except Exception as e:
-            logger.warning(f"⚠️ Error downloading {download_date}: {e}")
-    
+        logger.info(f"📥 Downloading {download_date}")
+        results = await downloader.download_daily_data(jobs, download_date)
+        if results.get("stock", False):
+            success_count += 1
+            logger.info(f"✅ Downloaded {download_date}")
+        else:
+            logger.info(f"⏭️ No data for {download_date}")
     logger.info(f"📊 Downloaded data for {success_count} trading days")
     return success_count > 0
 
@@ -69,18 +65,13 @@ async def get_all_instruments():
         sample_files = files[:5] if len(files) > 5 else files
         
         for zip_file in sample_files:
-            try:
-                import zipfile
-                with zipfile.ZipFile(zip_file, 'r') as zf:
-                    # Get all symbols from this file
-                    txt_files = [f for f in zf.namelist() if f.endswith('_day_1min_adjsplit.txt')]
-                    file_symbols = [f.replace('_day_1min_adjsplit.txt', '') for f in txt_files]
-                    all_instruments.update(file_symbols)
-                    
-            except Exception as e:
-                logger.warning(f"Error scanning {zip_file.name}: {e}")
-                continue
-        
+            import zipfile
+            with zipfile.ZipFile(zip_file, 'r') as zf:
+                # Get all symbols from this file
+                txt_files = [f for f in zf.namelist() if f.endswith('_day_1min_adjsplit.txt')]
+                file_symbols = [f.replace('_day_1min_adjsplit.txt', '') for f in txt_files]
+                all_instruments.update(file_symbols)
+                
         instruments_list = sorted(list(all_instruments))
         logger.info(f"📊 Found {len(instruments_list)} unique instruments")
         
@@ -112,28 +103,23 @@ async def run_comprehensive_backfill(instruments):
             logger.info(f"📦 Processing batch {batch_num}/{total_batches} ({len(batch)} instruments)")
             logger.info(f"🔄 Batch symbols: {', '.join(batch[:10])}{'...' if len(batch) > 10 else ''}")
             
-            try:
-                results = await adapter.incremental_backfill_to_files(
-                    symbols=batch,
-                    days_back=30,
-                    output_path='/mnt/d/ats-data/minute-bars/firstrate'
-                )
-                
-                batch_processed = len(results.get('symbols_processed', []))
-                batch_written = results.get('files_written', 0)
-                batch_skipped = results.get('files_skipped', 0)
-                
-                total_processed += batch_processed
-                total_files_written += batch_written
-                total_files_skipped += batch_skipped
-                
-                logger.info(f"✅ Batch {batch_num} complete: {batch_processed}/{len(batch)} processed, "
-                           f"{batch_written} files written, {batch_skipped} skipped")
-                
-            except Exception as e:
-                logger.error(f"❌ Batch {batch_num} failed: {e}")
-                continue
-        
+            results = await adapter.incremental_backfill_to_files(
+                symbols=batch,
+                days_back=30,
+                output_path='/mnt/d/ats-data/minute-bars/firstrate'
+            )
+            
+            batch_processed = len(results.get('symbols_processed', []))
+            batch_written = results.get('files_written', 0)
+            batch_skipped = results.get('files_skipped', 0)
+            
+            total_processed += batch_processed
+            total_files_written += batch_written
+            total_files_skipped += batch_skipped
+            
+            logger.info(f"✅ Batch {batch_num} complete: {batch_processed}/{len(batch)} processed, "
+                       f"{batch_written} files written, {batch_skipped} skipped")
+            
         logger.info(f"🎉 COMPREHENSIVE BACKFILL COMPLETE!")
         logger.info(f"📊 Total instruments processed: {total_processed}/{len(instruments)}")
         logger.info(f"📄 Total files written: {total_files_written}")
@@ -155,45 +141,39 @@ async def main():
     logger.info("="*80)
     logger.info(f"🕐 Started: {start_time}")
     
-    try:
-        # Step 1: Download fresh data
-        download_success = await download_30_days_data()
-        if not download_success:
-            logger.error("❌ Failed to download fresh data - aborting")
-            return
+    # Step 1: Download fresh data
+    download_success = await download_30_days_data()
+    if not download_success:
+        logger.error("❌ Failed to download fresh data - aborting")
+        return
+    
+    # Step 2: Get all instruments
+    instruments = await get_all_instruments()
+    if not instruments:
+        logger.error("❌ No instruments found - aborting")
+        return
+    
+    # Step 3: Run comprehensive backfill
+    results = await run_comprehensive_backfill(instruments)
+    
+    # Final summary
+    duration = datetime.now() - start_time
+    logger.info("="*80)
+    logger.info("🏁 FINAL RESULTS")
+    logger.info("="*80)
+    logger.info(f"⏱️ Total duration: {duration}")
+    logger.info(f"📊 Instruments found: {results['total_instruments']:,}")
+    logger.info(f"✅ Instruments processed: {results['processed']:,}")
+    logger.info(f"📄 Files written (updated): {results['files_written']:,}")
+    logger.info(f"⏭️ Files skipped (no changes): {results['files_skipped']:,}")
+    
+    success_rate = (results['processed'] / results['total_instruments'] * 100) if results['total_instruments'] > 0 else 0
+    logger.info(f"📈 Success rate: {success_rate:.1f}%")
+    
+    if results['files_written'] > 0:
+        logger.info("🎯 BACKFILL SUCCESSFUL - Files updated with recent data!")
+    else:
+        logger.info("ℹ️ No files needed updates - all data was already current")
         
-        # Step 2: Get all instruments
-        instruments = await get_all_instruments()
-        if not instruments:
-            logger.error("❌ No instruments found - aborting")
-            return
-        
-        # Step 3: Run comprehensive backfill
-        results = await run_comprehensive_backfill(instruments)
-        
-        # Final summary
-        duration = datetime.now() - start_time
-        logger.info("="*80)
-        logger.info("🏁 FINAL RESULTS")
-        logger.info("="*80)
-        logger.info(f"⏱️ Total duration: {duration}")
-        logger.info(f"📊 Instruments found: {results['total_instruments']:,}")
-        logger.info(f"✅ Instruments processed: {results['processed']:,}")
-        logger.info(f"📄 Files written (updated): {results['files_written']:,}")
-        logger.info(f"⏭️ Files skipped (no changes): {results['files_skipped']:,}")
-        
-        success_rate = (results['processed'] / results['total_instruments'] * 100) if results['total_instruments'] > 0 else 0
-        logger.info(f"📈 Success rate: {success_rate:.1f}%")
-        
-        if results['files_written'] > 0:
-            logger.info("🎯 BACKFILL SUCCESSFUL - Files updated with recent data!")
-        else:
-            logger.info("ℹ️ No files needed updates - all data was already current")
-            
-    except Exception as e:
-        logger.error(f"💥 Backfill failed: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-
 if __name__ == "__main__":
     asyncio.run(main())

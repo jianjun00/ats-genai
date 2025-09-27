@@ -49,14 +49,7 @@ def read_arrayrecord_metadata(file_path: str) -> Tuple[List[str], int]:
     reader.close()
 
     column_names_str = first_record.decode('utf-8') if isinstance(first_record, bytes) else str(first_record)
-    try:
-        column_names = json.loads(column_names_str)
-    except json.JSONDecodeError:
-        try:
-            column_names = ast.literal_eval(column_names_str)
-        except (ValueError, SyntaxError) as e:
-            raise ValueError(f"Failed to parse column names: {{e}}")
-
+    column_names = json.loads(column_names_str)
     record_count = total_records - 1
     return column_names, record_count
 
@@ -231,38 +224,32 @@ if __name__ == "__main__":
         f.write(test_content)
         temp_test_file = f.name
 
-    try:
-        # Run the test
-        result = subprocess.run([
-            "python3", "-m", "pytest", temp_test_file, "-v", "--tb=short"
-        ],
-        capture_output=True,
-        text=True,
-        cwd="/home/jianjun/ats-genai-pm",
-        env={{**os.environ, "PYTHONPATH": "src"}}
-        )
+    # Run the test
+    result = subprocess.run([
+        "python3", "-m", "pytest", temp_test_file, "-v", "--tb=short"
+    ],
+    capture_output=True,
+    text=True,
+    cwd="/home/jianjun/ats-genai-pm",
+    env={{**os.environ, "PYTHONPATH": "src"}}
+    )
 
-        print("📊 TEST RESULTS:")
-        print("=" * 30)
-        print(result.stdout)
+    print("📊 TEST RESULTS:")
+    print("=" * 30)
+    print(result.stdout)
 
-        if result.stderr:
-            print("⚠️  Warnings/Errors:")
-            print(result.stderr)
+    if result.stderr:
+        print("⚠️  Warnings/Errors:")
+        print(result.stderr)
 
-        if result.returncode == 0:
-            print("✅ ALL TESTS PASSED!")
-            print("🎉 The timeframe separation fix is VERIFIED!")
-            return True
-        else:
-            print("❌ SOME TESTS FAILED!")
-            print("🔧 The fix may need additional work.")
-            return False
-
-    finally:
-        # Clean up temporary file
-        os.unlink(temp_test_file)
-
+    if result.returncode == 0:
+        print("✅ ALL TESTS PASSED!")
+        print("🎉 The timeframe separation fix is VERIFIED!")
+        return True
+    else:
+        print("❌ SOME TESTS FAILED!")
+        print("🔧 The fix may need additional work.")
+        return False
 
 if __name__ == "__main__":
     print("🔧 VALIDATING FIXED TRAINING DATASETS")
@@ -321,14 +308,7 @@ def read_arrayrecord_metadata(file_path: str) -> Tuple[List[str], int]:
     reader.close()
 
     column_names_str = first_record.decode('utf-8') if isinstance(first_record, bytes) else str(first_record)
-    try:
-        column_names = json.loads(column_names_str)
-    except json.JSONDecodeError:
-        try:
-            column_names = ast.literal_eval(column_names_str)
-        except (ValueError, SyntaxError) as e:
-            raise ValueError(f"Failed to parse column names: {{e}}")
-
+    column_names = json.loads(column_names_str)
     record_count = total_records - 1
     return column_names, record_count
 
@@ -503,38 +483,32 @@ if __name__ == "__main__":
         f.write(test_content)
         temp_test_file = f.name
 
-    try:
-        # Run the test
-        result = subprocess.run([
-            "python3", "-m", "pytest", temp_test_file, "-v", "--tb=short"
-        ],
-        capture_output=True,
-        text=True,
-        cwd="/home/jianjun/ats-genai-pm",
-        env={**os.environ, "PYTHONPATH": "src"}
-        )
+    # Run the test
+    result = subprocess.run([
+        "python3", "-m", "pytest", temp_test_file, "-v", "--tb=short"
+    ],
+    capture_output=True,
+    text=True,
+    cwd="/home/jianjun/ats-genai-pm",
+    env={**os.environ, "PYTHONPATH": "src"}
+    )
 
-        print("📊 TEST RESULTS:")
-        print("=" * 30)
-        print(result.stdout)
+    print("📊 TEST RESULTS:")
+    print("=" * 30)
+    print(result.stdout)
 
-        if result.stderr:
-            print("⚠️  Warnings/Errors:")
-            print(result.stderr)
+    if result.stderr:
+        print("⚠️  Warnings/Errors:")
+        print(result.stderr)
 
-        if result.returncode == 0:
-            print("✅ ALL TESTS PASSED!")
-            print("🎉 The timeframe separation fix is VERIFIED!")
-            return True
-        else:
-            print("❌ SOME TESTS FAILED!")
-            print("🔧 The fix may need additional work.")
-            return False
-
-    finally:
-        # Clean up temporary file
-        os.unlink(temp_test_file)
-
+    if result.returncode == 0:
+        print("✅ ALL TESTS PASSED!")
+        print("🎉 The timeframe separation fix is VERIFIED!")
+        return True
+    else:
+        print("❌ SOME TESTS FAILED!")
+        print("🔧 The fix may need additional work.")
+        return False
 
 if __name__ == "__main__":
     print("🔧 VALIDATING FIXED TRAINING DATASETS")

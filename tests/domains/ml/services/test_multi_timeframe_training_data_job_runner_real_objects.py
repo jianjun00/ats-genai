@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
@@ -56,13 +51,7 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_get_multi_timeframe_features_from_universe_state_basic_real_objects(self, real_service, test_data):
         """Real objects version of test_get_multi_timeframe_features_from_universe_state_basic"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_multi_timeframe_features_from_universe_state_basic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_multi_timeframe_features_from_universe_state_basic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_multi_timeframe_features_gin_config_compliance_real_objects(self, real_service, test_data):
         """Real objects version of test_get_multi_timeframe_features_gin_config_compliance"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_multi_timeframe_features_gin_config_compliance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_multi_timeframe_features_gin_config_compliance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_multi_timeframe_features_expected_feature_count_real_objects(self, real_service, test_data):
         """Real objects version of test_get_multi_timeframe_features_expected_feature_count"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_multi_timeframe_features_expected_feature_count_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_multi_timeframe_features_expected_feature_count_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_multi_timeframe_features_data_quality_real_objects(self, real_service, test_data):
         """Real objects version of test_get_multi_timeframe_features_data_quality"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_multi_timeframe_features_data_quality_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_multi_timeframe_features_data_quality_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_multi_timeframe_features_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_get_multi_timeframe_features_error_handling"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_multi_timeframe_features_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_multi_timeframe_features_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_multi_timeframe_features_missing_data_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_get_multi_timeframe_features_missing_data_handling"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_multi_timeframe_features_missing_data_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_multi_timeframe_features_missing_data_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_multi_timeframe_features_feature_naming_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_get_multi_timeframe_features_feature_naming_consistency"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_multi_timeframe_features_feature_naming_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_multi_timeframe_features_feature_naming_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_hourly_training_data_generation_with_multi_timeframe_features_real_objects(self, real_service, test_data):
         """Real objects version of test_hourly_training_data_generation_with_multi_timeframe_features"""
         # Test with real database integration
@@ -231,15 +178,8 @@ class TestRealObjectsMultiTimeframeTrainingDataJobRunner:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.hourly_training_data_generation_with_multi_timeframe_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.hourly_training_data_generation_with_multi_timeframe_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

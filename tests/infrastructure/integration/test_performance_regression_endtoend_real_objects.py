@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsPerformanceRegression:
@@ -55,13 +49,7 @@ class TestRealObjectsPerformanceRegression:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_import_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_import_performance"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsPerformanceRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.import_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.import_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_firstrate_adapter_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_firstrate_adapter_performance"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsPerformanceRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.firstrate_adapter_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.firstrate_adapter_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_memory_usage_during_processing_real_objects(self, real_service, test_data):
         """Real objects version of test_memory_usage_during_processing"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsPerformanceRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.memory_usage_during_processing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.memory_usage_during_processing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_feature_extraction_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_feature_extraction_performance"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsPerformanceRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.feature_extraction_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.feature_extraction_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_all_critical_fixes_still_work_real_objects(self, real_service, test_data):
         """Real objects version of test_all_critical_fixes_still_work"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsPerformanceRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.all_critical_fixes_still_work_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.all_critical_fixes_still_work_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complete_pipeline_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_pipeline_integration"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsPerformanceRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_pipeline_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.complete_pipeline_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_realistic_performance_benchmarks_real_objects(self, real_service, test_data):
         """Real objects version of test_realistic_performance_benchmarks"""
         # Test with real database integration
@@ -208,15 +160,8 @@ class TestRealObjectsPerformanceRegression:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.realistic_performance_benchmarks_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.realistic_performance_benchmarks_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

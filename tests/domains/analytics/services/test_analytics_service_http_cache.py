@@ -19,13 +19,9 @@ class TestAnalyticsServiceHTTPCache(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Verify analytics service is running before tests."""
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                raise Exception(f"Analytics service not healthy: {response.status_code}")
-        except Exception as e:
-            raise unittest.SkipTest(f"Analytics service not available: {e}")
-
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            raise Exception(f"Analytics service not healthy: {response.status_code}")
     def test_datasets_api_returns_no_cache_headers(self):
         """Test that datasets API returns proper no-cache headers."""
         response = requests.get(f"{self.BASE_URL}/api/eda/datasets")
@@ -128,13 +124,9 @@ class TestAnalyticsServiceCacheBusting(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Verify analytics service is running."""
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                raise Exception(f"Analytics service not healthy: {response.status_code}")
-        except Exception as e:
-            raise unittest.SkipTest(f"Analytics service not available: {e}")
-
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            raise Exception(f"Analytics service not healthy: {response.status_code}")
     def test_query_parameter_cache_busting(self):
         """Test that base endpoint works regardless of query parameters."""
         base_url = f"{self.BASE_URL}/api/eda/datasets"
@@ -189,13 +181,9 @@ class TestAnalyticsServiceRegressionPrevention(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Verify analytics service is running."""
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                raise Exception(f"Analytics service not healthy: {response.status_code}")
-        except Exception as e:
-            raise unittest.SkipTest(f"Analytics service not available: {e}")
-
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            raise Exception(f"Analytics service not healthy: {response.status_code}")
     def test_no_max_age_cache_control(self):
         """Test that Cache-Control does not contain max-age (the original bug)."""
         response = requests.get(f"{self.BASE_URL}/api/eda/datasets")
@@ -270,13 +258,9 @@ class TestAnalyticsServicePerformance(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Verify analytics service is running."""
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                raise Exception(f"Analytics service not healthy: {response.status_code}")
-        except Exception as e:
-            raise unittest.SkipTest(f"Analytics service not available: {e}")
-
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            raise Exception(f"Analytics service not healthy: {response.status_code}")
     def test_datasets_api_response_time(self):
         """Test that datasets API responds within reasonable time."""
         start_time = time.time()
@@ -294,13 +278,8 @@ class TestAnalyticsServicePerformance(unittest.TestCase):
 
         def make_request():
             """Make a single request and return status and data length."""
-            try:
-                response = requests.get(f"{self.BASE_URL}/api/eda/datasets", timeout=5)
-                return response.status_code, len(response.json()) if response.status_code == 200 else 0
-            except Exception as e:
-                return 500, 0
-
-        # Make 5 concurrent requests
+            response = requests.get(f"{self.BASE_URL}/api/eda/datasets", timeout=5)
+            return response.status_code, len(response.json()) if response.status_code == 200 else 0
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(make_request) for _ in range(5)]
             results = [future.result() for future in concurrent.futures.as_completed(futures)]

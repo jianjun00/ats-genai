@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsUniverseStateManagerErrorHandling:
@@ -36,7 +31,7 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_market_data_manager_connection_error_lag_prices_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_connection_error_lag_prices"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_connection_error_lag_prices_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_connection_error_lag_prices_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_timeout_error_lead_prices_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_timeout_error_lead_prices"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_timeout_error_lead_prices_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_timeout_error_lead_prices_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_generic_exception_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_generic_exception"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_generic_exception_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_generic_exception_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_returns_none_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_returns_none"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_returns_none_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_returns_none_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_returns_empty_dataframe_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_returns_empty_dataframe"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_returns_empty_dataframe_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_returns_empty_dataframe_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_returns_dataframe_with_wrong_columns_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_returns_dataframe_with_wrong_columns"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_returns_dataframe_with_wrong_columns_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_returns_dataframe_with_wrong_columns_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_logging_during_market_data_manager_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_error_logging_during_market_data_manager_failure"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_logging_during_market_data_manager_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_logging_during_market_data_manager_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_debug_logging_during_successful_calls_real_objects(self, real_service, test_data):
         """Real objects version of test_debug_logging_during_successful_calls"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.debug_logging_during_successful_calls_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.debug_logging_during_successful_calls_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_exception_message_contains_debugging_info_lag_prices_real_objects(self, real_service, test_data):
         """Real objects version of test_exception_message_contains_debugging_info_lag_prices"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.exception_message_contains_debugging_info_lag_prices_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.exception_message_contains_debugging_info_lag_prices_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_exception_message_contains_debugging_info_lead_prices_real_objects(self, real_service, test_data):
         """Real objects version of test_exception_message_contains_debugging_info_lead_prices"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.exception_message_contains_debugging_info_lead_prices_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.exception_message_contains_debugging_info_lead_prices_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_attribute_error_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_attribute_error"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_attribute_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_attribute_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_data_manager_type_error_real_objects(self, real_service, test_data):
         """Real objects version of test_market_data_manager_type_error"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_data_manager_type_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_data_manager_type_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_logging_exception_resilience_real_objects(self, real_service, test_data):
         """Real objects version of test_logging_exception_resilience"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.logging_exception_resilience_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.logging_exception_resilience_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_successful_recovery_after_previous_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_successful_recovery_after_previous_failure"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.successful_recovery_after_previous_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.successful_recovery_after_previous_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_partial_failure_scenarios_real_objects(self, real_service, test_data):
         """Real objects version of test_partial_failure_scenarios"""
         # Test with real database integration
@@ -385,15 +290,8 @@ class TestRealObjectsUniverseStateManagerErrorHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.partial_failure_scenarios_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.partial_failure_scenarios_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

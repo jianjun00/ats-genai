@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from domains.instruments.services.secmaster import SecMaster
+from domains.instruments.services.secmaster.secmaster import SecMaster
 
 class DummyConn:
     def __init__(self, rows):
@@ -62,12 +62,7 @@ async def test_advance_membership(monkeypatch):
     assert set(members) == {'TICK1'}
 
     # Advance to 2020-03-01 (TICK2 added)
-    try:
-        members = await secm.advance(date(2020,3,1))
-    except KeyError as e:
-        print(f"[DEBUG] KeyError: {e}")
-        import traceback; traceback.print_exc()
-        raise
+    members = await secm.advance(date(2020,3,1))
     assert set(members) == {'TICK1', 'TICK2'}
     # Advance to 2020-06-01 (TICK1 removed)
     members = await secm.advance(date(2020,6,1))

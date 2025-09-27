@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsRunDatasetStatusConsistency:
@@ -55,13 +49,7 @@ class TestRealObjectsRunDatasetStatusConsistency:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_failed_run_should_update_dataset_status_real_objects(self, real_service, test_data):
         """Real objects version of test_failed_run_should_update_dataset_status"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.failed_run_should_update_dataset_status_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.failed_run_should_update_dataset_status_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_completed_run_should_update_dataset_status_real_objects(self, real_service, test_data):
         """Real objects version of test_completed_run_should_update_dataset_status"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.completed_run_should_update_dataset_status_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.completed_run_should_update_dataset_status_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detect_orphaned_datasets_with_null_run_id_real_objects(self, real_service, test_data):
         """Real objects version of test_detect_orphaned_datasets_with_null_run_id"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detect_orphaned_datasets_with_null_run_id_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.detect_orphaned_datasets_with_null_run_id_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detect_runs_without_datasets_real_objects(self, real_service, test_data):
         """Real objects version of test_detect_runs_without_datasets"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detect_runs_without_datasets_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.detect_runs_without_datasets_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_comprehensive_consistency_check_real_objects(self, real_service, test_data):
         """Real objects version of test_comprehensive_consistency_check"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.comprehensive_consistency_check_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.comprehensive_consistency_check_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_run_dataset_updates_race_condition_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_run_dataset_updates_race_condition"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_run_dataset_updates_race_condition_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_run_dataset_updates_race_condition_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_real_training_data_generation_status_sync_real_objects(self, real_service, test_data):
         """Real objects version of test_real_training_data_generation_status_sync"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.real_training_data_generation_status_sync_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.real_training_data_generation_status_sync_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_repair_orphaned_datasets_real_objects(self, real_service, test_data):
         """Real objects version of test_repair_orphaned_datasets"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.repair_orphaned_datasets_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.repair_orphaned_datasets_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_repair_status_mismatches_real_objects(self, real_service, test_data):
         """Real objects version of test_repair_status_mismatches"""
         # Test with real database integration
@@ -252,15 +192,8 @@ class TestRealObjectsRunDatasetStatusConsistency:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.repair_status_mismatches_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.repair_status_mismatches_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

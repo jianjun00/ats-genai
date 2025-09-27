@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsMonthlyTrainingDataDAO:
@@ -56,13 +51,7 @@ class TestRealObjectsMonthlyTrainingDataDAO:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_dao_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_dao_initialization"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.dao_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.dao_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_monthly_record_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_monthly_record_creation"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.monthly_record_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.monthly_record_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_monthly_record_real_objects(self, real_service, test_data):
         """Real objects version of test_create_monthly_record"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_monthly_record_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_monthly_record_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_list_monthly_records_with_filters_real_objects(self, real_service, test_data):
         """Real objects version of test_list_monthly_records_with_filters"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.list_monthly_records_with_filters_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.list_monthly_records_with_filters_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_timeframe_paths_real_objects(self, real_service, test_data):
         """Real objects version of test_get_timeframe_paths"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_timeframe_paths_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_timeframe_paths_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_summary_by_symbol_real_objects(self, real_service, test_data):
         """Real objects version of test_get_summary_by_symbol"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_summary_by_symbol_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_summary_by_symbol_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_callback_initialization_with_offsets_real_objects(self, real_service, test_data):
         """Real objects version of test_callback_initialization_with_offsets"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.callback_initialization_with_offsets_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.callback_initialization_with_offsets_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_months_in_target_range_real_objects(self, real_service, test_data):
         """Real objects version of test_get_months_in_target_range"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_months_in_target_range_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_months_in_target_range_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_months_single_month_real_objects(self, real_service, test_data):
         """Real objects version of test_get_months_single_month"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_months_single_month_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_months_single_month_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_initialize_monthly_dataset_structure_real_objects(self, real_service, test_data):
         """Real objects version of test_initialize_monthly_dataset_structure"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.initialize_monthly_dataset_structure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.initialize_monthly_dataset_structure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_monthly_file_key_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_monthly_file_key_generation"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.monthly_file_key_generation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.monthly_file_key_generation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_save_monthly_training_data_records_real_objects(self, real_service, test_data):
         """Real objects version of test_save_monthly_training_data_records"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.save_monthly_training_data_records_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.save_monthly_training_data_records_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_offset_date_calculation_real_objects(self, real_service, test_data):
         """Real objects version of test_offset_date_calculation"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.offset_date_calculation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.offset_date_calculation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_target_range_filtering_real_objects(self, real_service, test_data):
         """Real objects version of test_target_range_filtering"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.target_range_filtering_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.target_range_filtering_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_to_end_monthly_workflow_real_objects(self, real_service, test_data):
         """Real objects version of test_end_to_end_monthly_workflow"""
         # Test with real database integration
@@ -385,15 +290,8 @@ class TestRealObjectsMonthlyTrainingDataDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_to_end_monthly_workflow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.end_to_end_monthly_workflow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

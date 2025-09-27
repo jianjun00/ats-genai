@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from datetime import date
 
 from infrastructure.web.api.instruments_api import instruments_router
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.impl.instrument_service_cached import (
     InstrumentDTO,
     InstrumentXrefDTO,
     UnifiedInstrumentDTO,

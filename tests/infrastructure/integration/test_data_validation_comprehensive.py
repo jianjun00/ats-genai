@@ -33,54 +33,50 @@ class TestDataValidationComprehensive:
         if not os.path.exists(aapl_file_path):
             pytest.skip(f"AAPL parquet file not found: {aapl_file_path}")
             
-        try:
-            df = pd.read_parquet(aapl_file_path)
+        df = pd.read_parquet(aapl_file_path)
+        
+        # Test basic structure
+        assert len(df) > 0, "AAPL file should not be empty"
+        assert len(df.columns) >= 6, f"Expected at least 6 columns, got {len(df.columns)}"
+        
+        # Test required columns exist
+        required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        assert not missing_columns, f"Missing required columns: {missing_columns}"
+        
+        # Test data types
+        assert pd.api.types.is_datetime64_any_dtype(df['timestamp']), "timestamp should be datetime"
+        for price_col in ['open', 'high', 'low', 'close']:
+            assert pd.api.types.is_numeric_dtype(df[price_col]), f"{price_col} should be numeric"
+        assert pd.api.types.is_numeric_dtype(df['volume']), "volume should be numeric"
+        
+        # Test data quality - no null values in critical columns
+        for col in required_columns:
+            null_count = df[col].isnull().sum()
+            assert null_count == 0, f"Column {col} has {null_count} null values"
             
-            # Test basic structure
-            assert len(df) > 0, "AAPL file should not be empty"
-            assert len(df.columns) >= 6, f"Expected at least 6 columns, got {len(df.columns)}"
+        # Test volume data specifically (this was the critical bug)
+        assert df['volume'].min() >= 0, "Volume should be non-negative"
+        assert df['volume'].max() > 0, "Should have some non-zero volume"
+        volume_types = df['volume'].dtype
+        assert volume_types in ['int64', 'float64'], f"Volume should be numeric, got {volume_types}"
+        
+        # Test the specific record we were debugging
+        test_record = df[
+            (df['open'].round(2) == 208.02) & 
+            (df['high'].round(2) == 208.11) & 
+            (df['low'].round(2) == 208.01) & 
+            (df['close'].round(2) == 208.08)
+        ]
+        
+        if not test_record.empty:
+            volume_val = test_record['volume'].iloc[0]
+            assert volume_val == 56512, f"Expected volume 56512, got {volume_val}"
+            assert not pd.isna(volume_val), "Volume should not be NaN"
+            assert volume_val > 0, "Volume should be positive"
             
-            # Test required columns exist
-            required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            assert not missing_columns, f"Missing required columns: {missing_columns}"
-            
-            # Test data types
-            assert pd.api.types.is_datetime64_any_dtype(df['timestamp']), "timestamp should be datetime"
-            for price_col in ['open', 'high', 'low', 'close']:
-                assert pd.api.types.is_numeric_dtype(df[price_col]), f"{price_col} should be numeric"
-            assert pd.api.types.is_numeric_dtype(df['volume']), "volume should be numeric"
-            
-            # Test data quality - no null values in critical columns
-            for col in required_columns:
-                null_count = df[col].isnull().sum()
-                assert null_count == 0, f"Column {col} has {null_count} null values"
-                
-            # Test volume data specifically (this was the critical bug)
-            assert df['volume'].min() >= 0, "Volume should be non-negative"
-            assert df['volume'].max() > 0, "Should have some non-zero volume"
-            volume_types = df['volume'].dtype
-            assert volume_types in ['int64', 'float64'], f"Volume should be numeric, got {volume_types}"
-            
-            # Test the specific record we were debugging
-            test_record = df[
-                (df['open'].round(2) == 208.02) & 
-                (df['high'].round(2) == 208.11) & 
-                (df['low'].round(2) == 208.01) & 
-                (df['close'].round(2) == 208.08)
-            ]
-            
-            if not test_record.empty:
-                volume_val = test_record['volume'].iloc[0]
-                assert volume_val == 56512, f"Expected volume 56512, got {volume_val}"
-                assert not pd.isna(volume_val), "Volume should not be NaN"
-                assert volume_val > 0, "Volume should be positive"
-                
-            print(f"✅ AAPL parquet validation passed - {len(df)} records, volume range: {df['volume'].min()}-{df['volume'].max()}")
-            
-        except Exception as e:
-            pytest.fail(f"AAPL parquet validation failed: {e}")
-
+        print(f"✅ AAPL parquet validation passed - {len(df)} records, volume range: {df['volume'].min()}-{df['volume'].max()}")
+        
     def test_ohlc_data_consistency(self):
         """Test OHLC data consistency rules."""
         
@@ -106,33 +102,27 @@ class TestDataValidationComprehensive:
             is_valid = True
             validation_errors = []
             
-            try:
-                # Rule 1: High should be >= max(open, close)
-                if ohlc_data['high'] < max(ohlc_data['open'], ohlc_data['close']):
-                    is_valid = False
-                    validation_errors.append(f"High {ohlc_data['high']} < max(open, close)")
-                    
-                # Rule 2: Low should be <= min(open, close)
-                if ohlc_data['low'] > min(ohlc_data['open'], ohlc_data['close']):
-                    is_valid = False
-                    validation_errors.append(f"Low {ohlc_data['low']} > min(open, close)")
-                    
-                # Rule 3: All prices should be positive
-                for price_field in ['open', 'high', 'low', 'close']:
-                    if ohlc_data[price_field] <= 0:
-                        is_valid = False
-                        validation_errors.append(f"{price_field} {ohlc_data[price_field]} <= 0")
-                        
-                # Rule 4: Volume should be non-negative
-                if ohlc_data['volume'] < 0:
-                    is_valid = False
-                    validation_errors.append(f"Volume {ohlc_data['volume']} < 0")
-                    
-            except Exception as e:
+            # Rule 1: High should be >= max(open, close)
+            if ohlc_data['high'] < max(ohlc_data['open'], ohlc_data['close']):
                 is_valid = False
-                validation_errors.append(f"Exception: {e}")
+                validation_errors.append(f"High {ohlc_data['high']} < max(open, close)")
                 
-            # Check if validation matches expected
+            # Rule 2: Low should be <= min(open, close)
+            if ohlc_data['low'] > min(ohlc_data['open'], ohlc_data['close']):
+                is_valid = False
+                validation_errors.append(f"Low {ohlc_data['low']} > min(open, close)")
+                
+            # Rule 3: All prices should be positive
+            for price_field in ['open', 'high', 'low', 'close']:
+                if ohlc_data[price_field] <= 0:
+                    is_valid = False
+                    validation_errors.append(f"{price_field} {ohlc_data[price_field]} <= 0")
+                    
+            # Rule 4: Volume should be non-negative
+            if ohlc_data['volume'] < 0:
+                is_valid = False
+                validation_errors.append(f"Volume {ohlc_data['volume']} < 0")
+                
             if is_valid != expected_valid:
                 error_detail = f"Scenario {i}: Expected {'valid' if expected_valid else 'invalid'}, got {'valid' if is_valid else 'invalid'}"
                 if validation_errors:
@@ -157,30 +147,21 @@ class TestDataValidationComprehensive:
             original_type = type(volume_val)
             
             # Test conversion to float (as done in get_minute_ohlc_batch)
-            try:
-                float_volume = float(volume_val)
-                assert isinstance(float_volume, float), f"Conversion to float failed for {scenario['description']}"
-                assert float_volume > 0, f"Converted volume should be positive: {float_volume}"
-                assert float_volume == 56512.0, f"Volume value changed during conversion: {float_volume}"
-                
-            except Exception as e:
-                pytest.fail(f"Volume conversion failed for {scenario['description']}: {e}")
-                
-        # Test None volume handling (the bug that caused crashes)
-        try:
-            none_volume = None
+            float_volume = float(volume_val)
+            assert isinstance(float_volume, float), f"Conversion to float failed for {scenario['description']}"
+            assert float_volume > 0, f"Converted volume should be positive: {float_volume}"
+            assert float_volume == 56512.0, f"Volume value changed during conversion: {float_volume}"
             
-            # This should not crash but handle gracefully
-            if none_volume is None:
-                safe_volume = 0.0  # or np.nan, depending on strategy
-            else:
-                safe_volume = float(none_volume)
-                
-            assert isinstance(safe_volume, float), "None volume should be handled as float"
+        none_volume = None
+        
+        # This should not crash but handle gracefully
+        if none_volume is None:
+            safe_volume = 0.0  # or np.nan, depending on strategy
+        else:
+            safe_volume = float(none_volume)
             
-        except Exception as e:
-            pytest.fail(f"None volume handling failed: {e}")
-            
+        assert isinstance(safe_volume, float), "None volume should be handled as float"
+        
         print("✅ Volume data type preservation test passed")
 
     def test_firstrate_file_path_resolution(self):
@@ -293,39 +274,35 @@ class TestDataValidationComprehensive:
         }
         
         # Test OHLC feature calculations
-        try:
-            features = {}
+        features = {}
+        
+        # Basic OHLC features
+        for price_type in ['open', 'high', 'low', 'close']:
+            features[f'1m_{price_type}'] = float(sample_data[price_type])
+            assert isinstance(features[f'1m_{price_type}'], float), f"{price_type} should be float"
+            assert features[f'1m_{price_type}'] > 0, f"{price_type} should be positive"
             
-            # Basic OHLC features
-            for price_type in ['open', 'high', 'low', 'close']:
-                features[f'1m_{price_type}'] = float(sample_data[price_type])
-                assert isinstance(features[f'1m_{price_type}'], float), f"{price_type} should be float"
-                assert features[f'1m_{price_type}'] > 0, f"{price_type} should be positive"
-                
-            # Volume feature
-            features['1m_volume'] = float(sample_data['volume'])
-            assert isinstance(features['1m_volume'], float), "Volume should be float"
-            assert features['1m_volume'] == 56512.0, f"Volume should be 56512.0, got {features['1m_volume']}"
+        # Volume feature
+        features['1m_volume'] = float(sample_data['volume'])
+        assert isinstance(features['1m_volume'], float), "Volume should be float"
+        assert features['1m_volume'] == 56512.0, f"Volume should be 56512.0, got {features['1m_volume']}"
+        
+        # Derived features
+        price_range = sample_data['high'] - sample_data['low']
+        features['1m_range'] = float(price_range)
+        assert features['1m_range'] > 0, "Price range should be positive"
+        
+        range_pct = price_range / sample_data['close']
+        features['1m_range_pct'] = float(range_pct)
+        assert 0 <= features['1m_range_pct'] <= 1, f"Range percentage should be between 0-1: {features['1m_range_pct']}"
+        
+        # Validate all features are finite numbers
+        for feature_name, feature_value in features.items():
+            assert np.isfinite(feature_value), f"Feature {feature_name} is not finite: {feature_value}"
+            assert not np.isnan(feature_value), f"Feature {feature_name} is NaN: {feature_value}"
             
-            # Derived features
-            price_range = sample_data['high'] - sample_data['low']
-            features['1m_range'] = float(price_range)
-            assert features['1m_range'] > 0, "Price range should be positive"
-            
-            range_pct = price_range / sample_data['close']
-            features['1m_range_pct'] = float(range_pct)
-            assert 0 <= features['1m_range_pct'] <= 1, f"Range percentage should be between 0-1: {features['1m_range_pct']}"
-            
-            # Validate all features are finite numbers
-            for feature_name, feature_value in features.items():
-                assert np.isfinite(feature_value), f"Feature {feature_name} is not finite: {feature_value}"
-                assert not np.isnan(feature_value), f"Feature {feature_name} is NaN: {feature_value}"
-                
-            print(f"✅ Feature extraction validation passed - {len(features)} features extracted")
-            
-        except Exception as e:
-            pytest.fail(f"Feature extraction failed: {e}")
-
+        print(f"✅ Feature extraction validation passed - {len(features)} features extracted")
+        
     def test_arrayrecord_file_validation(self):
         """Test ArrayRecord file format expectations."""
         

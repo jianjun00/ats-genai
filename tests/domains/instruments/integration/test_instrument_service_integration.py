@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
 # Service layer imports
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.impl.instrument_service_cached import (
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentXrefDTO,
@@ -95,48 +95,43 @@ class TestInstrumentServiceIntegration:
         """Test complete CRUD workflow"""
         created_instruments = []
         
-        try:
-            # Create instruments
-            for instrument_dto in sample_instruments:
-                result = await instrument_service.create_instrument(instrument_dto)
-                
-                if result.success:
-                    created_instruments.append(result.instrument_id)
-                    
-                    # Verify instrument was created
-                    retrieved = await instrument_service.get_instrument_by_id(result.instrument_id)
-                    assert retrieved is not None
-                    assert retrieved.symbol == instrument_dto.symbol
-                    assert retrieved.name == instrument_dto.name
-                else:
-                    # Might already exist, try to get it
-                    existing = await instrument_service.get_instrument_by_symbol(instrument_dto.symbol)
-                    if existing:
-                        created_instruments.append(existing.id)
+        # Create instruments
+        for instrument_dto in sample_instruments:
+            result = await instrument_service.create_instrument(instrument_dto)
             
-            # Test search operations
-            if created_instruments:
-                # Search by symbols
-                symbols = [inst.symbol for inst in sample_instruments]
-                criteria = InstrumentSearchCriteria(symbols=symbols, limit=10)
-                found_instruments = await instrument_service.list_instruments(criteria)
+            if result.success:
+                created_instruments.append(result.instrument_id)
                 
-                assert len(found_instruments) > 0
-                found_symbols = {inst.symbol for inst in found_instruments}
-                assert any(symbol in found_symbols for symbol in symbols)
-                
-                # Test symbol validation
-                for symbol in symbols[:2]:  # Test first 2 symbols
-                    is_valid = await instrument_service.validate_symbol(symbol)
-                    assert is_valid is True
-                
-                # Test invalid symbol
-                is_invalid = await instrument_service.validate_symbol("INVALID_SYMBOL_XYZ")
-                assert is_invalid is False
+                # Verify instrument was created
+                retrieved = await instrument_service.get_instrument_by_id(result.instrument_id)
+                assert retrieved is not None
+                assert retrieved.symbol == instrument_dto.symbol
+                assert retrieved.name == instrument_dto.name
+            else:
+                # Might already exist, try to get it
+                existing = await instrument_service.get_instrument_by_symbol(instrument_dto.symbol)
+                if existing:
+                    created_instruments.append(existing.id)
         
-        finally:
-            # Cleanup is handled by the service layer
-            pass
+        # Test search operations
+        if created_instruments:
+            # Search by symbols
+            symbols = [inst.symbol for inst in sample_instruments]
+            criteria = InstrumentSearchCriteria(symbols=symbols, limit=10)
+            found_instruments = await instrument_service.list_instruments(criteria)
+            
+            assert len(found_instruments) > 0
+            found_symbols = {inst.symbol for inst in found_instruments}
+            assert any(symbol in found_symbols for symbol in symbols)
+            
+            # Test symbol validation
+            for symbol in symbols[:2]:  # Test first 2 symbols
+                is_valid = await instrument_service.validate_symbol(symbol)
+                assert is_valid is True
+            
+            # Test invalid symbol
+            is_invalid = await instrument_service.validate_symbol("INVALID_SYMBOL_XYZ")
+            assert is_invalid is False
     
     @pytest.mark.asyncio
     async def test_cross_reference_workflow(self, instrument_service):
@@ -162,42 +157,37 @@ class TestInstrumentServiceIntegration:
             else:
                 pytest.skip("Could not create or find test instrument")
         
-        try:
-            # Create cross-references
-            xref1 = InstrumentXrefDTO(
-                instrument_id=instrument_id,
-                vendor_name="ticker",
-                vendor_symbol="TEST_XREF",
-                xref_type="equity"
-            )
-            
-            xref2 = InstrumentXrefDTO(
-                instrument_id=instrument_id,
-                vendor_name="polygon",
-                vendor_symbol="TEST_XREF", 
-                xref_type="equity"
-            )
-            
-            # Create cross-references
-            result1 = await instrument_service.create_cross_reference(xref1)
-            result2 = await instrument_service.create_cross_reference(xref2)
-            
-            # At least one should succeed (might already exist)
-            success_count = sum([1 for r in [result1, result2] if r.success])
-            assert success_count >= 0  # Could be 0 if they already exist
-            
-            # Retrieve cross-references
-            xrefs = await instrument_service.get_cross_references(instrument_id)
-            assert isinstance(xrefs, list)
-            
-            # Should have at least the ones we tried to create
-            vendor_names = {xref.vendor_name for xref in xrefs}
-            # At least one vendor should be present
-            assert len(vendor_names) >= 1
+        # Create cross-references
+        xref1 = InstrumentXrefDTO(
+            instrument_id=instrument_id,
+            vendor_name="ticker",
+            vendor_symbol="TEST_XREF",
+            xref_type="equity"
+        )
         
-        finally:
-            # Cleanup handled by service layer
-            pass
+        xref2 = InstrumentXrefDTO(
+            instrument_id=instrument_id,
+            vendor_name="polygon",
+            vendor_symbol="TEST_XREF", 
+            xref_type="equity"
+        )
+        
+        # Create cross-references
+        result1 = await instrument_service.create_cross_reference(xref1)
+        result2 = await instrument_service.create_cross_reference(xref2)
+        
+        # At least one should succeed (might already exist)
+        success_count = sum([1 for r in [result1, result2] if r.success])
+        assert success_count >= 0  # Could be 0 if they already exist
+        
+        # Retrieve cross-references
+        xrefs = await instrument_service.get_cross_references(instrument_id)
+        assert isinstance(xrefs, list)
+        
+        # Should have at least the ones we tried to create
+        vendor_names = {xref.vendor_name for xref in xrefs}
+        # At least one vendor should be present
+        assert len(vendor_names) >= 1
     
     @pytest.mark.asyncio
     async def test_batch_operations(self, instrument_service):
@@ -245,14 +235,8 @@ class TestInstrumentServiceIntegration:
         assert result.error_message is not None
         
         # Test with None values
-        try:
-            result = await instrument_service.get_instrument_by_id(None)
-            assert result is None
-        except (ValueError, TypeError):
-            # Expected behavior for invalid input
-            pass
-        
-        # Test with very large ID
+        result = await instrument_service.get_instrument_by_id(None)
+        assert result is None
         result = await instrument_service.get_instrument_by_id(999999999)
         assert result is None
     

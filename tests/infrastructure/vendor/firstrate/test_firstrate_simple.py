@@ -10,7 +10,7 @@ from pathlib import Path
 # Add src to Python path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
+from domains.market_data.services.data_collection.backfill.unified_backfill_orchestrator import FirstRateAdapter
 
 @pytest.mark.asyncio
 
@@ -38,18 +38,14 @@ async def test_firstrate():
         zip_file = Path(info['zip_files'][0])
         tick_count = 0
 
-        try:
-            for tick in adapter.process_minute_data_from_zip(zip_file, symbol):
-                tick_count += 1
-                if tick_count == 1:  # Show first tick
-                    print(f"   📈 Sample tick: {tick.timestamp} OHLC: ${tick.open:.2f}/${tick.high:.2f}/${tick.low:.2f}/${tick.close:.2f} Vol: {tick.volume:,}")
-                if tick_count >= 100:  # Limit to 100 ticks for testing
-                    break
+        for tick in adapter.process_minute_data_from_zip(zip_file, symbol):
+            tick_count += 1
+            if tick_count == 1:  # Show first tick
+                print(f"   📈 Sample tick: {tick.timestamp} OHLC: ${tick.open:.2f}/${tick.high:.2f}/${tick.low:.2f}/${tick.close:.2f} Vol: {tick.volume:,}")
+            if tick_count >= 100:  # Limit to 100 ticks for testing
+                break
 
-            print(f"   ✅ Processed {tick_count} ticks for {symbol}")
-
-        except Exception as e:
-            print(f"   ❌ Error processing {symbol}: {e}")
+        print(f"   ✅ Processed {tick_count} ticks for {symbol}")
 
     print(f"\n🎉 FirstRate test completed!")
     return inventory

@@ -146,24 +146,20 @@ class TestUniverseAnalyticsAPI:
         assert result.returncode == 0, "API endpoint should be accessible"
 
         # Parse JSON
-        try:
-            data = json.loads(result.stdout)
-            assert data['success'] == True, "API should return success"
-            assert len(data['universes']) >= 1, "Should have at least one universe"
+        data = json.loads(result.stdout)
+        assert data['success'] == True, "API should return success"
+        assert len(data['universes']) >= 1, "Should have at least one universe"
 
-            # Find high volume universe
-            high_vol = None
-            for universe in data['universes']:
-                if universe['id'] == 2:
-                    high_vol = universe
-                    break
+        # Find high volume universe
+        high_vol = None
+        for universe in data['universes']:
+            if universe['id'] == 2:
+                high_vol = universe
+                break
 
-            assert high_vol is not None, "Should find universe ID 2"
-            assert high_vol['name'] == 'high_volume_large_cap', "Name should match"
-            print(f"✅ Universe API: {high_vol['name']}")
-
-        except json.JSONDecodeError:
-            pytest.fail(f"Invalid JSON response: {result.stdout}")
+        assert high_vol is not None, "Should find universe ID 2"
+        assert high_vol['name'] == 'high_volume_large_cap', "Name should match"
+        print(f"✅ Universe API: {high_vol['name']}")
 
     def test_universe_members_api_response(self):
         """Test /api/universe-members/2 endpoint"""
@@ -174,24 +170,19 @@ class TestUniverseAnalyticsAPI:
 
         assert result.returncode == 0, "Members API should be accessible"
 
-        try:
-            data = json.loads(result.stdout)
-            assert data['success'] == True, "Members API should return success"
-            assert 'members' in data, "Should include members"
-            assert len(data['members']) >= 100, f"Should have substantial members, got {len(data['members'])}"
+        data = json.loads(result.stdout)
+        assert data['success'] == True, "Members API should return success"
+        assert 'members' in data, "Should include members"
+        assert len(data['members']) >= 100, f"Should have substantial members, got {len(data['members'])}"
 
-            # Check for expected symbols
-            symbols = [m['symbol'] for m in data['members']]
-            expected = ['AAPL', 'MSFT', 'TSLA']
+        # Check for expected symbols
+        symbols = [m['symbol'] for m in data['members']]
+        expected = ['AAPL', 'MSFT', 'TSLA']
 
-            for symbol in expected:
-                assert symbol in symbols, f"Should include {symbol}"
+        for symbol in expected:
+            assert symbol in symbols, f"Should include {symbol}"
 
-            print(f"✅ Members API: {len(data['members'])} total members")
-
-        except json.JSONDecodeError:
-            pytest.fail(f"Invalid JSON in members API: {result.stdout}")
-
+        print(f"✅ Members API: {len(data['members'])} total members")
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

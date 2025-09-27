@@ -47,20 +47,16 @@ class TestArrayRecordFileWritingDebug:
 
         This is the most likely root cause of file writing failures.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-            assert array_record is not None
+        import array_record.python.array_record_module as array_record
+        assert array_record is not None
 
-            # Test that ArrayRecordWriter class exists
-            assert hasattr(array_record, 'ArrayRecordWriter')
-            assert hasattr(array_record, 'ArrayRecordReader')
+        # Test that ArrayRecordWriter class exists
+        assert hasattr(array_record, 'ArrayRecordWriter')
+        assert hasattr(array_record, 'ArrayRecordReader')
 
-            print(f"✅ ArrayRecord module imported successfully")
-            print(f"   Writer class: {array_record.ArrayRecordWriter}")
-            print(f"   Reader class: {array_record.ArrayRecordReader}")
-
-        except ImportError as e:
-            pytest.fail(f"❌ CRITICAL: ArrayRecord not available - this is the root cause: {e}")
+        print(f"✅ ArrayRecord module imported successfully")
+        print(f"   Writer class: {array_record.ArrayRecordWriter}")
+        print(f"   Reader class: {array_record.ArrayRecordReader}")
 
     def test_arrayrecord_writer_creation(self, temp_dir):
         """
@@ -68,12 +64,7 @@ class TestArrayRecordFileWritingDebug:
 
         Tests the exact writer creation used in the callback.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-        except ImportError:
-            pytest.skip("ArrayRecord not available")
-
-        # Test file path creation
+        import array_record.python.array_record_module as array_record
         dataset_id = "test_dataset_123"
         symbol = "AAPL"
         timeframe = "5m"
@@ -91,27 +82,23 @@ class TestArrayRecordFileWritingDebug:
         print(f"   Directory exists: {timeframe_dir.exists()}")
 
         # Test writer creation with exact parameters from callback
-        try:
-            writer = array_record.ArrayRecordWriter(str(arrayrecord_file), 'group_size:1')
-            assert writer is not None
-            print(f"✅ ArrayRecord writer created successfully")
+        writer = array_record.ArrayRecordWriter(str(arrayrecord_file), 'group_size:1')
+        assert writer is not None
+        print(f"✅ ArrayRecord writer created successfully")
 
-            # Immediately test if we can close it
-            writer.close()
-            print(f"✅ ArrayRecord writer closed successfully")
+        # Immediately test if we can close it
+        writer.close()
+        print(f"✅ ArrayRecord writer closed successfully")
 
-            # Check if file was created
-            file_exists = arrayrecord_file.exists()
-            file_size = arrayrecord_file.stat().st_size if file_exists else 0
+        # Check if file was created
+        file_exists = arrayrecord_file.exists()
+        file_size = arrayrecord_file.stat().st_size if file_exists else 0
 
-            print(f"   File exists after close: {file_exists}")
-            print(f"   File size after close: {file_size} bytes")
+        print(f"   File exists after close: {file_exists}")
+        print(f"   File size after close: {file_size} bytes")
 
-            if file_size == 0:
-                pytest.fail("❌ CRITICAL: ArrayRecord file created but has zero size after close")
-
-        except Exception as e:
-            pytest.fail(f"❌ CRITICAL: ArrayRecord writer creation failed: {e}")
+        if file_size == 0:
+            pytest.fail("❌ CRITICAL: ArrayRecord file created but has zero size after close")
 
     def test_arrayrecord_binary_data_writing(self, temp_dir):
         """
@@ -119,11 +106,7 @@ class TestArrayRecordFileWritingDebug:
 
         Tests the exact binary data writing process used in the callback.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-        except ImportError:
-            pytest.skip("ArrayRecord not available")
-
+        import array_record.python.array_record_module as array_record
         test_file = os.path.join(temp_dir, "binary_write_test.arrayrecord")
 
         # Create test binary data similar to what the callback would generate
@@ -165,38 +148,34 @@ class TestArrayRecordFileWritingDebug:
         print(f"   Record count: {len(test_records)}")
 
         # Test writing process
-        try:
-            writer = array_record.ArrayRecordWriter(test_file, 'group_size:1')
+        writer = array_record.ArrayRecordWriter(test_file, 'group_size:1')
 
-            for i, record in enumerate(test_records):
-                print(f"   Writing record {i+1}: {len(record)} bytes")
-                writer.write(record)
+        for i, record in enumerate(test_records):
+            print(f"   Writing record {i+1}: {len(record)} bytes")
+            writer.write(record)
 
-            writer.close()
-            print(f"✅ All records written and writer closed")
+        writer.close()
+        print(f"✅ All records written and writer closed")
 
-            # Verify file after writing
-            assert os.path.exists(test_file)
-            file_size = os.path.getsize(test_file)
-            print(f"   Final file size: {file_size} bytes")
+        # Verify file after writing
+        assert os.path.exists(test_file)
+        file_size = os.path.getsize(test_file)
+        print(f"   Final file size: {file_size} bytes")
 
-            if file_size == 0:
-                pytest.fail("❌ CRITICAL: File written but has zero size - data not persisted")
+        if file_size == 0:
+            pytest.fail("❌ CRITICAL: File written but has zero size - data not persisted")
 
-            # Test reading back the data
-            reader = array_record.ArrayRecordReader(test_file)
-            read_records = list(reader)
-            reader.close()
+        # Test reading back the data
+        reader = array_record.ArrayRecordReader(test_file)
+        read_records = list(reader)
+        reader.close()
 
-            print(f"   Records read back: {len(read_records)}")
+        print(f"   Records read back: {len(read_records)}")
 
-            if len(read_records) != len(test_records):
-                pytest.fail(f"❌ CRITICAL: Record count mismatch - wrote {len(test_records)}, read {len(read_records)}")
+        if len(read_records) != len(test_records):
+            pytest.fail(f"❌ CRITICAL: Record count mismatch - wrote {len(test_records)}, read {len(read_records)}")
 
-            print(f"✅ Binary data writing test passed")
-
-        except Exception as e:
-            pytest.fail(f"❌ CRITICAL: Binary data writing failed: {e}")
+        print(f"✅ Binary data writing test passed")
 
     @pytest.mark.asyncio
     async def test_callback_writer_initialization_exact_replication(self, temp_dir):
@@ -207,12 +186,7 @@ class TestArrayRecordFileWritingDebug:
         that failed for AAPL generation.
         """
         # Skip if ArrayRecord not available
-        try:
-            pass
-        except ImportError:
-            pytest.skip("ArrayRecord not available")
-
-        # Create callback exactly as done in the runner
+        pass
         callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL'],
             config=None,
@@ -232,73 +206,59 @@ class TestArrayRecordFileWritingDebug:
         print(f"   Output dir: {callback.output_dir}")
 
         # Test the exact initialization process
-        try:
-            # This calls the exact method that failed for AAPL
-            await callback._initialize_dataset_structure()
+        # This calls the exact method that failed for AAPL
+        await callback._initialize_dataset_structure()
 
-            print(f"✅ Dataset structure initialized")
-            print(f"   Writers created: {len(callback.array_record_writers)}")
+        print(f"✅ Dataset structure initialized")
+        print(f"   Writers created: {len(callback.array_record_writers)}")
 
-            # Verify writers were created for all timeframes
-            timeframes = ['5m', '15m', '1h', '1d']
-            expected_writers = len(callback.symbols) * len(timeframes)
-            actual_writers = len(callback.array_record_writers)
+        # Verify writers were created for all timeframes
+        timeframes = ['5m', '15m', '1h', '1d']
+        expected_writers = len(callback.symbols) * len(timeframes)
+        actual_writers = len(callback.array_record_writers)
 
-            print(f"   Expected writers: {expected_writers}")
-            print(f"   Actual writers: {actual_writers}")
+        print(f"   Expected writers: {expected_writers}")
+        print(f"   Actual writers: {actual_writers}")
 
-            if actual_writers != expected_writers:
-                pytest.fail(f"❌ Writer count mismatch: expected {expected_writers}, got {actual_writers}")
+        if actual_writers != expected_writers:
+            pytest.fail(f"❌ Writer count mismatch: expected {expected_writers}, got {actual_writers}")
 
-            # Test that we can write to each writer
-            test_data = b"test_data_12345"
-            successful_writes = 0
+        # Test that we can write to each writer
+        test_data = b"test_data_12345"
+        successful_writes = 0
 
-            for writer_key, writer in callback.array_record_writers.items():
-                try:
-                    writer.write(test_data)
-                    successful_writes += 1
-                    print(f"   ✅ Write successful to {writer_key}")
-                except Exception as e:
-                    print(f"   ❌ Write failed to {writer_key}: {e}")
+        for writer_key, writer in callback.array_record_writers.items():
+            writer.write(test_data)
+            successful_writes += 1
+            print(f"   ✅ Write successful to {writer_key}")
+        print(f"   Successful writes: {successful_writes}/{actual_writers}")
 
-            print(f"   Successful writes: {successful_writes}/{actual_writers}")
+        # Close all writers (as done in handleEnd)
+        for writer_key, writer in callback.array_record_writers.items():
+            writer.close()
+            print(f"   ✅ Closed writer {writer_key}")
+        dataset_dir = callback.output_dir / dataset_id
+        created_files = []
+        zero_size_files = []
 
-            # Close all writers (as done in handleEnd)
-            for writer_key, writer in callback.array_record_writers.items():
-                try:
-                    writer.close()
-                    print(f"   ✅ Closed writer {writer_key}")
-                except Exception as e:
-                    print(f"   ❌ Failed to close writer {writer_key}: {e}")
+        for arrayrecord_file in dataset_dir.rglob("*.arrayrecord"):
+            created_files.append(str(arrayrecord_file))
+            file_size = arrayrecord_file.stat().st_size
+            print(f"   File: {arrayrecord_file.name}, Size: {file_size} bytes")
 
-            # Verify files were actually created and have content
-            dataset_dir = callback.output_dir / dataset_id
-            created_files = []
-            zero_size_files = []
+            if file_size == 0:
+                zero_size_files.append(str(arrayrecord_file))
 
-            for arrayrecord_file in dataset_dir.rglob("*.arrayrecord"):
-                created_files.append(str(arrayrecord_file))
-                file_size = arrayrecord_file.stat().st_size
-                print(f"   File: {arrayrecord_file.name}, Size: {file_size} bytes")
+        print(f"   Total files created: {len(created_files)}")
+        print(f"   Zero-size files: {len(zero_size_files)}")
 
-                if file_size == 0:
-                    zero_size_files.append(str(arrayrecord_file))
+        if len(zero_size_files) > 0:
+            pytest.fail(f"❌ CRITICAL: {len(zero_size_files)} files have zero size: {zero_size_files}")
 
-            print(f"   Total files created: {len(created_files)}")
-            print(f"   Zero-size files: {len(zero_size_files)}")
+        if len(created_files) != expected_writers:
+            pytest.fail(f"❌ CRITICAL: Expected {expected_writers} files, created {len(created_files)}")
 
-            if len(zero_size_files) > 0:
-                pytest.fail(f"❌ CRITICAL: {len(zero_size_files)} files have zero size: {zero_size_files}")
-
-            if len(created_files) != expected_writers:
-                pytest.fail(f"❌ CRITICAL: Expected {expected_writers} files, created {len(created_files)}")
-
-            print(f"✅ Callback initialization test passed - all files created with content")
-
-        except Exception as e:
-            import traceback
-            pytest.fail(f"❌ CRITICAL: Callback initialization failed: {e}\nTraceback: {traceback.format_exc()}")
+        print(f"✅ Callback initialization test passed - all files created with content")
 
     def test_writer_persistence_and_flushing(self, temp_dir):
         """
@@ -306,11 +266,7 @@ class TestArrayRecordFileWritingDebug:
 
         Tests whether ArrayRecord writers properly flush data to disk.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-        except ImportError:
-            pytest.skip("ArrayRecord not available")
-
+        import array_record.python.array_record_module as array_record
         test_file = os.path.join(temp_dir, "persistence_test.arrayrecord")
 
         # Test data persistence without explicit close
@@ -349,11 +305,7 @@ class TestArrayRecordFileWritingDebug:
         This tests the pattern where writers are created once and data is streamed
         over multiple intervals, which is how the callback works.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-        except ImportError:
-            pytest.skip("ArrayRecord not available")
-
+        import array_record.python.array_record_module as array_record
         print(f"🔍 Testing streaming write pattern:")
 
         # Create writers (as done in _initialize_dataset_structure)
@@ -379,12 +331,8 @@ class TestArrayRecordFileWritingDebug:
 
             # Write to all timeframes
             for writer_key, writer in writers.items():
-                try:
-                    writer.write(test_data)
-                    print(f"     ✅ Wrote to {writer_key}")
-                except Exception as e:
-                    print(f"     ❌ Failed to write to {writer_key}: {e}")
-
+                writer.write(test_data)
+                print(f"     ✅ Wrote to {writer_key}")
         print(f"   Completed {intervals_to_simulate} intervals")
 
         # Close all writers (as done in handleEnd)
@@ -414,20 +362,10 @@ class TestArrayRecordFileWritingDebug:
         Tests whether the binary_record_schema.pack_interval method
         produces valid data for ArrayRecord writing.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-        except ImportError:
-            pytest.skip("ArrayRecord not available")
-
-        # Test schema creation
-        try:
-            schema = SchemaTemplates.auto_detect()
-            assert schema is not None
-            print(f"✅ Binary record schema created")
-        except Exception as e:
-            pytest.skip(f"Binary record schema not available: {e}")
-
-        # Test data packing
+        import array_record.python.array_record_module as array_record
+        schema = SchemaTemplates.auto_detect()
+        assert schema is not None
+        print(f"✅ Binary record schema created")
         symbol = "AAPL"
         test_interval = {
             'timestamp': datetime.now(),
@@ -441,27 +379,23 @@ class TestArrayRecordFileWritingDebug:
         print(f"🔍 Testing binary record schema integration:")
         print(f"   Test interval: {test_interval}")
 
-        try:
-            binary_record = schema.pack_interval(symbol, test_interval)
-            assert isinstance(binary_record, bytes)
-            assert len(binary_record) > 0
+        binary_record = schema.pack_interval(symbol, test_interval)
+        assert isinstance(binary_record, bytes)
+        assert len(binary_record) > 0
 
-            print(f"   ✅ Binary record packed: {len(binary_record)} bytes")
+        print(f"   ✅ Binary record packed: {len(binary_record)} bytes")
 
-            # Test writing the packed record
-            test_file = os.path.join(temp_dir, "schema_integration_test.arrayrecord")
-            writer = array_record.ArrayRecordWriter(test_file, 'group_size:1')
-            writer.write(binary_record)
-            writer.close()
+        # Test writing the packed record
+        test_file = os.path.join(temp_dir, "schema_integration_test.arrayrecord")
+        writer = array_record.ArrayRecordWriter(test_file, 'group_size:1')
+        writer.write(binary_record)
+        writer.close()
 
-            file_size = os.path.getsize(test_file)
-            print(f"   ✅ Packed record written to file: {file_size} bytes")
+        file_size = os.path.getsize(test_file)
+        print(f"   ✅ Packed record written to file: {file_size} bytes")
 
-            if file_size == 0:
-                pytest.fail("❌ CRITICAL: Schema-packed record resulted in zero-size file")
-
-        except Exception as e:
-            pytest.fail(f"❌ CRITICAL: Binary record schema integration failed: {e}")
+        if file_size == 0:
+            pytest.fail("❌ CRITICAL: Schema-packed record resulted in zero-size file")
 
     def test_directory_structure_and_permissions(self, temp_dir):
         """
@@ -486,34 +420,30 @@ class TestArrayRecordFileWritingDebug:
 
             print(f"   Creating directory: {timeframe_dir}")
 
-            try:
-                timeframe_dir.mkdir(parents=True, exist_ok=True)
-                assert timeframe_dir.exists()
-                print(f"   ✅ Directory created: {timeframe_dir}")
+            timeframe_dir.mkdir(parents=True, exist_ok=True)
+            assert timeframe_dir.exists()
+            print(f"   ✅ Directory created: {timeframe_dir}")
 
-                # Test file creation in directory
-                test_file = timeframe_dir / f"{symbol_datetime_str}.arrayrecord"
-                test_file.touch()
+            # Test file creation in directory
+            test_file = timeframe_dir / f"{symbol_datetime_str}.arrayrecord"
+            test_file.touch()
 
-                assert test_file.exists()
-                print(f"   ✅ File creation test passed: {test_file.name}")
+            assert test_file.exists()
+            print(f"   ✅ File creation test passed: {test_file.name}")
 
-                # Test write permissions
-                test_content = b"permission_test_data"
-                with open(test_file, 'wb') as f:
-                    f.write(test_content)
+            # Test write permissions
+            test_content = b"permission_test_data"
+            with open(test_file, 'wb') as f:
+                f.write(test_content)
 
-                # Verify content was written
-                with open(test_file, 'rb') as f:
-                    read_content = f.read()
+            # Verify content was written
+            with open(test_file, 'rb') as f:
+                read_content = f.read()
 
-                if read_content != test_content:
-                    pytest.fail(f"❌ Write permission issue - content mismatch")
+            if read_content != test_content:
+                pytest.fail(f"❌ Write permission issue - content mismatch")
 
-                print(f"   ✅ Write permissions verified")
-
-            except Exception as e:
-                pytest.fail(f"❌ CRITICAL: Directory/permission issue: {e}")
+            print(f"   ✅ Write permissions verified")
 
     def test_error_conditions_and_recovery(self, temp_dir):
         """
@@ -522,50 +452,27 @@ class TestArrayRecordFileWritingDebug:
         Tests how the system handles various error conditions that might
         cause silent failures.
         """
-        try:
-            import array_record.python.array_record_module as array_record
-        except ImportError:
-            pytest.skip("ArrayRecord not available")
-
+        import array_record.python.array_record_module as array_record
         print(f"🔍 Testing error conditions and recovery:")
 
         # Test 1: Invalid file path
         invalid_path = "/invalid/path/that/does/not/exist.arrayrecord"
-        try:
-            writer = array_record.ArrayRecordWriter(invalid_path, 'group_size:1')
-            pytest.fail("❌ Should have failed with invalid path")
-        except Exception as e:
-            print(f"   ✅ Invalid path correctly rejected: {type(e).__name__}")
-
-        # Test 2: Invalid writer options
+        writer = array_record.ArrayRecordWriter(invalid_path, 'group_size:1')
+        pytest.fail("❌ Should have failed with invalid path")
         valid_file = os.path.join(temp_dir, "error_test.arrayrecord")
-        try:
-            writer = array_record.ArrayRecordWriter(valid_file, 'invalid_option:123')
-            # If this doesn't fail, it might cause silent issues
-            writer.close()
-            print(f"   ⚠️ Invalid options accepted - might cause issues")
-        except Exception as e:
-            print(f"   ✅ Invalid options correctly rejected: {type(e).__name__}")
-
-        # Test 3: Writing after close
+        writer = array_record.ArrayRecordWriter(valid_file, 'invalid_option:123')
+        # If this doesn't fail, it might cause silent issues
+        writer.close()
+        print(f"   ⚠️ Invalid options accepted - might cause issues")
         writer = array_record.ArrayRecordWriter(valid_file, 'group_size:1')
         writer.close()
 
-        try:
-            writer.write(b"test_after_close")
-            pytest.fail("❌ Should not be able to write after close")
-        except Exception as e:
-            print(f"   ✅ Write after close correctly rejected: {type(e).__name__}")
-
-        # Test 4: Double close
+        writer.write(b"test_after_close")
+        pytest.fail("❌ Should not be able to write after close")
         writer2 = array_record.ArrayRecordWriter(valid_file, 'group_size:1')
         writer2.close()
-        try:
-            writer2.close()  # Should not crash
-            print(f"   ✅ Double close handled gracefully")
-        except Exception as e:
-            print(f"   ⚠️ Double close caused error: {e}")
-
+        writer2.close()  # Should not crash
+        print(f"   ✅ Double close handled gracefully")
     @pytest.mark.asyncio
     async def test_aapl_specific_reproduction_attempt(self, temp_dir):
         """
@@ -576,12 +483,7 @@ class TestArrayRecordFileWritingDebug:
         """
         print(f"🔍 REPRODUCING EXACT AAPL FAILURE SCENARIO:")
 
-        try:
-            pass
-        except ImportError:
-            pytest.fail("❌ CRITICAL: ArrayRecord not available - this explains AAPL failure")
-
-        # Exact parameters from AAPL failure
+        pass
         callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL'],
             config=None,
@@ -598,14 +500,9 @@ class TestArrayRecordFileWritingDebug:
         print(f"   Date range: {callback.start_date} to {callback.end_date}")
 
         # Step 1: Initialize dataset structure (this worked in AAPL case)
-        try:
-            await callback._initialize_dataset_structure()
-            print(f"   ✅ Dataset structure initialized")
-            print(f"   Writers created: {len(callback.array_record_writers)}")
-        except Exception as e:
-            pytest.fail(f"❌ Dataset structure initialization failed: {e}")
-
-        # Step 2: Simulate interval processing (this might have failed silently)
+        await callback._initialize_dataset_structure()
+        print(f"   ✅ Dataset structure initialized")
+        print(f"   Writers created: {len(callback.array_record_writers)}")
         mock_examples = [
             Mock(symbol='AAPL', prediction_timestamp=datetime.now())
         ]
@@ -616,13 +513,8 @@ class TestArrayRecordFileWritingDebug:
 
             print(f"   Testing with empty minute data (potential failure cause)...")
 
-            try:
-                await callback._stream_intervals_to_writers(mock_examples, datetime.now())
-                print(f"   ⚠️ Streaming completed with empty data - no files written")
-            except Exception as e:
-                print(f"   ❌ Streaming failed with empty data: {e}")
-
-        # Step 3: Test with actual data
+            await callback._stream_intervals_to_writers(mock_examples, datetime.now())
+            print(f"   ⚠️ Streaming completed with empty data - no files written")
         with patch.object(callback, '_get_current_interval_minute_data') as mock_data:
             # Provide actual minute data
             mock_data.return_value = [
@@ -631,13 +523,8 @@ class TestArrayRecordFileWritingDebug:
 
             print(f"   Testing with actual minute data...")
 
-            try:
-                await callback._stream_intervals_to_writers(mock_examples, datetime.now())
-                print(f"   ✅ Streaming completed with actual data")
-            except Exception as e:
-                print(f"   ❌ Streaming failed even with actual data: {e}")
-
-        # Step 4: Close writers and check files (critical step)
+            await callback._stream_intervals_to_writers(mock_examples, datetime.now())
+            print(f"   ✅ Streaming completed with actual data")
         await callback.handleEnd(Mock(), datetime.now())
 
         # Step 5: Verify final state

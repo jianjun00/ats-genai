@@ -59,33 +59,20 @@ class ComprehensiveTestRunner:
         
         start_time = time.time()
         
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            end_time = time.time()
-            
-            return {
-                'file': test_file,
-                'class': test_class,
-                'duration': end_time - start_time,
-                'returncode': result.returncode,
-                'stdout': result.stdout,
-                'stderr': result.stderr,
-                'success': result.returncode == 0,
-                'json_report': str(json_report) if json_report and json_report.exists() else None
-            }
-            
-        except Exception as e:
-            return {
-                'file': test_file,
-                'class': test_class,
-                'duration': 0,
-                'returncode': -1,
-                'stdout': '',
-                'stderr': str(e),
-                'success': False,
-                'json_report': None
-            }
-
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        end_time = time.time()
+        
+        return {
+            'file': test_file,
+            'class': test_class,
+            'duration': end_time - start_time,
+            'returncode': result.returncode,
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'success': result.returncode == 0,
+            'json_report': str(json_report) if json_report and json_report.exists() else None
+        }
+        
     def run_universe_state_manager_tests(self, fast_mode: bool = False) -> Dict[str, Any]:
         """Run UniverseStateManager comprehensive tests."""
         print("\n🏗️ Testing UniverseStateManager (Rolling Cache Functionality)")

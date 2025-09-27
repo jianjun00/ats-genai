@@ -2,8 +2,8 @@ import pytest
 from unittest import mock
 from datetime import date
 
-from domains.market_data.services.agent.llm_assistant import LLMAssistant
-from domains.market_data.services.agent.models import EODPrice
+from domains.market_data.services.core.agent.llm_assistant import LLMAssistant
+from domains.market_data.services.core.agent.models import EODPrice
 
 class TestLLMAssistant:
     @pytest.fixture

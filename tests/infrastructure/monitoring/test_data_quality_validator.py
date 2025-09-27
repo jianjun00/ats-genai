@@ -26,7 +26,7 @@ from infrastructure.monitoring.legacy.data_quality_validator import (
     ValidationCategory,
     DataQualityReport
 )
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 @pytest.fixture
 def env():

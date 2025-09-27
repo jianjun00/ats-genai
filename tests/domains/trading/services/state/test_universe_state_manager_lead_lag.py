@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from datetime import datetime, timedelta
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 class DummyManager(UniverseStateManager):
     def __init__(self, df):

@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from domains.trading.services.enhanced_indicators import (
+from domains.trading.services.indicators.enhanced_indicators import (
     EMAIndicator,
     ATRIndicator,
     RSIIndicator,

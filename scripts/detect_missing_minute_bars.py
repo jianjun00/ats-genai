@@ -78,39 +78,34 @@ async def detect_missing_minute_bars():
             WHERE a.minute_timestamp IS NULL
             """
 
-            try:
-                gap_result = await conn.fetchrow(gap_query, symbol)
-                missing_count = gap_result['missing_minutes']
+            gap_result = await conn.fetchrow(gap_query, symbol)
+            missing_count = gap_result['missing_minutes']
 
-                if missing_count > 0:
-                    print(f"  ⚠️  {symbol}: {missing_count:,} missing minutes")
-                    print(f"      First gap: {gap_result['first_missing']}")
-                    print(f"      Last gap: {gap_result['last_missing']}")
-                else:
-                    print(f"  ✅ {symbol}: No missing minutes detected")
+            if missing_count > 0:
+                print(f"  ⚠️  {symbol}: {missing_count:,} missing minutes")
+                print(f"      First gap: {gap_result['first_missing']}")
+                print(f"      Last gap: {gap_result['last_missing']}")
+            else:
+                print(f"  ✅ {symbol}: No missing minutes detected")
 
-                # Show data freshness
-                freshness_query = f"""
-                SELECT
-                    COUNT(*) as total_records,
-                    MAX(timestamp) as latest_timestamp,
-                    EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/60 as minutes_since_last
-                FROM {table_name}
-                WHERE symbol = $1 AND timestamp >= NOW() - INTERVAL '24 hours'
-                """
+            # Show data freshness
+            freshness_query = f"""
+            SELECT
+                COUNT(*) as total_records,
+                MAX(timestamp) as latest_timestamp,
+                EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/60 as minutes_since_last
+            FROM {table_name}
+            WHERE symbol = $1 AND timestamp >= NOW() - INTERVAL '24 hours'
+            """
 
-                freshness = await conn.fetchrow(freshness_query, symbol)
-                minutes_behind = freshness['minutes_since_last'] or 0
+            freshness = await conn.fetchrow(freshness_query, symbol)
+            minutes_behind = freshness['minutes_since_last'] or 0
 
-                if minutes_behind > 5:  # More than 5 minutes behind
-                    print(f"      🚨 Data stale: {minutes_behind:.1f} minutes behind")
-                else:
-                    print(f"      📡 Data fresh: {minutes_behind:.1f} minutes behind")
+            if minutes_behind > 5:  # More than 5 minutes behind
+                print(f"      🚨 Data stale: {minutes_behind:.1f} minutes behind")
+            else:
+                print(f"      📡 Data fresh: {minutes_behind:.1f} minutes behind")
 
-            except Exception as e:
-                print(f"  ❌ {symbol}: Error checking gaps - {e}")
-
-    # Collection metrics analysis
     print(f"\n📈 COLLECTION PERFORMANCE ANALYSIS:")
     print("-" * 40)
 

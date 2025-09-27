@@ -18,7 +18,7 @@ from unittest.mock import Mock, AsyncMock, patch
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, TrainingDataJobConfig
+# TrainingDataJobRunner class does not exist in feature_extraction_runner, TrainingDataJobConfig
 
 
 class TestUniverseStateBuilderIntegration(unittest.TestCase):
@@ -304,28 +304,22 @@ class TestUniverseStateBuilderIntegration(unittest.TestCase):
                 mock_universe_manager = Mock()
                 mock_universe_manager.get_indicators_for_hour.return_value = scenario['indicators']
 
-                try:
-                    hourly_rows = self.runner._aggregate_minutes_to_hourly(
-                        minute_data, 'AAPL', universe_manager=mock_universe_manager
-                    )
+                hourly_rows = self.runner._aggregate_minutes_to_hourly(
+                    minute_data, 'AAPL', universe_manager=mock_universe_manager
+                )
 
-                    if scenario['should_pass']:
-                        self.assertGreater(len(hourly_rows), 0, f"Scenario {scenario['name']} should generate hourly rows")
+                if scenario['should_pass']:
+                    self.assertGreater(len(hourly_rows), 0, f"Scenario {scenario['name']} should generate hourly rows")
 
-                        # Verify indicator values were preserved
-                        first_hour = hourly_rows[0]
-                        for indicator_name, expected_value in scenario['indicators'].items():
-                            hour_indicator_name = f"hour_{indicator_name}"
-                            if hour_indicator_name in first_hour:
-                                self.assertEqual(
-                                    first_hour[hour_indicator_name], expected_value,
-                                    f"Indicator {hour_indicator_name} should have expected value in scenario {scenario['name']}"
-                                )
-
-                except Exception as e:
-                    if scenario['should_pass']:
-                        self.fail(f"Scenario {scenario['name']} should not raise exception: {e}")
-
+                    # Verify indicator values were preserved
+                    first_hour = hourly_rows[0]
+                    for indicator_name, expected_value in scenario['indicators'].items():
+                        hour_indicator_name = f"hour_{indicator_name}"
+                        if hour_indicator_name in first_hour:
+                            self.assertEqual(
+                                first_hour[hour_indicator_name], expected_value,
+                                f"Indicator {hour_indicator_name} should have expected value in scenario {scenario['name']}"
+                            )
 
 def run_async_universe_state_tests():
     """Run async universe state tests."""
@@ -337,13 +331,8 @@ def run_async_universe_state_tests():
         print("🧪 Testing Universe State Builder Integration")
         print("=" * 50)
 
-        try:
-            await test_instance.test_full_pipeline_with_universe_state_mocking()
-            print("✅ Full pipeline with universe state mocking PASSED")
-        except Exception as e:
-            print(f"❌ Full pipeline test FAILED: {e}")
-            raise
-
+        await test_instance.test_full_pipeline_with_universe_state_mocking()
+        print("✅ Full pipeline with universe state mocking PASSED")
     asyncio.run(run_test())
 
 

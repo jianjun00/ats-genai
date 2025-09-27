@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsTimezoneHandling:
@@ -55,13 +49,7 @@ class TestRealObjectsTimezoneHandling:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_standardize_polygon_timezone_naive_real_objects(self, real_service, test_data):
         """Real objects version of test_standardize_polygon_timezone_naive"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.standardize_polygon_timezone_naive_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.standardize_polygon_timezone_naive_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_standardize_polygon_timezone_aware_real_objects(self, real_service, test_data):
         """Real objects version of test_standardize_polygon_timezone_aware"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.standardize_polygon_timezone_aware_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.standardize_polygon_timezone_aware_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_standardize_tiingo_timezone_naive_real_objects(self, real_service, test_data):
         """Real objects version of test_standardize_tiingo_timezone_naive"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.standardize_tiingo_timezone_naive_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.standardize_tiingo_timezone_naive_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_standardize_tiingo_timezone_aware_real_objects(self, real_service, test_data):
         """Real objects version of test_standardize_tiingo_timezone_aware"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.standardize_tiingo_timezone_aware_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.standardize_tiingo_timezone_aware_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_unified_timeline_mixed_timezones_real_objects(self, real_service, test_data):
         """Real objects version of test_unified_timeline_mixed_timezones"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.unified_timeline_mixed_timezones_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.unified_timeline_mixed_timezones_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_find_bar_by_timestamp_timezone_compatibility_real_objects(self, real_service, test_data):
         """Real objects version of test_find_bar_by_timestamp_timezone_compatibility"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.find_bar_by_timestamp_timezone_compatibility_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.find_bar_by_timestamp_timezone_compatibility_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_timestamp_comparison_no_error_real_objects(self, real_service, test_data):
         """Real objects version of test_timestamp_comparison_no_error"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.timestamp_comparison_no_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.timestamp_comparison_no_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_standardization_preserves_data_integrity_real_objects(self, real_service, test_data):
         """Real objects version of test_standardization_preserves_data_integrity"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.standardization_preserves_data_integrity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.standardization_preserves_data_integrity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_reconcile_with_mixed_timezones_real_objects(self, real_service, test_data):
         """Real objects version of test_reconcile_with_mixed_timezones"""
         # Test with real database integration
@@ -252,15 +192,8 @@ class TestRealObjectsTimezoneHandling:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.reconcile_with_mixed_timezones_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.reconcile_with_mixed_timezones_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

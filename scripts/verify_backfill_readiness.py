@@ -26,30 +26,25 @@ async def test_database_connectivity():
 
     db_url = "postgresql://postgres:intg_password@ats-intg-postgres:5432/intg_db"
 
-    try:
-        conn = await asyncpg.connect(db_url)
-        print("✅ Database connection successful")
+    conn = await asyncpg.connect(db_url)
+    print("✅ Database connection successful")
 
-        # Check required tables exist
-        tables = ['intg_daily_price_tiingo', 'intg_daily_price_polygon', 'intg_daily_price_eodhd', 'intg_instruments']
-        for table in tables:
-            count = await conn.fetchval(f"SELECT COUNT(*) FROM {table} LIMIT 1")
-            print(f"✅ Table {table}: accessible")
+    # Check required tables exist
+    tables = ['intg_daily_price_tiingo', 'intg_daily_price_polygon', 'intg_daily_price_eodhd', 'intg_instruments']
+    for table in tables:
+        count = await conn.fetchval(f"SELECT COUNT(*) FROM {table} LIMIT 1")
+        print(f"✅ Table {table}: accessible")
 
-        # Check instrument data
-        instrument_count = await conn.fetchval("SELECT COUNT(*) FROM intg_instrument WHERE active = true")
-        print(f"📊 Active instruments: {instrument_count}")
+    # Check instrument data
+    instrument_count = await conn.fetchval("SELECT COUNT(*) FROM intg_instrument WHERE active = true")
+    print(f"📊 Active instruments: {instrument_count}")
 
-        if instrument_count == 0:
-            print("⚠️ Warning: No active instruments found")
-            return False
-
-        await conn.close()
-        return True
-
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+    if instrument_count == 0:
+        print("⚠️ Warning: No active instruments found")
         return False
+
+    await conn.close()
+    return True
 
 def test_api_keys():
     """Test vendor API key availability and validity."""
@@ -72,25 +67,20 @@ def test_api_keys():
         print(f"✅ {key_name}: Available ({key_value[:10]}...)")
 
         # Test API connectivity
-        try:
-            if key_name == 'TIINGO_API_KEY':
-                response = requests.get(f"https://api.tiingo.com/tiingo/daily/AAPL/prices?startDate=2025-09-01&endDate=2025-09-01&token={key_value}", timeout=10)
-                results[key_name] = response.status_code == 200
-                print(f"  {'✅' if results[key_name] else '❌'} Tiingo API: {response.status_code}")
+        if key_name == 'TIINGO_API_KEY':
+            response = requests.get(f"https://api.tiingo.com/tiingo/daily/AAPL/prices?startDate=2025-09-01&endDate=2025-09-01&token={key_value}", timeout=10)
+            results[key_name] = response.status_code == 200
+            print(f"  {'✅' if results[key_name] else '❌'} Tiingo API: {response.status_code}")
 
-            elif key_name == 'POLYGON_API_KEY':
-                response = requests.get(f"https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/2025-09-01/2025-09-01?apikey={key_value}", timeout=10)
-                results[key_name] = response.status_code == 200
-                print(f"  {'✅' if results[key_name] else '❌'} Polygon API: {response.status_code}")
+        elif key_name == 'POLYGON_API_KEY':
+            response = requests.get(f"https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/2025-09-01/2025-09-01?apikey={key_value}", timeout=10)
+            results[key_name] = response.status_code == 200
+            print(f"  {'✅' if results[key_name] else '❌'} Polygon API: {response.status_code}")
 
-            elif key_name == 'EODHD_API_KEY':
-                response = requests.get(f"https://eodhd.com/api/eod/AAPL.US?from=2025-09-01&to=2025-09-01&api_token={key_value}&fmt=json", timeout=10)
-                results[key_name] = response.status_code == 200
-                print(f"  {'✅' if results[key_name] else '❌'} EODHD API: {response.status_code}")
-
-        except Exception as e:
-            print(f"  ❌ {key_name.split('_')[0]} API test failed: {e}")
-            results[key_name] = False
+        elif key_name == 'EODHD_API_KEY':
+            response = requests.get(f"https://eodhd.com/api/eod/AAPL.US?from=2025-09-01&to=2025-09-01&api_token={key_value}&fmt=json", timeout=10)
+            results[key_name] = response.status_code == 200
+            print(f"  {'✅' if results[key_name] else '❌'} EODHD API: {response.status_code}")
 
     return all(results.values())
 
@@ -119,44 +109,39 @@ async def test_sample_collection():
     """Test sample data collection."""
     print("\n🧪 Testing sample data collection...")
 
-    try:
-        # Test with a small sample
-        from multi_vendor_daily_collector import MultiVendorDailyCollector
+    # Test with a small sample
+    from multi_vendor_daily_collector import MultiVendorDailyCollector
 
-        collector = MultiVendorDailyCollector()
-        await collector.initialize()
+    collector = MultiVendorDailyCollector()
+    await collector.initialize()
 
-        # Get 1 symbol
-        symbols = await collector.get_active_symbols(limit=1)
-        if not symbols:
-            print("❌ No symbols available for testing")
-            return False
-
-        test_symbol, test_id = symbols[0]
-        print(f"🎯 Testing with symbol: {test_symbol} (ID: {test_id})")
-
-        # Test date range (last 2 days)
-        end_date = date.today()
-        start_date = end_date - timedelta(days=2)
-
-        # Test Tiingo collection
-        result = await collector.collect_vendor_data('tiingo', [symbols[0]], start_date, end_date)
-
-        await collector.cleanup()
-
-        success = result.symbols_processed > 0 or result.records_inserted > 0 or result.records_updated > 0
-        print(f"{'✅' if success else '❌'} Sample collection: {result.symbols_processed} symbols, {result.records_inserted} inserted, {result.records_updated} updated")
-
-        if result.errors:
-            print(f"⚠️ Errors encountered: {len(result.errors)}")
-            for error in result.errors[:3]:  # Show first 3 errors
-                print(f"  • {error}")
-
-        return success
-
-    except Exception as e:
-        print(f"❌ Sample collection failed: {e}")
+    # Get 1 symbol
+    symbols = await collector.get_active_symbols(limit=1)
+    if not symbols:
+        print("❌ No symbols available for testing")
         return False
+
+    test_symbol, test_id = symbols[0]
+    print(f"🎯 Testing with symbol: {test_symbol} (ID: {test_id})")
+
+    # Test date range (last 2 days)
+    end_date = date.today()
+    start_date = end_date - timedelta(days=2)
+
+    # Test Tiingo collection
+    result = await collector.collect_vendor_data('tiingo', [symbols[0]], start_date, end_date)
+
+    await collector.cleanup()
+
+    success = result.symbols_processed > 0 or result.records_inserted > 0 or result.records_updated > 0
+    print(f"{'✅' if success else '❌'} Sample collection: {result.symbols_processed} symbols, {result.records_inserted} inserted, {result.records_updated} updated")
+
+    if result.errors:
+        print(f"⚠️ Errors encountered: {len(result.errors)}")
+        for error in result.errors[:3]:  # Show first 3 errors
+            print(f"  • {error}")
+
+    return success
 
 def check_environment():
     """Check container environment setup."""

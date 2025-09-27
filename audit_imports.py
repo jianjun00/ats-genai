@@ -22,25 +22,20 @@ def extract_imports_from_file(file_path: Path) -> List[Tuple[str, int, str]]:
     Returns: List of (import_name, line_number, import_type)
     """
     imports = []
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        tree = ast.parse(content, filename=str(file_path))
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    imports.append((alias.name, node.lineno, 'import'))
-            elif isinstance(node, ast.ImportFrom):
-                module = node.module or ''
-                for alias in node.names:
-                    full_import = f"{module}.{alias.name}" if module else alias.name
-                    imports.append((full_import, node.lineno, 'from'))
-    except Exception as e:
-        print(f"ERROR parsing {file_path}: {e}")
-        # Let it fail - don't mask parsing errors
-        
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    tree = ast.parse(content, filename=str(file_path))
+    
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append((alias.name, node.lineno, 'import'))
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ''
+            for alias in node.names:
+                full_import = f"{module}.{alias.name}" if module else alias.name
+                imports.append((full_import, node.lineno, 'from'))
     return imports
 
 def check_module_exists(module_name: str, src_root: Path) -> Tuple[bool, str]:
@@ -49,15 +44,10 @@ def check_module_exists(module_name: str, src_root: Path) -> Tuple[bool, str]:
     Returns: (exists, reason)
     """
     # Check if it's a standard library module
-    try:
-        spec = importlib.util.find_spec(module_name.split('.')[0])
-        if spec is not None and spec.origin:
-            # Standard library or installed package
-            return True, "standard_library"
-    except (ImportError, ModuleNotFoundError, ValueError):
-        pass
-    
-    # Check if it exists in src/ directory
+    spec = importlib.util.find_spec(module_name.split('.')[0])
+    if spec is not None and spec.origin:
+        # Standard library or installed package
+        return True, "standard_library"
     module_parts = module_name.split('.')
     
     # Try different path combinations in src/
@@ -134,27 +124,22 @@ def audit_imports() -> Dict[str, List[Tuple[str, int, str, str]]]:
 
 def main():
     """Run the comprehensive import audit"""
-    try:
-        broken_imports = audit_imports()
-        
-        if not broken_imports:
-            print("✅ No broken imports found!")
-            return
-        
-        print("\n🚨 BROKEN IMPORTS DETECTED:")
-        print("=" * 80)
-        
-        for file_path, imports in broken_imports.items():
-            print(f"\n📁 {file_path}")
-            for import_name, line_no, import_type, reason in imports:
-                print(f"  ❌ Line {line_no}: {import_type} {import_name} ({reason})")
-        
-        print(f"\n⚠️  Found {sum(len(imports) for imports in broken_imports.values())} broken imports across {len(broken_imports)} files")
-        print("These need to be fixed to prevent runtime import errors.")
-        
-    except Exception as e:
-        print(f"❌ Audit failed: {e}")
-        sys.exit(1)
-
+    broken_imports = audit_imports()
+    
+    if not broken_imports:
+        print("✅ No broken imports found!")
+        return
+    
+    print("\n🚨 BROKEN IMPORTS DETECTED:")
+    print("=" * 80)
+    
+    for file_path, imports in broken_imports.items():
+        print(f"\n📁 {file_path}")
+        for import_name, line_no, import_type, reason in imports:
+            print(f"  ❌ Line {line_no}: {import_type} {import_name} ({reason})")
+    
+    print(f"\n⚠️  Found {sum(len(imports) for imports in broken_imports.values())} broken imports across {len(broken_imports)} files")
+    print("These need to be fixed to prevent runtime import errors.")
+    
 if __name__ == "__main__":
     main()

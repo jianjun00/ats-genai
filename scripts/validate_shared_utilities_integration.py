@@ -43,14 +43,9 @@ class SharedUtilitiesValidator:
         sys.path.insert(0, str(self.src_path))
 
         for name, module_path in utilities.items():
-            try:
-                module = importlib.import_module(module_path)
-                results[name] = True
-                logger.info(f"✅ {name}: {module_path} available")
-            except ImportError as e:
-                results[name] = False
-                logger.error(f"❌ {name}: {module_path} not available - {e}")
-
+            module = importlib.import_module(module_path)
+            results[name] = True
+            logger.info(f"✅ {name}: {module_path} available")
         return results
 
     def validate_file_migration(self, file_path: Path) -> Dict[str, any]:
