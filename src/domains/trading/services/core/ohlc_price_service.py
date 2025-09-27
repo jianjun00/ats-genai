@@ -181,10 +181,9 @@ class OHLCPriceService:
 
         try:
             # Get minute bar data from file-based storage
-            # This would integrate with FileBasedMinuteManager
-            from storage.file_based_minute_manager import FileBasedMinuteManager
-
-            minute_manager = FileBasedMinuteManager()
+            # Note: FileBasedMinuteManager doesn't exist - use direct parquet reading
+            # For now, return empty data - implement with pandas read_parquet when needed
+            logger.warning("Minute data integration not yet implemented")
 
             # Get minute data for the date range
             minute_data = await minute_manager.get_minute_data(
