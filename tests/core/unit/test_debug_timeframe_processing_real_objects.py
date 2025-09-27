@@ -101,7 +101,7 @@ class TestRealObjectsDebugTimeframeProcessing:
     async def test_async_real_objects(self, real_service, test_data):
         """Real objects version of test_async"""
         # Test with real database integration
-        result = await real_service.async(test_data)
+        result = await real_service.process_async(test_data)
         
         # Authentic assertions with real data
         assert result is not None
