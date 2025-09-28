@@ -60,7 +60,7 @@ class TestUILayoutRegressionProtection:
         html_content = response.text
 
         # Extract tab names from HTML
-        tab_pattern = r'<button class="tab[^"]*"[^>]*onclick="showTab\(\'([^\']+)\'\)"[^>]*>.*?([^<]+)</button>'
+        tab_pattern = r'<button class="tab[^"]*"[^>]*onclick="showTab\('([^']+)'\)"[^>]*>.*?([^<]+)</button>'
         tabs = re.findall(tab_pattern, html_content, re.IGNORECASE | re.DOTALL)
 
         found_tabs = [tab[1].strip() for _, tab in tabs if tab[1].strip()]

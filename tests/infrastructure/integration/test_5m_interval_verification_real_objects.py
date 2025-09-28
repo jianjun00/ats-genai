@@ -53,7 +53,7 @@ class TestRealObjects5MinuteIntervalVerification:
     async def test_5minute_firstrate_aggregation_real_objects(self, real_service, test_data):
         """Real objects version of test_5minute_firstrate_aggregation"""
         # Test with real database integration
-        result = await real_service.5minute_firstrate_aggregation(test_data)
+        result = await real_service.five_minute_firstrate_aggregation(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -64,12 +64,12 @@ class TestRealObjects5MinuteIntervalVerification:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.5minute_firstrate_aggregation_with_invalid_data()
+        await real_service.five_minute_firstrate_aggregation_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_5minute_timestamp_alignment_real_objects(self, real_service, test_data):
         """Real objects version of test_5minute_timestamp_alignment"""
         # Test with real database integration
-        result = await real_service.5minute_timestamp_alignment(test_data)
+        result = await real_service.five_minute_timestamp_alignment(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -80,12 +80,12 @@ class TestRealObjects5MinuteIntervalVerification:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.5minute_timestamp_alignment_with_invalid_data()
+        await real_service.five_minute_timestamp_alignment_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_5minute_training_data_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_5minute_training_data_generation"""
         # Test with real database integration
-        result = await real_service.5minute_training_data_generation(test_data)
+        result = await real_service.five_minute_training_data_generation(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -96,12 +96,12 @@ class TestRealObjects5MinuteIntervalVerification:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.5minute_training_data_generation_with_invalid_data()
+        await real_service.five_minute_training_data_generation_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_5minute_vs_1minute_feature_differences_real_objects(self, real_service, test_data):
         """Real objects version of test_5minute_vs_1minute_feature_differences"""
         # Test with real database integration
-        result = await real_service.5minute_vs_1minute_feature_differences(test_data)
+        result = await real_service.five_minute_vs_1minute_feature_differences(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -112,7 +112,7 @@ class TestRealObjects5MinuteIntervalVerification:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.5minute_vs_1minute_feature_differences_with_invalid_data()
+        await real_service.five_minute_vs_1minute_feature_differences_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""

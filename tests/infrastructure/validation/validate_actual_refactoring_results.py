@@ -195,8 +195,3 @@ if __name__ == "__main__":
     print("   The systematic approach to eliminating hardcoded values has been")
     print("   successfully applied across critical platform infrastructure modules!")
 
-    except Exception as e:
-        print(f"\n❌ Validation failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)

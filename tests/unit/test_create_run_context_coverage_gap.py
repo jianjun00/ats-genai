@@ -224,11 +224,6 @@ class TestCreateRunContextCoverageGap:
                     assert "working_directory" in result.metadata
                     return True
                     
-                except NameError as e:
-                    # This catches the actual bug
-                    print(f"❌ CAUGHT BUG: {e}")
-                    return False
-        
         # Run the proper test approach
         test_passed = proper_test_approach()
         assert test_passed == False  # Currently fails due to bug
@@ -278,9 +273,6 @@ class TestCreateRunContextCoverageGap:
                 try:
                     manager.create_run_context(run_id="test")
                     return True
-                except NameError:
-                    return False  # Bug caught!
-        
         # Compare patterns
         bad1_passes = bad_pattern_mock_everything()
         bad2_passes = bad_pattern_happy_path_only()
@@ -311,15 +303,9 @@ if __name__ == "__main__":
     try:
         print("\n1. Reproducing working_dir NameError...")
         test.test_reproduce_working_dir_nameerror()
-    except Exception as e:
-        print(f"✅ Successfully reproduced error: {e}")
-    
     try:
         print("\n2. Reproducing via module-level function...")
         test.test_reproduce_via_module_level_function()
-    except Exception as e:
-        print(f"✅ Successfully reproduced error: {e}")
-    
     print("\n3. Analyzing why test coverage is missing...")
     test.test_analyze_why_test_coverage_is_missing()
     

@@ -155,13 +155,6 @@ if __name__ == "__main__":
         print("\n3. Testing reproduction of NameError...")
         test.test_reproduce_estimated_actual_sequences_undefined_error()
         
-    except Exception as e:
-        print(f"✅ Successfully reproduced error: {e}")
-        print("\n📋 ROOT CAUSE IDENTIFIED:")
-        print("   - Variable 'estimated_sequences' is defined on line 164")
-        print("   - Completion summary tries to use 'estimated_actual_sequences' on line 409")
-        print("   - Variable name mismatch causes NameError")
-        
     print("\n🔧 READY TO FIX:")
     print("   - Change 'estimated_actual_sequences' to 'estimated_sequences' in completion summary")
     print("   - Variable is already properly calculated and available")

@@ -167,13 +167,6 @@ if __name__ == "__main__":
         print("\n2. Testing missing variables in execution summary...")
         test.test_identify_missing_variables_in_execution_summary()
         
-    except Exception as e:
-        print(f"✅ Successfully reproduced error: {e}")
-        print("\n📋 ROOT CAUSE IDENTIFIED:")
-        print("   - collection_start_date and collection_end_date are not calculated")
-        print("   - These should be derived from start_date/end_date + day offsets")
-        print("   - Missing calculation was removed during refactoring")
-        
     print("\n🔧 READY TO FIX:")
     print("   - Add collection date calculation after date parsing")
     print("   - Use start_day_offset and end_day_offset from config")

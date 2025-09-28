@@ -117,6 +117,3 @@ class TestUniverseStateBuilderToDataFrameBug:
         else:
             # Or the UniverseStateBuilder should not require it
             print("✅ Fix approach 2: UniverseStateBuilder no longer requires to_dataframe()")
-        except Exception as e:
-            print(f"❌ Bug not yet fixed: {e}")
-            # This is expected before the fix

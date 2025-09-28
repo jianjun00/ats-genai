@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 None
 
-class import:
+class TestImport:
     """Real objects test class replacing mock-based testing"""
     
     @pytest.fixture

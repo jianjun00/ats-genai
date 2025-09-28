@@ -103,10 +103,10 @@ class TestHardcodedAPIKeysRegression:
 
         # Search patterns for Polygon API keys
         polygon_patterns = [
-            r'["\']wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD["\']',  # Specific key pattern
-            r'["\'][A-Za-z0-9]{32}["\']',  # Generic 32-char API key pattern
-            r'POLYGON_API_KEY\s*=\s*["\'][^"\']+["\']',  # Direct assignment
-            r'apikey.*["\'][A-Za-z0-9]{20,}["\']',  # API key parameter patterns
+            r'["']wfrcZNX3ZJJt55Or_CmBXda8G8e8tABD["']',  # Specific key pattern
+            r'["'][A-Za-z0-9]{32}["']',  # Generic 32-char API key pattern
+            r'POLYGON_API_KEY\s*=\s*["'][^"']+["']',  # Direct assignment
+            r'apikey.*["'][A-Za-z0-9]{20,}["']',  # API key parameter patterns
         ]
 
         # Files to check (exclude this test file and config files that may have examples)
@@ -186,7 +186,7 @@ class TestHardcodedAPIKeysRegression:
 
             # Check for potential hardcoded keys
             has_hardcoded = any([
-                re.search(r'["\'][A-Za-z0-9]{20,}["\']', content),
+                re.search(r'["'][A-Za-z0-9]{20,}["']', content),
                 'api_key = "' in content.lower(),
                 'apikey = "' in content.lower()
             ])
@@ -624,10 +624,10 @@ class TestSystemHealthRegression:
                 content = f.read()
 
             # Extract API key environment variable names
-            matches = re.findall(r'os\.getenv\(["\']([A-Z_]*API_KEY[^"\']*)["\']', content)
+            matches = re.findall(r'os\.getenv\(["']([A-Z_]*API_KEY[^"']*)["']', content)
             api_key_vars.update(matches)
 
-            matches = re.findall(r'os\.environ\[["\']([A-Z_]*API_KEY[^"\']*)["\']', content)
+            matches = re.findall(r'os\.environ\[["']([A-Z_]*API_KEY[^"']*)["']', content)
             api_key_vars.update(matches)
 
         expected_vars = {'POLYGON_API_KEY', 'TIINGO_API_KEY'}

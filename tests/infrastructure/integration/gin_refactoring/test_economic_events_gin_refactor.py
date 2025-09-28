@@ -170,8 +170,3 @@ if __name__ == "__main__":
     print("  • Tiingo Economic Events Client - base_url, timeout_seconds, news_limit, crypto_news_limit, rate_limit_delay_seconds")
     print("\n🚀 Economic events clients refactoring is complete and working!")
 
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)

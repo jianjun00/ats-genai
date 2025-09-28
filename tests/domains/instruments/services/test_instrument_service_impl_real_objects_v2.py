@@ -197,6 +197,3 @@ class TestInstrumentServiceImplRealObjects:
         assert non_existent is None  # Should return None for not found
         invalid_instrument = await instrument_service.get_instrument_by_symbol("INVALID_SYMBOL_XYZ")
         assert invalid_instrument is None  # Should return None for not found
-        except Exception as e:
-            # Real database error is acceptable
-            assert isinstance(e, Exception)

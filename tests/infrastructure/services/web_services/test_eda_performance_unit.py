@@ -290,8 +290,3 @@ if __name__ == "__main__":
 
     print("\n🎉 All EDA performance unit tests passed!")
 
-    except Exception as e:
-        print(f"❌ Unit test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        exit(1)

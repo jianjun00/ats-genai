@@ -38,7 +38,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetchrow.return_value = {'count': 1500}
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.count_instruments()
 
         assert result == 1500
@@ -60,7 +60,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetchrow.return_value = None
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.count_instruments()
 
         assert result == 0
@@ -83,7 +83,7 @@ class TestInstrumentPolygonDAO:
         import asyncio
         mock_pool.close = AsyncMock(side_effect=asyncio.TimeoutError())
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             with patch('builtins.print') as mock_print:
                 result = await dao.count_instruments()
 
@@ -106,7 +106,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetchrow.return_value = {'latest': test_timestamp}
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_latest_update_timestamp()
 
         assert result == test_timestamp
@@ -127,7 +127,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetchrow.return_value = None
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_latest_update_timestamp()
 
         assert result is None
@@ -163,7 +163,7 @@ class TestInstrumentPolygonDAO:
             'raw': '{"test": "data"}'
         }
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             await dao.insert_instrument(**test_params)
 
         # Verify the execute was called with correct SQL and parameters
@@ -203,7 +203,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetchrow.return_value = test_result
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             with patch('builtins.print'):  # Suppress debug prints
                 result = await dao.get_instrument_by_symbol('AAPL')
 
@@ -228,7 +228,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetchrow.return_value = None
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             with patch('builtins.print'):  # Suppress debug prints
                 result = await dao.get_instrument_by_symbol('NONEXISTENT')
 
@@ -254,7 +254,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetch.return_value = test_rows
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             with patch('builtins.print'):  # Suppress debug prints
                 result = await dao.get_all_symbols()
 
@@ -277,7 +277,7 @@ class TestInstrumentPolygonDAO:
         mock_connection.fetch.return_value = []
         mock_pool.close = AsyncMock()
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             with patch('builtins.print'):  # Suppress debug prints
                 result = await dao.get_all_symbols()
 
@@ -288,7 +288,7 @@ class TestInstrumentPolygonDAO:
     async def test_database_connection_error(self, dao):
         """Test handling of database connection errors."""
         connection_error = Exception("Connection failed")
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, side_effect=connection_error):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, side_effect=connection_error):
             with pytest.raises(Exception, match="Connection failed"):
                 await dao.count_instruments()
 
@@ -309,7 +309,7 @@ class TestInstrumentPolygonDAO:
         # Test with malicious input
         malicious_symbol = "'; DROP TABLE test_instrument_polygon; --"
 
-        with patch(\'domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instrument_polygon_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             with patch('builtins.print'):  # Suppress debug prints
                 result = await dao.get_instrument_by_symbol(malicious_symbol)
 

@@ -227,7 +227,3 @@ if __name__ == "__main__":
     print("✅ Data rows populated correctly")
     print("✅ All endpoints use GET requests")
 
-    except Exception as e:
-        print(f"\\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()

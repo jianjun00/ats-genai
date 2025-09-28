@@ -306,5 +306,3 @@ if __name__ == "__main__":
     print("✅ Record count analysis completed")
     test_instance.test_detect_insufficient_data_variation()
     print("✅ Data variation detection test completed")
-    except Exception as e:
-        print(f"❌ Data variation detection failed: {e}")

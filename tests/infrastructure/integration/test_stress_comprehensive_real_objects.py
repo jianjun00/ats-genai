@@ -15,7 +15,7 @@ from core.platform.config.environment import Environment, EnvironmentType
 from core.dao.base.base_dao import BaseDAO
 
 
-class from:
+class TestRealObjectsStressComprehensive:
     """Real objects test class replacing mock-based testing"""
     
     @pytest.fixture

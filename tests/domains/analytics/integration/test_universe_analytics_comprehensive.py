@@ -391,9 +391,6 @@ class TestUniverseAnalyticsAPI:
 
             print(f"✅ Universe API: Found universe '{high_vol_universe['name']}'")
 
-        except json.JSONDecodeError as e:
-            pytest.fail(f"API returned invalid JSON: {e}")
-
     def test_universe_members_api_endpoint(self):
         """Test /api/universe-members/{id} endpoint returns member data"""
         import subprocess
@@ -429,10 +426,6 @@ class TestUniverseAnalyticsAPI:
             assert len(historical_members) >= 3, f"Should have some historical members, got {len(historical_members)}"
 
             print(f"✅ Members API: {len(active_members)} active + {len(historical_members)} historical")
-
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Members API returned invalid JSON: {e}")
-
 
 # Pytest configuration
 def pytest_configure(config):

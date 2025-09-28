@@ -184,6 +184,3 @@ if __name__ == "__main__":
 
     test_manual_column_selection_verification()
 
-    except Exception as e:
-        print(f"❌ Test failed: {e}")
-        exit(1)

@@ -190,5 +190,3 @@ if __name__ == "__main__":
     print("✅ Global axis control test passed")
     test_integration.test_html_javascript_syntax()
     print("✅ HTML/JS syntax test passed")
-    except Exception as e:
-        print(f"❌ HTML/JS syntax test failed: {e}")

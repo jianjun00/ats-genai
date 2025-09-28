@@ -421,6 +421,3 @@ if __name__ == "__main__":
 
     while True:
         time.sleep(1)
-    except KeyboardInterrupt:
-        server.stop()
-        print("\nServer stopped")

@@ -269,7 +269,7 @@ class TestHardcodedApiKeysRegression:
                     if 'POLYGON_API_KEY' in content:
                         assert 'os.getenv(' in content, f"{script_file} should use os.getenv()"
                         assert 'POLYGON_API_KEY' not in content or \
-                               'os.getenv(\'POLYGON_API_KEY\')' in content or \
+                               'os.getenv('POLYGON_API_KEY')' in content or \
                                'os.getenv("POLYGON_API_KEY")' in content, \
                                f"{script_file} should get API key from environment"
 
