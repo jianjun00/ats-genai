@@ -23,66 +23,57 @@ def validate_test_file(file_path: Path) -> dict:
         'issues': []
     }
 
-    try:
-        results['exists'] = file_path.exists()
-        if not results['exists']:
-            results['issues'].append("File does not exist")
-            return results
+    results['exists'] = file_path.exists()
+    if not results['exists']:
+        results['issues'].append("File does not exist")
+        return results
 
-        # Read file content
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+    # Read file content
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
 
-        results['readable'] = True
+    results['readable'] = True
 
-        # Parse AST to analyze structure
-        try:
-            tree = ast.parse(content)
+    # Parse AST to analyze structure
+    tree = ast.parse(content)
 
-            # Check for module docstring
-            if (isinstance(tree.body[0], ast.Expr) and
-                isinstance(tree.body[0].value, ast.Constant) and
-                isinstance(tree.body[0].value.value, str)):
-                results['has_docstring'] = True
+    # Check for module docstring
+    if (isinstance(tree.body[0], ast.Expr) and
+        isinstance(tree.body[0].value, ast.Constant) and
+        isinstance(tree.body[0].value.value, str)):
+        results['has_docstring'] = True
 
-            # Analyze AST nodes
-            for node in ast.walk(tree):
-                # Check for imports
-                if isinstance(node, (ast.Import, ast.ImportFrom)):
-                    results['has_imports'] = True
+    # Analyze AST nodes
+    for node in ast.walk(tree):
+        # Check for imports
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            results['has_imports'] = True
 
-                # Check for test functions (including async)
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith('test_'):
-                    results['has_test_functions'] = True
+        # Check for test functions (including async)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith('test_'):
+            results['has_test_functions'] = True
+            results['test_count'] += 1
+
+        # Check for test classes
+        if isinstance(node, ast.ClassDef) and node.name.startswith('Test'):
+            results['has_test_classes'] = True
+
+            # Count test methods in class (including async)
+            for class_node in node.body:
+                if (isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)) and
+                    class_node.name.startswith('test_')):
                     results['test_count'] += 1
 
-                # Check for test classes
-                if isinstance(node, ast.ClassDef) and node.name.startswith('Test'):
-                    results['has_test_classes'] = True
+    # Check for specific patterns
+    if 'pytest' in content:
+        results['has_pytest'] = True
+    if 'asyncio' in content:
+        results['has_asyncio'] = True
+    if 'mock' in content.lower() or 'Mock' in content:
+        results['has_mocking'] = True
 
-                    # Count test methods in class (including async)
-                    for class_node in node.body:
-                        if (isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)) and
-                            class_node.name.startswith('test_')):
-                            results['test_count'] += 1
-
-            # Check for specific patterns
-            if 'pytest' in content:
-                results['has_pytest'] = True
-            if 'asyncio' in content:
-                results['has_asyncio'] = True
-            if 'mock' in content.lower() or 'Mock' in content:
-                results['has_mocking'] = True
-
-        except SyntaxError as e:
-            results['issues'].append(f"Syntax error: {e}")
-
-        # Basic content checks
-        if not results['has_test_functions'] and not results['has_test_classes']:
-            results['issues'].append("No test functions or classes found")
-
-    except Exception as e:
-        results['issues'].append(f"Error reading file: {e}")
+    if not results['has_test_functions'] and not results['has_test_classes']:
+        results['issues'].append("No test functions or classes found")
 
     return results
 

@@ -11,31 +11,27 @@ from pathlib import Path
 
 def run_test_suite(test_file: str) -> tuple[bool, str]:
     """Run a specific test suite and return success status and output."""
-    try:
-        cmd = [
-            sys.executable, "-m", "pytest",
-            test_file,
-            "-v",
-            "--tb=short",
-            "--disable-warnings"
-        ]
+    cmd = [
+        sys.executable, "-m", "pytest",
+        test_file,
+        "-v",
+        "--tb=short",
+        "--disable-warnings"
+    ]
 
-        # Set PYTHONPATH to include src directory
-        env = os.environ.copy()
-        env['PYTHONPATH'] = 'src'
+    # Set PYTHONPATH to include src directory
+    env = os.environ.copy()
+    env['PYTHONPATH'] = 'src'
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).parent.parent,
-            env=env
-        )
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).parent.parent,
+        env=env
+    )
 
-        return result.returncode == 0, result.stdout + result.stderr
-    except Exception as e:
-        return False, f"Error running {test_file}: {str(e)}"
-
+    return result.returncode == 0, result.stdout + result.stderr
 def main():
     """Run all Phase 1 test suites."""
     print("🚀 Running Phase 1 Test Validation")

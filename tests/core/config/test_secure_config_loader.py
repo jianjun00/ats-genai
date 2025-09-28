@@ -15,7 +15,7 @@ import gin
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.core.config.secure_config_loader import (
+from core.config.secure_config_loader import (
     SecureConfigLoader, 
     SecurityConfigurationError,
     DatabaseConfig,
@@ -244,7 +244,7 @@ class TestConfigurationIntegration:
         # This test would be expanded to verify actual component behavior
         # For now, it demonstrates the testing pattern
         
-        from src.core.config.secure_config_loader import secure_config
+        from core.config.secure_config_loader import secure_config
         
         # Before loading config, methods should fail
         with pytest.raises(SecurityConfigurationError):

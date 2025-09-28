@@ -27,7 +27,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.ml.legacy.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
+from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -95,7 +95,7 @@ class TestBackwardCompatibility:
         symbols = ['AAPL', 'TSLA']
 
         # Should work without Ray parameters
-        callback_legacy = DateBasedTrainingDataCallback(
+        callback_legacy = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir / "legacy")
         )
@@ -113,7 +113,7 @@ class TestBackwardCompatibility:
         symbols = ['AAPL', 'TSLA']
 
         # Old-style parameter names should still work
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             config=None,
             storage_manager=None,
@@ -134,7 +134,7 @@ class TestBackwardCompatibility:
         symbols = ['AAPL', 'TSLA']
 
         # Create callback without Ray-specific configuration
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir),
             enable_ray_parallel=False  # Explicitly disable Ray for legacy test
@@ -188,7 +188,7 @@ class TestConfigurationRegression:
         """Test that default configuration values haven't changed."""
         symbols = ['AAPL']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir)
         )
@@ -217,7 +217,7 @@ class TestConfigurationRegression:
         ]
 
         for config in valid_configs:
-            callback = DateBasedTrainingDataCallback(
+            callback = IntervalBasedTrainingDataCallback(
                 symbols=symbols,
                 output_dir=str(temp_regression_dir),
                 **config
@@ -231,7 +231,7 @@ class TestConfigurationRegression:
         symbols = ['AAPL']
 
         # Test with invalid worker count (should handle gracefully)
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir),
             enable_ray_parallel=True,
@@ -252,14 +252,14 @@ class TestOutputFormatRegression:
         symbols = ['AAPL', 'TSLA']
 
         # Create sequential callback
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir / "sequential"),
             enable_ray_parallel=False
         )
 
         # Create Ray callback
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir / "ray"),
             enable_ray_parallel=True,
@@ -305,14 +305,14 @@ class TestOutputFormatRegression:
         symbols = ['AAPL', 'TSLA']
 
         # Test sequential callback directory creation
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir / "seq"),
             enable_ray_parallel=False
         )
 
         # Test Ray callback directory creation
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir / "ray"),
             enable_ray_parallel=True,
@@ -349,13 +349,13 @@ class TestErrorHandlingRegression:
         symbols = ['AAPL', 'TSLA']
 
         # Create callbacks
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir / "error_seq"),
             enable_ray_parallel=False
         )
 
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir / "error_ray"),
             enable_ray_parallel=True,
@@ -403,7 +403,7 @@ class TestErrorHandlingRegression:
         """Test Ray-specific error scenarios."""
         symbols = ['AAPL', 'TSLA']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir),
             enable_ray_parallel=True,
@@ -433,7 +433,7 @@ class TestPerformanceRegression:
         symbols = ['AAPL', 'TSLA', 'MSFT']
 
         # Create callback with Ray disabled
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_regression_dir),
             enable_ray_parallel=False

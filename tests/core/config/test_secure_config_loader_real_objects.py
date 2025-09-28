@@ -10,15 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
-
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TestRealObjectsSecureConfigLoader:
@@ -55,13 +47,7 @@ class TestRealObjectsSecureConfigLoader:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_load_valid_configuration_succeeds_real_objects(self, real_service, test_data):
         """Real objects version of test_load_valid_configuration_succeeds"""
         # Test with real database integration
@@ -76,14 +62,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.load_valid_configuration_succeeds_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.load_valid_configuration_succeeds_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_gin_file_fails_fast_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_gin_file_fails_fast"""
         # Test with real database integration
@@ -98,14 +78,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_gin_file_fails_fast_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_gin_file_fails_fast_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_database_config_fails_fast_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_database_config_fails_fast"""
         # Test with real database integration
@@ -120,14 +94,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_database_config_fails_fast_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_database_config_fails_fast_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_rate_limit_config_fails_fast_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_rate_limit_config_fails_fast"""
         # Test with real database integration
@@ -142,14 +110,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_rate_limit_config_fails_fast_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_rate_limit_config_fails_fast_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_connection_params_with_env_var_real_objects(self, real_service, test_data):
         """Real objects version of test_database_connection_params_with_env_var"""
         # Test with real database integration
@@ -164,14 +126,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_connection_params_with_env_var_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_connection_params_with_env_var_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_connection_params_missing_password_fails_real_objects(self, real_service, test_data):
         """Real objects version of test_database_connection_params_missing_password_fails"""
         # Test with real database integration
@@ -186,14 +142,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_connection_params_missing_password_fails_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_connection_params_missing_password_fails_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_configuration_required_before_use_real_objects(self, real_service, test_data):
         """Real objects version of test_configuration_required_before_use"""
         # Test with real database integration
@@ -208,14 +158,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.configuration_required_before_use_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.configuration_required_before_use_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_polygon_rate_config_values_real_objects(self, real_service, test_data):
         """Real objects version of test_polygon_rate_config_values"""
         # Test with real database integration
@@ -230,14 +174,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.polygon_rate_config_values_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.polygon_rate_config_values_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_system_monitor_fail_fast_enabled_real_objects(self, real_service, test_data):
         """Real objects version of test_system_monitor_fail_fast_enabled"""
         # Test with real database integration
@@ -252,14 +190,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.system_monitor_fail_fast_enabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.system_monitor_fail_fast_enabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_secure_file_path_uses_env_var_real_objects(self, real_service, test_data):
         """Real objects version of test_secure_file_path_uses_env_var"""
         # Test with real database integration
@@ -274,14 +206,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.secure_file_path_uses_env_var_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.secure_file_path_uses_env_var_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_secure_file_path_uses_default_fallback_real_objects(self, real_service, test_data):
         """Real objects version of test_secure_file_path_uses_default_fallback"""
         # Test with real database integration
@@ -296,14 +222,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.secure_file_path_uses_default_fallback_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.secure_file_path_uses_default_fallback_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_invalid_path_type_raises_error_real_objects(self, real_service, test_data):
         """Real objects version of test_invalid_path_type_raises_error"""
         # Test with real database integration
@@ -318,14 +238,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.invalid_path_type_raises_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.invalid_path_type_raises_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gin_config_prevents_hardcoded_fallbacks_real_objects(self, real_service, test_data):
         """Real objects version of test_gin_config_prevents_hardcoded_fallbacks"""
         # Test with real database integration
@@ -340,14 +254,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gin_config_prevents_hardcoded_fallbacks_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gin_config_prevents_hardcoded_fallbacks_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fail_fast_prevents_silent_failures_real_objects(self, real_service, test_data):
         """Real objects version of test_fail_fast_prevents_silent_failures"""
         # Test with real database integration
@@ -362,15 +270,8 @@ class TestRealObjectsSecureConfigLoader:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fail_fast_prevents_silent_failures_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.fail_fast_prevents_silent_failures_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -7,13 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-try:
-    from src.domains.trading.signals.indicator import FiveTwoBuy, FiveTwoSell
-except ImportError as e:
-    print(f"❌ Cannot import indicators: {e}")
-    print("Make sure to run: PYTHONPATH=src python test_five_two_indicators.py")
-    sys.exit(1)
-
+from domains.trading.signals.indicator import FiveTwoBuy, FiveTwoSell
 @dataclass
 class TestInstrumentInterval:
     """Test implementation of InstrumentInterval."""
@@ -147,7 +141,7 @@ def test_five_two_opposite_conditions():
     """Test that Five Two indicators work opposite to Five One indicators"""
     print("\n=== Testing Five Two vs Five One Opposite Conditions ===")
 
-    from src.domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
+    from domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
 
     # Test scenario: declining lows (102 -> 100)
     print("\nScenario: Declining lows (102 -> 100)")
@@ -244,23 +238,16 @@ def main():
     print("Five Two Indicators Comprehensive Test Suite")
     print("=" * 50)
 
-    try:
-        test_five_two_buy()
-        test_five_two_sell()
-        test_five_two_opposite_conditions()
-        test_edge_cases()
+    test_five_two_buy()
+    test_five_two_sell()
+    test_five_two_opposite_conditions()
+    test_edge_cases()
 
-        print("\n" + "=" * 50)
-        print("🎉 ALL FIVE TWO INDICATOR TESTS PASSED! 🎉")
-        print("=" * 50)
+    print("\n" + "=" * 50)
+    print("🎉 ALL FIVE TWO INDICATOR TESTS PASSED! 🎉")
+    print("=" * 50)
 
-        return True
-
-    except Exception as e:
-        print(f"\n❌ TEST FAILED: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return True
 
 if __name__ == "__main__":
     success = main()

@@ -44,17 +44,13 @@ class TestEnumUsageRegression:
         # Test in MarketDataConfig usage
         from core.market_data.unified_manager import MarketDataConfig, VendorType
         
-        try:
-            config = MarketDataConfig(
-                vendors=[VendorType.FIRSTRATE],
-                storage_backend=StorageBackend.FILE,  # Correct enum usage
-                file_storage_path="/tmp/test"
-            )
-            assert config.storage_backend == StorageBackend.FILE, "Config should store enum correctly"
-            
-        except Exception as e:
-            pytest.fail(f"StorageBackend enum usage failed: {e}")
-            
+        config = MarketDataConfig(
+            vendors=[VendorType.FIRSTRATE],
+            storage_backend=StorageBackend.FILE,  # Correct enum usage
+            file_storage_path="/tmp/test"
+        )
+        assert config.storage_backend == StorageBackend.FILE, "Config should store enum correctly"
+        
         print("✅ StorageBackend enum usage test passed")
 
     def test_vendor_type_enum_usage(self):
@@ -101,37 +97,26 @@ class TestGinConfigurationRegression:
         # Test loading the actual training_data.gin file
         gin_config_path = "config/training_data.gin"
         
-        try:
-            import gin
-            
-            # Clear any existing configuration
-            gin.clear_config()
-            
-            # Load the config file
-            gin.parse_config_file(gin_config_path)
-            
-            # Test that key configurations are loaded
-            # These should be set in the gin file
-            expected_configs = [
-                'domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes',
-                'domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes'
-            ]
-            
-            for config_key in expected_configs:
-                try:
-                    # Try to get the configuration value
-                    gin.get_configurable(config_key.split('.')[0])
-                except gin.config.ConfigError:
-                    # This is expected if the configuration isn't set
-                    pass
-                    
-            print("✅ Gin configuration loading test passed")
-            
-        except ImportError:
-            pytest.skip("Gin not available for testing")
-        except Exception as e:
-            pytest.fail(f"Gin configuration loading failed: {e}")
-
+        import gin
+        
+        # Clear any existing configuration
+        gin.clear_config()
+        
+        # Load the config file
+        gin.parse_config_file(gin_config_path)
+        
+        # Test that key configurations are loaded
+        # These should be set in the gin file
+        expected_configs = [
+            'domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes',
+            'domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes'
+        ]
+        
+        for config_key in expected_configs:
+            # Try to get the configuration value
+            gin.get_configurable(config_key.split('.')[0])
+        print("✅ Gin configuration loading test passed")
+        
     def test_gin_config_parameter_validation(self):
         """Test Gin configuration parameters are valid."""
         
@@ -281,17 +266,10 @@ class TestImportPathResolution:
         import_results = {}
         
         for import_path in critical_imports:
-            try:
-                module = __import__(import_path, fromlist=[''])
-                import_results[import_path] = True
-                assert module is not None, f"Module {import_path} should not be None"
-                
-            except ImportError as e:
-                import_results[import_path] = f"ImportError: {e}"
-            except Exception as e:
-                import_results[import_path] = f"Other error: {e}"
-                
-        # Check results
+            module = __import__(import_path, fromlist=[''])
+            import_results[import_path] = True
+            assert module is not None, f"Module {import_path} should not be None"
+            
         failed_imports = {path: error for path, error in import_results.items() 
                          if error is not True}
                          

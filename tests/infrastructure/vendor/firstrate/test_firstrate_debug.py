@@ -9,7 +9,7 @@ from pathlib import Path
 # Add src to Python path
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
-from domains.market_data.services.agent.firstrate_adapter import FirstRateAdapter
+from domains.market_data.services.data_collection.backfill.unified_backfill_orchestrator import FirstRateAdapter
 
 def debug_firstrate():
     """Debug FirstRate data paths"""
@@ -45,20 +45,16 @@ def debug_firstrate():
             print("❌ No FirstRate data found in Docker container")
 
     # Initialize adapter and test
-    try:
-        adapter = FirstRateAdapter("/data/firstrate-data")  # Docker path
-        zip_files = adapter.get_available_zip_files('stock')
-        print(f"✅ Adapter found {len(zip_files)} ZIP files")
+    adapter = FirstRateAdapter("/data/firstrate-data")  # Docker path
+    zip_files = adapter.get_available_zip_files('stock')
+    print(f"✅ Adapter found {len(zip_files)} ZIP files")
 
-        if zip_files:
-            first_zip = zip_files[0]
-            symbols = adapter.extract_symbols_from_zip(first_zip)
-            print(f"📊 Sample ZIP {first_zip.name} contains {len(symbols)} symbols")
-            if symbols:
-                print(f"🔸 Sample symbols: {symbols[:5]}")
-
-    except Exception as e:
-        print(f"❌ Adapter initialization failed: {e}")
+    if zip_files:
+        first_zip = zip_files[0]
+        symbols = adapter.extract_symbols_from_zip(first_zip)
+        print(f"📊 Sample ZIP {first_zip.name} contains {len(symbols)} symbols")
+        if symbols:
+            print(f"🔸 Sample symbols: {symbols[:5]}")
 
 if __name__ == "__main__":
     debug_firstrate()

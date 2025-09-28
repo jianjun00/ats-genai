@@ -14,7 +14,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from domains.analytics.events.economic_events_classifier import (
+from domains.analytics.services.events.economic_events_classifier import (
     EconomicEventsClassifier,
     EconomicEventsProcessor,
     EventCategory

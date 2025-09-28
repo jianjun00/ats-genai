@@ -40,46 +40,30 @@ class TimestampNavigationTestRunner:
 
     def check_analytics_service(self):
         """Check if analytics service is running."""
-        try:
-            response = requests.get(f"{self.base_url}/health", timeout=5)
-            self.analytics_service_running = response.status_code == 200
-            if self.analytics_service_running:
-                print("✅ Analytics service is running")
-            else:
-                print(f"⚠️ Analytics service responded with {response.status_code}")
-        except requests.ConnectionError:
-            self.analytics_service_running = False
-            print("❌ Analytics service is not accessible")
-        except Exception as e:
-            self.analytics_service_running = False
-            print(f"❌ Error checking analytics service: {e}")
-
+        response = requests.get(f"{self.base_url}/health", timeout=5)
+        self.analytics_service_running = response.status_code == 200
+        if self.analytics_service_running:
+            print("✅ Analytics service is running")
+        else:
+            print(f"⚠️ Analytics service responded with {response.status_code}")
         return self.analytics_service_running
 
     def start_analytics_service(self):
         """Start analytics service if not running."""
         if not self.analytics_service_running:
             print("🔧 Starting analytics service...")
-            try:
-                result = subprocess.run([
-                    "python", "scripts/run_dev.py", "start", "--service", "analytics"
-                ], cwd=self.project_root, capture_output=True, text=True, timeout=30)
+            result = subprocess.run([
+                "python", "scripts/run_dev.py", "start", "--service", "analytics"
+            ], cwd=self.project_root, capture_output=True, text=True, timeout=30)
 
-                if result.returncode == 0:
-                    print("✅ Analytics service started")
-                    # Wait a bit for service to be ready
-                    time.sleep(5)
-                    return self.check_analytics_service()
-                else:
-                    print(f"❌ Failed to start analytics service: {result.stderr}")
-                    return False
-            except subprocess.TimeoutExpired:
-                print("⏰ Timeout starting analytics service")
+            if result.returncode == 0:
+                print("✅ Analytics service started")
+                # Wait a bit for service to be ready
+                time.sleep(5)
+                return self.check_analytics_service()
+            else:
+                print(f"❌ Failed to start analytics service: {result.stderr}")
                 return False
-            except Exception as e:
-                print(f"❌ Error starting analytics service: {e}")
-                return False
-
         return True
 
     def run_unit_tests(self):
@@ -94,25 +78,17 @@ class TimestampNavigationTestRunner:
             print(f"❌ Unit test file not found: {test_file}")
             return False
 
-        try:
-            result = subprocess.run([
-                "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
-            ], cwd=self.project_root, timeout=300)  # 5 minute timeout
+        result = subprocess.run([
+            "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
+        ], cwd=self.project_root, timeout=300)  # 5 minute timeout
 
-            success = result.returncode == 0
-            if success:
-                print("✅ Unit tests passed")
-            else:
-                print("❌ Unit tests failed")
+        success = result.returncode == 0
+        if success:
+            print("✅ Unit tests passed")
+        else:
+            print("❌ Unit tests failed")
 
-            return success
-
-        except subprocess.TimeoutExpired:
-            print("⏰ Unit tests timed out")
-            return False
-        except Exception as e:
-            print(f"❌ Error running unit tests: {e}")
-            return False
+        return success
 
     def run_integration_tests(self):
         """Run integration tests."""
@@ -129,25 +105,17 @@ class TimestampNavigationTestRunner:
             print(f"❌ Integration test file not found: {test_file}")
             return False
 
-        try:
-            result = subprocess.run([
-                "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
-            ], cwd=self.project_root, timeout=600)  # 10 minute timeout
+        result = subprocess.run([
+            "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
+        ], cwd=self.project_root, timeout=600)  # 10 minute timeout
 
-            success = result.returncode == 0
-            if success:
-                print("✅ Integration tests passed")
-            else:
-                print("❌ Integration tests failed")
+        success = result.returncode == 0
+        if success:
+            print("✅ Integration tests passed")
+        else:
+            print("❌ Integration tests failed")
 
-            return success
-
-        except subprocess.TimeoutExpired:
-            print("⏰ Integration tests timed out")
-            return False
-        except Exception as e:
-            print(f"❌ Error running integration tests: {e}")
-            return False
+        return success
 
     def run_contract_tests(self):
         """Run API contract tests."""
@@ -165,25 +133,17 @@ class TimestampNavigationTestRunner:
             print(f"❌ Contract test file not found: {test_file}")
             return False
 
-        try:
-            result = subprocess.run([
-                "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
-            ], cwd=self.project_root, timeout=600)  # 10 minute timeout
+        result = subprocess.run([
+            "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
+        ], cwd=self.project_root, timeout=600)  # 10 minute timeout
 
-            success = result.returncode == 0
-            if success:
-                print("✅ API contract tests passed")
-            else:
-                print("❌ API contract tests failed")
+        success = result.returncode == 0
+        if success:
+            print("✅ API contract tests passed")
+        else:
+            print("❌ API contract tests failed")
 
-            return success
-
-        except subprocess.TimeoutExpired:
-            print("⏰ API contract tests timed out")
-            return False
-        except Exception as e:
-            print(f"❌ Error running API contract tests: {e}")
-            return False
+        return success
 
     def run_performance_tests(self):
         """Run performance tests."""
@@ -202,32 +162,20 @@ class TimestampNavigationTestRunner:
             return False
 
         # Install required packages for performance testing
-        try:
-            subprocess.run([
-                "pip", "install", "aiohttp", "psutil"
-            ], capture_output=True, check=True)
-        except subprocess.CalledProcessError:
-            print("⚠️ Could not install performance test dependencies")
+        subprocess.run([
+            "pip", "install", "aiohttp", "psutil"
+        ], capture_output=True, check=True)
+        result = subprocess.run([
+            "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
+        ], cwd=self.project_root, timeout=900)  # 15 minute timeout
 
-        try:
-            result = subprocess.run([
-                "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
-            ], cwd=self.project_root, timeout=900)  # 15 minute timeout
+        success = result.returncode == 0
+        if success:
+            print("✅ Performance tests passed")
+        else:
+            print("❌ Performance tests failed")
 
-            success = result.returncode == 0
-            if success:
-                print("✅ Performance tests passed")
-            else:
-                print("❌ Performance tests failed")
-
-            return success
-
-        except subprocess.TimeoutExpired:
-            print("⏰ Performance tests timed out")
-            return False
-        except Exception as e:
-            print(f"❌ Error running performance tests: {e}")
-            return False
+        return success
 
     def run_playwright_tests(self):
         """Run Playwright end-to-end tests."""
@@ -246,36 +194,18 @@ class TimestampNavigationTestRunner:
             return False
 
         # Check if Playwright is installed
-        try:
-            subprocess.run(["playwright", "--version"], capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print("🔧 Installing Playwright...")
-            try:
-                subprocess.run(["pip", "install", "playwright"], check=True)
-                subprocess.run(["playwright", "install", "chromium"], check=True)
-            except subprocess.CalledProcessError:
-                print("❌ Failed to install Playwright")
-                return False
+        subprocess.run(["playwright", "--version"], capture_output=True, check=True)
+        result = subprocess.run([
+            "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
+        ], cwd=self.project_root, timeout=900)  # 15 minute timeout
 
-        try:
-            result = subprocess.run([
-                "python", "-m", "pytest", str(test_file), "-v", "--tb=short", "-s"
-            ], cwd=self.project_root, timeout=900)  # 15 minute timeout
+        success = result.returncode == 0
+        if success:
+            print("✅ Playwright tests passed")
+        else:
+            print("❌ Playwright tests failed")
 
-            success = result.returncode == 0
-            if success:
-                print("✅ Playwright tests passed")
-            else:
-                print("❌ Playwright tests failed")
-
-            return success
-
-        except subprocess.TimeoutExpired:
-            print("⏰ Playwright tests timed out")
-            return False
-        except Exception as e:
-            print(f"❌ Error running Playwright tests: {e}")
-            return False
+        return success
 
     def run_all_tests(self):
         """Run all test types in proper order."""

@@ -15,12 +15,12 @@ from datetime import datetime
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from domains.ml.services.configurable_train_data_generator import (
+from domains.ml.services.training_data.generators.configurable_train_data_generator import (
     ConfigurableTrainingDataGenerator,
     ConfigurableTrainingDataConfig
 )
-from domains.trading.services.feature_registry import FeatureRegistry, FeatureConfig
-from domains.trading.services.label_registry import LabelRegistry, LabelConfig
+from domains.trading.services.indicators.feature_registry import FeatureRegistry, FeatureConfig
+from domains.trading.services.indicators.label_registry import LabelRegistry, LabelConfig
 
 class TestDataQualityIssues:
     """Test various data quality issues common in financial data."""
@@ -690,19 +690,14 @@ class TestErrorHandlingAndRecovery:
         generator = ConfigurableTrainingDataGenerator(config)
 
         # Should handle calculation errors gracefully
-        try:
-            result = generator.generate_training_data(problematic_data, symbols=['AAPL'])
+        result = generator.generate_training_data(problematic_data, symbols=['AAPL'])
 
-            # If it succeeds, check for reasonable output
-            if result['features'].shape[0] > 0:
-                features_array = result['features'].numpy() if hasattr(result['features'], 'numpy') else result['features']
+        # If it succeeds, check for reasonable output
+        if result['features'].shape[0] > 0:
+            features_array = result['features'].numpy() if hasattr(result['features'], 'numpy') else result['features']
 
-                # Should not contain infinite values in final output
-                assert not np.isinf(features_array).any()
-
-        except ValueError as e:
-            # It's acceptable to fail with clearly invalid data
-            assert "No training sequences generated" in str(e) or "insufficient data" in str(e).lower()
+            # Should not contain infinite values in final output
+            assert not np.isinf(features_array).any()
 
     def test_memory_pressure_handling(self):
         """Test behavior under memory pressure."""
@@ -764,19 +759,14 @@ class TestErrorHandlingAndRecovery:
         # Monitor memory during processing
         process = psutil.Process(os.getpid())
 
-        try:
-            result = generator.generate_training_data(data, symbols=symbols)
+        result = generator.generate_training_data(data, symbols=symbols)
 
-            # Should complete successfully
-            assert result['features'].shape[0] > 0
+        # Should complete successfully
+        assert result['features'].shape[0] > 0
 
-            # Memory should not be excessive (adjust threshold as needed)
-            memory_mb = process.memory_info().rss / 1024 / 1024
-            assert memory_mb < 4000  # Less than 4GB
-
-        except MemoryError:
-            # Acceptable failure mode under memory pressure
-            pytest.skip("Insufficient memory for test")
+        # Memory should not be excessive (adjust threshold as needed)
+        memory_mb = process.memory_info().rss / 1024 / 1024
+        assert memory_mb < 4000  # Less than 4GB
 
 def run_comprehensive_tests():
     """Run all comprehensive data quality tests."""

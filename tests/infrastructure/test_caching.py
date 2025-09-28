@@ -10,7 +10,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
-from src.infrastructure.caching import (
+from infrastructure.caching import (
     # Core caching
     CacheConfig,
     EvictionPolicy,
@@ -38,7 +38,7 @@ from src.infrastructure.caching import (
     get_cache
 )
 
-from src.infrastructure.optimization import (
+from infrastructure.optimization import (
     PerformanceProfiler,
     profile_performance
 )

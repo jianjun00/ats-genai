@@ -36,18 +36,12 @@ async def setup_test_environment():
     logger.info("Setting up test environment...")
 
     # Create manager instance
-    try:
-        manager = await UnifiedDBDailyPriceMarketDataManager.create_async(
-            env,
-            symbols=None  # Will load from universe membership
-        )
-        logger.info("✅ Market data manager created successfully")
-        return env, manager, logger
-    except Exception as e:
-        logger.error(f"❌ Failed to create market data manager: {e}")
-        raise
-
-
+    manager = await UnifiedDBDailyPriceMarketDataManager.create_async(
+        env,
+        symbols=None  # Will load from universe membership
+    )
+    logger.info("✅ Market data manager created successfully")
+    return env, manager, logger
 async def benchmark_symbol_resolution(manager, logger):
     """Benchmark symbol resolution performance with and without caching."""
     logger.info("\n" + "="*60)
@@ -159,41 +153,35 @@ async def benchmark_ohlc_batch_fetching(manager, logger):
     logger.info("Testing optimized batch OHLC fetching...")
     start_time = time.time()
 
-    try:
-        results = await manager.get_ohlc_batch(sample_ids, test_date, end_date, current_date)
-        batch_duration = time.time() - start_time
+    results = await manager.get_ohlc_batch(sample_ids, test_date, end_date, current_date)
+    batch_duration = time.time() - start_time
 
-        successful_fetches = sum(1 for result in results.values() if result is not None)
-        logger.info(f"Batch OHLC fetch: {batch_duration:.3f}s for {len(sample_ids)} instruments")
-        logger.info(f"Successful fetches: {successful_fetches}/{len(sample_ids)}")
-        logger.info(f"Average time per instrument: {batch_duration / len(sample_ids):.4f}s")
+    successful_fetches = sum(1 for result in results.values() if result is not None)
+    logger.info(f"Batch OHLC fetch: {batch_duration:.3f}s for {len(sample_ids)} instruments")
+    logger.info(f"Successful fetches: {successful_fetches}/{len(sample_ids)}")
+    logger.info(f"Average time per instrument: {batch_duration / len(sample_ids):.4f}s")
 
-        # Validate performance expectations
-        time_per_instrument = batch_duration / len(sample_ids)
-        if time_per_instrument < 0.1:  # Less than 100ms per instrument
-            logger.info("   ✅ Batch OHLC performance excellent (<100ms per instrument)")
-        elif time_per_instrument < 0.5:  # Less than 500ms per instrument
-            logger.info("   ✅ Batch OHLC performance good (<500ms per instrument)")
-        else:
-            logger.warning(f"   ⚠️  Batch OHLC performance could be improved ({time_per_instrument*1000:.0f}ms per instrument)")
+    # Validate performance expectations
+    time_per_instrument = batch_duration / len(sample_ids)
+    if time_per_instrument < 0.1:  # Less than 100ms per instrument
+        logger.info("   ✅ Batch OHLC performance excellent (<100ms per instrument)")
+    elif time_per_instrument < 0.5:  # Less than 500ms per instrument
+        logger.info("   ✅ Batch OHLC performance good (<500ms per instrument)")
+    else:
+        logger.warning(f"   ⚠️  Batch OHLC performance could be improved ({time_per_instrument*1000:.0f}ms per instrument)")
 
-        # Test cached performance (second call)
-        logger.info("Testing cached OHLC performance...")
-        start_time = time.time()
+    # Test cached performance (second call)
+    logger.info("Testing cached OHLC performance...")
+    start_time = time.time()
 
-        cached_results = await manager.get_ohlc_batch(sample_ids, test_date, end_date, current_date)
-        cached_duration = time.time() - start_time
+    cached_results = await manager.get_ohlc_batch(sample_ids, test_date, end_date, current_date)
+    cached_duration = time.time() - start_time
 
-        logger.info(f"Cached OHLC fetch: {cached_duration:.3f}s for {len(sample_ids)} instruments")
+    logger.info(f"Cached OHLC fetch: {cached_duration:.3f}s for {len(sample_ids)} instruments")
 
-        if cached_duration > 0 and batch_duration > 0:
-            cache_improvement = batch_duration / cached_duration
-            logger.info(f"Cache improvement: {cache_improvement:.1f}x faster")
-
-    except Exception as e:
-        logger.error(f"❌ OHLC batch fetching failed: {e}")
-        logger.error("This might indicate missing test data or database connectivity issues")
-
+    if cached_duration > 0 and batch_duration > 0:
+        cache_improvement = batch_duration / cached_duration
+        logger.info(f"Cache improvement: {cache_improvement:.1f}x faster")
 
 async def generate_performance_report(logger):
     """Generate comprehensive performance report."""
@@ -254,29 +242,22 @@ async def main():
     print("🚀 Data Pipeline Performance Validation")
     print("="*80)
 
-    try:
-        # Setup
-        env, manager, logger = await setup_test_environment()
+    # Setup
+    env, manager, logger = await setup_test_environment()
 
-        # Run benchmarks
-        await benchmark_symbol_resolution(manager, logger)
-        await benchmark_ohlc_batch_fetching(manager, logger)
+    # Run benchmarks
+    await benchmark_symbol_resolution(manager, logger)
+    await benchmark_ohlc_batch_fetching(manager, logger)
 
-        # Generate report
-        await generate_performance_report(logger)
+    # Generate report
+    await generate_performance_report(logger)
 
-        logger.info("\n✅ Performance validation completed successfully!")
-        logger.info("\nKey Findings:")
-        logger.info("  • Batch operations significantly outperform individual calls")
-        logger.info("  • Caching provides substantial performance improvements")
-        logger.info("  • Database query efficiency improved through bulk operations")
-        logger.info("  • Performance monitoring provides detailed insights")
-
-    except Exception as e:
-        print(f"\n❌ Validation failed with error: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
+    logger.info("\n✅ Performance validation completed successfully!")
+    logger.info("\nKey Findings:")
+    logger.info("  • Batch operations significantly outperform individual calls")
+    logger.info("  • Caching provides substantial performance improvements")
+    logger.info("  • Database query efficiency improved through bulk operations")
+    logger.info("  • Performance monitoring provides detailed insights")
 
     return 0
 

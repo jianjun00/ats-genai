@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from core.calendars.time_duration import TimeDuration, DurationType
+from core.business.calendars.time_duration import TimeDuration, DurationType
 
 class TestTimeDuration:
     """Test cases for TimeDuration class."""

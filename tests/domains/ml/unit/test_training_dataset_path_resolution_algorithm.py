@@ -89,7 +89,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
 
         # Import and create analytics service with our test directory
         from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-        service = UnifiedAnalyticsService()
+        service = UnifiedUnifiedAnalyticsService()
 
         # Patch the training_base_paths to use our test directory
         with patch.object(service, 'training_base_paths', [self.training_data_dir]):
@@ -126,7 +126,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
         )
 
         from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-        service = UnifiedAnalyticsService()
+        service = UnifiedUnifiedAnalyticsService()
 
         # Mock the file search to track which directories were searched
         searched_paths = []
@@ -172,7 +172,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
         )
 
         from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-        service = UnifiedAnalyticsService()
+        service = UnifiedUnifiedAnalyticsService()
 
         with patch.object(service, 'training_base_paths', [self.training_data_dir]):
             result = service.get_training_dataset_visualization_data(dataset_id=2)
@@ -201,7 +201,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
         )
 
         from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-        service = UnifiedAnalyticsService()
+        service = UnifiedUnifiedAnalyticsService()
 
         with patch.object(service, 'training_base_paths', [self.training_data_dir]):
             result = service.get_training_dataset_visualization_data(dataset_id=3)
@@ -238,7 +238,7 @@ class TestTrainingDatasetPathResolutionAlgorithm:
         )
 
         from domains.analytics.services.analytics_service import UnifiedAnalyticsService
-        service = UnifiedAnalyticsService()
+        service = UnifiedUnifiedAnalyticsService()
 
         # Test with multiple search paths
         search_paths = [self.training_data_dir, alt_training_dir]

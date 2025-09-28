@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.instruments.services.instrument_service import InstrumentService
-from domains.instruments.dao.instruments_dao import InstrumentsDAO
-from domains.instruments.dao.secmaster_dao import SecmasterDAO
+from domains.instruments.services.impl.instrument_service_cached import InstrumentService
+from domains.instruments.repositories.instruments_dao import InstrumentsDAO
+from domains.instruments.repositories.secmaster_dao import SecmasterDAO
 
 
 class TestRealObjectsInstrumentServiceImplRealObjects:
@@ -56,13 +51,7 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_environment_real_objects(self, real_service, test_data):
         """Real objects version of test_environment"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.environment_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.environment_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_instrument_data_real_objects(self, real_service, test_data):
         """Real objects version of test_instrument_data"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.instrument_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.instrument_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_instrument_real_objects_real_objects(self, real_service, test_data):
         """Real objects version of test_create_instrument_real_objects"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_instrument_real_objects_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.create_instrument_real_objects_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_instrument_real_objects_real_objects(self, real_service, test_data):
         """Real objects version of test_get_instrument_real_objects"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_instrument_real_objects_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_instrument_real_objects_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_instrument_by_symbol_real_objects_real_objects(self, real_service, test_data):
         """Real objects version of test_get_instrument_by_symbol_real_objects"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_instrument_by_symbol_real_objects_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_instrument_by_symbol_real_objects_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_list_instruments_real_objects_real_objects(self, real_service, test_data):
         """Real objects version of test_list_instruments_real_objects"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.list_instruments_real_objects_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.list_instruments_real_objects_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_business_rule_enforcement_real_objects_real_objects(self, real_service, test_data):
         """Real objects version of test_business_rule_enforcement_real_objects"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.business_rule_enforcement_real_objects_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.business_rule_enforcement_real_objects_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_handling_real_objects_real_objects(self, real_service, test_data):
         """Real objects version of test_error_handling_real_objects"""
         # Test with real database integration
@@ -231,15 +178,8 @@ class TestRealObjectsInstrumentServiceImplRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_handling_real_objects_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.error_handling_real_objects_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

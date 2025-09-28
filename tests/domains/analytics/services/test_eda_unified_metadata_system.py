@@ -21,15 +21,9 @@ class TestEDAUnifiedMetadataSystem:
     @pytest.fixture(scope="class")
     def service_running(self):
         """Ensure analytics service is running"""
-        try:
-            response = requests.get(f"{self.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                pytest.skip("Analytics service not running")
-        except requests.ConnectionError:
-            pytest.skip("Analytics service not accessible")
-
-    # Test 1: Core UI and Interface Tests
-
+        response = requests.get(f"{self.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
+            pytest.skip("Analytics service not running")
     def test_eda_page_loads_with_unified_tabs(self, service_running):
         """Test that EDA page loads with database and training dataset tabs"""
         response = requests.get(f"{self.BASE_URL}/eda", timeout=10)
@@ -94,26 +88,22 @@ class TestEDAUnifiedMetadataSystem:
 
         schema_working = False
         for table in small_tables:
-            try:
-                response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{table}/schema", timeout=8)
-                if response.status_code == 200:
-                    schema = response.json()
-                    assert "table_name" in schema, "Schema should include table_name"
-                    assert "columns" in schema, "Schema should include columns"
-                    assert isinstance(schema["columns"], list), "Columns should be a list"
+            response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{table}/schema", timeout=8)
+            if response.status_code == 200:
+                schema = response.json()
+                assert "table_name" in schema, "Schema should include table_name"
+                assert "columns" in schema, "Schema should include columns"
+                assert isinstance(schema["columns"], list), "Columns should be a list"
 
-                    # Verify column structure
-                    if schema["columns"]:
-                        col = schema["columns"][0]
-                        assert "name" in col, "Column should have name"
-                        assert "type" in col, "Column should have type"
-                        assert "nullable" in col, "Column should have nullable info"
+                # Verify column structure
+                if schema["columns"]:
+                    col = schema["columns"][0]
+                    assert "name" in col, "Column should have name"
+                    assert "type" in col, "Column should have type"
+                    assert "nullable" in col, "Column should have nullable info"
 
-                    schema_working = True
-                    break
-            except requests.Timeout:
-                continue
-
+                schema_working = True
+                break
         assert schema_working, f"Schema API should work for at least one small table from {small_tables}"
 
     def test_data_table_api_functionality(self, service_running):
@@ -130,26 +120,22 @@ class TestEDAUnifiedMetadataSystem:
 
         data_api_working = False
         for table in small_tables:
-            try:
-                response = requests.post(
-                    f"{self.BASE_URL}/api/eda/datasets/{table}/data",
-                    json=payload,
-                    headers={'Content-Type': 'application/json'},
-                    timeout=10
-                )
+            response = requests.post(
+                f"{self.BASE_URL}/api/eda/datasets/{table}/data",
+                json=payload,
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
 
-                if response.status_code == 200:
-                    data = response.json()
-                    assert "data" in data, "Response should include data"
-                    assert "total_count" in data, "Response should include total_count"
-                    assert "current_page" in data, "Response should include current_page"
-                    assert isinstance(data["data"], list), "Data should be a list"
+            if response.status_code == 200:
+                data = response.json()
+                assert "data" in data, "Response should include data"
+                assert "total_count" in data, "Response should include total_count"
+                assert "current_page" in data, "Response should include current_page"
+                assert isinstance(data["data"], list), "Data should be a list"
 
-                    data_api_working = True
-                    break
-
-            except requests.Timeout:
-                continue
+                data_api_working = True
+                break
 
         assert data_api_working, f"Data API should work for at least one small table from {small_tables}"
 
@@ -184,45 +170,27 @@ class TestEDAUnifiedMetadataSystem:
         job_manager = JobManager()
 
         # Test with invalid table name
-        try:
-            schema = job_manager.get_dataset_schema("nonexistent_table")
-            # Should either return error dict or raise exception
-            if isinstance(schema, dict) and "error" in schema:
-                assert True, "Error properly handled in dict format"
-            else:
-                # If no error, schema should be valid
-                assert "columns" in schema, "Valid schema should have columns"
-        except Exception as e:
-            assert "error" in str(e).lower() or "not" in str(e).lower(), "Exception should indicate error"
-
-    # Test 4: Database Metadata System Tests
-
+        schema = job_manager.get_dataset_schema("nonexistent_table")
+        # Should either return error dict or raise exception
+        if isinstance(schema, dict) and "error" in schema:
+            assert True, "Error properly handled in dict format"
+        else:
+            # If no error, schema should be valid
+            assert "columns" in schema, "Valid schema should have columns"
     def test_metadata_database_tables_exist(self):
         """Test that metadata database tables exist and have correct structure"""
         import asyncpg
         import asyncio
 
         async def check_tables():
-            try:
-                # Try Docker connection first
-                conn = await asyncpg.connect(
-                    host='postgres',
-                    port=5432,
-                    user='postgres',
-                    password='dev_password',
-                    database='dev_db'
-                )
-            except:
-                # Fallback to localhost
-                conn = await asyncpg.connect(
-                    host='localhost',
-                    port=3432,
-                    user='postgres',
-                    password='dev_password',
-                    database='dev_db'
-                )
-
-            # Check that our metadata tables exist
+            # Try Docker connection first
+            conn = await asyncpg.connect(
+                host='postgres',
+                port=5432,
+                user='postgres',
+                password='dev_password',
+                database='dev_db'
+            )
             tables = await conn.fetch("""
                 SELECT table_name FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_name LIKE 'dev_dataset%'
@@ -246,17 +214,10 @@ class TestEDAUnifiedMetadataSystem:
         import asyncio
 
         async def check_training_data():
-            try:
-                conn = await asyncpg.connect(
-                    host='postgres', port=5432, user='postgres',
-                    password='dev_password', database='dev_db'
-                )
-            except:
-                conn = await asyncpg.connect(
-                    host='localhost', port=3432, user='postgres',
-                    password='dev_password', database='dev_db'
-                )
-
+            conn = await asyncpg.connect(
+                host='postgres', port=5432, user='postgres',
+                password='dev_password', database='dev_db'
+            )
             training_datasets = await conn.fetch("""
                 SELECT name, display_name, dataset_type, total_rows
                 FROM dev_datasets
@@ -283,21 +244,13 @@ class TestEDAUnifiedMetadataSystem:
     def test_api_timeout_handling(self, service_running):
         """Test that APIs handle timeouts gracefully"""
         # Test with very short timeout to force timeout condition
-        try:
-            response = requests.get(
-                f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema",
-                timeout=0.1  # Very short timeout
-            )
-            # If it doesn't timeout, that's fine too
-            if response.status_code == 200:
-                pytest.skip("API responded too quickly to test timeout handling")
-        except requests.Timeout:
-            # This is expected - timeout should be handled gracefully
-            assert True, "Timeout should be handled gracefully"
-        except requests.ConnectionError:
-            # Service might be overloaded, which is also a valid test result
-            assert True, "Connection error indicates service handling load"
-
+        response = requests.get(
+            f"{self.BASE_URL}/api/eda/datasets/dev_daily_price_tiingo/schema",
+            timeout=0.1  # Very short timeout
+        )
+        # If it doesn't timeout, that's fine too
+        if response.status_code == 200:
+            pytest.skip("API responded too quickly to test timeout handling")
     def test_large_dataset_handling(self, service_running):
         """Test behavior with large datasets"""
         # Get list of large datasets
@@ -388,29 +341,23 @@ class TestEDAUnifiedMetadataSystem:
         dataset_name = test_dataset['name']
 
         # Step 2: Get schema (with extended timeout)
-        try:
-            response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{dataset_name}/schema", timeout=15)
+        response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{dataset_name}/schema", timeout=15)
+        if response.status_code == 200:
+            schema = response.json()
+            assert 'columns' in schema
+
+            # Step 3: Get data sample
+            payload = {"filters": {}, "page": 1, "page_size": 1}
+            response = requests.post(
+                f"{self.BASE_URL}/api/eda/datasets/{dataset_name}/data",
+                json=payload,
+                timeout=10
+            )
+
             if response.status_code == 200:
-                schema = response.json()
-                assert 'columns' in schema
-
-                # Step 3: Get data sample
-                payload = {"filters": {}, "page": 1, "page_size": 1}
-                response = requests.post(
-                    f"{self.BASE_URL}/api/eda/datasets/{dataset_name}/data",
-                    json=payload,
-                    timeout=10
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
-                    assert 'data' in data
-                    pytest.mark.workflow_complete = True
-
-        except requests.Timeout:
-            pytest.skip("Workflow test skipped due to timeout - performance issue noted")
-
-    # Test 8: Error Condition Tests
+                data = response.json()
+                assert 'data' in data
+                pytest.mark.workflow_complete = True
 
     def test_invalid_dataset_name_handling(self, service_running):
         """Test handling of invalid dataset names"""
@@ -427,19 +374,13 @@ class TestEDAUnifiedMetadataSystem:
     def test_malformed_request_handling(self, service_running):
         """Test handling of malformed requests"""
         # Test malformed JSON
-        try:
-            response = requests.post(
-                f"{self.BASE_URL}/api/eda/datasets/dev_analyst_ratings/data",
-                data="invalid json{",
-                headers={'Content-Type': 'application/json'},
-                timeout=5
-            )
-            assert response.status_code in [400, 500], "Malformed JSON should return appropriate error code"
-        except requests.Timeout:
-            pass  # Timeout is acceptable for this test
-
-    # Test 9: Service Health and Dependencies
-
+        response = requests.post(
+            f"{self.BASE_URL}/api/eda/datasets/dev_analyst_ratings/data",
+            data="invalid json{",
+            headers={'Content-Type': 'application/json'},
+            timeout=5
+        )
+        assert response.status_code in [400, 500], "Malformed JSON should return appropriate error code"
     def test_service_dependencies(self, service_running):
         """Test that service dependencies are working"""
         # Test database connection
@@ -474,14 +415,9 @@ class TestPerformanceIssues:
         large_tables = ["dev_daily_price_tiingo", "dev_daily_price_eodhd"]
 
         for table in large_tables:
-            try:
-                response = requests.get(f"{BASE_URL}/api/eda/datasets/{table}/schema", timeout=3)
-                if response.status_code == 200:
-                    pytest.skip(f"Large table {table} responded quickly - timeout issue may be resolved")
-            except requests.Timeout:
-                # This documents the known performance issue
-                pytest.xfail(f"Known issue: Large table {table} causes timeout - needs performance optimization")
-
+            response = requests.get(f"{BASE_URL}/api/eda/datasets/{table}/schema", timeout=3)
+            if response.status_code == 200:
+                pytest.skip(f"Large table {table} responded quickly - timeout issue may be resolved")
     def test_ray_dns_resolution_issue(self):
         """Document the Ray DNS resolution issue found in logs"""
         # This test documents the Ray integration issue
@@ -489,17 +425,12 @@ class TestPerformanceIssues:
 
         import subprocess
 
-        try:
-            result = subprocess.run([
-                'docker', 'logs', 'ats-dev-analytics', '--tail', '100'
-            ], capture_output=True, text=True, timeout=5)
+        result = subprocess.run([
+            'docker', 'logs', 'ats-dev-analytics', '--tail', '100'
+        ], capture_output=True, text=True, timeout=5)
 
-            if 'Temporary failure in name resolution' in result.stderr or 'Temporary failure in name resolution' in result.stdout:
-                pytest.xfail("Known issue: Ray has DNS resolution problems in Docker environment")
-
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pytest.skip("Cannot check logs for Ray DNS issue")
-
+        if 'Temporary failure in name resolution' in result.stderr or 'Temporary failure in name resolution' in result.stdout:
+            pytest.xfail("Known issue: Ray has DNS resolution problems in Docker environment")
 
 if __name__ == "__main__":
     # Run tests directly

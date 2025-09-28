@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsTrainingDataDatabaseRegistration:
@@ -56,13 +51,7 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_training_data_end_to_end_registration_real_objects(self, real_service, test_data):
         """Real objects version of test_training_data_end_to_end_registration"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.training_data_end_to_end_registration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.training_data_end_to_end_registration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ui_endpoint_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_ui_endpoint_consistency"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ui_endpoint_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ui_endpoint_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_registration_function_exists_real_objects(self, real_service, test_data):
         """Real objects version of test_database_registration_function_exists"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_registration_function_exists_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_registration_function_exists_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_training_dataset_has_meaningful_data_real_objects(self, real_service, test_data):
         """Real objects version of test_training_dataset_has_meaningful_data"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.training_dataset_has_meaningful_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.training_dataset_has_meaningful_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_latest_tsla_dataset_has_data_real_objects(self, real_service, test_data):
         """Real objects version of test_latest_tsla_dataset_has_data"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.latsla_dataset_has_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.latsla_dataset_has_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detect_orphaned_files_real_objects(self, real_service, test_data):
         """Real objects version of test_detect_orphaned_files"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detect_orphaned_files_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.detect_orphaned_files_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detect_orphaned_database_entries_real_objects(self, real_service, test_data):
         """Real objects version of test_detect_orphaned_database_entries"""
         # Test with real database integration
@@ -209,15 +162,8 @@ class TestRealObjectsTrainingDataDatabaseRegistration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detect_orphaned_database_entries_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.detect_orphaned_database_entries_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

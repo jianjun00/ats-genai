@@ -21,18 +21,13 @@ def test_feature_extraction_runner_imports_correctly():
     """
     print("🔍 Testing feature_extraction_runner imports correctly")
     
-    try:
-        from domains.ml.services.training_data.runners import feature_extraction_runner
-        print("   ✅ feature_extraction_runner imported successfully")
-        
-        # Verify the module loaded properly
-        assert hasattr(feature_extraction_runner, 'main'), "Module should have main function"
-        print("   ✅ feature_extraction_runner module is properly loaded")
-        
-    except ImportError as e:
-        pytest.fail(f"feature_extraction_runner import failed: {e}")
-
-
+    from domains.ml.services.training_data.runners import feature_extraction_runner
+    print("   ✅ feature_extraction_runner imported successfully")
+    
+    # Verify the module loaded properly
+    assert hasattr(feature_extraction_runner, 'main'), "Module should have main function"
+    print("   ✅ feature_extraction_runner module is properly loaded")
+    
 def test_no_database_manager_references():
     """
     Test that DatabaseManager references have been properly removed.
@@ -167,26 +162,21 @@ def test_training_callback_still_works():
     """
     print("\n🔍 Testing training callback still works")
     
-    try:
-        from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-        print("   ✅ IntervalBasedTrainingDataCallback imported successfully")
-        
-        # Verify basic instantiation works
-        from datetime import datetime
-        callback = IntervalBasedTrainingDataCallback(
-            symbols=['AAPL'],
-            start_date=datetime(2025, 7, 1),
-            end_date=datetime(2025, 7, 31),
-            output_dir='/tmp/test'
-        )
-        
-        assert callback.symbols == ['AAPL'], "Callback should be properly initialized"
-        print("   ✅ Training callback instantiation works correctly")
-        
-    except Exception as e:
-        pytest.fail(f"Training callback functionality broken: {e}")
-
-
+    from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+    print("   ✅ IntervalBasedTrainingDataCallback imported successfully")
+    
+    # Verify basic instantiation works
+    from datetime import datetime
+    callback = IntervalBasedTrainingDataCallback(
+        symbols=['AAPL'],
+        start_date=datetime(2025, 7, 1),
+        end_date=datetime(2025, 7, 31),
+        output_dir='/tmp/test'
+    )
+    
+    assert callback.symbols == ['AAPL'], "Callback should be properly initialized"
+    print("   ✅ Training callback instantiation works correctly")
+    
 if __name__ == "__main__":
     """
     Run test to verify fail-fast exception removal fix.

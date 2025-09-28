@@ -159,11 +159,7 @@ class TestStartupManagerIntegration:
                                             raise KeyboardInterrupt("Test exit")
 
                                     with patch('time.sleep', side_effect=mock_sleep):
-                                        try:
-                                            result = main()
-                                        except KeyboardInterrupt:
-                                            result = True  # Normal for this test
-
+                                        result = main()
                                     assert result is True
 
     def test_startup_scenario_has_existing_data(self):
@@ -191,11 +187,7 @@ class TestStartupManagerIntegration:
                                                 raise KeyboardInterrupt("Test exit")
 
                                         with patch('time.sleep', side_effect=mock_sleep):
-                                            try:
-                                                result = main()
-                                            except KeyboardInterrupt:
-                                                result = True
-
+                                            result = main()
                                         assert result is True
 
     def test_startup_scenario_empty_with_dev_data(self):
@@ -233,11 +225,7 @@ class TestStartupManagerIntegration:
                                                             raise KeyboardInterrupt("Test exit")
 
                                                     with patch('time.sleep', side_effect=mock_sleep):
-                                                        try:
-                                                            result = main()
-                                                        except KeyboardInterrupt:
-                                                            result = True
-
+                                                        result = main()
                                                     assert result is True
 
     def test_startup_scenario_empty_no_dev_data(self):
@@ -265,11 +253,7 @@ class TestStartupManagerIntegration:
                                                 raise KeyboardInterrupt("Test exit")
 
                                         with patch('time.sleep', side_effect=mock_sleep):
-                                            try:
-                                                result = main()
-                                            except KeyboardInterrupt:
-                                                result = True
-
+                                            result = main()
                                         assert result is True
 
     def test_startup_postgres_not_ready(self):

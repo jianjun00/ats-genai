@@ -71,35 +71,30 @@ class Migration0025:
             self.logger.warning(f"Table {table_name} does not exist, skipping")
             return
 
-        try:
-            # Step 1: Add run_id column with default value for existing records
-            self.logger.info(f"Adding run_id column to {table_name}")
-            add_column_query = f"""
-            ALTER TABLE {table_name}
-            ADD COLUMN run_id VARCHAR(255) DEFAULT 'legacy_run_pre_0025'
-            """
-            await connection.execute(add_column_query)
+        # Step 1: Add run_id column with default value for existing records
+        self.logger.info(f"Adding run_id column to {table_name}")
+        add_column_query = f"""
+        ALTER TABLE {table_name}
+        ADD COLUMN run_id VARCHAR(255) DEFAULT 'legacy_run_pre_0025'
+        """
+        await connection.execute(add_column_query)
 
-            # Step 2: Add index on run_id for performance
-            self.logger.info(f"Adding index on run_id for {table_name}")
-            add_index_query = f"""
-            CREATE INDEX IF NOT EXISTS idx_{table_name}_run_id
-            ON {table_name} (run_id)
-            """
-            await connection.execute(add_index_query)
+        # Step 2: Add index on run_id for performance
+        self.logger.info(f"Adding index on run_id for {table_name}")
+        add_index_query = f"""
+        CREATE INDEX IF NOT EXISTS idx_{table_name}_run_id
+        ON {table_name} (run_id)
+        """
+        await connection.execute(add_index_query)
 
-            # Step 3: Update column comment for documentation
-            comment_query = f"""
-            COMMENT ON COLUMN {table_name}.run_id IS
-            'Unique run identifier to allow multiple training runs to process same intervals'
-            """
-            await connection.execute(comment_query)
+        # Step 3: Update column comment for documentation
+        comment_query = f"""
+        COMMENT ON COLUMN {table_name}.run_id IS
+        'Unique run identifier to allow multiple training runs to process same intervals'
+        """
+        await connection.execute(comment_query)
 
-            self.logger.info(f"Successfully added run_id column to {table_name}")
-
-        except Exception as e:
-            self.logger.error(f"Error adding run_id to {table_name}: {e}")
-            raise
+        self.logger.info(f"Successfully added run_id column to {table_name}")
 
     async def down(self, connection: asyncpg.Connection, environment_prefix: str) -> None:
         """Rollback the migration."""
@@ -113,21 +108,17 @@ class Migration0025:
         self.logger.info(f"Rolling back migration {self.migration_id}")
 
         for table_name in tables:
-            try:
-                # Drop index
-                await connection.execute(f"""
-                DROP INDEX IF EXISTS idx_{table_name}_run_id
-                """)
+            # Drop index
+            await connection.execute(f"""
+            DROP INDEX IF EXISTS idx_{table_name}_run_id
+            """)
 
-                # Drop column
-                await connection.execute(f"""
-                ALTER TABLE {table_name} DROP COLUMN IF EXISTS run_id
-                """)
+            # Drop column
+            await connection.execute(f"""
+            ALTER TABLE {table_name} DROP COLUMN IF EXISTS run_id
+            """)
 
-                self.logger.info(f"Successfully rolled back run_id from {table_name}")
-
-            except Exception as e:
-                self.logger.error(f"Error rolling back run_id from {table_name}: {e}")
+            self.logger.info(f"Successfully rolled back run_id from {table_name}")
 
     def get_migration_info(self) -> Dict[str, str]:
         """Get migration metadata."""
@@ -144,29 +135,23 @@ async def apply_migration_to_environment(db_config: Dict[str, str], environment_
     """Apply migration to a specific environment."""
     migration = Migration0025()
 
-    try:
-        # Connect to database
-        conn = await asyncpg.connect(
-            host=db_config['host'],
-            port=db_config['port'],
-            user=db_config['user'],
-            password=db_config['password'],
-            database=db_config['database']
-        )
+    # Connect to database
+    conn = await asyncpg.connect(
+        host=db_config['host'],
+        port=db_config['port'],
+        user=db_config['user'],
+        password=db_config['password'],
+        database=db_config['database']
+    )
 
-        try:
-            # Apply migration
-            await migration.up(conn, environment_prefix)
+    # Apply migration
+    await migration.up(conn, environment_prefix)
 
-            print(f"✅ Migration {migration.migration_id} applied successfully to {environment_prefix}")
-            return True
+    print(f"✅ Migration {migration.migration_id} applied successfully to {environment_prefix}")
+    return True
 
-        finally:
-            await conn.close()
-
-    except Exception as e:
-        print(f"❌ Failed to apply migration {migration.migration_id} to {environment_prefix}: {e}")
-        return False
+    print(f"❌ Failed to apply migration {migration.migration_id} to {environment_prefix}: {e}")
+    return False
 
 
 async def main():
@@ -206,14 +191,8 @@ async def main():
     # Apply to each environment
     for env_name, config in environments.items():
         print(f"\n📋 Applying migration to {env_name.upper()} environment...")
-        try:
-            success = await apply_migration_to_environment(config, config['prefix'])
-            results[env_name] = success
-        except Exception as e:
-            print(f"❌ Unexpected error in {env_name}: {e}")
-            results[env_name] = False
-
-    # Summary
+        success = await apply_migration_to_environment(config, config['prefix'])
+        results[env_name] = success
     print(f"\n🎯 Migration Summary:")
     print("=" * 30)
 

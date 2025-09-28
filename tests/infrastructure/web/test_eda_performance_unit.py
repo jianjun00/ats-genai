@@ -111,14 +111,8 @@ class TestEDAPerformanceOptimizations:
 
         # Test error case - should raise exception
         error_data = {"error": "Database unavailable"}
-        try:
-            process_with_proper_errors(error_data)
-            assert False, "Should have raised an exception"
-        except Exception as e:
-            assert "Database error" in str(e)
-            assert "Database unavailable" in str(e)
-
-        # Test success case
+        process_with_proper_errors(error_data)
+        assert False, "Should have raised an exception"
         good_data = {"values": ["real1", "real2"], "count": 100}
         result = process_with_proper_errors(good_data)
         assert result == good_data
@@ -154,14 +148,11 @@ class TestEDAPerformanceOptimizations:
             """Simulate Promise.allSettled behavior in Python."""
             results = []
             for promise in promises:
-                try:
-                    if callable(promise):
-                        result = promise()
-                        results.append({"status": "fulfilled", "value": result})
-                    else:
-                        results.append({"status": "fulfilled", "value": promise})
-                except Exception as e:
-                    results.append({"status": "rejected", "reason": str(e)})
+                if callable(promise):
+                    result = promise()
+                    results.append({"status": "fulfilled", "value": result})
+                else:
+                    results.append({"status": "fulfilled", "value": promise})
             return results
 
         # Test mixed success and failure
@@ -267,41 +258,35 @@ if __name__ == "__main__":
 
     print("🧪 Running EDA Performance Unit Tests...")
 
-    try:
-        test_class.test_column_limit_calculation()
-        print("✅ Column limit calculation test passed")
+    test_class.test_column_limit_calculation()
+    print("✅ Column limit calculation test passed")
 
-        test_class.test_parallel_vs_sequential_timing_simulation()
-        print("✅ Parallel vs sequential timing test passed")
+    test_class.test_parallel_vs_sequential_timing_simulation()
+    print("✅ Parallel vs sequential timing test passed")
 
-        test_class.test_error_handling_structure_validation()
-        print("✅ Error handling structure validation test passed")
+    test_class.test_error_handling_structure_validation()
+    print("✅ Error handling structure validation test passed")
 
-        test_class.test_data_limiting_logic()
-        print("✅ Data limiting logic test passed")
+    test_class.test_data_limiting_logic()
+    print("✅ Data limiting logic test passed")
 
-        test_class.test_proper_error_handling_logic()
-        print("✅ Proper error handling logic test passed")
+    test_class.test_proper_error_handling_logic()
+    print("✅ Proper error handling logic test passed")
 
-        test_class.test_pagination_optimization_logic()
-        print("✅ Pagination optimization test passed")
+    test_class.test_pagination_optimization_logic()
+    print("✅ Pagination optimization test passed")
 
-        test_class.test_promise_allsettled_simulation()
-        print("✅ Promise.allSettled simulation test passed")
+    test_class.test_promise_allsettled_simulation()
+    print("✅ Promise.allSettled simulation test passed")
 
-        test_class.test_memory_optimization_patterns()
-        print("✅ Memory optimization patterns test passed")
+    test_class.test_memory_optimization_patterns()
+    print("✅ Memory optimization patterns test passed")
 
-        test_class.test_timeout_and_limit_configurations()
-        print("✅ Timeout and limit configurations test passed")
+    test_class.test_timeout_and_limit_configurations()
+    print("✅ Timeout and limit configurations test passed")
 
-        test_class.test_chart_rendering_optimization_data()
-        print("✅ Chart rendering optimization test passed")
+    test_class.test_chart_rendering_optimization_data()
+    print("✅ Chart rendering optimization test passed")
 
-        print("\n🎉 All EDA performance unit tests passed!")
+    print("\n🎉 All EDA performance unit tests passed!")
 
-    except Exception as e:
-        print(f"❌ Unit test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        exit(1)

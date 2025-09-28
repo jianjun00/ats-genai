@@ -10,10 +10,10 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 
-from state.training_data_callback import DateBasedTrainingDataCallback
+from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from core.shared.utils.environment import Environment, EnvironmentType
-from state.universe_state_manager import UniverseStateManager
+from core.platform.config.environment import Environment, EnvironmentType
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 class MockRunner:
     """Mock runner that provides required interface without database complexity."""
@@ -44,7 +44,7 @@ class TestPureCallbackTraining:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             # ✅ Create ONLY the callback - no TrainingDataRunner class
-            callback = DateBasedTrainingDataCallback(
+            callback = IntervalBasedTrainingDataCallback(
                 symbols=['AAPL'],
                 config=config,
                 output_dir=tmp_dir,
@@ -174,7 +174,7 @@ class TestPureCallbackTraining:
         Test pure callback approach with Runner framework.
 
         This shows the CORRECT way - no TrainingDataRunner class,
-        just DateBasedTrainingDataCallback with existing Runner.
+        just IntervalBasedTrainingDataCallback with existing Runner.
         """
         from app.runner import Runner
 
@@ -188,7 +188,7 @@ class TestPureCallbackTraining:
             print("=" * 60)
 
             # ✅ Create ONLY the callback - no TrainingDataRunner class
-            training_callback = DateBasedTrainingDataCallback(
+            training_callback = IntervalBasedTrainingDataCallback(
                 symbols=['AAPL'],
                 config=config,
                 output_dir=tmp_dir,
@@ -231,7 +231,7 @@ class TestPureCallbackTraining:
             print(f"✅ Files created: {len(metadata_files)} metadata files")
 
             # Verify this was pure callback (no runner class)
-            assert isinstance(training_callback, DateBasedTrainingDataCallback)
+            assert isinstance(training_callback, IntervalBasedTrainingDataCallback)
             assert not hasattr(training_callback, 'generate_training_data')  # Not a runner class
             assert hasattr(training_callback, 'handleInterval')  # Is a callback
 
@@ -241,7 +241,7 @@ class TestPureCallbackTraining:
 
             print(f"\n🎯 Architecture Verification:")
             print(f"✅ Uses existing Runner framework")
-            print(f"✅ DateBasedTrainingDataCallback handles ALL logic")
+            print(f"✅ IntervalBasedTrainingDataCallback handles ALL logic")
             print(f"❌ NO TrainingDataRunner class needed")
             print(f"✅ All logic in callback handlers")
 
@@ -254,7 +254,7 @@ class TestPureCallbackTraining:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Test with multiple symbols
-            callback = DateBasedTrainingDataCallback(
+            callback = IntervalBasedTrainingDataCallback(
                 symbols=['AAPL', 'TSLA', 'GOOGL'],
                 config=config,
                 output_dir=tmp_dir,
@@ -298,9 +298,9 @@ class TestPureCallbackTraining:
 
     def test_callback_interface_compliance(self):
         """Verify callback implements required interface correctly."""
-        from state.runner_callback import RunnerCallback
+        from domains.trading.services.state.runner_callback import RunnerCallback
 
-        callback = DateBasedTrainingDataCallback(symbols=['AAPL'])
+        callback = IntervalBasedTrainingDataCallback(symbols=['AAPL'])
 
         # Verify it's a proper callback
         assert isinstance(callback, RunnerCallback)

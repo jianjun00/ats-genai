@@ -38,7 +38,7 @@ sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 # Set environment to skip gin loading
 os.environ['GIN_LOAD_DEFAULT_CONFIG'] = '0'
 
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from core.shared.run_context import RunContext
 
 
@@ -61,12 +61,8 @@ class TestRunIdUniquenessValidation:
 
     async def get_db_connection(self) -> asyncpg.Connection:
         """Get database connection for testing."""
-        try:
-            conn = await asyncpg.connect(**self.db_config)
-            return conn
-        except Exception as e:
-            pytest.skip(f"Cannot connect to intg database: {e}")
-
+        conn = await asyncpg.connect(**self.db_config)
+        return conn
     @pytest.mark.asyncio
     async def test_run_id_generation_uniqueness(self):
         """Test: Run ID generation produces unique IDs across multiple calls."""
@@ -104,45 +100,41 @@ class TestRunIdUniquenessValidation:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Check for existing run IDs in the database
-            existing_runs_query = """
-                SELECT run_id, created_at, status 
-                FROM intg_runs 
-                ORDER BY created_at DESC 
-                LIMIT 50
-            """
-            
-            existing_runs = await conn.fetch(existing_runs_query)
-            existing_run_ids = {row['run_id'] for row in existing_runs}
-            
-            print(f"📊 Found {len(existing_run_ids)} existing run IDs in database:")
-            for i, run_id in enumerate(list(existing_run_ids)[:10]):
-                print(f"   {i+1}. {run_id}")
-            if len(existing_run_ids) > 10:
-                print(f"   ... and {len(existing_run_ids) - 10} more")
-            
-            # Test run ID collision detection function
-            def check_run_id_exists(potential_run_id: str) -> bool:
-                return potential_run_id in existing_run_ids
-            
-            # Generate new run ID and verify it's unique
-            new_run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
-            
-            collision_detected = check_run_id_exists(new_run_id)
-            assert not collision_detected, f"New run ID {new_run_id} collides with existing run!"
-            
-            # Test collision detection with a known existing run ID
-            if existing_run_ids:
-                existing_run_id = list(existing_run_ids)[0]
-                collision_detected = check_run_id_exists(existing_run_id)
-                assert collision_detected, f"Should detect collision for existing run ID {existing_run_id}"
-            
-            print("✅ Run ID collision detection working correctly")
-            
-        finally:
-            await conn.close()
-
+        # Check for existing run IDs in the database
+        existing_runs_query = """
+            SELECT run_id, created_at, status 
+            FROM intg_runs 
+            ORDER BY created_at DESC 
+            LIMIT 50
+        """
+        
+        existing_runs = await conn.fetch(existing_runs_query)
+        existing_run_ids = {row['run_id'] for row in existing_runs}
+        
+        print(f"📊 Found {len(existing_run_ids)} existing run IDs in database:")
+        for i, run_id in enumerate(list(existing_run_ids)[:10]):
+            print(f"   {i+1}. {run_id}")
+        if len(existing_run_ids) > 10:
+            print(f"   ... and {len(existing_run_ids) - 10} more")
+        
+        # Test run ID collision detection function
+        def check_run_id_exists(potential_run_id: str) -> bool:
+            return potential_run_id in existing_run_ids
+        
+        # Generate new run ID and verify it's unique
+        new_run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        
+        collision_detected = check_run_id_exists(new_run_id)
+        assert not collision_detected, f"New run ID {new_run_id} collides with existing run!"
+        
+        # Test collision detection with a known existing run ID
+        if existing_run_ids:
+            existing_run_id = list(existing_run_ids)[0]
+            collision_detected = check_run_id_exists(existing_run_id)
+            assert collision_detected, f"Should detect collision for existing run ID {existing_run_id}"
+        
+        print("✅ Run ID collision detection working correctly")
+        
     @pytest.mark.asyncio 
     async def test_instrument_interval_constraint_violation_detection(self):
         """Test: Detect potential instrument_interval constraint violations."""
@@ -151,68 +143,64 @@ class TestRunIdUniquenessValidation:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Query for potential constraint violations in intg_instrument_interval
-            constraint_check_query = """
-                SELECT 
-                    instrument_id,
-                    interval_start,
-                    interval_duration, 
-                    run_id,
-                    COUNT(*) as duplicate_count
-                FROM intg_instrument_interval 
-                WHERE instrument_id = 31  -- AAPL instrument_id
-                  AND interval_start >= '2025-07-01'
-                  AND interval_start <= '2025-09-13'
-                GROUP BY instrument_id, interval_start, interval_duration, run_id
-                HAVING COUNT(*) > 1
-                ORDER BY interval_start DESC
-                LIMIT 20
-            """
+        # Query for potential constraint violations in intg_instrument_interval
+        constraint_check_query = """
+            SELECT 
+                instrument_id,
+                interval_start,
+                interval_duration, 
+                run_id,
+                COUNT(*) as duplicate_count
+            FROM intg_instrument_interval 
+            WHERE instrument_id = 31  -- AAPL instrument_id
+              AND interval_start >= '2025-07-01'
+              AND interval_start <= '2025-09-13'
+            GROUP BY instrument_id, interval_start, interval_duration, run_id
+            HAVING COUNT(*) > 1
+            ORDER BY interval_start DESC
+            LIMIT 20
+        """
+        
+        duplicates = await conn.fetch(constraint_check_query)
+        
+        if duplicates:
+            print(f"🚨 FOUND {len(duplicates)} CONSTRAINT VIOLATIONS:")
+            for row in duplicates:
+                print(f"   Duplicate: instrument={row['instrument_id']}, "
+                      f"interval={row['interval_start']}, "
+                      f"run={row['run_id']}, "
+                      f"count={row['duplicate_count']}")
             
-            duplicates = await conn.fetch(constraint_check_query)
-            
-            if duplicates:
-                print(f"🚨 FOUND {len(duplicates)} CONSTRAINT VIOLATIONS:")
-                for row in duplicates:
-                    print(f"   Duplicate: instrument={row['instrument_id']}, "
-                          f"interval={row['interval_start']}, "
-                          f"run={row['run_id']}, "
-                          f"count={row['duplicate_count']}")
-                
-                pytest.fail(f"Database contains {len(duplicates)} constraint violations!")
-            
-            # Check for run ID reuse across different intervals
-            run_id_reuse_query = """
-                SELECT 
-                    run_id,
-                    COUNT(DISTINCT interval_start) as interval_count,
-                    MIN(interval_start) as first_interval,
-                    MAX(interval_start) as last_interval,
-                    COUNT(*) as total_records
-                FROM intg_instrument_interval 
-                WHERE instrument_id = 31
-                  AND interval_start >= '2025-07-01'
-                GROUP BY run_id
-                HAVING COUNT(*) > 100  -- Suspiciously high record count
-                ORDER BY total_records DESC
-                LIMIT 10
-            """
-            
-            high_usage_runs = await conn.fetch(run_id_reuse_query)
-            
-            if high_usage_runs:
-                print(f"📊 Found {len(high_usage_runs)} runs with high record counts:")
-                for row in high_usage_runs:
-                    print(f"   Run {row['run_id']}: {row['total_records']} records, "
-                          f"{row['interval_count']} intervals, "
-                          f"from {row['first_interval']} to {row['last_interval']}")
-            
-            print("✅ Instrument interval constraint validation completed")
-            
-        finally:
-            await conn.close()
-
+            pytest.fail(f"Database contains {len(duplicates)} constraint violations!")
+        
+        # Check for run ID reuse across different intervals
+        run_id_reuse_query = """
+            SELECT 
+                run_id,
+                COUNT(DISTINCT interval_start) as interval_count,
+                MIN(interval_start) as first_interval,
+                MAX(interval_start) as last_interval,
+                COUNT(*) as total_records
+            FROM intg_instrument_interval 
+            WHERE instrument_id = 31
+              AND interval_start >= '2025-07-01'
+            GROUP BY run_id
+            HAVING COUNT(*) > 100  -- Suspiciously high record count
+            ORDER BY total_records DESC
+            LIMIT 10
+        """
+        
+        high_usage_runs = await conn.fetch(run_id_reuse_query)
+        
+        if high_usage_runs:
+            print(f"📊 Found {len(high_usage_runs)} runs with high record counts:")
+            for row in high_usage_runs:
+                print(f"   Run {row['run_id']}: {row['total_records']} records, "
+                      f"{row['interval_count']} intervals, "
+                      f"from {row['first_interval']} to {row['last_interval']}")
+        
+        print("✅ Instrument interval constraint validation completed")
+        
     @pytest.mark.asyncio
     async def test_failed_run_cleanup_detection(self):
         """Test: Detect failed runs that need cleanup."""
@@ -221,60 +209,56 @@ class TestRunIdUniquenessValidation:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Find incomplete/failed runs
-            failed_runs_query = """
-                SELECT DISTINCT
-                    ii.run_id,
-                    COUNT(ii.*) as interval_records,
-                    MIN(ii.interval_start) as first_interval,
-                    MAX(ii.interval_start) as last_interval,
-                    CASE 
-                        WHEN r.status IS NULL THEN 'orphaned'
-                        ELSE r.status 
-                    END as run_status
-                FROM intg_instrument_interval ii
-                LEFT JOIN intg_runs r ON ii.run_id = r.run_id
-                WHERE ii.instrument_id = 31
-                  AND ii.interval_start >= '2025-07-01'
-                GROUP BY ii.run_id, r.status
-                ORDER BY interval_records DESC
-            """
-            
-            runs_analysis = await conn.fetch(failed_runs_query)
-            
-            orphaned_runs = [r for r in runs_analysis if r['run_status'] == 'orphaned']
-            failed_runs = [r for r in runs_analysis if r['run_status'] in ('failed', 'error')]
-            incomplete_runs = [r for r in runs_analysis if r['interval_records'] < 10]  # Suspiciously low
-            
-            print(f"📊 Run Analysis Results:")
-            print(f"   Total runs analyzed: {len(runs_analysis)}")
-            print(f"   Orphaned runs (no intg_runs record): {len(orphaned_runs)}")
-            print(f"   Failed runs: {len(failed_runs)}")
-            print(f"   Incomplete runs (<10 intervals): {len(incomplete_runs)}")
-            
-            if orphaned_runs:
-                print(f"\n🚨 ORPHANED RUNS NEED CLEANUP:")
-                for run in orphaned_runs[:5]:
-                    print(f"   {run['run_id']}: {run['interval_records']} intervals, "
-                          f"{run['first_interval']} to {run['last_interval']}")
-            
-            if failed_runs:
-                print(f"\n💥 FAILED RUNS:")
-                for run in failed_runs[:5]:
-                    print(f"   {run['run_id']}: {run['run_status']}, "
-                          f"{run['interval_records']} intervals")
-            
-            # Create cleanup recommendations
-            cleanup_needed = len(orphaned_runs) + len(failed_runs)
-            if cleanup_needed > 0:
-                print(f"\n🧹 CLEANUP RECOMMENDATION: Remove {cleanup_needed} failed/orphaned runs")
-            else:
-                print(f"\n✅ No cleanup needed - all runs have proper status tracking")
-            
-        finally:
-            await conn.close()
-
+        # Find incomplete/failed runs
+        failed_runs_query = """
+            SELECT DISTINCT
+                ii.run_id,
+                COUNT(ii.*) as interval_records,
+                MIN(ii.interval_start) as first_interval,
+                MAX(ii.interval_start) as last_interval,
+                CASE 
+                    WHEN r.status IS NULL THEN 'orphaned'
+                    ELSE r.status 
+                END as run_status
+            FROM intg_instrument_interval ii
+            LEFT JOIN intg_runs r ON ii.run_id = r.run_id
+            WHERE ii.instrument_id = 31
+              AND ii.interval_start >= '2025-07-01'
+            GROUP BY ii.run_id, r.status
+            ORDER BY interval_records DESC
+        """
+        
+        runs_analysis = await conn.fetch(failed_runs_query)
+        
+        orphaned_runs = [r for r in runs_analysis if r['run_status'] == 'orphaned']
+        failed_runs = [r for r in runs_analysis if r['run_status'] in ('failed', 'error')]
+        incomplete_runs = [r for r in runs_analysis if r['interval_records'] < 10]  # Suspiciously low
+        
+        print(f"📊 Run Analysis Results:")
+        print(f"   Total runs analyzed: {len(runs_analysis)}")
+        print(f"   Orphaned runs (no intg_runs record): {len(orphaned_runs)}")
+        print(f"   Failed runs: {len(failed_runs)}")
+        print(f"   Incomplete runs (<10 intervals): {len(incomplete_runs)}")
+        
+        if orphaned_runs:
+            print(f"\n🚨 ORPHANED RUNS NEED CLEANUP:")
+            for run in orphaned_runs[:5]:
+                print(f"   {run['run_id']}: {run['interval_records']} intervals, "
+                      f"{run['first_interval']} to {run['last_interval']}")
+        
+        if failed_runs:
+            print(f"\n💥 FAILED RUNS:")
+            for run in failed_runs[:5]:
+                print(f"   {run['run_id']}: {run['run_status']}, "
+                      f"{run['interval_records']} intervals")
+        
+        # Create cleanup recommendations
+        cleanup_needed = len(orphaned_runs) + len(failed_runs)
+        if cleanup_needed > 0:
+            print(f"\n🧹 CLEANUP RECOMMENDATION: Remove {cleanup_needed} failed/orphaned runs")
+        else:
+            print(f"\n✅ No cleanup needed - all runs have proper status tracking")
+        
     @pytest.mark.asyncio
     async def test_concurrent_run_id_generation_safety(self):
         """Test: Concurrent run ID generation doesn't produce collisions."""
@@ -402,12 +386,8 @@ class TestDatabaseConstraintValidation:
 
     async def get_db_connection(self) -> asyncpg.Connection:
         """Get database connection for testing."""
-        try:
-            conn = await asyncpg.connect(**self.db_config)
-            return conn
-        except Exception as e:
-            pytest.skip(f"Cannot connect to intg database: {e}")
-
+        conn = await asyncpg.connect(**self.db_config)
+        return conn
     @pytest.mark.asyncio
     async def test_database_constraint_definitions(self):
         """Test: Verify database constraint definitions are correct."""
@@ -416,69 +396,65 @@ class TestDatabaseConstraintValidation:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Check constraint definitions
-            constraint_query = """
-                SELECT 
-                    tc.constraint_name,
-                    tc.constraint_type,
-                    tc.table_name,
-                    kcu.column_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage kcu 
-                    ON tc.constraint_name = kcu.constraint_name
-                WHERE tc.table_name IN ('intg_instrument_interval', 'intg_runs', 'intg_training_datasets')
-                  AND tc.constraint_type IN ('UNIQUE', 'PRIMARY KEY')
-                ORDER BY tc.table_name, tc.constraint_name, kcu.ordinal_position
-            """
+        # Check constraint definitions
+        constraint_query = """
+            SELECT 
+                tc.constraint_name,
+                tc.constraint_type,
+                tc.table_name,
+                kcu.column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu 
+                ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name IN ('intg_instrument_interval', 'intg_runs', 'intg_training_datasets')
+              AND tc.constraint_type IN ('UNIQUE', 'PRIMARY KEY')
+            ORDER BY tc.table_name, tc.constraint_name, kcu.ordinal_position
+        """
+        
+        constraints = await conn.fetch(constraint_query)
+        
+        print(f"📊 Database Constraints Found: {len(constraints)}")
+        
+        constraint_groups = {}
+        for row in constraints:
+            table = row['table_name']
+            constraint = row['constraint_name']
+            key = f"{table}.{constraint}"
             
-            constraints = await conn.fetch(constraint_query)
+            if key not in constraint_groups:
+                constraint_groups[key] = {
+                    'type': row['constraint_type'],
+                    'table': table,
+                    'columns': []
+                }
+            constraint_groups[key]['columns'].append(row['column_name'])
+        
+        for constraint_key, info in constraint_groups.items():
+            print(f"   {constraint_key}:")
+            print(f"      Type: {info['type']}")
+            print(f"      Columns: {', '.join(info['columns'])}")
+        
+        # Verify the problematic constraint exists
+        problematic_constraint = 'intg_instrument_interval.intg_instrument_interval_instrument_id_interval_start_run_key'
+        
+        if problematic_constraint in constraint_groups:
+            constraint_info = constraint_groups[problematic_constraint]
+            print(f"\n🎯 Found problematic constraint:")
+            print(f"   {problematic_constraint}")
+            print(f"   Columns: {constraint_info['columns']}")
             
-            print(f"📊 Database Constraints Found: {len(constraints)}")
+            # Verify it's the constraint causing our issues
+            expected_columns = ['instrument_id', 'interval_start', 'interval_duration', 'run_id']
+            actual_columns = sorted(constraint_info['columns'])
+            expected_columns_sorted = sorted(expected_columns)
             
-            constraint_groups = {}
-            for row in constraints:
-                table = row['table_name']
-                constraint = row['constraint_name']
-                key = f"{table}.{constraint}"
-                
-                if key not in constraint_groups:
-                    constraint_groups[key] = {
-                        'type': row['constraint_type'],
-                        'table': table,
-                        'columns': []
-                    }
-                constraint_groups[key]['columns'].append(row['column_name'])
+            assert actual_columns == expected_columns_sorted, \
+                f"Constraint columns mismatch. Expected: {expected_columns_sorted}, Got: {actual_columns}"
             
-            for constraint_key, info in constraint_groups.items():
-                print(f"   {constraint_key}:")
-                print(f"      Type: {info['type']}")
-                print(f"      Columns: {', '.join(info['columns'])}")
+            print("✅ Constraint definition matches error message")
+        else:
+            print("⚠️  Problematic constraint not found - may have been modified")
             
-            # Verify the problematic constraint exists
-            problematic_constraint = 'intg_instrument_interval.intg_instrument_interval_instrument_id_interval_start_run_key'
-            
-            if problematic_constraint in constraint_groups:
-                constraint_info = constraint_groups[problematic_constraint]
-                print(f"\n🎯 Found problematic constraint:")
-                print(f"   {problematic_constraint}")
-                print(f"   Columns: {constraint_info['columns']}")
-                
-                # Verify it's the constraint causing our issues
-                expected_columns = ['instrument_id', 'interval_start', 'interval_duration', 'run_id']
-                actual_columns = sorted(constraint_info['columns'])
-                expected_columns_sorted = sorted(expected_columns)
-                
-                assert actual_columns == expected_columns_sorted, \
-                    f"Constraint columns mismatch. Expected: {expected_columns_sorted}, Got: {actual_columns}"
-                
-                print("✅ Constraint definition matches error message")
-            else:
-                print("⚠️  Problematic constraint not found - may have been modified")
-                
-        finally:
-            await conn.close()
-
     @pytest.mark.asyncio
     async def test_constraint_violation_prevention(self):
         """Test: Methods to prevent constraint violations."""
@@ -487,66 +463,61 @@ class TestDatabaseConstraintValidation:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Method 1: Pre-flight check for existing records
-            def create_precheck_query(instrument_id: int, interval_start: str, 
-                                    interval_duration: str, run_id: str) -> str:
-                return f"""
-                    SELECT COUNT(*) as existing_count
-                    FROM intg_instrument_interval 
-                    WHERE instrument_id = {instrument_id}
-                      AND interval_start = '{interval_start}'
-                      AND interval_duration = '{interval_duration}'
-                      AND run_id = '{run_id}'
-                """
-            
-            # Test with a known problematic combination from the error
-            test_instrument_id = 31
-            test_interval_start = '2025-07-03 23:00:00+00'
-            test_interval_duration = '60m'
-            test_run_id = 'run_20250913_053441_b23b366c'  # From the error message
-            
-            precheck_query = create_precheck_query(
-                test_instrument_id, test_interval_start, 
-                test_interval_duration, test_run_id
-            )
-            
-            result = await conn.fetchrow(precheck_query)
-            existing_count = result['existing_count']
-            
-            print(f"📊 Pre-flight Check Results:")
-            print(f"   Instrument: {test_instrument_id}")
-            print(f"   Interval: {test_interval_start}")
-            print(f"   Duration: {test_interval_duration}")
-            print(f"   Run ID: {test_run_id}")
-            print(f"   Existing records: {existing_count}")
-            
-            if existing_count > 0:
-                print("🚨 CONSTRAINT VIOLATION WOULD OCCUR - Insert should be skipped!")
-            else:
-                print("✅ No conflict detected - Insert would succeed")
-            
-            # Method 2: UPSERT/ON CONFLICT strategy
-            upsert_strategy = """
-                INSERT INTO intg_instrument_interval 
-                (instrument_id, interval_start, interval_duration, run_id, ...)
-                VALUES (?, ?, ?, ?, ...)
-                ON CONFLICT (instrument_id, interval_start, interval_duration, run_id) 
-                DO NOTHING
+        # Method 1: Pre-flight check for existing records
+        def create_precheck_query(instrument_id: int, interval_start: str, 
+                                interval_duration: str, run_id: str) -> str:
+            return f"""
+                SELECT COUNT(*) as existing_count
+                FROM intg_instrument_interval 
+                WHERE instrument_id = {instrument_id}
+                  AND interval_start = '{interval_start}'
+                  AND interval_duration = '{interval_duration}'
+                  AND run_id = '{run_id}'
             """
-            
-            print(f"\n🔧 Suggested Prevention Methods:")
-            print(f"   1. Pre-flight check: Query existing records before insert")
-            print(f"   2. UPSERT with ON CONFLICT DO NOTHING")
-            print(f"   3. Run ID uniqueness validation before start")
-            print(f"   4. Failed run cleanup before new run")
-            
-            print("✅ Constraint violation prevention methods defined")
-            
-        finally:
-            await conn.close()
-
-
+        
+        # Test with a known problematic combination from the error
+        test_instrument_id = 31
+        test_interval_start = '2025-07-03 23:00:00+00'
+        test_interval_duration = '60m'
+        test_run_id = 'run_20250913_053441_b23b366c'  # From the error message
+        
+        precheck_query = create_precheck_query(
+            test_instrument_id, test_interval_start, 
+            test_interval_duration, test_run_id
+        )
+        
+        result = await conn.fetchrow(precheck_query)
+        existing_count = result['existing_count']
+        
+        print(f"📊 Pre-flight Check Results:")
+        print(f"   Instrument: {test_instrument_id}")
+        print(f"   Interval: {test_interval_start}")
+        print(f"   Duration: {test_interval_duration}")
+        print(f"   Run ID: {test_run_id}")
+        print(f"   Existing records: {existing_count}")
+        
+        if existing_count > 0:
+            print("🚨 CONSTRAINT VIOLATION WOULD OCCUR - Insert should be skipped!")
+        else:
+            print("✅ No conflict detected - Insert would succeed")
+        
+        # Method 2: UPSERT/ON CONFLICT strategy
+        upsert_strategy = """
+            INSERT INTO intg_instrument_interval 
+            (instrument_id, interval_start, interval_duration, run_id, ...)
+            VALUES (?, ?, ?, ?, ...)
+            ON CONFLICT (instrument_id, interval_start, interval_duration, run_id) 
+            DO NOTHING
+        """
+        
+        print(f"\n🔧 Suggested Prevention Methods:")
+        print(f"   1. Pre-flight check: Query existing records before insert")
+        print(f"   2. UPSERT with ON CONFLICT DO NOTHING")
+        print(f"   3. Run ID uniqueness validation before start")
+        print(f"   4. Failed run cleanup before new run")
+        
+        print("✅ Constraint violation prevention methods defined")
+        
 class TestRunCleanupMechanisms:
     """Test mechanisms for cleaning up failed/duplicate runs."""
     
@@ -562,12 +533,8 @@ class TestRunCleanupMechanisms:
 
     async def get_db_connection(self) -> asyncpg.Connection:
         """Get database connection for testing."""
-        try:
-            conn = await asyncpg.connect(**self.db_config)
-            return conn
-        except Exception as e:
-            pytest.skip(f"Cannot connect to intg database: {e}")
-
+        conn = await asyncpg.connect(**self.db_config)
+        return conn
     @pytest.mark.asyncio
     async def test_failed_run_identification(self):
         """Test: Identify runs that need cleanup."""
@@ -576,85 +543,81 @@ class TestRunCleanupMechanisms:
         
         conn = await self.get_db_connection()
         
-        try:
-            # Comprehensive failed run analysis
-            failed_run_analysis_query = """
-                WITH run_stats AS (
-                    SELECT 
-                        ii.run_id,
-                        COUNT(*) as interval_count,
-                        MIN(ii.interval_start) as first_interval,
-                        MAX(ii.interval_start) as last_interval,
-                        MIN(ii.created_at) as run_started,
-                        MAX(ii.created_at) as last_activity,
-                        EXTRACT(EPOCH FROM (MAX(ii.created_at) - MIN(ii.created_at))) / 3600.0 as duration_hours
-                    FROM intg_instrument_interval ii
-                    WHERE ii.instrument_id = 31
-                      AND ii.interval_start >= '2025-07-01'
-                    GROUP BY ii.run_id
-                ),
-                run_status AS (
-                    SELECT 
-                        rs.*,
-                        r.status as official_status,
-                        r.created_at as run_record_created,
-                        CASE 
-                            WHEN r.run_id IS NULL THEN 'orphaned'
-                            WHEN r.status = 'failed' THEN 'failed'
-                            WHEN r.status = 'running' AND rs.last_activity < NOW() - INTERVAL '1 hour' THEN 'stalled'
-                            WHEN rs.interval_count < 10 THEN 'incomplete'
-                            WHEN rs.duration_hours > 24 THEN 'excessive_duration'
-                            ELSE 'normal'
-                        END as cleanup_category
-                    FROM run_stats rs
-                    LEFT JOIN intg_runs r ON rs.run_id = r.run_id
-                )
+        # Comprehensive failed run analysis
+        failed_run_analysis_query = """
+            WITH run_stats AS (
                 SELECT 
-                    cleanup_category,
-                    COUNT(*) as run_count,
-                    SUM(interval_count) as total_intervals,
-                    AVG(interval_count) as avg_intervals,
-                    MIN(run_started) as earliest_run,
-                    MAX(last_activity) as latest_activity
-                FROM run_status
-                GROUP BY cleanup_category
-                ORDER BY run_count DESC
-            """
+                    ii.run_id,
+                    COUNT(*) as interval_count,
+                    MIN(ii.interval_start) as first_interval,
+                    MAX(ii.interval_start) as last_interval,
+                    MIN(ii.created_at) as run_started,
+                    MAX(ii.created_at) as last_activity,
+                    EXTRACT(EPOCH FROM (MAX(ii.created_at) - MIN(ii.created_at))) / 3600.0 as duration_hours
+                FROM intg_instrument_interval ii
+                WHERE ii.instrument_id = 31
+                  AND ii.interval_start >= '2025-07-01'
+                GROUP BY ii.run_id
+            ),
+            run_status AS (
+                SELECT 
+                    rs.*,
+                    r.status as official_status,
+                    r.created_at as run_record_created,
+                    CASE 
+                        WHEN r.run_id IS NULL THEN 'orphaned'
+                        WHEN r.status = 'failed' THEN 'failed'
+                        WHEN r.status = 'running' AND rs.last_activity < NOW() - INTERVAL '1 hour' THEN 'stalled'
+                        WHEN rs.interval_count < 10 THEN 'incomplete'
+                        WHEN rs.duration_hours > 24 THEN 'excessive_duration'
+                        ELSE 'normal'
+                    END as cleanup_category
+                FROM run_stats rs
+                LEFT JOIN intg_runs r ON rs.run_id = r.run_id
+            )
+            SELECT 
+                cleanup_category,
+                COUNT(*) as run_count,
+                SUM(interval_count) as total_intervals,
+                AVG(interval_count) as avg_intervals,
+                MIN(run_started) as earliest_run,
+                MAX(last_activity) as latest_activity
+            FROM run_status
+            GROUP BY cleanup_category
+            ORDER BY run_count DESC
+        """
+        
+        cleanup_analysis = await conn.fetch(failed_run_analysis_query)
+        
+        print(f"📊 Failed Run Analysis Results:")
+        total_problematic_runs = 0
+        total_problematic_intervals = 0
+        
+        for row in cleanup_analysis:
+            category = row['cleanup_category'] 
+            run_count = row['run_count']
+            total_intervals = row['total_intervals']
+            avg_intervals = row['avg_intervals']
             
-            cleanup_analysis = await conn.fetch(failed_run_analysis_query)
+            print(f"   {category}:")
+            print(f"      Runs: {run_count}")
+            print(f"      Total intervals: {total_intervals}")
+            print(f"      Avg intervals/run: {avg_intervals:.1f}")
+            print(f"      Date range: {row['earliest_run']} to {row['latest_activity']}")
             
-            print(f"📊 Failed Run Analysis Results:")
-            total_problematic_runs = 0
-            total_problematic_intervals = 0
-            
-            for row in cleanup_analysis:
-                category = row['cleanup_category'] 
-                run_count = row['run_count']
-                total_intervals = row['total_intervals']
-                avg_intervals = row['avg_intervals']
-                
-                print(f"   {category}:")
-                print(f"      Runs: {run_count}")
-                print(f"      Total intervals: {total_intervals}")
-                print(f"      Avg intervals/run: {avg_intervals:.1f}")
-                print(f"      Date range: {row['earliest_run']} to {row['latest_activity']}")
-                
-                if category in ['orphaned', 'failed', 'stalled', 'incomplete']:
-                    total_problematic_runs += run_count
-                    total_problematic_intervals += total_intervals
-            
-            print(f"\n🧹 Cleanup Summary:")
-            print(f"   Total problematic runs: {total_problematic_runs}")
-            print(f"   Total problematic intervals: {total_problematic_intervals}")
-            
-            if total_problematic_runs > 0:
-                print(f"   📋 CLEANUP NEEDED: {total_problematic_runs} runs require attention")
-            else:
-                print(f"   ✅ No problematic runs detected")
-            
-        finally:
-            await conn.close()
-
+            if category in ['orphaned', 'failed', 'stalled', 'incomplete']:
+                total_problematic_runs += run_count
+                total_problematic_intervals += total_intervals
+        
+        print(f"\n🧹 Cleanup Summary:")
+        print(f"   Total problematic runs: {total_problematic_runs}")
+        print(f"   Total problematic intervals: {total_problematic_intervals}")
+        
+        if total_problematic_runs > 0:
+            print(f"   📋 CLEANUP NEEDED: {total_problematic_runs} runs require attention")
+        else:
+            print(f"   ✅ No problematic runs detected")
+        
     @pytest.mark.asyncio
     async def test_cleanup_strategy_definition(self):
         """Test: Define comprehensive cleanup strategies."""

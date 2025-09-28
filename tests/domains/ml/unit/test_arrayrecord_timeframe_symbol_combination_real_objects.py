@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsArrayRecordTimeframeSymbolCombination:
@@ -56,13 +51,7 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_timeframe_directories_created_real_objects(self, real_service, test_data):
         """Real objects version of test_timeframe_directories_created"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.timeframe_directories_created_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.timeframe_directories_created_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_one_arrayrecord_per_timeframe_symbol_combination_real_objects(self, real_service, test_data):
         """Real objects version of test_one_arrayrecord_per_timeframe_symbol_combination"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.one_arrayrecord_per_timeframe_symbol_combination_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.one_arrayrecord_per_timeframe_symbol_combination_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_filename_format_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_filename_format_validation"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.filename_format_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.filename_format_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_duplicate_symbol_timeframe_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_duplicate_symbol_timeframe_handling"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.duplicate_symbol_timeframe_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.duplicate_symbol_timeframe_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_expected_timeframes_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_expected_timeframes_consistency"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.expected_timeframes_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.expected_timeframes_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_metadata_files_accompany_arrayrecord_files_real_objects(self, real_service, test_data):
         """Real objects version of test_metadata_files_accompany_arrayrecord_files"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.metadata_files_accompany_arrayrecord_files_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.metadata_files_accompany_arrayrecord_files_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_handling_preserves_one_file_per_combination_invariant_real_objects(self, real_service, test_data):
         """Real objects version of test_error_handling_preserves_one_file_per_combination_invariant"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_handling_preserves_one_file_per_combination_invariant_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.error_handling_preserves_one_file_per_combination_invariant_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_examples_grouping_by_timeframe_symbol_real_objects(self, real_service, test_data):
         """Real objects version of test_examples_grouping_by_timeframe_symbol"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.examples_grouping_by_timeframe_symbol_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.examples_grouping_by_timeframe_symbol_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_timeframe_data_preserves_structure_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_timeframe_data_preserves_structure"""
         # Test with real database integration
@@ -253,15 +194,8 @@ class TestRealObjectsArrayRecordTimeframeSymbolCombination:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_timeframe_data_preserves_structure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.extract_timeframe_data_preserves_structure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

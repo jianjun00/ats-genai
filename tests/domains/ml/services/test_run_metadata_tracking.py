@@ -24,7 +24,7 @@ from unittest.mock import patch
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent / 'src'))
 
-from domains.ml.legacy.training_data.utils.run_metadata_tracker import (
+from domains.ml.services.training_data.utils.run_metadata_tracker import (
     RunMetadataTracker, RunTracker, track_training_run, complete_training_run
 )
 
@@ -104,15 +104,10 @@ class TestRunMetadataTracker:
         assert len(metadata['git_commit_hash']) >= 8  # At least short hash
 
         # Check if running in actual git repo
-        try:
-            result = subprocess.run(['git', 'rev-parse', 'HEAD'],
-                                  capture_output=True, text=True, check=True)
-            expected_commit = result.stdout.strip()
-            assert metadata['git_commit_hash'] == expected_commit
-        except subprocess.CalledProcessError:
-            # Not in git repo or git not available - that's ok
-            pass
-
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'],
+                              capture_output=True, text=True, check=True)
+        expected_commit = result.stdout.strip()
+        assert metadata['git_commit_hash'] == expected_commit
         await tracker.complete_run(run_id, {}, "completed")
         await tracker.close()
 
@@ -122,36 +117,31 @@ class TestRunMetadataTracker:
         # Save original argv
         original_argv = sys.argv.copy()
 
-        try:
-            # Mock command line arguments
-            sys.argv = [
-                'test_script.py',
-                '--batch-size', '64',
-                '--learning-rate', '0.01',
-                '--epochs', '100',
-                '--output-dir', '/tmp/test'
-            ]
+        # Mock command line arguments
+        sys.argv = [
+            'test_script.py',
+            '--batch-size', '64',
+            '--learning-rate', '0.01',
+            '--epochs', '100',
+            '--output-dir', '/tmp/test'
+        ]
 
-            tracker = RunMetadataTracker(
-                run_type="test_command_line",
-                created_by="test_command_line.py"
-            )
+        tracker = RunMetadataTracker(
+            run_type="test_command_line",
+            created_by="test_command_line.py"
+        )
 
-            run_id = await tracker.start_run({"test": True})
-            metadata = await tracker.get_run_metadata(run_id)
+        run_id = await tracker.start_run({"test": True})
+        metadata = await tracker.get_run_metadata(run_id)
 
-            # Verify command line was captured
-            assert metadata['command_line'] is not None
-            assert '--batch-size 64' in metadata['command_line']
-            assert '--learning-rate 0.01' in metadata['command_line']
-            assert 'test_script.py' in metadata['command_line']
+        # Verify command line was captured
+        assert metadata['command_line'] is not None
+        assert '--batch-size 64' in metadata['command_line']
+        assert '--learning-rate 0.01' in metadata['command_line']
+        assert 'test_script.py' in metadata['command_line']
 
-            await tracker.complete_run(run_id, {}, "completed")
-            await tracker.close()
-
-        finally:
-            # Restore original argv
-            sys.argv = original_argv
+        await tracker.complete_run(run_id, {}, "completed")
+        await tracker.close()
 
     @pytest.mark.asyncio
     async def test_host_information_capture(self):

@@ -11,11 +11,11 @@ class DateTimeEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super().default(obj)
 
-from domains.market_data.services.agent.data_agent_orchestrator import DataAgentOrchestrator
-from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
-from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
-from domains.market_data.services.agent.reconciliation import ReconciliationEngine
-from domains.market_data.services.agent.llm_assistant import LLMAssistant
+from domains.market_data.services.core.agent.orchestration.data_agent_orchestrator import DataAgentOrchestrator
+from domains.market_data.services.vendor_adapters.market_cap.unified_market_cap_provider import PolygonAdapter
+from domains.market_data.services.core.agent.tiingo_adapter import TiingoAdapter
+from domains.market_data.services.core.agent.reconciliation import ReconciliationEngine
+from domains.market_data.services.core.agent.llm_assistant import LLMAssistant
 
 # Mock database fixtures
 class MockPool:

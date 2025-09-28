@@ -60,7 +60,7 @@ class TestUILayoutRegressionProtection:
         html_content = response.text
 
         # Extract tab names from HTML
-        tab_pattern = r'<button class="tab[^"]*"[^>]*onclick="showTab\(\'([^\']+)\'\)"[^>]*>.*?([^<]+)</button>'
+        tab_pattern = r'<button class="tab[^"]*"[^>]*onclick="showTab\('([^']+)'\)"[^>]*>.*?([^<]+)</button>'
         tabs = re.findall(tab_pattern, html_content, re.IGNORECASE | re.DOTALL)
 
         found_tabs = [tab[1].strip() for _, tab in tabs if tab[1].strip()]
@@ -230,15 +230,9 @@ def run_ui_layout_regression_tests():
     for test_name, test_func in tests:
         print(f"\\n🧪 Running: {test_name}")
         print("-" * 60)
-        try:
-            test_func()
-            print(f"✅ PASSED: {test_name}")
-            passed += 1
-        except Exception as e:
-            print(f"❌ FAILED: {test_name}")
-            print(f"   Error: {e}")
-            failed += 1
-
+        test_func()
+        print(f"✅ PASSED: {test_name}")
+        passed += 1
     print("\\n" + "=" * 80)
     print("📊 UI LAYOUT REGRESSION PROTECTION SUMMARY")
     print("=" * 80)

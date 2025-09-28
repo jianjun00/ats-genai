@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsLLMProviderBase:
@@ -55,13 +49,7 @@ class TestRealObjectsLLMProviderBase:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_openai_provider_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_openai_provider_initialization"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.openai_provider_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.openai_provider_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_anthropic_provider_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_anthropic_provider_initialization"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.anthropic_provider_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.anthropic_provider_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_openai_request_formation_real_objects(self, real_service, test_data):
         """Real objects version of test_openai_request_formation"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.openai_request_formation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.openai_request_formation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_anthropic_request_formation_real_objects(self, real_service, test_data):
         """Real objects version of test_anthropic_request_formation"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.anthropic_request_formation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.anthropic_request_formation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_provider_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_provider_error_handling"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.provider_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.provider_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_provider_timeout_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_provider_timeout_handling"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.provider_timeout_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.provider_timeout_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_circuit_breaker_closed_state_real_objects(self, real_service, test_data):
         """Real objects version of test_circuit_breaker_closed_state"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.circuit_breaker_closed_state_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.circuit_breaker_closed_state_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_circuit_breaker_failure_tracking_real_objects(self, real_service, test_data):
         """Real objects version of test_circuit_breaker_failure_tracking"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.circuit_breaker_failure_tracking_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.circuit_breaker_failure_tracking_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_circuit_breaker_half_open_transition_real_objects(self, real_service, test_data):
         """Real objects version of test_circuit_breaker_half_open_transition"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.circuit_breaker_half_open_transition_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.circuit_breaker_half_open_transition_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_circuit_breaker_recovery_real_objects(self, real_service, test_data):
         """Real objects version of test_circuit_breaker_recovery"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.circuit_breaker_recovery_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.circuit_breaker_recovery_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_rate_limit_tracking_real_objects(self, real_service, test_data):
         """Real objects version of test_rate_limit_tracking"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.rate_limit_tracking_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.rate_limit_tracking_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_rate_limit_enforcement_real_objects(self, real_service, test_data):
         """Real objects version of test_rate_limit_enforcement"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.rate_limit_enforcement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.rate_limit_enforcement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_rate_limit_window_cleanup_real_objects(self, real_service, test_data):
         """Real objects version of test_rate_limit_window_cleanup"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.rate_limit_window_cleanup_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.rate_limit_window_cleanup_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_client_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_client_initialization"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.client_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.client_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_successful_request_primary_provider_real_objects(self, real_service, test_data):
         """Real objects version of test_successful_request_primary_provider"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.successful_request_primary_provider_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.successful_request_primary_provider_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_failover_to_secondary_provider_real_objects(self, real_service, test_data):
         """Real objects version of test_failover_to_secondary_provider"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.failover_to_secondary_provider_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.failover_to_secondary_provider_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_all_providers_fail_real_objects(self, real_service, test_data):
         """Real objects version of test_all_providers_fail"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.all_providers_fail_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.all_providers_fail_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_provider_preference_override_real_objects(self, real_service, test_data):
         """Real objects version of test_provider_preference_override"""
         # Test with real database integration
@@ -450,14 +336,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.provider_preference_override_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.provider_preference_override_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_caching_functionality_real_objects(self, real_service, test_data):
         """Real objects version of test_caching_functionality"""
         # Test with real database integration
@@ -472,14 +352,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.caching_functionality_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.caching_functionality_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cost_tracking_real_objects(self, real_service, test_data):
         """Real objects version of test_cost_tracking"""
         # Test with real database integration
@@ -494,14 +368,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cost_tracking_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cost_tracking_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_metrics_real_objects(self, real_service, test_data):
         """Real objects version of test_performance_metrics"""
         # Test with real database integration
@@ -516,14 +384,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.performance_metrics_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.performance_metrics_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_health_check_real_objects(self, real_service, test_data):
         """Real objects version of test_health_check"""
         # Test with real database integration
@@ -538,14 +400,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.health_check_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.health_check_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_openai_token_counting_real_objects(self, real_service, test_data):
         """Real objects version of test_openai_token_counting"""
         # Test with real database integration
@@ -560,14 +416,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.openai_token_counting_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.openai_token_counting_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_anthropic_content_extraction_real_objects(self, real_service, test_data):
         """Real objects version of test_anthropic_content_extraction"""
         # Test with real database integration
@@ -582,14 +432,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.anthropic_content_extraction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.anthropic_content_extraction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_google_response_parsing_real_objects(self, real_service, test_data):
         """Real objects version of test_google_response_parsing"""
         # Test with real database integration
@@ -604,14 +448,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.google_response_parsing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.google_response_parsing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cost_calculation_by_provider_real_objects(self, real_service, test_data):
         """Real objects version of test_cost_calculation_by_provider"""
         # Test with real database integration
@@ -626,14 +464,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cost_calculation_by_provider_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cost_calculation_by_provider_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_redis_caching_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_redis_caching_integration"""
         # Test with real database integration
@@ -648,14 +480,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.redis_caching_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.redis_caching_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_concurrent_request_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_concurrent_request_handling"""
         # Test with real database integration
@@ -670,14 +496,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.concurrent_request_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.concurrent_request_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_memory_usage_stability_real_objects(self, real_service, test_data):
         """Real objects version of test_memory_usage_stability"""
         # Test with real database integration
@@ -692,15 +512,8 @@ class TestRealObjectsLLMProviderBase:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.memory_usage_stability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.memory_usage_stability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

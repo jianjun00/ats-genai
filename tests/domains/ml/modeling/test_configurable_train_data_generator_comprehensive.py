@@ -15,12 +15,12 @@ import os
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from domains.ml.services.configurable_train_data_generator import (
+from domains.ml.services.training_data.generators.configurable_train_data_generator import (
     ConfigurableTrainingDataGenerator,
     ConfigurableTrainingDataConfig
 )
-from domains.trading.services.feature_registry import FeatureRegistry, FeatureConfig
-from domains.trading.services.label_registry import LabelRegistry, LabelConfig
+from domains.trading.services.indicators.feature_registry import FeatureRegistry, FeatureConfig
+from domains.trading.services.indicators.label_registry import LabelRegistry, LabelConfig
 
 class TestConfigurableGeneratorEdgeCases:
     """Test edge cases and error conditions."""
@@ -315,15 +315,11 @@ class TestConfigurableGeneratorDataQuality:
             generator = ConfigurableTrainingDataGenerator(config)
 
             # Should handle constant values gracefully (no division by zero)
-            try:
-                result = generator.generate_training_data(data, symbols=['AAPL'])
-                features_array = result['features'].numpy() if hasattr(result['features'], 'numpy') else result['features']
+            result = generator.generate_training_data(data, symbols=['AAPL'])
+            features_array = result['features'].numpy() if hasattr(result['features'], 'numpy') else result['features']
 
-                # Scaled features should not contain infinite values
-                assert not np.isinf(features_array).any()
-
-            except Exception as e:
-                pytest.fail(f"Scaling method {scaling_method} failed with constant data: {e}")
+            # Scaled features should not contain infinite values
+            assert not np.isinf(features_array).any()
 
     def test_min_valid_ratio_filtering(self):
         """Test minimum valid ratio filtering."""

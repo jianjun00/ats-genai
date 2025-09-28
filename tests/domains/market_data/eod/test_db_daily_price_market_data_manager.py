@@ -6,8 +6,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../src')))
 
-from domains.market_data.services.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
-from shared.utils.environment import Environment, EnvironmentType
+from domains.trading.services.core.eod.enhanced_eod_service import DBDailyPriceMarketDataManager
+from core.platform.config.environment import Environment, EnvironmentType
 
 class DummyVendorsDAO:
     def __init__(self, env):

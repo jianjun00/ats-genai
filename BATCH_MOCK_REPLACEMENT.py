@@ -19,21 +19,17 @@ def get_mock_files():
         if "_real_objects" in str(test_file):
             continue
             
-        try:
-            with open(test_file, 'r') as f:
-                content = f.read()
-                if any(pattern in content for pattern in [
-                    "from unittest.mock import",
-                    "import mock",
-                    "MagicMock",
-                    "Mock(",
-                    "@mock.",
-                    "@patch"
-                ]):
-                    mock_files.append(test_file)
-        except Exception:
-            continue
-    
+        with open(test_file, 'r') as f:
+            content = f.read()
+            if any(pattern in content for pattern in [
+                "from unittest.mock import",
+                "import mock",
+                "MagicMock",
+                "Mock(",
+                "@mock.",
+                "@patch"
+            ]):
+                mock_files.append(test_file)
     return sorted(mock_files)
 
 def create_real_objects_template(original_file):
@@ -97,23 +93,17 @@ class {new_class}:
         # Create real test data
         test_ids = []
         
-        try:
-            # Add actual test data creation here
-            test_id = await dao.create_instrument(
-                symbol="TEST_SYMBOL",
-                name="Test Instrument Inc.",
-                exchange="NASDAQ",
-                sector="Technology"
-            )
-            test_ids.append(test_id)
-            
-            yield {{'test_ids': test_ids, 'test_data': 'placeholder'}}
-            
-        finally:
-            # Cleanup
-            for test_id in test_ids:
-                await dao.delete_instrument(test_id)
-
+        # Add actual test data creation here
+        test_id = await dao.create_instrument(
+            symbol="TEST_SYMBOL",
+            name="Test Instrument Inc.",
+            exchange="NASDAQ",
+            sector="Technology"
+        )
+        test_ids.append(test_id)
+        
+        yield {{'test_ids': test_ids, 'test_data': 'placeholder'}}
+        
     async def test_real_objects_placeholder(self, test_environment, test_data):
         """Placeholder test demonstrating real objects pattern."""
         # Replace with actual business logic tests using real objects

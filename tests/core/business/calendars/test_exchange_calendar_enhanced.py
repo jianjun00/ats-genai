@@ -1,6 +1,6 @@
 import datetime
 import pytest
-from core.calendars.exchange_calendar import ExchangeCalendar
+from core.business.calendars.exchange_calendar import ExchangeCalendar
 from unittest.mock import patch
 
 class TestExchangeCalendarEnhanced:
@@ -234,21 +234,16 @@ class TestExchangeCalendarEnhanced:
         exchanges_to_test = ["NYSE", "LSE", "NASDAQ"]
 
         for exchange in exchanges_to_test:
-            try:
-                cal = ExchangeCalendar(exchange)
+            cal = ExchangeCalendar(exchange)
 
-                # Basic functionality should work
-                test_date = datetime.date(2024, 6, 10)
-                is_holiday = cal.is_holiday(test_date)
-                assert isinstance(is_holiday, bool)
+            # Basic functionality should work
+            test_date = datetime.date(2024, 6, 10)
+            is_holiday = cal.is_holiday(test_date)
+            assert isinstance(is_holiday, bool)
 
-                # Should be able to get trading days
-                days = cal.all_trading_days(test_date, test_date + datetime.timedelta(days=7))
-                assert isinstance(days, list)
-
-            except ValueError:
-                # Some exchanges might not be supported, that's okay
-                pass
+            # Should be able to get trading days
+            days = cal.all_trading_days(test_date, test_date + datetime.timedelta(days=7))
+            assert isinstance(days, list)
 
     def test_calendar_boundary_dates(self):
         """Test behavior at calendar boundaries."""
@@ -256,22 +251,11 @@ class TestExchangeCalendarEnhanced:
 
         # Test very early dates
         early_date = datetime.date(1990, 1, 1)
-        try:
-            result = cal.is_holiday(early_date)
-            assert isinstance(result, bool)
-        except Exception:
-            # Calendar might not support very old dates, that's acceptable
-            pass
-
-        # Test future dates
+        result = cal.is_holiday(early_date)
+        assert isinstance(result, bool)
         future_date = datetime.date(2030, 1, 1)
-        try:
-            result = cal.is_holiday(future_date)
-            assert isinstance(result, bool)
-        except Exception:
-            # Calendar might not support far future dates, that's acceptable
-            pass
-
+        result = cal.is_holiday(future_date)
+        assert isinstance(result, bool)
     def test_leap_year_handling(self):
         """Test calendar behavior during leap years."""
         cal = ExchangeCalendar("NYSE")

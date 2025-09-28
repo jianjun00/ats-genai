@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock
 import numpy as np
 
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 
 class TestLeadVsLagPriceValidation:

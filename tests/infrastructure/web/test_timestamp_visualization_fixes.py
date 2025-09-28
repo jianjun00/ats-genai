@@ -65,18 +65,13 @@ class TestTimestampVisualizationFixes:
         await page.wait_for_timeout(2000)
 
         # Look for dataset selector
-        try:
-            await page.wait_for_selector('#dataset-selector', timeout=5000)
-            dataset_selector = await page.query_selector('#dataset-selector')
-            assert dataset_selector is not None, "Dataset selector not found"
+        await page.wait_for_selector('#dataset-selector', timeout=5000)
+        dataset_selector = await page.query_selector('#dataset-selector')
+        assert dataset_selector is not None, "Dataset selector not found"
 
-            # Check if options are loaded
-            options = await page.query_selector_all('#dataset-selector option')
-            assert len(options) > 1, "No dataset options loaded"
-
-        except Exception as e:
-            # If selector doesn't exist, that's okay - just log it
-            print(f"Dataset selector not found: {e}")
+        # Check if options are loaded
+        options = await page.query_selector_all('#dataset-selector option')
+        assert len(options) > 1, "No dataset options loaded"
 
     @pytest.mark.asyncio
     async def test_sequence_selection_works(self, browser_setup):
@@ -86,26 +81,22 @@ class TestTimestampVisualizationFixes:
         await page.goto("http://localhost:3000/eda")
         await page.wait_for_timeout(2000)
 
-        try:
-            # Try to trigger sequence loading by simulating dataset selection
-            await page.evaluate("""
-                // Simulate dataset selection to trigger sequence loading
-                const datasetId = 65;
-                if (window.loadSequenceFiles) {
-                    window.loadSequenceFiles(datasetId);
-                }
-            """)
+        # Try to trigger sequence loading by simulating dataset selection
+        await page.evaluate("""
+            // Simulate dataset selection to trigger sequence loading
+            const datasetId = 65;
+            if (window.loadSequenceFiles) {
+                window.loadSequenceFiles(datasetId);
+            }
+        """)
 
-            await page.wait_for_timeout(2000)
+        await page.wait_for_timeout(2000)
 
-            # Check for sequence selector
-            sequence_selector = await page.query_selector('#sequence-selector')
-            if sequence_selector:
-                options = await page.query_selector_all('#sequence-selector option')
-                print(f"Found {len(options)} sequence options")
-
-        except Exception as e:
-            print(f"Sequence selection test skipped: {e}")
+        # Check for sequence selector
+        sequence_selector = await page.query_selector('#sequence-selector')
+        if sequence_selector:
+            options = await page.query_selector_all('#sequence-selector option')
+            print(f"Found {len(options)} sequence options")
 
     @pytest.mark.asyncio
     async def test_multi_timeframe_chart_rendering(self, browser_setup):
@@ -115,41 +106,37 @@ class TestTimestampVisualizationFixes:
         await page.goto("http://localhost:3000/eda")
         await page.wait_for_timeout(2000)
 
-        try:
-            # Simulate visualization loading
-            await page.evaluate("""
-                // Simulate the loadDatasetVisualization function call
-                const datasetId = 65;
-                const sequenceId = 'AAPL_20250701_000000_20250906_000000';
-                const rowIndex = 50;
+        # Simulate visualization loading
+        await page.evaluate("""
+            // Simulate the loadDatasetVisualization function call
+            const datasetId = 65;
+            const sequenceId = 'AAPL_20250701_000000_20250906_000000';
+            const rowIndex = 50;
 
-                if (window.loadDatasetVisualization) {
-                    window.loadDatasetVisualization(datasetId, sequenceId, rowIndex);
-                }
-            """)
+            if (window.loadDatasetVisualization) {
+                window.loadDatasetVisualization(datasetId, sequenceId, rowIndex);
+            }
+        """)
 
-            await page.wait_for_timeout(5000)
+        await page.wait_for_timeout(5000)
 
-            # Check for timestamp-related errors
-            timestamp_errors = [
-                msg for msg in console_messages
-                if 'invalid date' in msg['text'].lower() or
-                   'date range: invalid date' in msg['text'].lower()
-            ]
+        # Check for timestamp-related errors
+        timestamp_errors = [
+            msg for msg in console_messages
+            if 'invalid date' in msg['text'].lower() or
+               'date range: invalid date' in msg['text'].lower()
+        ]
 
-            assert len(timestamp_errors) == 0, f"Timestamp parsing errors found: {timestamp_errors}"
+        assert len(timestamp_errors) == 0, f"Timestamp parsing errors found: {timestamp_errors}"
 
-            # Check for successful chart creation messages
-            chart_success_messages = [
-                msg for msg in console_messages
-                if 'chart created successfully' in msg['text'].lower() or
-                   'prepared' in msg['text'].lower() and 'data points' in msg['text'].lower()
-            ]
+        # Check for successful chart creation messages
+        chart_success_messages = [
+            msg for msg in console_messages
+            if 'chart created successfully' in msg['text'].lower() or
+               'prepared' in msg['text'].lower() and 'data points' in msg['text'].lower()
+        ]
 
-            print(f"Chart success messages: {len(chart_success_messages)}")
-
-        except Exception as e:
-            print(f"Chart rendering test completed with note: {e}")
+        print(f"Chart success messages: {len(chart_success_messages)}")
 
     @pytest.mark.asyncio
     async def test_no_invalid_date_errors_in_console(self, browser_setup):
@@ -160,18 +147,13 @@ class TestTimestampVisualizationFixes:
         await page.wait_for_timeout(3000)
 
         # Try to trigger data loading
-        try:
-            await page.evaluate("""
-                // Try to access visualization functions
-                if (window.loadDatasetVisualization) {
-                    window.loadDatasetVisualization(65, 'AAPL_20250701_000000_20250906_000000', 50);
-                }
-            """)
-            await page.wait_for_timeout(5000)
-        except:
-            pass  # Ignore if functions don't exist
-
-        # Check for "Invalid Date" errors specifically
+        await page.evaluate("""
+            // Try to access visualization functions
+            if (window.loadDatasetVisualization) {
+                window.loadDatasetVisualization(65, 'AAPL_20250701_000000_20250906_000000', 50);
+            }
+        """)
+        await page.wait_for_timeout(5000)
         invalid_date_messages = [
             msg for msg in console_messages
             if 'invalid date' in msg['text'].lower()
@@ -212,12 +194,8 @@ class TestTimestampVisualizationFixes:
         assert plotly_available, "Plotly.js library not loaded"
 
         # Check Plotly version
-        try:
-            plotly_version = await page.evaluate("Plotly.BUILD")
-            print(f"Plotly version: {plotly_version}")
-        except:
-            print("Could not determine Plotly version")
-
+        plotly_version = await page.evaluate("Plotly.BUILD")
+        print(f"Plotly version: {plotly_version}")
     @pytest.mark.asyncio
     async def test_api_response_format_in_browser(self, browser_setup):
         """Test that API responses have correct format when called from browser."""
@@ -305,16 +283,11 @@ class TestTimestampVisualizationFixes:
 @pytest.mark.asyncio
 async def test_analytics_service_prerequisites():
     """Test that analytics service is running before browser tests."""
-    try:
-        response = requests.get("http://localhost:3000/health", timeout=5)
-        assert response.status_code == 200, "Analytics service not healthy"
+    response = requests.get("http://localhost:3000/health", timeout=5)
+    assert response.status_code == 200, "Analytics service not healthy"
 
-        health_data = response.json()
-        assert health_data["status"] == "healthy", f"Service status: {health_data['status']}"
-
-    except requests.RequestException as e:
-        pytest.skip(f"Analytics service not available: {e}")
-
+    health_data = response.json()
+    assert health_data["status"] == "healthy", f"Service status: {health_data['status']}"
 
 if __name__ == "__main__":
     # Run with pytest

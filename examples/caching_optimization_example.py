@@ -201,21 +201,16 @@ async def demonstrate_database_caching():
     cache_config = CacheConfig(ttl_seconds=1800, namespace="db_cache")
     cache = MemoryCache(cache_config)
 
-    try:
-        # This would normally connect to a real database
-        db_cache = DatabaseCache(pool_config, cache, cache_config)
-        # await db_cache.initialize()  # Skip for demo
+    # This would normally connect to a real database
+    db_cache = DatabaseCache(pool_config, cache, cache_config)
+    # await db_cache.initialize()  # Skip for demo
 
-        logger.info("Database cache would be initialized here")
-        logger.info("Query caching enables:")
-        logger.info("  - Automatic result caching based on query + parameters")
-        logger.info("  - Intelligent TTL calculation based on query type")
-        logger.info("  - Connection pool optimization")
-        logger.info("  - Query performance analysis")
-
-    except Exception as e:
-        logger.info(f"Database connection skipped for demo: {e}")
-
+    logger.info("Database cache would be initialized here")
+    logger.info("Query caching enables:")
+    logger.info("  - Automatic result caching based on query + parameters")
+    logger.info("  - Intelligent TTL calculation based on query type")
+    logger.info("  - Connection pool optimization")
+    logger.info("  - Query performance analysis")
 
 async def demonstrate_service_caching():
     """Demonstrate service-level caching with the example service."""
@@ -349,28 +344,22 @@ async def run_comprehensive_demo():
     """Run comprehensive caching and optimization demonstration."""
     logger.info("🚀 Starting Comprehensive Caching and Optimization Demo")
 
-    try:
-        # Run all demonstrations
-        await demonstrate_multi_layer_caching()
-        await asyncio.sleep(1)
+    # Run all demonstrations
+    await demonstrate_multi_layer_caching()
+    await asyncio.sleep(1)
 
-        await demonstrate_database_caching()
-        await asyncio.sleep(1)
+    await demonstrate_database_caching()
+    await asyncio.sleep(1)
 
-        await demonstrate_service_caching()
-        await asyncio.sleep(1)
+    await demonstrate_service_caching()
+    await asyncio.sleep(1)
 
-        await demonstrate_performance_profiling()
-        await asyncio.sleep(1)
+    await demonstrate_performance_profiling()
+    await asyncio.sleep(1)
 
-        await demonstrate_cache_invalidation()
+    await demonstrate_cache_invalidation()
 
-        logger.info("✅ All demonstrations completed successfully!")
-
-    except Exception as e:
-        logger.error(f"❌ Demo failed: {e}")
-        raise
-
+    logger.info("✅ All demonstrations completed successfully!")
 
 async def main():
     """Main demonstration function."""

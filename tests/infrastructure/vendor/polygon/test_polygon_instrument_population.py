@@ -98,12 +98,7 @@ class TestPolygonInstrumentPopulation:
             from datetime import datetime
             if not val:
                 return None
-            try:
-                return datetime.strptime(val[:10], "%Y-%m-%d").date()
-            except Exception:
-                return None
-
-        # Test valid date
+            return datetime.strptime(val[:10], "%Y-%m-%d").date()
         assert parse_date("2023-01-15") is not None
         assert str(parse_date("2023-01-15")) == "2023-01-15"
 

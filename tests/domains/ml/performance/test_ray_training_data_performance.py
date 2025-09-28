@@ -31,7 +31,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.ml.legacy.training_data.callbacks.training_data_callback import DateBasedTrainingDataCallback
+from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -200,13 +200,13 @@ class TestRayPerformanceBenchmarks:
         """Run throughput comparison between sequential and Ray processing."""
 
         # Create callbacks
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_dir / "sequential"),
             enable_ray_parallel=False
         )
 
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_dir / "ray"),
             enable_ray_parallel=True,
@@ -268,13 +268,13 @@ class TestRayPerformanceBenchmarks:
         """Measure latency for single interval processing."""
         symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL']
 
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_perf_dir / "latency_seq"),
             enable_ray_parallel=False
         )
 
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_perf_dir / "latency_ray"),
             enable_ray_parallel=True,
@@ -344,7 +344,7 @@ class TestRayScalability:
             symbols = base_symbols[:count]
 
             # Test Ray with current symbol count
-            callback_ray = DateBasedTrainingDataCallback(
+            callback_ray = IntervalBasedTrainingDataCallback(
                 symbols=symbols,
                 output_dir=str(temp_perf_dir / f"scale_{count}"),
                 enable_ray_parallel=True,
@@ -391,7 +391,7 @@ class TestRayScalability:
         worker_scalability_results = []
 
         for worker_count in worker_counts:
-            callback_ray = DateBasedTrainingDataCallback(
+            callback_ray = IntervalBasedTrainingDataCallback(
                 symbols=symbols,
                 output_dir=str(temp_perf_dir / f"workers_{worker_count}"),
                 enable_ray_parallel=True,
@@ -439,7 +439,7 @@ class TestRayResourceUtilization:
         symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL', 'AMZN']
 
         # Test sequential memory usage
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_perf_dir / "memory_seq"),
             enable_ray_parallel=False
@@ -458,7 +458,7 @@ class TestRayResourceUtilization:
         seq_metrics.stop(len(seq_result))
 
         # Test Ray memory usage
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_perf_dir / "memory_ray"),
             enable_ray_parallel=True,
@@ -491,13 +491,13 @@ class TestRayResourceUtilization:
         # Small workload where Ray overhead might dominate
         symbols = ['AAPL']
 
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_perf_dir / "overhead_seq"),
             enable_ray_parallel=False
         )
 
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             output_dir=str(temp_perf_dir / "overhead_ray"),
             enable_ray_parallel=True,

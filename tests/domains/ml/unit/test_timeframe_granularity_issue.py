@@ -18,7 +18,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 
 from domains.trading.services.core.app.runner import Runner
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class MockTimeframeGranularityTest:
@@ -41,68 +41,60 @@ class MockTimeframeGranularityTest:
         for base_duration, expected_interval_minutes, expected_per_hour in test_cases:
             print(f"\n📊 Testing base_duration: {base_duration}")
             
-            try:
-                # Create mock environment to avoid database issues
-                mock_env = Mock(spec=Environment)
-                mock_env.env_type = EnvironmentType.TEST
+            # Create mock environment to avoid database issues
+            mock_env = Mock(spec=Environment)
+            mock_env.env_type = EnvironmentType.TEST
+            
+            with patch('services.core.app.runner.SecurityMaster'), \
+                 patch('services.core.app.runner.UniverseStateManager'), \
+                 patch('services.core.app.runner.UniverseManager'), \
+                 patch('services.core.app.runner.DailyPriceMarketDataManager'):
                 
-                with patch('services.core.app.runner.SecurityMaster'), \
-                     patch('services.core.app.runner.UniverseStateManager'), \
-                     patch('services.core.app.runner.UniverseManager'), \
-                     patch('services.core.app.runner.DailyPriceMarketDataManager'):
-                    
-                    runner = Runner(
-                        start_date='2025-07-01',
-                        end_date='2025-07-01', 
-                        environment=mock_env,
-                        universe_id=1,
-                        callbacks=[],
-                        base_duration=base_duration,
-                        enable_run_isolation=False  # Disable to avoid database calls
-                    )
-                    
-                    # Count interval events for one trading day
-                    interval_count = 0
-                    event_times = []
-                    
-                    for event_time, event_type in runner.iter_events():
-                        if event_type == "interval":
-                            interval_count += 1
-                            event_times.append(event_time)
-                            print(f"   Interval {interval_count}: {event_time}")
-                    
-                    print(f"   Total intervals: {interval_count}")
-                    print(f"   Expected per hour: {expected_per_hour}")
-                    
-                    # Calculate actual intervals per hour
-                    if len(event_times) > 1:
-                        time_diff = event_times[1] - event_times[0]
-                        actual_interval_minutes = time_diff.total_seconds() / 60
-                        print(f"   Actual interval: {actual_interval_minutes} minutes")
-                        
-                        results[base_duration] = {
-                            'expected_interval_minutes': expected_interval_minutes,
-                            'actual_interval_minutes': actual_interval_minutes,
-                            'expected_per_hour': expected_per_hour,
-                            'actual_count': interval_count,
-                            'correct_frequency': abs(actual_interval_minutes - expected_interval_minutes) < 1
-                        }
-                    else:
-                        results[base_duration] = {
-                            'expected_interval_minutes': expected_interval_minutes,
-                            'actual_interval_minutes': None,
-                            'expected_per_hour': expected_per_hour, 
-                            'actual_count': interval_count,
-                            'correct_frequency': False
-                        }
-                        
-            except Exception as e:
-                print(f"   ❌ Error testing {base_duration}: {e}")
-                results[base_duration] = {
-                    'error': str(e),
-                    'correct_frequency': False
-                }
+                runner = Runner(
+                    start_date='2025-07-01',
+                    end_date='2025-07-01', 
+                    environment=mock_env,
+                    universe_id=1,
+                    callbacks=[],
+                    base_duration=base_duration,
+                    enable_run_isolation=False  # Disable to avoid database calls
+                )
                 
+                # Count interval events for one trading day
+                interval_count = 0
+                event_times = []
+                
+                for event_time, event_type in runner.iter_events():
+                    if event_type == "interval":
+                        interval_count += 1
+                        event_times.append(event_time)
+                        print(f"   Interval {interval_count}: {event_time}")
+                
+                print(f"   Total intervals: {interval_count}")
+                print(f"   Expected per hour: {expected_per_hour}")
+                
+                # Calculate actual intervals per hour
+                if len(event_times) > 1:
+                    time_diff = event_times[1] - event_times[0]
+                    actual_interval_minutes = time_diff.total_seconds() / 60
+                    print(f"   Actual interval: {actual_interval_minutes} minutes")
+                    
+                    results[base_duration] = {
+                        'expected_interval_minutes': expected_interval_minutes,
+                        'actual_interval_minutes': actual_interval_minutes,
+                        'expected_per_hour': expected_per_hour,
+                        'actual_count': interval_count,
+                        'correct_frequency': abs(actual_interval_minutes - expected_interval_minutes) < 1
+                    }
+                else:
+                    results[base_duration] = {
+                        'expected_interval_minutes': expected_interval_minutes,
+                        'actual_interval_minutes': None,
+                        'expected_per_hour': expected_per_hour, 
+                        'actual_count': interval_count,
+                        'correct_frequency': False
+                    }
+                    
         return results
     
     def analyze_granularity_results(self, results):

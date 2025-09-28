@@ -310,128 +310,123 @@ async def test_high_volume_processing():
     monitor = PerformanceMonitor()
     monitor.start_monitoring()
 
-    try:
-        conn = await asyncpg.connect(
-            host='postgres',
-            port=5432,
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
+    conn = await asyncpg.connect(
+        host='postgres',
+        port=5432,
+        user='postgres',
+        password='dev_password',
+        database='dev_db'
+    )
 
-        manager = PerformanceTestCheckpointManager(conn, monitor)
-        await manager.setup_performance_tables()
+    manager = PerformanceTestCheckpointManager(conn, monitor)
+    await manager.setup_performance_tables()
 
-        # Test with large number of items
-        item_count = 1000
-        records_per_item = 50
-        batch_size = 20
+    # Test with large number of items
+    item_count = 1000
+    records_per_item = 50
+    batch_size = 20
 
-        job = HighVolumeJob("high_volume_test", item_count, records_per_item)
-        job_id = await manager.create_job_run(job.name, "performance_test", item_count)
+    job = HighVolumeJob("high_volume_test", item_count, records_per_item)
+    job_id = await manager.create_job_run(job.name, "performance_test", item_count)
 
-        # Get all items and initialize
-        items = await job.get_items()
-        await manager.bulk_initialize_items(job_id, items)
+    # Get all items and initialize
+    items = await job.get_items()
+    await manager.bulk_initialize_items(job_id, items)
 
-        start_time = time.time()
-        total_processed = 0
-        total_records = 0
+    start_time = time.time()
+    total_processed = 0
+    total_records = 0
 
-        # Process in batches for optimal performance
-        for i in range(0, len(items), batch_size):
-            batch_items = items[i:i + batch_size]
-            batch_start = time.time()
+    # Process in batches for optimal performance
+    for i in range(0, len(items), batch_size):
+        batch_items = items[i:i + batch_size]
+        batch_start = time.time()
 
-            # Process batch concurrently
-            async def process_batch_item(item: str):
-                item_start = time.time()
-                prices, error = await job.process_item(item, monitor)
-                processing_time = int((time.time() - item_start) * 1000)  # milliseconds
+        # Process batch concurrently
+        async def process_batch_item(item: str):
+            item_start = time.time()
+            prices, error = await job.process_item(item, monitor)
+            processing_time = int((time.time() - item_start) * 1000)  # milliseconds
 
-                if error:
-                    return item, 0, processing_time, []
+            if error:
+                return item, 0, processing_time, []
 
-                return item, len(prices), processing_time, prices
+            return item, len(prices), processing_time, prices
 
-            batch_results = await asyncio.gather(*[process_batch_item(item) for item in batch_items])
+        batch_results = await asyncio.gather(*[process_batch_item(item) for item in batch_items])
 
-            # Bulk update completed items
-            completed_items = []
-            all_prices = []
+        # Bulk update completed items
+        completed_items = []
+        all_prices = []
 
-            for item, record_count, processing_time, prices in batch_results:
-                completed_items.append((item, record_count, processing_time))
-                all_prices.extend(prices)
-                total_records += record_count
-                total_processed += 1
+        for item, record_count, processing_time, prices in batch_results:
+            completed_items.append((item, record_count, processing_time))
+            all_prices.extend(prices)
+            total_records += record_count
+            total_processed += 1
 
-            # Bulk database operations
-            if completed_items:
-                await manager.batch_update_completed_items(job_id, completed_items)
+        # Bulk database operations
+        if completed_items:
+            await manager.batch_update_completed_items(job_id, completed_items)
 
-            if all_prices:
-                batch_id = f"batch_{i//batch_size:04d}"
-                await manager.bulk_store_prices(job_id, batch_id, all_prices)
+        if all_prices:
+            batch_id = f"batch_{i//batch_size:04d}"
+            await manager.bulk_store_prices(job_id, batch_id, all_prices)
 
-            # Progress logging
-            if i % 200 == 0:
-                current_metrics = monitor.get_current_metrics()
-                rate = total_processed / current_metrics['elapsed_seconds']
-                logger.info(f"📊 Processed {total_processed}/{item_count} ({rate:.1f}/sec) - "
-                           f"Memory: {current_metrics['memory_mb']:.1f}MB")
+        # Progress logging
+        if i % 200 == 0:
+            current_metrics = monitor.get_current_metrics()
+            rate = total_processed / current_metrics['elapsed_seconds']
+            logger.info(f"📊 Processed {total_processed}/{item_count} ({rate:.1f}/sec) - "
+                       f"Memory: {current_metrics['memory_mb']:.1f}MB")
 
-        end_time = time.time()
-        duration = end_time - start_time
+    end_time = time.time()
+    duration = end_time - start_time
 
-        # Get final statistics
-        stats = await manager.get_job_stats(job_id)
-        final_metrics = monitor.get_current_metrics()
+    # Get final statistics
+    stats = await manager.get_job_stats(job_id)
+    final_metrics = monitor.get_current_metrics()
 
-        # Calculate performance metrics
-        performance = PerformanceMetrics(
-            test_name="High Volume Processing",
-            start_time=datetime.fromtimestamp(start_time),
-            end_time=datetime.fromtimestamp(end_time),
-            duration_seconds=duration,
-            items_processed=stats['completed'],
-            processing_rate=stats['completed'] / duration,
-            memory_usage_mb=final_metrics['memory_mb'],
-            cpu_usage_percent=final_metrics['cpu_percent'],
-            database_calls=monitor.db_calls,
-            api_calls=monitor.api_calls,
-            error_count=stats['failed'],
-            success_rate=(stats['completed'] / stats['total_items']) * 100
-        )
+    # Calculate performance metrics
+    performance = PerformanceMetrics(
+        test_name="High Volume Processing",
+        start_time=datetime.fromtimestamp(start_time),
+        end_time=datetime.fromtimestamp(end_time),
+        duration_seconds=duration,
+        items_processed=stats['completed'],
+        processing_rate=stats['completed'] / duration,
+        memory_usage_mb=final_metrics['memory_mb'],
+        cpu_usage_percent=final_metrics['cpu_percent'],
+        database_calls=monitor.db_calls,
+        api_calls=monitor.api_calls,
+        error_count=stats['failed'],
+        success_rate=(stats['completed'] / stats['total_items']) * 100
+    )
 
-        # Log results
-        logger.info("=" * 80)
-        logger.info("🎯 HIGH VOLUME PROCESSING RESULTS")
-        logger.info(f"📊 Items processed: {performance.items_processed:,}")
-        logger.info(f"📊 Total records stored: {stats['total_records']:,}")
-        logger.info(f"⏱️  Duration: {performance.duration_seconds:.2f} seconds")
-        logger.info(f"🚀 Processing rate: {performance.processing_rate:.1f} items/second")
-        logger.info(f"💾 Memory usage: {performance.memory_usage_mb:.1f} MB")
-        logger.info(f"💾 Memory increase: {final_metrics['memory_delta_mb']:.1f} MB")
-        logger.info(f"🔄 Database calls: {performance.database_calls}")
-        logger.info(f"🌐 API calls: {performance.api_calls}")
-        logger.info(f"✅ Success rate: {performance.success_rate:.1f}%")
-        logger.info(f"⚡ Avg processing time: {stats['avg_processing_time_ms']:.1f}ms/item")
+    # Log results
+    logger.info("=" * 80)
+    logger.info("🎯 HIGH VOLUME PROCESSING RESULTS")
+    logger.info(f"📊 Items processed: {performance.items_processed:,}")
+    logger.info(f"📊 Total records stored: {stats['total_records']:,}")
+    logger.info(f"⏱️  Duration: {performance.duration_seconds:.2f} seconds")
+    logger.info(f"🚀 Processing rate: {performance.processing_rate:.1f} items/second")
+    logger.info(f"💾 Memory usage: {performance.memory_usage_mb:.1f} MB")
+    logger.info(f"💾 Memory increase: {final_metrics['memory_delta_mb']:.1f} MB")
+    logger.info(f"🔄 Database calls: {performance.database_calls}")
+    logger.info(f"🌐 API calls: {performance.api_calls}")
+    logger.info(f"✅ Success rate: {performance.success_rate:.1f}%")
+    logger.info(f"⚡ Avg processing time: {stats['avg_processing_time_ms']:.1f}ms/item")
 
-        # Performance assertions
-        assert performance.processing_rate >= 50, f"Processing rate too slow: {performance.processing_rate:.1f}/sec"
-        assert performance.success_rate >= 99.0, f"Success rate too low: {performance.success_rate:.1f}%"
-        assert final_metrics['memory_delta_mb'] < 500, f"Memory usage too high: {final_metrics['memory_delta_mb']:.1f}MB"
+    # Performance assertions
+    assert performance.processing_rate >= 50, f"Processing rate too slow: {performance.processing_rate:.1f}/sec"
+    assert performance.success_rate >= 99.0, f"Success rate too low: {performance.success_rate:.1f}%"
+    assert final_metrics['memory_delta_mb'] < 500, f"Memory usage too high: {final_metrics['memory_delta_mb']:.1f}MB"
 
-        await manager.cleanup_performance_tables()
-        await conn.close()
+    await manager.cleanup_performance_tables()
+    await conn.close()
 
-        logger.info("✅ High volume processing test PASSED")
-        return performance
-
-    except Exception as e:
-        logger.error(f"❌ High volume processing test FAILED: {e}")
-        raise
+    logger.info("✅ High volume processing test PASSED")
+    return performance
 
 @pytest.mark.asyncio
 
@@ -442,107 +437,102 @@ async def test_concurrent_job_performance():
     monitor = PerformanceMonitor()
     monitor.start_monitoring()
 
-    try:
-        conn = await asyncpg.connect(
-            host='postgres',
-            port=5432,
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
+    conn = await asyncpg.connect(
+        host='postgres',
+        port=5432,
+        user='postgres',
+        password='dev_password',
+        database='dev_db'
+    )
 
-        manager = PerformanceTestCheckpointManager(conn, monitor)
-        await manager.setup_performance_tables()
+    manager = PerformanceTestCheckpointManager(conn, monitor)
+    await manager.setup_performance_tables()
 
-        async def run_concurrent_job(job_index: int, items_per_job: int):
-            """Run a single job concurrently"""
-            job = HighVolumeJob(f"concurrent_job_{job_index}", items_per_job, 10)
-            job_id = await manager.create_job_run(job.name, f"vendor_{job_index % 3}", items_per_job)
+    async def run_concurrent_job(job_index: int, items_per_job: int):
+        """Run a single job concurrently"""
+        job = HighVolumeJob(f"concurrent_job_{job_index}", items_per_job, 10)
+        job_id = await manager.create_job_run(job.name, f"vendor_{job_index % 3}", items_per_job)
 
-            items = await job.get_items()
-            await manager.bulk_initialize_items(job_id, items)
+        items = await job.get_items()
+        await manager.bulk_initialize_items(job_id, items)
 
-            processed = 0
-            for item in items:
-                prices, error = await job.process_item(item, monitor)
-                if not error:
-                    await manager.bulk_store_prices(job_id, f"single_{item}", prices)
-                    processed += 1
+        processed = 0
+        for item in items:
+            prices, error = await job.process_item(item, monitor)
+            if not error:
+                await manager.bulk_store_prices(job_id, f"single_{item}", prices)
+                processed += 1
 
-            return job_id, processed
+        return job_id, processed
 
-        # Run multiple jobs concurrently
-        num_jobs = 10
-        items_per_job = 100
+    # Run multiple jobs concurrently
+    num_jobs = 10
+    items_per_job = 100
 
-        start_time = time.time()
+    start_time = time.time()
 
-        # Execute all jobs concurrently
-        results = await asyncio.gather(*[
-            run_concurrent_job(i, items_per_job)
-            for i in range(num_jobs)
-        ])
+    # Execute all jobs concurrently
+    results = await asyncio.gather(*[
+        run_concurrent_job(i, items_per_job)
+        for i in range(num_jobs)
+    ])
 
-        end_time = time.time()
-        duration = end_time - start_time
+    end_time = time.time()
+    duration = end_time - start_time
 
-        # Collect statistics from all jobs
-        total_processed = 0
-        all_stats = []
+    # Collect statistics from all jobs
+    total_processed = 0
+    all_stats = []
 
-        for job_id, processed in results:
-            stats = await manager.get_job_stats(job_id)
-            all_stats.append(stats)
-            total_processed += processed
+    for job_id, processed in results:
+        stats = await manager.get_job_stats(job_id)
+        all_stats.append(stats)
+        total_processed += processed
 
-        final_metrics = monitor.get_current_metrics()
+    final_metrics = monitor.get_current_metrics()
 
-        # Calculate performance metrics
-        performance = PerformanceMetrics(
-            test_name="Concurrent Job Processing",
-            start_time=datetime.fromtimestamp(start_time),
-            end_time=datetime.fromtimestamp(end_time),
-            duration_seconds=duration,
-            items_processed=total_processed,
-            processing_rate=total_processed / duration,
-            memory_usage_mb=final_metrics['memory_mb'],
-            cpu_usage_percent=final_metrics['cpu_percent'],
-            database_calls=monitor.db_calls,
-            api_calls=monitor.api_calls,
-            error_count=0,
-            success_rate=100.0
-        )
+    # Calculate performance metrics
+    performance = PerformanceMetrics(
+        test_name="Concurrent Job Processing",
+        start_time=datetime.fromtimestamp(start_time),
+        end_time=datetime.fromtimestamp(end_time),
+        duration_seconds=duration,
+        items_processed=total_processed,
+        processing_rate=total_processed / duration,
+        memory_usage_mb=final_metrics['memory_mb'],
+        cpu_usage_percent=final_metrics['cpu_percent'],
+        database_calls=monitor.db_calls,
+        api_calls=monitor.api_calls,
+        error_count=0,
+        success_rate=100.0
+    )
 
-        # Log results
-        logger.info("=" * 80)
-        logger.info("🎯 CONCURRENT JOB PERFORMANCE RESULTS")
-        logger.info(f"📊 Concurrent jobs: {num_jobs}")
-        logger.info(f"📊 Items per job: {items_per_job}")
-        logger.info(f"📊 Total items processed: {performance.items_processed:,}")
-        logger.info(f"⏱️  Duration: {performance.duration_seconds:.2f} seconds")
-        logger.info(f"🚀 Overall rate: {performance.processing_rate:.1f} items/second")
-        logger.info(f"🚀 Per-job rate: {performance.processing_rate/num_jobs:.1f} items/second/job")
-        logger.info(f"💾 Memory usage: {performance.memory_usage_mb:.1f} MB")
-        logger.info(f"🔄 Database calls: {performance.database_calls}")
-        logger.info(f"🌐 API calls: {performance.api_calls}")
+    # Log results
+    logger.info("=" * 80)
+    logger.info("🎯 CONCURRENT JOB PERFORMANCE RESULTS")
+    logger.info(f"📊 Concurrent jobs: {num_jobs}")
+    logger.info(f"📊 Items per job: {items_per_job}")
+    logger.info(f"📊 Total items processed: {performance.items_processed:,}")
+    logger.info(f"⏱️  Duration: {performance.duration_seconds:.2f} seconds")
+    logger.info(f"🚀 Overall rate: {performance.processing_rate:.1f} items/second")
+    logger.info(f"🚀 Per-job rate: {performance.processing_rate/num_jobs:.1f} items/second/job")
+    logger.info(f"💾 Memory usage: {performance.memory_usage_mb:.1f} MB")
+    logger.info(f"🔄 Database calls: {performance.database_calls}")
+    logger.info(f"🌐 API calls: {performance.api_calls}")
 
-        # Performance assertions for concurrent execution
-        expected_min_rate = 30  # Should process at least 30 items/sec total
-        assert performance.processing_rate >= expected_min_rate, f"Concurrent rate too slow: {performance.processing_rate:.1f}/sec"
+    # Performance assertions for concurrent execution
+    expected_min_rate = 30  # Should process at least 30 items/sec total
+    assert performance.processing_rate >= expected_min_rate, f"Concurrent rate too slow: {performance.processing_rate:.1f}/sec"
 
-        # Verify all jobs completed successfully
-        for i, stats in enumerate(all_stats):
-            assert stats['completed'] == items_per_job, f"Job {i} incomplete: {stats['completed']}/{items_per_job}"
+    # Verify all jobs completed successfully
+    for i, stats in enumerate(all_stats):
+        assert stats['completed'] == items_per_job, f"Job {i} incomplete: {stats['completed']}/{items_per_job}"
 
-        await manager.cleanup_performance_tables()
-        await conn.close()
+    await manager.cleanup_performance_tables()
+    await conn.close()
 
-        logger.info("✅ Concurrent job performance test PASSED")
-        return performance
-
-    except Exception as e:
-        logger.error(f"❌ Concurrent job performance test FAILED: {e}")
-        raise
+    logger.info("✅ Concurrent job performance test PASSED")
+    return performance
 
 @pytest.mark.asyncio
 
@@ -553,130 +543,125 @@ async def test_memory_usage_patterns():
     monitor = PerformanceMonitor()
     monitor.start_monitoring()
 
-    try:
-        conn = await asyncpg.connect(
-            host='postgres',
-            port=5432,
-            user='postgres',
-            password='dev_password',
-            database='dev_db'
-        )
+    conn = await asyncpg.connect(
+        host='postgres',
+        port=5432,
+        user='postgres',
+        password='dev_password',
+        database='dev_db'
+    )
 
-        manager = PerformanceTestCheckpointManager(conn, monitor)
-        await manager.setup_performance_tables()
+    manager = PerformanceTestCheckpointManager(conn, monitor)
+    await manager.setup_performance_tables()
 
-        memory_snapshots = []
-        processing_stages = [
-            ("Initialization", 100, 10),
-            ("Small Load", 500, 20),
-            ("Medium Load", 1000, 50),
-            ("Large Load", 2000, 100),
-        ]
+    memory_snapshots = []
+    processing_stages = [
+        ("Initialization", 100, 10),
+        ("Small Load", 500, 20),
+        ("Medium Load", 1000, 50),
+        ("Large Load", 2000, 100),
+    ]
 
-        for stage_name, item_count, records_per_item in processing_stages:
-            logger.info(f"📊 Memory test stage: {stage_name} ({item_count} items)")
+    for stage_name, item_count, records_per_item in processing_stages:
+        logger.info(f"📊 Memory test stage: {stage_name} ({item_count} items)")
 
-            # Force garbage collection before stage
-            gc.collect()
-            stage_start_metrics = monitor.get_current_metrics()
+        # Force garbage collection before stage
+        gc.collect()
+        stage_start_metrics = monitor.get_current_metrics()
 
-            job = HighVolumeJob(f"memory_test_{stage_name.lower()}", item_count, records_per_item)
-            job_id = await manager.create_job_run(job.name, "memory_test", item_count)
+        job = HighVolumeJob(f"memory_test_{stage_name.lower()}", item_count, records_per_item)
+        job_id = await manager.create_job_run(job.name, "memory_test", item_count)
 
-            items = await job.get_items()
-            await manager.bulk_initialize_items(job_id, items)
+        items = await job.get_items()
+        await manager.bulk_initialize_items(job_id, items)
 
-            # Process items in batches to monitor memory usage
-            batch_size = 50
-            stage_data = []
+        # Process items in batches to monitor memory usage
+        batch_size = 50
+        stage_data = []
 
-            for i in range(0, len(items), batch_size):
-                batch_items = items[i:i + batch_size]
-                batch_start_mem = monitor.get_current_metrics()['memory_mb']
+        for i in range(0, len(items), batch_size):
+            batch_items = items[i:i + batch_size]
+            batch_start_mem = monitor.get_current_metrics()['memory_mb']
 
-                # Process batch
-                all_prices = []
-                completed_items = []
+            # Process batch
+            all_prices = []
+            completed_items = []
 
-                for item in batch_items:
-                    prices, error = await job.process_item(item, monitor)
-                    if not error:
-                        all_prices.extend(prices)
-                        completed_items.append((item, len(prices), 1))  # 1ms processing time
+            for item in batch_items:
+                prices, error = await job.process_item(item, monitor)
+                if not error:
+                    all_prices.extend(prices)
+                    completed_items.append((item, len(prices), 1))  # 1ms processing time
 
-                # Store batch data
-                if completed_items:
-                    await manager.batch_update_completed_items(job_id, completed_items)
-                    await manager.bulk_store_prices(job_id, f"mem_batch_{i}", all_prices)
+            # Store batch data
+            if completed_items:
+                await manager.batch_update_completed_items(job_id, completed_items)
+                await manager.bulk_store_prices(job_id, f"mem_batch_{i}", all_prices)
 
-                batch_end_mem = monitor.get_current_metrics()['memory_mb']
-                stage_data.append({
-                    'batch_index': i // batch_size,
-                    'items_processed': len(batch_items),
-                    'memory_before_mb': batch_start_mem,
-                    'memory_after_mb': batch_end_mem,
-                    'memory_delta_mb': batch_end_mem - batch_start_mem
-                })
+            batch_end_mem = monitor.get_current_metrics()['memory_mb']
+            stage_data.append({
+                'batch_index': i // batch_size,
+                'items_processed': len(batch_items),
+                'memory_before_mb': batch_start_mem,
+                'memory_after_mb': batch_end_mem,
+                'memory_delta_mb': batch_end_mem - batch_start_mem
+            })
 
-            # Force garbage collection after stage
-            gc.collect()
-            stage_end_metrics = monitor.get_current_metrics()
+        # Force garbage collection after stage
+        gc.collect()
+        stage_end_metrics = monitor.get_current_metrics()
 
-            # Calculate stage memory statistics
-            memory_deltas = [batch['memory_delta_mb'] for batch in stage_data]
-            stage_memory_increase = stage_end_metrics['memory_mb'] - stage_start_metrics['memory_mb']
+        # Calculate stage memory statistics
+        memory_deltas = [batch['memory_delta_mb'] for batch in stage_data]
+        stage_memory_increase = stage_end_metrics['memory_mb'] - stage_start_metrics['memory_mb']
 
-            stage_summary = {
-                'stage_name': stage_name,
-                'items_processed': item_count,
-                'records_per_item': records_per_item,
-                'total_records': item_count * records_per_item,
-                'memory_start_mb': stage_start_metrics['memory_mb'],
-                'memory_end_mb': stage_end_metrics['memory_mb'],
-                'memory_increase_mb': stage_memory_increase,
-                'avg_batch_delta_mb': statistics.mean(memory_deltas) if memory_deltas else 0,
-                'max_batch_delta_mb': max(memory_deltas) if memory_deltas else 0,
-                'memory_per_record_kb': (stage_memory_increase * 1024) / (item_count * records_per_item) if item_count * records_per_item > 0 else 0
-            }
+        stage_summary = {
+            'stage_name': stage_name,
+            'items_processed': item_count,
+            'records_per_item': records_per_item,
+            'total_records': item_count * records_per_item,
+            'memory_start_mb': stage_start_metrics['memory_mb'],
+            'memory_end_mb': stage_end_metrics['memory_mb'],
+            'memory_increase_mb': stage_memory_increase,
+            'avg_batch_delta_mb': statistics.mean(memory_deltas) if memory_deltas else 0,
+            'max_batch_delta_mb': max(memory_deltas) if memory_deltas else 0,
+            'memory_per_record_kb': (stage_memory_increase * 1024) / (item_count * records_per_item) if item_count * records_per_item > 0 else 0
+        }
 
-            memory_snapshots.append(stage_summary)
+        memory_snapshots.append(stage_summary)
 
-            logger.info(f"  💾 Memory increase: {stage_memory_increase:.1f} MB")
-            logger.info(f"  📊 Memory per record: {stage_summary['memory_per_record_kb']:.2f} KB")
-            logger.info(f"  📈 Max batch delta: {stage_summary['max_batch_delta_mb']:.1f} MB")
+        logger.info(f"  💾 Memory increase: {stage_memory_increase:.1f} MB")
+        logger.info(f"  📊 Memory per record: {stage_summary['memory_per_record_kb']:.2f} KB")
+        logger.info(f"  📈 Max batch delta: {stage_summary['max_batch_delta_mb']:.1f} MB")
 
-        # Analyze memory patterns
-        logger.info("=" * 80)
-        logger.info("🎯 MEMORY USAGE PATTERN ANALYSIS")
+    # Analyze memory patterns
+    logger.info("=" * 80)
+    logger.info("🎯 MEMORY USAGE PATTERN ANALYSIS")
 
-        for snapshot in memory_snapshots:
-            logger.info(f"📊 {snapshot['stage_name']}:")
-            logger.info(f"    Items: {snapshot['items_processed']:,}, Records: {snapshot['total_records']:,}")
-            logger.info(f"    Memory increase: {snapshot['memory_increase_mb']:.1f} MB")
-            logger.info(f"    Memory per record: {snapshot['memory_per_record_kb']:.2f} KB")
-            logger.info(f"    Max batch delta: {snapshot['max_batch_delta_mb']:.1f} MB")
+    for snapshot in memory_snapshots:
+        logger.info(f"📊 {snapshot['stage_name']}:")
+        logger.info(f"    Items: {snapshot['items_processed']:,}, Records: {snapshot['total_records']:,}")
+        logger.info(f"    Memory increase: {snapshot['memory_increase_mb']:.1f} MB")
+        logger.info(f"    Memory per record: {snapshot['memory_per_record_kb']:.2f} KB")
+        logger.info(f"    Max batch delta: {snapshot['max_batch_delta_mb']:.1f} MB")
 
-        # Memory usage assertions
-        final_memory = memory_snapshots[-1]['memory_end_mb']
-        initial_memory = memory_snapshots[0]['memory_start_mb']
-        total_memory_increase = final_memory - initial_memory
+    # Memory usage assertions
+    final_memory = memory_snapshots[-1]['memory_end_mb']
+    initial_memory = memory_snapshots[0]['memory_start_mb']
+    total_memory_increase = final_memory - initial_memory
 
-        # Should not use excessive memory (less than 1GB total increase)
-        assert total_memory_increase < 1024, f"Memory usage too high: {total_memory_increase:.1f} MB"
+    # Should not use excessive memory (less than 1GB total increase)
+    assert total_memory_increase < 1024, f"Memory usage too high: {total_memory_increase:.1f} MB"
 
-        # Memory per record should be reasonable (less than 1KB per record)
-        avg_memory_per_record = statistics.mean([s['memory_per_record_kb'] for s in memory_snapshots])
-        assert avg_memory_per_record < 1.0, f"Memory per record too high: {avg_memory_per_record:.2f} KB"
+    # Memory per record should be reasonable (less than 1KB per record)
+    avg_memory_per_record = statistics.mean([s['memory_per_record_kb'] for s in memory_snapshots])
+    assert avg_memory_per_record < 1.0, f"Memory per record too high: {avg_memory_per_record:.2f} KB"
 
-        await manager.cleanup_performance_tables()
-        await conn.close()
+    await manager.cleanup_performance_tables()
+    await conn.close()
 
-        logger.info("✅ Memory usage pattern test PASSED")
-        return memory_snapshots
-
-    except Exception as e:
-        logger.error(f"❌ Memory usage pattern test FAILED: {e}")
-        raise
+    logger.info("✅ Memory usage pattern test PASSED")
+    return memory_snapshots
 
 @pytest.mark.asyncio
 
@@ -684,140 +669,135 @@ async def test_database_performance_scaling():
     """Test database performance under increasing load"""
     logger.info("🚀 Starting database performance scaling test...")
 
-    try:
-        conn = await asyncpg.connect(
+    conn = await asyncpg.connect(
+        host='postgres',
+        port=5432,
+        user='postgres',
+        password='dev_password',
+        database='dev_db'
+    )
+
+    monitor = PerformanceMonitor()
+    monitor.start_monitoring()
+
+    manager = PerformanceTestCheckpointManager(conn, monitor)
+    await manager.setup_performance_tables()
+
+    scaling_results = []
+    connection_counts = [1, 5, 10, 20]  # Test with different connection pool sizes
+
+    for conn_count in connection_counts:
+        logger.info(f"📊 Testing with {conn_count} database connections...")
+
+        # Create connection pool
+        pool = await asyncpg.create_pool(
             host='postgres',
             port=5432,
             user='postgres',
             password='dev_password',
-            database='dev_db'
+            database='dev_db',
+            min_size=conn_count,
+            max_size=conn_count
         )
 
-        monitor = PerformanceMonitor()
-        monitor.start_monitoring()
+        async def db_intensive_task(task_id: int, operations_per_task: int):
+            """Run database-intensive operations"""
+            async with pool.acquire() as conn:
+                task_manager = PerformanceTestCheckpointManager(conn, monitor)
 
-        manager = PerformanceTestCheckpointManager(conn, monitor)
-        await manager.setup_performance_tables()
+                # Create job
+                job_id = await task_manager.create_job_run(f"db_scale_test_{task_id}", "scale_test", operations_per_task)
 
-        scaling_results = []
-        connection_counts = [1, 5, 10, 20]  # Test with different connection pool sizes
+                # Generate and initialize items
+                items = [f"TASK_{task_id}_ITEM_{i}" for i in range(operations_per_task)]
+                await task_manager.bulk_initialize_items(job_id, items)
 
-        for conn_count in connection_counts:
-            logger.info(f"📊 Testing with {conn_count} database connections...")
+                # Perform rapid database operations
+                completed_items = [(item, 10, 5) for item in items]  # 10 records, 5ms processing time
+                await task_manager.batch_update_completed_items(job_id, completed_items)
 
-            # Create connection pool
-            pool = await asyncpg.create_pool(
-                host='postgres',
-                port=5432,
-                user='postgres',
-                password='dev_password',
-                database='dev_db',
-                min_size=conn_count,
-                max_size=conn_count
-            )
+                # Generate and store price data
+                price_data = []
+                for item in items:
+                    price_data.extend([
+                        {
+                            'symbol': item,
+                            'date': date.today() - timedelta(days=i),
+                            'price': 100.0 + i,
+                            'volume': 1000000
+                        }
+                        for i in range(10)
+                    ])
 
-            async def db_intensive_task(task_id: int, operations_per_task: int):
-                """Run database-intensive operations"""
-                async with pool.acquire() as conn:
-                    task_manager = PerformanceTestCheckpointManager(conn, monitor)
+                await task_manager.bulk_store_prices(job_id, f"scale_batch_{task_id}", price_data)
 
-                    # Create job
-                    job_id = await task_manager.create_job_run(f"db_scale_test_{task_id}", "scale_test", operations_per_task)
+                return len(items), len(price_data)
 
-                    # Generate and initialize items
-                    items = [f"TASK_{task_id}_ITEM_{i}" for i in range(operations_per_task)]
-                    await task_manager.bulk_initialize_items(job_id, items)
+        # Run concurrent database-intensive tasks
+        operations_per_task = 100
+        num_tasks = conn_count * 2  # 2 tasks per connection
 
-                    # Perform rapid database operations
-                    completed_items = [(item, 10, 5) for item in items]  # 10 records, 5ms processing time
-                    await task_manager.batch_update_completed_items(job_id, completed_items)
+        start_time = time.time()
 
-                    # Generate and store price data
-                    price_data = []
-                    for item in items:
-                        price_data.extend([
-                            {
-                                'symbol': item,
-                                'date': date.today() - timedelta(days=i),
-                                'price': 100.0 + i,
-                                'volume': 1000000
-                            }
-                            for i in range(10)
-                        ])
+        task_results = await asyncio.gather(*[
+            db_intensive_task(i, operations_per_task)
+            for i in range(num_tasks)
+        ])
 
-                    await task_manager.bulk_store_prices(job_id, f"scale_batch_{task_id}", price_data)
+        end_time = time.time()
+        duration = end_time - start_time
 
-                    return len(items), len(price_data)
+        # Calculate metrics
+        total_items = sum(result[0] for result in task_results)
+        total_records = sum(result[1] for result in task_results)
 
-            # Run concurrent database-intensive tasks
-            operations_per_task = 100
-            num_tasks = conn_count * 2  # 2 tasks per connection
+        scaling_result = {
+            'connection_count': conn_count,
+            'concurrent_tasks': num_tasks,
+            'total_items': total_items,
+            'total_records': total_records,
+            'duration_seconds': duration,
+            'items_per_second': total_items / duration,
+            'records_per_second': total_records / duration,
+            'db_calls': monitor.db_calls
+        }
 
-            start_time = time.time()
+        scaling_results.append(scaling_result)
 
-            task_results = await asyncio.gather(*[
-                db_intensive_task(i, operations_per_task)
-                for i in range(num_tasks)
-            ])
+        logger.info(f"  ⏱️  Duration: {duration:.2f}s")
+        logger.info(f"  🚀 Items/sec: {scaling_result['items_per_second']:.1f}")
+        logger.info(f"  📊 Records/sec: {scaling_result['records_per_second']:.1f}")
 
-            end_time = time.time()
-            duration = end_time - start_time
+        await pool.close()
 
-            # Calculate metrics
-            total_items = sum(result[0] for result in task_results)
-            total_records = sum(result[1] for result in task_results)
+        # Reset monitor counters
+        monitor.db_calls = 0
 
-            scaling_result = {
-                'connection_count': conn_count,
-                'concurrent_tasks': num_tasks,
-                'total_items': total_items,
-                'total_records': total_records,
-                'duration_seconds': duration,
-                'items_per_second': total_items / duration,
-                'records_per_second': total_records / duration,
-                'db_calls': monitor.db_calls
-            }
+    # Analyze scaling performance
+    logger.info("=" * 80)
+    logger.info("🎯 DATABASE PERFORMANCE SCALING RESULTS")
 
-            scaling_results.append(scaling_result)
+    for result in scaling_results:
+        logger.info(f"📊 {result['connection_count']} connections:")
+        logger.info(f"    Items/sec: {result['items_per_second']:.1f}")
+        logger.info(f"    Records/sec: {result['records_per_second']:.1f}")
+        logger.info(f"    Duration: {result['duration_seconds']:.2f}s")
 
-            logger.info(f"  ⏱️  Duration: {duration:.2f}s")
-            logger.info(f"  🚀 Items/sec: {scaling_result['items_per_second']:.1f}")
-            logger.info(f"  📊 Records/sec: {scaling_result['records_per_second']:.1f}")
+    # Verify scaling efficiency
+    base_performance = scaling_results[0]['items_per_second']
 
-            await pool.close()
+    for result in scaling_results[1:]:
+        scaling_factor = result['connection_count'] / scaling_results[0]['connection_count']
+        expected_min_performance = base_performance * min(scaling_factor, 2.0)  # Should scale up to 2x
 
-            # Reset monitor counters
-            monitor.db_calls = 0
+        assert result['items_per_second'] >= expected_min_performance * 0.7, \
+            f"Poor scaling: {result['items_per_second']:.1f} < {expected_min_performance * 0.7:.1f} items/sec"
 
-        # Analyze scaling performance
-        logger.info("=" * 80)
-        logger.info("🎯 DATABASE PERFORMANCE SCALING RESULTS")
+    await manager.cleanup_performance_tables()
+    await conn.close()
 
-        for result in scaling_results:
-            logger.info(f"📊 {result['connection_count']} connections:")
-            logger.info(f"    Items/sec: {result['items_per_second']:.1f}")
-            logger.info(f"    Records/sec: {result['records_per_second']:.1f}")
-            logger.info(f"    Duration: {result['duration_seconds']:.2f}s")
-
-        # Verify scaling efficiency
-        base_performance = scaling_results[0]['items_per_second']
-
-        for result in scaling_results[1:]:
-            scaling_factor = result['connection_count'] / scaling_results[0]['connection_count']
-            expected_min_performance = base_performance * min(scaling_factor, 2.0)  # Should scale up to 2x
-
-            assert result['items_per_second'] >= expected_min_performance * 0.7, \
-                f"Poor scaling: {result['items_per_second']:.1f} < {expected_min_performance * 0.7:.1f} items/sec"
-
-        await manager.cleanup_performance_tables()
-        await conn.close()
-
-        logger.info("✅ Database performance scaling test PASSED")
-        return scaling_results
-
-    except Exception as e:
-        logger.error(f"❌ Database performance scaling test FAILED: {e}")
-        raise
+    logger.info("✅ Database performance scaling test PASSED")
+    return scaling_results
 
 async def run_all_performance_tests():
     """Run comprehensive performance test suite"""
@@ -837,31 +817,19 @@ async def run_all_performance_tests():
         logger.info(f"\n🧪 Running: {test_name}")
         logger.info("-" * 60)
 
-        try:
-            start_time = time.time()
-            result = await test_func()
-            duration = time.time() - start_time
+        start_time = time.time()
+        result = await test_func()
+        duration = time.time() - start_time
 
-            test_results.append({
-                'name': test_name,
-                'status': 'PASSED',
-                'duration': duration,
-                'result': result
-            })
+        test_results.append({
+            'name': test_name,
+            'status': 'PASSED',
+            'duration': duration,
+            'result': result
+        })
 
-            logger.info(f"✅ {test_name} completed in {duration:.2f}s")
+        logger.info(f"✅ {test_name} completed in {duration:.2f}s")
 
-        except Exception as e:
-            test_results.append({
-                'name': test_name,
-                'status': 'FAILED',
-                'duration': 0,
-                'error': str(e)
-            })
-
-            logger.error(f"❌ {test_name} FAILED: {e}")
-
-    # Summary
     logger.info("\n" + "=" * 80)
     logger.info("📊 PERFORMANCE TEST SUITE RESULTS")
     logger.info("=" * 80)

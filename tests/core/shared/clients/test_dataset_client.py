@@ -16,8 +16,8 @@ import pandas as pd
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.clients.dataset_client import DatasetClient, DatasetLoader
-from src.infrastructure.services_legacy.dataset_service import DatasetMetadata, DatasetFileIterator
+from core.shared.clients.dataset_client import DatasetClient, DatasetLoader
+from infrastructure.services_legacy.data_services.dataset_service import DatasetMetadata, DatasetFileIterator
 
 class TestDatasetClient(unittest.TestCase):
     """Test suite for DatasetClient functionality."""

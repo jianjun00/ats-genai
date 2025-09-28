@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsSequenceCountValidationPipeline:
@@ -55,13 +49,7 @@ class TestRealObjectsSequenceCountValidationPipeline:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_single_symbol_sequence_count_accuracy_real_objects(self, real_service, test_data):
         """Real objects version of test_single_symbol_sequence_count_accuracy"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsSequenceCountValidationPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.single_symbol_sequence_count_accuracy_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.single_symbol_sequence_count_accuracy_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_symbol_sequence_count_distribution_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_symbol_sequence_count_distribution"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsSequenceCountValidationPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_symbol_sequence_count_distribution_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_symbol_sequence_count_distribution_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequence_count_with_missing_timeframes_real_objects(self, real_service, test_data):
         """Real objects version of test_sequence_count_with_missing_timeframes"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsSequenceCountValidationPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequence_count_with_missing_timeframes_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sequence_count_with_missing_timeframes_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequence_count_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_sequence_count_edge_cases"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsSequenceCountValidationPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequence_count_edge_cases_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sequence_count_edge_cases_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequence_count_regression_protection_real_objects(self, real_service, test_data):
         """Real objects version of test_sequence_count_regression_protection"""
         # Test with real database integration
@@ -164,15 +128,8 @@ class TestRealObjectsSequenceCountValidationPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequence_count_regression_protection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.sequence_count_regression_protection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

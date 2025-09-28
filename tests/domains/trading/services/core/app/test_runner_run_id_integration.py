@@ -18,7 +18,7 @@ from core.shared.run_context import RunContext, create_run_context
 from core.shared.run_aware_logging import get_current_run_id
 from domains.trading.services.core.app.runner import Runner
 from core.platform.config.environment import Environment, EnvironmentType
-from state.run_aware_universe_state_manager import RunAwareUniverseStateManager
+from domains.trading.services.state.run_aware_universe_state_manager import RunAwareUniverseStateManager
 
 class TestRunnerRunIdIntegration:
     """Test Runner integration with run_id system."""
@@ -300,7 +300,7 @@ class TestRunnerBackwardCompatibility:
 
     def test_runner_with_existing_universe_state_manager(self):
         """Test Runner with pre-existing universe state manager."""
-        from state.universe_state_manager import UniverseStateManager
+        from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
         # Create existing manager
         existing_manager = UniverseStateManager(self.env, write_metadata=False)

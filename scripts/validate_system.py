@@ -100,48 +100,39 @@ class SystemValidator:
         tests = []
         
         # Test PostgreSQL connection
-        try:
-            import asyncpg
-            
-            # Test dev database
-            dev_conn = await asyncpg.connect(
-                host='ats-dev-postgres', port=5432,
-                user='postgres', password='dev_password', database='dev_db'
-            )
-            await dev_conn.fetchval("SELECT 1")
-            await dev_conn.close()
-            
-            tests.append({
-                "name": "dev_database_connection",
-                "description": "Connect to development database",
-                "passed": True,
-                "message": "Successfully connected to dev database"
-            })
-            
-            # Test integration database
-            intg_conn = await asyncpg.connect(
-                host='ats-intg-postgres', port=5432,
-                user='postgres', password='intg_password', database='intg_db'
-            )
-            tables_count = await intg_conn.fetchval(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
-            )
-            await intg_conn.close()
-            
-            tests.append({
-                "name": "intg_database_connection",
-                "description": "Connect to integration database and check tables",
-                "passed": True,
-                "message": f"Successfully connected to intg database with {tables_count} tables"
-            })
-            
-        except Exception as e:
-            tests.append({
-                "name": "database_connection",
-                "description": "Database connectivity test",
-                "passed": False,
-                "message": f"Database connection failed: {str(e)}"
-            })
+        import asyncpg
+        
+        # Test dev database
+        dev_conn = await asyncpg.connect(
+            host='ats-dev-postgres', port=5432,
+            user='postgres', password='dev_password', database='dev_db'
+        )
+        await dev_conn.fetchval("SELECT 1")
+        await dev_conn.close()
+        
+        tests.append({
+            "name": "dev_database_connection",
+            "description": "Connect to development database",
+            "passed": True,
+            "message": "Successfully connected to dev database"
+        })
+        
+        # Test integration database
+        intg_conn = await asyncpg.connect(
+            host='ats-intg-postgres', port=5432,
+            user='postgres', password='intg_password', database='intg_db'
+        )
+        tables_count = await intg_conn.fetchval(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+        )
+        await intg_conn.close()
+        
+        tests.append({
+            "name": "intg_database_connection",
+            "description": "Connect to integration database and check tables",
+            "passed": True,
+            "message": f"Successfully connected to intg database with {tables_count} tables"
+        })
         
         return {
             "category": "Database Connectivity",
@@ -156,23 +147,13 @@ class SystemValidator:
         tests = []
         
         # Test basic health endpoint
-        try:
-            async with self.session.get(f"{self.base_url}/health") as response:
-                tests.append({
-                    "name": "health_endpoint",
-                    "description": "Basic health check endpoint",
-                    "passed": response.status == 200,
-                    "message": f"Health endpoint returned {response.status}"
-                })
-        except Exception as e:
+        async with self.session.get(f"{self.base_url}/health") as response:
             tests.append({
                 "name": "health_endpoint",
                 "description": "Basic health check endpoint",
-                "passed": False,
-                "message": f"Health endpoint failed: {str(e)}"
+                "passed": response.status == 200,
+                "message": f"Health endpoint returned {response.status}"
             })
-        
-        # Test agent endpoints
         agent_endpoints = [
             "/agent/status",
             "/agent/health", 
@@ -186,22 +167,13 @@ class SystemValidator:
         ]
         
         for endpoint in agent_endpoints:
-            try:
-                async with self.session.get(f"{self.base_url}{endpoint}") as response:
-                    tests.append({
-                        "name": f"endpoint_{endpoint.replace('/', '_')}",
-                        "description": f"Test {endpoint} endpoint",
-                        "passed": response.status in [200, 503],  # 503 acceptable if agent not running
-                        "message": f"Endpoint {endpoint} returned {response.status}"
-                    })
-            except Exception as e:
+            async with self.session.get(f"{self.base_url}{endpoint}") as response:
                 tests.append({
                     "name": f"endpoint_{endpoint.replace('/', '_')}",
                     "description": f"Test {endpoint} endpoint",
-                    "passed": False,
-                    "message": f"Endpoint {endpoint} failed: {str(e)}"
+                    "passed": response.status in [200, 503],  # 503 acceptable if agent not running
+                    "message": f"Endpoint {endpoint} returned {response.status}"
                 })
-        
         return {
             "category": "API Endpoints",
             "tests": tests,
@@ -215,58 +187,39 @@ class SystemValidator:
         tests = []
         
         # Test agent status
-        try:
-            async with self.session.get(f"{self.base_url}/agent/status") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    tests.append({
-                        "name": "agent_status_check",
-                        "description": "Agent status retrieval",
-                        "passed": True,
-                        "message": f"Agent status: {data.get('status', 'unknown')}"
-                    })
-                else:
-                    tests.append({
-                        "name": "agent_status_check",
-                        "description": "Agent status retrieval",
-                        "passed": False,
-                        "message": f"Agent status endpoint returned {response.status}"
-                    })
-        except Exception as e:
-            tests.append({
-                "name": "agent_status_check",
-                "description": "Agent status retrieval",
-                "passed": False,
-                "message": f"Agent status check failed: {str(e)}"
-            })
-        
-        # Test agent configuration
-        try:
-            async with self.session.get(f"{self.base_url}/agent/config") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    config = data.get("config", {})
-                    tests.append({
-                        "name": "agent_configuration",
-                        "description": "Agent configuration retrieval",
-                        "passed": bool(config),
-                        "message": f"Configuration loaded with {len(config)} sections"
-                    })
-                else:
-                    tests.append({
-                        "name": "agent_configuration",
-                        "description": "Agent configuration retrieval",
-                        "passed": False,
-                        "message": f"Configuration endpoint returned {response.status}"
-                    })
-        except Exception as e:
-            tests.append({
-                "name": "agent_configuration",
-                "description": "Agent configuration retrieval",
-                "passed": False,
-                "message": f"Configuration test failed: {str(e)}"
-            })
-        
+        async with self.session.get(f"{self.base_url}/agent/status") as response:
+            if response.status == 200:
+                data = await response.json()
+                tests.append({
+                    "name": "agent_status_check",
+                    "description": "Agent status retrieval",
+                    "passed": True,
+                    "message": f"Agent status: {data.get('status', 'unknown')}"
+                })
+            else:
+                tests.append({
+                    "name": "agent_status_check",
+                    "description": "Agent status retrieval",
+                    "passed": False,
+                    "message": f"Agent status endpoint returned {response.status}"
+                })
+        async with self.session.get(f"{self.base_url}/agent/config") as response:
+            if response.status == 200:
+                data = await response.json()
+                config = data.get("config", {})
+                tests.append({
+                    "name": "agent_configuration",
+                    "description": "Agent configuration retrieval",
+                    "passed": bool(config),
+                    "message": f"Configuration loaded with {len(config)} sections"
+                })
+            else:
+                tests.append({
+                    "name": "agent_configuration",
+                    "description": "Agent configuration retrieval",
+                    "passed": False,
+                    "message": f"Configuration endpoint returned {response.status}"
+                })
         return {
             "category": "Agent Functionality",
             "tests": tests,
@@ -280,44 +233,26 @@ class SystemValidator:
         tests = []
         
         # Test if MCP tools are importable
-        try:
-            from src.mcp_tools.quality_scan_tool import QualityScanTool
-            tool = QualityScanTool()
-            definition = tool.get_tool_definition()
-            
-            tests.append({
-                "name": "quality_scan_tool",
-                "description": "Quality Scan Tool initialization",
-                "passed": bool(definition.get("name")),
-                "message": f"Quality Scan Tool loaded: {definition.get('name')}"
-            })
-        except Exception as e:
-            tests.append({
-                "name": "quality_scan_tool",
-                "description": "Quality Scan Tool initialization",
-                "passed": False,
-                "message": f"Quality Scan Tool failed: {str(e)}"
-            })
+        from src.mcp_tools.quality_scan_tool import QualityScanTool
+        tool = QualityScanTool()
+        definition = tool.get_tool_definition()
         
-        try:
-            from src.mcp_tools.backfill_orchestrator_tool import BackfillOrchestratorTool
-            tool = BackfillOrchestratorTool()
-            definition = tool.get_tool_definition()
-            
-            tests.append({
-                "name": "backfill_orchestrator_tool",
-                "description": "Backfill Orchestrator Tool initialization",
-                "passed": bool(definition.get("name")),
-                "message": f"Backfill Orchestrator Tool loaded: {definition.get('name')}"
-            })
-        except Exception as e:
-            tests.append({
-                "name": "backfill_orchestrator_tool",
-                "description": "Backfill Orchestrator Tool initialization",
-                "passed": False,
-                "message": f"Backfill Orchestrator Tool failed: {str(e)}"
-            })
+        tests.append({
+            "name": "quality_scan_tool",
+            "description": "Quality Scan Tool initialization",
+            "passed": bool(definition.get("name")),
+            "message": f"Quality Scan Tool loaded: {definition.get('name')}"
+        })
+        from src.mcp_tools.backfill_orchestrator_tool import BackfillOrchestratorTool
+        tool = BackfillOrchestratorTool()
+        definition = tool.get_tool_definition()
         
+        tests.append({
+            "name": "backfill_orchestrator_tool",
+            "description": "Backfill Orchestrator Tool initialization",
+            "passed": bool(definition.get("name")),
+            "message": f"Backfill Orchestrator Tool loaded: {definition.get('name')}"
+        })
         return {
             "category": "MCP Tools",
             "tests": tests,
@@ -331,40 +266,31 @@ class SystemValidator:
         tests = []
         
         # Test configuration manager
-        try:
-            from src.agents.agent_config import get_config_manager
-            config_manager = get_config_manager()
-            config = config_manager.get_config()
-            
-            tests.append({
-                "name": "config_manager_initialization",
-                "description": "Configuration manager initialization",
-                "passed": bool(config),
-                "message": f"Configuration manager loaded successfully"
-            })
-            
-            # Test configuration validation
-            test_updates = {
-                "monitoring": {
-                    "cycle_interval_seconds": 300
-                }
+        from src.agents.agent_config import get_config_manager
+        config_manager = get_config_manager()
+        config = config_manager.get_config()
+        
+        tests.append({
+            "name": "config_manager_initialization",
+            "description": "Configuration manager initialization",
+            "passed": bool(config),
+            "message": f"Configuration manager loaded successfully"
+        })
+        
+        # Test configuration validation
+        test_updates = {
+            "monitoring": {
+                "cycle_interval_seconds": 300
             }
-            
-            validation_result = config_manager._validate_updates(test_updates)
-            tests.append({
-                "name": "config_validation",
-                "description": "Configuration validation system",
-                "passed": validation_result,
-                "message": "Configuration validation working correctly"
-            })
-            
-        except Exception as e:
-            tests.append({
-                "name": "configuration_system",
-                "description": "Configuration system test",
-                "passed": False,
-                "message": f"Configuration system failed: {str(e)}"
-            })
+        }
+        
+        validation_result = config_manager._validate_updates(test_updates)
+        tests.append({
+            "name": "config_validation",
+            "description": "Configuration validation system",
+            "passed": validation_result,
+            "message": "Configuration validation working correctly"
+        })
         
         return {
             "category": "Configuration System",
@@ -379,34 +305,25 @@ class SystemValidator:
         tests = []
         
         # Test agent logger
-        try:
-            from src.agents.agent_logger import get_agent_logger
-            agent_logger = get_agent_logger("test_agent", "INFO")
-            
-            # Test logging functionality
-            agent_logger.info("test", "validation", "Test log entry")
-            
-            # Test performance tracking
-            with agent_logger.operation_timer("test", "validation_test"):
-                await asyncio.sleep(0.1)
-            
-            # Get performance summary
-            performance = agent_logger.get_performance_summary()
-            
-            tests.append({
-                "name": "agent_logging",
-                "description": "Agent logging system",
-                "passed": bool(performance),
-                "message": f"Logging system working with {len(performance)} operations tracked"
-            })
-            
-        except Exception as e:
-            tests.append({
-                "name": "agent_logging",
-                "description": "Agent logging system",
-                "passed": False,
-                "message": f"Logging system failed: {str(e)}"
-            })
+        from src.agents.agent_logger import get_agent_logger
+        agent_logger = get_agent_logger("test_agent", "INFO")
+        
+        # Test logging functionality
+        agent_logger.info("test", "validation", "Test log entry")
+        
+        # Test performance tracking
+        with agent_logger.operation_timer("test", "validation_test"):
+            await asyncio.sleep(0.1)
+        
+        # Get performance summary
+        performance = agent_logger.get_performance_summary()
+        
+        tests.append({
+            "name": "agent_logging",
+            "description": "Agent logging system",
+            "passed": bool(performance),
+            "message": f"Logging system working with {len(performance)} operations tracked"
+        })
         
         return {
             "category": "Logging System",
@@ -421,37 +338,28 @@ class SystemValidator:
         tests = []
         
         # Test system monitor
-        try:
-            from src.agents.system_monitor import get_system_monitor
-            monitor = get_system_monitor("test_agent")
-            
-            # Test metrics collection
-            metrics = await monitor._collect_system_metrics()
-            
-            tests.append({
-                "name": "system_metrics_collection",
-                "description": "System metrics collection",
-                "passed": bool(metrics and metrics.cpu_percent >= 0),
-                "message": f"Metrics collected: CPU {metrics.cpu_percent}%, Memory {metrics.memory_percent}%"
-            })
-            
-            # Test health summary
-            health_summary = await monitor.get_health_summary()
-            
-            tests.append({
-                "name": "health_summary",
-                "description": "Health summary generation",
-                "passed": bool(health_summary.get("status")),
-                "message": f"Health status: {health_summary.get('status')}"
-            })
-            
-        except Exception as e:
-            tests.append({
-                "name": "system_monitoring",
-                "description": "System monitoring test",
-                "passed": False,
-                "message": f"System monitoring failed: {str(e)}"
-            })
+        from src.agents.system_monitor import get_system_monitor
+        monitor = get_system_monitor("test_agent")
+        
+        # Test metrics collection
+        metrics = await monitor._collect_system_metrics()
+        
+        tests.append({
+            "name": "system_metrics_collection",
+            "description": "System metrics collection",
+            "passed": bool(metrics and metrics.cpu_percent >= 0),
+            "message": f"Metrics collected: CPU {metrics.cpu_percent}%, Memory {metrics.memory_percent}%"
+        })
+        
+        # Test health summary
+        health_summary = await monitor.get_health_summary()
+        
+        tests.append({
+            "name": "health_summary",
+            "description": "Health summary generation",
+            "passed": bool(health_summary.get("status")),
+            "message": f"Health status: {health_summary.get('status')}"
+        })
         
         return {
             "category": "System Monitoring",
@@ -466,36 +374,27 @@ class SystemValidator:
         tests = []
         
         # Test alert manager
-        try:
-            from src.agents.alert_manager import get_alert_manager
-            alert_manager = get_alert_manager("test_agent")
-            
-            # Test alert rule evaluation
-            test_data = {
-                "cpu_percent": 90,
-                "memory_percent": 85,
-                "disk_usage_percent": 70
-            }
-            
-            await alert_manager.evaluate_alert_rules(test_data, "test_component")
-            
-            # Test alert summary
-            summary = await alert_manager.get_alert_summary()
-            
-            tests.append({
-                "name": "alert_management",
-                "description": "Alert management system",
-                "passed": bool(summary),
-                "message": f"Alert system functional with {summary.get('alert_rules_enabled', 0)} rules"
-            })
-            
-        except Exception as e:
-            tests.append({
-                "name": "alert_management",
-                "description": "Alert management system",
-                "passed": False,
-                "message": f"Alert management failed: {str(e)}"
-            })
+        from src.agents.alert_manager import get_alert_manager
+        alert_manager = get_alert_manager("test_agent")
+        
+        # Test alert rule evaluation
+        test_data = {
+            "cpu_percent": 90,
+            "memory_percent": 85,
+            "disk_usage_percent": 70
+        }
+        
+        await alert_manager.evaluate_alert_rules(test_data, "test_component")
+        
+        # Test alert summary
+        summary = await alert_manager.get_alert_summary()
+        
+        tests.append({
+            "name": "alert_management",
+            "description": "Alert management system",
+            "passed": bool(summary),
+            "message": f"Alert system functional with {summary.get('alert_rules_enabled', 0)} rules"
+        })
         
         return {
             "category": "Alert Management",
@@ -510,39 +409,20 @@ class SystemValidator:
         tests = []
         
         # Test data quality dashboard
-        try:
-            async with self.session.get(f"{self.base_url}/data-quality/dashboard") as response:
-                tests.append({
-                    "name": "data_quality_dashboard",
-                    "description": "Data quality dashboard accessibility",
-                    "passed": response.status == 200,
-                    "message": f"Dashboard returned {response.status}"
-                })
-        except Exception as e:
+        async with self.session.get(f"{self.base_url}/data-quality/dashboard") as response:
             tests.append({
                 "name": "data_quality_dashboard",
                 "description": "Data quality dashboard accessibility",
-                "passed": False,
-                "message": f"Dashboard test failed: {str(e)}"
+                "passed": response.status == 200,
+                "message": f"Dashboard returned {response.status}"
             })
-        
-        # Test dashboard API
-        try:
-            async with self.session.get(f"{self.base_url}/data-quality/api/issues") as response:
-                tests.append({
-                    "name": "dashboard_api",
-                    "description": "Dashboard API functionality", 
-                    "passed": response.status == 200,
-                    "message": f"Dashboard API returned {response.status}"
-                })
-        except Exception as e:
+        async with self.session.get(f"{self.base_url}/data-quality/api/issues") as response:
             tests.append({
                 "name": "dashboard_api",
-                "description": "Dashboard API functionality",
-                "passed": False,
-                "message": f"Dashboard API test failed: {str(e)}"
+                "description": "Dashboard API functionality", 
+                "passed": response.status == 200,
+                "message": f"Dashboard API returned {response.status}"
             })
-        
         return {
             "category": "Dashboard Functionality",
             "tests": tests,

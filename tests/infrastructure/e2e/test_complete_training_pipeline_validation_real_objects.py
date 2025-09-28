@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsCompleteTrainingPipeline:
@@ -55,13 +49,7 @@ class TestRealObjectsCompleteTrainingPipeline:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_complete_pipeline_with_file_output_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_pipeline_with_file_output"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsCompleteTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_pipeline_with_file_output_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.complete_pipeline_with_file_output_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_riegeli_file_content_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_riegeli_file_content_validation"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsCompleteTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.riegeli_file_content_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.riegeli_file_content_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_symbol_directory_structure_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_symbol_directory_structure"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsCompleteTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_symbol_directory_structure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_symbol_directory_structure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_production_output_pattern_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_production_output_pattern_validation"""
         # Test with real database integration
@@ -142,15 +112,8 @@ class TestRealObjectsCompleteTrainingPipeline:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.production_output_pattern_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.production_output_pattern_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -18,66 +18,43 @@ def update_docker_compose_with_real_keys():
     """Update docker compose with real API keys for production collection using centralized system."""
     logger.info("🔑 Configuring real vendor API keys with centralized management...")
 
-    try:
-        # Use centralized API key management system
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-        from config.environment import Environment, EnvironmentType
+    # Use centralized API key management system
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+    from config.environment import Environment, EnvironmentType
 
-        env = Environment(env_type=EnvironmentType.PRODUCTION)
+    env = Environment(env_type=EnvironmentType.PRODUCTION)
 
-        # Get keys using centralized system
-        api_keys = {
-            'POLYGON_API_KEY': env.get_api_key('polygon'),
-            'TIINGO_API_KEY': env.get_api_key('tiingo'),
-            'EODHD_API_KEY': env.get_api_key('eodhd')
-        }
+    # Get keys using centralized system
+    api_keys = {
+        'POLYGON_API_KEY': env.get_api_key('polygon'),
+        'TIINGO_API_KEY': env.get_api_key('tiingo'),
+        'EODHD_API_KEY': env.get_api_key('eodhd')
+    }
 
-        logger.info("🔧 API Key Configuration (Centralized System):")
-        for key, value in api_keys.items():
-            if value:
-                masked_value = value[:8] + "..." + value[-4:] if len(value) > 12 else "NOT_SET"
-                logger.info(f"  ✅ {key}: {masked_value}")
-            else:
-                logger.warning(f"  ❌ {key}: NOT_FOUND")
-
-        return api_keys
-
-    except Exception as e:
-        logger.warning(f"⚠️  Centralized API key system not available: {e}")
-        logger.info("🔄 Falling back to environment variable lookup")
-
-        # Fallback to original method
-        api_keys = {
-            'POLYGON_API_KEY': os.getenv('POLYGON_API_KEY', 'POLYGON_KEY_NEEDED'),
-            'TIINGO_API_KEY': os.getenv('TIINGO_API_KEY', 'TIINGO_KEY_NEEDED'),
-            'EODHD_API_KEY': os.getenv('EODHD_API_KEY', 'EODHD_KEY_NEEDED')
-        }
-
-        logger.info("🔧 API Key Configuration (Environment Fallback):")
-        for key, value in api_keys.items():
+    logger.info("🔧 API Key Configuration (Centralized System):")
+    for key, value in api_keys.items():
+        if value:
             masked_value = value[:8] + "..." + value[-4:] if len(value) > 12 else "NOT_SET"
-            logger.info(f"  {key}: {masked_value}")
+            logger.info(f"  ✅ {key}: {masked_value}")
+        else:
+            logger.warning(f"  ❌ {key}: NOT_FOUND")
 
-        return api_keys
+    return api_keys
 
 def stop_synthetic_collectors():
     """Stop any running synthetic collectors."""
     logger.info("🛑 Stopping synthetic collectors...")
 
-    try:
-        # Kill any background synthetic processes
-        result = subprocess.run([
-            'docker', 'exec', 'ats-intg-analytics',
-            'pkill', '-f', 'synthetic_collector'
-        ], capture_output=True, text=True)
+    # Kill any background synthetic processes
+    result = subprocess.run([
+        'docker', 'exec', 'ats-intg-analytics',
+        'pkill', '-f', 'synthetic_collector'
+    ], capture_output=True, text=True)
 
-        if result.returncode == 0:
-            logger.info("✅ Synthetic collectors stopped")
-        else:
-            logger.info("ℹ️ No synthetic collectors found running")
-
-    except Exception as e:
-        logger.warning(f"⚠️ Could not stop synthetic collectors: {e}")
+    if result.returncode == 0:
+        logger.info("✅ Synthetic collectors stopped")
+    else:
+        logger.info("ℹ️ No synthetic collectors found running")
 
 def deploy_real_collector():
     """Deploy the real collector with API authentication."""
@@ -96,21 +73,13 @@ def deploy_real_collector():
         '''
     ]
 
-    try:
-        result = subprocess.run(collector_cmd, capture_output=True, text=True, timeout=10)
+    result = subprocess.run(collector_cmd, capture_output=True, text=True, timeout=10)
 
-        if result.returncode == 0:
-            logger.info("✅ Real collector deployed successfully")
-            return True
-        else:
-            logger.error(f"❌ Failed to deploy collector: {result.stderr}")
-            return False
-
-    except subprocess.TimeoutExpired:
-        logger.info("✅ Collector started (process running in background)")
+    if result.returncode == 0:
+        logger.info("✅ Real collector deployed successfully")
         return True
-    except Exception as e:
-        logger.error(f"❌ Failed to deploy collector: {e}")
+    else:
+        logger.error(f"❌ Failed to deploy collector: {result.stderr}")
         return False
 
 def verify_real_data_collection():
@@ -122,41 +91,37 @@ def verify_real_data_collection():
     import asyncio
 
     async def check_data():
-        try:
-            conn = await asyncpg.connect(
-                host='localhost',
-                port=4432,
-                user='postgres',
-                password='intg_password',
-                database='intg_db'
-            )
+        conn = await asyncpg.connect(
+            host='localhost',
+            port=4432,
+            user='postgres',
+            password='intg_password',
+            database='intg_db'
+        )
 
-            # Wait 2 minutes for some data collection attempts
-            logger.info("⏳ Waiting 2 minutes for data collection...")
-            await asyncio.sleep(120)
+        # Wait 2 minutes for some data collection attempts
+        logger.info("⏳ Waiting 2 minutes for data collection...")
+        await asyncio.sleep(120)
 
-            # Check API calls table for real attempts
-            api_calls = await conn.fetchval(
-                "SELECT COUNT(*) FROM intg_api_calls WHERE request_timestamp >= NOW() - INTERVAL '5 minutes'"
-            )
+        # Check API calls table for real attempts
+        api_calls = await conn.fetchval(
+            "SELECT COUNT(*) FROM intg_api_calls WHERE request_timestamp >= NOW() - INTERVAL '5 minutes'"
+        )
 
-            # Check minute bar collection metrics
-            collection_metrics = await conn.fetchval(
-                "SELECT COUNT(*) FROM intg_minute_bar_collection_metrics WHERE collection_timestamp >= NOW() - INTERVAL '5 minutes'"
-            )
+        # Check minute bar collection metrics
+        collection_metrics = await conn.fetchval(
+            "SELECT COUNT(*) FROM intg_minute_bar_collection_metrics WHERE collection_timestamp >= NOW() - INTERVAL '5 minutes'"
+        )
 
-            logger.info(f"📊 API calls in last 5 min: {api_calls}")
-            logger.info(f"📊 Collection metrics in last 5 min: {collection_metrics}")
+        logger.info(f"📊 API calls in last 5 min: {api_calls}")
+        logger.info(f"📊 Collection metrics in last 5 min: {collection_metrics}")
 
-            if api_calls > 0:
-                logger.info("✅ Real API calls detected - collector is working!")
-            else:
-                logger.warning("⚠️ No API calls detected - may need valid API keys")
+        if api_calls > 0:
+            logger.info("✅ Real API calls detected - collector is working!")
+        else:
+            logger.warning("⚠️ No API calls detected - may need valid API keys")
 
-            await conn.close()
-
-        except Exception as e:
-            logger.error(f"❌ Failed to verify data: {e}")
+        await conn.close()
 
     asyncio.run(check_data())
 

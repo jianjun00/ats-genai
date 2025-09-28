@@ -35,41 +35,35 @@ async def test_sync_metrics():
     # Test EODHD sync with a small subset
     logger.info("📊 Testing EODHD database sync with metrics...")
 
-    try:
-        # Run a limited sync operation for testing
-        source_config = {
-            'host': 'localhost',
-            'port': 3432,
-            'user': 'postgres',
-            'password': 'dev_password',
-            'database': 'dev_db'
-        }
+    # Run a limited sync operation for testing
+    source_config = {
+        'host': 'localhost',
+        'port': 3432,
+        'user': 'postgres',
+        'password': 'dev_password',
+        'database': 'dev_db'
+    }
 
-        target_config = {
-            'host': 'localhost',
-            'port': 4432,
-            'user': 'postgres',
-            'password': 'intg_password',
-            'database': 'intg_db'
-        }
+    target_config = {
+        'host': 'localhost',
+        'port': 4432,
+        'user': 'postgres',
+        'password': 'intg_password',
+        'database': 'intg_db'
+    }
 
-        # Run sync for EODHD with metrics collection
-        result = await sync_vendor_daily_price_polygon('eodhd', source_config, target_config)
+    # Run sync for EODHD with metrics collection
+    result = await sync_vendor_daily_price_polygon('eodhd', source_config, target_config)
 
-        if result['success']:
-            logger.info("✅ Sync completed successfully!")
-            logger.info(f"   Records processed: {result['records_processed']:,}")
-            logger.info(f"   Records added: {result['records_added']:,}")
-            logger.info(f"   Unique symbols: {result.get('unique_symbols_processed', 'N/A')}")
-            logger.info(f"   Success rate: {result['sync_success_rate']:.1f}%")
-            logger.info(f"   Duration: {result['total_time']:.1f} seconds")
-        else:
-            logger.error(f"❌ Sync failed: {result.get('error', 'Unknown error')}")
-
-    except Exception as e:
-        logger.error(f"❌ Test failed: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
+    if result['success']:
+        logger.info("✅ Sync completed successfully!")
+        logger.info(f"   Records processed: {result['records_processed']:,}")
+        logger.info(f"   Records added: {result['records_added']:,}")
+        logger.info(f"   Unique symbols: {result.get('unique_symbols_processed', 'N/A')}")
+        logger.info(f"   Success rate: {result['sync_success_rate']:.1f}%")
+        logger.info(f"   Duration: {result['total_time']:.1f} seconds")
+    else:
+        logger.error(f"❌ Sync failed: {result.get('error', 'Unknown error')}")
 
 if __name__ == "__main__":
     asyncio.run(test_sync_metrics())

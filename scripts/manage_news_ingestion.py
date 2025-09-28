@@ -62,35 +62,19 @@ class NewsIngestionManager:
 
     def run_kubectl(self, command: List[str]) -> Dict:
         """Run kubectl command and return result."""
-        try:
-            result = subprocess.run(
-                ['kubectl'] + command,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+        result = subprocess.run(
+            ['kubectl'] + command,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
 
-            return {
-                'success': result.returncode == 0,
-                'stdout': result.stdout.strip(),
-                'stderr': result.stderr.strip(),
-                'returncode': result.returncode
-            }
-        except subprocess.TimeoutExpired:
-            return {
-                'success': False,
-                'stdout': '',
-                'stderr': 'Command timed out',
-                'returncode': -1
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'stdout': '',
-                'stderr': str(e),
-                'returncode': -1
-            }
-
+        return {
+            'success': result.returncode == 0,
+            'stdout': result.stdout.strip(),
+            'stderr': result.stderr.strip(),
+            'returncode': result.returncode
+        }
     def deploy_news_systems(self) -> bool:
         """Deploy news ingestion systems to Kubernetes."""
         logger.info("🚀 Deploying news ingestion systems...")
@@ -141,25 +125,20 @@ class NewsIngestionManager:
         ])
 
         if cronjobs_result['success']:
-            try:
-                cronjobs_data = json.loads(cronjobs_result['stdout'])
-                for item in cronjobs_data.get('items', []):
-                    name = item['metadata']['name']
-                    if 'news' in name:  # Filter to news-related jobs
-                        spec = item['spec']
-                        status_info = item.get('status', {})
+            cronjobs_data = json.loads(cronjobs_result['stdout'])
+            for item in cronjobs_data.get('items', []):
+                name = item['metadata']['name']
+                if 'news' in name:  # Filter to news-related jobs
+                    spec = item['spec']
+                    status_info = item.get('status', {})
 
-                        status['cronjobs'][name] = {
-                            'schedule': spec['schedule'],
-                            'suspend': spec.get('suspend', False),
-                            'last_schedule': status_info.get('lastScheduleTime'),
-                            'last_successful': status_info.get('lastSuccessfulTime'),
-                            'active_jobs': len(status_info.get('active', []))
-                        }
-            except json.JSONDecodeError:
-                logger.error("❌ Failed to parse CronJobs JSON")
-
-        # Get Deployments
+                    status['cronjobs'][name] = {
+                        'schedule': spec['schedule'],
+                        'suspend': spec.get('suspend', False),
+                        'last_schedule': status_info.get('lastScheduleTime'),
+                        'last_successful': status_info.get('lastSuccessfulTime'),
+                        'active_jobs': len(status_info.get('active', []))
+                    }
         deployments_result = self.run_kubectl([
             'get', 'deployments',
             '-n', self.namespace,
@@ -168,23 +147,18 @@ class NewsIngestionManager:
         ])
 
         if deployments_result['success']:
-            try:
-                deployments_data = json.loads(deployments_result['stdout'])
-                for item in deployments_data.get('items', []):
-                    name = item['metadata']['name']
-                    spec = item['spec']
-                    status_info = item.get('status', {})
+            deployments_data = json.loads(deployments_result['stdout'])
+            for item in deployments_data.get('items', []):
+                name = item['metadata']['name']
+                spec = item['spec']
+                status_info = item.get('status', {})
 
-                    status['deployments'][name] = {
-                        'desired_replicas': spec.get('replicas', 0),
-                        'ready_replicas': status_info.get('readyReplicas', 0),
-                        'available_replicas': status_info.get('availableReplicas', 0),
-                        'conditions': status_info.get('conditions', [])
-                    }
-            except json.JSONDecodeError:
-                logger.error("❌ Failed to parse Deployments JSON")
-
-        # Get Services
+                status['deployments'][name] = {
+                    'desired_replicas': spec.get('replicas', 0),
+                    'ready_replicas': status_info.get('readyReplicas', 0),
+                    'available_replicas': status_info.get('availableReplicas', 0),
+                    'conditions': status_info.get('conditions', [])
+                }
         services_result = self.run_kubectl([
             'get', 'services',
             '-n', self.namespace,
@@ -193,20 +167,16 @@ class NewsIngestionManager:
         ])
 
         if services_result['success']:
-            try:
-                services_data = json.loads(services_result['stdout'])
-                for item in services_data.get('items', []):
-                    name = item['metadata']['name']
-                    spec = item['spec']
+            services_data = json.loads(services_result['stdout'])
+            for item in services_data.get('items', []):
+                name = item['metadata']['name']
+                spec = item['spec']
 
-                    status['services'][name] = {
-                        'type': spec.get('type', 'ClusterIP'),
-                        'ports': spec.get('ports', []),
-                        'selector': spec.get('selector', {})
-                    }
-            except json.JSONDecodeError:
-                logger.error("❌ Failed to parse Services JSON")
-
+                status['services'][name] = {
+                    'type': spec.get('type', 'ClusterIP'),
+                    'ports': spec.get('ports', []),
+                    'selector': spec.get('selector', {})
+                }
         return status
 
     def print_status(self):
@@ -548,43 +518,35 @@ async def main():
 
     manager = NewsIngestionManager(args.namespace)
 
-    try:
-        if args.command == 'deploy':
-            success = manager.deploy_news_systems()
-            sys.exit(0 if success else 1)
+    if args.command == 'deploy':
+        success = manager.deploy_news_systems()
+        sys.exit(0 if success else 1)
 
-        elif args.command == 'status':
-            manager.print_status()
+    elif args.command == 'status':
+        manager.print_status()
 
-        elif args.command == 'logs':
-            if not args.service:
-                logger.error("❌ --service parameter required for logs command")
-                sys.exit(1)
+    elif args.command == 'logs':
+        if not args.service:
+            logger.error("❌ --service parameter required for logs command")
+            sys.exit(1)
 
-            logs = manager.get_component_logs(args.service, args.lines)
-            if logs:
-                print("\n" + "="*80)
-                print(f"LOGS FOR {args.service} (last {args.lines} lines)")
-                print("="*80)
-                print(logs)
-            else:
-                logger.error("❌ Could not retrieve logs")
-                sys.exit(1)
+        logs = manager.get_component_logs(args.service, args.lines)
+        if logs:
+            print("\n" + "="*80)
+            print(f"LOGS FOR {args.service} (last {args.lines} lines)")
+            print("="*80)
+            print(logs)
+        else:
+            logger.error("❌ Could not retrieve logs")
+            sys.exit(1)
 
-        elif args.command == 'backfill':
-            success = await manager.run_backfill(args.vendor, args.days, args.symbols)
-            sys.exit(0 if success else 1)
+    elif args.command == 'backfill':
+        success = await manager.run_backfill(args.vendor, args.days, args.symbols)
+        sys.exit(0 if success else 1)
 
-        elif args.command == 'health-check':
-            success = await manager.run_health_check()
-            sys.exit(0 if success else 1)
-
-    except KeyboardInterrupt:
-        logger.info("\n👋 Operation cancelled by user")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
-        sys.exit(1)
+    elif args.command == 'health-check':
+        success = await manager.run_health_check()
+        sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     asyncio.run(main())

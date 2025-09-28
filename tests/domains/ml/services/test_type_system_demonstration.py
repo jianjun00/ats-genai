@@ -12,8 +12,8 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from schema.registry import schema_registry
-from schema.types import FieldSemantics, FieldType
+from domains.ml.schema.registry import schema_registry
+from domains.ml.schema.types import FieldSemantics, FieldType
 
 class TestTypeSystemTransformation:
     """Test the complete transformation enabled by type system."""
@@ -283,22 +283,17 @@ class TestTypeSystemUIGeneration:
         ]
 
         for table in price_tables:
-            try:
-                schema = schema_registry.get_table_schema(table)
+            schema = schema_registry.get_table_schema(table)
 
-                # All should have same basic structure
-                assert "symbol" in schema.fields
-                assert "date" in schema.fields
-                assert "close" in schema.fields
+            # All should have same basic structure
+            assert "symbol" in schema.fields
+            assert "date" in schema.fields
+            assert "close" in schema.fields
 
-                # All should classify fields the same way
-                assert schema.fields["symbol"].semantics == FieldSemantics.CATEGORICAL
-                assert schema.fields["date"].semantics == FieldSemantics.DATE_RANGE
-                assert schema.fields["close"].semantics == FieldSemantics.NUMERIC_RANGE
-
-            except ValueError:
-                # Some tables might not have schemas yet - that's ok
-                pass
+            # All should classify fields the same way
+            assert schema.fields["symbol"].semantics == FieldSemantics.CATEGORICAL
+            assert schema.fields["date"].semantics == FieldSemantics.DATE_RANGE
+            assert schema.fields["close"].semantics == FieldSemantics.NUMERIC_RANGE
 
         print("✅ Similar tables have consistent type treatment")
 
@@ -417,15 +412,9 @@ def run_all_demonstration_tests():
 
         for test_method in test_methods:
             total_tests += 1
-            try:
-                getattr(instance, test_method)()
-                print(f"✅ {test_method}")
-                passed_tests += 1
-
-            except Exception as e:
-                print(f"❌ {test_method}: {e}")
-                import traceback
-                traceback.print_exc()
+            getattr(instance, test_method)()
+            print(f"✅ {test_method}")
+            passed_tests += 1
 
     print(f"\\n📊 Demonstration Test Results")
     print("-" * 35)

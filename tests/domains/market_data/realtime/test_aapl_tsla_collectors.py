@@ -18,8 +18,8 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
 
-from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
-from domains.market_data.services.realtime.aapl_tsla_realtime_collector import AAPLTSLARealtimeCollector
+from domains.market_data.services.data_collection.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.data_collection.realtime.aapl_tsla_realtime_collector import AAPLTSLARealtimeCollector
 
 logger = logging.getLogger(__name__)
 
@@ -29,21 +29,8 @@ async def test_db_pool():
     """Create test database pool"""
     # Use test database or mock
     dsn = "postgresql://postgres:intg_password@localhost:4432/intg_db"
-    try:
-        pool = await asyncpg.create_pool(dsn, min_size=1, max_size=3)
-        yield pool
-    except Exception:
-        # Use mock if database not available
-        mock_pool = Mock()
-        mock_conn = AsyncMock()
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        mock_conn.execute = AsyncMock()
-        mock_conn.fetch = AsyncMock(return_value=[])
-        yield mock_pool
-    finally:
-        if 'pool' in locals():
-            await pool.close()
-
+    pool = await asyncpg.create_pool(dsn, min_size=1, max_size=3)
+    yield pool
 @pytest.fixture
 def mock_http_session():
     """Mock HTTP session for API tests"""
@@ -441,53 +428,47 @@ class TestCollectorIntegration:
         collector = AAPLTSLASyntheticCollector()
         collector.pool = test_db_pool
 
-        try:
-            # Try to create tables if they don't exist
-            async with test_db_pool.acquire() as conn:
-                await conn.execute("""
-                    CREATE TABLE IF NOT EXISTS intg_one_minute_live_tiingo (
-                        id BIGSERIAL PRIMARY KEY,
-                        symbol VARCHAR(10) NOT NULL,
-                        timestamp TIMESTAMPTZ NOT NULL,
-                        open_price DECIMAL(20,6),
-                        high_price DECIMAL(20,6),
-                        low_price DECIMAL(20,6),
-                        close_price DECIMAL(20,6),
-                        volume BIGINT,
-                        vendor VARCHAR(20) DEFAULT 'tiingo',
-                        data_latency_ms INTEGER,
-                        quality_score DECIMAL(5,3),
-                        received_at TIMESTAMPTZ DEFAULT NOW(),
-                        created_at TIMESTAMPTZ DEFAULT NOW(),
-                        UNIQUE(symbol, timestamp)
-                    );
-                """)
+        # Try to create tables if they don't exist
+        async with test_db_pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS intg_one_minute_live_tiingo (
+                    id BIGSERIAL PRIMARY KEY,
+                    symbol VARCHAR(10) NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
+                    open_price DECIMAL(20,6),
+                    high_price DECIMAL(20,6),
+                    low_price DECIMAL(20,6),
+                    close_price DECIMAL(20,6),
+                    volume BIGINT,
+                    vendor VARCHAR(20) DEFAULT 'tiingo',
+                    data_latency_ms INTEGER,
+                    quality_score DECIMAL(5,3),
+                    received_at TIMESTAMPTZ DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    UNIQUE(symbol, timestamp)
+                );
+            """)
 
-                await conn.execute("""
-                    CREATE TABLE IF NOT EXISTS intg_one_minute_live_polygon (
-                        id BIGSERIAL PRIMARY KEY,
-                        symbol VARCHAR(10) NOT NULL,
-                        timestamp TIMESTAMPTZ NOT NULL,
-                        open_price DECIMAL(20,6),
-                        high_price DECIMAL(20,6),
-                        low_price DECIMAL(20,6),
-                        close_price DECIMAL(20,6),
-                        volume BIGINT,
-                        vwap DECIMAL(20,6),
-                        trade_count INTEGER,
-                        vendor VARCHAR(20) DEFAULT 'polygon',
-                        data_latency_ms INTEGER,
-                        quality_score DECIMAL(5,3),
-                        received_at TIMESTAMPTZ DEFAULT NOW(),
-                        created_at TIMESTAMPTZ DEFAULT NOW(),
-                        UNIQUE(symbol, timestamp)
-                    );
-                """)
-        except Exception:
-            # Skip if database operations fail
-            pytest.skip("Database not available for integration tests")
-
-        # Test actual data storage
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS intg_one_minute_live_polygon (
+                    id BIGSERIAL PRIMARY KEY,
+                    symbol VARCHAR(10) NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
+                    open_price DECIMAL(20,6),
+                    high_price DECIMAL(20,6),
+                    low_price DECIMAL(20,6),
+                    close_price DECIMAL(20,6),
+                    volume BIGINT,
+                    vwap DECIMAL(20,6),
+                    trade_count INTEGER,
+                    vendor VARCHAR(20) DEFAULT 'polygon',
+                    data_latency_ms INTEGER,
+                    quality_score DECIMAL(5,3),
+                    received_at TIMESTAMPTZ DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    UNIQUE(symbol, timestamp)
+                );
+            """)
         total_stored = await collector.generate_and_store_data()
         assert total_stored >= 0
 

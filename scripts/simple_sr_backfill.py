@@ -72,17 +72,11 @@ class SimpleSRBackfillProcessor:
         """Initialize Redis connection for event publishing"""
         logger.info("🚀 Initializing Simple S/R Event Backfill Processor...")
 
-        try:
-            import redis
-            redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=False)
-            redis_client.ping()
-            self.event_producer = EventProducer(redis_client)
-            logger.info("✅ Connected to Redis for event publishing")
-        except Exception as e:
-            logger.warning(f"⚠️  Could not connect to Redis: {e}")
-            logger.warning("📝 Events will be logged instead of published")
-            self.event_producer = None
-
+        import redis
+        redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=False)
+        redis_client.ping()
+        self.event_producer = EventProducer(redis_client)
+        logger.info("✅ Connected to Redis for event publishing")
     def load_minute_data(self, symbol: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
         """Load minute bar data from parquet files"""
 
@@ -101,35 +95,30 @@ class SimpleSRBackfillProcessor:
             file_path = self.data_path / first_letter / symbol / str(year) / f"{month:02d}" / f"{symbol}_{year}_{month:02d}.parquet"
 
             if file_path.exists():
-                try:
-                    logger.debug(f"📄 Loading {file_path}")
-                    df = pd.read_parquet(file_path)
+                logger.debug(f"📄 Loading {file_path}")
+                df = pd.read_parquet(file_path)
 
-                    # Filter to date range - handle timezone issues
-                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                # Filter to date range - handle timezone issues
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-                    # Convert filter dates to pandas timestamps for consistent comparison
-                    start_ts = pd.Timestamp(start_date)
-                    end_ts = pd.Timestamp(end_date)
+                # Convert filter dates to pandas timestamps for consistent comparison
+                start_ts = pd.Timestamp(start_date)
+                end_ts = pd.Timestamp(end_date)
 
-                    # If data is timezone-aware, make filter dates timezone-aware too
-                    if df['timestamp'].dt.tz is not None:
-                        if start_ts.tz is None:
-                            start_ts = start_ts.tz_localize('UTC')
-                        if end_ts.tz is None:
-                            end_ts = end_ts.tz_localize('UTC')
+                # If data is timezone-aware, make filter dates timezone-aware too
+                if df['timestamp'].dt.tz is not None:
+                    if start_ts.tz is None:
+                        start_ts = start_ts.tz_localize('UTC')
+                    if end_ts.tz is None:
+                        end_ts = end_ts.tz_localize('UTC')
 
-                    df = df[(df['timestamp'] >= start_ts) & (df['timestamp'] <= end_ts)]
+                df = df[(df['timestamp'] >= start_ts) & (df['timestamp'] <= end_ts)]
 
-                    if not df.empty:
-                        all_data.append(df)
-                        self.stats['files_loaded'] += 1
-                        logger.info(f"✅ Loaded {len(df)} rows from {file_path.name}")
+                if not df.empty:
+                    all_data.append(df)
+                    self.stats['files_loaded'] += 1
+                    logger.info(f"✅ Loaded {len(df)} rows from {file_path.name}")
 
-                except Exception as e:
-                    logger.error(f"❌ Error loading {file_path}: {e}")
-                    self.stats['errors'] += 1
-            else:
                 logger.warning(f"📭 File not found: {file_path}")
 
             # Move to next month
@@ -166,22 +155,17 @@ class SimpleSRBackfillProcessor:
         else:
             return minute_data  # Return as-is for minute timeframes
 
-        try:
-            # Aggregate OHLCV data
-            aggregated = minute_data.resample(freq).agg({
-                'open': 'first',
-                'high': 'max',
-                'low': 'min',
-                'close': 'last',
-                'volume': 'sum'
-            }).dropna()
+        # Aggregate OHLCV data
+        aggregated = minute_data.resample(freq).agg({
+            'open': 'first',
+            'high': 'max',
+            'low': 'min',
+            'close': 'last',
+            'volume': 'sum'
+        }).dropna()
 
-            logger.debug(f"📈 Aggregated to {timeframe.value}: {len(aggregated)} bars")
-            return aggregated
-
-        except Exception as e:
-            logger.error(f"❌ Error aggregating to {timeframe.value}: {e}")
-            return pd.DataFrame()
+        logger.debug(f"📈 Aggregated to {timeframe.value}: {len(aggregated)} bars")
+        return aggregated
 
     async def process_sr_events(self, symbol: str, market_data: pd.DataFrame,
                               timeframe: Timeframe, limit: Optional[int] = None) -> int:
@@ -202,75 +186,69 @@ class SimpleSRBackfillProcessor:
 
         events_processed = 0
 
-        try:
-            # Detect S/R levels
-            sr_levels = await self.sr_detector.detect_sr_levels(symbol, market_data, timeframe)
-            self.stats['sr_levels_detected'] += len(sr_levels)
+        # Detect S/R levels
+        sr_levels = await self.sr_detector.detect_sr_levels(symbol, market_data, timeframe)
+        self.stats['sr_levels_detected'] += len(sr_levels)
 
-            if not sr_levels:
-                logger.info(f"📭 No S/R levels detected for {symbol} ({timeframe.value})")
-                return 0
+        if not sr_levels:
+            logger.info(f"📭 No S/R levels detected for {symbol} ({timeframe.value})")
+            return 0
 
-            logger.info(f"🎯 Detected {len(sr_levels)} S/R levels for {symbol} ({timeframe.value})")
+        logger.info(f"🎯 Detected {len(sr_levels)} S/R levels for {symbol} ({timeframe.value})")
 
-            # Log some level details for debugging
-            if sr_levels and logger.isEnabledFor(logging.DEBUG):
-                for i, level in enumerate(sr_levels[:3]):  # Show first 3 levels
-                    logger.debug(f"  Level {i+1}: {level.sr_type.value} at ${level.price:.2f} "
-                               f"(strength: {level.strength:.2f}, type: {level.level_type.value})")
+        # Log some level details for debugging
+        if sr_levels and logger.isEnabledFor(logging.DEBUG):
+            for i, level in enumerate(sr_levels[:3]):  # Show first 3 levels
+                logger.debug(f"  Level {i+1}: {level.sr_type.value} at ${level.price:.2f} "
+                           f"(strength: {level.strength:.2f}, type: {level.level_type.value})")
 
-            # Detect S/R tests using original detector
-            sr_tests = await self.sr_detector.detect_sr_tests(symbol, market_data, sr_levels)
+        # Detect S/R tests using original detector
+        sr_tests = await self.sr_detector.detect_sr_tests(symbol, market_data, sr_levels)
+        self.stats['sr_tests_detected'] += len(sr_tests)
+
+        # If no tests found with original detector, create synthetic tests from price interactions
+        if len(sr_tests) == 0:
+            logger.debug("🔍 No tests found with original detector, creating synthetic tests from price interactions")
+            sr_tests = await self._create_synthetic_sr_tests(market_data, sr_levels)
             self.stats['sr_tests_detected'] += len(sr_tests)
 
-            # If no tests found with original detector, create synthetic tests from price interactions
-            if len(sr_tests) == 0:
-                logger.debug("🔍 No tests found with original detector, creating synthetic tests from price interactions")
-                sr_tests = await self._create_synthetic_sr_tests(market_data, sr_levels)
-                self.stats['sr_tests_detected'] += len(sr_tests)
+        logger.info(f"📈 Detected {len(sr_tests)} S/R tests for {symbol} ({timeframe.value})")
 
-            logger.info(f"📈 Detected {len(sr_tests)} S/R tests for {symbol} ({timeframe.value})")
+        if len(sr_tests) == 0 and len(sr_levels) > 0:
+            # Debug why no tests were found
+            current_price = market_data['close'].iloc[-1] if not market_data.empty else 0
+            price_range = (market_data['low'].min(), market_data['high'].max()) if not market_data.empty else (0, 0)
+            logger.debug(f"  Debug: Current price: ${current_price:.2f}, "
+                       f"Price range: ${price_range[0]:.2f} - ${price_range[1]:.2f}")
 
-            if len(sr_tests) == 0 and len(sr_levels) > 0:
-                # Debug why no tests were found
-                current_price = market_data['close'].iloc[-1] if not market_data.empty else 0
-                price_range = (market_data['low'].min(), market_data['high'].max()) if not market_data.empty else (0, 0)
-                logger.debug(f"  Debug: Current price: ${current_price:.2f}, "
-                           f"Price range: ${price_range[0]:.2f} - ${price_range[1]:.2f}")
+            # Check if any levels are within reasonable range
+            nearby_levels = [l for l in sr_levels if price_range[0] * 0.9 <= l.price <= price_range[1] * 1.1]
+            logger.debug(f"  Debug: {len(nearby_levels)} levels within price range")
 
-                # Check if any levels are within reasonable range
-                nearby_levels = [l for l in sr_levels if price_range[0] * 0.9 <= l.price <= price_range[1] * 1.1]
-                logger.debug(f"  Debug: {len(nearby_levels)} levels within price range")
+        # Process and publish events
+        for i, test in enumerate(sr_tests):
+            if limit and events_processed >= limit:
+                break
 
-            # Process and publish events
-            for i, test in enumerate(sr_tests):
-                if limit and events_processed >= limit:
-                    break
+            # Find corresponding level
+            level = next((l for l in sr_levels if self._level_matches_test(l, test)), None)
+            if not level:
+                continue
 
-                # Find corresponding level
-                level = next((l for l in sr_levels if self._level_matches_test(l, test)), None)
-                if not level:
-                    continue
+            # Check if test is significant
+            if not self._is_significant_test(test, level):
+                continue
 
-                # Check if test is significant
-                if not self._is_significant_test(test, level):
-                    continue
+            # Publish or log event
+            success = await self._publish_sr_event(symbol, level, test, timeframe)
+            if success:
+                events_processed += 1
+                self.stats['events_published'] += 1
 
-                # Publish or log event
-                success = await self._publish_sr_event(symbol, level, test, timeframe)
-                if success:
-                    events_processed += 1
-                    self.stats['events_published'] += 1
+                if events_processed % 5 == 0:
+                    logger.info(f"📤 Processed {events_processed} S/R events for {symbol} ({timeframe.value})")
 
-                    if events_processed % 5 == 0:
-                        logger.info(f"📤 Processed {events_processed} S/R events for {symbol} ({timeframe.value})")
-
-            return events_processed
-
-        except Exception as e:
-            logger.error(f"❌ Error processing S/R events: {e}")
-            self.stats['errors'] += 1
-            return events_processed
+        return events_processed
 
     async def _create_synthetic_sr_tests(self, market_data: pd.DataFrame, sr_levels: List[SRLevel]) -> List[SRTest]:
         """Create synthetic S/R tests by analyzing price interactions with levels"""
@@ -280,84 +258,74 @@ class SimpleSRBackfillProcessor:
         if market_data.empty or not sr_levels:
             return synthetic_tests
 
-        try:
-            # Look for price interactions with each level
-            for level in sr_levels:
-                # Define proximity threshold (0.8% of level price)
-                proximity_threshold = level.price * 0.008
+        # Look for price interactions with each level
+        for level in sr_levels:
+            # Define proximity threshold (0.8% of level price)
+            proximity_threshold = level.price * 0.008
 
-                # Find bars where price came close to the level
-                if level.sr_type == SRType.SUPPORT:
-                    # For support, check when low price came near the level
-                    close_interactions = market_data[
-                        (market_data['low'] <= level.price + proximity_threshold) &
-                        (market_data['low'] >= level.price - proximity_threshold)
-                    ]
-                else:  # RESISTANCE
-                    # For resistance, check when high price came near the level
-                    close_interactions = market_data[
-                        (market_data['high'] >= level.price - proximity_threshold) &
-                        (market_data['high'] <= level.price + proximity_threshold)
-                    ]
+            # Find bars where price came close to the level
+            if level.sr_type == SRType.SUPPORT:
+                # For support, check when low price came near the level
+                close_interactions = market_data[
+                    (market_data['low'] <= level.price + proximity_threshold) &
+                    (market_data['low'] >= level.price - proximity_threshold)
+                ]
+            else:  # RESISTANCE
+                # For resistance, check when high price came near the level
+                close_interactions = market_data[
+                    (market_data['high'] >= level.price - proximity_threshold) &
+                    (market_data['high'] <= level.price + proximity_threshold)
+                ]
 
-                # Create tests for significant interactions
-                for idx, row in close_interactions.iterrows():
-                    try:
-                        # Determine approach direction by looking at previous bars
-                        bar_position = market_data.index.get_loc(idx)
-                        if bar_position >= 3:  # Need some history
-                            prev_bars = market_data.iloc[bar_position-3:bar_position]
-                            avg_prev_price = prev_bars['close'].mean()
+            # Create tests for significant interactions
+            for idx, row in close_interactions.iterrows():
+                # Determine approach direction by looking at previous bars
+                bar_position = market_data.index.get_loc(idx)
+                if bar_position >= 3:  # Need some history
+                    prev_bars = market_data.iloc[bar_position-3:bar_position]
+                    avg_prev_price = prev_bars['close'].mean()
 
-                            if level.sr_type == SRType.SUPPORT:
-                                approach_direction = "from_above" if avg_prev_price > level.price else "from_below"
-                                test_price = row['low']
-                                penetration = max(0, level.price - row['low']) / level.price
-                            else:  # RESISTANCE
-                                approach_direction = "from_below" if avg_prev_price < level.price else "from_above"
-                                test_price = row['high']
-                                penetration = max(0, row['high'] - level.price) / level.price
+                    if level.sr_type == SRType.SUPPORT:
+                        approach_direction = "from_above" if avg_prev_price > level.price else "from_below"
+                        test_price = row['low']
+                        penetration = max(0, level.price - row['low']) / level.price
+                    else:  # RESISTANCE
+                        approach_direction = "from_below" if avg_prev_price < level.price else "from_above"
+                        test_price = row['high']
+                        penetration = max(0, row['high'] - level.price) / level.price
 
-                            # Determine test outcome based on subsequent price action
-                            bars_after = market_data.iloc[bar_position:min(bar_position+5, len(market_data))]
-                            outcome = self._determine_test_outcome(level, row, bars_after, penetration)
+                    # Determine test outcome based on subsequent price action
+                    bars_after = market_data.iloc[bar_position:min(bar_position+5, len(market_data))]
+                    outcome = self._determine_test_outcome(level, row, bars_after, penetration)
 
-                            # Calculate volume spike if volume data available
-                            volume_spike = 1.0
-                            if 'volume' in market_data.columns:
-                                avg_volume = market_data['volume'].rolling(20).mean().iloc[bar_position]
-                                if avg_volume > 0:
-                                    volume_spike = row['volume'] / avg_volume
+                    # Calculate volume spike if volume data available
+                    volume_spike = 1.0
+                    if 'volume' in market_data.columns:
+                        avg_volume = market_data['volume'].rolling(20).mean().iloc[bar_position]
+                        if avg_volume > 0:
+                            volume_spike = row['volume'] / avg_volume
 
-                            # Generate unique test ID
-                            level_id = f"{level.sr_type.value}_{level.price:.2f}_{level.level_type.value}"
+                    # Generate unique test ID
+                    level_id = f"{level.sr_type.value}_{level.price:.2f}_{level.level_type.value}"
 
-                            # Create synthetic test
-                            test = SRTest(
-                                level_id=level_id,
-                                test_datetime=idx,
-                                test_price=test_price,
-                                approach_direction=approach_direction,
-                                max_penetration=penetration,
-                                hold_duration=timedelta(minutes=60),  # Simplified
-                                volume_spike=volume_spike,
-                                outcome=outcome,
-                                confidence=self._calculate_test_confidence(level, penetration, volume_spike, outcome),
-                                timeframe=level.timeframe
-                            )
+                    # Create synthetic test
+                    test = SRTest(
+                        level_id=level_id,
+                        test_datetime=idx,
+                        test_price=test_price,
+                        approach_direction=approach_direction,
+                        max_penetration=penetration,
+                        hold_duration=timedelta(minutes=60),  # Simplified
+                        volume_spike=volume_spike,
+                        outcome=outcome,
+                        confidence=self._calculate_test_confidence(level, penetration, volume_spike, outcome),
+                        timeframe=level.timeframe
+                    )
 
-                            synthetic_tests.append(test)
+                    synthetic_tests.append(test)
 
-                    except Exception as e:
-                        logger.warning(f"Error creating synthetic test for level {level.price}: {e}")
-                        continue
-
-            logger.debug(f"🔧 Created {len(synthetic_tests)} synthetic S/R tests")
-            return synthetic_tests[:10]  # Limit to top 10 tests
-
-        except Exception as e:
-            logger.error(f"❌ Error creating synthetic tests: {e}")
-            return []
+        logger.debug(f"🔧 Created {len(synthetic_tests)} synthetic S/R tests")
+        return synthetic_tests[:10]  # Limit to top 10 tests
 
     def _determine_test_outcome(self, level: SRLevel, test_bar: pd.Series, subsequent_bars: pd.DataFrame, penetration: float) -> SRTestOutcome:
         """Determine the outcome of an S/R test based on subsequent price action"""
@@ -454,31 +422,25 @@ class SimpleSRBackfillProcessor:
         signal_strength = min(1.0, (level.strength * 0.6 + test.confidence * 0.4))
 
         if self.event_producer:
-            try:
-                # Publish via EventProducer
-                indicator = f"SR_{level.sr_type.value.upper()}_{level.level_type.value}_{timeframe.value}"
+            # Publish via EventProducer
+            indicator = f"SR_{level.sr_type.value.upper()}_{level.level_type.value}_{timeframe.value}"
 
-                event_id = self.event_producer.publish_technical_signal_event(
-                    symbol=symbol,
-                    signal_type=signal_type,
-                    direction=signal_direction,
-                    strength=signal_strength,
-                    current_price=test.test_price,
-                    indicator=indicator,
-                    source="sr_backfill"
-                )
+            event_id = self.event_producer.publish_technical_signal_event(
+                symbol=symbol,
+                signal_type=signal_type,
+                direction=signal_direction,
+                strength=signal_strength,
+                current_price=test.test_price,
+                indicator=indicator,
+                source="sr_backfill"
+            )
 
-                if event_id:
-                    logger.debug(f"📤 Published S/R event {event_id}")
-                    return True
-                else:
-                    return False
-
-            except Exception as e:
-                logger.error(f"❌ Error publishing event: {e}")
+            if event_id:
+                logger.debug(f"📤 Published S/R event {event_id}")
+                return True
+            else:
                 return False
-        else:
-            # Log event when Redis not available
+
             logger.info(f"📝 S/R EVENT: {symbol} {signal_type.upper()} {signal_direction.upper()} - "
                        f"{level.sr_type.value} at ${level.price:.2f} ({timeframe.value}) - "
                        f"outcome: {test.outcome.value} (strength: {signal_strength:.2f})")
@@ -515,65 +477,54 @@ class SimpleSRBackfillProcessor:
 
         start_time = datetime.now()
 
-        try:
-            # Load minute data
-            minute_data = self.load_minute_data(symbol, start_date, end_date)
+        # Load minute data
+        minute_data = self.load_minute_data(symbol, start_date, end_date)
 
-            if minute_data.empty:
-                return {
-                    'success': False,
-                    'error': 'No market data loaded',
-                    'events_processed': 0
-                }
-
-            # Process different timeframes
-            timeframes = [Timeframe.DAILY, Timeframe.INTRADAY_1H]
-            total_events = 0
-
-            for timeframe in timeframes:
-                if limit and total_events >= limit:
-                    break
-
-                # Aggregate data to timeframe
-                timeframe_data = self.aggregate_to_timeframe(minute_data, timeframe)
-
-                if timeframe_data.empty:
-                    continue
-
-                # Process S/R events for this timeframe
-                remaining_limit = limit - total_events if limit else None
-                events_processed = await self.process_sr_events(
-                    symbol, timeframe_data, timeframe, remaining_limit
-                )
-
-                total_events += events_processed
-                self.stats['timeframes_processed'] += 1
-
-                logger.info(f"✅ Processed {events_processed} events for {symbol} ({timeframe.value})")
-
-            processing_time = (datetime.now() - start_time).total_seconds()
-
-            logger.info(f"🎉 Backfill completed for {symbol}")
-            logger.info(f"📊 Total events processed: {total_events}")
-            logger.info(f"⏱️  Processing time: {processing_time:.1f} seconds")
-
-            return {
-                'success': True,
-                'symbol': symbol,
-                'events_processed': total_events,
-                'processing_time_seconds': processing_time,
-                'stats': self.stats
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Error during backfill: {e}")
-            logger.error(traceback.format_exc())
+        if minute_data.empty:
             return {
                 'success': False,
-                'symbol': symbol,
-                'error': str(e),
-                'events_processed': total_events if 'total_events' in locals() else 0
+                'error': 'No market data loaded',
+                'events_processed': 0
             }
+
+        # Process different timeframes
+        timeframes = [Timeframe.DAILY, Timeframe.INTRADAY_1H]
+        total_events = 0
+
+        for timeframe in timeframes:
+            if limit and total_events >= limit:
+                break
+
+            # Aggregate data to timeframe
+            timeframe_data = self.aggregate_to_timeframe(minute_data, timeframe)
+
+            if timeframe_data.empty:
+                continue
+
+            # Process S/R events for this timeframe
+            remaining_limit = limit - total_events if limit else None
+            events_processed = await self.process_sr_events(
+                symbol, timeframe_data, timeframe, remaining_limit
+            )
+
+            total_events += events_processed
+            self.stats['timeframes_processed'] += 1
+
+            logger.info(f"✅ Processed {events_processed} events for {symbol} ({timeframe.value})")
+
+        processing_time = (datetime.now() - start_time).total_seconds()
+
+        logger.info(f"🎉 Backfill completed for {symbol}")
+        logger.info(f"📊 Total events processed: {total_events}")
+        logger.info(f"⏱️  Processing time: {processing_time:.1f} seconds")
+
+        return {
+            'success': True,
+            'symbol': symbol,
+            'events_processed': total_events,
+            'processing_time_seconds': processing_time,
+            'stats': self.stats
+        }
 
 async def main():
     """Main function"""
@@ -591,30 +542,18 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     # Parse dates
-    try:
-        start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
-        end_date = datetime.strptime(args.end_date, '%Y-%m-%d') if args.end_date else datetime.now()
-    except ValueError as e:
-        logger.error(f"❌ Invalid date format: {e}")
-        return
-
-    # Run processor
+    start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
+    end_date = datetime.strptime(args.end_date, '%Y-%m-%d') if args.end_date else datetime.now()
     processor = SimpleSRBackfillProcessor()
 
-    try:
-        await processor.initialize()
-        result = await processor.run_backfill(args.symbol, start_date, end_date, args.limit)
+    await processor.initialize()
+    result = await processor.run_backfill(args.symbol, start_date, end_date, args.limit)
 
-        if result['success']:
-            logger.info("🎉 Backfill completed successfully!")
-            logger.info(f"📊 Final stats: {result['stats']}")
-        else:
-            logger.error(f"❌ Backfill failed: {result['error']}")
-
-    except KeyboardInterrupt:
-        logger.info("🛑 Process interrupted by user")
-    except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
+    if result['success']:
+        logger.info("🎉 Backfill completed successfully!")
+        logger.info(f"📊 Final stats: {result['stats']}")
+    else:
+        logger.error(f"❌ Backfill failed: {result['error']}")
 
 if __name__ == "__main__":
     asyncio.run(main())

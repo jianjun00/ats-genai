@@ -67,12 +67,8 @@ class TestMultiTimeframeFeatures:
             assert isinstance(datetime_str, str), f"Sample {i} datetime should be string"
 
             # Should be parseable as ISO datetime
-            try:
-                parsed_dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
-                assert parsed_dt.year >= 2020, f"Sample {i} datetime seems too old: {datetime_str}"
-            except ValueError as e:
-                pytest.fail(f"Sample {i} has invalid datetime format '{datetime_str}': {e}")
-
+            parsed_dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+            assert parsed_dt.year >= 2020, f"Sample {i} datetime seems too old: {datetime_str}"
         print(f"✅ All {len(data_samples)} samples include valid datetime metadata")
 
     def test_envelope_scaling_fixed(self, sample_dataset_data):

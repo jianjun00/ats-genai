@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsOptimizedDataPipelinePerformance:
@@ -55,13 +49,7 @@ class TestRealObjectsOptimizedDataPipelinePerformance:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_batch_symbol_resolution_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_batch_symbol_resolution_performance"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsOptimizedDataPipelinePerformance:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.batch_symbol_resolution_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.batch_symbol_resolution_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_symbol_caching_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_symbol_caching_performance"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsOptimizedDataPipelinePerformance:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.symbol_caching_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.symbol_caching_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_batch_ohlc_performance_improvement_real_objects(self, real_service, test_data):
         """Real objects version of test_batch_ohlc_performance_improvement"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsOptimizedDataPipelinePerformance:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.batch_ohlc_performance_improvement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.batch_ohlc_performance_improvement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bulk_database_query_efficiency_real_objects(self, real_service, test_data):
         """Real objects version of test_bulk_database_query_efficiency"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsOptimizedDataPipelinePerformance:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bulk_database_query_efficiency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bulk_database_query_efficiency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cache_memory_management_real_objects(self, real_service, test_data):
         """Real objects version of test_cache_memory_management"""
         # Test with real database integration
@@ -164,15 +128,8 @@ class TestRealObjectsOptimizedDataPipelinePerformance:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cache_memory_management_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.cache_memory_management_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

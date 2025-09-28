@@ -10,9 +10,9 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 
-from modeling.llm_pattern_recognition import LLMPatternRecognizer, LLMProvider
-from modeling.multi_timeframe_analyzer import MultiTimeFrameFeatures
-from modeling.event_features import EventFeatures
+from domains.ml.modeling.analysis.llm_pattern_recognition import LLMPatternRecognizer, LLMProvider
+from domains.ml.modeling.analysis.multi_timeframe_analyzer import MultiTimeFrameFeatures
+from domains.ml.modeling.features.event_features import EventFeatures
 
 logger = logging.getLogger(__name__)
 

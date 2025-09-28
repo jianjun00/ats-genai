@@ -6,11 +6,11 @@ import pytest
 import numpy as np
 import asyncio
 
-from src.modeling.cross_timeframe_aligner import (
+from domains.ml.modeling.cross_timeframe_aligner import (
     CrossTimeframeAligner, AlignmentConfig, AlignmentMethod,
     AlignmentResult, validate_cross_timeframe_alignment
 )
-from src.modeling.enhanced_feature_types import (
+from domains.ml.modeling.enhanced_feature_types import (
     FeatureSpecification, FeatureType, TimeframeSpec,
     TechnicalIndicator
 )
@@ -520,48 +520,43 @@ if __name__ == "__main__":
                        if method.startswith('test_')]
 
         for method_name in test_methods:
-            try:
-                # Create instance
-                instance = test_class()
-                method = getattr(instance, method_name)
+            # Create instance
+            instance = test_class()
+            method = getattr(instance, method_name)
 
-                # Handle fixture dependencies and async methods
-                if hasattr(method, '__code__'):
-                    var_names = method.__code__.co_varnames
+            # Handle fixture dependencies and async methods
+            if hasattr(method, '__code__'):
+                var_names = method.__code__.co_varnames
 
-                    # Handle fixtures
-                    kwargs = {}
-                    if 'aligner' in var_names:
-                        kwargs['aligner'] = CrossTimeframeAligner()
-                    if 'sample_hourly_data' in var_names:
-                        np.random.seed(42)
-                        num_samples, intervals = 50, 8
-                        data = []
-                        base_value = 150
-                        for sample in range(num_samples):
-                            sample_values = []
-                            current_value = base_value + np.random.normal(0, 5)
-                            for interval in range(intervals):
-                                current_value += np.random.normal(0, 1)
-                                sample_values.append([current_value])
-                            data.append(sample_values)
-                        kwargs['sample_hourly_data'] = np.array(data)
+                # Handle fixtures
+                kwargs = {}
+                if 'aligner' in var_names:
+                    kwargs['aligner'] = CrossTimeframeAligner()
+                if 'sample_hourly_data' in var_names:
+                    np.random.seed(42)
+                    num_samples, intervals = 50, 8
+                    data = []
+                    base_value = 150
+                    for sample in range(num_samples):
+                        sample_values = []
+                        current_value = base_value + np.random.normal(0, 5)
+                        for interval in range(intervals):
+                            current_value += np.random.normal(0, 1)
+                            sample_values.append([current_value])
+                        data.append(sample_values)
+                    kwargs['sample_hourly_data'] = np.array(data)
 
-                    # Run test (handle async)
-                    if asyncio.iscoroutinefunction(method):
-                        asyncio.run(method(**kwargs))
+                # Run test (handle async)
+                if asyncio.iscoroutinefunction(method):
+                    asyncio.run(method(**kwargs))
+                else:
+                    if kwargs:
+                        method(**kwargs)
                     else:
-                        if kwargs:
-                            method(**kwargs)
-                        else:
-                            method()
+                        method()
 
-                    print(f"  ✓ {method_name}")
-                    passed += 1
-
-            except Exception as e:
-                print(f"  ✗ {method_name}: {str(e)[:100]}")
-                failed += 1
+                print(f"  ✓ {method_name}")
+                passed += 1
 
     print(f"\n=== Test Summary ===")
     print(f"Passed: {passed}")

@@ -20,14 +20,8 @@ class TestEDASystemComprehensive:
     @classmethod
     def setup_class(cls):
         """Ensure system is ready for testing"""
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            assert response.status_code == 200, "Analytics service not healthy"
-        except Exception:
-            pytest.skip("Analytics service not available for testing")
-
-    # === 1. INFRASTRUCTURE TESTS ===
-
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        assert response.status_code == 200, "Analytics service not healthy"
     def test_01_service_health_and_status(self):
         """Test service health and basic connectivity"""
         response = requests.get(f"{self.BASE_URL}/health")
@@ -169,12 +163,8 @@ class TestEDASystemComprehensive:
 
         def make_request(dataset):
             start = time.time()
-            try:
-                response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{dataset}/columns/volume/values?limit=3", timeout=10)
-                return time.time() - start, response.status_code == 200, len(response.text)
-            except:
-                return time.time() - start, False, 0
-
+            response = requests.get(f"{self.BASE_URL}/api/eda/datasets/{dataset}/columns/volume/values?limit=3", timeout=10)
+            return time.time() - start, response.status_code == 200, len(response.text)
         datasets = ['dev_daily_price_tiingo', 'dev_daily_price_eodhd', 'dev_financial_events']
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
@@ -278,13 +268,9 @@ class TestEDASystemComprehensive:
         # Make many rapid requests to test stability
         successful = 0
         for i in range(20):
-            try:
-                response = requests.get(f"{self.BASE_URL}/api/eda/datasets", timeout=5)
-                if response.status_code == 200:
-                    successful += 1
-            except:
-                pass
-
+            response = requests.get(f"{self.BASE_URL}/api/eda/datasets", timeout=5)
+            if response.status_code == 200:
+                successful += 1
         assert successful >= 18, f"System unstable: only {successful}/20 requests succeeded"
 
         # Verify service is still healthy after stress

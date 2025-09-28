@@ -23,7 +23,7 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.data_collection.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +31,9 @@ logger = logging.getLogger(__name__)
 async def quality_db_pool():
     """Database pool for quality testing"""
     dsn = "postgresql://postgres:intg_password@localhost:4432/intg_db"
-    try:
-        pool = await asyncpg.create_pool(dsn, min_size=2, max_size=5)
-        yield pool
-        await pool.close()
-    except Exception as e:
-        logger.warning(f"Cannot connect to quality database: {e}")
-        pytest.skip("Quality database not available")
-
-
+    pool = await asyncpg.create_pool(dsn, min_size=2, max_size=5)
+    yield pool
+    await pool.close()
 class DataQualityValidator:
     """Comprehensive data quality validation"""
 

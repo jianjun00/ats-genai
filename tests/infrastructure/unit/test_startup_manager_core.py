@@ -277,9 +277,10 @@ class TestDatabaseStatus:
                     query = args[0][7]  # The SQL query
                     if 'dev_instrument' in query:
                         return MagicMock(returncode=0, stdout='100\n')
-                    elif 'dev_daily_price' in query:
                     elif 'dev_daily_price_polygon' in query:
                         return MagicMock(returncode=1, stdout='', stderr='Query failed')
+                    elif 'dev_daily_price' in query:
+                        return MagicMock(returncode=0, stdout='200\n')
                     else:  # fundamentals
                         return MagicMock(returncode=0, stdout='50\n')
 

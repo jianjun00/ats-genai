@@ -12,8 +12,8 @@ from unittest.mock import Mock, patch, AsyncMock
 import sys
 sys.path.insert(0, 'src')
 
-from core.dao.instrument_xrefs_dao import InstrumentXrefsDAO
-from core.config.environment import Environment
+from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
+from core.platform.config.environment import Environment
 
 
 @pytest.fixture
@@ -165,15 +165,9 @@ class TestInstrumentXrefsDAOErrorHandling:
             mock_create_pool.side_effect = Exception("Connection failed")
 
             # Should handle exception gracefully
-            try:
-                result = await dao.get_symbol_by_instrument_id(1001)
-                # If no exception is raised, result should be None or empty
-                assert result is None or result == ""
-            except Exception:
-                # If exception is raised, that's also acceptable for this test
-                # as long as it doesn't crash the application
-                pass
-
+            result = await dao.get_symbol_by_instrument_id(1001)
+            # If no exception is raised, result should be None or empty
+            assert result is None or result == ""
     @pytest.mark.asyncio
     async def test_query_execution_error(self, mock_env):
         """Test handling of query execution errors."""
@@ -191,15 +185,9 @@ class TestInstrumentXrefsDAOErrorHandling:
             mock_create_pool.return_value = mock_pool
 
             # Should handle query failure
-            try:
-                result = await dao.get_symbol_by_instrument_id(1001)
-                # Method should handle error gracefully
-                assert True  # If we get here without exception, that's good
-            except Exception:
-                # If exception is raised, ensure it's handled properly upstream
-                pass
-
-
+            result = await dao.get_symbol_by_instrument_id(1001)
+            # Method should handle error gracefully
+            assert True  # If we get here without exception, that's good
 class TestInstrumentXrefsDAOIntegrationScenarios:
     """Test realistic integration scenarios."""
 
@@ -279,7 +267,7 @@ class TestInstrumentXrefsDAOIntegrationScenarios:
     def test_dao_integration_with_file_based_market_data_manager(self, mock_env):
         """Test DAO integration points with FileBasedMinuteMarketDataManager."""
         # Import the manager to ensure integration points exist
-        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+        from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteMarketDataManager
 
         # Create manager with environment (should create xrefs_dao)
         manager = FileBasedMinuteMarketDataManager(mock_env, "/tmp/test")
@@ -294,7 +282,7 @@ class TestInstrumentXrefsDAOIntegrationScenarios:
 
     def test_dao_not_initialized_without_environment(self):
         """Test that DAO is not initialized without environment."""
-        from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
+        from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteMarketDataManager
 
         # Create manager without environment
         manager = FileBasedMinuteMarketDataManager(None, "/tmp/test")

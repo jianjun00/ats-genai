@@ -198,28 +198,24 @@ def load_real_aapl_data() -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
     # Load and combine data
     all_data = []
     for file_path in sorted(aapl_files)[-5:]:  # Use last 5 files
-        try:
-            logger.info(f"   Loading: {file_path}")
-            df = pd.read_parquet(file_path)
+        logger.info(f"   Loading: {file_path}")
+        df = pd.read_parquet(file_path)
 
-            # Standardize column names
-            if 'timestamp' in df.columns:
-                df['datetime'] = pd.to_datetime(df['timestamp'])
-            elif 'time' in df.columns:
-                df['datetime'] = pd.to_datetime(df['time'])
+        # Standardize column names
+        if 'timestamp' in df.columns:
+            df['datetime'] = pd.to_datetime(df['timestamp'])
+        elif 'time' in df.columns:
+            df['datetime'] = pd.to_datetime(df['time'])
 
-            # Ensure required columns
-            required_cols = ['open', 'high', 'low', 'close', 'volume']
-            if all(col in df.columns for col in required_cols):
-                df = df[['datetime'] + required_cols].copy()
-                df.sort_values('datetime', inplace=True)
-                all_data.append(df)
-                logger.info(f"   ✅ Loaded {len(df)} bars from {file_path}")
-            else:
-                logger.warning(f"   ⚠️ Missing columns in {file_path}: {df.columns.tolist()}")
-
-        except Exception as e:
-            logger.warning(f"   ❌ Failed to load {file_path}: {e}")
+        # Ensure required columns
+        required_cols = ['open', 'high', 'low', 'close', 'volume']
+        if all(col in df.columns for col in required_cols):
+            df = df[['datetime'] + required_cols].copy()
+            df.sort_values('datetime', inplace=True)
+            all_data.append(df)
+            logger.info(f"   ✅ Loaded {len(df)} bars from {file_path}")
+        else:
+            logger.warning(f"   ⚠️ Missing columns in {file_path}: {df.columns.tolist()}")
 
     if not all_data:
         raise ValueError("No valid AAPL data could be loaded")
@@ -336,183 +332,175 @@ def train_unified_loss_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"🔧 Device: {device}")
 
-    try:
-        # Load real data
-        features, targets = load_real_aapl_data()
+    # Load real data
+    features, targets = load_real_aapl_data()
 
-        # Split data
-        train_size = int(0.8 * len(features))
-        train_features = features[:train_size]
-        test_features = features[train_size:]
+    # Split data
+    train_size = int(0.8 * len(features))
+    train_features = features[:train_size]
+    test_features = features[train_size:]
 
-        train_targets = {k: v[:train_size] for k, v in targets.items()}
-        test_targets = {k: v[train_size:] for k, v in targets.items()}
+    train_targets = {k: v[:train_size] for k, v in targets.items()}
+    test_targets = {k: v[train_size:] for k, v in targets.items()}
 
-        logger.info(f"📊 Training set: {len(train_features)} sequences")
-        logger.info(f"📊 Test set: {len(test_features)} sequences")
+    logger.info(f"📊 Training set: {len(train_features)} sequences")
+    logger.info(f"📊 Test set: {len(test_features)} sequences")
 
-        # Initialize model and loss function
-        model = UnifiedTransformer(seq_len=24, d_model=128, nhead=8, num_layers=4).to(device)
-        loss_function = FinancialAVLoss(num_tasks=5).to(device)
+    # Initialize model and loss function
+    model = UnifiedTransformer(seq_len=24, d_model=128, nhead=8, num_layers=4).to(device)
+    loss_function = FinancialAVLoss(num_tasks=5).to(device)
 
-        # Optimizer
-        optimizer = torch.optim.AdamW(
-            list(model.parameters()) + list(loss_function.parameters()),
-            lr=0.001, weight_decay=1e-5
-        )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10)
+    # Optimizer
+    optimizer = torch.optim.AdamW(
+        list(model.parameters()) + list(loss_function.parameters()),
+        lr=0.001, weight_decay=1e-5
+    )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10)
 
-        # Training loop
-        logger.info("🚀 Starting training...")
+    # Training loop
+    logger.info("🚀 Starting training...")
 
-        batch_size = 32
-        num_epochs = 50
-        best_loss = float('inf')
-        training_losses = []
+    batch_size = 32
+    num_epochs = 50
+    best_loss = float('inf')
+    training_losses = []
 
-        for epoch in range(num_epochs):
-            model.train()
-            epoch_losses = []
+    for epoch in range(num_epochs):
+        model.train()
+        epoch_losses = []
 
-            # Shuffle training data
-            indices = np.random.permutation(len(train_features))
+        # Shuffle training data
+        indices = np.random.permutation(len(train_features))
 
-            for i in range(0, len(train_features), batch_size):
-                batch_indices = indices[i:i+batch_size]
+        for i in range(0, len(train_features), batch_size):
+            batch_indices = indices[i:i+batch_size]
 
-                # Create batch
-                batch_features = torch.tensor(train_features[batch_indices]).to(device)
-                batch_targets = {
-                    k: torch.tensor(v[batch_indices]).to(device)
-                    for k, v in train_targets.items()
-                }
-
-                # Forward pass
-                optimizer.zero_grad()
-                outputs = model(batch_features)
-                loss_components = loss_function(outputs, batch_targets)
-
-                # Backward pass
-                loss_components['total_loss'].backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                optimizer.step()
-
-                epoch_losses.append(loss_components['total_loss'].item())
-
-            avg_loss = np.mean(epoch_losses)
-            training_losses.append(avg_loss)
-            scheduler.step(avg_loss)
-
-            if avg_loss < best_loss:
-                best_loss = avg_loss
-                # Save best model
-                model_path = '/data/models/unified_transformer_best.pth'
-                os.makedirs(os.path.dirname(model_path), exist_ok=True)
-                torch.save({
-                    'model_state_dict': model.state_dict(),
-                    'loss_state_dict': loss_function.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'epoch': epoch,
-                    'loss': avg_loss
-                }, model_path)
-
-            if epoch % 10 == 0:
-                logger.info(f"Epoch {epoch:3d}: Loss = {avg_loss:.4f}, LR = {optimizer.param_groups[0]['lr']:.6f}")
-
-        logger.info(f"✅ Training completed. Best loss: {best_loss:.4f}")
-
-        # Evaluation
-        logger.info("📊 Evaluating model...")
-
-        model.eval()
-        test_predictions = []
-        test_actuals = []
-
-        with torch.no_grad():
-            for i in range(0, len(test_features), batch_size):
-                batch_features = torch.tensor(test_features[i:i+batch_size]).to(device)
-                batch_targets = {
-                    k: torch.tensor(v[i:i+batch_size]).to(device)
-                    for k, v in test_targets.items()
-                }
-
-                outputs = model(batch_features)
-                test_predictions.append(outputs['price_movement'].cpu().numpy())
-                test_actuals.append(batch_targets['price_movement'].cpu().numpy())
-
-        # Combine predictions
-        predictions = np.concatenate(test_predictions, axis=0).flatten()
-        actuals = np.concatenate(test_actuals, axis=0).flatten()
-
-        # Calculate metrics
-        returns = predictions  # Use predictions as returns
-        metrics = calculate_financial_metrics(returns)
-
-        # Directional accuracy
-        pred_direction = np.sign(predictions)
-        actual_direction = np.sign(actuals)
-        directional_accuracy = np.mean(pred_direction == actual_direction)
-
-        # Correlation
-        correlation = np.corrcoef(predictions, actuals)[0, 1] if len(predictions) > 1 else 0.0
-
-        logger.info("\n" + "="*50)
-        logger.info("📈 EVALUATION RESULTS")
-        logger.info("="*50)
-        logger.info(f"📊 Sharpe Ratio: {metrics['sharpe_ratio']:.2f}")
-        logger.info(f"📉 Maximum Drawdown: {metrics['max_drawdown']:.4f}")
-        logger.info(f"📈 Total Return: {metrics['total_return']:.4f}")
-        logger.info(f"📊 Volatility: {metrics['volatility']:.4f}")
-        logger.info(f"🎯 Directional Accuracy: {directional_accuracy:.1%}")
-        logger.info(f"🔗 Correlation: {correlation:.4f}")
-        logger.info(f"🔧 Final Loss: {best_loss:.4f}")
-
-        # Save results
-        results = {
-            'model_path': model_path,
-            'training_losses': training_losses,
-            'evaluation_metrics': {
-                'sharpe_ratio': metrics['sharpe_ratio'],
-                'max_drawdown': metrics['max_drawdown'],
-                'total_return': metrics['total_return'],
-                'volatility': metrics['volatility'],
-                'directional_accuracy': float(directional_accuracy),
-                'correlation': float(correlation),
-                'final_loss': float(best_loss)
-            },
-            'model_config': {
-                'seq_len': 24,
-                'd_model': 128,
-                'nhead': 8,
-                'num_layers': 4,
-                'batch_size': batch_size,
-                'num_epochs': num_epochs
-            },
-            'data_info': {
-                'train_samples': len(train_features),
-                'test_samples': len(test_features),
-                'features_shape': list(features.shape)
+            # Create batch
+            batch_features = torch.tensor(train_features[batch_indices]).to(device)
+            batch_targets = {
+                k: torch.tensor(v[batch_indices]).to(device)
+                for k, v in train_targets.items()
             }
+
+            # Forward pass
+            optimizer.zero_grad()
+            outputs = model(batch_features)
+            loss_components = loss_function(outputs, batch_targets)
+
+            # Backward pass
+            loss_components['total_loss'].backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+
+            epoch_losses.append(loss_components['total_loss'].item())
+
+        avg_loss = np.mean(epoch_losses)
+        training_losses.append(avg_loss)
+        scheduler.step(avg_loss)
+
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            # Save best model
+            model_path = '/data/models/unified_transformer_best.pth'
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'loss_state_dict': loss_function.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'epoch': epoch,
+                'loss': avg_loss
+            }, model_path)
+
+        if epoch % 10 == 0:
+            logger.info(f"Epoch {epoch:3d}: Loss = {avg_loss:.4f}, LR = {optimizer.param_groups[0]['lr']:.6f}")
+
+    logger.info(f"✅ Training completed. Best loss: {best_loss:.4f}")
+
+    # Evaluation
+    logger.info("📊 Evaluating model...")
+
+    model.eval()
+    test_predictions = []
+    test_actuals = []
+
+    with torch.no_grad():
+        for i in range(0, len(test_features), batch_size):
+            batch_features = torch.tensor(test_features[i:i+batch_size]).to(device)
+            batch_targets = {
+                k: torch.tensor(v[i:i+batch_size]).to(device)
+                for k, v in test_targets.items()
+            }
+
+            outputs = model(batch_features)
+            test_predictions.append(outputs['price_movement'].cpu().numpy())
+            test_actuals.append(batch_targets['price_movement'].cpu().numpy())
+
+    # Combine predictions
+    predictions = np.concatenate(test_predictions, axis=0).flatten()
+    actuals = np.concatenate(test_actuals, axis=0).flatten()
+
+    # Calculate metrics
+    returns = predictions  # Use predictions as returns
+    metrics = calculate_financial_metrics(returns)
+
+    # Directional accuracy
+    pred_direction = np.sign(predictions)
+    actual_direction = np.sign(actuals)
+    directional_accuracy = np.mean(pred_direction == actual_direction)
+
+    # Correlation
+    correlation = np.corrcoef(predictions, actuals)[0, 1] if len(predictions) > 1 else 0.0
+
+    logger.info("\n" + "="*50)
+    logger.info("📈 EVALUATION RESULTS")
+    logger.info("="*50)
+    logger.info(f"📊 Sharpe Ratio: {metrics['sharpe_ratio']:.2f}")
+    logger.info(f"📉 Maximum Drawdown: {metrics['max_drawdown']:.4f}")
+    logger.info(f"📈 Total Return: {metrics['total_return']:.4f}")
+    logger.info(f"📊 Volatility: {metrics['volatility']:.4f}")
+    logger.info(f"🎯 Directional Accuracy: {directional_accuracy:.1%}")
+    logger.info(f"🔗 Correlation: {correlation:.4f}")
+    logger.info(f"🔧 Final Loss: {best_loss:.4f}")
+
+    # Save results
+    results = {
+        'model_path': model_path,
+        'training_losses': training_losses,
+        'evaluation_metrics': {
+            'sharpe_ratio': metrics['sharpe_ratio'],
+            'max_drawdown': metrics['max_drawdown'],
+            'total_return': metrics['total_return'],
+            'volatility': metrics['volatility'],
+            'directional_accuracy': float(directional_accuracy),
+            'correlation': float(correlation),
+            'final_loss': float(best_loss)
+        },
+        'model_config': {
+            'seq_len': 24,
+            'd_model': 128,
+            'nhead': 8,
+            'num_layers': 4,
+            'batch_size': batch_size,
+            'num_epochs': num_epochs
+        },
+        'data_info': {
+            'train_samples': len(train_features),
+            'test_samples': len(test_features),
+            'features_shape': list(features.shape)
         }
+    }
 
-        results_path = '/data/models/training_results.json'
-        with open(results_path, 'w') as f:
-            json.dump(results, f, indent=2)
+    results_path = '/data/models/training_results.json'
+    with open(results_path, 'w') as f:
+        json.dump(results, f, indent=2)
 
-        logger.info(f"💾 Results saved to: {results_path}")
-        logger.info("\n🎉 UNIFIED LOSS MODEL TRAINING COMPLETED!")
-        logger.info("✅ Model combines autonomous driving + financial trading insights")
-        logger.info("✅ Real AAPL data training successful")
-        logger.info("✅ Production-ready model saved")
+    logger.info(f"💾 Results saved to: {results_path}")
+    logger.info("\n🎉 UNIFIED LOSS MODEL TRAINING COMPLETED!")
+    logger.info("✅ Model combines autonomous driving + financial trading insights")
+    logger.info("✅ Real AAPL data training successful")
+    logger.info("✅ Production-ready model saved")
 
-        return True
-
-    except Exception as e:
-        logger.error(f"❌ Training failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
+    return True
 
 if __name__ == "__main__":
     success = train_unified_loss_model()

@@ -74,29 +74,23 @@ class TestSequenceSelectionDOMValidation:
         timeframes = ['5m', '15m', '1h', '1d', '1w']
 
         # Try to select dataset and sequence to trigger chart rendering
-        try:
-            # Select dataset
-            dataset_button = await page.query_selector("[data-testid='dataset-item']:first-child")
-            if dataset_button:
-                await dataset_button.click()
-                await asyncio.sleep(1)  # Wait for response
+        # Select dataset
+        dataset_button = await page.query_selector("[data-testid='dataset-item']:first-child")
+        if dataset_button:
+            await dataset_button.click()
+            await asyncio.sleep(1)  # Wait for response
 
-                # Select sequence if dropdown appears
-                sequence_dropdown = await page.query_selector("[data-testid='sequence-selector']")
-                if sequence_dropdown:
-                    await sequence_dropdown.click()
-                    await asyncio.sleep(0.5)
+            # Select sequence if dropdown appears
+            sequence_dropdown = await page.query_selector("[data-testid='sequence-selector']")
+            if sequence_dropdown:
+                await sequence_dropdown.click()
+                await asyncio.sleep(0.5)
 
-                    # Select first sequence option
-                    first_option = await page.query_selector("[data-testid='sequence-option']:first-child")
-                    if first_option:
-                        await first_option.click()
-                        await asyncio.sleep(2)  # Wait for charts to render
-        except Exception as e:
-            # If interaction fails, still test for chart container presence
-            pass
-
-        # Check that chart containers exist for each timeframe
+                # Select first sequence option
+                first_option = await page.query_selector("[data-testid='sequence-option']:first-child")
+                if first_option:
+                    await first_option.click()
+                    await asyncio.sleep(2)  # Wait for charts to render
         for timeframe in timeframes:
             chart_id = f"chart-{timeframe}"
             chart_container = await page.query_selector(f"#{chart_id}")
@@ -136,25 +130,20 @@ class TestSequenceSelectionDOMValidation:
         await page.wait_for_load_state("networkidle")
 
         # Try to trigger chart rendering
-        try:
-            dataset_button = await page.query_selector("[data-testid='dataset-item']:first-child")
-            if dataset_button:
-                await dataset_button.click()
-                await asyncio.sleep(1)
+        dataset_button = await page.query_selector("[data-testid='dataset-item']:first-child")
+        if dataset_button:
+            await dataset_button.click()
+            await asyncio.sleep(1)
 
-                sequence_dropdown = await page.query_selector("[data-testid='sequence-selector']")
-                if sequence_dropdown:
-                    await sequence_dropdown.click()
-                    await asyncio.sleep(0.5)
+            sequence_dropdown = await page.query_selector("[data-testid='sequence-selector']")
+            if sequence_dropdown:
+                await sequence_dropdown.click()
+                await asyncio.sleep(0.5)
 
-                    first_option = await page.query_selector("[data-testid='sequence-option']:first-child")
-                    if first_option:
-                        await first_option.click()
-                        await asyncio.sleep(3)  # Wait for charts to render
-        except Exception:
-            pass  # Ignore interaction errors, focus on JS errors
-
-        # Filter out common non-critical errors
+                first_option = await page.query_selector("[data-testid='sequence-option']:first-child")
+                if first_option:
+                    await first_option.click()
+                    await asyncio.sleep(3)  # Wait for charts to render
         critical_errors = [
             error for error in js_errors
             if not any(ignore in error.lower() for ignore in [

@@ -12,7 +12,7 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from domains.ml.services.training_data.runners.training_data_callback_runner import TrainingDataJobRunner, create_sample_job_config
+# TrainingDataJobRunner class does not exist in feature_extraction_runner, create_sample_job_config
 
 def test_dataset_name_generation_with_run_id():
     """Test that dataset names include unique run_id to prevent duplicates."""
@@ -148,26 +148,21 @@ async def test_actual_dataset_creation():
 
     print("\n🚀 Testing actual dataset creation...")
 
-    try:
-        pass
+    pass
 
-        # This will fail with current implementation but shows what we need
-        print("Note: This will demonstrate the current issue...")
-        print("The dataset name won't include run_id, causing potential duplicates")
+    # This will fail with current implementation but shows what we need
+    print("Note: This will demonstrate the current issue...")
+    print("The dataset name won't include run_id, causing potential duplicates")
 
-        # We can't actually run this without risking database changes
-        # But we can show the configuration
-        config = create_sample_job_config(symbols=['TEST'])
-        runner = TrainingDataJobRunner(config=config)
+    # We can't actually run this without risking database changes
+    # But we can show the configuration
+    config = create_sample_job_config(symbols=['TEST'])
+    runner = TrainingDataJobRunner(config=config)
 
-        print(f"Config job_name: {config.job_name}")
-        print(f"Expected dataset prefix: dataset_{config.job_name}_run{{run_id}}_")
+    print(f"Config job_name: {config.job_name}")
+    print(f"Expected dataset prefix: dataset_{config.job_name}_run{{run_id}}_")
 
-        return True
-
-    except Exception as e:
-        print(f"Test setup error: {e}")
-        return False
+    return True
 
 def main():
     """Run all dataset naming tests."""
@@ -200,7 +195,7 @@ def main():
 
     print("\n🔧 REQUIRED FIX:")
     print("Update dataset_id generation to include run_id:")
-    print('dataset_id = f"dataset_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime(\'%Y%m%d_%H%M%S\')}"')
+    print('dataset_id = f"dataset_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"')
 
     return passed == len(results)
 

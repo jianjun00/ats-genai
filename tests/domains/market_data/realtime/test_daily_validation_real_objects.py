@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class AsyncContextManagerMock:
@@ -55,13 +49,7 @@ class AsyncContextManagerMock:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_validation_result_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_validation_result_creation"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validation_result_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validation_result_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_engine_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_engine_initialization"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.engine_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.engine_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_validation_date_yesterday_real_objects(self, real_service, test_data):
         """Real objects version of test_get_validation_date_yesterday"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_validation_date_yesterday_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_validation_date_yesterday_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_validation_date_specific_real_objects(self, real_service, test_data):
         """Real objects version of test_get_validation_date_specific"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_validation_date_specific_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_validation_date_specific_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_has_api_key_real_objects(self, real_service, test_data):
         """Real objects version of test_has_api_key"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.has_api_key_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.has_api_key_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_initialize_database_connection_real_objects(self, real_service, test_data):
         """Real objects version of test_initialize_database_connection"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.initialize_database_connection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.initialize_database_connection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_active_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_get_active_symbols"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_active_symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_active_symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_realtime_data_real_objects(self, real_service, test_data):
         """Real objects version of test_get_realtime_data"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_realtime_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_realtime_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_polygon_batch_data_real_objects(self, real_service, test_data):
         """Real objects version of test_get_polygon_batch_data"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_polygon_batch_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_polygon_batch_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_tiingo_batch_data_real_objects(self, real_service, test_data):
         """Real objects version of test_get_tiingo_batch_data"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_tiingo_batch_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_tiingo_batch_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_fmp_batch_data_real_objects(self, real_service, test_data):
         """Real objects version of test_get_fmp_batch_data"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_fmp_batch_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_fmp_batch_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_perfect_match_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_perfect_match"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_perfect_match_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_data_perfect_match_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_with_discrepancies_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_with_discrepancies"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_with_discrepancies_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_data_with_discrepancies_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_high_latency_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_high_latency"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_high_latency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_data_high_latency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_missing_realtime_bars_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_missing_realtime_bars"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_missing_realtime_bars_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_data_missing_realtime_bars_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_failed_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_failed_validation"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_failed_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_data_failed_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validate_vendor_real_objects(self, real_service, test_data):
         """Real objects version of test_validate_vendor"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validate_vendor_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validate_vendor_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_store_validation_results_real_objects(self, real_service, test_data):
         """Real objects version of test_store_validation_results"""
         # Test with real database integration
@@ -450,14 +336,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.store_validation_results_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.store_validation_results_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_generate_validation_summary_real_objects(self, real_service, test_data):
         """Real objects version of test_generate_validation_summary"""
         # Test with real database integration
@@ -472,14 +352,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.generate_validation_summary_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.generate_validation_summary_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_send_validation_alerts_real_objects(self, real_service, test_data):
         """Real objects version of test_send_validation_alerts"""
         # Test with real database integration
@@ -494,14 +368,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.send_validation_alerts_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.send_validation_alerts_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_daily_validation_complete_flow_real_objects(self, real_service, test_data):
         """Real objects version of test_run_daily_validation_complete_flow"""
         # Test with real database integration
@@ -516,14 +384,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_daily_validation_complete_flow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_daily_validation_complete_flow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_shutdown_real_objects(self, real_service, test_data):
         """Real objects version of test_shutdown"""
         # Test with real database integration
@@ -538,14 +400,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.shutdown_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.shutdown_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_polygon_api_error_real_objects(self, real_service, test_data):
         """Real objects version of test_polygon_api_error"""
         # Test with real database integration
@@ -560,14 +416,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.polygon_api_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.polygon_api_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tiingo_api_error_real_objects(self, real_service, test_data):
         """Real objects version of test_tiingo_api_error"""
         # Test with real database integration
@@ -582,14 +432,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tiingo_api_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.tiingo_api_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fmp_api_error_real_objects(self, real_service, test_data):
         """Real objects version of test_fmp_api_error"""
         # Test with real database integration
@@ -604,14 +448,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fmp_api_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fmp_api_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_network_timeout_real_objects(self, real_service, test_data):
         """Real objects version of test_network_timeout"""
         # Test with real database integration
@@ -626,14 +464,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.network_timeout_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.network_timeout_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_empty_datasets_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_empty_datasets"""
         # Test with real database integration
@@ -648,14 +480,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_empty_datasets_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_data_empty_datasets_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_time_offset_tolerance_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_time_offset_tolerance"""
         # Test with real database integration
@@ -670,14 +496,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_time_offset_tolerance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_data_time_offset_tolerance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_data_no_batch_match_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_data_no_batch_match"""
         # Test with real database integration
@@ -692,15 +512,8 @@ class AsyncContextManagerMock:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_data_no_batch_match_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.compare_data_no_batch_match_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -19,20 +19,16 @@ class SignOzDashboardCreator:
 
     def delete_existing_dashboard(self, dashboard_id):
         """Delete existing dashboard if it exists"""
-        try:
-            print(f"🗑️ Deleting existing dashboard: {dashboard_id}")
-            response = requests.delete(
-                f"{self.base_url}/api/v1/dashboards/{dashboard_id}",
-                headers=self.headers,
-                timeout=30
-            )
-            if response.status_code in [200, 404]:
-                print(f"✅ Dashboard deleted or didn't exist")
-            else:
-                print(f"⚠️ Delete response: {response.status_code}")
-        except Exception as e:
-            print(f"⚠️ Delete error: {e}")
-
+        print(f"🗑️ Deleting existing dashboard: {dashboard_id}")
+        response = requests.delete(
+            f"{self.base_url}/api/v1/dashboards/{dashboard_id}",
+            headers=self.headers,
+            timeout=30
+        )
+        if response.status_code in [200, 404]:
+            print(f"✅ Dashboard deleted or didn't exist")
+        else:
+            print(f"⚠️ Delete response: {response.status_code}")
     def create_dashboard_payload(self):
         """Create comprehensive dashboard payload with proper SignOz v4 schema"""
         dashboard_id = str(uuid.uuid4())
@@ -243,53 +239,43 @@ PROMETHEUS_GATEWAY=localhost:9091 python3 scripts/daily_price_polygon_quality_me
         print(f"📋 Title: {payload['title']}")
         print(f"📋 Panels: {len(payload['panels'])}")
 
-        try:
-            print("📤 Sending dashboard creation request...")
-            response = requests.post(
-                f"{self.base_url}/api/v1/dashboards",
-                headers=self.headers,
-                json=payload,
-                timeout=30
-            )
+        print("📤 Sending dashboard creation request...")
+        response = requests.post(
+            f"{self.base_url}/api/v1/dashboards",
+            headers=self.headers,
+            json=payload,
+            timeout=30
+        )
 
-            print(f"📥 Response Status: {response.status_code}")
-            print(f"📥 Response Headers: {dict(response.headers)}")
+        print(f"📥 Response Status: {response.status_code}")
+        print(f"📥 Response Headers: {dict(response.headers)}")
 
-            if response.status_code in [200, 201]:
-                print(f"✅ Dashboard created successfully!")
-                print(f"🌐 URL: {self.base_url}/dashboard/{dashboard_id}")
-                return dashboard_id
-            else:
-                print(f"❌ Failed to create dashboard")
-                print(f"Response: {response.text}")
-                return None
-
-        except Exception as e:
-            print(f"❌ Error creating dashboard: {e}")
+        if response.status_code in [200, 201]:
+            print(f"✅ Dashboard created successfully!")
+            print(f"🌐 URL: {self.base_url}/dashboard/{dashboard_id}")
+            return dashboard_id
+        else:
+            print(f"❌ Failed to create dashboard")
+            print(f"Response: {response.text}")
             return None
 
     def verify_dashboard(self, dashboard_id):
         """Verify dashboard exists and has panels"""
-        try:
-            print(f"🔍 Verifying dashboard: {dashboard_id}")
-            response = requests.get(
-                f"{self.base_url}/api/v1/dashboards/{dashboard_id}",
-                headers=self.headers,
-                timeout=30
-            )
+        print(f"🔍 Verifying dashboard: {dashboard_id}")
+        response = requests.get(
+            f"{self.base_url}/api/v1/dashboards/{dashboard_id}",
+            headers=self.headers,
+            timeout=30
+        )
 
-            if response.status_code == 200:
-                data = response.json()
-                panels_count = len(data.get("panels", []))
-                print(f"✅ Dashboard verified: {panels_count} panels")
-                return True
-            else:
-                print(f"❌ Dashboard verification failed: {response.status_code}")
-                return False
-        except Exception as e:
-            print(f"❌ Verification error: {e}")
+        if response.status_code == 200:
+            data = response.json()
+            panels_count = len(data.get("panels", []))
+            print(f"✅ Dashboard verified: {panels_count} panels")
+            return True
+        else:
+            print(f"❌ Dashboard verification failed: {response.status_code}")
             return False
-
 def main():
     creator = SignOzDashboardCreator()
 

@@ -39,21 +39,15 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 async def test_db_connection():
     """Create test database connection."""
-    try:
-        connection = await asyncpg.connect(
-            host="localhost",
-            port=3432,
-            user="postgres",
-            password="dev_password",
-            database="dev_db"
-        )
-        yield connection
-        await connection.close()
-    except Exception as e:
-        logger.warning(f"Could not connect to test database: {e}")
-        yield None
-
-
+    connection = await asyncpg.connect(
+        host="localhost",
+        port=3432,
+        user="postgres",
+        password="dev_password",
+        database="dev_db"
+    )
+    yield connection
+    await connection.close()
 @pytest.fixture
 def temp_training_dir():
     """Create temporary training data directory."""
@@ -330,13 +324,8 @@ class TestTrainingDataCompletionConsistency:
                 issues.append(f"Missing metadata file: {metadata_path}")
             else:
                 # Validate JSON structure
-                try:
-                    with open(metadata_path, 'r') as f:
-                        json.load(f)
-                except json.JSONDecodeError as e:
-                    issues.append(f"Invalid metadata JSON: {e}")
-
-        # Check if dataset claims to have sequences but no files exist
+                with open(metadata_path, 'r') as f:
+                    json.load(f)
         if (dataset_record['total_sequences'] > 0 and
             not dataset_record['features_file_path'] and
             not dataset_record['labels_file_path']):
@@ -362,67 +351,56 @@ class TestTrainingDataProcessIntegrity:
 
         test_dataset_name = f"test_atomic_{int(time.time())}"
 
-        try:
-            # 1. Create a test dataset record in 'generating' status
-            insert_query = """
-            INSERT INTO dev_training_dataset (
-                dataset_name, status, total_sequences, symbols,
-                date_range_start, date_range_end, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id
-            """
+        # 1. Create a test dataset record in 'generating' status
+        insert_query = """
+        INSERT INTO dev_training_dataset (
+            dataset_name, status, total_sequences, symbols,
+            date_range_start, date_range_end, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+        """
 
-            dataset_id = await test_db_connection.fetchval(
-                insert_query,
-                test_dataset_name,
-                'generating',
-                100,  # test sequences
-                ['TEST'],
-                date.today() - timedelta(days=1),
-                date.today(),
-                'test_atomic_completion'
-            )
+        dataset_id = await test_db_connection.fetchval(
+            insert_query,
+            test_dataset_name,
+            'generating',
+            100,  # test sequences
+            ['TEST'],
+            date.today() - timedelta(days=1),
+            date.today(),
+            'test_atomic_completion'
+        )
 
-            # 2. Simulate file creation
-            test_file = temp_training_dir / f"{test_dataset_name}.arrayrecord"
-            test_file.write_text("test data")
+        # 2. Simulate file creation
+        test_file = temp_training_dir / f"{test_dataset_name}.arrayrecord"
+        test_file.write_text("test data")
 
-            # 3. Update status to completed (this should be atomic with file creation)
-            async with test_db_connection.transaction():
-                # In real implementation, file creation and status update should be in same transaction
-                if test_file.exists():
-                    await test_db_connection.execute(
-                        "UPDATE dev_training_dataset SET status = 'completed', features_file_path = $1 WHERE id = $2",
-                        str(test_file),
-                        dataset_id
-                    )
-                else:
-                    # If file creation failed, mark as failed
-                    await test_db_connection.execute(
-                        "UPDATE dev_training_dataset SET status = 'failed' WHERE id = $1",
-                        dataset_id
-                    )
-
-            # 4. Verify consistency
-            final_record = await test_db_connection.fetchrow(
-                "SELECT status, features_file_path FROM dev_training_dataset WHERE id = $1",
-                dataset_id
-            )
-
-            assert final_record['status'] == 'completed'
-            assert Path(final_record['features_file_path']).exists()
-
-            logger.info("✅ Atomic status update test passed")
-
-        finally:
-            # Cleanup test data
-            try:
+        # 3. Update status to completed (this should be atomic with file creation)
+        async with test_db_connection.transaction():
+            # In real implementation, file creation and status update should be in same transaction
+            if test_file.exists():
                 await test_db_connection.execute(
-                    "DELETE FROM dev_training_dataset WHERE dataset_name = $1",
-                    test_dataset_name
+                    "UPDATE dev_training_dataset SET status = 'completed', features_file_path = $1 WHERE id = $2",
+                    str(test_file),
+                    dataset_id
                 )
-            except Exception as e:
-                logger.warning(f"Cleanup failed: {e}")
+            else:
+                # If file creation failed, mark as failed
+                await test_db_connection.execute(
+                    "UPDATE dev_training_dataset SET status = 'failed' WHERE id = $1",
+                    dataset_id
+                )
+
+        # 4. Verify consistency
+        final_record = await test_db_connection.fetchrow(
+            "SELECT status, features_file_path FROM dev_training_dataset WHERE id = $1",
+            dataset_id
+        )
+
+        assert final_record['status'] == 'completed'
+        assert Path(final_record['features_file_path']).exists()
+
+        logger.info("✅ Atomic status update test passed")
 
     @pytest.mark.asyncio
     async def test_completion_timeout_detection(self, test_db_connection):

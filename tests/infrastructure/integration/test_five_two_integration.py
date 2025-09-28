@@ -28,16 +28,10 @@ from typing import List, Optional, Dict, Any
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-try:
-    from domains.trading.services.indicator import (
-        FiveTwoBuy, FiveTwoSell, FiveOneBuy, FiveOneSell,
-        H11, L11, EnvelopeBot, EnvelopeTop
-    )
-except ImportError as e:
-    print(f"❌ Cannot import indicators: {e}")
-    print("Make sure to run: PYTHONPATH=src python test_five_two_integration.py")
-    sys.exit(1)
-
+from domains.trading.services.indicators import (
+    FiveTwoBuy, FiveTwoSell, FiveOneBuy, FiveOneSell,
+    H11, L11, EnvelopeBot, EnvelopeTop
+)
 @dataclass
 class TestInstrumentInterval:
     """Test implementation of InstrumentInterval."""
@@ -132,36 +126,30 @@ class FiveTwoIntegrationTests:
             five_one_buy = FiveOneBuy()
             five_one_sell = FiveOneSell()
 
-            try:
-                # Update all indicators
-                five_two_buy.update(intervals)
-                five_two_sell.update(intervals)
-                five_one_buy.update(intervals)
-                five_one_sell.update(intervals)
+            # Update all indicators
+            five_two_buy.update(intervals)
+            five_two_sell.update(intervals)
+            five_one_buy.update(intervals)
+            five_one_sell.update(intervals)
 
-                # Get results
-                results = {
-                    'FiveTwoBuy': five_two_buy.get_value(),
-                    'FiveTwoSell': five_two_sell.get_value(),
-                    'FiveOneBuy': five_one_buy.get_value(),
-                    'FiveOneSell': five_one_sell.get_value()
-                }
+            # Get results
+            results = {
+                'FiveTwoBuy': five_two_buy.get_value(),
+                'FiveTwoSell': five_two_sell.get_value(),
+                'FiveOneBuy': five_one_buy.get_value(),
+                'FiveOneSell': five_one_sell.get_value()
+            }
 
-                regime_results[regime_name] = results
+            regime_results[regime_name] = results
 
-                # Display results
-                for indicator, value in results.items():
-                    status = "None" if value is None else f"{value:.2f}"
-                    print(f"  {indicator}: {status}")
+            # Display results
+            for indicator, value in results.items():
+                status = "None" if value is None else f"{value:.2f}"
+                print(f"  {indicator}: {status}")
 
-                # Validate logical behavior for each regime
-                validation_passed = self._validate_regime_logic(regime_name, data, results)
-                if not validation_passed:
-                    all_passed = False
-
-            except Exception as e:
-                print(f"❌ Error in {regime_name}: {e}")
-                self.errors.append(f"Market regime test failed for {regime_name}: {e}")
+            # Validate logical behavior for each regime
+            validation_passed = self._validate_regime_logic(regime_name, data, results)
+            if not validation_passed:
                 all_passed = False
 
         self.test_results['market_regimes'] = regime_results
@@ -248,15 +236,8 @@ class FiveTwoIntegrationTests:
             # Update all indicators
             results = {}
             for name, indicator in indicators.items():
-                try:
-                    indicator.update(intervals)
-                    results[name] = indicator.get_value()
-                except Exception as e:
-                    print(f"❌ {name} failed: {e}")
-                    results[name] = 'error'
-                    all_consistent = False
-
-            # Display results
+                indicator.update(intervals)
+                results[name] = indicator.get_value()
             for name, value in results.items():
                 status = "None" if value is None else f"{value:.2f}" if isinstance(value, (int, float)) else str(value)
                 print(f"  {name}: {status}")
@@ -323,19 +304,13 @@ class FiveTwoIntegrationTests:
 
         for test_case in production_tests:
             print(f"\n--- {test_case['name']} ---")
-            try:
-                result = test_case['test_func']()
-                production_results[test_case['name']] = result
-                if result:
-                    print(f"✅ {test_case['name']} passed")
-                else:
-                    print(f"❌ {test_case['name']} failed")
-                    all_passed = False
-            except Exception as e:
-                print(f"❌ {test_case['name']} crashed: {e}")
-                production_results[test_case['name']] = False
+            result = test_case['test_func']()
+            production_results[test_case['name']] = result
+            if result:
+                print(f"✅ {test_case['name']} passed")
+            else:
+                print(f"❌ {test_case['name']} failed")
                 all_passed = False
-
         return all_passed
 
     def _test_high_frequency_updates(self) -> bool:
@@ -424,26 +399,21 @@ class FiveTwoIntegrationTests:
         errors_queue = queue.Queue()
 
         def worker_function(worker_id):
-            try:
-                indicator = FiveTwoBuy()
+            indicator = FiveTwoBuy()
 
-                # Each worker processes different data
-                for i in range(100):
-                    base = 3400 + worker_id * 10 + i
-                    intervals = [
-                        TestInstrumentInterval(high=base+10, low=base-10, close=base),
-                        TestInstrumentInterval(high=base+5, low=base-15, close=base-5)
-                    ]
+            # Each worker processes different data
+            for i in range(100):
+                base = 3400 + worker_id * 10 + i
+                intervals = [
+                    TestInstrumentInterval(high=base+10, low=base-10, close=base),
+                    TestInstrumentInterval(high=base+5, low=base-15, close=base-5)
+                ]
 
-                    indicator.update(intervals)
-                    result = indicator.get_value()
+                indicator.update(intervals)
+                result = indicator.get_value()
 
-                results_queue.put(f"Worker {worker_id} completed")
+            results_queue.put(f"Worker {worker_id} completed")
 
-            except Exception as e:
-                errors_queue.put(f"Worker {worker_id} error: {e}")
-
-        # Start multiple threads
         threads = []
         for i in range(5):
             thread = threading.Thread(target=worker_function, args=(i,))
@@ -498,29 +468,24 @@ class FiveTwoIntegrationTests:
         recovery_success = True
 
         for scenario in error_scenarios:
-            try:
-                print(f"  Testing: {scenario['description']}")
+            print(f"  Testing: {scenario['description']}")
 
-                five_two_buy.update(scenario['intervals'])
-                five_two_sell.update(scenario['intervals'])
+            five_two_buy.update(scenario['intervals'])
+            five_two_sell.update(scenario['intervals'])
 
-                # After error scenarios, try normal data
-                normal_intervals = [
-                    TestInstrumentInterval(high=120, low=110, close=115),
-                    TestInstrumentInterval(high=125, low=105, close=120)  # Higher high, lower low
-                ]
+            # After error scenarios, try normal data
+            normal_intervals = [
+                TestInstrumentInterval(high=120, low=110, close=115),
+                TestInstrumentInterval(high=125, low=105, close=120)  # Higher high, lower low
+            ]
 
-                five_two_buy.update(normal_intervals)
-                five_two_sell.update(normal_intervals)
+            five_two_buy.update(normal_intervals)
+            five_two_sell.update(normal_intervals)
 
-                buy_result = five_two_buy.get_value()
-                sell_result = five_two_sell.get_value()
+            buy_result = five_two_buy.get_value()
+            sell_result = five_two_sell.get_value()
 
-                print(f"    Recovery results - Buy: {buy_result}, Sell: {sell_result}")
-
-            except Exception as e:
-                print(f"    ❌ Error recovery failed: {e}")
-                recovery_success = False
+            print(f"    Recovery results - Buy: {buy_result}, Sell: {sell_result}")
 
         return recovery_success
 
@@ -540,22 +505,13 @@ class FiveTwoIntegrationTests:
 
         for test_name, test_method in test_methods:
             print(f"\n{'='*20} {test_name} {'='*20}")
-            try:
-                result = test_method()
-                results[test_name] = result
-                if not result:
-                    overall_success = False
-                    print(f"❌ {test_name} FAILED")
-                else:
-                    print(f"✅ {test_name} PASSED")
-            except Exception as e:
-                print(f"❌ {test_name} CRASHED: {e}")
-                results[test_name] = False
+            result = test_method()
+            results[test_name] = result
+            if not result:
                 overall_success = False
-                import traceback
-                traceback.print_exc()
-
-        # Final summary
+                print(f"❌ {test_name} FAILED")
+            else:
+                print(f"✅ {test_name} PASSED")
         print("\n" + "="*60)
         print("INTEGRATION TEST RESULTS:")
         print("="*60)

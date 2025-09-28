@@ -20,12 +20,8 @@ class TestINTGJobMonitoring:
     async def intg_db_connection(self):
         """Fixture for INTG database connection"""
         db_url = "postgresql://postgres:intg_password@localhost:5434/intg_db"
-        try:
-            conn = await asyncpg.connect(db_url)
-            yield conn
-        finally:
-            await conn.close()
-
+        conn = await asyncpg.connect(db_url)
+        yield conn
     @pytest.fixture
     def mock_docker_logs(self):
         """Mock Docker container logs"""
@@ -169,38 +165,24 @@ class TestINTGJobMonitoring:
         original_polygon_key = os.environ.get('POLYGON_API_KEY')
         original_tiingo_key = os.environ.get('TIINGO_API_KEY')
 
-        try:
-            # Remove API keys
-            if 'POLYGON_API_KEY' in os.environ:
-                del os.environ['POLYGON_API_KEY']
-            if 'TIINGO_API_KEY' in os.environ:
-                del os.environ['TIINGO_API_KEY']
+        # Remove API keys
+        if 'POLYGON_API_KEY' in os.environ:
+            del os.environ['POLYGON_API_KEY']
+        if 'TIINGO_API_KEY' in os.environ:
+            del os.environ['TIINGO_API_KEY']
 
-            # Check API key availability
-            polygon_key = os.getenv('POLYGON_API_KEY')
-            tiingo_key = os.getenv('TIINGO_API_KEY')
+        # Check API key availability
+        polygon_key = os.getenv('POLYGON_API_KEY')
+        tiingo_key = os.getenv('TIINGO_API_KEY')
 
-            assert polygon_key is None, "Polygon API key should be missing"
-            assert tiingo_key is None, "Tiingo API key should be missing"
+        assert polygon_key is None, "Polygon API key should be missing"
+        assert tiingo_key is None, "Tiingo API key should be missing"
 
-        finally:
-            # Restore API keys
-            if original_polygon_key:
-                os.environ['POLYGON_API_KEY'] = original_polygon_key
-            if original_tiingo_key:
-                os.environ['TIINGO_API_KEY'] = original_tiingo_key
-
-        # Scenario 3: Table schema mismatch
-        try:
-            # Try to insert data with wrong schema (should fail)
-            await intg_db_connection.execute("""
-                INSERT INTO intg_daily_price (invalid_column) VALUES ('test')
-                INSERT INTO intg_daily_price_polygon (invalid_column) VALUES ('test')
-            """)
-            assert False, "Should have failed due to invalid column"
-        except Exception as e:
-            assert "column" in str(e).lower(), "Should be a column-related error"
-
+        await intg_db_connection.execute("""
+            INSERT INTO intg_daily_price (invalid_column) VALUES ('test')
+            INSERT INTO intg_daily_price_polygon (invalid_column) VALUES ('test')
+        """)
+        assert False, "Should have failed due to invalid column"
     def test_monitoring_script_creation(self):
         """Test that monitoring script can be executed"""
         monitor_script = "/home/jianjun/ats-genai-data/scripts/monitor_daily_jobs.py"
@@ -212,15 +194,11 @@ class TestINTGJobMonitoring:
         assert os.access(monitor_script, os.X_OK), "Monitor script should be executable"
 
         # Test script can be imported
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("monitor_daily_jobs", monitor_script)
-            module = importlib.util.module_from_spec(spec)
-            # Don't execute, just check it can be loaded
-            assert spec is not None, "Script should be importable"
-        except Exception as e:
-            pytest.fail(f"Monitor script import failed: {e}")
-
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("monitor_daily_jobs", monitor_script)
+        module = importlib.util.module_from_spec(spec)
+        # Don't execute, just check it can be loaded
+        assert spec is not None, "Script should be importable"
     @pytest.mark.asyncio
 
     async def test_create_missing_realtime_tables(self, intg_db_connection):
@@ -265,22 +243,17 @@ class TestINTGJobMonitoring:
         """Test health endpoint returns proper status"""
         import requests
 
-        try:
-            # Test dashboard health endpoint
-            response = requests.get("http://localhost:4000/health", timeout=5)
+        # Test dashboard health endpoint
+        response = requests.get("http://localhost:4000/health", timeout=5)
 
-            if response.status_code == 200:
-                health_data = response.json()
-                assert 'status' in health_data
-                assert 'timestamp' in health_data
-                assert health_data['service'] == 'ats-intg-dashboard'
-            else:
-                # Dashboard might not be fully running yet
-                pytest.skip("Dashboard not accessible for health check")
-
-        except requests.exceptions.RequestException:
-            # This is expected if dashboard is not fully operational
-            pytest.skip("Dashboard not accessible - connection refused")
+        if response.status_code == 200:
+            health_data = response.json()
+            assert 'status' in health_data
+            assert 'timestamp' in health_data
+            assert health_data['service'] == 'ats-intg-dashboard'
+        else:
+            # Dashboard might not be fully running yet
+            pytest.skip("Dashboard not accessible for health check")
 
 class TestJobRecovery:
     """Tests for job recovery and error handling"""

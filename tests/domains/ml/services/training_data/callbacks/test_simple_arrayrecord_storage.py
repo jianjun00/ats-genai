@@ -17,8 +17,9 @@ import asyncpg
 
 # Test imports
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
-from tests.utils.test_data_setup import setup_single_symbol_test
+from core.platform.config.environment import Environment, EnvironmentType
+# FIXME: tests.utils module does not exist
+# from tests.utils.test_data_setup import setup_single_symbol_test
 
 
 class TestSimpleArrayRecordStorage:

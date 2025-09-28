@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsRealObjects:
@@ -55,13 +49,7 @@ class TestRealObjectsRealObjects:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_something_real_objects(self, real_service, test_data):
         """Real objects version of test_something"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.something_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.something_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_something_real_objects(self, real_service, test_data):
         """Real objects version of test_something"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.something_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.something_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_something_real_objects(self, real_service, test_data):
         """Real objects version of test_something"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.something_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.something_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_migration_manager_basic_functionality_real_objects(self, real_service, test_data):
         """Real objects version of test_migration_manager_basic_functionality"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.migration_manager_basic_functionality_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.migration_manager_basic_functionality_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_table_prefix_application_real_objects(self, real_service, test_data):
         """Real objects version of test_table_prefix_application"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.table_prefix_application_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.table_prefix_application_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_table_prefix_no_double_prefixing_real_objects(self, real_service, test_data):
         """Real objects version of test_table_prefix_no_double_prefixing"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.table_prefix_no_double_prefixing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.table_prefix_no_double_prefixing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_checksum_calculation_real_objects(self, real_service, test_data):
         """Real objects version of test_checksum_calculation"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.checksum_calculation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.checksum_calculation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_migration_file_parsing_real_objects(self, real_service, test_data):
         """Real objects version of test_migration_file_parsing"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.migration_file_parsing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.migration_file_parsing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_apply_migration_success_real_objects(self, real_service, test_data):
         """Real objects version of test_apply_migration_success"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.apply_migration_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.apply_migration_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_apply_migration_sql_error_real_objects(self, real_service, test_data):
         """Real objects version of test_apply_migration_sql_error"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.apply_migration_sql_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.apply_migration_sql_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_migration_rollback_on_error_real_objects(self, real_service, test_data):
         """Real objects version of test_migration_rollback_on_error"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.migration_rollback_on_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.migration_rollback_on_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_migrate_to_latest_with_multiple_migrations_real_objects(self, real_service, test_data):
         """Real objects version of test_migrate_to_latest_with_multiple_migrations"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.migrate_to_lawith_multiple_migrations_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.migrate_to_lawith_multiple_migrations_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_migrate_to_latest_partial_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_migrate_to_latest_partial_failure"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.migrate_to_lapartial_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.migrate_to_lapartial_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_validation_with_modified_file_real_objects(self, real_service, test_data):
         """Real objects version of test_validation_with_modified_file"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.validation_with_modified_file_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.validation_with_modified_file_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_migration_version_ordering_real_objects(self, real_service, test_data):
         """Real objects version of test_migration_version_ordering"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.migration_version_ordering_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.migration_version_ordering_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_duplicate_version_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_duplicate_version_handling"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.duplicate_version_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.duplicate_version_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complex_sql_migration_real_objects(self, real_service, test_data):
         """Real objects version of test_complex_sql_migration"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complex_sql_migration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.complex_sql_migration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_migration_directory_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_migration_directory"""
         # Test with real database integration
@@ -450,14 +336,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_migration_directory_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_migration_directory_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_checksum_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_checksum_edge_cases"""
         # Test with real database integration
@@ -472,15 +352,8 @@ class TestRealObjectsRealObjects:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.checksum_edge_cases_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.checksum_edge_cases_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

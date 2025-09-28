@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
-from core.calendars.time_duration import TimeDuration
-from state.instrument_interval import InstrumentInterval
+from core.business.calendars.time_duration import TimeDuration
+from domains.trading.services.state.instrument_interval import InstrumentInterval
 
 class TestTimeDurationAggregate:
     """Test the missing aggregate_intervals method in TimeDuration."""

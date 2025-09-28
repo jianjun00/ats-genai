@@ -8,7 +8,7 @@ import pytest
 import pandas as pd
 from datetime import datetime, timezone
 
-from domains.market_data.services.reconciliation.cross_vendor_reconciler import (
+from domains.market_data.services.core.reconciliation.cross_vendor_reconciler import (
     CrossVendorReconciler,
     ReconciliationConfig,
     VendorBar

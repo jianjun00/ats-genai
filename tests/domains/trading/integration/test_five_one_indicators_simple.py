@@ -7,13 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-try:
-    from src.domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
-except ImportError as e:
-    print(f"❌ Cannot import indicators: {e}")
-    print("Make sure to run: PYTHONPATH=src python test_five_one_indicators_simple.py")
-    sys.exit(1)
-
+from domains.trading.signals.indicator import FiveOneBuy, FiveOneSell
 @dataclass
 class TestInstrumentInterval:
     """Test implementation of InstrumentInterval."""
@@ -188,22 +182,15 @@ def main():
     print("Five One Indicators Simple Test Suite")
     print("=" * 50)
 
-    try:
-        test_five_one_buy()
-        test_five_one_sell()
-        test_edge_cases()
+    test_five_one_buy()
+    test_five_one_sell()
+    test_edge_cases()
 
-        print("\n" + "=" * 50)
-        print("🎉 ALL FIVE ONE INDICATOR TESTS PASSED! 🎉")
-        print("=" * 50)
+    print("\n" + "=" * 50)
+    print("🎉 ALL FIVE ONE INDICATOR TESTS PASSED! 🎉")
+    print("=" * 50)
 
-        return True
-
-    except Exception as e:
-        print(f"\n❌ TEST FAILED: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return True
 
 if __name__ == "__main__":
     success = main()

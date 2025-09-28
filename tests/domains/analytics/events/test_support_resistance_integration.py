@@ -17,7 +17,7 @@ from domains.analytics.events.analysis.support_resistance_detector import (
     SupportResistanceDetector, SRTestOutcome, Timeframe
 )
 from domains.analytics.events.processors.support_resistance_processor import SupportResistanceProcessor
-from config.environment import Environment
+from core.platform.config.environment import Environment
 
 class TestSupportResistanceIntegration:
     """Integration tests for complete S/R system"""
@@ -25,64 +25,54 @@ class TestSupportResistanceIntegration:
     @pytest.fixture
     async def db_connection(self):
         """Create test database connection"""
-        try:
-            env = Environment()
-            pool = await env.database.create_pool_with_retry(max_retries=3)
-            conn = await pool.acquire()
+        env = Environment()
+        pool = await env.database.create_pool_with_retry(max_retries=3)
+        conn = await pool.acquire()
 
-            # Ensure schema exists
-            await self._ensure_schema_exists(conn)
+        # Ensure schema exists
+        await self._ensure_schema_exists(conn)
 
-            # Clean test data
-            await self._cleanup_test_data(conn)
+        # Clean test data
+        await self._cleanup_test_data(conn)
 
-            yield conn
+        yield conn
 
-            # Cleanup after test
-            await self._cleanup_test_data(conn)
-            await pool.release(conn)
-            await pool.close()
-
-        except Exception as e:
-            pytest.skip(f"Database not available: {e}")
+        # Cleanup after test
+        await self._cleanup_test_data(conn)
+        await pool.release(conn)
+        await pool.close()
 
     async def _ensure_schema_exists(self, conn):
         """Ensure S/R schema exists (create if missing)"""
-        try:
-            # Check if tables exist
-            table_check = """
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-              AND table_name IN ('dev_sr_levels', 'dev_sr_tests', 'dev_sr_events')
-            """
+        # Check if tables exist
+        table_check = """
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name IN ('dev_sr_levels', 'dev_sr_tests', 'dev_sr_events')
+        """
 
-            tables = await conn.fetch(table_check)
-            existing_tables = {row['table_name'] for row in tables}
+        tables = await conn.fetch(table_check)
+        existing_tables = {row['table_name'] for row in tables}
 
-            if len(existing_tables) < 3:
-                # Read and execute migration
-                migration_path = os.path.join(
-                    os.path.dirname(__file__), '..', '..',
-                    'src', 'infrastructure', 'database', 'migrations',
-                    '055_create_support_resistance_schema.sql'
-                )
+        if len(existing_tables) < 3:
+            # Read and execute migration
+            migration_path = os.path.join(
+                os.path.dirname(__file__), '..', '..',
+                'src', 'infrastructure', 'database', 'migrations',
+                '055_create_support_resistance_schema.sql'
+            )
 
-                if os.path.exists(migration_path):
-                    with open(migration_path, 'r') as f:
-                        migration_sql = f.read()
+            if os.path.exists(migration_path):
+                with open(migration_path, 'r') as f:
+                    migration_sql = f.read()
 
-                    # Execute migration (might need to split on semicolons)
-                    for statement in migration_sql.split(';'):
-                        statement = statement.strip()
-                        if statement and not statement.startswith('--'):
-                            try:
-                                await conn.execute(statement)
-                            except Exception as e:
-                                print(f"Migration warning: {e}")
-
-        except Exception as e:
-            print(f"Schema setup warning: {e}")
+                # Execute migration (might need to split on semicolons)
+                for statement in migration_sql.split(';'):
+                    statement = statement.strip()
+                    if statement and not statement.startswith('--'):
+                        await conn.execute(statement)
+        print(f"Schema setup warning: {e}")
 
     async def _cleanup_test_data(self, conn):
         """Clean up test data"""
@@ -93,11 +83,7 @@ class TestSupportResistanceIntegration:
         ]
 
         for query in cleanup_queries:
-            try:
-                await conn.execute(query)
-            except Exception as e:
-                print(f"Cleanup warning: {e}")
-
+            await conn.execute(query)
     @pytest.fixture
     def realistic_market_data(self):
         """Generate realistic market data with multiple S/R levels"""
@@ -309,41 +295,37 @@ class TestSupportResistanceIntegration:
             }
         }
 
-        try:
-            processor = SupportResistanceProcessor(config)
+        processor = SupportResistanceProcessor(config)
 
-            # Mock database for this test to avoid dependency
-            from unittest.mock import AsyncMock
-            processor.db_pool = AsyncMock()
-            processor.active_symbols = {'INTG_TEST_PROC'}
-            processor._initialize_processing_state()
+        # Mock database for this test to avoid dependency
+        from unittest.mock import AsyncMock
+        processor.db_pool = AsyncMock()
+        processor.active_symbols = {'INTG_TEST_PROC'}
+        processor._initialize_processing_state()
 
-            # Mock successful database operations
-            mock_conn = processor.db_pool.acquire.return_value.__aenter__.return_value
-            mock_conn.fetchrow.return_value = {'id': 123}
-            mock_conn.execute.return_value = None
+        # Mock successful database operations
+        mock_conn = processor.db_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.fetchrow.return_value = {'id': 123}
+        mock_conn.execute.return_value = None
 
-            # Test processing
-            start_time = time.time()
+        # Test processing
+        start_time = time.time()
 
-            await processor.process_market_data_update(
-                'INTG_TEST_PROC', realistic_market_data, Timeframe.DAILY
-            )
+        await processor.process_market_data_update(
+            'INTG_TEST_PROC', realistic_market_data, Timeframe.DAILY
+        )
 
-            processing_time = time.time() - start_time
+        processing_time = time.time() - start_time
 
-            # Validate processing
-            assert processing_time < 10.0, f"Processing too slow: {processing_time:.2f}s"
+        # Validate processing
+        assert processing_time < 10.0, f"Processing too slow: {processing_time:.2f}s"
 
-            # Check stats
-            stats = processor.get_processing_stats()
-            assert stats['symbols_processed'] > 0, "Should have processed symbols"
-            assert stats['processing_time_ms'] > 0, "Should track processing time"
+        # Check stats
+        stats = processor.get_processing_stats()
+        assert stats['symbols_processed'] > 0, "Should have processed symbols"
+        assert stats['processing_time_ms'] > 0, "Should track processing time"
 
-            print(f"Processed in {processing_time:.3f}s, stats: {stats}")
-
-        except ImportError as e:
-            pytest.skip(f"Processor dependencies not available: {e}")
+        print(f"Processed in {processing_time:.3f}s, stats: {stats}")
 
 class TestPerformanceBenchmarks:
     """Performance benchmarks for S/R system"""

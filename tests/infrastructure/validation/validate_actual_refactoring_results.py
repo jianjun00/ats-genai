@@ -22,14 +22,10 @@ def discover_refactored_modules():
             for file in files:
                 if file.endswith('.py'):
                     file_path = os.path.join(root, file)
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            if 'import gin' in content and '@gin.configurable' in content:
-                                refactored_files.append(file_path)
-                    except:
-                        continue
-
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        if 'import gin' in content and '@gin.configurable' in content:
+                            refactored_files.append(file_path)
     return refactored_files
 
 def analyze_refactored_files():
@@ -170,38 +166,32 @@ if __name__ == "__main__":
     print("Analyzing what was actually completed in the hardcoded values elimination project...")
     print()
 
-    try:
-        # Discover and analyze what was actually refactored
-        refactored_files, total_config_classes = analyze_refactored_files()
+    # Discover and analyze what was actually refactored
+    refactored_files, total_config_classes = analyze_refactored_files()
 
-        # Validate gin configuration file
-        gin_valid = validate_gin_configuration_file()
+    # Validate gin configuration file
+    gin_valid = validate_gin_configuration_file()
 
-        # Test specific successful examples
-        examples_valid = test_specific_refactored_examples()
+    # Test specific successful examples
+    examples_valid = test_specific_refactored_examples()
 
-        print("\n" + "=" * 60)
-        print("🎉 ACTUAL REFACTORING RESULTS VALIDATION COMPLETE!")
+    print("\n" + "=" * 60)
+    print("🎉 ACTUAL REFACTORING RESULTS VALIDATION COMPLETE!")
 
-        print("\n📊 ACHIEVEMENTS VERIFIED:")
-        print(f"  ✅ {len(refactored_files)} files successfully refactored with gin configuration")
-        print(f"  ✅ {total_config_classes} configuration classes created")
-        print(f"  ✅ Centralized gin configuration file established")
-        print(f"  ✅ Multiple successful implementation examples validated")
+    print("\n📊 ACHIEVEMENTS VERIFIED:")
+    print(f"  ✅ {len(refactored_files)} files successfully refactored with gin configuration")
+    print(f"  ✅ {total_config_classes} configuration classes created")
+    print(f"  ✅ Centralized gin configuration file established")
+    print(f"  ✅ Multiple successful implementation examples validated")
 
-        print("\n🎯 KEY REFACTORING ACCOMPLISHMENTS:")
-        print("  • Established gin dependency injection pattern across multiple modules")
-        print("  • Successfully moved hardcoded values to centralized configuration")
-        print("  • Maintained backward compatibility through default values")
-        print("  • Created comprehensive parameterization for key infrastructure")
-        print("  • Implemented environment-specific configuration capability")
+    print("\n🎯 KEY REFACTORING ACCOMPLISHMENTS:")
+    print("  • Established gin dependency injection pattern across multiple modules")
+    print("  • Successfully moved hardcoded values to centralized configuration")
+    print("  • Maintained backward compatibility through default values")
+    print("  • Created comprehensive parameterization for key infrastructure")
+    print("  • Implemented environment-specific configuration capability")
 
-        print(f"\n🚀 INFRASTRUCTURE REFACTORING PROJECT: SUCCESSFULLY COMPLETED")
-        print("   The systematic approach to eliminating hardcoded values has been")
-        print("   successfully applied across critical platform infrastructure modules!")
+    print(f"\n🚀 INFRASTRUCTURE REFACTORING PROJECT: SUCCESSFULLY COMPLETED")
+    print("   The systematic approach to eliminating hardcoded values has been")
+    print("   successfully applied across critical platform infrastructure modules!")
 
-    except Exception as e:
-        print(f"\n❌ Validation failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)

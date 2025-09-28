@@ -2,7 +2,7 @@
 """
 Comprehensive Unit Tests for Ray-Enhanced Training Data Callback
 
-Tests the Ray parallel processing enhancements in DateBasedTrainingDataCallback,
+Tests the Ray parallel processing enhancements in IntervalBasedTrainingDataCallback,
 ensuring proper parallel execution, fallback mechanisms, and performance benefits.
 
 Test Coverage:
@@ -25,7 +25,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 from domains.ml.services.training_data.callbacks.training_data_callback import (
-    DateBasedTrainingDataCallback,
+    IntervalBasedTrainingDataCallback,
     ParallelSequenceGenerator
 )
 
@@ -136,14 +136,14 @@ class TestParallelSequenceGenerator:
         assert len(result) == 0  # Should return empty list for empty inputs
 
 
-class TestDateBasedTrainingDataCallbackRayIntegration:
-    """Test Ray integration in DateBasedTrainingDataCallback."""
+class TestIntervalBasedTrainingDataCallbackRayIntegration:
+    """Test Ray integration in IntervalBasedTrainingDataCallback."""
 
     def test_callback_ray_initialization_enabled(self, ray_context, mock_storage_manager):
         """Test callback initializes Ray workers when enabled."""
         symbols = ['AAPL', 'TSLA', 'MSFT']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -159,7 +159,7 @@ class TestDateBasedTrainingDataCallbackRayIntegration:
         """Test callback works without Ray when disabled."""
         symbols = ['AAPL', 'TSLA']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=False
@@ -173,7 +173,7 @@ class TestDateBasedTrainingDataCallbackRayIntegration:
         """Test symbols are properly distributed to Ray workers."""
         symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL', 'AMZN']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -198,7 +198,7 @@ class TestDateBasedTrainingDataCallbackRayIntegration:
     def test_symbol_distribution_edge_cases(self, ray_context, mock_storage_manager):
         """Test symbol distribution with edge cases."""
         # Test with single symbol
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL'],
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -220,7 +220,7 @@ class TestDateBasedTrainingDataCallbackRayIntegration:
         symbols = ['AAPL', 'TSLA']
 
         # Test Ray-enabled callback
-        callback_ray = DateBasedTrainingDataCallback(
+        callback_ray = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -230,7 +230,7 @@ class TestDateBasedTrainingDataCallbackRayIntegration:
         callback_ray.current_date = date.today()
 
         # Test sequential callback
-        callback_seq = DateBasedTrainingDataCallback(
+        callback_seq = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=False
@@ -263,7 +263,7 @@ class TestRayPerformanceAndReliability:
         """Test fallback to sequential processing when Ray fails."""
         symbols = ['AAPL', 'TSLA']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -289,7 +289,7 @@ class TestRayPerformanceAndReliability:
         """Test sequential processing works reliably."""
         symbols = ['AAPL', 'TSLA', 'MSFT']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=False
@@ -313,7 +313,7 @@ class TestRayPerformanceAndReliability:
         """Test parallel processing distributes work correctly."""
         symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -341,7 +341,7 @@ class TestRayConfigurationOptions:
         worker_counts = [1, 2, 4, 8, 16]
 
         for worker_count in worker_counts:
-            callback = DateBasedTrainingDataCallback(
+            callback = IntervalBasedTrainingDataCallback(
                 symbols=symbols,
                 storage_manager=mock_storage_manager,
                 enable_ray_parallel=True,
@@ -355,7 +355,7 @@ class TestRayConfigurationOptions:
     def test_ray_configuration_with_no_symbols(self, mock_storage_manager):
         """Test Ray configuration with edge case inputs."""
         # Test with empty symbols list
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=[],
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -378,7 +378,7 @@ class TestRayIntegrationWithExistingWorkflow:
         """Test SOD handling works with Ray enabled."""
         symbols = ['AAPL', 'TSLA']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,
@@ -401,7 +401,7 @@ class TestRayIntegrationWithExistingWorkflow:
         """Test EOD handling works with Ray enabled."""
         symbols = ['AAPL', 'TSLA']
 
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=symbols,
             storage_manager=mock_storage_manager,
             enable_ray_parallel=True,

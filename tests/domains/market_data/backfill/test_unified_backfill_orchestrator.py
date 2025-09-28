@@ -15,14 +15,14 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import asyncpg
 
-from domains.market_data.services.backfill.unified_backfill_orchestrator import (
+from domains.market_data.services.data_collection.backfill.unified_backfill_orchestrator import (
     UnifiedBackfillOrchestrator,
     BackfillConfig,
     BackfillProgress,
     run_5_year_backfill
 )
-from storage.hybrid_minute_data_manager import StorageConfig
-from domains.market_data.services.reconciliation.cross_vendor_reconciler import ReconciliationMethod
+from domains.trading.services.core.minute.hybrid_minute_data_manager import StorageConfig
+from domains.market_data.services.core.reconciliation.cross_vendor_reconciler import ReconciliationMethod
 
 
 class TestBackfillConfig:
@@ -240,7 +240,7 @@ class TestUnifiedBackfillOrchestrator:
 
     def test_convert_for_storage(self, orchestrator):
         """Test converting reconciled bars for storage."""
-        from domains.market_data.services.reconciliation.cross_vendor_reconciler import ReconciledBar
+        from domains.market_data.services.core.reconciliation.cross_vendor_reconciler import ReconciledBar
 
         reconciled_bars = [
             ReconciledBar(

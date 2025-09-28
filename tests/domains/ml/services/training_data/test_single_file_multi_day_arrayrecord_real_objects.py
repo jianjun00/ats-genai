@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsSingleFileMultiDayArrayRecord:
@@ -56,13 +51,7 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_date_ranges_real_objects(self, real_service, test_data):
         """Real objects version of test_date_ranges"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.date_ranges_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.date_ranges_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_single_file_requirement_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_single_file_requirement_validation"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.single_file_requirement_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.single_file_requirement_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_expected_record_counts_by_date_range_real_objects(self, real_service, test_data):
         """Real objects version of test_expected_record_counts_by_date_range"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.expected_record_counts_by_date_range_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.expected_record_counts_by_date_range_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_binary_format_requirement_real_objects(self, real_service, test_data):
         """Real objects version of test_binary_format_requirement"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.binary_format_requirement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.binary_format_requirement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_chronological_ordering_requirement_real_objects(self, real_service, test_data):
         """Real objects version of test_chronological_ordering_requirement"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.chronological_ordering_requirement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.chronological_ordering_requirement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_file_structure_validation_real_paths_real_objects(self, real_service, test_data):
         """Real objects version of test_file_structure_validation_real_paths"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.file_structure_validation_real_paths_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.file_structure_validation_real_paths_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_streaming_writer_lifecycle_real_objects(self, real_service, test_data):
         """Real objects version of test_streaming_writer_lifecycle"""
         # Test with real database integration
@@ -209,15 +162,8 @@ class TestRealObjectsSingleFileMultiDayArrayRecord:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.streaming_writer_lifecycle_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.streaming_writer_lifecycle_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

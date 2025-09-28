@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date
 from typing import List, Dict
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 class TestInstrumentsDAO:
     """Comprehensive test coverage for InstrumentsDAO."""
@@ -37,7 +37,7 @@ class TestInstrumentsDAO:
         # Mock successful count query
         mock_connection.fetchrow.return_value = {'count': 2500}
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.count_instruments()
 
         assert result == 2500
@@ -59,7 +59,7 @@ class TestInstrumentsDAO:
         # Mock empty result
         mock_connection.fetchrow.return_value = None
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.count_instruments()
 
         assert result == 0
@@ -89,7 +89,7 @@ class TestInstrumentsDAO:
             'delist_date': None
         }
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instrument(**test_params)
 
         assert result == 123
@@ -128,7 +128,7 @@ class TestInstrumentsDAO:
 
         mock_connection.fetchrow.return_value = {'id': 456}
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instrument('GOOGL')
 
         assert result == 456
@@ -159,7 +159,7 @@ class TestInstrumentsDAO:
         # Mock no result (could happen with constraint violations)
         mock_connection.fetchrow.return_value = None
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instrument('DUPLICATE')
 
         assert result is None
@@ -189,7 +189,7 @@ class TestInstrumentsDAO:
         }
         mock_connection.fetchrow.return_value = test_result
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument(123)
 
         assert result == test_result
@@ -212,7 +212,7 @@ class TestInstrumentsDAO:
         # Mock not found
         mock_connection.fetchrow.return_value = None
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument(999)
 
         assert result is None
@@ -237,7 +237,7 @@ class TestInstrumentsDAO:
         ]
         mock_connection.fetch.return_value = test_instruments
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.list_instruments()
 
         assert result == test_instruments
@@ -258,7 +258,7 @@ class TestInstrumentsDAO:
 
         mock_connection.fetch.return_value = []
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.list_instruments()
 
         assert result == []
@@ -284,7 +284,7 @@ class TestInstrumentsDAO:
         }
         mock_connection.fetchrow.return_value = test_result
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument_by_symbol('AAPL')
 
         assert result == test_result
@@ -307,7 +307,7 @@ class TestInstrumentsDAO:
 
         mock_connection.fetchrow.return_value = None
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument_by_symbol('NONEXISTENT')
 
         assert result is None
@@ -359,7 +359,7 @@ class TestInstrumentsDAO:
             }
         ]
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.create_instruments_batch(test_instruments)
 
         expected_ids = [100, 101, 102]
@@ -406,7 +406,7 @@ class TestInstrumentsDAO:
 
         test_instruments = [{'symbol': 'TEST', 'name': None, 'exchange': None, 'type_': None, 'currency': None, 'list_date': None, 'delist_date': None}]
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool) as mock_create_pool:
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool) as mock_create_pool:
             result = await dao.create_instruments_batch(test_instruments, pool_min_size=2, pool_max_size=5)
 
         assert result == [200]
@@ -438,7 +438,7 @@ class TestInstrumentsDAO:
 
         test_ids = [1, 2, 3]
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_symbols_by_ids(test_ids)
 
         expected_result = {1: 'AAPL', 2: 'GOOGL', 3: 'MSFT'}
@@ -475,7 +475,7 @@ class TestInstrumentsDAO:
 
         test_ids = [1, 2, 3]  # ID 2 doesn't exist
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_symbols_by_ids(test_ids)
 
         expected_result = {1: 'AAPL', 3: 'MSFT'}  # ID 2 is missing
@@ -494,7 +494,7 @@ class TestInstrumentsDAO:
     async def test_database_connection_error(self, dao):
         """Test handling of database connection errors."""
         connection_error = Exception("Connection failed")
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, side_effect=connection_error):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, side_effect=connection_error):
             with pytest.raises(Exception, match="Connection failed"):
                 await dao.count_instruments()
 
@@ -515,7 +515,7 @@ class TestInstrumentsDAO:
         # Test with malicious input
         malicious_symbol = "'; DROP TABLE test_instruments; --"
 
-        with patch(\'domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool\', new_callable=AsyncMock, return_value=mock_pool):
+        with patch('domains.market_data.repositories.instruments_core.dao.asyncpg.create_pool', new_callable=AsyncMock, return_value=mock_pool):
             result = await dao.get_instrument_by_symbol(malicious_symbol)
 
         # Verify the malicious input was passed as parameter, not concatenated into SQL

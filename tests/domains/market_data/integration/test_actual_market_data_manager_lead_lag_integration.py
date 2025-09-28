@@ -17,8 +17,8 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock
 import numpy as np
 
-from domains.market_data.services.core.minute.file_based_minute_market_data_manager import FileBasedMinuteMarketDataManager
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.core.minute.file_based_minute_service import FileBasedMinuteMarketDataManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 
 class TestActualMarketDataManagerLeadLagIntegration:

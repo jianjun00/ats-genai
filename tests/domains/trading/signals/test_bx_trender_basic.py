@@ -12,7 +12,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
 from domains.trading.signals.indicator import BXTrenderBasic
-from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
+from domains.trading.services.indicators.enhanced_indicators import BXTrenderIndicator
 
 class TestBXTrenderBasic(unittest.TestCase):
     """Test cases for BX Trender Basic indicator."""
@@ -226,13 +226,9 @@ class TestBXTrenderBasic(unittest.TestCase):
             raise ValueError("Test calculation error")
 
         self.indicator.__class__.update = error_update
-        try:
-            self.indicator.update(intervals)
-            self.assertEqual(self.indicator.status, 'calculation_error')
-            self.assertIsNone(self.indicator.get_value())
-        finally:
-            self.indicator.__class__.update = original_update
-
+        self.indicator.update(intervals)
+        self.assertEqual(self.indicator.status, 'calculation_error')
+        self.assertIsNone(self.indicator.get_value())
     def test_boundary_values(self):
         """Test BX Trender with boundary values."""
         # Test with very small price changes

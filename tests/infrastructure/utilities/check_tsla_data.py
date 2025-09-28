@@ -62,17 +62,13 @@ for data_path in data_paths:
                         break
 
             if sample_file:
-                try:
-                    import pandas as pd
-                    df = pd.read_parquet(sample_file)
-                    df['timestamp'] = pd.to_datetime(df['timestamp'])
-                    earliest = df['timestamp'].min()
-                    latest = df['timestamp'].max()
-                    print(f"  📈 Sample data range: {earliest} to {latest}")
-                    print(f"  📊 Sample records: {len(df)}")
-                except Exception as e:
-                    print(f"  ❌ Error reading sample file: {e}")
-        else:
+                import pandas as pd
+                df = pd.read_parquet(sample_file)
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                earliest = df['timestamp'].min()
+                latest = df['timestamp'].max()
+                print(f"  📈 Sample data range: {earliest} to {latest}")
+                print(f"  📊 Sample records: {len(df)}")
             print(f"  📅 No year directories found")
     else:
         print(f"❌ No TSLA data at: {data_path}")

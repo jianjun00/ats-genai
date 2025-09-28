@@ -15,8 +15,9 @@ import tempfile
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig, TimeSeriesSequenceTrainingGenerator
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
-from tests.utils.test_data_setup import setup_single_symbol_test
+from core.platform.config.environment import Environment, EnvironmentType
+# FIXME: tests.utils module does not exist
+# from tests.utils.test_data_setup import setup_single_symbol_test
 
 
 class TestTimeframeIntegration:
@@ -157,27 +158,22 @@ class TestTimeframeIntegration:
             # Generate and save single timeframe data
             test_time = datetime(2025, 7, 1, 14, 35, 0)  # 5m only
             
-            try:
-                await callback.handleInterval(None, test_time)
+            await callback.handleInterval(None, test_time)
+            
+            # Verify file structure
+            expected_file = Path(temp_dir) / 'test_single_timeframe' / 'TSLA_2025_07' / '5m' / 'TSLA_2025_07.arrayrecord'
+            
+            if expected_file.exists():
+                # File was created successfully
+                assert expected_file.stat().st_size > 0
                 
-                # Verify file structure
-                expected_file = Path(temp_dir) / 'test_single_timeframe' / 'TSLA_2025_07' / '5m' / 'TSLA_2025_07.arrayrecord'
+                # Verify only 5m file was created, not other timeframes
+                timeframe_dir = expected_file.parent.parent
+                created_timeframes = [d.name for d in timeframe_dir.iterdir() if d.is_dir()]
                 
-                if expected_file.exists():
-                    # File was created successfully
-                    assert expected_file.stat().st_size > 0
-                    
-                    # Verify only 5m file was created, not other timeframes
-                    timeframe_dir = expected_file.parent.parent
-                    created_timeframes = [d.name for d in timeframe_dir.iterdir() if d.is_dir()]
-                    
-                    # Should only have 5m directory for this test
-                    assert '5m' in created_timeframes
-                    
-            except Exception as e:
-                # Integration test - some failures expected in test environment
-                print(f"Expected integration test limitation: {e}")
-
+                # Should only have 5m directory for this test
+                assert '5m' in created_timeframes
+                
     @pytest.mark.asyncio
     async def test_error_handling_with_real_components(self, unit_test_db):
         """Test error handling with real components and database connections."""
@@ -204,13 +200,8 @@ class TestTimeframeIntegration:
         test_time = datetime(2025, 7, 1, 14, 35, 0)
         
         # Should handle invalid symbol gracefully without crashing
-        try:
-            await callback.handleInterval(None, test_time)
-            # If it completes without exception, good
-        except Exception as e:
-            # Log but don't fail - some exceptions expected with invalid data in integration tests
-            print(f"Expected integration test exception with invalid symbol: {e}")
-
+        await callback.handleInterval(None, test_time)
+        # If it completes without exception, good
     @pytest.mark.asyncio  
     async def test_multiple_timeframes_real_generation_order(self, unit_test_db):
         """Test that multiple timeframes are generated in consistent order with real components."""
@@ -247,24 +238,14 @@ class TestTimeframeIntegration:
         
         training_generator.generate_training_example = capture_calls
         
-        try:
-            await callback.handleInterval(None, test_time)
-            
-            # Verify expected timeframes were generated
-            expected_timeframes = {'5m', '15m', '1h', '1d', '1w'}
-            generated_timeframes = set(call_order)
-            
-            # Should have attempted all timeframes
-            assert expected_timeframes.issubset(generated_timeframes) or len(call_order) > 0
-            
-        except Exception as e:
-            # Integration test - some failures expected
-            print(f"Expected integration test limitation: {e}")
+        await callback.handleInterval(None, test_time)
         
-        finally:
-            # Restore original method
-            training_generator.generate_training_example = original_generate
-
-
+        # Verify expected timeframes were generated
+        expected_timeframes = {'5m', '15m', '1h', '1d', '1w'}
+        generated_timeframes = set(call_order)
+        
+        # Should have attempted all timeframes
+        assert expected_timeframes.issubset(generated_timeframes) or len(call_order) > 0
+        
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

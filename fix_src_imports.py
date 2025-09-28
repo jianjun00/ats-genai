@@ -24,28 +24,23 @@ SRC_IMPORT_MAPPINGS = {
 
 def update_file_imports(file_path: Path) -> bool:
     """Update imports in a single source file."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        original_content = content
-        
-        # Apply source import mappings
-        for old_import, new_import in SRC_IMPORT_MAPPINGS.items():
-            content = content.replace(old_import, new_import)
-        
-        # Write back if changed
-        if content != original_content:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            print(f"✅ Fixed: {file_path}")
-            return True
-        
-        return False
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
     
-    except Exception as e:
-        print(f"❌ Error updating {file_path}: {e}")
-        return False
+    original_content = content
+    
+    # Apply source import mappings
+    for old_import, new_import in SRC_IMPORT_MAPPINGS.items():
+        content = content.replace(old_import, new_import)
+    
+    # Write back if changed
+    if content != original_content:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"✅ Fixed: {file_path}")
+        return True
+    
+    return False
 
 def main():
     """Main function to fix source imports."""

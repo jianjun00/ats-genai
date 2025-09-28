@@ -31,7 +31,7 @@ from domains.trading.services.state.universe_state import UniverseStateInterval
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 @pytest.fixture
@@ -198,14 +198,10 @@ class TestUniverseStateManagerRealRollingCache:
         assert hasattr(manager, '_rolling_instrument_history')
         
         # Verify database connection works
-        try:
-            # Test basic cache operations
-            manager.ensure_timeframe_cache("1m")
-            assert "1m" in manager._rolling_instrument_history
-            
-        except Exception as e:
-            print(f"Manager initialization test result: {e}")
-
+        # Test basic cache operations
+        manager.ensure_timeframe_cache("1m")
+        assert "1m" in manager._rolling_instrument_history
+        
     async def test_rolling_cache_multi_timeframe_support_real_data(
         self, 
         real_universe_state_manager
@@ -341,15 +337,10 @@ class TestUniverseStateManagerRealRollingCache:
         
         def add_intervals_concurrently(intervals_subset):
             """Add intervals from a thread."""
-            try:
-                for interval in intervals_subset:
-                    manager.add_interval_to_rolling_cache(instrument_id, timeframe, interval)
-                    time.sleep(0.001)  # Small delay to increase race condition chances
-                results.append(len(manager.get_instrument_history_for_timeframe(instrument_id, timeframe)))
-            except Exception as e:
-                errors.append(e)
-        
-        # Create multiple threads adding intervals concurrently
+            for interval in intervals_subset:
+                manager.add_interval_to_rolling_cache(instrument_id, timeframe, interval)
+                time.sleep(0.001)  # Small delay to increase race condition chances
+            results.append(len(manager.get_instrument_history_for_timeframe(instrument_id, timeframe)))
         threads = []
         for i in range(3):
             subset = instrument_intervals[i*2:(i+1)*2]  # 2 intervals per thread
@@ -384,30 +375,26 @@ class TestUniverseStateManagerRealRollingCache:
         manager = real_universe_state_manager
         
         # Test querying universe state range
-        try:
-            start_time = datetime.now() - timedelta(hours=1)
-            end_time = datetime.now()
-            
-            # Query real database for universe states
-            universe_states = await manager.get_universe_state_range(
-                start_time=start_time,
-                end_time=end_time,
-                timeframe="5m"
-            )
-            
-            # Universe states should be a list (may be empty)
-            assert isinstance(universe_states, list)
-            
-            # If states exist, verify structure
-            for state in universe_states:
-                assert hasattr(state, 'start_date_time')
-                assert hasattr(state, 'end_date_time')
-                assert hasattr(state, 'instrument_intervals')
-                assert isinstance(state.instrument_intervals, dict)
-            
-        except Exception as e:
-            print(f"Universe state range query result: {e}")
-
+        start_time = datetime.now() - timedelta(hours=1)
+        end_time = datetime.now()
+        
+        # Query real database for universe states
+        universe_states = await manager.get_universe_state_range(
+            start_time=start_time,
+            end_time=end_time,
+            timeframe="5m"
+        )
+        
+        # Universe states should be a list (may be empty)
+        assert isinstance(universe_states, list)
+        
+        # If states exist, verify structure
+        for state in universe_states:
+            assert hasattr(state, 'start_date_time')
+            assert hasattr(state, 'end_date_time')
+            assert hasattr(state, 'instrument_intervals')
+            assert isinstance(state.instrument_intervals, dict)
+        
     async def test_memory_management_real_data_volumes(
         self, 
         real_universe_state_manager,
@@ -511,15 +498,11 @@ class TestUniverseStateManagerRealRollingCache:
         )
         
         # Adding invalid interval should not crash
-        try:
-            manager.add_interval_to_rolling_cache(invalid_instrument_id, timeframe, invalid_interval)
-            # Should be able to retrieve it (cache doesn't validate instrument existence)
-            history = manager.get_instrument_history_for_timeframe(invalid_instrument_id, timeframe)
-            assert len(history) == 1
-            assert history[0] == invalid_interval
-        except Exception as e:
-            print(f"Invalid instrument handling result: {e}")
-
+        manager.add_interval_to_rolling_cache(invalid_instrument_id, timeframe, invalid_interval)
+        # Should be able to retrieve it (cache doesn't validate instrument existence)
+        history = manager.get_instrument_history_for_timeframe(invalid_instrument_id, timeframe)
+        assert len(history) == 1
+        assert history[0] == invalid_interval
     async def test_performance_characteristics_real_operations(
         self, 
         real_universe_state_manager,
@@ -587,27 +570,22 @@ class TestUniverseStateManagerRealRollingCache:
         
         def add_and_verify():
             """Add intervals and verify cache consistency."""
-            try:
-                for interval in instrument_intervals:
-                    manager.add_interval_to_rolling_cache(instrument_id, timeframe, interval)
-                    
-                    # Immediately verify cache state
-                    history = manager.get_instrument_history_for_timeframe(instrument_id, timeframe)
-                    
-                    # Verify all intervals in history are for correct instrument
-                    for cached_interval in history:
-                        if cached_interval.instrument_id != instrument_id:
-                            consistency_errors.append(f"Wrong instrument ID in cache: {cached_interval.instrument_id}")
-                    
-                    # Verify chronological order
-                    for i in range(1, len(history)):
-                        if history[i].start_date_time < history[i-1].start_date_time:
-                            consistency_errors.append("Cache not in chronological order")
-                            
-            except Exception as e:
-                consistency_errors.append(f"Exception during consistency test: {e}")
-        
-        # Run consistency test in multiple threads
+            for interval in instrument_intervals:
+                manager.add_interval_to_rolling_cache(instrument_id, timeframe, interval)
+                
+                # Immediately verify cache state
+                history = manager.get_instrument_history_for_timeframe(instrument_id, timeframe)
+                
+                # Verify all intervals in history are for correct instrument
+                for cached_interval in history:
+                    if cached_interval.instrument_id != instrument_id:
+                        consistency_errors.append(f"Wrong instrument ID in cache: {cached_interval.instrument_id}")
+                
+                # Verify chronological order
+                for i in range(1, len(history)):
+                    if history[i].start_date_time < history[i-1].start_date_time:
+                        consistency_errors.append("Cache not in chronological order")
+                        
         threads = []
         for _ in range(3):
             thread = threading.Thread(target=add_and_verify)
@@ -640,20 +618,15 @@ class TestUniverseStateManagerConstraintValidation:
         # Test with nonexistent universe ID
         invalid_universe_id = 999999999
         
-        try:
-            manager = UniverseStateManager(
-                environment=test_environment,
-                universe_id=invalid_universe_id
-            )
-            await manager.initialize()
-            
-            # Manager might initialize successfully but fail during data operations
-            assert manager.universe_id == invalid_universe_id
-            
-        except Exception as e:
-            # Real service might reject invalid universe IDs immediately
-            print(f"Invalid universe ID handling result: {e}")
-
+        manager = UniverseStateManager(
+            environment=test_environment,
+            universe_id=invalid_universe_id
+        )
+        await manager.initialize()
+        
+        # Manager might initialize successfully but fail during data operations
+        assert manager.universe_id == invalid_universe_id
+        
     async def test_null_interval_handling(self, real_universe_state_manager, test_universe_with_instruments):
         """Test handling of null or invalid intervals."""
         manager = real_universe_state_manager
@@ -661,13 +634,8 @@ class TestUniverseStateManagerConstraintValidation:
         timeframe = "1m"
         
         # Test with None interval
-        try:
-            manager.add_interval_to_rolling_cache(instrument_id, timeframe, None)
-            # Should handle gracefully or raise appropriate error
-        except Exception as e:
-            # Expected to fail with None interval
-            assert "None" in str(e) or "null" in str(e).lower()
-
+        manager.add_interval_to_rolling_cache(instrument_id, timeframe, None)
+        # Should handle gracefully or raise appropriate error
     async def test_invalid_timeframe_handling(self, real_universe_state_manager, test_universe_with_instruments):
         """Test handling of invalid timeframes."""
         manager = real_universe_state_manager
@@ -677,31 +645,25 @@ class TestUniverseStateManagerConstraintValidation:
         invalid_timeframes = ["", "invalid", "0m", "-1h"]
         
         for invalid_timeframe in invalid_timeframes:
-            try:
-                # Create valid interval
-                test_interval = InstrumentInterval(
-                    instrument_id=instrument_id,
-                    start_date_time=datetime.now(),
-                    end_date_time=datetime.now() + timedelta(minutes=1),
-                    open=100.0,
-                    high=105.0,
-                    low=95.0,
-                    close=103.0,
-                    traded_volume=1000,
-                    traded_dollar=103000,
-                    status='ok'
-                )
-                
-                manager.add_interval_to_rolling_cache(instrument_id, invalid_timeframe, test_interval)
-                
-                # If it succeeds, that's also valid behavior
-                history = manager.get_instrument_history_for_timeframe(instrument_id, invalid_timeframe)
-                assert isinstance(history, list)
-                
-            except Exception as e:
-                # Expected to fail with invalid timeframe
-                print(f"Invalid timeframe {invalid_timeframe} handling result: {e}")
-
-
+            # Create valid interval
+            test_interval = InstrumentInterval(
+                instrument_id=instrument_id,
+                start_date_time=datetime.now(),
+                end_date_time=datetime.now() + timedelta(minutes=1),
+                open=100.0,
+                high=105.0,
+                low=95.0,
+                close=103.0,
+                traded_volume=1000,
+                traded_dollar=103000,
+                status='ok'
+            )
+            
+            manager.add_interval_to_rolling_cache(instrument_id, invalid_timeframe, test_interval)
+            
+            # If it succeeds, that's also valid behavior
+            history = manager.get_instrument_history_for_timeframe(instrument_id, invalid_timeframe)
+            assert isinstance(history, list)
+            
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

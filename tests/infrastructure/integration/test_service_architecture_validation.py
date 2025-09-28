@@ -8,7 +8,7 @@ works correctly without complex environment dependencies.
 import pytest
 from unittest.mock import Mock, AsyncMock
 
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.impl.instrument_service_cached import (
     InstrumentServiceInterface,
     InstrumentDTO,
     InstrumentSearchCriteria,
@@ -171,7 +171,7 @@ class TestServiceMigrationSuccess:
         """Test all service imports work correctly"""
         
         # Test service interface import
-        from domains.instruments.services.interfaces.instrument_service_interface import InstrumentServiceInterface
+        from domains.instruments.services.impl.instrument_service_cached import InstrumentServiceInterface
         assert InstrumentServiceInterface is not None
         
         # Test service implementation import  
@@ -185,7 +185,7 @@ class TestServiceMigrationSuccess:
     def test_dto_models_work(self):
         """Test DTO models work correctly"""
         
-        from domains.instruments.services.interfaces.instrument_service_interface import (
+        from domains.instruments.services.impl.instrument_service_cached import (
             InstrumentDTO,
             InstrumentSearchCriteria, 
             InstrumentOperationResult

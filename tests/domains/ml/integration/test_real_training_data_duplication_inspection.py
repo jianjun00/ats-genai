@@ -300,20 +300,9 @@ if __name__ == "__main__":
     print("🔍 Real Training Data Duplication Inspection")
     print("=" * 50)
     
-    try:
-        test_instance.test_inspect_latest_training_data_for_duplicates()
-        print("✅ Latest training data inspection completed")
-    except Exception as e:
-        print(f"⚠️  Training data inspection: {e}")
-        
-    try:
-        test_instance.test_training_data_record_count_analysis()
-        print("✅ Record count analysis completed")
-    except Exception as e:
-        print(f"⚠️  Record count analysis: {e}")
-        
-    try:
-        test_instance.test_detect_insufficient_data_variation()
-        print("✅ Data variation detection test completed")
-    except Exception as e:
-        print(f"❌ Data variation detection failed: {e}")
+    test_instance.test_inspect_latest_training_data_for_duplicates()
+    print("✅ Latest training data inspection completed")
+    test_instance.test_training_data_record_count_analysis()
+    print("✅ Record count analysis completed")
+    test_instance.test_detect_insufficient_data_variation()
+    print("✅ Data variation detection test completed")

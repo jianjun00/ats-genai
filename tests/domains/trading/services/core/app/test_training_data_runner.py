@@ -12,8 +12,8 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
-from tests.fixtures.insert_test_daily_price_polygon import insert_test_daily_price_polygon
-from tests.fixtures.setup_test_universe_data import setup_test_universe_data
+from tests.conftest.insert_test_daily_price_polygon import insert_test_daily_price_polygon
+from tests.conftest.setup_test_universe_data import setup_test_universe_data
 
 def test_training_data_runner_traditional_mode(unit_test_db, setup_test_universe_data):
     """
@@ -117,7 +117,7 @@ def test_training_data_runner_framework_mode(unit_test_db, setup_test_universe_d
         print(error_output)
 
         # Check that the Runner framework was used
-        assert "Starting training data generation using Runner framework" in output or "DateBasedTrainingDataCallback" in output
+        assert "Starting training data generation using Runner framework" in output or "IntervalBasedTrainingDataCallback" in output
 
         # Look for daily training data files
         output_path = Path(tmp_dir)
@@ -129,11 +129,11 @@ def test_training_data_runner_framework_mode(unit_test_db, setup_test_universe_d
 
 def test_training_data_callback_directly():
     """
-    Test the DateBasedTrainingDataCallback directly with mock data.
+    Test the IntervalBasedTrainingDataCallback directly with mock data.
     """
-    from state.training_data_callback import DateBasedTrainingDataCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from core.shared.utils.environment import Environment, EnvironmentType
+    from core.platform.config.environment import Environment, EnvironmentType
 
     # Create test callback
     config = TrainingDataConfig(
@@ -142,7 +142,7 @@ def test_training_data_callback_directly():
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL'],
             config=config,
             output_dir=tmp_dir,
@@ -155,7 +155,7 @@ def test_training_data_callback_directly():
                 return Environment(env_type=EnvironmentType.TEST)
 
             def get_universe_state_manager(self):
-                from state.universe_state_manager import UniverseStateManager
+                from domains.trading.services.state.universe_state_manager import UniverseStateManager
                 return UniverseStateManager(env=self.get_environment())
 
         runner = MockRunner()
@@ -170,13 +170,7 @@ def test_training_data_callback_directly():
         assert len(callback.daily_examples) == 0
 
         # Test interval handling (will likely fail due to no test data, but structure should work)
-        try:
-            asyncio.run(callback.handleInterval(runner, test_time))
-        except Exception as e:
-            # Expected to fail due to no universe data, but callback structure should work
-            print(f"Expected failure due to no test data: {e}")
-
-        # Test end of day
+        asyncio.run(callback.handleInterval(runner, test_time))
         asyncio.run(callback.handleEndOfDay(runner, test_time))
 
         # Check that output directory structure was created
@@ -190,13 +184,13 @@ async def test_training_data_generation_with_test_data():
     """
     Test training data generation with actual test data using the callback pattern.
     """
-    from state.training_data_callback import DateBasedTrainingDataCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import (
         TrainingDataConfig,
         TimeSeriesSequenceTrainingGenerator
     )
-    from core.shared.utils.environment import Environment, EnvironmentType
-    from state.universe_state_manager import UniverseStateManager
+    from core.platform.config.environment import Environment, EnvironmentType
+    from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
     # Create test environment
     env = Environment(env_type=EnvironmentType.TEST)
@@ -221,17 +215,12 @@ async def test_training_data_generation_with_test_data():
         test_time = datetime(2024, 1, 15, 10, 0, 0)
 
         # Try to generate a training example (will likely fail due to no data)
-        try:
-            example = await generator.generate_training_example('AAPL', test_time)
-            if example:
-                print(f"Successfully generated example: {example.symbol} at {example.prediction_timestamp}")
-            else:
-                print("No example generated (expected due to no test data)")
-        except Exception as e:
-            print(f"Expected failure due to no test universe data: {e}")
-
-        # Test that the callback can be created and initialized
-        callback = DateBasedTrainingDataCallback(
+        example = await generator.generate_training_example('AAPL', test_time)
+        if example:
+            print(f"Successfully generated example: {example.symbol} at {example.prediction_timestamp}")
+        else:
+            print("No example generated (expected due to no test data)")
+        callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL'],
             config=config,
             output_dir=tmp_dir
@@ -272,10 +261,10 @@ def test_training_data_config():
 
 def test_runner_callback_interface():
     """Test that our callback properly implements the RunnerCallback interface."""
-    from state.training_data_callback import DateBasedTrainingDataCallback
-    from state.runner_callback import RunnerCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
+    from domains.trading.services.state.runner_callback import RunnerCallback
 
-    callback = DateBasedTrainingDataCallback(symbols=['AAPL'])
+    callback = IntervalBasedTrainingDataCallback(symbols=['AAPL'])
 
     # Check that it's a proper subclass
     assert isinstance(callback, RunnerCallback)
@@ -296,15 +285,15 @@ def test_runner_callback_interface():
 
 def test_pure_callback_architecture():
     """Test that we now use ONLY pure callback architecture (no TrainingDataRunner class)."""
-    from state.training_data_callback import DateBasedTrainingDataCallback
-    from state.runner_callback import RunnerCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
+    from domains.trading.services.state.runner_callback import RunnerCallback
 
     # ✅ CORRECT: Only create the callback - no TrainingDataRunner class
-    callback = DateBasedTrainingDataCallback(symbols=['AAPL'])
+    callback = IntervalBasedTrainingDataCallback(symbols=['AAPL'])
 
     # Verify it's a proper callback
     assert isinstance(callback, RunnerCallback)
-    assert isinstance(callback, DateBasedTrainingDataCallback)
+    assert isinstance(callback, IntervalBasedTrainingDataCallback)
 
     # Verify it has all required callback methods
     assert hasattr(callback, 'handleStart')
@@ -317,28 +306,22 @@ def test_pure_callback_architecture():
     assert not hasattr(callback, 'run')
 
     print("✅ Pure callback architecture verified")
-    print("   ✅ DateBasedTrainingDataCallback is a RunnerCallback")
+    print("   ✅ IntervalBasedTrainingDataCallback is a RunnerCallback")
     print("   ✅ Has callback methods: handleStart, handleInterval, handleEndOfDay")
     print("   ❌ NO runner methods (pure callback responsibility)")
 
 def test_no_training_data_runner_class():
     """Test that TrainingDataRunner class no longer exists (pure callback approach)."""
     # ✅ CORRECT: TrainingDataRunner class should not exist
-    try:
-        pass
-        # If we get here, the class still exists - that's wrong
-        assert False, "TrainingDataRunner class should not exist in pure callback approach"
-    except (ImportError, ModuleNotFoundError):
-        # ✅ CORRECT: The class doesn't exist anymore
-        print("✅ Verified: TrainingDataRunner class properly removed")
-        print("   ✅ Pure callback approach implemented correctly")
-
+    pass
+    # If we get here, the class still exists - that's wrong
+    assert False, "TrainingDataRunner class should not exist in pure callback approach"
 def test_callback_with_test_data_setup():
     """Test callback with proper test data setup following indicator_runner pattern."""
     import tempfile
-    from state.training_data_callback import DateBasedTrainingDataCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from core.shared.utils.environment import Environment, EnvironmentType
+    from core.platform.config.environment import Environment, EnvironmentType
     from datetime import datetime
 
     # Use minimal config for testing
@@ -350,7 +333,7 @@ def test_callback_with_test_data_setup():
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL', 'TSLA'],
             config=config,
             output_dir=tmp_dir,
@@ -363,7 +346,7 @@ def test_callback_with_test_data_setup():
                 return Environment(env_type=EnvironmentType.TEST)
 
             def get_universe_state_manager(self):
-                from state.universe_state_manager import UniverseStateManager
+                from domains.trading.services.state.universe_state_manager import UniverseStateManager
                 return UniverseStateManager(env=self.get_environment())
 
         runner = MockRunner()
@@ -408,9 +391,9 @@ def test_callback_with_test_data_setup():
 def test_multi_symbol_callback_functionality():
     """Test callback with multiple symbols to verify it handles all symbols correctly."""
     import tempfile
-    from state.training_data_callback import DateBasedTrainingDataCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from core.shared.utils.environment import Environment, EnvironmentType
+    from core.platform.config.environment import Environment, EnvironmentType
     from datetime import datetime
 
     config = TrainingDataConfig(
@@ -420,7 +403,7 @@ def test_multi_symbol_callback_functionality():
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Test with multiple symbols
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL', 'TSLA', 'GOOGL', 'AMZN'],
             config=config,
             output_dir=tmp_dir,
@@ -439,7 +422,7 @@ def test_multi_symbol_callback_functionality():
                 return Environment(env_type=EnvironmentType.TEST)
 
             def get_universe_state_manager(self):
-                from state.universe_state_manager import UniverseStateManager
+                from domains.trading.services.state.universe_state_manager import UniverseStateManager
                 return UniverseStateManager(env=self.get_environment())
 
         runner = MockRunner()
@@ -462,7 +445,7 @@ def test_multi_symbol_callback_functionality():
 def test_advanced_storage_configuration():
     """Test callback with advanced storage configuration."""
     import tempfile
-    from state.training_data_callback import DateBasedTrainingDataCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
     from domains.ml.services.storage.sequence_storage_manager import SequenceStorageManager, StorageConfig
 
@@ -486,7 +469,7 @@ def test_advanced_storage_configuration():
         )
 
         # Test callback with advanced storage
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL'],
             config=config,
             output_dir=tmp_dir,
@@ -501,9 +484,9 @@ def test_advanced_storage_configuration():
 def test_error_handling_in_callback():
     """Test error handling and recovery in callback operations."""
     import tempfile
-    from state.training_data_callback import DateBasedTrainingDataCallback
+    from domains.trading.services.state.training_data_callback import IntervalBasedTrainingDataCallback
     from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-    from core.shared.utils.environment import Environment, EnvironmentType
+    from core.platform.config.environment import Environment, EnvironmentType
     from datetime import datetime
 
     config = TrainingDataConfig(
@@ -512,7 +495,7 @@ def test_error_handling_in_callback():
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        callback = DateBasedTrainingDataCallback(
+        callback = IntervalBasedTrainingDataCallback(
             symbols=['AAPL'],
             config=config,
             output_dir=tmp_dir,
@@ -525,7 +508,7 @@ def test_error_handling_in_callback():
                 return Environment(env_type=EnvironmentType.TEST)
 
             def get_universe_state_manager(self):
-                from state.universe_state_manager import UniverseStateManager
+                from domains.trading.services.state.universe_state_manager import UniverseStateManager
                 return UniverseStateManager(env=self.get_environment())
 
         runner = MockRunner()

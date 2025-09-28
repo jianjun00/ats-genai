@@ -59,43 +59,33 @@ def run_dev_query(query: str, description: str = None) -> str:
     if description:
         log_info(f"🔍 DEV: {description}")
 
-    try:
-        result = subprocess.run(
-            ['python3', 'scripts/run_dev.py', 'query', '--query', query],
-            capture_output=True,
-            text=True,
-            cwd='/workspace'
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            log_error(f"DEV query failed: {result.stderr}")
-            return ""
-    except Exception as e:
-        log_error(f"DEV query error: {e}")
+    result = subprocess.run(
+        ['python3', 'scripts/run_dev.py', 'query', '--query', query],
+        capture_output=True,
+        text=True,
+        cwd='/workspace'
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    else:
+        log_error(f"DEV query failed: {result.stderr}")
         return ""
-
 def run_intg_query(query: str, description: str = None) -> str:
     """Execute query on intg database."""
     if description:
         log_info(f"🔧 INTG: {description}")
 
-    try:
-        result = subprocess.run(
-            ['python3', 'scripts/run_intg.py', 'query', '--query', query],
-            capture_output=True,
-            text=True,
-            cwd='/workspace'
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            log_error(f"INTG query failed: {result.stderr}")
-            return ""
-    except Exception as e:
-        log_error(f"INTG query error: {e}")
+    result = subprocess.run(
+        ['python3', 'scripts/run_intg.py', 'query', '--query', query],
+        capture_output=True,
+        text=True,
+        cwd='/workspace'
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    else:
+        log_error(f"INTG query failed: {result.stderr}")
         return ""
-
 def create_sync_tracking_tables():
     """Create tables to track incremental sync progress."""
     log_info("🔧 Setting up incremental sync tracking...")
@@ -248,15 +238,7 @@ def get_last_sync_checkpoint(table_name: str) -> datetime:
         for line in lines[2:]:  # Skip header and separator
             if '|' in line and not line.strip().startswith('('):
                 timestamp_str = line.split('|')[0].strip()
-                try:
-                    return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-                except ValueError:
-                    try:
-                        return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S.%f')
-                    except ValueError:
-                        pass
-
-    # Default to 24 hours ago
+                return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
     return datetime.now() - timedelta(hours=24)
 
 def update_sync_checkpoint(table_name: str, new_checkpoint: datetime,
@@ -446,44 +428,35 @@ def sync_table_incrementally(table_name: str, strategy: dict,
     latest_timestamp = start_time
 
     for record in changes:
-        try:
-            # Transform record for INTG
-            transformed_record = transform_record_for_intg(record, table_name, strategy)
+        # Transform record for INTG
+        transformed_record = transform_record_for_intg(record, table_name, strategy)
 
-            if dry_run:
-                log_info(f"🧪 DRY RUN: Would sync record for {transformed_record.get('symbol', 'unknown')}")
+        if dry_run:
+            log_info(f"🧪 DRY RUN: Would sync record for {transformed_record.get('symbol', 'unknown')}")
+            records_inserted += 1
+        else:
+            # Upsert to INTG
+            operation = upsert_record_to_intg(transformed_record, strategy['target_table'], strategy)
+
+            if operation == 'inserted':
                 records_inserted += 1
+            elif operation == 'updated':
+                records_updated += 1
             else:
-                # Upsert to INTG
-                operation = upsert_record_to_intg(transformed_record, strategy['target_table'], strategy)
+                records_skipped += 1
 
-                if operation == 'inserted':
-                    records_inserted += 1
-                elif operation == 'updated':
-                    records_updated += 1
-                else:
-                    records_skipped += 1
-
-            # Track latest timestamp
-            timestamp_column = strategy.get('timestamp_column', 'updated_at')
-            if timestamp_column in record:
-                try:
-                    record_timestamp = datetime.strptime(record[timestamp_column], '%Y-%m-%d %H:%M:%S')
-                    if record_timestamp > latest_timestamp:
-                        latest_timestamp = record_timestamp
-                except ValueError:
-                    pass
-
-            with stats_lock:
-                stats['records_synced'] += 1
-                if operation == 'inserted':
-                    stats['records_inserted'] += 1
-                elif operation == 'updated':
-                    stats['records_updated'] += 1
-
-        except Exception as e:
-            log_error(f"Error syncing record from {table_name}: {e}")
-            continue
+        # Track latest timestamp
+        timestamp_column = strategy.get('timestamp_column', 'updated_at')
+        if timestamp_column in record:
+            record_timestamp = datetime.strptime(record[timestamp_column], '%Y-%m-%d %H:%M:%S')
+            if record_timestamp > latest_timestamp:
+                latest_timestamp = record_timestamp
+        with stats_lock:
+            stats['records_synced'] += 1
+            if operation == 'inserted':
+                stats['records_inserted'] += 1
+            elif operation == 'updated':
+                stats['records_updated'] += 1
 
     duration_seconds = (datetime.now() - start_time).seconds
 
@@ -659,27 +632,21 @@ def main():
         for table_name, strategy in sync_strategies.items():
             log_info(f"🔄 Processing: {table_name}")
 
-            try:
-                sync_result = sync_table_incrementally(
-                    table_name, strategy, args.lookback_hours, args.dry_run
-                )
+            sync_result = sync_table_incrementally(
+                table_name, strategy, args.lookback_hours, args.dry_run
+            )
 
-                if sync_result['status'] == 'completed':
-                    successful_syncs += 1
-                    total_records_synced += sync_result['records_inserted'] + sync_result['records_updated']
+            if sync_result['status'] == 'completed':
+                successful_syncs += 1
+                total_records_synced += sync_result['records_inserted'] + sync_result['records_updated']
 
-                    log_info(f"  ✅ {sync_result['records_checked']} checked, "
-                            f"{sync_result['records_inserted']} inserted, "
-                            f"{sync_result['records_updated']} updated")
-                else:
-                    failed_syncs += 1
-                    log_error(f"  ❌ Sync failed for {table_name}")
-
-            except Exception as e:
-                log_error(f"Error syncing {table_name}: {e}")
+                log_info(f"  ✅ {sync_result['records_checked']} checked, "
+                        f"{sync_result['records_inserted']} inserted, "
+                        f"{sync_result['records_updated']} updated")
+            else:
                 failed_syncs += 1
+                log_error(f"  ❌ Sync failed for {table_name}")
 
-        # Final summary
         log_info("🎉 Incremental Sync Complete!")
         log_info("=" * 50)
         log_info(f"✅ Successful table syncs: {successful_syncs}")
@@ -723,30 +690,20 @@ def main():
             log_info("🔄 Continuous monitoring enabled - syncing every hour")
 
             while True:
-                try:
-                    log_info("⏰ Running scheduled incremental sync...")
+                log_info("⏰ Running scheduled incremental sync...")
 
-                    # Run incremental sync
-                    sync_strategies = get_table_sync_strategy()
+                # Run incremental sync
+                sync_strategies = get_table_sync_strategy()
 
-                    for table_name, strategy in sync_strategies.items():
-                        sync_table_incrementally(table_name, strategy, args.lookback_hours)
+                for table_name, strategy in sync_strategies.items():
+                    sync_table_incrementally(table_name, strategy, args.lookback_hours)
 
-                    log_success("Scheduled sync completed")
+                log_success("Scheduled sync completed")
 
-                    # Wait 1 hour before next sync
-                    log_info("😴 Sleeping for 1 hour until next sync...")
-                    time.sleep(3600)
+                # Wait 1 hour before next sync
+                log_info("😴 Sleeping for 1 hour until next sync...")
+                time.sleep(3600)
 
-                except KeyboardInterrupt:
-                    log_info("🛑 Continuous monitoring stopped by user")
-                    break
-                except Exception as e:
-                    log_error(f"Error in continuous monitoring: {e}")
-                    log_info("😴 Sleeping 5 minutes before retry...")
-                    time.sleep(300)
-        else:
-            # Single monitoring run
             report = get_sync_status_report()
             print(report)
 
@@ -757,11 +714,7 @@ def main_sync_with_args(args_list):
     import sys
     original_argv = sys.argv
     sys.argv = ['intg_incremental_sync.py'] + args_list
-    try:
-        return main()
-    finally:
-        sys.argv = original_argv
-
+    return main()
 if __name__ == "__main__":
     success = main()
     if not success:

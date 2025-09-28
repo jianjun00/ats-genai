@@ -12,7 +12,7 @@ from typing import List, Dict
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 @pytest.fixture
@@ -293,23 +293,18 @@ class TestInstrumentIntervalDAORealObjects:
         
         # This might succeed (no database constraint) or fail (with constraint)
         # Either behavior is acceptable as long as it's consistent
-        try:
-            interval_id = await instrument_interval_dao.create(
-                universe_state_interval_id=test_universe_state_interval,
-                instrument_id=test_instrument,
-                **invalid_interval_data
-            )
+        interval_id = await instrument_interval_dao.create(
+            universe_state_interval_id=test_universe_state_interval,
+            instrument_id=test_instrument,
+            **invalid_interval_data
+        )
+        
+        if interval_id:
+            # If database allows invalid relationships, that's implementation choice
+            created = await instrument_interval_dao.get(interval_id)
+            assert created is not None
+            await instrument_interval_dao.delete(interval_id)
             
-            if interval_id:
-                # If database allows invalid relationships, that's implementation choice
-                created = await instrument_interval_dao.get(interval_id)
-                assert created is not None
-                await instrument_interval_dao.delete(interval_id)
-                
-        except Exception:
-            # If database enforces OHLC constraints, that's also valid
-            pass
-
     async def test_instrument_interval_zero_and_negative_values(
         self, 
         instrument_interval_dao, 
@@ -358,21 +353,16 @@ class TestInstrumentIntervalDAORealObjects:
         }
         
         # Negative prices should either be rejected or handled consistently
-        try:
-            invalid_id = await instrument_interval_dao.create(
-                universe_state_interval_id=test_universe_state_interval,
-                instrument_id=test_instrument,
-                **negative_data
-            )
+        invalid_id = await instrument_interval_dao.create(
+            universe_state_interval_id=test_universe_state_interval,
+            instrument_id=test_instrument,
+            **negative_data
+        )
+        
+        if invalid_id:
+            # If negative prices are allowed, clean up
+            await instrument_interval_dao.delete(invalid_id)
             
-            if invalid_id:
-                # If negative prices are allowed, clean up
-                await instrument_interval_dao.delete(invalid_id)
-                
-        except Exception:
-            # If negative prices are rejected, that's expected
-            pass
-
     async def test_instrument_interval_foreign_key_constraints(
         self, 
         instrument_interval_dao, 
@@ -406,39 +396,30 @@ class TestInstrumentIntervalDAORealObjects:
         status_test_cases = ['ok', 'error', 'halted', 'no_trade', 'pending']
         created_intervals = []
         
-        try:
-            for status in status_test_cases:
-                interval_data = {
-                    'open_': 100.0,
-                    'high': 110.0,
-                    'low': 90.0,
-                    'close': 105.0,
-                    'traded_volume': 1000.0,
-                    'traded_dollar': 105000.0,
-                    'status': status,
-                    'market_cap': 1e9
-                }
-                
-                interval_id = await instrument_interval_dao.create(
-                    universe_state_interval_id=test_universe_state_interval,
-                    instrument_id=test_instrument,
-                    **interval_data
-                )
-                
-                created_intervals.append(interval_id)
-                
-                # Verify status was stored correctly
-                created = await instrument_interval_dao.get(interval_id)
-                assert created['status'] == status
-                
-        finally:
-            # Cleanup
-            for interval_id in created_intervals:
-                try:
-                    await instrument_interval_dao.delete(interval_id)
-                except:
-                    pass
-
+        for status in status_test_cases:
+            interval_data = {
+                'open_': 100.0,
+                'high': 110.0,
+                'low': 90.0,
+                'close': 105.0,
+                'traded_volume': 1000.0,
+                'traded_dollar': 105000.0,
+                'status': status,
+                'market_cap': 1e9
+            }
+            
+            interval_id = await instrument_interval_dao.create(
+                universe_state_interval_id=test_universe_state_interval,
+                instrument_id=test_instrument,
+                **interval_data
+            )
+            
+            created_intervals.append(interval_id)
+            
+            # Verify status was stored correctly
+            created = await instrument_interval_dao.get(interval_id)
+            assert created['status'] == status
+            
     async def test_instrument_interval_market_cap_handling(
         self, 
         instrument_interval_dao, 
@@ -456,39 +437,30 @@ class TestInstrumentIntervalDAORealObjects:
         
         created_intervals = []
         
-        try:
-            for market_cap in market_cap_test_cases:
-                interval_data = {
-                    'open_': 100.0,
-                    'high': 110.0,
-                    'low': 90.0,
-                    'close': 105.0,
-                    'traded_volume': 1000.0,
-                    'traded_dollar': 105000.0,
-                    'status': 'ok',
-                    'market_cap': market_cap
-                }
-                
-                interval_id = await instrument_interval_dao.create(
-                    universe_state_interval_id=test_universe_state_interval,
-                    instrument_id=test_instrument,
-                    **interval_data
-                )
-                
-                created_intervals.append(interval_id)
-                
-                # Verify market cap was stored correctly
-                created = await instrument_interval_dao.get(interval_id)
-                assert created['market_cap'] == market_cap
-                
-        finally:
-            # Cleanup
-            for interval_id in created_intervals:
-                try:
-                    await instrument_interval_dao.delete(interval_id)
-                except:
-                    pass
-
+        for market_cap in market_cap_test_cases:
+            interval_data = {
+                'open_': 100.0,
+                'high': 110.0,
+                'low': 90.0,
+                'close': 105.0,
+                'traded_volume': 1000.0,
+                'traded_dollar': 105000.0,
+                'status': 'ok',
+                'market_cap': market_cap
+            }
+            
+            interval_id = await instrument_interval_dao.create(
+                universe_state_interval_id=test_universe_state_interval,
+                instrument_id=test_instrument,
+                **interval_data
+            )
+            
+            created_intervals.append(interval_id)
+            
+            # Verify market cap was stored correctly
+            created = await instrument_interval_dao.get(interval_id)
+            assert created['market_cap'] == market_cap
+            
     async def test_list_intervals_performance_with_large_dataset(
         self, 
         instrument_interval_dao, 
@@ -499,56 +471,46 @@ class TestInstrumentIntervalDAORealObjects:
         # Create multiple intervals for the same parent
         created_intervals = []
         
-        try:
-            # Create 10 intervals
-            for i in range(10):
-                interval_data = {
-                    'open_': 100.0 + i,
-                    'high': 110.0 + i,
-                    'low': 90.0 + i,
-                    'close': 105.0 + i,
-                    'traded_volume': 1000.0 * (i + 1),
-                    'traded_dollar': 105000.0 * (i + 1),
-                    'status': 'ok',
-                    'market_cap': 1e9 * (i + 1)
-                }
-                
-                interval_id = await instrument_interval_dao.create(
-                    universe_state_interval_id=test_universe_state_interval,
-                    instrument_id=test_instrument,
-                    **interval_data
-                )
-                
-                created_intervals.append(interval_id)
+        # Create 10 intervals
+        for i in range(10):
+            interval_data = {
+                'open_': 100.0 + i,
+                'high': 110.0 + i,
+                'low': 90.0 + i,
+                'close': 105.0 + i,
+                'traded_volume': 1000.0 * (i + 1),
+                'traded_dollar': 105000.0 * (i + 1),
+                'status': 'ok',
+                'market_cap': 1e9 * (i + 1)
+            }
             
-            # Test list performance
-            import time
-            start_time = time.time()
+            interval_id = await instrument_interval_dao.create(
+                universe_state_interval_id=test_universe_state_interval,
+                instrument_id=test_instrument,
+                **interval_data
+            )
             
-            intervals = await instrument_interval_dao.list(test_universe_state_interval)
-            
-            end_time = time.time()
-            query_time = end_time - start_time
-            
-            # Verify all intervals are returned
-            assert len(intervals) >= 10  # At least our 10 intervals
-            
-            # Performance check - should be fast
-            assert query_time < 5.0  # Should complete within 5 seconds
-            
-            # Verify our intervals are in the list
-            our_interval_ids = [interval['id'] for interval in intervals if interval['id'] in created_intervals]
-            assert len(our_interval_ids) == 10
-            
-        finally:
-            # Cleanup
-            for interval_id in created_intervals:
-                try:
-                    await instrument_interval_dao.delete(interval_id)
-                except:
-                    pass
-
-
+            created_intervals.append(interval_id)
+        
+        # Test list performance
+        import time
+        start_time = time.time()
+        
+        intervals = await instrument_interval_dao.list(test_universe_state_interval)
+        
+        end_time = time.time()
+        query_time = end_time - start_time
+        
+        # Verify all intervals are returned
+        assert len(intervals) >= 10  # At least our 10 intervals
+        
+        # Performance check - should be fast
+        assert query_time < 5.0  # Should complete within 5 seconds
+        
+        # Verify our intervals are in the list
+        our_interval_ids = [interval['id'] for interval in intervals if interval['id'] in created_intervals]
+        assert len(our_interval_ids) == 10
+        
 class TestInstrumentIntervalDAOConstraintValidation:
     """Test database constraint validation with real database."""
 
@@ -561,35 +523,30 @@ class TestInstrumentIntervalDAOConstraintValidation:
         # Attempt to create another interval for same parent and instrument
         # This might be allowed (multiple intervals per instrument) or not
         # depending on database constraints
-        try:
-            duplicate_id = await instrument_interval_dao.create(
-                universe_state_interval_id=created_instrument_interval['universe_state_interval_id'],
-                instrument_id=created_instrument_interval['instrument_id'],
-                open_=150.0,
-                high=160.0,
-                low=140.0,
-                close=155.0,
-                traded_volume=2000.0,
-                traded_dollar=310000.0,
-                status='ok',
-                market_cap=2e9
-            )
+        duplicate_id = await instrument_interval_dao.create(
+            universe_state_interval_id=created_instrument_interval['universe_state_interval_id'],
+            instrument_id=created_instrument_interval['instrument_id'],
+            open_=150.0,
+            high=160.0,
+            low=140.0,
+            close=155.0,
+            traded_volume=2000.0,
+            traded_dollar=310000.0,
+            status='ok',
+            market_cap=2e9
+        )
+        
+        if duplicate_id:
+            # If duplicates are allowed, verify both exist
+            original = await instrument_interval_dao.get(created_instrument_interval['id'])
+            duplicate = await instrument_interval_dao.get(duplicate_id)
+            assert original is not None
+            assert duplicate is not None
+            assert original['id'] != duplicate['id']
             
-            if duplicate_id:
-                # If duplicates are allowed, verify both exist
-                original = await instrument_interval_dao.get(created_instrument_interval['id'])
-                duplicate = await instrument_interval_dao.get(duplicate_id)
-                assert original is not None
-                assert duplicate is not None
-                assert original['id'] != duplicate['id']
-                
-                # Cleanup
-                await instrument_interval_dao.delete(duplicate_id)
-                
-        except Exception:
-            # If duplicates are not allowed, that's also valid behavior
-            pass
-
+            # Cleanup
+            await instrument_interval_dao.delete(duplicate_id)
+            
     async def test_required_field_constraints(
         self, 
         instrument_interval_dao, 

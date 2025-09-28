@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import List, Dict
 
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 @pytest.fixture
@@ -248,20 +248,14 @@ class TestInstrumentsDAORealObjects:
         # Should handle duplicates gracefully (ON CONFLICT DO NOTHING)
         # Or fail with constraint violation - depending on implementation
         # Either outcome is acceptable as long as it's consistent
-        try:
-            created_ids = await instruments_dao.create_instruments_batch(test_instruments)
-            # If successful, should have fewer IDs than input (duplicates ignored)
-            assert len(created_ids) <= len(test_instruments)
+        created_ids = await instruments_dao.create_instruments_batch(test_instruments)
+        # If successful, should have fewer IDs than input (duplicates ignored)
+        assert len(created_ids) <= len(test_instruments)
+        
+        # Cleanup any created instruments
+        for instrument_id in created_ids:
+            await instruments_dao.delete_instrument(instrument_id)
             
-            # Cleanup any created instruments
-            for instrument_id in created_ids:
-                await instruments_dao.delete_instrument(instrument_id)
-                
-        except Exception:
-            # If it fails due to constraints, that's also acceptable
-            # Real database will enforce data integrity
-            pass
-
     async def test_get_symbols_by_ids_success(self, instruments_dao):
         """Test successful symbol retrieval by IDs with real data."""
         # Create test instruments first
@@ -371,15 +365,9 @@ class TestInstrumentsDAORealObjects:
         
         # Depending on implementation, this might fail or succeed
         # Either outcome tests real constraint behavior
-        try:
-            invalid_id = await instruments_dao.create_instrument(**invalid_dates_instrument)
-            if invalid_id:
-                await instruments_dao.delete_instrument(invalid_id)
-        except Exception:
-            # If database/application enforces date logic, that's valid
-            pass
-        
-        # Cleanup
+        invalid_id = await instruments_dao.create_instrument(**invalid_dates_instrument)
+        if invalid_id:
+            await instruments_dao.delete_instrument(invalid_id)
         await instruments_dao.delete_instrument(instrument_id)
 
     async def test_instrument_currency_and_exchange_validation(self, instruments_dao):
@@ -463,33 +451,23 @@ class TestInstrumentsDAOConstraintValidation:
         """Test behavior with empty symbol."""
         # Depending on implementation, this might fail or succeed
         # If there's a CHECK constraint for non-empty symbols, it should fail
-        try:
-            instrument_id = await instruments_dao.create_instrument(
-                symbol="",
-                name="Empty Symbol Test"
-            )
-            if instrument_id:
-                await instruments_dao.delete_instrument(instrument_id)
-        except Exception:
-            # If database enforces non-empty symbols, that's valid
-            pass
-
+        instrument_id = await instruments_dao.create_instrument(
+            symbol="",
+            name="Empty Symbol Test"
+        )
+        if instrument_id:
+            await instruments_dao.delete_instrument(instrument_id)
     async def test_symbol_length_constraint(self, instruments_dao):
         """Test symbol length constraints."""
         # Test very long symbol (might violate VARCHAR length limit)
         very_long_symbol = "A" * 1000  # 1000 characters
         
-        try:
-            instrument_id = await instruments_dao.create_instrument(
-                symbol=very_long_symbol,
-                name="Long Symbol Test"
-            )
-            if instrument_id:
-                await instruments_dao.delete_instrument(instrument_id)
-        except Exception:
-            # If database enforces symbol length limits, that's valid
-            pass
-
+        instrument_id = await instruments_dao.create_instrument(
+            symbol=very_long_symbol,
+            name="Long Symbol Test"
+        )
+        if instrument_id:
+            await instruments_dao.delete_instrument(instrument_id)
     async def test_concurrent_creation_race_condition(self, instruments_dao):
         """Test concurrent instrument creation for race conditions."""
         import asyncio
@@ -499,15 +477,10 @@ class TestInstrumentsDAOConstraintValidation:
         
         # Create multiple concurrent creation attempts with same symbol
         async def create_instrument():
-            try:
-                return await instruments_dao.create_instrument(
-                    symbol=same_symbol,
-                    name="Race Condition Test"
-                )
-            except Exception:
-                return None
-        
-        # Run multiple creation attempts concurrently
+            return await instruments_dao.create_instrument(
+                symbol=same_symbol,
+                name="Race Condition Test"
+            )
         tasks = [create_instrument() for _ in range(5)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         

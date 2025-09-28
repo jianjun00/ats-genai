@@ -31,7 +31,7 @@ sys.path.insert(0, '/workspace/src')
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 from domains.trading.services.core.app.runner import Runner
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TimeframeGranularityTest:
@@ -121,16 +121,12 @@ class TimeframeGranularityTest:
                         timeframe = path_parts[-1]  # e.g., '5m', '15m', '1h', '1d'
                         
                         if timeframe in ['5m', '15m', '1h', '1d', '1w']:
-                            try:
-                                reader = array_record.ArrayRecordReader(str(file_path))
-                                record_count = reader.num_records()
-                                
-                                timeframe_counts[timeframe] = record_count
-                                print(f"   📊 {timeframe}: {record_count} records")
-                                
-                            except Exception as e:
-                                print(f"   ❌ Error reading {timeframe} file: {e}")
-        
+                            reader = array_record.ArrayRecordReader(str(file_path))
+                            record_count = reader.num_records()
+                            
+                            timeframe_counts[timeframe] = record_count
+                            print(f"   📊 {timeframe}: {record_count} records")
+                            
         return timeframe_counts
     
     def validate_timeframe_granularity(self, actual_counts):
@@ -220,50 +216,45 @@ async def test_timeframe_granularity_validation():
     
     test_suite = TimeframeGranularityTest()
     
-    try:
-        # Setup test environment
-        await test_suite.setup_test_environment()
+    # Setup test environment
+    await test_suite.setup_test_environment()
+    
+    # Generate training data
+    await test_suite.generate_test_training_data()
+    
+    # Analyze record counts per timeframe
+    actual_counts = test_suite.analyze_timeframe_records()
+    
+    # Validate granularity
+    validation_results = test_suite.validate_timeframe_granularity(actual_counts)
+    
+    # Detect specific issues
+    issues = test_suite.detect_granularity_issues(validation_results)
+    
+    # Report results
+    print("\n" + "="*80)
+    print("🎯 TEST RESULTS SUMMARY")
+    print("="*80)
+    
+    total_timeframes = len(test_suite.expected_records)
+    passing_timeframes = sum(1 for result in validation_results.values() if result['valid'])
+    
+    print(f"📊 Timeframes Tested: {total_timeframes}")
+    print(f"✅ Passing: {passing_timeframes}")
+    print(f"❌ Failing: {total_timeframes - passing_timeframes}")
+    print(f"🚨 Issues Detected: {len(issues)}")
+    
+    if issues:
+        print("\n🚨 CRITICAL: Granularity issues detected - timeframes not generating at native frequency")
+        print("💡 ACTION REQUIRED: Fix Runner interval generation and timeframe aggregation logic")
         
-        # Generate training data
-        await test_suite.generate_test_training_data()
+        # This test should FAIL until the granularity issue is fixed
+        pytest.fail(f"Timeframe granularity validation failed - {len(issues)} issues detected")
+    else:
+        print("\n🎉 SUCCESS: All timeframes generating at correct native frequency")
         
-        # Analyze record counts per timeframe
-        actual_counts = test_suite.analyze_timeframe_records()
-        
-        # Validate granularity
-        validation_results = test_suite.validate_timeframe_granularity(actual_counts)
-        
-        # Detect specific issues
-        issues = test_suite.detect_granularity_issues(validation_results)
-        
-        # Report results
-        print("\n" + "="*80)
-        print("🎯 TEST RESULTS SUMMARY")
-        print("="*80)
-        
-        total_timeframes = len(test_suite.expected_records)
-        passing_timeframes = sum(1 for result in validation_results.values() if result['valid'])
-        
-        print(f"📊 Timeframes Tested: {total_timeframes}")
-        print(f"✅ Passing: {passing_timeframes}")
-        print(f"❌ Failing: {total_timeframes - passing_timeframes}")
-        print(f"🚨 Issues Detected: {len(issues)}")
-        
-        if issues:
-            print("\n🚨 CRITICAL: Granularity issues detected - timeframes not generating at native frequency")
-            print("💡 ACTION REQUIRED: Fix Runner interval generation and timeframe aggregation logic")
-            
-            # This test should FAIL until the granularity issue is fixed
-            pytest.fail(f"Timeframe granularity validation failed - {len(issues)} issues detected")
-        else:
-            print("\n🎉 SUCCESS: All timeframes generating at correct native frequency")
-            
-        print("="*80)
-        
-    finally:
-        await test_suite.cleanup_test_environment()
-
-
+    print("="*80)
+    
 @pytest.mark.asyncio
 async def test_missing_weekly_timeframe():
     """
@@ -275,24 +266,19 @@ async def test_missing_weekly_timeframe():
     
     test_suite = TimeframeGranularityTest()
     
-    try:
-        await test_suite.setup_test_environment()
-        await test_suite.generate_test_training_data()
+    await test_suite.setup_test_environment()
+    await test_suite.generate_test_training_data()
+    
+    actual_counts = test_suite.analyze_timeframe_records()
+    
+    # Check if 1w timeframe exists
+    if '1w' not in actual_counts:
+        pytest.fail("❌ CRITICAL: 1w (weekly) timeframe is missing - needs to be implemented")
+    elif actual_counts['1w'] == 0:
+        pytest.fail("❌ CRITICAL: 1w (weekly) timeframe exists but contains no records")
+    else:
+        print(f"✅ Weekly timeframe found with {actual_counts['1w']} records")
         
-        actual_counts = test_suite.analyze_timeframe_records()
-        
-        # Check if 1w timeframe exists
-        if '1w' not in actual_counts:
-            pytest.fail("❌ CRITICAL: 1w (weekly) timeframe is missing - needs to be implemented")
-        elif actual_counts['1w'] == 0:
-            pytest.fail("❌ CRITICAL: 1w (weekly) timeframe exists but contains no records")
-        else:
-            print(f"✅ Weekly timeframe found with {actual_counts['1w']} records")
-            
-    finally:
-        await test_suite.cleanup_test_environment()
-
-
 if __name__ == "__main__":
     """Direct execution for development testing."""
     print("🧪 Direct execution of timeframe granularity validation tests")

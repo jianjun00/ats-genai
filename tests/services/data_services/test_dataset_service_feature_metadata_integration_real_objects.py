@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsDatasetServiceFeatureMetadata:
@@ -55,13 +49,7 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_get_feature_metadata_success_real_objects(self, real_service, test_data):
         """Real objects version of test_get_feature_metadata_success"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_feature_metadata_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_feature_metadata_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_feature_metadata_dataset_not_found_real_objects(self, real_service, test_data):
         """Real objects version of test_get_feature_metadata_dataset_not_found"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_feature_metadata_dataset_not_found_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_feature_metadata_dataset_not_found_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_feature_metadata_empty_metadata_real_objects(self, real_service, test_data):
         """Real objects version of test_get_feature_metadata_empty_metadata"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_feature_metadata_empty_metadata_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_feature_metadata_empty_metadata_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_find_datasets_by_features_real_objects(self, real_service, test_data):
         """Real objects version of test_find_datasets_by_features"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.find_datasets_by_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.find_datasets_by_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_find_datasets_by_feature_types_real_objects(self, real_service, test_data):
         """Real objects version of test_find_datasets_by_feature_types"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.find_datasets_by_feature_types_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.find_datasets_by_feature_types_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_find_datasets_by_features_empty_result_real_objects(self, real_service, test_data):
         """Real objects version of test_find_datasets_by_features_empty_result"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.find_datasets_by_features_empty_result_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.find_datasets_by_features_empty_result_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_feature_schemas_compatible_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_feature_schemas_compatible"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_feature_schemas_compatible_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_feature_schemas_compatible_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_feature_schemas_incompatible_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_feature_schemas_incompatible"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_feature_schemas_incompatible_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_feature_schemas_incompatible_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_compare_feature_schemas_with_errors_real_objects(self, real_service, test_data):
         """Real objects version of test_compare_feature_schemas_with_errors"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.compare_feature_schemas_with_errors_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.compare_feature_schemas_with_errors_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_generate_basic_feature_metadata_real_objects(self, real_service, test_data):
         """Real objects version of test_generate_basic_feature_metadata"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.generate_basic_feature_metadata_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.generate_basic_feature_metadata_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_row_to_dataset_metadata_real_objects(self, real_service, test_data):
         """Real objects version of test_row_to_dataset_metadata"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.row_to_dataset_metadata_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.row_to_dataset_metadata_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_database_error_handling"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_large_metadata_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_large_metadata_handling"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.large_metadata_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.large_metadata_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_basic_metadata_generation_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_basic_metadata_generation_performance"""
         # Test with real database integration
@@ -362,15 +272,8 @@ class TestRealObjectsDatasetServiceFeatureMetadata:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.basic_metadata_generation_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.basic_metadata_generation_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

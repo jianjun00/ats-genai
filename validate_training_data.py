@@ -51,22 +51,16 @@ def validate_training_data():
             print(f"❌ {timeframe} ArrayRecord file missing")
     
     # Try to read one ArrayRecord file to validate format
-    try:
-        sample_file = os.path.join(aapl_dir, "5m", "AAPL_2025_07.arrayrecord")
-        if os.path.exists(sample_file):
-            # Just check if file is readable
-            with open(sample_file, 'rb') as f:
-                header = f.read(100)  # Read first 100 bytes
-                if len(header) > 0:
-                    print(f"✅ ArrayRecord file is readable (header: {len(header)} bytes)")
-                else:
-                    print("❌ ArrayRecord file appears empty")
-                    return False
-    except Exception as e:
-        print(f"❌ Error reading ArrayRecord file: {e}")
-        return False
-    
-    # Summary
+    sample_file = os.path.join(aapl_dir, "5m", "AAPL_2025_07.arrayrecord")
+    if os.path.exists(sample_file):
+        # Just check if file is readable
+        with open(sample_file, 'rb') as f:
+            header = f.read(100)  # Read first 100 bytes
+            if len(header) > 0:
+                print(f"✅ ArrayRecord file is readable (header: {len(header)} bytes)")
+            else:
+                print("❌ ArrayRecord file appears empty")
+                return False
     print(f"\n📊 VALIDATION SUMMARY:")
     print(f"   - Valid timeframe files: {valid_files}/{len(expected_timeframes)}")
     print(f"   - All files > 1KB: {'✅' if valid_files == len(expected_timeframes) else '❌'}")

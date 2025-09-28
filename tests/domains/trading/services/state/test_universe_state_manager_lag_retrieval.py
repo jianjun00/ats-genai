@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 import numpy as np
 import pandas as pd
 
-from src.state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 def test_get_lag_prices_from_in_memory_cache_single_day():
     usm = UniverseStateManager()

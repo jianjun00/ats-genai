@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class PerformanceMetrics:
@@ -56,13 +51,7 @@ class PerformanceMetrics:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_throughput_comparison_small_symbol_set_real_objects(self, real_service, test_data):
         """Real objects version of test_throughput_comparison_small_symbol_set"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.throughput_comparison_small_symbol_set_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.throughput_comparison_small_symbol_set_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_throughput_comparison_large_symbol_set_real_objects(self, real_service, test_data):
         """Real objects version of test_throughput_comparison_large_symbol_set"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.throughput_comparison_large_symbol_set_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.throughput_comparison_large_symbol_set_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_latency_measurement_real_objects(self, real_service, test_data):
         """Real objects version of test_latency_measurement"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.latency_measurement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.latency_measurement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_symbol_count_scalability_real_objects(self, real_service, test_data):
         """Real objects version of test_symbol_count_scalability"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.symbol_count_scalability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.symbol_count_scalability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_worker_count_scalability_real_objects(self, real_service, test_data):
         """Real objects version of test_worker_count_scalability"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.worker_count_scalability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.worker_count_scalability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_memory_usage_comparison_real_objects(self, real_service, test_data):
         """Real objects version of test_memory_usage_comparison"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.memory_usage_comparison_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.memory_usage_comparison_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ray_overhead_measurement_real_objects(self, real_service, test_data):
         """Real objects version of test_ray_overhead_measurement"""
         # Test with real database integration
@@ -209,15 +162,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ray_overhead_measurement_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.ray_overhead_measurement_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

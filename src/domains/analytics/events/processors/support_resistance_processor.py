@@ -31,9 +31,7 @@ from domains.analytics.events.analysis.support_resistance_detector import (
     SRType, SRLevelType, SRTestOutcome, Timeframe
 )
 from core.platform.config.environment import Environment
-from domains.market_data.services.core.minute.file_based_minute_market_data_manager import (
-    FileBasedMinuteMarketDataManager
-)
+from core.market_data.unified_manager import UnifiedMarketDataManager
 # Optional logging import
 try:
     from core.logging.logger_config import get_logger
@@ -76,7 +74,7 @@ class SupportResistanceProcessor:
         self.db_pool = None
 
         # Market data manager (will be initialized in initialize())
-        self.market_data_manager: Optional[FileBasedMinuteMarketDataManager] = None
+        self.market_data_manager: Optional[UnifiedMarketDataManager] = None
 
         logger.info("SupportResistanceProcessor initialized")
 
@@ -119,9 +117,9 @@ class SupportResistanceProcessor:
             self.db_pool = await self.env.database.create_pool_with_retry(max_retries=3)
 
             # Initialize market data manager
-            self.market_data_manager = FileBasedMinuteMarketDataManager(
-                env=self.env,
-                base_path=self.config.get('minute_bars_path', '/mnt/d/ats-data/minute-bars')
+            self.market_data_manager = UnifiedMarketDataManager(
+                environment=self.env,
+                data_path=self.config.get('minute_bars_path', '/mnt/d/ats-data/minute-bars')
             )
 
             # Load active symbols from database

@@ -668,64 +668,56 @@ class TestPolygonFixValidation:
             "DELETE FROM vendor_job_progress WHERE job_id = $1", test_job_id
         )
 
-        try:
-            # Test checkpoint lifecycle
+        # Test checkpoint lifecycle
 
-            # 1. Initialize
-            await db_connection.execute("""
-                INSERT INTO vendor_job_progress (
-                    job_id, vendor, symbol, status, created_at
-                ) VALUES ($1, 'polygon', $2, 'pending', NOW())
-            """, test_job_id, test_symbol)
+        # 1. Initialize
+        await db_connection.execute("""
+            INSERT INTO vendor_job_progress (
+                job_id, vendor, symbol, status, created_at
+            ) VALUES ($1, 'polygon', $2, 'pending', NOW())
+        """, test_job_id, test_symbol)
 
-            status = await db_connection.fetchval("""
-                SELECT status FROM vendor_job_progress
-                WHERE job_id = $1 AND symbol = $2
-            """, test_job_id, test_symbol)
-            assert status == 'pending', "Should initialize in pending status"
+        status = await db_connection.fetchval("""
+            SELECT status FROM vendor_job_progress
+            WHERE job_id = $1 AND symbol = $2
+        """, test_job_id, test_symbol)
+        assert status == 'pending', "Should initialize in pending status"
 
-            # 2. Mark processing
-            await db_connection.execute("""
-                UPDATE vendor_job_progress
-                SET status = 'processing', started_at = NOW()
-                WHERE job_id = $1 AND vendor = 'polygon' AND symbol = $2
-            """, test_job_id, test_symbol)
+        # 2. Mark processing
+        await db_connection.execute("""
+            UPDATE vendor_job_progress
+            SET status = 'processing', started_at = NOW()
+            WHERE job_id = $1 AND vendor = 'polygon' AND symbol = $2
+        """, test_job_id, test_symbol)
 
-            status = await db_connection.fetchval("""
-                SELECT status FROM vendor_job_progress
-                WHERE job_id = $1 AND symbol = $2
-            """, test_job_id, test_symbol)
-            assert status == 'processing', "Should transition to processing"
+        status = await db_connection.fetchval("""
+            SELECT status FROM vendor_job_progress
+            WHERE job_id = $1 AND symbol = $2
+        """, test_job_id, test_symbol)
+        assert status == 'processing', "Should transition to processing"
 
-            # 3. Complete
-            await db_connection.execute("""
-                UPDATE vendor_job_progress
-                SET status = 'completed', completed_at = NOW(), records_collected = 100
-                WHERE job_id = $1 AND vendor = 'polygon' AND symbol = $2
-            """, test_job_id, test_symbol)
+        # 3. Complete
+        await db_connection.execute("""
+            UPDATE vendor_job_progress
+            SET status = 'completed', completed_at = NOW(), records_collected = 100
+            WHERE job_id = $1 AND vendor = 'polygon' AND symbol = $2
+        """, test_job_id, test_symbol)
 
-            final_result = await db_connection.fetchrow("""
-                SELECT status, records_collected, started_at, completed_at
-                FROM vendor_job_progress
-                WHERE job_id = $1 AND symbol = $2
-            """, test_job_id, test_symbol)
+        final_result = await db_connection.fetchrow("""
+            SELECT status, records_collected, started_at, completed_at
+            FROM vendor_job_progress
+            WHERE job_id = $1 AND symbol = $2
+        """, test_job_id, test_symbol)
 
-            assert final_result['status'] == 'completed', "Should complete successfully"
-            assert final_result['records_collected'] == 100, "Should track record count"
-            assert final_result['started_at'] is not None, "Should have start time"
-            assert final_result['completed_at'] is not None, "Should have completion time"
+        assert final_result['status'] == 'completed', "Should complete successfully"
+        assert final_result['records_collected'] == 100, "Should track record count"
+        assert final_result['started_at'] is not None, "Should have start time"
+        assert final_result['completed_at'] is not None, "Should have completion time"
 
-            print("✅ Checkpoint system validation PASSED:")
-            print("   ✅ Proper status transitions")
-            print("   ✅ Record count tracking")
-            print("   ✅ Timestamp management")
-
-        finally:
-            # Clean up
-            await db_connection.execute(
-                "DELETE FROM vendor_job_progress WHERE job_id = $1", test_job_id
-            )
-
+        print("✅ Checkpoint system validation PASSED:")
+        print("   ✅ Proper status transitions")
+        print("   ✅ Record count tracking")
+        print("   ✅ Timestamp management")
 
 if __name__ == "__main__":
     # Run tests with: PYTHONPATH=src pytest tests/integration/test_polygon_integration_fixes.py -v --tb=short

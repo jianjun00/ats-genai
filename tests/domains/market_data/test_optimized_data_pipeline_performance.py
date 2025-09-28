@@ -6,9 +6,9 @@ import pytest
 import time
 from datetime import datetime, date
 from unittest.mock import AsyncMock, MagicMock
-from domains.market_data.services.eod.unified_db_daily_price_market_data_manager import UnifiedDBDailyPriceMarketDataManager
-from domains.market_data.services.eod.unify_daily_price_polygon import DatabaseDailyPricesUnifier
-from shared.utils.environment import Environment
+from domains.trading.services.core.eod.enhanced_eod_service import UnifiedDBDailyPriceMarketDataManager
+from domains.trading.services.core.eod.enhanced_eod_service import DatabaseDailyPricesUnifier
+from core.platform.config.environment import Environment
 
 
 class TestOptimizedDataPipelinePerformance:

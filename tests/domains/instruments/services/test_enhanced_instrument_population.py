@@ -238,16 +238,10 @@ class TestEnhancedInstrumentPopulation:
 
             # Validate dates
             if instrument_data.get('listing_date'):
-                try:
-                    listing_date = datetime.strptime(instrument_data['listing_date'], '%Y-%m-%d').date()
-                    if listing_date > date.today():
-                        validation_result['errors'].append("Listing date cannot be in the future")
-                        validation_result['is_valid'] = False
-                except ValueError:
-                    validation_result['errors'].append("Invalid listing date format")
+                listing_date = datetime.strptime(instrument_data['listing_date'], '%Y-%m-%d').date()
+                if listing_date > date.today():
+                    validation_result['errors'].append("Listing date cannot be in the future")
                     validation_result['is_valid'] = False
-
-            # Validate reference data
             if instrument_data.get('isin') and len(instrument_data['isin']) != 12:
                 validation_result['warnings'].append("ISIN should be 12 characters")
 
@@ -459,23 +453,14 @@ class TestEnhancedInstrumentPopulation:
 
             # Parse dates
             if instrument_data.get('listing_date'):
-                try:
-                    lifecycle['listing_date'] = datetime.strptime(
-                        instrument_data['listing_date'], '%Y-%m-%d'
-                    ).date()
-                except ValueError:
-                    pass
-
+                lifecycle['listing_date'] = datetime.strptime(
+                    instrument_data['listing_date'], '%Y-%m-%d'
+                ).date()
             if instrument_data.get('delisting_date'):
-                try:
-                    lifecycle['delisting_date'] = datetime.strptime(
-                        instrument_data['delisting_date'], '%Y-%m-%d'
-                    ).date()
-                    lifecycle['is_active'] = False
-                except ValueError:
-                    pass
-
-            # Determine lifecycle stage
+                lifecycle['delisting_date'] = datetime.strptime(
+                    instrument_data['delisting_date'], '%Y-%m-%d'
+                ).date()
+                lifecycle['is_active'] = False
             if instrument_data.get('is_delisted'):
                 lifecycle['lifecycle_stage'] = 'delisted'
                 lifecycle['is_active'] = False

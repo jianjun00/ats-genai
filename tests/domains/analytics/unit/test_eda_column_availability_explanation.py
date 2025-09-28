@@ -182,15 +182,9 @@ def run_column_availability_explanation_tests():
     failed_tests = []
 
     for test_name, test_func in tests:
-        try:
-            test_func()
-            passed_tests += 1
-            print(f"✅ PASSED: {test_name}")
-        except Exception as e:
-            failed_tests.append((test_name, str(e)))
-            print(f"❌ FAILED: {test_name} - {e}")
-
-    # Summary
+        test_func()
+        passed_tests += 1
+        print(f"✅ PASSED: {test_name}")
     print("\n" + "=" * 60)
     print(f"📊 COLUMN AVAILABILITY EXPLANATION TEST SUMMARY")
     print(f"   Total Tests: {len(tests)}")

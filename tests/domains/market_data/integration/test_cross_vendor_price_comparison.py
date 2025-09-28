@@ -28,8 +28,8 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from core.shared.utils.environment import Environment
-from domains.market_data.services.reconciliation.majority_voting_reconciler import (
+from core.platform.config.environment import Environment
+from domains.market_data.services.core.reconciliation.majority_voting_reconciler import (
     MajorityVotingReconciler,
     VendorPrice
 )
@@ -94,44 +94,37 @@ class CrossVendorPriceComparator:
         pool = await asyncpg.create_pool(self.db_url, min_size=2, max_size=8)
         vendor_data = {}
 
-        try:
-            async with pool.acquire() as conn:
-                # Get instrument ID
-                instrument_id = await conn.fetchval(
-                    "SELECT id FROM dev_instrument WHERE symbol = $1", symbol
-                )
+        async with pool.acquire() as conn:
+            # Get instrument ID
+            instrument_id = await conn.fetchval(
+                "SELECT id FROM dev_instrument WHERE symbol = $1", symbol
+            )
 
-                if not instrument_id:
-                    return {}
+            if not instrument_id:
+                return {}
 
-                # Fetch from each vendor
-                for vendor, table_name in self.vendor_tables.items():
-                    try:
-                        rows = await conn.fetch(f"""
-                            SELECT date, close, volume, open_price, high_price, low_price, adj_close
-                            FROM {table_name}
-                            WHERE instrument_id = $1
-                              AND date BETWEEN $2 AND $3
-                            ORDER BY date
-                        """, instrument_id, start_date, end_date)
+            # Fetch from each vendor
+            for vendor, table_name in self.vendor_tables.items():
+                rows = await conn.fetch(f"""
+                    SELECT date, close, volume, open_price, high_price, low_price, adj_close
+                    FROM {table_name}
+                    WHERE instrument_id = $1
+                      AND date BETWEEN $2 AND $3
+                    ORDER BY date
+                """, instrument_id, start_date, end_date)
 
-                        vendor_data[vendor] = {}
-                        for row in rows:
-                            vendor_data[vendor][row['date']] = {
-                                'close': float(row['close']),
-                                'volume': int(row['volume']) if row['volume'] else 0,
-                                'open': float(row['open_price']) if row['open_price'] else None,
-                                'high': float(row['high_price']) if row['high_price'] else None,
-                                'low': float(row['low_price']) if row['low_price'] else None,
-                                'adj_close': float(row['adj_close']) if row['adj_close'] else None
-                            }
+                vendor_data[vendor] = {}
+                for row in rows:
+                    vendor_data[vendor][row['date']] = {
+                        'close': float(row['close']),
+                        'volume': int(row['volume']) if row['volume'] else 0,
+                        'open': float(row['open_price']) if row['open_price'] else None,
+                        'high': float(row['high_price']) if row['high_price'] else None,
+                        'low': float(row['low_price']) if row['low_price'] else None,
+                        'adj_close': float(row['adj_close']) if row['adj_close'] else None
+                    }
 
-                    except Exception as e:
-                        print(f"Warning: Could not fetch {vendor} data for {symbol}: {e}")
-                        vendor_data[vendor] = {}
-
-        finally:
-            await pool.close()
+        await pool.close()
 
         return vendor_data
 
@@ -228,13 +221,8 @@ class CrossVendorPriceComparator:
         for i, symbol in enumerate(symbols, 1):
             print(f"  [{i}/{len(symbols)}] Comparing {symbol}...")
 
-            try:
-                symbol_results = await self.compare_prices_for_symbol(symbol, start_date, end_date)
-                all_results.extend(symbol_results)
-            except Exception as e:
-                print(f"    Error comparing {symbol}: {e}")
-
-        # Generate comprehensive report
+            symbol_results = await self.compare_prices_for_symbol(symbol, start_date, end_date)
+            all_results.extend(symbol_results)
         return await self._generate_comparison_report(symbols, all_results, start_date, end_date)
 
     async def _generate_comparison_report(self, symbols: List[str], results: List[CrossVendorComparisonResult],

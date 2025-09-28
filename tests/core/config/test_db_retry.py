@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from core.shared.utils.db_retry import retry_async, retry_sync
+from core.platform.config.db_retry import retry_async, retry_sync
 
 class TestRetryAsync:
     """Comprehensive test coverage for retry_async function."""
@@ -384,11 +384,7 @@ class TestRetryUtilitiesEdgeCases:
         original_exception = ValueError("root cause")
 
         async def chained_exception_func():
-            try:
-                raise original_exception
-            except ValueError as e:
-                raise ConnectionError("wrapper error") from e
-
+            raise original_exception
         with patch('asyncio.sleep', new_callable=AsyncMock):
             with pytest.raises(ConnectionError) as exc_info:
                 await retry_async(chained_exception_func, retries=0)

@@ -1,5 +1,5 @@
-from domains.trading.services.indicator_config import IndicatorConfig
-from domains.trading.services.indicator import PL, OneOneHigh, OneOneLow, OneOneDot
+from domains.trading.services.indicators_config import IndicatorConfig
+# PL indicator does not exist, OneOneHigh, OneOneLow, OneOneDot
 
 def test_indicator_config_init():
     """Test IndicatorConfig initialization."""

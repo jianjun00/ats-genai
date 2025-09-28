@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class PerformanceMetrics:
@@ -55,13 +49,7 @@ class PerformanceMetrics:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_articles_generator_real_objects(self, real_service, test_data):
         """Real objects version of test_articles_generator"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.articles_generator_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.articles_generator_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_low_volume_baseline_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_low_volume_baseline_performance"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.low_volume_baseline_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.low_volume_baseline_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_medium_volume_concurrent_processing_real_objects(self, real_service, test_data):
         """Real objects version of test_medium_volume_concurrent_processing"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.medium_volume_concurrent_processing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.medium_volume_concurrent_processing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_high_volume_stress_testing_real_objects(self, real_service, test_data):
         """Real objects version of test_high_volume_stress_testing"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.high_volume_stress_testing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.high_volume_stress_testing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sustained_load_endurance_real_objects(self, real_service, test_data):
         """Real objects version of test_sustained_load_endurance"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sustained_load_endurance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sustained_load_endurance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_memory_leak_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_memory_leak_detection"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.memory_leak_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.memory_leak_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_provider_load_balancing_real_objects(self, real_service, test_data):
         """Real objects version of test_provider_load_balancing"""
         # Test with real database integration
@@ -208,15 +160,8 @@ class PerformanceMetrics:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.provider_load_balancing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.provider_load_balancing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

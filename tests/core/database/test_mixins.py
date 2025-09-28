@@ -9,13 +9,13 @@ import pytest
 from unittest.mock import Mock, patch
 import asyncio
 
-from src.core.database.mixins import (
+from core.platform.database.mixins import (
     DatabaseMixin,
     AsyncDatabaseMixin,
     DatabaseInitializationMixin,
     create_database_service
 )
-from src.core.exceptions.custom_exceptions import DatabaseError
+from core.security.exceptions.custom_exceptions import DatabaseError
 
 
 class TestDatabaseMixin:

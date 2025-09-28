@@ -186,42 +186,37 @@ class ComprehensiveStressTest:
         ]
 
         for range_name, min_price, max_price in price_ranges:
-            try:
-                # Generate data in this range
-                start_price = (min_price + max_price) / 2
-                test_data = self.generate_realistic_market_data(50, start_price)
+            # Generate data in this range
+            start_price = (min_price + max_price) / 2
+            test_data = self.generate_realistic_market_data(50, start_price)
 
-                # Ensure data stays in range
-                for interval in test_data:
-                    if interval.high < min_price or interval.high > max_price:
-                        interval.high = min(max_price, max(min_price, interval.high))
-                    if interval.low < min_price or interval.low > max_price:
-                        interval.low = min(max_price, max(min_price, interval.low))
-                    if interval.close < min_price or interval.close > max_price:
-                        interval.close = min(max_price, max(min_price, interval.close))
+            # Ensure data stays in range
+            for interval in test_data:
+                if interval.high < min_price or interval.high > max_price:
+                    interval.high = min(max_price, max(min_price, interval.high))
+                if interval.low < min_price or interval.low > max_price:
+                    interval.low = min(max_price, max(min_price, interval.low))
+                if interval.close < min_price or interval.close > max_price:
+                    interval.close = min(max_price, max(min_price, interval.close))
 
-                # Test indicators
-                calculated_any = False
+            # Test indicators
+            calculated_any = False
 
-                for indicator_name in list(self.hlc_coefficients.keys())[:3]:  # Test subset
-                    result = self.calculate_hlc_indicator(indicator_name, test_data[:5])  # Use first 5 intervals
-                    if result is not None:
-                        calculated_any = True
+            for indicator_name in list(self.hlc_coefficients.keys())[:3]:  # Test subset
+                result = self.calculate_hlc_indicator(indicator_name, test_data[:5])  # Use first 5 intervals
+                if result is not None:
+                    calculated_any = True
 
-                        if math.isnan(result) or math.isinf(result):
-                            self.errors.append(f"{indicator_name} in {range_name}: Invalid result {result}")
-                            success = False
-                        elif abs(result) > max_price * 10:  # Result shouldn't be wildly out of range
-                            print(f"  ⚠️ {indicator_name} in {range_name}: Large result {result:.2e}")
+                    if math.isnan(result) or math.isinf(result):
+                        self.errors.append(f"{indicator_name} in {range_name}: Invalid result {result}")
+                        success = False
+                    elif abs(result) > max_price * 10:  # Result shouldn't be wildly out of range
+                        print(f"  ⚠️ {indicator_name} in {range_name}: Large result {result:.2e}")
 
-                if calculated_any:
-                    print(f"  ✅ {range_name}: Calculations completed successfully")
-                else:
-                    print(f"  ⚠️ {range_name}: No calculations completed (may be expected)")
-
-            except Exception as e:
-                self.errors.append(f"{range_name}: Exception {e}")
-                success = False
+            if calculated_any:
+                print(f"  ✅ {range_name}: Calculations completed successfully")
+            else:
+                print(f"  ⚠️ {range_name}: No calculations completed (may be expected)")
 
         if success:
             print("✅ Data range handling validated")
@@ -246,58 +241,53 @@ class ComprehensiveStressTest:
         ]
 
         for scenario_name, price_func in scenarios:
-            try:
-                # Generate scenario data
-                base_price = 1000
-                intervals = []
+            # Generate scenario data
+            base_price = 1000
+            intervals = []
 
-                for i in range(50):
-                    price = price_func(i, base_price)
-                    volatility = price * 0.01
+            for i in range(50):
+                price = price_func(i, base_price)
+                volatility = price * 0.01
 
-                    high = price + random.uniform(0, volatility)
-                    low = price - random.uniform(0, volatility)
-                    close = low + random.uniform(0, high - low)
+                high = price + random.uniform(0, volatility)
+                low = price - random.uniform(0, volatility)
+                close = low + random.uniform(0, high - low)
 
-                    intervals.append(TestInterval(high, low, close))
+                intervals.append(TestInterval(high, low, close))
 
-                # Test indicators throughout the scenario
-                calculation_points = 0
-                valid_calculations = 0
+            # Test indicators throughout the scenario
+            calculation_points = 0
+            valid_calculations = 0
 
-                for i in range(3, len(intervals)):
-                    test_intervals = intervals[i-3:i]
-                    calculation_points += 1
+            for i in range(3, len(intervals)):
+                test_intervals = intervals[i-3:i]
+                calculation_points += 1
 
-                    # Test sample of HLC indicators
-                    for indicator_name in ['pldot', 'ebot', 'z1b']:
-                        result = self.calculate_hlc_indicator(indicator_name, test_intervals)
-                        if result is not None and not math.isnan(result) and not math.isinf(result):
-                            valid_calculations += 1
-
-                # Test Five Nine indicators
-                for i in range(2, len(intervals)):
-                    test_intervals = intervals[i-2:i]
-
-                    sell_result = self.calculate_five_nine_sell(test_intervals)
-                    buy_result = self.calculate_five_nine_buy(test_intervals)
-
-                    if (sell_result is not None and not math.isnan(sell_result) and not math.isinf(sell_result)):
-                        valid_calculations += 1
-                    if (buy_result is not None and not math.isnan(buy_result) and not math.isinf(buy_result)):
+                # Test sample of HLC indicators
+                for indicator_name in ['pldot', 'ebot', 'z1b']:
+                    result = self.calculate_hlc_indicator(indicator_name, test_intervals)
+                    if result is not None and not math.isnan(result) and not math.isinf(result):
                         valid_calculations += 1
 
-                success_rate = valid_calculations / (calculation_points * 3 + (len(intervals) - 2) * 2) if calculation_points > 0 else 0
+            # Test Five Nine indicators
+            for i in range(2, len(intervals)):
+                test_intervals = intervals[i-2:i]
 
-                if success_rate < 0.95:  # Should have >95% successful calculations
-                    self.errors.append(f"{scenario_name}: Low success rate {success_rate:.2%}")
-                    success = False
-                else:
-                    print(f"  ✅ {scenario_name}: {success_rate:.1%} calculations successful")
+                sell_result = self.calculate_five_nine_sell(test_intervals)
+                buy_result = self.calculate_five_nine_buy(test_intervals)
 
-            except Exception as e:
-                self.errors.append(f"{scenario_name}: Exception {e}")
+                if (sell_result is not None and not math.isnan(sell_result) and not math.isinf(sell_result)):
+                    valid_calculations += 1
+                if (buy_result is not None and not math.isnan(buy_result) and not math.isinf(buy_result)):
+                    valid_calculations += 1
+
+            success_rate = valid_calculations / (calculation_points * 3 + (len(intervals) - 2) * 2) if calculation_points > 0 else 0
+
+            if success_rate < 0.95:  # Should have >95% successful calculations
+                self.errors.append(f"{scenario_name}: Low success rate {success_rate:.2%}")
                 success = False
+            else:
+                print(f"  ✅ {scenario_name}: {success_rate:.1%} calculations successful")
 
         if success:
             print("✅ Market condition robustness validated")
@@ -415,31 +405,27 @@ class ComprehensiveStressTest:
         ]
 
         for case_name, intervals in edge_cases:
-            try:
-                # Test HLC indicators
-                if len(intervals) >= 3:
-                    for indicator_name in ['pldot', 'ebot']:  # Test subset
-                        result = self.calculate_hlc_indicator(indicator_name, intervals[:3])
+            # Test HLC indicators
+            if len(intervals) >= 3:
+                for indicator_name in ['pldot', 'ebot']:  # Test subset
+                    result = self.calculate_hlc_indicator(indicator_name, intervals[:3])
 
-                        if result is not None:
-                            if math.isnan(result) or math.isinf(result):
-                                self.errors.append(f"{indicator_name} with {case_name}: Invalid result {result}")
-                                success = False
-
-                # Test Five Nine indicators
-                if len(intervals) >= 2:
-                    sell_result = self.calculate_five_nine_sell(intervals[:2])
-                    buy_result = self.calculate_five_nine_buy(intervals[:2])
-
-                    for name, result in [("FiveNineSell", sell_result), ("FiveNineBuy", buy_result)]:
-                        if result is not None and (math.isnan(result) or math.isinf(result)):
-                            self.errors.append(f"{name} with {case_name}: Invalid result {result}")
+                    if result is not None:
+                        if math.isnan(result) or math.isinf(result):
+                            self.errors.append(f"{indicator_name} with {case_name}: Invalid result {result}")
                             success = False
 
-                print(f"  ✅ {case_name}: Handled successfully")
+            # Test Five Nine indicators
+            if len(intervals) >= 2:
+                sell_result = self.calculate_five_nine_sell(intervals[:2])
+                buy_result = self.calculate_five_nine_buy(intervals[:2])
 
-            except Exception as e:
-                print(f"  ⚠️ {case_name}: Exception {e} (may be acceptable)")
+                for name, result in [("FiveNineSell", sell_result), ("FiveNineBuy", buy_result)]:
+                    if result is not None and (math.isnan(result) or math.isinf(result)):
+                        self.errors.append(f"{name} with {case_name}: Invalid result {result}")
+                        success = False
+
+            print(f"  ✅ {case_name}: Handled successfully")
 
         if success:
             print("✅ Edge case resilience validated")
@@ -471,17 +457,11 @@ class ComprehensiveStressTest:
             print(f"\n📋 {test_name}")
             print("-" * 50)
 
-            try:
-                if test_func():
-                    passed_tests += 1
-                    self.test_results[test_name] = "PASS"
-                else:
-                    self.test_results[test_name] = "FAIL"
-            except Exception as e:
-                self.errors.append(f"{test_name}: Exception - {str(e)}")
-                self.test_results[test_name] = "ERROR"
-                print(f"❌ Test failed with exception: {e}")
-
+            if test_func():
+                passed_tests += 1
+                self.test_results[test_name] = "PASS"
+            else:
+                self.test_results[test_name] = "FAIL"
         total_time = time.time() - start_time
 
         # Summary

@@ -22,7 +22,7 @@ from decimal import Decimal
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.instrument_interval import InstrumentInterval
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from core.business.calendars.time_duration import TimeDuration
 
 
@@ -185,11 +185,7 @@ class TestComprehensiveMultiTimeframeEdgeCases:
                         elif hasattr(value, '__len__') and len(value) > 0:  # numpy arrays
                             return float(value[0])
                         else:
-                            try:
-                                return float(value)
-                            except (ValueError, TypeError):
-                                return default
-                    
+                            return float(value)
                     converted = safe_scalar_conversion(value)
                     assert converted is not None, f"Failed to convert {field}={value}"
                     assert isinstance(converted, float), f"{field} not converted to float: {type(converted)}"
@@ -233,13 +229,9 @@ class TestComprehensiveMultiTimeframeEdgeCases:
                     return None
                 return float(val)
             else:
-                try:
-                    if pd.isna(value):
-                        return None
-                    return float(value)
-                except (ValueError, TypeError):
-                    return default
-        
+                if pd.isna(value):
+                    return None
+                return float(value)
         for i, test_case in enumerate(invalid_ohlc_cases):
             expected_status = test_case.pop('expected_status')
             print(f"   Testing invalid OHLC case {i+1}: Expected status '{expected_status}'")

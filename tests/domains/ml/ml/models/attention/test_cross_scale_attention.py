@@ -9,7 +9,7 @@ hierarchical positional encoding, scale-specific attention, and fusion mechanism
 import pytest
 import torch
 
-from src.models.attention.cross_scale_attention import (
+from domains.ml.models.attention.cross_scale_attention import (
     CrossScaleAttention,
     HierarchicalPositionalEncoding,
     RelativePositionBias,
@@ -18,7 +18,7 @@ from src.models.attention.cross_scale_attention import (
     AttentionConfig,
     create_cross_scale_attention
 )
-from src.storage.multi_scale_sequence import TimeScale
+from domains.trading.services.core.minute.multi_scale_sequence import TimeScale
 
 class TestAttentionConfig:
     """Test AttentionConfig functionality."""

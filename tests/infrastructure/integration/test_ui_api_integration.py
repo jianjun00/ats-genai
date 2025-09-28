@@ -35,18 +35,13 @@ class TestUIAPIIntegration:
 
             print(f"Testing API endpoint: {test_url}")
 
-            try:
-                response = requests.get(test_url, timeout=5)
-                assert response.status_code in [200, 404], f"API endpoint {test_url} returned {response.status_code}"
+            response = requests.get(test_url, timeout=5)
+            assert response.status_code in [200, 404], f"API endpoint {test_url} returned {response.status_code}"
 
-                if response.status_code == 404:
-                    print(f"❌ MISSING API: {test_url}")
-                else:
-                    print(f"✅ API EXISTS: {test_url}")
-
-            except requests.exceptions.RequestException as e:
-                print(f"❌ API ERROR: {test_url} - {e}")
-                assert False, f"API endpoint {test_url} failed: {e}"
+            if response.status_code == 404:
+                print(f"❌ MISSING API: {test_url}")
+            else:
+                print(f"✅ API EXISTS: {test_url}")
 
     def test_training_datasets_api_response_structure(self):
         """Test that training datasets API returns expected data structure."""
@@ -187,26 +182,11 @@ if __name__ == "__main__":
 
     print("🧪 Running UI-API Integration Tests...")
 
-    try:
-        test_integration.test_dataset_detail_api_endpoints_exist()
-        print("✅ API endpoints test passed")
-    except Exception as e:
-        print(f"❌ API endpoints test failed: {e}")
-
-    try:
-        test_integration.test_training_datasets_api_response_structure()
-        print("✅ API response structure test passed")
-    except Exception as e:
-        print(f"❌ API response structure test failed: {e}")
-
-    try:
-        test_integration.test_global_vs_per_column_axis_controls()
-        print("✅ Global axis control test passed")
-    except Exception as e:
-        print(f"❌ Global axis control test failed: {e}")
-
-    try:
-        test_integration.test_html_javascript_syntax()
-        print("✅ HTML/JS syntax test passed")
-    except Exception as e:
-        print(f"❌ HTML/JS syntax test failed: {e}")
+    test_integration.test_dataset_detail_api_endpoints_exist()
+    print("✅ API endpoints test passed")
+    test_integration.test_training_datasets_api_response_structure()
+    print("✅ API response structure test passed")
+    test_integration.test_global_vs_per_column_axis_controls()
+    print("✅ Global axis control test passed")
+    test_integration.test_html_javascript_syntax()
+    print("✅ HTML/JS syntax test passed")

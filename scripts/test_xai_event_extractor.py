@@ -33,15 +33,9 @@ class EventExtractorTester:
             print("🧪 Running in MOCK MODE - no real API calls")
         else:
             # Load real configuration
-            try:
-                xai_config, _, _ = load_config()
-                api_key = xai_config.api_key
-                print("🔑 Using real xAI API key")
-            except ValueError as e:
-                print(f"❌ Configuration error: {e}")
-                print("💡 Set XAI_API_KEY environment variable or use mock mode")
-                return False
-        
+            xai_config, _, _ = load_config()
+            api_key = xai_config.api_key
+            print("🔑 Using real xAI API key")
         self.extractor = OptimizedXAIEventExtractor(api_key=api_key)
         print("✅ Extractor initialized successfully")
         return True
@@ -390,28 +384,22 @@ async def main():
     if not await tester.initialize(mock_mode=mock_mode):
         return
     
-    try:
-        # Run all tests
-        await tester.test_single_batch_extraction()
-        await tester.test_historical_extraction()  
-        await tester.test_cost_optimization()
-        await tester.test_real_time_monitoring_simulation()
-        await tester.test_caching_performance()
-        
-        # Print comprehensive summary
-        tester.print_summary_report()
-        
-        print("\n🎉 All tests completed successfully!")
-        
-        if mock_mode:
-            print("\n💡 To test with real xAI API:")
-            print("   1. Set XAI_API_KEY environment variable")
-            print("   2. Run: python test_xai_event_extractor.py --real")
-        
-    except Exception as e:
-        print(f"\n❌ Test failed with error: {e}")
-        import traceback
-        traceback.print_exc()
-
+    # Run all tests
+    await tester.test_single_batch_extraction()
+    await tester.test_historical_extraction()  
+    await tester.test_cost_optimization()
+    await tester.test_real_time_monitoring_simulation()
+    await tester.test_caching_performance()
+    
+    # Print comprehensive summary
+    tester.print_summary_report()
+    
+    print("\n🎉 All tests completed successfully!")
+    
+    if mock_mode:
+        print("\n💡 To test with real xAI API:")
+        print("   1. Set XAI_API_KEY environment variable")
+        print("   2. Run: python test_xai_event_extractor.py --real")
+    
 if __name__ == "__main__":
     asyncio.run(main())

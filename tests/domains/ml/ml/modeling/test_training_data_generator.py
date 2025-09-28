@@ -17,7 +17,7 @@ from domains.ml.services.training_data.generators.training_data_generator import
 )
 from domains.ml.services.factor_models import ResidualReturnCalculator
 from domains.ml.services.event_features import EventSequenceExtractor, EventCalendar
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 @pytest.fixture
 def mock_connection_pool():

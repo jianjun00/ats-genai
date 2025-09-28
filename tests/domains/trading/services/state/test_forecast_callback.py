@@ -20,8 +20,8 @@ async def test_forecast_callback_augments_universe_state(tmp_path):
         sys.path.insert(0, str(src_dir))
 
     # Local imports after path setup
-    from state.forecast_callback import MultiInstrumentTransformer, ForecastCallback
-    from state.universe_state_builder import UniverseStateIntervalBuilder
+    from domains.trading.services.state.forecast_callback import MultiInstrumentTransformer, ForecastCallback
+    from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 
     # --- Create a tiny model checkpoint ---
     num_instruments = 2
@@ -49,7 +49,7 @@ async def test_forecast_callback_augments_universe_state(tmp_path):
     class FakeEnv:
         def get_indicator_config(self):
             # Avoid real indicator building complexity by returning an empty IndicatorConfig
-            from domains.trading.services.indicator_config import IndicatorConfig
+            from domains.trading.services.indicators_config import IndicatorConfig
             return IndicatorConfig.empty_config()
         def get_table_name(self, base: str) -> str:
             # Minimal stub to satisfy DailyMarketCapDAO

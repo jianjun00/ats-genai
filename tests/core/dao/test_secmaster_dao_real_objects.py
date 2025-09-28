@@ -13,7 +13,7 @@ from domains.instruments.repositories.secmaster_dao import SecMasterDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 @pytest.fixture
@@ -251,17 +251,10 @@ class TestSecMasterDAORealObjects:
         
         # This should be safe because queries use parameterized statements
         # The malicious date string will be treated as a literal value
-        try:
-            prices = await secmaster_dao.batch_last_close_prices(malicious_date, malicious_ids)
-            # Should either return empty dict or raise a type conversion error
-            # Either outcome is safe - no SQL injection occurred
-            assert isinstance(prices, dict)
-        except Exception as e:
-            # Type conversion error is expected and safe
-            # This shows the parameter was treated as a literal, not SQL
-            assert "invalid input syntax" in str(e) or "conversion" in str(e)
-        
-        # Database should still be intact - verify with a safe query
+        prices = await secmaster_dao.batch_last_close_prices(malicious_date, malicious_ids)
+        # Should either return empty dict or raise a type conversion error
+        # Either outcome is safe - no SQL injection occurred
+        assert isinstance(prices, dict)
         safe_prices = await secmaster_dao.batch_last_close_prices(date.today(), [1])
         assert isinstance(safe_prices, dict)
 
@@ -411,14 +404,8 @@ class TestSecMasterDAOConstraintValidation:
         test_date = date.today()
         
         # This should either succeed or fail gracefully with a clear error
-        try:
-            prices = await secmaster_dao.batch_last_close_prices(test_date, very_large_list)
-            assert isinstance(prices, dict)
-        except Exception as e:
-            # If it fails, should be a clear database limit error
-            # Not a silent failure or corruption
-            assert "limit" in str(e).lower() or "too many" in str(e).lower()
-
+        prices = await secmaster_dao.batch_last_close_prices(test_date, very_large_list)
+        assert isinstance(prices, dict)
     async def test_database_connection_resilience(self, secmaster_dao):
         """Test DAO behavior under connection stress."""
         # Test multiple rapid queries to check connection pooling

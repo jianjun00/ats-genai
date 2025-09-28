@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsMultiTimeframeOHLCSignals:
@@ -55,13 +49,7 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_env_real_objects(self, real_service, test_data):
         """Real objects version of test_env"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.env_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.env_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_interval_parsing_real_objects(self, real_service, test_data):
         """Real objects version of test_interval_parsing"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.interval_parsing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.interval_parsing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_ohlc_aggregation_mathematical_correctness_real_objects(self, real_service, test_data):
         """Real objects version of test_ohlc_aggregation_mathematical_correctness"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.ohlc_aggregation_mathematical_correctness_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.ohlc_aggregation_mathematical_correctness_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_manual_aggregation_verification_real_objects(self, real_service, test_data):
         """Real objects version of test_manual_aggregation_verification"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.manual_aggregation_verification_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.manual_aggregation_verification_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_technical_signal_computation_real_objects(self, real_service, test_data):
         """Real objects version of test_technical_signal_computation"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.technical_signal_computation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.technical_signal_computation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_timeframe_data_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_timeframe_data_consistency"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_timeframe_data_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_timeframe_data_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_training_callback_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_training_callback_integration"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.training_callback_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.training_callback_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_edge_cases_and_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_edge_cases_and_error_handling"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.edge_cases_and_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.edge_cases_and_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_benchmarks_real_objects(self, real_service, test_data):
         """Real objects version of test_performance_benchmarks"""
         # Test with real database integration
@@ -252,15 +192,8 @@ class TestRealObjectsMultiTimeframeOHLCSignals:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.performance_benchmarks_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.performance_benchmarks_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

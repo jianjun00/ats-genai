@@ -9,7 +9,8 @@ that require real database objects and test data. Following CLAUDE.md principles
 - Environment-aware configuration
 
 Usage:
-    from tests.utils.test_data_setup import TestDataSetup
+    # FIXME: tests.utils module does not exist
+# from tests.utils.test_data_setup import TestDataSetup
     
     setup = TestDataSetup(environment=environment, db_connection=conn)
     await setup.create_test_symbol_data(symbol='TSLA', instrument_id=999999)
@@ -21,7 +22,7 @@ from typing import Optional, List
 from datetime import datetime
 import asyncpg
 
-from core.shared.data_handling.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 class TestDataSetup:

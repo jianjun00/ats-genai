@@ -10,12 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
 # from infrastructure.vendor.eodhd.client import EODHDClient
 # from infrastructure.vendor.eodhd.dao import EODHDAO
@@ -56,13 +51,7 @@ class TestRealObjectsEODHDAPIIntegration:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_symbols"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_exchange_symbols_real_api_real_objects(self, real_service, test_data):
         """Real objects version of test_get_exchange_symbols_real_api"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_exchange_symbols_real_api_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_exchange_symbols_real_api_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_fundamental_data_real_api_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_fundamental_data_real_api"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_fundamental_data_real_api_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_fundamental_data_real_api_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fetch_fundamental_data_invalid_symbol_real_objects(self, real_service, test_data):
         """Real objects version of test_fetch_fundamental_data_invalid_symbol"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fetch_fundamental_data_invalid_symbol_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fetch_fundamental_data_invalid_symbol_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_exchange_symbols_rate_limiting_real_objects(self, real_service, test_data):
         """Real objects version of test_exchange_symbols_rate_limiting"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.exchange_symbols_rate_limiting_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.exchange_symbols_rate_limiting_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_table_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_database_table_creation"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_table_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_table_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complete_workflow_small_sample_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_workflow_small_sample"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_workflow_small_sample_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.complete_workflow_small_sample_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_quality_after_population_real_objects(self, real_service, test_data):
         """Real objects version of test_data_quality_after_population"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_quality_after_population_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_quality_after_population_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bulk_mode_sample_real_objects(self, real_service, test_data):
         """Real objects version of test_bulk_mode_sample"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bulk_mode_sample_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bulk_mode_sample_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_error_recovery_real_objects(self, real_service, test_data):
         """Real objects version of test_error_recovery"""
         # Test with real database integration
@@ -275,15 +210,8 @@ class TestRealObjectsEODHDAPIIntegration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.error_recovery_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.error_recovery_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

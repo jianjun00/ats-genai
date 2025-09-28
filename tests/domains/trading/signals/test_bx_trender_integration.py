@@ -12,7 +12,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
 from domains.trading.signals.indicator import BXTrenderBasic, BXTrenderDirectional, BXTrenderVolumeWeighted
-from domains.trading.signals.enhanced_indicators import BXTrenderIndicator, calculate_all_technical_indicators, ResidualReturnIndicatorConfig
+from domains.trading.services.indicators.enhanced_indicators import BXTrenderIndicator, calculate_all_technical_indicators, ResidualReturnIndicatorConfig
 from domains.trading.signals.indicator_config import IndicatorConfig
 
 class TestBXTrenderIntegration(unittest.TestCase):

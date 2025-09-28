@@ -56,49 +56,45 @@ def test_robust_file_key_parsing():
             pytest.fail(f"File key {file_key} has insufficient parts")
             continue
         
-        try:
-            # The year and month are always the last two parts
-            month_str = parts[-1]
-            year_str = parts[-2]
-            
-            # Validate that these look like year/month
-            year = int(year_str)
-            month = int(month_str)
-            
-            # Basic validation
-            if year < 2000 or year > 2100 or month < 1 or month > 12:
-                pytest.fail(f"Invalid year/month: {year}/{month}")
-                continue
-            
-            year_month = f"{year_str}_{month_str}"
-            
-            # Extract symbol (always first part)
-            symbol = parts[0]
-            
-            # Find timeframe by looking for specific patterns like '5m', '15m', '60m', '1h', '1d', '1w'
-            timeframe = None
-            import re
-            timeframe_pattern = re.compile(r'^\d+[mhdw]$')  # digit(s) followed by m/h/d/w
-            for part in parts[1:-2]:  # Exclude symbol and year/month
-                if timeframe_pattern.match(part):
-                    timeframe = part
-                    break
-            
-            if not timeframe:
-                # Fallback: assume second part is timeframe (legacy behavior)
-                timeframe = parts[1] if len(parts) > 1 else 'unknown'
-            
-            # Verify results
-            assert symbol == expected_symbol, f"Symbol mismatch: {symbol} != {expected_symbol}"
-            assert timeframe == expected_timeframe, f"Timeframe mismatch: {timeframe} != {expected_timeframe}"
-            assert year == expected_year, f"Year mismatch: {year} != {expected_year}"
-            assert month == expected_month, f"Month mismatch: {month} != {expected_month}"
-            
-            print(f"     ✅ Parsed: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
-            
-        except (ValueError, IndexError) as e:
-            pytest.fail(f"Parsing failed for {file_key}: {e}")
-    
+        # The year and month are always the last two parts
+        month_str = parts[-1]
+        year_str = parts[-2]
+        
+        # Validate that these look like year/month
+        year = int(year_str)
+        month = int(month_str)
+        
+        # Basic validation
+        if year < 2000 or year > 2100 or month < 1 or month > 12:
+            pytest.fail(f"Invalid year/month: {year}/{month}")
+            continue
+        
+        year_month = f"{year_str}_{month_str}"
+        
+        # Extract symbol (always first part)
+        symbol = parts[0]
+        
+        # Find timeframe by looking for specific patterns like '5m', '15m', '60m', '1h', '1d', '1w'
+        timeframe = None
+        import re
+        timeframe_pattern = re.compile(r'^\d+[mhdw]$')  # digit(s) followed by m/h/d/w
+        for part in parts[1:-2]:  # Exclude symbol and year/month
+            if timeframe_pattern.match(part):
+                timeframe = part
+                break
+        
+        if not timeframe:
+            # Fallback: assume second part is timeframe (legacy behavior)
+            timeframe = parts[1] if len(parts) > 1 else 'unknown'
+        
+        # Verify results
+        assert symbol == expected_symbol, f"Symbol mismatch: {symbol} != {expected_symbol}"
+        assert timeframe == expected_timeframe, f"Timeframe mismatch: {timeframe} != {expected_timeframe}"
+        assert year == expected_year, f"Year mismatch: {year} != {expected_year}"
+        assert month == expected_month, f"Month mismatch: {month} != {expected_month}"
+        
+        print(f"     ✅ Parsed: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
+        
     print("   ✅ All file key formats parsed successfully")
 
 
@@ -124,33 +120,29 @@ def test_robust_parsing_handles_problematic_cases():
         print(f"   Old logic would try: int(parts[3]) = int('{parts[3]}') → ValueError!")
         
         # New robust logic should work
-        try:
-            month_str = parts[-1]  # '07'
-            year_str = parts[-2]   # '2025'
-            year = int(year_str)
-            month = int(month_str)
-            
-            symbol = parts[0]  # 'AAPL'
-            
-            # Find timeframe
-            timeframe = None
-            import re
-            timeframe_pattern = re.compile(r'^\d+[mhdw]$')
-            for part in parts[1:-2]:
-                if timeframe_pattern.match(part):
-                    timeframe = part
-                    break
-            
-            print(f"   ✅ New logic works: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
-            
-            assert year == 2025
-            assert month == 7
-            assert symbol == 'AAPL'
-            assert timeframe == '5m'
-            
-        except ValueError as e:
-            pytest.fail(f"New logic failed for {file_key}: {e}")
-    
+        month_str = parts[-1]  # '07'
+        year_str = parts[-2]   # '2025'
+        year = int(year_str)
+        month = int(month_str)
+        
+        symbol = parts[0]  # 'AAPL'
+        
+        # Find timeframe
+        timeframe = None
+        import re
+        timeframe_pattern = re.compile(r'^\d+[mhdw]$')
+        for part in parts[1:-2]:
+            if timeframe_pattern.match(part):
+                timeframe = part
+                break
+        
+        print(f"   ✅ New logic works: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
+        
+        assert year == 2025
+        assert month == 7
+        assert symbol == 'AAPL'
+        assert timeframe == '5m'
+        
     print("   ✅ All problematic cases now handled correctly")
 
 
@@ -183,22 +175,18 @@ def test_edge_cases_and_invalid_formats():
             print(f"     ✅ Insufficient parts ({len(parts)}), would be skipped")
             continue
         
-        try:
-            month_str = parts[-1]
-            year_str = parts[-2]
-            year = int(year_str)
-            month = int(month_str)
-            
-            # Basic validation should catch invalid values
-            if year < 2000 or year > 2100 or month < 1 or month > 12:
-                print(f"     ✅ Invalid year/month ({year}/{month}), would be skipped")
-                continue
-            
-            print(f"     ⚠️  Unexpectedly parsed: year={year}, month={month}")
-            
-        except ValueError:
-            print(f"     ✅ ValueError caught, would be skipped gracefully")
-    
+        month_str = parts[-1]
+        year_str = parts[-2]
+        year = int(year_str)
+        month = int(month_str)
+        
+        # Basic validation should catch invalid values
+        if year < 2000 or year > 2100 or month < 1 or month > 12:
+            print(f"     ✅ Invalid year/month ({year}/{month}), would be skipped")
+            continue
+        
+        print(f"     ⚠️  Unexpectedly parsed: year={year}, month={month}")
+        
     print("   ✅ Invalid formats handled gracefully")
 
 

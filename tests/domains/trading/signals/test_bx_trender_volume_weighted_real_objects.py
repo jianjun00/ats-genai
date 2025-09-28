@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsBXTrenderVolumeWeighted:
@@ -36,7 +31,7 @@ class TestRealObjectsBXTrenderVolumeWeighted:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsBXTrenderVolumeWeighted:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_initialization"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_insufficient_data_real_objects(self, real_service, test_data):
         """Real objects version of test_insufficient_data"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.insufficient_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.insufficient_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_no_volume_data_real_objects(self, real_service, test_data):
         """Real objects version of test_no_volume_data"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.no_volume_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.no_volume_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_invalid_data_real_objects(self, real_service, test_data):
         """Real objects version of test_invalid_data"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.invalid_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.invalid_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bullish_volume_weighted_trend_real_objects(self, real_service, test_data):
         """Real objects version of test_bullish_volume_weighted_trend"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bullish_volume_weighted_trend_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bullish_volume_weighted_trend_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_bearish_volume_weighted_trend_real_objects(self, real_service, test_data):
         """Real objects version of test_bearish_volume_weighted_trend"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.bearish_volume_weighted_trend_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.bearish_volume_weighted_trend_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_neutral_volume_pattern_real_objects(self, real_service, test_data):
         """Real objects version of test_neutral_volume_pattern"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.neutral_volume_pattern_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.neutral_volume_pattern_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_volume_momentum_calculation_real_objects(self, real_service, test_data):
         """Real objects version of test_volume_momentum_calculation"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.volume_momentum_calculation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.volume_momentum_calculation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_zero_volume_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_zero_volume_handling"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.zero_volume_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.zero_volume_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_trend_strength_with_volume_weighting_real_objects(self, real_service, test_data):
         """Real objects version of test_trend_strength_with_volume_weighting"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trend_strength_with_volume_weighting_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trend_strength_with_volume_weighting_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_different_periods_real_objects(self, real_service, test_data):
         """Real objects version of test_different_periods"""
         # Test with real database integration
@@ -297,14 +226,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.different_periods_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.different_periods_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_volume_ratio_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_volume_ratio_validation"""
         # Test with real database integration
@@ -319,14 +242,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.volume_ratio_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.volume_ratio_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_reset_values_method_real_objects(self, real_service, test_data):
         """Real objects version of test_reset_values_method"""
         # Test with real database integration
@@ -341,14 +258,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.reset_values_method_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.reset_values_method_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_getter_methods_real_objects(self, real_service, test_data):
         """Real objects version of test_getter_methods"""
         # Test with real database integration
@@ -363,14 +274,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.getter_methods_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.getter_methods_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calculation_error_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_calculation_error_handling"""
         # Test with real database integration
@@ -385,14 +290,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calculation_error_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calculation_error_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extreme_volume_scenarios_real_objects(self, real_service, test_data):
         """Real objects version of test_extreme_volume_scenarios"""
         # Test with real database integration
@@ -407,14 +306,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extreme_volume_scenarios_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extreme_volume_scenarios_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_enhanced_framework_calculation_real_objects(self, real_service, test_data):
         """Real objects version of test_enhanced_framework_calculation"""
         # Test with real database integration
@@ -429,14 +322,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.enhanced_framework_calculation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.enhanced_framework_calculation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_enhanced_framework_no_volume_data_real_objects(self, real_service, test_data):
         """Real objects version of test_enhanced_framework_no_volume_data"""
         # Test with real database integration
@@ -451,14 +338,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.enhanced_framework_no_volume_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.enhanced_framework_no_volume_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_enhanced_framework_insufficient_data_real_objects(self, real_service, test_data):
         """Real objects version of test_enhanced_framework_insufficient_data"""
         # Test with real database integration
@@ -473,14 +354,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.enhanced_framework_insufficient_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.enhanced_framework_insufficient_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_enhanced_framework_bearish_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_enhanced_framework_bearish_scenario"""
         # Test with real database integration
@@ -495,15 +370,8 @@ class TestRealObjectsBXTrenderVolumeWeighted:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.enhanced_framework_bearish_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.enhanced_framework_bearish_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

@@ -115,23 +115,18 @@ class SlackDailyCoverageSummary:
 
     async def initialize(self):
         """Initialize database connection."""
-        try:
-            self.db_pool = await asyncpg.create_pool(
-                host=self.db_config.host,
-                port=self.db_config.port,
-                user=self.db_config.user,
-                password=self.db_config.password,
-                database=self.db_config.database,
-                min_size=1,
-                max_size=5,
-                command_timeout=30
-            )
-            logger.info("✅ Database connection pool initialized")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Database initialization failed: {e}")
-            return False
-
+        self.db_pool = await asyncpg.create_pool(
+            host=self.db_config.host,
+            port=self.db_config.port,
+            user=self.db_config.user,
+            password=self.db_config.password,
+            database=self.db_config.database,
+            min_size=1,
+            max_size=5,
+            command_timeout=30
+        )
+        logger.info("✅ Database connection pool initialized")
+        return True
     async def get_active_instruments(self) -> List[Tuple[int, str]]:
         """Get list of active instruments."""
         query = """
@@ -182,57 +177,52 @@ class SlackDailyCoverageSummary:
         WHERE instrument_id = ANY($1)
         """
 
-        try:
-            async with self.db_pool.acquire() as conn:
-                # Total coverage
-                total_result = await conn.fetchrow(total_query, instrument_ids, trading_days)
-                total_records = total_result['total_records'] if total_result else 0
+        async with self.db_pool.acquire() as conn:
+            # Total coverage
+            total_result = await conn.fetchrow(total_query, instrument_ids, trading_days)
+            total_records = total_result['total_records'] if total_result else 0
 
-                # Recent coverage for trend
-                recent_result = await conn.fetchrow(recent_query, instrument_ids, recent_days)
-                recent_records = recent_result['recent_records'] if recent_result else 0
+            # Recent coverage for trend
+            recent_result = await conn.fetchrow(recent_query, instrument_ids, recent_days)
+            recent_records = recent_result['recent_records'] if recent_result else 0
 
-                # Data freshness
-                freshness_result = await conn.fetchrow(freshness_query, instrument_ids)
-                latest_date = freshness_result['latest_date'] if freshness_result else None
+            # Data freshness
+            freshness_result = await conn.fetchrow(freshness_query, instrument_ids)
+            latest_date = freshness_result['latest_date'] if freshness_result else None
 
-                # Calculate metrics
-                expected_total_records = len(instruments) * len(trading_days)
-                expected_recent_records = len(instruments) * len(recent_days)
+            # Calculate metrics
+            expected_total_records = len(instruments) * len(trading_days)
+            expected_recent_records = len(instruments) * len(recent_days)
 
-                coverage_percentage = (total_records / expected_total_records * 100) if expected_total_records > 0 else 0.0
-                recent_coverage = (recent_records / expected_recent_records * 100) if expected_recent_records > 0 else 0.0
+            coverage_percentage = (total_records / expected_total_records * 100) if expected_total_records > 0 else 0.0
+            recent_coverage = (recent_records / expected_recent_records * 100) if expected_recent_records > 0 else 0.0
 
-                # Calculate trend (simplified)
-                if recent_coverage > coverage_percentage * 1.05:
-                    trend = "↑"
-                elif recent_coverage < coverage_percentage * 0.95:
-                    trend = "↓"
-                else:
-                    trend = "→"
+            # Calculate trend (simplified)
+            if recent_coverage > coverage_percentage * 1.05:
+                trend = "↑"
+            elif recent_coverage < coverage_percentage * 0.95:
+                trend = "↓"
+            else:
+                trend = "→"
 
-                # Data freshness in hours
-                if latest_date:
-                    freshness_hours = (datetime.now().date() - latest_date).days * 24.0
-                else:
-                    freshness_hours = float('inf')
+            # Data freshness in hours
+            if latest_date:
+                freshness_hours = (datetime.now().date() - latest_date).days * 24.0
+            else:
+                freshness_hours = float('inf')
 
-                instruments_with_data = int(total_records / len(trading_days)) if trading_days else 0
-                missing_instruments = len(instruments) - instruments_with_data
+            instruments_with_data = int(total_records / len(trading_days)) if trading_days else 0
+            missing_instruments = len(instruments) - instruments_with_data
 
-                return VendorSummary(
-                    vendor=vendor,
-                    total_instruments=len(instruments),
-                    instruments_with_data=instruments_with_data,
-                    coverage_percentage=coverage_percentage,
-                    missing_instruments=missing_instruments,
-                    data_freshness_hours=freshness_hours,
-                    trend_direction=trend
-                )
-
-        except Exception as e:
-            logger.error(f"❌ Error getting {vendor} coverage: {e}")
-            return VendorSummary(vendor, len(instruments), 0, 0.0, len(instruments), 0.0, "→")
+            return VendorSummary(
+                vendor=vendor,
+                total_instruments=len(instruments),
+                instruments_with_data=instruments_with_data,
+                coverage_percentage=coverage_percentage,
+                missing_instruments=missing_instruments,
+                data_freshness_hours=freshness_hours,
+                trend_direction=trend
+            )
 
     async def generate_coverage_report(self, days: int = 90) -> Dict:
         """Generate comprehensive coverage report."""
@@ -347,23 +337,18 @@ class SlackDailyCoverageSummary:
                 logger.warning("⚠️ SLACK_WEBHOOK_URL not configured - skipping notification")
                 return False
 
-        try:
-            response = requests.post(
-                self.slack_webhook_url,
-                json=message,
-                headers={'Content-Type': 'application/json'},
-                timeout=30
-            )
+        response = requests.post(
+            self.slack_webhook_url,
+            json=message,
+            headers={'Content-Type': 'application/json'},
+            timeout=30
+        )
 
-            if response.status_code == 200:
-                logger.info("✅ Slack notification sent successfully")
-                return True
-            else:
-                logger.error(f"❌ Slack notification failed: {response.status_code} - {response.text}")
-                return False
-
-        except Exception as e:
-            logger.error(f"❌ Error sending Slack notification: {e}")
+        if response.status_code == 200:
+            logger.info("✅ Slack notification sent successfully")
+            return True
+        else:
+            logger.error(f"❌ Slack notification failed: {response.status_code} - {response.text}")
             return False
 
     async def run(self, days: int = 90, test_mode: bool = False):
@@ -379,28 +364,20 @@ class SlackDailyCoverageSummary:
             logger.error("❌ Cannot initialize database connection")
             sys.exit(1)
 
-        try:
-            # Generate coverage report
-            report = await self.generate_coverage_report(days)
+        # Generate coverage report
+        report = await self.generate_coverage_report(days)
 
-            # Format Slack message
-            message = self.format_slack_message(report)
+        # Format Slack message
+        message = self.format_slack_message(report)
 
-            # Send notification
-            success = await self.send_slack_notification(message, test_mode)
+        # Send notification
+        success = await self.send_slack_notification(message, test_mode)
 
-            if success:
-                logger.info("✅ Daily coverage summary completed successfully")
-            else:
-                logger.error("❌ Failed to send daily coverage summary")
-                sys.exit(1)
-
-        except Exception as e:
-            logger.error(f"❌ Error in daily coverage summary: {e}")
+        if success:
+            logger.info("✅ Daily coverage summary completed successfully")
+        else:
+            logger.error("❌ Failed to send daily coverage summary")
             sys.exit(1)
-        finally:
-            if self.db_pool:
-                await self.db_pool.close()
 
 async def main():
     """Main entry point."""

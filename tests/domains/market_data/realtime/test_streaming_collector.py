@@ -21,7 +21,7 @@ import os
 import sys
 sys.path.append('src')
 
-from domains.market_data.services.realtime.streaming_collector import (
+from domains.market_data.services.data_collection.realtime.streaming_collector import (
     RealtimeStreamingCollector,
     MinuteBar
 )
@@ -459,12 +459,7 @@ class TestPolygonIntegration:
         mock_websocket.__aiter__ = AsyncMock(return_value=iter([]))
 
         with patch('market_data.realtime.streaming_collector.websockets.connect', return_value=mock_websocket):
-            try:
-                await collector._polygon_websocket_stream()
-            except:
-                pass  # We expect this to fail in test environment
-
-            # Verify authentication message was sent
+            await collector._polygon_websocket_stream()
             auth_calls = [call for call in mock_websocket.send.call_args_list
                          if 'auth' in str(call)]
             assert len(auth_calls) >= 1

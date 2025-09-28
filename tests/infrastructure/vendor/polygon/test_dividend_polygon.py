@@ -21,8 +21,8 @@ async def test_insert_dividends_polygon_inserts_correctly(unit_test_db):
     ]
     ticker = "AAPL"
         # Patch: Inject DAO with test DB URL
-    from dao.dividend_polygon_dao import DividendPolygonDAO
-    from core.shared.utils.environment import Environment, EnvironmentType
+    from infrastructure.vendor.polygon.dao.dividend_polygon_dao import DividendPolygonDAO
+    from core.platform.config.environment import Environment, EnvironmentType
     env = Environment(EnvironmentType.TEST, db_url=unit_test_db)
     dao = DividendPolygonDAO(env)
     await dividend_polygon.insert_dividends_polygon(dividends, ticker, dao=dao)

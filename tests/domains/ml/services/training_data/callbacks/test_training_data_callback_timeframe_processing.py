@@ -33,8 +33,9 @@ sys.path.insert(0, 'src')
 
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator, TrainingDataConfig
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
-from tests.utils.test_data_setup import setup_single_symbol_test
+from core.platform.config.environment import Environment, EnvironmentType
+# FIXME: tests.utils module does not exist
+# from tests.utils.test_data_setup import setup_single_symbol_test
 import asyncpg
 
 class RealUniverseStateManagerWrapper:
@@ -81,12 +82,7 @@ class RealUniverseStateManagerWrapper:
         print(f"🔍 REAL: get_lag_prices called with instrument_id={instrument_id}, cur_datetime={cur_datetime}, lag_periods={lag_periods}, time_interval={time_interval}")
         
         # Try real manager first, fallback to test data
-        try:
-            return await self.real_manager.get_lag_prices(instrument_id, cur_datetime, lag_periods, time_interval)
-        except Exception as e:
-            print(f"Real manager failed: {e}, using test data fallback")
-            return self._fallback_lag_prices(instrument_id, cur_datetime, lag_periods, time_interval)
-    
+        return await self.real_manager.get_lag_prices(instrument_id, cur_datetime, lag_periods, time_interval)
     def _fallback_lag_prices(self, instrument_id: int, cur_datetime: datetime, lag_periods: int, time_interval: str) -> pd.DataFrame:
         
         # Get the requested time interval in minutes
@@ -152,12 +148,7 @@ class RealUniverseStateManagerWrapper:
     
     async def get_lead_prices(self, instrument_id: int, cur_datetime: datetime, lead_periods: int, time_interval: str = '1m') -> pd.DataFrame:
         """Use real manager for lead prices."""
-        try:
-            return await self.real_manager.get_lead_prices(instrument_id, cur_datetime, lead_periods, time_interval)
-        except Exception:
-            # For testing, return empty DataFrame if real manager fails
-            return pd.DataFrame()
-    
+        return await self.real_manager.get_lead_prices(instrument_id, cur_datetime, lead_periods, time_interval)
     async def get_lagged_signals(self, instrument_id: int, cur_datetime: datetime, lag_periods: int, time_interval: str = '1m', signal_names: List[str] = None) -> pd.DataFrame:
         """Mock lagged signals."""
         # For testing, return simple signals

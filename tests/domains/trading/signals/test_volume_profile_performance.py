@@ -12,7 +12,7 @@ import gc
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.trading.signals.enhanced_indicators import VolumeProfileIndicator
+from domains.trading.services.indicators.enhanced_indicators import VolumeProfileIndicator
 from domains.trading.signals.indicator import VolumeProfile
 from domains.trading.signals.advanced_volume_profile import (
     SessionVolumeProfile, MultiTimeframeVolumeProfile,
@@ -133,28 +133,24 @@ class VolumeProfilePerformanceBenchmark(unittest.TestCase):
             print(f"\n--- {dataset_name.title()} Dataset ({len(dataset)} bars) ---")
 
             for indicator_name, indicator in indicators:
-                try:
-                    benchmark = self._benchmark_indicator(indicator, dataset)
+                benchmark = self._benchmark_indicator(indicator, dataset)
 
-                    # Check against performance targets
-                    target_time = self.performance_targets[dataset_name]['basic']
-                    performance_ratio = benchmark['avg_time_ms'] / target_time
+                # Check against performance targets
+                target_time = self.performance_targets[dataset_name]['basic']
+                performance_ratio = benchmark['avg_time_ms'] / target_time
 
-                    status = "✅ PASS" if performance_ratio <= 1.0 else "⚠️  SLOW" if performance_ratio <= 2.0 else "❌ FAIL"
+                status = "✅ PASS" if performance_ratio <= 1.0 else "⚠️  SLOW" if performance_ratio <= 2.0 else "❌ FAIL"
 
-                    print(f"{indicator_name:30} | "
-                          f"Avg: {benchmark['avg_time_ms']:6.1f}ms | "
-                          f"Max: {benchmark['max_time_ms']:6.1f}ms | "
-                          f"Mem: {benchmark['avg_memory_mb']:5.1f}MB | "
-                          f"{status}")
+                print(f"{indicator_name:30} | "
+                      f"Avg: {benchmark['avg_time_ms']:6.1f}ms | "
+                      f"Max: {benchmark['max_time_ms']:6.1f}ms | "
+                      f"Mem: {benchmark['avg_memory_mb']:5.1f}MB | "
+                      f"{status}")
 
-                    # Assert performance requirements
-                    if dataset_name in ['small', 'medium']:
-                        self.assertLess(benchmark['avg_time_ms'], target_time * 2,
-                                      f"{indicator_name} too slow on {dataset_name} dataset")
-
-                except Exception as e:
-                    print(f"{indicator_name:30} | ERROR: {str(e)}")
+                # Assert performance requirements
+                if dataset_name in ['small', 'medium']:
+                    self.assertLess(benchmark['avg_time_ms'], target_time * 2,
+                                  f"{indicator_name} too slow on {dataset_name} dataset")
 
     def test_advanced_volume_profile_performance(self):
         """Test performance of advanced Volume Profile variants."""
@@ -172,26 +168,22 @@ class VolumeProfilePerformanceBenchmark(unittest.TestCase):
         print(f"\n--- Medium Dataset ({len(self.medium_dataset)} bars) ---")
 
         for indicator_name, indicator in indicators:
-            try:
-                benchmark = self._benchmark_indicator(indicator, self.medium_dataset, runs=3)
+            benchmark = self._benchmark_indicator(indicator, self.medium_dataset, runs=3)
 
-                target_time = self.performance_targets['medium']['advanced']
-                performance_ratio = benchmark['avg_time_ms'] / target_time
+            target_time = self.performance_targets['medium']['advanced']
+            performance_ratio = benchmark['avg_time_ms'] / target_time
 
-                status = "✅ PASS" if performance_ratio <= 1.0 else "⚠️  SLOW" if performance_ratio <= 2.0 else "❌ FAIL"
+            status = "✅ PASS" if performance_ratio <= 1.0 else "⚠️  SLOW" if performance_ratio <= 2.0 else "❌ FAIL"
 
-                print(f"{indicator_name:25} | "
-                      f"Avg: {benchmark['avg_time_ms']:7.1f}ms | "
-                      f"Max: {benchmark['max_time_ms']:7.1f}ms | "
-                      f"Mem: {benchmark['avg_memory_mb']:5.1f}MB | "
-                      f"{status}")
+            print(f"{indicator_name:25} | "
+                  f"Avg: {benchmark['avg_time_ms']:7.1f}ms | "
+                  f"Max: {benchmark['max_time_ms']:7.1f}ms | "
+                  f"Mem: {benchmark['avg_memory_mb']:5.1f}MB | "
+                  f"{status}")
 
-                # Relaxed performance requirements for advanced indicators
-                self.assertLess(benchmark['avg_time_ms'], target_time * 3,
-                              f"{indicator_name} too slow")
-
-            except Exception as e:
-                print(f"{indicator_name:25} | ERROR: {str(e)}")
+            # Relaxed performance requirements for advanced indicators
+            self.assertLess(benchmark['avg_time_ms'], target_time * 3,
+                          f"{indicator_name} too slow")
 
     def test_parameter_scaling_performance(self):
         """Test how performance scales with different parameters."""
@@ -295,17 +287,13 @@ class VolumeProfilePerformanceBenchmark(unittest.TestCase):
         print("-" * 50)
 
         for case_name, dataset in edge_cases:
-            try:
-                benchmark = self._benchmark_indicator(indicator, dataset, runs=2)
-                result = indicator.calculate(dataset)
+            benchmark = self._benchmark_indicator(indicator, dataset, runs=2)
+            result = indicator.calculate(dataset)
 
-                print(f"{case_name:15} | {result['status']:6} | {benchmark['avg_time_ms']:8.1f} | {benchmark['avg_memory_mb']:9.1f}")
+            print(f"{case_name:15} | {result['status']:6} | {benchmark['avg_time_ms']:8.1f} | {benchmark['avg_memory_mb']:9.1f}")
 
-                # Edge cases should not crash and should complete reasonably quickly
-                self.assertLess(benchmark['avg_time_ms'], 1000, f"{case_name} too slow")
-
-            except Exception as e:
-                print(f"{case_name:15} | ERROR  | {str(e)}")
+            # Edge cases should not crash and should complete reasonably quickly
+            self.assertLess(benchmark['avg_time_ms'], 1000, f"{case_name} too slow")
 
     def _create_identical_price_data(self, size: int) -> pd.DataFrame:
         """Create dataset with identical prices (edge case)."""

@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, patch
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from domains.market_data.services.news.comprehensive_news_backfill import ComprehensiveNewsBackfillSystem
-from domains.analytics.events.economic_events_classifier import EconomicEventsProcessor
+from domains.market_data.services.vendor_adapters.news.comprehensive_news_backfill import ComprehensiveNewsBackfillSystem
+from domains.analytics.services.events.economic_events_classifier import EconomicEventsProcessor
 from training.multimodal_dataset_generator import MultiModalDatasetGenerator
 
 
@@ -508,19 +508,12 @@ class TestMultiVendorIntegration:
             ]
 
             # Should handle partial failure gracefully
-            try:
-                features = await dataset_generator.generate_news_features(
-                    'AAPL',
-                    date(2024, 1, 16)
-                )
-                # If it succeeds, should have some data from Tiingo
-                assert isinstance(features, dict)
-            except:
-                # Or it might fail completely, which is also acceptable
-                pass
-
-
-# Test configuration and fixtures
+            features = await dataset_generator.generate_news_features(
+                'AAPL',
+                date(2024, 1, 16)
+            )
+            # If it succeeds, should have some data from Tiingo
+            assert isinstance(features, dict)
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for the test session."""

@@ -10,8 +10,8 @@ import pytest
 from datetime import datetime, date
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from domains.market_data.services.agent.polygon_adapter import PolygonAdapter
-from domains.market_data.services.agent.tiingo_adapter import TiingoAdapter
+from domains.market_data.services.vendor_adapters.market_cap.unified_market_cap_provider import PolygonAdapter
+from domains.market_data.services.core.agent.tiingo_adapter import TiingoAdapter
 from core.shared.utils.database import Database
 
 
@@ -119,12 +119,7 @@ class TestDatabaseSchemaIssues:
 
             for query in test_queries:
                 # These should fail gracefully
-                try:
-                    await mock_connection.fetch(query)
-                except Exception as e:
-                    assert "does not exist" in str(e)
-
-
+                await mock_connection.fetch(query)
 class TestRealDataScenarios:
     """Test with real data scenarios that caused failures."""
 

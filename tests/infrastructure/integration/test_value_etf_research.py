@@ -189,58 +189,48 @@ class ValueETFResearcher:
         for etf in etfs:
             symbol = etf['symbol']
 
-            try:
-                # Daily data
-                url = f"{base_url}/{symbol}/range/1/day/{self.start_date}/{self.end_date}"
-                params = {
-                    'adjusted': 'true',
-                    'sort': 'asc',
-                    'limit': 50,
-                    'apikey': self.polygon_key
-                }
+            # Daily data
+            url = f"{base_url}/{symbol}/range/1/day/{self.start_date}/{self.end_date}"
+            params = {
+                'adjusted': 'true',
+                'sort': 'asc',
+                'limit': 50,
+                'apikey': self.polygon_key
+            }
 
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        api_status = data.get('status', '')
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    api_status = data.get('status', '')
 
-                        if api_status in ['OK', 'DELAYED']:
-                            results = data.get('results', [])
-                            daily_results[symbol] = {
-                                'available': True,
-                                'records': len(results),
-                                'status': api_status,
-                                'category': etf['category'],
-                                'priority': etf['priority'],
-                                'rationale': etf['rationale'],
-                                'expense_ratio': etf['expense_ratio']
-                            }
-                            print(f"✅ {symbol}: {len(results)} records ({etf['category']}, Priority {etf['priority']}, ER: {etf['expense_ratio']}%)")
-                        else:
-                            daily_results[symbol] = {
-                                'available': False,
-                                'error': f"API Status: {api_status}",
-                                'category': etf['category'],
-                                'priority': etf['priority']
-                            }
-                            print(f"❌ {symbol}: API Error - {api_status}")
+                    if api_status in ['OK', 'DELAYED']:
+                        results = data.get('results', [])
+                        daily_results[symbol] = {
+                            'available': True,
+                            'records': len(results),
+                            'status': api_status,
+                            'category': etf['category'],
+                            'priority': etf['priority'],
+                            'rationale': etf['rationale'],
+                            'expense_ratio': etf['expense_ratio']
+                        }
+                        print(f"✅ {symbol}: {len(results)} records ({etf['category']}, Priority {etf['priority']}, ER: {etf['expense_ratio']}%)")
                     else:
                         daily_results[symbol] = {
                             'available': False,
-                            'error': f"HTTP {response.status}",
+                            'error': f"API Status: {api_status}",
                             'category': etf['category'],
                             'priority': etf['priority']
                         }
-                        print(f"❌ {symbol}: HTTP {response.status}")
-
-            except Exception as e:
-                daily_results[symbol] = {
-                    'available': False,
-                    'error': str(e),
-                    'category': etf['category'],
-                    'priority': etf['priority']
-                }
-                print(f"💥 {symbol}: {e}")
+                        print(f"❌ {symbol}: API Error - {api_status}")
+                else:
+                    daily_results[symbol] = {
+                        'available': False,
+                        'error': f"HTTP {response.status}",
+                        'category': etf['category'],
+                        'priority': etf['priority']
+                    }
+                    print(f"❌ {symbol}: HTTP {response.status}")
 
             await asyncio.sleep(0.5)  # Rate limiting
 
@@ -255,55 +245,45 @@ class ValueETFResearcher:
         for etf in etfs:
             symbol = etf['symbol']
 
-            try:
-                url = f"https://api.tiingo.com/tiingo/daily/{symbol}/prices"
-                params = {
-                    'startDate': self.start_date.strftime('%Y-%m-%d'),
-                    'endDate': self.end_date.strftime('%Y-%m-%d'),
-                    'token': self.tiingo_key
-                }
+            url = f"https://api.tiingo.com/tiingo/daily/{symbol}/prices"
+            params = {
+                'startDate': self.start_date.strftime('%Y-%m-%d'),
+                'endDate': self.end_date.strftime('%Y-%m-%d'),
+                'token': self.tiingo_key
+            }
 
-                headers = {'Content-Type': 'application/json'}
+            headers = {'Content-Type': 'application/json'}
 
-                async with session.get(url, params=params, headers=headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
+            async with session.get(url, params=params, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
 
-                        if isinstance(data, list) and data:
-                            daily_results[symbol] = {
-                                'available': True,
-                                'records': len(data),
-                                'category': etf['category'],
-                                'priority': etf['priority'],
-                                'rationale': etf['rationale'],
-                                'expense_ratio': etf['expense_ratio']
-                            }
-                            print(f"✅ {symbol}: {len(data)} records ({etf['category']}, Priority {etf['priority']}, ER: {etf['expense_ratio']}%)")
-                        else:
-                            daily_results[symbol] = {
-                                'available': False,
-                                'error': "Empty response",
-                                'category': etf['category'],
-                                'priority': etf['priority']
-                            }
-                            print(f"📭 {symbol}: No data")
+                    if isinstance(data, list) and data:
+                        daily_results[symbol] = {
+                            'available': True,
+                            'records': len(data),
+                            'category': etf['category'],
+                            'priority': etf['priority'],
+                            'rationale': etf['rationale'],
+                            'expense_ratio': etf['expense_ratio']
+                        }
+                        print(f"✅ {symbol}: {len(data)} records ({etf['category']}, Priority {etf['priority']}, ER: {etf['expense_ratio']}%)")
                     else:
                         daily_results[symbol] = {
                             'available': False,
-                            'error': f"HTTP {response.status}",
+                            'error': "Empty response",
                             'category': etf['category'],
                             'priority': etf['priority']
                         }
-                        print(f"❌ {symbol}: HTTP {response.status}")
-
-            except Exception as e:
-                daily_results[symbol] = {
-                    'available': False,
-                    'error': str(e),
-                    'category': etf['category'],
-                    'priority': etf['priority']
-                }
-                print(f"💥 {symbol}: {e}")
+                        print(f"📭 {symbol}: No data")
+                else:
+                    daily_results[symbol] = {
+                        'available': False,
+                        'error': f"HTTP {response.status}",
+                        'category': etf['category'],
+                        'priority': etf['priority']
+                    }
+                    print(f"❌ {symbol}: HTTP {response.status}")
 
             await asyncio.sleep(0.3)
 
@@ -318,55 +298,45 @@ class ValueETFResearcher:
         for etf in etfs:
             symbol = etf['symbol']
 
-            try:
-                url = f"https://eodhd.com/api/eod/{symbol}.US"
-                params = {
-                    'from': self.start_date.strftime('%Y-%m-%d'),
-                    'to': self.end_date.strftime('%Y-%m-%d'),
-                    'period': 'd',
-                    'fmt': 'json',
-                    'api_token': self.eodhd_key
-                }
+            url = f"https://eodhd.com/api/eod/{symbol}.US"
+            params = {
+                'from': self.start_date.strftime('%Y-%m-%d'),
+                'to': self.end_date.strftime('%Y-%m-%d'),
+                'period': 'd',
+                'fmt': 'json',
+                'api_token': self.eodhd_key
+            }
 
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
 
-                        if isinstance(data, list) and data:
-                            daily_results[symbol] = {
-                                'available': True,
-                                'records': len(data),
-                                'category': etf['category'],
-                                'priority': etf['priority'],
-                                'rationale': etf['rationale'],
-                                'expense_ratio': etf['expense_ratio']
-                            }
-                            print(f"✅ {symbol}: {len(data)} records ({etf['category']}, Priority {etf['priority']}, ER: {etf['expense_ratio']}%)")
-                        else:
-                            daily_results[symbol] = {
-                                'available': False,
-                                'error': "Empty response",
-                                'category': etf['category'],
-                                'priority': etf['priority']
-                            }
-                            print(f"📭 {symbol}: No data")
+                    if isinstance(data, list) and data:
+                        daily_results[symbol] = {
+                            'available': True,
+                            'records': len(data),
+                            'category': etf['category'],
+                            'priority': etf['priority'],
+                            'rationale': etf['rationale'],
+                            'expense_ratio': etf['expense_ratio']
+                        }
+                        print(f"✅ {symbol}: {len(data)} records ({etf['category']}, Priority {etf['priority']}, ER: {etf['expense_ratio']}%)")
                     else:
                         daily_results[symbol] = {
                             'available': False,
-                            'error': f"HTTP {response.status}",
+                            'error': "Empty response",
                             'category': etf['category'],
                             'priority': etf['priority']
                         }
-                        print(f"❌ {symbol}: HTTP {response.status}")
-
-            except Exception as e:
-                daily_results[symbol] = {
-                    'available': False,
-                    'error': str(e),
-                    'category': etf['category'],
-                    'priority': etf['priority']
-                }
-                print(f"💥 {symbol}: {e}")
+                        print(f"📭 {symbol}: No data")
+                else:
+                    daily_results[symbol] = {
+                        'available': False,
+                        'error': f"HTTP {response.status}",
+                        'category': etf['category'],
+                        'priority': etf['priority']
+                    }
+                    print(f"❌ {symbol}: HTTP {response.status}")
 
             await asyncio.sleep(0.2)
 

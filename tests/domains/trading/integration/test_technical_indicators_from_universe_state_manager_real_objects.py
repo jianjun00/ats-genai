@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
@@ -36,7 +31,7 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_extract_technical_indicators_from_dataframe_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_technical_indicators_from_dataframe"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_technical_indicators_from_dataframe_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_technical_indicators_from_dataframe_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_extract_all_features_includes_indicators_real_objects(self, real_service, test_data):
         """Real objects version of test_extract_all_features_includes_indicators"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.extract_all_features_includes_indicators_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.extract_all_features_includes_indicators_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sequence_window_builder_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_sequence_window_builder_integration"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sequence_window_builder_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.sequence_window_builder_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_indicators_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_indicators_handling"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_indicators_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_indicators_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_nan_indicator_values_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_nan_indicator_values_handling"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.nan_indicator_values_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.nan_indicator_values_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complete_indicators_flow_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_indicators_flow_integration"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_indicators_flow_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.complete_indicators_flow_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_universe_state_manager_method_separation_real_objects(self, real_service, test_data):
         """Real objects version of test_universe_state_manager_method_separation"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.universe_state_manager_method_separation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.universe_state_manager_method_separation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_actual_integration_with_separate_methods_real_objects(self, real_service, test_data):
         """Real objects version of test_actual_integration_with_separate_methods"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.actual_integration_with_separate_methods_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.actual_integration_with_separate_methods_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gin_configurable_signal_names_real_objects(self, real_service, test_data):
         """Real objects version of test_gin_configurable_signal_names"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gin_configurable_signal_names_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gin_configurable_signal_names_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_default_signal_configuration_real_objects(self, real_service, test_data):
         """Real objects version of test_default_signal_configuration"""
         # Test with real database integration
@@ -275,15 +210,8 @@ class TestRealObjectsTechnicalIndicatorsFromUniverseStateManager:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.default_signal_configuration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.default_signal_configuration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

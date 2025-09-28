@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 import asyncpg
 
-from sentiment.news_sentiment_analyzer import (
+from domains.analytics.services.sentiment.news_sentiment_analyzer import (
     SentimentScore,
     NewsArticle,
     SentimentSignal,

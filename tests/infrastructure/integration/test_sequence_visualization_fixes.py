@@ -206,29 +206,24 @@ if __name__ == "__main__":
     print("🧪 Running Sequence Visualization Fixes Tests")
     print("=" * 60)
 
-    try:
-        print("\\n1. Testing training datasets API...")
-        dataset_id = test_training_datasets_api()
+    print("\\n1. Testing training datasets API...")
+    dataset_id = test_training_datasets_api()
 
-        print("\\n2. Testing sequences API fields...")
-        dataset_id, sequence_id = test_sequences_api_has_required_fields()
+    print("\\n2. Testing sequences API fields...")
+    dataset_id, sequence_id = test_sequences_api_has_required_fields()
 
-        print("\\n3. Testing visualization data API...")
-        test_visualization_data_api()
+    print("\\n3. Testing visualization data API...")
+    test_visualization_data_api()
 
-        print("\\n4. Testing URL patterns...")
-        test_endpoint_url_patterns()
+    print("\\n4. Testing URL patterns...")
+    test_endpoint_url_patterns()
 
-        print("\\n5. Testing error handling...")
-        test_error_handling()
+    print("\\n5. Testing error handling...")
+    test_error_handling()
 
-        print("\\n🎉 All sequence visualization fixes verified!")
-        print("✅ No 'undefined' in sequence selection")
-        print("✅ Plotly chart data available")
-        print("✅ Data rows populated correctly")
-        print("✅ All endpoints use GET requests")
+    print("\\n🎉 All sequence visualization fixes verified!")
+    print("✅ No 'undefined' in sequence selection")
+    print("✅ Plotly chart data available")
+    print("✅ Data rows populated correctly")
+    print("✅ All endpoints use GET requests")
 
-    except Exception as e:
-        print(f"\\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()

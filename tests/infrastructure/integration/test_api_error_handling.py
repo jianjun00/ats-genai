@@ -17,7 +17,7 @@ from unittest.mock import patch, AsyncMock
 from datetime import datetime
 import json
 
-from core.shared.utils.environment import Environment
+from core.platform.config.environment import Environment
 
 
 class TestAPIErrorHandling:
@@ -255,46 +255,39 @@ class TestDataQualityValidation:
 
         db_url = 'postgresql://postgres:postgres@localhost:5433/dev_db'
 
-        try:
-            conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url)
 
-            # Check for obviously invalid price data
-            invalid_prices = await conn.fetch("""
-                SELECT DISTINCT instrument_id, symbol, close, date, 'polygon' as source
-                FROM dev_daily_price_polygon p
-                JOIN dev_instrument i ON p.instrument_id = i.id
-                WHERE close <= 0 OR close > 10000  -- Suspiciously high/low prices
-                ORDER BY close DESC
-                LIMIT 10
-            """)
+        # Check for obviously invalid price data
+        invalid_prices = await conn.fetch("""
+            SELECT DISTINCT instrument_id, symbol, close, date, 'polygon' as source
+            FROM dev_daily_price_polygon p
+            JOIN dev_instrument i ON p.instrument_id = i.id
+            WHERE close <= 0 OR close > 10000  -- Suspiciously high/low prices
+            ORDER BY close DESC
+            LIMIT 10
+        """)
 
-            if invalid_prices:
-                print("⚠️ Found potentially invalid price data:")
-                for row in invalid_prices:
-                    print(f"  • {row['symbol']}: ${row['close']:.2f} on {row['date']} ({row['source']})")
+        if invalid_prices:
+            print("⚠️ Found potentially invalid price data:")
+            for row in invalid_prices:
+                print(f"  • {row['symbol']}: ${row['close']:.2f} on {row['date']} ({row['source']})")
 
-            # Check for missing recent price data
-            missing_recent = await conn.fetchval("""
-                SELECT COUNT(DISTINCT i.id)
-                FROM dev_instrument i
-                LEFT JOIN dev_daily_price_polygon p ON i.id = p.instrument_id
-                    AND p.date >= CURRENT_DATE - INTERVAL '30 days'
-                WHERE p.instrument_id IS NULL
-                  AND i.symbol ~ '^[A-Z]{1,5}$'  -- Regular stock symbols
-            """)
+        # Check for missing recent price data
+        missing_recent = await conn.fetchval("""
+            SELECT COUNT(DISTINCT i.id)
+            FROM dev_instrument i
+            LEFT JOIN dev_daily_price_polygon p ON i.id = p.instrument_id
+                AND p.date >= CURRENT_DATE - INTERVAL '30 days'
+            WHERE p.instrument_id IS NULL
+              AND i.symbol ~ '^[A-Z]{1,5}$'  -- Regular stock symbols
+        """)
 
-            await conn.close()
+        await conn.close()
 
-            print(f"📊 Instruments missing recent price data: {missing_recent}")
+        print(f"📊 Instruments missing recent price data: {missing_recent}")
 
-            # This is informational - we don't fail the test
-            assert True
-
-        except Exception as e:
-            print(f"⚠️ Could not validate price data: {e}")
-            # Don't fail test if database unavailable
-            assert True
-
+        # This is informational - we don't fail the test
+        assert True
 
 class TestSystemResilience:
     """Test overall system resilience and recovery patterns"""
@@ -330,23 +323,18 @@ class TestSystemResilience:
         original_method = engine.fetch_shares_outstanding
         engine.fetch_shares_outstanding = mock_fetch_shares
 
-        try:
-            # Process a batch of instruments
-            test_instruments = [
-                (1, 'AAPL'), (2, 'MSFT'), (3, 'GOOGL'), (4, 'AMZN')
-            ]
+        # Process a batch of instruments
+        test_instruments = [
+            (1, 'AAPL'), (2, 'MSFT'), (3, 'GOOGL'), (4, 'AMZN')
+        ]
 
-            mock_session = AsyncMock()
-            results = await engine.process_instrument_batch(test_instruments, mock_session)
+        mock_session = AsyncMock()
+        results = await engine.process_instrument_batch(test_instruments, mock_session)
 
-            # Should have some successes despite partial failures
-            # Exact count depends on price data availability
-            assert isinstance(results, list)
-            print(f"✅ Processed {len(results)} out of {len(test_instruments)} instruments")
-
-        finally:
-            # Restore original method
-            engine.fetch_shares_outstanding = original_method
+        # Should have some successes despite partial failures
+        # Exact count depends on price data availability
+        assert isinstance(results, list)
+        print(f"✅ Processed {len(results)} out of {len(test_instruments)} instruments")
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -358,35 +346,29 @@ class TestSystemResilience:
 
         db_url = 'postgresql://postgres:postgres@localhost:5433/dev_db'
 
-        try:
-            conn = await asyncpg.connect(db_url)
+        conn = await asyncpg.connect(db_url)
 
-            # Should still be able to query existing market cap data
-            existing_data = await conn.fetchval("""
-                SELECT COUNT(*) FROM dev_daily_market_cap
-                WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-            """)
+        # Should still be able to query existing market cap data
+        existing_data = await conn.fetchval("""
+            SELECT COUNT(*) FROM dev_daily_market_cap
+            WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+        """)
 
-            print(f"📊 Can still access {existing_data:,} recent market cap records")
+        print(f"📊 Can still access {existing_data:,} recent market cap records")
 
-            # Should still be able to run universe queries
-            universe_count = await conn.fetchval("""
-                SELECT COUNT(DISTINCT i.symbol)
-                FROM dev_instrument i
-                JOIN dev_daily_market_cap mc ON i.id = mc.instrument_id
-                WHERE mc.market_cap >= 400000000
-            """)
+        # Should still be able to run universe queries
+        universe_count = await conn.fetchval("""
+            SELECT COUNT(DISTINCT i.symbol)
+            FROM dev_instrument i
+            JOIN dev_daily_market_cap mc ON i.id = mc.instrument_id
+            WHERE mc.market_cap >= 400000000
+        """)
 
-            print(f"🎯 Can still identify {universe_count} qualifying stocks for universe")
+        print(f"🎯 Can still identify {universe_count} qualifying stocks for universe")
 
-            await conn.close()
+        await conn.close()
 
-            assert True  # System gracefully handles API unavailability
-
-        except Exception as e:
-            print(f"⚠️ Graceful degradation test failed: {e}")
-            assert False
-
+        assert True  # System gracefully handles API unavailability
 
 if __name__ == "__main__":
     # Run basic validation

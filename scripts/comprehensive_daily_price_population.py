@@ -282,88 +282,81 @@ async def main():
     # Database connection - use Docker-compatible connection
     DATABASE_URL = "postgresql://postgres:dev_password@ats-dev-postgres:5432/dev_db"
 
-    try:
-        # Step 1: Analyze current coverage
-        logger.info("\n🔍 STEP 1: Analyzing current data coverage...")
-        analyzer = DataCoverageAnalyzer(DATABASE_URL)
-        await analyzer.initialize()
+    # Step 1: Analyze current coverage
+    logger.info("\n🔍 STEP 1: Analyzing current data coverage...")
+    analyzer = DataCoverageAnalyzer(DATABASE_URL)
+    await analyzer.initialize()
 
-        coverage_analysis = await analyzer.analyze_coverage()
+    coverage_analysis = await analyzer.analyze_coverage()
 
-        # Save coverage analysis
-        output_dir = Path("/data/analysis")
-        output_dir.mkdir(exist_ok=True)
+    # Save coverage analysis
+    output_dir = Path("/data/analysis")
+    output_dir.mkdir(exist_ok=True)
 
-        coverage_file = output_dir / f"coverage_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(coverage_file, 'w') as f:
-            json.dump(coverage_analysis, f, indent=2, default=str)
+    coverage_file = output_dir / f"coverage_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(coverage_file, 'w') as f:
+        json.dump(coverage_analysis, f, indent=2, default=str)
 
-        logger.info(f"Coverage analysis saved to: {coverage_file}")
+    logger.info(f"Coverage analysis saved to: {coverage_file}")
 
-        # Print summary
-        logger.info("\n📊 COVERAGE SUMMARY:")
-        logger.info(f"Total instruments: {coverage_analysis['total_instruments']:,}")
+    # Print summary
+    logger.info("\n📊 COVERAGE SUMMARY:")
+    logger.info(f"Total instruments: {coverage_analysis['total_instruments']:,}")
 
-        for vendor, analysis in coverage_analysis['vendor_coverage'].items():
-            logger.info(f"\n{vendor.upper()} Coverage:")
-            logger.info(f"  Instruments with data: {analysis['total_instruments'] - analysis['instruments_with_no_data']:,}")
-            logger.info(f"  No data: {analysis['instruments_with_no_data']:,}")
-            logger.info(f"  Missing early data: {analysis['instruments_missing_early_data']:,}")
-            logger.info(f"  Missing recent data: {analysis['instruments_missing_recent_data']:,}")
-            logger.info(f"  Coverage: {analysis['overall_coverage_percentage']:.1f}%")
+    for vendor, analysis in coverage_analysis['vendor_coverage'].items():
+        logger.info(f"\n{vendor.upper()} Coverage:")
+        logger.info(f"  Instruments with data: {analysis['total_instruments'] - analysis['instruments_with_no_data']:,}")
+        logger.info(f"  No data: {analysis['instruments_with_no_data']:,}")
+        logger.info(f"  Missing early data: {analysis['instruments_missing_early_data']:,}")
+        logger.info(f"  Missing recent data: {analysis['instruments_missing_recent_data']:,}")
+        logger.info(f"  Coverage: {analysis['overall_coverage_percentage']:.1f}%")
 
-        await analyzer.close()
+    await analyzer.close()
 
-        # Step 2: Generate population commands
-        logger.info("\n🔧 STEP 2: Generating population commands...")
-        populator = DailyPricePopulator(DATABASE_URL)
-        await populator.initialize()
+    # Step 2: Generate population commands
+    logger.info("\n🔧 STEP 2: Generating population commands...")
+    populator = DailyPricePopulator(DATABASE_URL)
+    await populator.initialize()
 
-        population_plans = {}
-        for vendor in ['tiingo', 'eodhd', 'polygon']:
-            logger.info(f"\nGenerating population plan for {vendor}...")
-            plan = await populator.populate_missing_data(vendor, max_symbols=50)
-            population_plans[vendor] = plan
+    population_plans = {}
+    for vendor in ['tiingo', 'eodhd', 'polygon']:
+        logger.info(f"\nGenerating population plan for {vendor}...")
+        plan = await populator.populate_missing_data(vendor, max_symbols=50)
+        population_plans[vendor] = plan
 
-            logger.info(f"{vendor}: {plan['instruments_to_populate']} instruments need population")
-            if plan['population_commands']:
-                logger.info(f"Sample command: {plan['population_commands'][0]['command']}")
+        logger.info(f"{vendor}: {plan['instruments_to_populate']} instruments need population")
+        if plan['population_commands']:
+            logger.info(f"Sample command: {plan['population_commands'][0]['command']}")
 
-        await populator.close()
+    await populator.close()
 
-        # Step 3: Save population plans
-        plans_file = output_dir / f"population_plans_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(plans_file, 'w') as f:
-            json.dump(population_plans, f, indent=2, default=str)
+    # Step 3: Save population plans
+    plans_file = output_dir / f"population_plans_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(plans_file, 'w') as f:
+        json.dump(population_plans, f, indent=2, default=str)
 
-        logger.info(f"\nPopulation plans saved to: {plans_file}")
+    logger.info(f"\nPopulation plans saved to: {plans_file}")
 
-        # Step 4: Show execution summary
-        logger.info("\n🚀 EXECUTION RECOMMENDATIONS:")
-        logger.info("1. Review the coverage analysis and population plans")
-        logger.info("2. Execute population commands for priority symbols (AAPL, TSLA, etc.)")
-        logger.info("3. Run batch population for remaining symbols")
-        logger.info("4. Monitor progress and validate data quality")
+    # Step 4: Show execution summary
+    logger.info("\n🚀 EXECUTION RECOMMENDATIONS:")
+    logger.info("1. Review the coverage analysis and population plans")
+    logger.info("2. Execute population commands for priority symbols (AAPL, TSLA, etc.)")
+    logger.info("3. Run batch population for remaining symbols")
+    logger.info("4. Monitor progress and validate data quality")
 
-        total_commands = sum(plan['total_commands'] for plan in population_plans.values())
-        logger.info(f"\nTotal population commands generated: {total_commands:,}")
+    total_commands = sum(plan['total_commands'] for plan in population_plans.values())
+    logger.info(f"\nTotal population commands generated: {total_commands:,}")
 
-        # Show specific commands for AAPL and TSLA if available
-        priority_symbols = ['AAPL', 'TSLA']
-        logger.info(f"\n🎯 PRIORITY SYMBOLS ({', '.join(priority_symbols)}):")
+    # Show specific commands for AAPL and TSLA if available
+    priority_symbols = ['AAPL', 'TSLA']
+    logger.info(f"\n🎯 PRIORITY SYMBOLS ({', '.join(priority_symbols)}):")
 
-        for vendor, plan in population_plans.items():
-            for cmd_info in plan['population_commands']:
-                if cmd_info['symbol'] in priority_symbols:
-                    logger.info(f"{vendor.upper()} {cmd_info['symbol']}: {cmd_info['command']}")
+    for vendor, plan in population_plans.items():
+        for cmd_info in plan['population_commands']:
+            if cmd_info['symbol'] in priority_symbols:
+                logger.info(f"{vendor.upper()} {cmd_info['symbol']}: {cmd_info['command']}")
 
-        logger.info("\n✅ Comprehensive daily price population analysis completed!")
-
-    except Exception as e:
-        logger.error(f"❌ Error in comprehensive daily price population: {e}")
-        import traceback
-        traceback.print_exc()
-        raise
+    logger.info("\n✅ Comprehensive daily price population analysis completed!")
 
 if __name__ == "__main__":
     asyncio.run(main())

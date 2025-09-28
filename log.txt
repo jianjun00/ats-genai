@@ -1,0 +1,38 @@
+[GIN DEBUG] Using Gin config: config/training_data.gin, env_type=EnvironmentType.INTEGRATION
+[GIN DEBUG] Registered basic config classes as gin configurables
+[GIN DEBUG] Parsed config file with skip_unknown=True
+[DEBUG] POLYGON_API_KEY after Gin load: None
+[GIN DEBUG] No db_url provided and DATABASE_URL env not set. Proceeding with empty Database config.
+[ENV DEBUG] Using database credentials from environment variables: host=localhost, port=4432, user=postgres, password=*****, database=intg_db
+[GIN DEBUG] Environment.__init__ received db_url: None
+[ENV DEBUG] Using database credentials from environment variables: host=localhost, port=4432, user=postgres, password=*****, database=intg_db
+[DEBUG] Runner.__init__ received start_date: '2025-07-01' (type: <class 'str'>)
+[DEBUG] Runner.__init__ received end_date: '2025-07-31' (type: <class 'str'>)
+[DEBUG] Runner.__init__ final self.start_date: datetime.datetime(2025, 7, 1, 0, 0) (type: <class 'datetime.datetime'>)
+[DEBUG] Runner.__init__ final self.end_date: datetime.datetime(2025, 7, 31, 0, 0) (type: <class 'datetime.datetime'>)
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - core.shared.run_aware_logging - INFO - Configured run-aware logging for run_id: run_20250923_150556_3198c585
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - core.shared.run_aware_logging - INFO - Log file location: data/runs/run_20250923_150556_3198c585/logs
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - domains.trading.services.core.app.runner - INFO - Initialized Runner with run-aware logging: run_20250923_150556_3198c585
+_init_callbacks CONFIGURABLE REGISTERED: dict_keys([('', 'domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig'), ('', 'domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder')])
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - domains.trading.services.core.app.runner - INFO - Using run-aware universe state manager with run_id: run_20250923_150556_3198c585
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - core.market_data.unified_manager - INFO - 🚀 Unified Market Data Manager initialized
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - core.market_data.unified_manager - INFO -    Vendors: ['polygon']
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - core.market_data.unified_manager - INFO -    Storage: hybrid
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - core.market_data.unified_manager - INFO -    Cache: Enabled
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO - ✅ Runner created with collection window: 2025-07-01 to 2025-07-31
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO - ✅ STEP 5 COMPLETE: Callback and runner created successfully
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO - 🚀 STEP 6: Starting training data generation execution
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO - 📊 Execution Summary:
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    symbols: ['AAPL']
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    symbol_count: 1
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    target_date_range_days: 31
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    collection_date_range_days: 31
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    start_day_offset: 0
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    end_day_offset: 0
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    base_duration: 5m
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    output_directory: /data/training_data
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    dataset_id: dataset_20250923_080556
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    storage_format: arrayrecord
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO -    environment: Environment(intg)
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO - ⏱️ Generation started at: 2025-09-23T08:05:56.798922
+2025-09-23 08:05:56 [run_20250923_150556_3198c585] - feature_extraction_runner - INFO - 🚀 EXECUTING RUNNER - This will generate the actual training data

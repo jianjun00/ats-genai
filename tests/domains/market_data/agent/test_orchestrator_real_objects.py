@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class MockAdapter:
@@ -55,13 +49,7 @@ class MockAdapter:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_get_all_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_get_all_symbols"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class MockAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_all_symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_all_symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_missing_data_points_real_objects(self, real_service, test_data):
         """Real objects version of test_get_missing_data_points"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class MockAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_missing_data_points_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_missing_data_points_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_process_data_point_real_objects(self, real_service, test_data):
         """Real objects version of test_process_data_point"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class MockAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.process_data_point_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.process_data_point_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_backfill_loop_real_objects(self, real_service, test_data):
         """Real objects version of test_run_backfill_loop"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class MockAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_backfill_loop_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_backfill_loop_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_frontfill_loop_real_objects(self, real_service, test_data):
         """Real objects version of test_run_frontfill_loop"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class MockAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_frontfill_loop_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_frontfill_loop_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_closed_check_real_objects(self, real_service, test_data):
         """Real objects version of test_market_closed_check"""
         # Test with real database integration
@@ -186,15 +144,8 @@ class MockAdapter:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_closed_check_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.market_closed_check_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

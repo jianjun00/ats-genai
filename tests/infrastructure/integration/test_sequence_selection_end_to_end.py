@@ -6,7 +6,7 @@ import pytest
 import json
 from unittest.mock import patch
 
-from src.domains.analytics.services.analytics_service import AnalyticsService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService
 
 
 class TestSequenceSelectionEndToEnd:
@@ -15,7 +15,7 @@ class TestSequenceSelectionEndToEnd:
     @pytest.fixture
     def analytics_service(self):
         """Create analytics service instance for integration testing"""
-        service = AnalyticsService()
+        service = UnifiedAnalyticsService()
         return service
 
     @pytest.mark.asyncio
@@ -116,12 +116,8 @@ class TestSequenceSelectionEndToEnd:
             result = await analytics_service.get_sequence_21_bar_data(64, 'test_seq', 100)
 
             # Test that result can be JSON serialized despite NaN values
-            try:
-                json_str = json.dumps(result, default=str)
-                assert isinstance(json_str, str)
-            except (TypeError, ValueError) as e:
-                pytest.fail(f"JSON serialization failed with NaN values: {e}")
-
+            json_str = json.dumps(result, default=str)
+            assert isinstance(json_str, str)
     @pytest.mark.asyncio
     async def test_error_propagation_through_workflow(self, analytics_service):
         """Test error handling propagates correctly through workflow"""

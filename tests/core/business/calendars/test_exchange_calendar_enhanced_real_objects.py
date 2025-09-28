@@ -10,15 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
-
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.platform.config.environment import Environment, EnvironmentType
 
 
 class TestRealObjectsExchangeCalendarEnhanced:
@@ -55,13 +47,7 @@ class TestRealObjectsExchangeCalendarEnhanced:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_init_case_insensitive_real_objects(self, real_service, test_data):
         """Real objects version of test_init_case_insensitive"""
         # Test with real database integration
@@ -76,14 +62,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_case_insensitive_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_case_insensitive_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_init_unsupported_exchange_real_objects(self, real_service, test_data):
         """Real objects version of test_init_unsupported_exchange"""
         # Test with real database integration
@@ -98,14 +78,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_unsupported_exchange_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_unsupported_exchange_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_init_missing_pandas_market_calendars_real_objects(self, real_service, test_data):
         """Real objects version of test_init_missing_pandas_market_calendars"""
         # Test with real database integration
@@ -120,14 +94,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_missing_pandas_market_calendars_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_missing_pandas_market_calendars_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_holiday_edge_dates_real_objects(self, real_service, test_data):
         """Real objects version of test_is_holiday_edge_dates"""
         # Test with real database integration
@@ -142,14 +110,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_holiday_edge_dates_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_holiday_edge_dates_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_holiday_weekend_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_is_holiday_weekend_handling"""
         # Test with real database integration
@@ -164,14 +126,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_holiday_weekend_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_holiday_weekend_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_next_trading_date_none_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_next_trading_date_none_handling"""
         # Test with real database integration
@@ -186,14 +142,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.next_trading_date_none_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.next_trading_date_none_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_next_trading_date_various_scenarios_real_objects(self, real_service, test_data):
         """Real objects version of test_next_trading_date_various_scenarios"""
         # Test with real database integration
@@ -208,14 +158,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.next_trading_date_various_scenarios_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.next_trading_date_various_scenarios_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_prior_trading_date_none_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_prior_trading_date_none_handling"""
         # Test with real database integration
@@ -230,14 +174,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.prior_trading_date_none_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.prior_trading_date_none_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_prior_trading_date_various_scenarios_real_objects(self, real_service, test_data):
         """Real objects version of test_prior_trading_date_various_scenarios"""
         # Test with real database integration
@@ -252,14 +190,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.prior_trading_date_various_scenarios_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.prior_trading_date_various_scenarios_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_trading_days_empty_range_real_objects(self, real_service, test_data):
         """Real objects version of test_trading_days_empty_range"""
         # Test with real database integration
@@ -274,14 +206,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trading_days_empty_range_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trading_days_empty_range_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_trading_days_reverse_range_real_objects(self, real_service, test_data):
         """Real objects version of test_trading_days_reverse_range"""
         # Test with real database integration
@@ -296,14 +222,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trading_days_reverse_range_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trading_days_reverse_range_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_trading_days_holiday_periods_real_objects(self, real_service, test_data):
         """Real objects version of test_trading_days_holiday_periods"""
         # Test with real database integration
@@ -318,14 +238,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.trading_days_holiday_periods_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.trading_days_holiday_periods_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_all_trading_days_consistency_real_objects(self, real_service, test_data):
         """Real objects version of test_all_trading_days_consistency"""
         # Test with real database integration
@@ -340,14 +254,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.all_trading_days_consistency_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.all_trading_days_consistency_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_long_date_ranges_real_objects(self, real_service, test_data):
         """Real objects version of test_long_date_ranges"""
         # Test with real database integration
@@ -362,14 +270,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.long_date_ranges_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.long_date_ranges_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_different_exchanges_real_objects(self, real_service, test_data):
         """Real objects version of test_different_exchanges"""
         # Test with real database integration
@@ -384,14 +286,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.different_exchanges_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.different_exchanges_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_calendar_boundary_dates_real_objects(self, real_service, test_data):
         """Real objects version of test_calendar_boundary_dates"""
         # Test with real database integration
@@ -406,14 +302,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.calendar_boundary_dates_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.calendar_boundary_dates_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_leap_year_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_leap_year_handling"""
         # Test with real database integration
@@ -428,15 +318,8 @@ class TestRealObjectsExchangeCalendarEnhanced:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.leap_year_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.leap_year_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

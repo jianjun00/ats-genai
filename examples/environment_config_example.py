@@ -33,23 +33,19 @@ def example_automatic_environment_detection():
     # 3. Container hostname
     # 4. Testing framework indicators
 
-    try:
-        # Load configuration (auto-detects environment)
-        detected_env = load_gin_config()
-        print(f"✅ Detected and loaded environment: {detected_env.value}")
+    # Load configuration (auto-detects environment)
+    detected_env = load_gin_config()
+    print(f"✅ Detected and loaded environment: {detected_env.value}")
 
-        # Get current environment info
-        current_env = get_current_env()
-        print(f"📋 Current environment: {current_env.value}")
+    # Get current environment info
+    current_env = get_current_env()
+    print(f"📋 Current environment: {current_env.value}")
 
-        # Get detailed environment information
-        env_info = get_env_info()
-        print("📊 Environment Details:")
-        for key, value in env_info.items():
-            print(f"   {key}: {value}")
-
-    except Exception as e:
-        print(f"❌ Error in automatic detection: {e}")
+    # Get detailed environment information
+    env_info = get_env_info()
+    print("📊 Environment Details:")
+    for key, value in env_info.items():
+        print(f"   {key}: {value}")
 
 def example_explicit_environment_loading():
     """
@@ -62,22 +58,16 @@ def example_explicit_environment_loading():
     environments_to_test = [Environment.DEVELOPMENT, Environment.INTEGRATION, Environment.PRODUCTION]
 
     for env in environments_to_test:
-        try:
-            print(f"\n🔧 Loading {env.value} environment...")
+        print(f"\n🔧 Loading {env.value} environment...")
 
-            # Load specific environment configuration
-            loaded_env = load_gin_config(env, force_reload=True)
-            print(f"✅ Successfully loaded {loaded_env.value} configuration")
+        # Load specific environment configuration
+        loaded_env = load_gin_config(env, force_reload=True)
+        print(f"✅ Successfully loaded {loaded_env.value} configuration")
 
-            # Get environment-specific details
-            env_info = get_env_info()
-            config_file = env_info.get('config_file', 'Unknown')
-            print(f"📄 Configuration file: {config_file}")
-
-        except FileNotFoundError as e:
-            print(f"⚠️  Configuration file not found for {env.value}: {e}")
-        except Exception as e:
-            print(f"❌ Error loading {env.value}: {e}")
+        # Get environment-specific details
+        env_info = get_env_info()
+        config_file = env_info.get('config_file', 'Unknown')
+        print(f"📄 Configuration file: {config_file}")
 
 def example_configuration_with_environment_variables():
     """
@@ -103,22 +93,12 @@ def example_configuration_with_environment_variables():
     original_env = os.getenv('ATS_ENVIRONMENT')
     os.environ['ATS_ENVIRONMENT'] = 'dev'
 
-    try:
-        detected_env = load_gin_config(force_reload=True)
-        print(f"✅ With ATS_ENVIRONMENT=dev, detected: {detected_env.value}")
-    except Exception as e:
-        print(f"❌ Error with dev override: {e}")
-
-    # Change to integration
+    detected_env = load_gin_config(force_reload=True)
+    print(f"✅ With ATS_ENVIRONMENT=dev, detected: {detected_env.value}")
     os.environ['ATS_ENVIRONMENT'] = 'intg'
 
-    try:
-        detected_env = load_gin_config(force_reload=True)
-        print(f"✅ With ATS_ENVIRONMENT=intg, detected: {detected_env.value}")
-    except Exception as e:
-        print(f"❌ Error with intg override: {e}")
-
-    # Restore original environment
+    detected_env = load_gin_config(force_reload=True)
+    print(f"✅ With ATS_ENVIRONMENT=intg, detected: {detected_env.value}")
     if original_env:
         os.environ['ATS_ENVIRONMENT'] = original_env
     else:
@@ -168,52 +148,48 @@ def example_environment_specific_behavior():
     environments = [Environment.DEVELOPMENT, Environment.INTEGRATION, Environment.PRODUCTION]
 
     for env in environments:
-        try:
-            print(f"\n🎯 {env.value.upper()} Environment Configuration:")
+        print(f"\n🎯 {env.value.upper()} Environment Configuration:")
 
-            # Load environment
-            load_gin_config(env, force_reload=True)
+        # Load environment
+        load_gin_config(env, force_reload=True)
 
-            # Get environment info
-            env_info = get_env_info()
+        # Get environment info
+        env_info = get_env_info()
 
-            # Show key differences
-            print(f"   📄 Config file: {Path(env_info.get('config_file', '')).name}")
-            print(f"   🔧 Environment: {env_info['current_environment']}")
+        # Show key differences
+        print(f"   📄 Config file: {Path(env_info.get('config_file', '')).name}")
+        print(f"   🔧 Environment: {env_info['current_environment']}")
 
-            # Note: In a real application, you would demonstrate actual configuration differences
-            # by importing and using gin-configured classes. For this example, we show the concept.
+        # Note: In a real application, you would demonstrate actual configuration differences
+        # by importing and using gin-configured classes. For this example, we show the concept.
 
-            behavior_notes = {
-                'dev': [
-                    "• Smaller batch sizes for faster iteration",
-                    "• Longer timeouts for debugging",
-                    "• Limited symbol universe for testing",
-                    "• Debug-level logging",
-                    "• Local database connections"
-                ],
-                'intg': [
-                    "• Moderate batch sizes for comprehensive testing",
-                    "• Production-like timeouts",
-                    "• Broader symbol coverage for testing",
-                    "• Info-level logging",
-                    "• Integration database connections"
-                ],
-                'prod': [
-                    "• Large batch sizes for throughput",
-                    "• Strict timeouts for performance",
-                    "• Full market symbol universe",
-                    "• Warning-level logging only",
-                    "• Production database cluster"
-                ]
-            }
+        behavior_notes = {
+            'dev': [
+                "• Smaller batch sizes for faster iteration",
+                "• Longer timeouts for debugging",
+                "• Limited symbol universe for testing",
+                "• Debug-level logging",
+                "• Local database connections"
+            ],
+            'intg': [
+                "• Moderate batch sizes for comprehensive testing",
+                "• Production-like timeouts",
+                "• Broader symbol coverage for testing",
+                "• Info-level logging",
+                "• Integration database connections"
+            ],
+            'prod': [
+                "• Large batch sizes for throughput",
+                "• Strict timeouts for performance",
+                "• Full market symbol universe",
+                "• Warning-level logging only",
+                "• Production database cluster"
+            ]
+        }
 
-            notes = behavior_notes.get(env.value, ["• Environment-specific configuration loaded"])
-            for note in notes:
-                print(f"   {note}")
-
-        except Exception as e:
-            print(f"   ❌ Error loading {env.value}: {e}")
+        notes = behavior_notes.get(env.value, ["• Environment-specific configuration loaded"])
+        for note in notes:
+            print(f"   {note}")
 
 def example_gin_parameter_access():
     """
@@ -280,28 +256,22 @@ def run_all_examples():
     print("🚀 ATS Platform Environment Configuration Examples")
     print("🏗️  Demonstrating environment-specific gin configuration system")
 
-    try:
-        example_automatic_environment_detection()
-        example_explicit_environment_loading()
-        example_configuration_with_environment_variables()
-        example_configuration_validation()
-        example_environment_specific_behavior()
-        example_gin_parameter_access()
+    example_automatic_environment_detection()
+    example_explicit_environment_loading()
+    example_configuration_with_environment_variables()
+    example_configuration_validation()
+    example_environment_specific_behavior()
+    example_gin_parameter_access()
 
-        print("\n" + "=" * 60)
-        print("✅ ALL EXAMPLES COMPLETED SUCCESSFULLY")
-        print("=" * 60)
-        print("📚 Next Steps:")
-        print("   1. Set ATS_ENVIRONMENT variable for your deployment")
-        print("   2. Customize environment-specific configuration files")
-        print("   3. Use @gin.configurable decorator in your classes")
-        print("   4. Load configuration at application startup")
-        print("   5. Validate configuration in CI/CD pipeline")
-
-    except Exception as e:
-        print(f"\n❌ Example execution failed: {e}")
-        import traceback
-        traceback.print_exc()
+    print("\n" + "=" * 60)
+    print("✅ ALL EXAMPLES COMPLETED SUCCESSFULLY")
+    print("=" * 60)
+    print("📚 Next Steps:")
+    print("   1. Set ATS_ENVIRONMENT variable for your deployment")
+    print("   2. Customize environment-specific configuration files")
+    print("   3. Use @gin.configurable decorator in your classes")
+    print("   4. Load configuration at application startup")
+    print("   5. Validate configuration in CI/CD pipeline")
 
 if __name__ == "__main__":
     run_all_examples()

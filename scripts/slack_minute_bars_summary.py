@@ -66,22 +66,17 @@ class SlackMinuteBarsNotifier:
 
     async def initialize(self):
         """Initialize database connections."""
-        try:
-            # Database connection for INTG environment
-            db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
+        # Database connection for INTG environment
+        db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
 
-            self.db_pool = await asyncpg.create_pool(
-                db_url,
-                min_size=1,
-                max_size=5,
-                command_timeout=30
-            )
+        self.db_pool = await asyncpg.create_pool(
+            db_url,
+            min_size=1,
+            max_size=5,
+            command_timeout=30
+        )
 
-            logger.info("✅ Slack notifier initialized")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize Slack notifier: {e}")
-            raise
+        logger.info("✅ Slack notifier initialized")
 
     async def close(self):
         """Close database connections."""
@@ -93,36 +88,32 @@ class SlackMinuteBarsNotifier:
         if not self.prometheus_gateway:
             return {}
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.prometheus_gateway}/metrics") as response:
-                    if response.status == 200:
-                        metrics_text = await response.text()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{self.prometheus_gateway}/metrics") as response:
+                if response.status == 200:
+                    metrics_text = await response.text()
 
-                        # Parse key metrics
-                        metrics = {}
-                        for line in metrics_text.split('\n'):
-                            if line.startswith('ats_daily_minute_backfill_'):
-                                parts = line.split(' ')
-                                if len(parts) >= 2:
-                                    metric_name = parts[0]
-                                    metric_value = parts[1]
+                    # Parse key metrics
+                    metrics = {}
+                    for line in metrics_text.split('\n'):
+                        if line.startswith('ats_daily_minute_backfill_'):
+                            parts = line.split(' ')
+                            if len(parts) >= 2:
+                                metric_name = parts[0]
+                                metric_value = parts[1]
 
-                                    # Extract metric type and labels
-                                    if '{' in metric_name:
-                                        base_name = metric_name.split('{')[0]
-                                        labels_part = metric_name.split('{')[1].split('}')[0]
+                                # Extract metric type and labels
+                                if '{' in metric_name:
+                                    base_name = metric_name.split('{')[0]
+                                    labels_part = metric_name.split('{')[1].split('}')[0]
 
-                                        if base_name not in metrics:
-                                            metrics[base_name] = {}
-                                        metrics[base_name][labels_part] = float(metric_value)
-                                    else:
-                                        metrics[metric_name] = float(metric_value)
+                                    if base_name not in metrics:
+                                        metrics[base_name] = {}
+                                    metrics[base_name][labels_part] = float(metric_value)
+                                else:
+                                    metrics[metric_name] = float(metric_value)
 
-                        return metrics
-
-        except Exception as e:
-            logger.error(f"❌ Failed to fetch Prometheus metrics: {e}")
+                    return metrics
 
         return {}
 
@@ -140,82 +131,67 @@ class SlackMinuteBarsNotifier:
             'file_errors': []
         }
 
-        try:
-            if not self.daily_path.exists():
-                logger.warning(f"📁 Daily path does not exist: {self.daily_path}")
-                return stats
+        if not self.daily_path.exists():
+            logger.warning(f"📁 Daily path does not exist: {self.daily_path}")
+            return stats
 
-            # Analyze files from the last N days
-            cutoff_date = date.today() - timedelta(days=lookback_days)
+        # Analyze files from the last N days
+        cutoff_date = date.today() - timedelta(days=lookback_days)
 
-            for year_dir in self.daily_path.iterdir():
-                if not year_dir.is_dir() or not year_dir.name.isdigit():
+        for year_dir in self.daily_path.iterdir():
+            if not year_dir.is_dir() or not year_dir.name.isdigit():
+                continue
+
+            for month_dir in year_dir.iterdir():
+                if not month_dir.is_dir() or not month_dir.name.isdigit():
                     continue
 
-                for month_dir in year_dir.iterdir():
-                    if not month_dir.is_dir() or not month_dir.name.isdigit():
+                for day_dir in month_dir.iterdir():
+                    if not day_dir.is_dir() or not day_dir.name.isdigit():
                         continue
 
-                    for day_dir in month_dir.iterdir():
-                        if not day_dir.is_dir() or not day_dir.name.isdigit():
+                    # Parse date
+                    file_date = date(int(year_dir.name), int(month_dir.name), int(day_dir.name))
+
+                    # Skip if too old
+                    if file_date < cutoff_date:
+                        continue
+
+                    stats['processing_dates'].append(file_date.isoformat())
+
+                    for letter_dir in day_dir.iterdir():
+                        if not letter_dir.is_dir():
                             continue
 
-                        # Parse date
-                        try:
-                            file_date = date(int(year_dir.name), int(month_dir.name), int(day_dir.name))
+                        # Count files in this letter directory
+                        for file_path in letter_dir.glob('*.parquet'):
+                            file_size = file_path.stat().st_size / (1024 * 1024)  # MB
 
-                            # Skip if too old
-                            if file_date < cutoff_date:
-                                continue
+                            stats['total_files'] += 1
+                            stats['total_size_mb'] += file_size
+                            stats['files_by_date'][file_date.isoformat()] += 1
+                            stats['files_by_symbol_letter'][letter_dir.name] += 1
+                            stats['size_by_date'][file_date.isoformat()] += file_size
 
-                            stats['processing_dates'].append(file_date.isoformat())
+                            # Extract symbol from filename
+                            symbol = file_path.stem.split('_')[0]
+                            stats['symbols_processed'].add(symbol)
 
-                        except ValueError:
-                            continue
+                            # Track latest files
+                            if len(stats['latest_files']) < 20:
+                                stats['latest_files'].append({
+                                    'path': str(file_path),
+                                    'symbol': symbol,
+                                    'date': file_date.isoformat(),
+                                    'size_mb': file_size,
+                                    'modified': datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+                                })
 
-                        # Process letter directories
-                        for letter_dir in day_dir.iterdir():
-                            if not letter_dir.is_dir():
-                                continue
+        stats['unique_symbols_processed'] = len(stats['symbols_processed'])
+        stats['symbols_processed'] = list(stats['symbols_processed'])[:50]  # Limit for display
+        stats['processing_dates'] = sorted(list(set(stats['processing_dates'])))
 
-                            # Count files in this letter directory
-                            for file_path in letter_dir.glob('*.parquet'):
-                                try:
-                                    file_size = file_path.stat().st_size / (1024 * 1024)  # MB
-
-                                    stats['total_files'] += 1
-                                    stats['total_size_mb'] += file_size
-                                    stats['files_by_date'][file_date.isoformat()] += 1
-                                    stats['files_by_symbol_letter'][letter_dir.name] += 1
-                                    stats['size_by_date'][file_date.isoformat()] += file_size
-
-                                    # Extract symbol from filename
-                                    symbol = file_path.stem.split('_')[0]
-                                    stats['symbols_processed'].add(symbol)
-
-                                    # Track latest files
-                                    if len(stats['latest_files']) < 20:
-                                        stats['latest_files'].append({
-                                            'path': str(file_path),
-                                            'symbol': symbol,
-                                            'date': file_date.isoformat(),
-                                            'size_mb': file_size,
-                                            'modified': datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
-                                        })
-
-                                except Exception as e:
-                                    stats['file_errors'].append(f"{file_path}: {str(e)}")
-
-            # Convert sets to counts
-            stats['unique_symbols_processed'] = len(stats['symbols_processed'])
-            stats['symbols_processed'] = list(stats['symbols_processed'])[:50]  # Limit for display
-            stats['processing_dates'] = sorted(list(set(stats['processing_dates'])))
-
-            logger.info(f"📊 File system stats: {stats['total_files']} files, {stats['total_size_mb']:.1f}MB")
-
-        except Exception as e:
-            logger.error(f"❌ Error getting file system stats: {e}")
-            stats['file_errors'].append(f"File system analysis error: {str(e)}")
+        logger.info(f"📊 File system stats: {stats['total_files']} files, {stats['total_size_mb']:.1f}MB")
 
         return stats
 
@@ -229,43 +205,39 @@ class SlackMinuteBarsNotifier:
             'recent_activity': {}
         }
 
-        try:
-            async with self.db_pool.acquire() as conn:
-                # Total instruments
-                total_query = "SELECT COUNT(*) FROM intg_instrument WHERE active = true"
-                stats['total_instruments'] = await conn.fetchval(total_query)
+        async with self.db_pool.acquire() as conn:
+            # Total instruments
+            total_query = "SELECT COUNT(*) FROM intg_instrument WHERE active = true"
+            stats['total_instruments'] = await conn.fetchval(total_query)
 
-                # Instrument type breakdown
-                type_query = """
-                    SELECT
-                        CASE
-                            WHEN symbol IN ('SPY', 'QQQ', 'VTI', 'IWM', 'EFA', 'VWO', 'GLD', 'SLV', 'TLT', 'HYG',
-                                            'LQD', 'EEM', 'XLF', 'XLK', 'XLE', 'XLI', 'XLV', 'XLY', 'XLP', 'XLU',
-                                            'VNQ', 'EWJ', 'FXI', 'EWZ', 'RSX', 'ARKK', 'ARKG', 'ARKW', 'JETS', 'ICLN')
-                            THEN 'critical_etf'
-                            WHEN symbol LIKE '%--%' OR symbol LIKE '%-%' OR symbol LIKE '%.%'
-                            THEN 'other_etf'
-                            ELSE 'stock'
-                        END as instrument_type,
-                        COUNT(*) as count
-                    FROM intg_instrument
-                    WHERE active = true
-                    GROUP BY 1
-                """
+            # Instrument type breakdown
+            type_query = """
+                SELECT
+                    CASE
+                        WHEN symbol IN ('SPY', 'QQQ', 'VTI', 'IWM', 'EFA', 'VWO', 'GLD', 'SLV', 'TLT', 'HYG',
+                                        'LQD', 'EEM', 'XLF', 'XLK', 'XLE', 'XLI', 'XLV', 'XLY', 'XLP', 'XLU',
+                                        'VNQ', 'EWJ', 'FXI', 'EWZ', 'RSX', 'ARKK', 'ARKG', 'ARKW', 'JETS', 'ICLN')
+                        THEN 'critical_etf'
+                        WHEN symbol LIKE '%--%' OR symbol LIKE '%-%' OR symbol LIKE '%.%'
+                        THEN 'other_etf'
+                        ELSE 'stock'
+                    END as instrument_type,
+                    COUNT(*) as count
+                FROM intg_instrument
+                WHERE active = true
+                GROUP BY 1
+            """
 
-                type_rows = await conn.fetch(type_query)
-                for row in type_rows:
-                    inst_type = row['instrument_type']
-                    count = row['count']
-                    stats['instrument_types'][inst_type] = count
+            type_rows = await conn.fetch(type_query)
+            for row in type_rows:
+                inst_type = row['instrument_type']
+                count = row['count']
+                stats['instrument_types'][inst_type] = count
 
-                    if inst_type == 'critical_etf':
-                        stats['critical_etfs'] = count
-                    elif inst_type == 'stock':
-                        stats['active_stocks'] = count
-
-        except Exception as e:
-            logger.error(f"❌ Error getting database stats: {e}")
+                if inst_type == 'critical_etf':
+                    stats['critical_etfs'] = count
+                elif inst_type == 'stock':
+                    stats['active_stocks'] = count
 
         return stats
 
@@ -487,94 +459,73 @@ class SlackMinuteBarsNotifier:
             logger.warning("⚠️  Slack webhook not configured, message not sent")
             return False
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.slack_webhook,
-                    json=message,
-                    headers={'Content-Type': 'application/json'}
-                ) as response:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.slack_webhook,
+                json=message,
+                headers={'Content-Type': 'application/json'}
+            ) as response:
 
-                    if response.status == 200:
-                        logger.info("✅ Slack message sent successfully")
-                        return True
-                    else:
-                        logger.error(f"❌ Slack API returned status {response.status}")
-                        return False
-
-        except Exception as e:
-            logger.error(f"❌ Failed to send Slack message: {e}")
-            return False
+                if response.status == 200:
+                    logger.info("✅ Slack message sent successfully")
+                    return True
+                else:
+                    logger.error(f"❌ Slack API returned status {response.status}")
+                    return False
 
     async def send_daily_summary(self) -> bool:
         """Send daily minute bars processing summary."""
-        try:
-            logger.info("📊 Generating daily minute bars summary...")
+        logger.info("📊 Generating daily minute bars summary...")
 
-            # Gather data
-            file_stats = await self.get_file_system_stats(lookback_days=7)
-            db_stats = await self.get_database_stats()
-            prometheus_metrics = await self.get_prometheus_metrics()
+        # Gather data
+        file_stats = await self.get_file_system_stats(lookback_days=7)
+        db_stats = await self.get_database_stats()
+        prometheus_metrics = await self.get_prometheus_metrics()
 
-            # Create message
-            message = self.create_daily_summary_message(file_stats, db_stats, prometheus_metrics)
+        # Create message
+        message = self.create_daily_summary_message(file_stats, db_stats, prometheus_metrics)
 
-            # Send to Slack
-            return await self.send_slack_message(message)
-
-        except Exception as e:
-            logger.error(f"❌ Failed to send daily summary: {e}")
-            return False
+        # Send to Slack
+        return await self.send_slack_message(message)
 
     async def send_weekly_summary(self) -> bool:
         """Send comprehensive weekly summary."""
-        try:
-            logger.info("📈 Generating weekly minute bars summary...")
+        logger.info("📈 Generating weekly minute bars summary...")
 
-            # Gather data with longer lookback
-            file_stats = await self.get_file_system_stats(lookback_days=14)
-            db_stats = await self.get_database_stats()
-            prometheus_metrics = await self.get_prometheus_metrics()
+        # Gather data with longer lookback
+        file_stats = await self.get_file_system_stats(lookback_days=14)
+        db_stats = await self.get_database_stats()
+        prometheus_metrics = await self.get_prometheus_metrics()
 
-            # Create message
-            message = self.create_weekly_summary_message(file_stats, db_stats, prometheus_metrics)
+        # Create message
+        message = self.create_weekly_summary_message(file_stats, db_stats, prometheus_metrics)
 
-            # Send to Slack
-            return await self.send_slack_message(message)
-
-        except Exception as e:
-            logger.error(f"❌ Failed to send weekly summary: {e}")
-            return False
+        # Send to Slack
+        return await self.send_slack_message(message)
 
     async def send_test_message(self) -> bool:
         """Send test message to verify Slack integration."""
-        try:
-            test_message = {
-                "text": "🧪 ATS-INTG Minute Bars Test",
-                "blocks": [
-                    {
-                        "type": "header",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "🧪 ATS-INTG Test Notification"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": f"*Test Time:* {datetime.now().isoformat()}\n*Service:* Daily 1-Minute Bar Slack Notifications\n*Status:* ✅ Working"
-                        }
+        test_message = {
+            "text": "🧪 ATS-INTG Minute Bars Test",
+            "blocks": [
+                {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "🧪 ATS-INTG Test Notification"
                     }
-                ]
-            }
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*Test Time:* {datetime.now().isoformat()}\n*Service:* Daily 1-Minute Bar Slack Notifications\n*Status:* ✅ Working"
+                    }
+                }
+            ]
+        }
 
-            return await self.send_slack_message(test_message)
-
-        except Exception as e:
-            logger.error(f"❌ Test message failed: {e}")
-            return False
-
+        return await self.send_slack_message(test_message)
 
 async def main():
     """Main function for Slack minute bars notifications."""
@@ -599,40 +550,28 @@ async def main():
     # Initialize notifier
     notifier = SlackMinuteBarsNotifier(slack_webhook=args.slack_webhook)
 
-    try:
-        await notifier.initialize()
+    await notifier.initialize()
 
-        success = False
+    success = False
 
-        if args.test:
-            logger.info("🧪 Sending test notification...")
-            success = await notifier.send_test_message()
+    if args.test:
+        logger.info("🧪 Sending test notification...")
+        success = await notifier.send_test_message()
 
-        elif args.weekly:
-            logger.info("📈 Sending weekly summary...")
-            success = await notifier.send_weekly_summary()
+    elif args.weekly:
+        logger.info("📈 Sending weekly summary...")
+        success = await notifier.send_weekly_summary()
 
-        else:  # Default to daily
-            logger.info("📊 Sending daily summary...")
-            success = await notifier.send_daily_summary()
+    else:  # Default to daily
+        logger.info("📊 Sending daily summary...")
+        success = await notifier.send_daily_summary()
 
-        if success:
-            logger.info("✅ Notification sent successfully")
-            return 0
-        else:
-            logger.error("❌ Notification failed")
-            return 1
-
-    except KeyboardInterrupt:
-        logger.info("📤 Received keyboard interrupt")
+    if success:
+        logger.info("✅ Notification sent successfully")
+        return 0
+    else:
+        logger.error("❌ Notification failed")
         return 1
-    except Exception as e:
-        logger.error(f"❌ Notification service failed: {e}")
-        return 1
-    finally:
-        await notifier.close()
-        logger.info("✅ Slack notification service shutdown complete")
-
 
 if __name__ == "__main__":
     sys.exit(asyncio.run(main()))

@@ -24,7 +24,7 @@ import gc
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from domains.market_data.services.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
+from domains.market_data.services.data_collection.realtime.aapl_tsla_synthetic_collector import AAPLTSLASyntheticCollector
 
 logger = logging.getLogger(__name__)
 
@@ -32,33 +32,27 @@ logger = logging.getLogger(__name__)
 async def performance_db_pool():
     """High-performance database pool for load testing"""
     dsn = "postgresql://postgres:intg_password@localhost:4432/intg_db"
-    try:
-        pool = await asyncpg.create_pool(
-            dsn,
-            min_size=5,
-            max_size=20,  # Higher connection limit for performance tests
-            command_timeout=60,
-            server_settings={'jit': 'off'}  # Disable JIT for consistent timing
-        )
+    pool = await asyncpg.create_pool(
+        dsn,
+        min_size=5,
+        max_size=20,  # Higher connection limit for performance tests
+        command_timeout=60,
+        server_settings={'jit': 'off'}  # Disable JIT for consistent timing
+    )
 
-        # Ensure test tables exist
-        async with pool.acquire() as conn:
-            await conn.execute("CREATE TABLE IF NOT EXISTS perf_test_tiingo AS SELECT * FROM intg_one_minute_live_tiingo WHERE 1=0")
-            await conn.execute("CREATE TABLE IF NOT EXISTS perf_test_polygon AS SELECT * FROM intg_one_minute_live_polygon WHERE 1=0")
+    # Ensure test tables exist
+    async with pool.acquire() as conn:
+        await conn.execute("CREATE TABLE IF NOT EXISTS perf_test_tiingo AS SELECT * FROM intg_one_minute_live_tiingo WHERE 1=0")
+        await conn.execute("CREATE TABLE IF NOT EXISTS perf_test_polygon AS SELECT * FROM intg_one_minute_live_polygon WHERE 1=0")
 
-        yield pool
+    yield pool
 
-        # Cleanup
-        async with pool.acquire() as conn:
-            await conn.execute("DROP TABLE IF EXISTS perf_test_tiingo")
-            await conn.execute("DROP TABLE IF EXISTS perf_test_polygon")
+    # Cleanup
+    async with pool.acquire() as conn:
+        await conn.execute("DROP TABLE IF EXISTS perf_test_tiingo")
+        await conn.execute("DROP TABLE IF EXISTS perf_test_polygon")
 
-        await pool.close()
-
-    except Exception as e:
-        logger.warning(f"Cannot connect to performance database: {e}")
-        pytest.skip("Performance database not available")
-
+    await pool.close()
 
 class PerformanceMonitor:
     """Monitor system performance during tests"""

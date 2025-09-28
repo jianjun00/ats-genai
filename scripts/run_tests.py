@@ -103,34 +103,29 @@ class TestRunner:
 
         start_time = time.time()
 
-        try:
-            # Set environment variables for testing
-            env = os.environ.copy()
-            env['PYTHONPATH'] = str(self.project_root / 'src')
-            env['TESTING'] = '1'
+        # Set environment variables for testing
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(self.project_root / 'src')
+        env['TESTING'] = '1'
 
-            result = subprocess.run(
-                cmd,
-                cwd=self.project_root,
-                env=env,
-                capture_output=False,  # Show output in real-time
-                text=True
-            )
+        result = subprocess.run(
+            cmd,
+            cwd=self.project_root,
+            env=env,
+            capture_output=False,  # Show output in real-time
+            text=True
+        )
 
-            end_time = time.time()
-            duration = end_time - start_time
+        end_time = time.time()
+        duration = end_time - start_time
 
-            if result.returncode == 0:
-                print("-" * 50)
-                print(f"✅ {category} tests passed ({duration:.1f}s)")
-                return True
-            else:
-                print("-" * 50)
-                print(f"❌ {category} tests failed ({duration:.1f}s)")
-                return False
-
-        except Exception as e:
-            print(f"❌ Error running {category} tests: {e}")
+        if result.returncode == 0:
+            print("-" * 50)
+            print(f"✅ {category} tests passed ({duration:.1f}s)")
+            return True
+        else:
+            print("-" * 50)
+            print(f"❌ {category} tests failed ({duration:.1f}s)")
             return False
 
     def run_specific_test(self, test_path: str, verbose: bool = False) -> bool:
@@ -157,23 +152,18 @@ class TestRunner:
         print(f"🎯 Running specific test: {test_path}")
         print("-" * 50)
 
-        try:
-            env = os.environ.copy()
-            env['PYTHONPATH'] = str(self.project_root / 'src')
-            env['TESTING'] = '1'
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(self.project_root / 'src')
+        env['TESTING'] = '1'
 
-            result = subprocess.run(
-                cmd,
-                cwd=self.project_root,
-                env=env,
-                text=True
-            )
+        result = subprocess.run(
+            cmd,
+            cwd=self.project_root,
+            env=env,
+            text=True
+        )
 
-            return result.returncode == 0
-
-        except Exception as e:
-            print(f"❌ Error running test: {e}")
-            return False
+        return result.returncode == 0
 
     def check_test_dependencies(self) -> bool:
         """Check if required test dependencies are available"""
@@ -188,11 +178,7 @@ class TestRunner:
         missing_packages = []
 
         for package in required_packages:
-            try:
-                __import__(package.replace('-', '_'))
-            except ImportError:
-                missing_packages.append(package)
-
+            __import__(package.replace('-', '_'))
         if missing_packages:
             print("❌ Missing required test dependencies:")
             for package in missing_packages:
@@ -226,20 +212,16 @@ class TestRunner:
             for path in paths:
                 full_path = self.tests_dir / path
                 if full_path.exists():
-                    try:
-                        with open(full_path, 'r') as f:
-                            content = f.read()
+                    with open(full_path, 'r') as f:
+                        content = f.read()
 
-                        # Check for basic test structure
-                        if 'def test_' not in content and 'class Test' not in content:
-                            issues.append(f"No test functions found in: {path}")
+                    # Check for basic test structure
+                    if 'def test_' not in content and 'class Test' not in content:
+                        issues.append(f"No test functions found in: {path}")
 
-                        # Check for imports
-                        if 'import pytest' not in content:
-                            issues.append(f"Missing pytest import in: {path}")
-
-                    except Exception as e:
-                        issues.append(f"Error reading test file {path}: {e}")
+                    # Check for imports
+                    if 'import pytest' not in content:
+                        issues.append(f"Missing pytest import in: {path}")
 
         if issues:
             print("⚠️  Test structure issues found:")

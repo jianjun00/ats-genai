@@ -88,12 +88,8 @@ class IntgCLI:
         """Ensure ATS directories exist on D: drive"""
         for path in [self.ats_data_path, self.ats_backup_path, self.ats_logs_path]:
             if not os.path.exists(path):
-                try:
-                    os.makedirs(path, exist_ok=True)
-                    print(f"📁 Created directory: {path}")
-                except Exception as e:
-                    print(f"⚠️  Could not create {path}: {e}")
-
+                os.makedirs(path, exist_ok=True)
+                print(f"📁 Created directory: {path}")
     def get_volume_mounts(self):
         """Get Docker volume mount string for ATS directories"""
         volumes = []
@@ -123,30 +119,21 @@ class IntgCLI:
 
     def test_db_connection(self, host, port):
         """Test database connection"""
-        try:
-            cmd = f'PGPASSWORD={self.db_password} psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
-            result = subprocess.run(cmd, shell=True, capture_output=True)
-            return result.returncode == 0
-        except:
-            return False
-
+        cmd = f'PGPASSWORD={self.db_password} psql -h {host} -p {port} -U {self.db_user} -d {self.db_name} -c "SELECT 1" > /dev/null 2>&1'
+        result = subprocess.run(cmd, shell=True, capture_output=True)
+        return result.returncode == 0
     def run_command(self, cmd, description=None):
         """Run command and handle output"""
         if description:
             print(f"🔧 {description}")
 
-        try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            if result.returncode == 0:
-                return result.stdout.strip()
-            else:
-                print(f"❌ Command failed: {cmd}")
-                print(f"Error: {result.stderr}")
-                return None
-        except Exception as e:
-            print(f"❌ Exception running command: {e}")
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            print(f"❌ Command failed: {cmd}")
+            print(f"Error: {result.stderr}")
             return None
-
     def run_docker_job(self, script_path, job_name=None, gpu=False, environment=None, script_args=None):
         """Run a job using Docker instead of Kubernetes"""
         # Parse script path and arguments if provided as a single string
@@ -403,15 +390,12 @@ class IntgCLI:
         # Wait for PostgreSQL to be ready
         print("⏳ Waiting for PostgreSQL to be ready...")
         for i in range(30):
-            try:
-                result = subprocess.run(
-                    f"docker exec {container_name} pg_isready -U postgres",
-                    shell=True, capture_output=True
-                )
-                if result.returncode == 0:
-                    break
-            except:
-                pass
+            result = subprocess.run(
+                f"docker exec {container_name} pg_isready -U postgres",
+                shell=True, capture_output=True
+            )
+            if result.returncode == 0:
+                break
             time.sleep(1)
         else:
             print("⚠️  PostgreSQL not ready for backup/restore")
@@ -421,14 +405,10 @@ class IntgCLI:
         backup_file = f"{backup_dir}/latest_backup.sql"
         if os.path.exists(backup_file):
             print(f"📤 Restoring from D: drive backup: {backup_file}")
-            try:
-                # Restore from backup
-                restore_cmd = f"cat '{backup_file}' | docker exec -i {container_name} psql -U postgres -d {db_name}"
-                subprocess.run(restore_cmd, shell=True, check=True)
-                print("✅ Integration database restored from D: drive backup")
-            except Exception as e:
-                print(f"⚠️  Restore failed: {e}")
-        else:
+            # Restore from backup
+            restore_cmd = f"cat '{backup_file}' | docker exec -i {container_name} psql -U postgres -d {db_name}"
+            subprocess.run(restore_cmd, shell=True, check=True)
+            print("✅ Integration database restored from D: drive backup")
             print("ℹ️  No backup found on D: drive")
 
         print("🔄 D: drive persistence configured - database will auto-backup on shutdown")
@@ -455,34 +435,30 @@ class IntgCLI:
 
     def _backup_postgres_to_d_drive(self, container_name, db_name, backup_dir):
         """Backup PostgreSQL to D: drive before stopping"""
-        try:
-            print("💾 Backing up integration database to D: drive...")
+        print("💾 Backing up integration database to D: drive...")
 
-            # Ensure backup directory exists
-            os.makedirs(backup_dir, exist_ok=True)
+        # Ensure backup directory exists
+        os.makedirs(backup_dir, exist_ok=True)
 
-            # Create timestamped backup
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_file = f"{backup_dir}/backup_{timestamp}.sql"
-            latest_backup = f"{backup_dir}/latest_backup.sql"
+        # Create timestamped backup
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = f"{backup_dir}/backup_{timestamp}.sql"
+        latest_backup = f"{backup_dir}/latest_backup.sql"
 
-            # Perform backup
-            backup_cmd = f"docker exec {container_name} pg_dump -U postgres -d {db_name}"
-            with open(backup_file, 'w') as f:
-                result = subprocess.run(backup_cmd, shell=True, stdout=f, stderr=subprocess.PIPE)
+        # Perform backup
+        backup_cmd = f"docker exec {container_name} pg_dump -U postgres -d {db_name}"
+        with open(backup_file, 'w') as f:
+            result = subprocess.run(backup_cmd, shell=True, stdout=f, stderr=subprocess.PIPE)
 
-            if result.returncode == 0:
-                # Copy to latest backup
-                import shutil
-                shutil.copy2(backup_file, latest_backup)
-                print(f"✅ Integration database backed up to: {backup_file}")
-                print(f"✅ Latest backup: {latest_backup}")
-            else:
-                print(f"⚠️  Backup failed: {result.stderr.decode()}")
-
-        except Exception as e:
-            print(f"⚠️  Backup error: {e}")
+        if result.returncode == 0:
+            # Copy to latest backup
+            import shutil
+            shutil.copy2(backup_file, latest_backup)
+            print(f"✅ Integration database backed up to: {backup_file}")
+            print(f"✅ Latest backup: {latest_backup}")
+        else:
+            print(f"⚠️  Backup failed: {result.stderr.decode()}")
 
     def list_services(self):
         """List running Docker services"""
@@ -535,17 +511,12 @@ class IntgCLI:
             temp_file.write(sql_query)
             temp_file_path = temp_file.name
         
-        try:
-            cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -f {temp_file_path}'
-            result = self.run_command(cmd)
-            
-            if result:
-                print(result)
-            return result
-        finally:
-            # Clean up temporary file
-            os.unlink(temp_file_path)
-
+        cmd = f'PGPASSWORD={self.db_password} psql -h {self.db_host} -p {self.db_port} -U {self.db_user} -d {self.db_name} -f {temp_file_path}'
+        result = self.run_command(cmd)
+        
+        if result:
+            print(result)
+        return result
     def get_issue(self, issue_id):
         """Get a specific data quality issue by ID"""
         sql = f"""
@@ -710,15 +681,10 @@ class IntgCLI:
         self.get_issue(issue_id)
         
         if not force:
-            try:
-                confirm = input("Are you sure you want to delete this issue? (yes/NO): ")
-                if confirm.lower() != 'yes':
-                    print("❌ Delete cancelled")
-                    return False
-            except EOFError:
-                print("❌ Delete cancelled (no input)")
+            confirm = input("Are you sure you want to delete this issue? (yes/NO): ")
+            if confirm.lower() != 'yes':
+                print("❌ Delete cancelled")
                 return False
-        
         sql = f"DELETE FROM {self.table_prefix}_data_quality_issues WHERE id = {issue_id}"
         
         print(f"🗑️  Deleting issue {issue_id}...")
@@ -868,13 +834,7 @@ def main():
     # Parse environment variables if provided
     environment = None
     if hasattr(args, 'env') and args.env:
-        try:
-            environment = json.loads(args.env)
-        except json.JSONDecodeError:
-            print("❌ Invalid JSON format for --env")
-            sys.exit(1)
-
-    # Handle commands
+        environment = json.loads(args.env)
     if args.action == "run":
         cli.run_docker_job(args.script, gpu=args.gpu, environment=environment, script_args=args.script_args)
 

@@ -62,15 +62,14 @@ def execute_test_batch(symbols, batch_name="test"):
 
     start_time = time.time()
 
-    try:
-        # Build the command for Docker execution
-        cmd = [
-            'python3', 'scripts/run_dev.py', 'run',
-            '--script', 'restart_firstrate_etfs_correct.py'  # Using existing working script as template
-        ]
+    # Build the command for Docker execution
+    cmd = [
+        'python3', 'scripts/run_dev.py', 'run',
+        '--script', 'restart_firstrate_etfs_correct.py'  # Using existing working script as template
+    ]
 
-        # Create a temporary script for stock processing
-        temp_script_content = f'''#!/usr/bin/env python3
+    # Create a temporary script for stock processing
+    temp_script_content = f'''#!/usr/bin/env python3
 import subprocess
 import sys
 
@@ -121,12 +120,6 @@ sys.exit(result.returncode)
             logger.error(f"❌ Test batch failed after {processing_time:.1f}s")
             logger.error(f"   Error: {error_output[-500:]}")  # Last 500 chars
             return False, processing_time
-
-    except Exception as e:
-        processing_time = time.time() - start_time
-        logger.error(f"❌ Exception in test batch: {e}")
-        return False, processing_time
-
 
 def run_test_backfill():
     """Run test backfill to validate system before comprehensive run"""
@@ -250,23 +243,15 @@ def main():
     logger.info(f"📍 Working directory: {os.getcwd()}")
     logger.info(f"📅 Started at: {datetime.now()}")
 
-    try:
-        success = run_test_backfill()
+    success = run_test_backfill()
 
-        if success:
-            logger.info("\n🎉 TEST VALIDATION PASSED!")
-            logger.info("   System is ready for comprehensive stock backfill")
-            logger.info("   Run: python3 scripts/run_dev.py run --script start_comprehensive_stock_backfill.py")
-        else:
-            logger.warning("\n⚠️  TEST VALIDATION FAILED!")
-            logger.warning("   Review errors before running comprehensive backfill")
-
-    except KeyboardInterrupt:
-        logger.info("⚠️  Test interrupted by user (Ctrl+C)")
-    except Exception as e:
-        logger.error(f"💥 Fatal error in test: {e}")
-        raise
-
+    if success:
+        logger.info("\n🎉 TEST VALIDATION PASSED!")
+        logger.info("   System is ready for comprehensive stock backfill")
+        logger.info("   Run: python3 scripts/run_dev.py run --script start_comprehensive_stock_backfill.py")
+    else:
+        logger.warning("\n⚠️  TEST VALIDATION FAILED!")
+        logger.warning("   Review errors before running comprehensive backfill")
 
 if __name__ == "__main__":
     main()

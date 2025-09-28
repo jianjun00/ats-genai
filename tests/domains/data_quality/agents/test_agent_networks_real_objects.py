@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsAgentConfig:
@@ -55,13 +49,7 @@ class TestRealObjectsAgentConfig:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_agent_config_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_config_creation"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_config_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_config_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_config_defaults_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_config_defaults"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_config_defaults_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_config_defaults_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_initialization"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_forward_pass_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_forward_pass"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_forward_pass_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_forward_pass_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_memory_update_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_memory_update"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_memory_update_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_memory_update_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_message_processing_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_message_processing"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_message_processing_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_message_processing_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_with_messages_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_with_messages"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_with_messages_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_with_messages_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_graph_attention_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_graph_attention_initialization"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.graph_attention_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.graph_attention_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_graph_attention_forward_real_objects(self, real_service, test_data):
         """Real objects version of test_graph_attention_forward"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.graph_attention_forward_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.graph_attention_forward_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_graph_attention_sparse_connectivity_real_objects(self, real_service, test_data):
         """Real objects version of test_graph_attention_sparse_connectivity"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.graph_attention_sparse_connectivity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.graph_attention_sparse_connectivity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_network_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_network_initialization"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_network_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_network_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_network_forward_basic_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_network_forward_basic"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_network_forward_basic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_network_forward_basic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_network_communication_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_network_communication"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_network_communication_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_network_communication_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_dynamic_graph_construction_real_objects(self, real_service, test_data):
         """Real objects version of test_dynamic_graph_construction"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.dynamic_graph_construction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.dynamic_graph_construction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_signal_aggregation_real_objects(self, real_service, test_data):
         """Real objects version of test_market_signal_aggregation"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_signal_aggregation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.market_signal_aggregation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_market_features_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_market_features"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_market_features_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_market_features_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_portfolio_system_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_portfolio_system_initialization"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.portfolio_system_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.portfolio_system_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_portfolio_system_forward_real_objects(self, real_service, test_data):
         """Real objects version of test_portfolio_system_forward"""
         # Test with real database integration
@@ -450,14 +336,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.portfolio_system_forward_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.portfolio_system_forward_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_network_creation_disabled_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_network_creation_disabled"""
         # Test with real database integration
@@ -472,14 +352,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_network_creation_disabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_network_creation_disabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_agent_network_creation_enabled_real_objects(self, real_service, test_data):
         """Real objects version of test_agent_network_creation_enabled"""
         # Test with real database integration
@@ -494,14 +368,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.agent_network_creation_enabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.agent_network_creation_enabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_portfolio_system_creation_disabled_real_objects(self, real_service, test_data):
         """Real objects version of test_portfolio_system_creation_disabled"""
         # Test with real database integration
@@ -516,14 +384,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.portfolio_system_creation_disabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.portfolio_system_creation_disabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_portfolio_system_creation_enabled_real_objects(self, real_service, test_data):
         """Real objects version of test_portfolio_system_creation_enabled"""
         # Test with real database integration
@@ -538,14 +400,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.portfolio_system_creation_enabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.portfolio_system_creation_enabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_large_network_forward_pass_real_objects(self, real_service, test_data):
         """Real objects version of test_large_network_forward_pass"""
         # Test with real database integration
@@ -560,14 +416,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.large_network_forward_pass_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.large_network_forward_pass_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_batch_processing_performance_real_objects(self, real_service, test_data):
         """Real objects version of test_batch_processing_performance"""
         # Test with real database integration
@@ -582,14 +432,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.batch_processing_performance_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.batch_processing_performance_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_end_to_end_trading_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_end_to_end_trading_scenario"""
         # Test with real database integration
@@ -604,14 +448,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.end_to_end_trading_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.end_to_end_trading_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_agent_coordination_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_agent_coordination_scenario"""
         # Test with real database integration
@@ -626,15 +464,8 @@ class TestRealObjectsAgentConfig:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_agent_coordination_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.multi_agent_coordination_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

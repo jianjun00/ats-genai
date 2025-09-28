@@ -26,22 +26,16 @@ import aiohttp
 import time
 
 # OpenTelemetry imports for SigNoz integration
-try:
-    from opentelemetry import trace, metrics
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.sdk.resources import Resource
+from opentelemetry import trace, metrics
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import Resource
 
-    OTEL_AVAILABLE = True
-except ImportError:
-    OTEL_AVAILABLE = False
-    logging.warning("OpenTelemetry not available - SigNoz integration disabled")
-
-# Add src to Python path
+OTEL_AVAILABLE = True
 sys.path.insert(0, '/workspace/src' if os.path.exists('/workspace/src') else 'src')
 
 # from infrastructure.vendor.eodhd.adapters.eodhd_minute_adapter import EODHDMinuteAdapter
@@ -92,14 +86,10 @@ async def send_metrics_to_signoz(metrics_data: dict):
     if not signoz_endpoint:
         return
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{signoz_endpoint}/api/metrics", json=metrics_data) as response:
-                if response.status == 200:
-                    logger.debug("📊 Metrics sent to SigNoz")
-    except Exception as e:
-        logger.debug(f"Failed to send metrics to SigNoz: {e}")
-
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{signoz_endpoint}/api/metrics", json=metrics_data) as response:
+            if response.status == 200:
+                logger.debug("📊 Metrics sent to SigNoz")
 class RealTimeMinuteCollector:
     """Real-time minute bar collector for ATS-INTG."""
 
@@ -177,25 +167,20 @@ class RealTimeMinuteCollector:
 
     async def initialize(self):
         """Initialize database connections."""
-        try:
-            self.db_pool = await asyncpg.create_pool(
-                self.db_url,
-                min_size=2,
-                max_size=10,
-                command_timeout=60
-            )
-            logger.info("✅ Database connection pool created")
+        self.db_pool = await asyncpg.create_pool(
+            self.db_url,
+            min_size=2,
+            max_size=10,
+            command_timeout=60
+        )
+        logger.info("✅ Database connection pool created")
 
-            # Ensure tables exist
-            await self.create_tables()
+        # Ensure tables exist
+        await self.create_tables()
 
-            # Load symbols from universe if specified
-            if self.universe_id:
-                self.symbols = await self.load_symbols_from_universe()
-
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize collector: {e}")
-            raise
+        # Load symbols from universe if specified
+        if self.universe_id:
+            self.symbols = await self.load_symbols_from_universe()
 
     async def create_tables(self):
         """Create minute bar tables if they don't exist."""
@@ -260,52 +245,45 @@ class RealTimeMinuteCollector:
 
         span_name = f"collect_polygon_data_{symbol}"
         with self.tracer.start_as_current_span(span_name) if self.tracer else contextlib.nullcontext():
-            try:
-                # Get current minute (rounded down)
-                now = datetime.utcnow()
-                current_minute = now.replace(second=0, microsecond=0)
-                prev_minute = current_minute - timedelta(minutes=1)
+            # Get current minute (rounded down)
+            now = datetime.utcnow()
+            current_minute = now.replace(second=0, microsecond=0)
+            prev_minute = current_minute - timedelta(minutes=1)
 
-                # Polygon aggregates API for 1-minute bars
-                url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{int(prev_minute.timestamp() * 1000)}/{int(current_minute.timestamp() * 1000)}"
+            # Polygon aggregates API for 1-minute bars
+            url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/minute/{int(prev_minute.timestamp() * 1000)}/{int(current_minute.timestamp() * 1000)}"
 
-                async with aiohttp.ClientSession() as session:
-                    params = {'apikey': self.polygon_api_key}
-                    async with session.get(url, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            results = data.get('results', [])
+            async with aiohttp.ClientSession() as session:
+                params = {'apikey': self.polygon_api_key}
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        results = data.get('results', [])
 
-                            minute_bars = []
-                            for bar in results:
-                                minute_bars.append({
-                                    'symbol': symbol,
-                                    'timestamp': datetime.fromtimestamp(bar['t'] / 1000),
-                                    'open': bar['o'],
-                                    'high': bar['h'],
-                                    'low': bar['l'],
-                                    'close': bar['c'],
-                                    'volume': bar['v'],
-                                    'vwap': bar.get('vw'),
-                                    'trade_count': bar.get('n')
-                                })
+                        minute_bars = []
+                        for bar in results:
+                            minute_bars.append({
+                                'symbol': symbol,
+                                'timestamp': datetime.fromtimestamp(bar['t'] / 1000),
+                                'open': bar['o'],
+                                'high': bar['h'],
+                                'low': bar['l'],
+                                'close': bar['c'],
+                                'volume': bar['v'],
+                                'vwap': bar.get('vw'),
+                                'trade_count': bar.get('n')
+                            })
 
-                            # Track metrics
-                            if self.bars_collected:
-                                self.bars_collected.add(len(minute_bars), {"vendor": "polygon", "symbol": symbol})
+                        # Track metrics
+                        if self.bars_collected:
+                            self.bars_collected.add(len(minute_bars), {"vendor": "polygon", "symbol": symbol})
 
-                            return minute_bars
-                        else:
-                            logger.warning(f"Polygon API error for {symbol}: {response.status}")
-                            if self.api_errors:
-                                self.api_errors.add(1, {"vendor": "polygon", "symbol": symbol, "status": str(response.status)})
-                            return []
-
-            except Exception as e:
-                logger.error(f"Error collecting Polygon data for {symbol}: {e}")
-                if self.api_errors:
-                    self.api_errors.add(1, {"vendor": "polygon", "symbol": symbol, "error": str(e)})
-                return []
+                        return minute_bars
+                    else:
+                        logger.warning(f"Polygon API error for {symbol}: {response.status}")
+                        if self.api_errors:
+                            self.api_errors.add(1, {"vendor": "polygon", "symbol": symbol, "status": str(response.status)})
+                        return []
 
     async def collect_tiingo_data(self, symbol: str) -> List[Dict]:
         """Collect current minute bar from Tiingo."""
@@ -313,48 +291,43 @@ class RealTimeMinuteCollector:
             logger.warning("Tiingo API key not configured")
             return []
 
-        try:
-            # Get current minute (rounded down)
-            now = datetime.utcnow()
-            current_minute = now.replace(second=0, microsecond=0)
-            prev_minute = current_minute - timedelta(minutes=1)
+        # Get current minute (rounded down)
+        now = datetime.utcnow()
+        current_minute = now.replace(second=0, microsecond=0)
+        prev_minute = current_minute - timedelta(minutes=1)
 
-            # Tiingo IEX intraday API
-            url = f"https://api.tiingo.com/iex/{symbol}/prices"
+        # Tiingo IEX intraday API
+        url = f"https://api.tiingo.com/iex/{symbol}/prices"
 
-            async with aiohttp.ClientSession() as session:
-                params = {
-                    'token': self.tiingo_api_key,
-                    'startDate': prev_minute.strftime('%Y-%m-%d %H:%M:%S'),
-                    'endDate': current_minute.strftime('%Y-%m-%d %H:%M:%S'),
-                    'resampleFreq': '1min'
-                }
+        async with aiohttp.ClientSession() as session:
+            params = {
+                'token': self.tiingo_api_key,
+                'startDate': prev_minute.strftime('%Y-%m-%d %H:%M:%S'),
+                'endDate': current_minute.strftime('%Y-%m-%d %H:%M:%S'),
+                'resampleFreq': '1min'
+            }
 
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
 
-                        minute_bars = []
-                        for bar in data:
-                            timestamp = datetime.fromisoformat(bar['date'].replace('Z', '+00:00'))
-                            minute_bars.append({
-                                'symbol': symbol,
-                                'timestamp': timestamp,
-                                'open': bar['open'],
-                                'high': bar['high'],
-                                'low': bar['low'],
-                                'close': bar['close'],
-                                'volume': bar['volume']
-                            })
+                    minute_bars = []
+                    for bar in data:
+                        timestamp = datetime.fromisoformat(bar['date'].replace('Z', '+00:00'))
+                        minute_bars.append({
+                            'symbol': symbol,
+                            'timestamp': timestamp,
+                            'open': bar['open'],
+                            'high': bar['high'],
+                            'low': bar['low'],
+                            'close': bar['close'],
+                            'volume': bar['volume']
+                        })
 
-                        return minute_bars
-                    else:
-                        logger.warning(f"Tiingo API error for {symbol}: {response.status}")
-                        return []
-
-        except Exception as e:
-            logger.error(f"Error collecting Tiingo data for {symbol}: {e}")
-            return []
+                    return minute_bars
+                else:
+                    logger.warning(f"Tiingo API error for {symbol}: {response.status}")
+                    return []
 
     async def collect_eodhd_data(self, symbol: str) -> List[Dict]:
         """Collect current minute bar from EODHD."""
@@ -362,49 +335,44 @@ class RealTimeMinuteCollector:
             logger.warning("EODHD API key not configured")
             return []
 
-        try:
-            # Get current minute (rounded down)
-            now = datetime.utcnow()
-            current_minute = now.replace(second=0, microsecond=0)
-            prev_minute = current_minute - timedelta(minutes=1)
+        # Get current minute (rounded down)
+        now = datetime.utcnow()
+        current_minute = now.replace(second=0, microsecond=0)
+        prev_minute = current_minute - timedelta(minutes=1)
 
-            # EODHD intraday API for 1-minute bars
-            url = f"https://eodhistoricaldata.com/api/intraday/{symbol}.US"
+        # EODHD intraday API for 1-minute bars
+        url = f"https://eodhistoricaldata.com/api/intraday/{symbol}.US"
 
-            async with aiohttp.ClientSession() as session:
-                params = {
-                    'api_token': self.eodhd_api_key,
-                    'interval': '1m',
-                    'from': prev_minute.strftime('%Y-%m-%d %H:%M:%S'),
-                    'to': current_minute.strftime('%Y-%m-%d %H:%M:%S'),
-                    'fmt': 'json'
-                }
+        async with aiohttp.ClientSession() as session:
+            params = {
+                'api_token': self.eodhd_api_key,
+                'interval': '1m',
+                'from': prev_minute.strftime('%Y-%m-%d %H:%M:%S'),
+                'to': current_minute.strftime('%Y-%m-%d %H:%M:%S'),
+                'fmt': 'json'
+            }
 
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
 
-                        minute_bars = []
-                        for bar in data:
-                            timestamp = datetime.strptime(bar['datetime'], '%Y-%m-%d %H:%M:%S')
-                            minute_bars.append({
-                                'symbol': symbol,
-                                'timestamp': timestamp,
-                                'open': bar['open'],
-                                'high': bar['high'],
-                                'low': bar['low'],
-                                'close': bar['close'],
-                                'volume': bar.get('volume', 0)
-                            })
+                    minute_bars = []
+                    for bar in data:
+                        timestamp = datetime.strptime(bar['datetime'], '%Y-%m-%d %H:%M:%S')
+                        minute_bars.append({
+                            'symbol': symbol,
+                            'timestamp': timestamp,
+                            'open': bar['open'],
+                            'high': bar['high'],
+                            'low': bar['low'],
+                            'close': bar['close'],
+                            'volume': bar.get('volume', 0)
+                        })
 
-                        return minute_bars
-                    else:
-                        logger.warning(f"EODHD API error for {symbol}: {response.status}")
-                        return []
-
-        except Exception as e:
-            logger.error(f"Error collecting EODHD data for {symbol}: {e}")
-            return []
+                    return minute_bars
+                else:
+                    logger.warning(f"EODHD API error for {symbol}: {response.status}")
+                    return []
 
     async def store_polygon_data(self, bars: List[Dict]):
         """Store Polygon minute bars in database."""
@@ -495,45 +463,41 @@ class RealTimeMinuteCollector:
 
     async def collect_symbol_data(self, symbol: str):
         """Collect data for a single symbol from all vendors."""
-        try:
-            # Collect from all vendors concurrently
-            polygon_task = self.collect_polygon_data(symbol)
-            tiingo_task = self.collect_tiingo_data(symbol)
-            eodhd_task = self.collect_eodhd_data(symbol)
+        # Collect from all vendors concurrently
+        polygon_task = self.collect_polygon_data(symbol)
+        tiingo_task = self.collect_tiingo_data(symbol)
+        eodhd_task = self.collect_eodhd_data(symbol)
 
-            polygon_bars, tiingo_bars, eodhd_bars = await asyncio.gather(
-                polygon_task, tiingo_task, eodhd_task, return_exceptions=True
-            )
+        polygon_bars, tiingo_bars, eodhd_bars = await asyncio.gather(
+            polygon_task, tiingo_task, eodhd_task, return_exceptions=True
+        )
 
-            # Handle exceptions
-            if isinstance(polygon_bars, Exception):
-                logger.error(f"Polygon collection failed for {symbol}: {polygon_bars}")
-                polygon_bars = []
+        # Handle exceptions
+        if isinstance(polygon_bars, Exception):
+            logger.error(f"Polygon collection failed for {symbol}: {polygon_bars}")
+            polygon_bars = []
 
-            if isinstance(tiingo_bars, Exception):
-                logger.error(f"Tiingo collection failed for {symbol}: {tiingo_bars}")
-                tiingo_bars = []
+        if isinstance(tiingo_bars, Exception):
+            logger.error(f"Tiingo collection failed for {symbol}: {tiingo_bars}")
+            tiingo_bars = []
 
-            if isinstance(eodhd_bars, Exception):
-                logger.error(f"EODHD collection failed for {symbol}: {eodhd_bars}")
-                eodhd_bars = []
+        if isinstance(eodhd_bars, Exception):
+            logger.error(f"EODHD collection failed for {symbol}: {eodhd_bars}")
+            eodhd_bars = []
 
-            # Store data
-            if polygon_bars:
-                await self.store_polygon_data(polygon_bars)
+        # Store data
+        if polygon_bars:
+            await self.store_polygon_data(polygon_bars)
 
-            if tiingo_bars:
-                await self.store_tiingo_data(tiingo_bars)
+        if tiingo_bars:
+            await self.store_tiingo_data(tiingo_bars)
 
-            if eodhd_bars:
-                await self.store_eodhd_data(eodhd_bars)
+        if eodhd_bars:
+            await self.store_eodhd_data(eodhd_bars)
 
-            total_bars = len(polygon_bars) + len(tiingo_bars) + len(eodhd_bars)
-            if total_bars > 0:
-                logger.info(f"✅ {symbol}: {total_bars} minute bars collected (P:{len(polygon_bars)}, T:{len(tiingo_bars)}, E:{len(eodhd_bars)})")
-
-        except Exception as e:
-            logger.error(f"Error processing {symbol}: {e}")
+        total_bars = len(polygon_bars) + len(tiingo_bars) + len(eodhd_bars)
+        if total_bars > 0:
+            logger.info(f"✅ {symbol}: {total_bars} minute bars collected (P:{len(polygon_bars)}, T:{len(tiingo_bars)}, E:{len(eodhd_bars)})")
 
     async def run_collection_cycle(self):
         """Run a single collection cycle for all symbols."""
@@ -580,26 +544,21 @@ class RealTimeMinuteCollector:
         self.running = True
         logger.info(f"🚀 Starting real-time collection for {len(self.symbols)} symbols")
 
-        try:
-            while self.running:
-                # Wait until the start of the next minute
-                now = datetime.utcnow()
-                next_minute = (now.replace(second=0, microsecond=0) + timedelta(minutes=1))
-                wait_seconds = (next_minute - now).total_seconds()
+        while self.running:
+            # Wait until the start of the next minute
+            now = datetime.utcnow()
+            next_minute = (now.replace(second=0, microsecond=0) + timedelta(minutes=1))
+            wait_seconds = (next_minute - now).total_seconds()
 
-                if wait_seconds > 0:
-                    logger.info(f"⏱️  Waiting {wait_seconds:.1f}s until next minute...")
-                    await asyncio.sleep(wait_seconds)
+            if wait_seconds > 0:
+                logger.info(f"⏱️  Waiting {wait_seconds:.1f}s until next minute...")
+                await asyncio.sleep(wait_seconds)
 
-                # Run collection cycle
-                await self.run_collection_cycle()
+            # Run collection cycle
+            await self.run_collection_cycle()
 
-                # Brief pause between cycles
-                await asyncio.sleep(1)
-
-        except KeyboardInterrupt:
-            logger.info("🛑 Stopping real-time collection...")
-            self.running = False
+            # Brief pause between cycles
+            await asyncio.sleep(1)
 
     async def close(self):
         """Clean shutdown."""
@@ -662,11 +621,7 @@ async def main():
     # Create and run collector
     collector = RealTimeMinuteCollector(symbols, db_url, universe_id=args.universe_id)
 
-    try:
-        await collector.initialize()
-        await collector.run_continuous()
-    finally:
-        await collector.close()
-
+    await collector.initialize()
+    await collector.run_continuous()
 if __name__ == "__main__":
     asyncio.run(main())

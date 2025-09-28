@@ -160,56 +160,44 @@ class Test21DataPointsChartRendering:
             "http://localhost:3000/api/v1/training-datasets/17/visualization-data?start_idx=90&count=21"
         ]
 
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
-            if result.returncode != 0:
-                print(f"❌ Curl command failed: {result.stderr}")
-                return False
+        if result.returncode != 0:
+            print(f"❌ Curl command failed: {result.stderr}")
+            return False
 
-            data = json.loads(result.stdout)
-            print(f"📡 API Response Analysis:")
+        data = json.loads(result.stdout)
+        print(f"📡 API Response Analysis:")
 
-            if 'data' in data and isinstance(data['data'], list):
-                point_count = len(data['data'])
-                print(f"   Data points returned: {point_count}")
-                print(f"   Sequence info: idx={data.get('sequence_idx')}, total={data.get('total_sequences')}")
+        if 'data' in data and isinstance(data['data'], list):
+            point_count = len(data['data'])
+            print(f"   Data points returned: {point_count}")
+            print(f"   Sequence info: idx={data.get('sequence_idx')}, total={data.get('total_sequences')}")
 
-                # Check first and last data points
-                if point_count > 0:
-                    first_point = data['data'][0]
-                    last_point = data['data'][-1] if point_count > 1 else first_point
+            # Check first and last data points
+            if point_count > 0:
+                first_point = data['data'][0]
+                last_point = data['data'][-1] if point_count > 1 else first_point
 
-                    print(f"   First point OHLC: O={first_point.get('open')}, H={first_point.get('high')}, L={first_point.get('low')}, C={first_point.get('close')}")
-                    if point_count > 1:
-                        print(f"   Last point OHLC:  O={last_point.get('open')}, H={last_point.get('high')}, L={last_point.get('low')}, C={last_point.get('close')}")
+                print(f"   First point OHLC: O={first_point.get('open')}, H={first_point.get('high')}, L={first_point.get('low')}, C={first_point.get('close')}")
+                if point_count > 1:
+                    print(f"   Last point OHLC:  O={last_point.get('open')}, H={last_point.get('high')}, L={last_point.get('low')}, C={last_point.get('close')}")
 
-                if point_count == 21:
-                    print("✅ API correctly returns 21 data points")
-                    return True
-                else:
-                    print(f"❌ Expected 21 data points, got {point_count}")
-                    return False
-
-            elif 'error' in data:
-                print(f"❌ API returned error: {data['error']}")
-                if 'user_message' in data:
-                    print(f"   Message: {data['user_message']}")
-                return False
-
+            if point_count == 21:
+                print("✅ API correctly returns 21 data points")
+                return True
             else:
-                print(f"❌ Unexpected API response structure: {list(data.keys())}")
+                print(f"❌ Expected 21 data points, got {point_count}")
                 return False
 
-        except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse API response as JSON: {e}")
-            print(f"   Raw response: {result.stdout[:200]}...")
+        elif 'error' in data:
+            print(f"❌ API returned error: {data['error']}")
+            if 'user_message' in data:
+                print(f"   Message: {data['user_message']}")
             return False
-        except subprocess.TimeoutExpired:
-            print("❌ API request timed out")
-            return False
-        except Exception as e:
-            print(f"❌ API test failed: {e}")
+
+        else:
+            print(f"❌ Unexpected API response structure: {list(data.keys())}")
             return False
 
 async def run_tests():
@@ -220,36 +208,31 @@ async def run_tests():
 
     test_suite = Test21DataPointsChartRendering()
 
-    try:
-        # Test 1: Verify API returns 21 data points
-        print("\n1️⃣ Testing API data points...")
-        api_result = test_suite.test_api_returns_21_datapoints()
+    # Test 1: Verify API returns 21 data points
+    print("\n1️⃣ Testing API data points...")
+    api_result = test_suite.test_api_returns_21_datapoints()
 
-        if api_result:
-            # Test 2: Verify chart renders all 21 points
-            print("\n2️⃣ Testing chart rendering...")
-            chart_result = await test_suite.test_21_datapoints_in_ohlc_chart()
+    if api_result:
+        # Test 2: Verify chart renders all 21 points
+        print("\n2️⃣ Testing chart rendering...")
+        chart_result = await test_suite.test_21_datapoints_in_ohlc_chart()
 
-            # Summary
-            print("\n" + "=" * 60)
-            print("📊 TEST SUMMARY:")
-            print(f"   API Returns 21 Points: {'✅ PASS' if api_result else '❌ FAIL'}")
-            print(f"   Chart Shows 21 Points: {'✅ PASS' if chart_result else '❌ FAIL'}")
+        # Summary
+        print("\n" + "=" * 60)
+        print("📊 TEST SUMMARY:")
+        print(f"   API Returns 21 Points: {'✅ PASS' if api_result else '❌ FAIL'}")
+        print(f"   Chart Shows 21 Points: {'✅ PASS' if chart_result else '❌ FAIL'}")
 
-            if api_result and chart_result:
-                print("🎉 ALL TESTS PASSED: 21-row window working correctly!")
-            elif api_result and not chart_result:
-                print("⚠️ ISSUE IDENTIFIED: API works but chart rendering needs fixing")
-            else:
-                print("❌ ISSUES FOUND: Check API and chart rendering")
-
-            return api_result and chart_result
+        if api_result and chart_result:
+            print("🎉 ALL TESTS PASSED: 21-row window working correctly!")
+        elif api_result and not chart_result:
+            print("⚠️ ISSUE IDENTIFIED: API works but chart rendering needs fixing")
         else:
-            print("❌ API test failed, skipping chart test")
-            return False
+            print("❌ ISSUES FOUND: Check API and chart rendering")
 
-    except Exception as e:
-        print(f"❌ Test execution failed: {e}")
+        return api_result and chart_result
+    else:
+        print("❌ API test failed, skipping chart test")
         return False
 
 if __name__ == "__main__":

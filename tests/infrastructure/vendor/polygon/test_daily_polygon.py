@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timezone
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from vendor.polygon.core.dao.daily_price_polygon_dao import DailyPricesPolygonDAO
-from domains.market_data.services.eod import daily_price_polygon
+from domains.trading.services.core.eod import daily_price_polygon
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

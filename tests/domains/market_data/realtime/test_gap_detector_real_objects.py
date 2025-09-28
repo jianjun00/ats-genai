@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsDataGap:
@@ -55,13 +49,7 @@ class TestRealObjectsDataGap:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_data_gap_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_data_gap_creation"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_gap_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_gap_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_gap_defaults_real_objects(self, real_service, test_data):
         """Real objects version of test_data_gap_defaults"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_gap_defaults_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_gap_defaults_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detector_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_detector_initialization"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detector_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.detector_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_initialize_database_connection_real_objects(self, real_service, test_data):
         """Real objects version of test_initialize_database_connection"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.initialize_database_connection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.initialize_database_connection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_classify_gap_type_real_objects(self, real_service, test_data):
         """Real objects version of test_classify_gap_type"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.classify_gap_type_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.classify_gap_type_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_determine_gap_severity_real_objects(self, real_service, test_data):
         """Real objects version of test_determine_gap_severity"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.determine_gap_severity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.determine_gap_severity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_is_market_hours_gap_real_objects(self, real_service, test_data):
         """Real objects version of test_is_market_hours_gap"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.is_market_hours_gap_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.is_market_hours_gap_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_active_symbols_real_objects(self, real_service, test_data):
         """Real objects version of test_get_active_symbols"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_active_symbols_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_active_symbols_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detect_symbol_gaps_real_objects(self, real_service, test_data):
         """Real objects version of test_detect_symbol_gaps"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detect_symbol_gaps_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.detect_symbol_gaps_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_detect_symbol_gaps_market_hours_filter_real_objects(self, real_service, test_data):
         """Real objects version of test_detect_symbol_gaps_market_hours_filter"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.detect_symbol_gaps_market_hours_filter_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.detect_symbol_gaps_market_hours_filter_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_prioritize_gaps_real_objects(self, real_service, test_data):
         """Real objects version of test_prioritize_gaps"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.prioritize_gaps_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.prioritize_gaps_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_store_gaps_real_objects(self, real_service, test_data):
         """Real objects version of test_store_gaps"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.store_gaps_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.store_gaps_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_backfill_polygon_gap_real_objects(self, real_service, test_data):
         """Real objects version of test_backfill_polygon_gap"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.backfill_polygon_gap_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.backfill_polygon_gap_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_backfill_tiingo_gap_real_objects(self, real_service, test_data):
         """Real objects version of test_backfill_tiingo_gap"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.backfill_tiingo_gap_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.backfill_tiingo_gap_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_backfill_fmp_gap_real_objects(self, real_service, test_data):
         """Real objects version of test_backfill_fmp_gap"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.backfill_fmp_gap_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.backfill_fmp_gap_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_store_backfilled_data_real_objects(self, real_service, test_data):
         """Real objects version of test_store_backfilled_data"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.store_backfilled_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.store_backfilled_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_instrument_id_real_objects(self, real_service, test_data):
         """Real objects version of test_get_instrument_id"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_instrument_id_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_instrument_id_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_instrument_id_not_found_real_objects(self, real_service, test_data):
         """Real objects version of test_get_instrument_id_not_found"""
         # Test with real database integration
@@ -450,14 +336,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_instrument_id_not_found_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_instrument_id_not_found_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_mark_gap_backfilled_real_objects(self, real_service, test_data):
         """Real objects version of test_mark_gap_backfilled"""
         # Test with real database integration
@@ -472,14 +352,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.mark_gap_backfilled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.mark_gap_backfilled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_mark_gap_failed_real_objects(self, real_service, test_data):
         """Real objects version of test_mark_gap_failed"""
         # Test with real database integration
@@ -494,14 +368,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.mark_gap_failed_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.mark_gap_failed_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_update_collection_status_real_objects(self, real_service, test_data):
         """Real objects version of test_update_collection_status"""
         # Test with real database integration
@@ -516,14 +384,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.update_collection_status_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.update_collection_status_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_gap_detection_complete_flow_real_objects(self, real_service, test_data):
         """Real objects version of test_run_gap_detection_complete_flow"""
         # Test with real database integration
@@ -538,14 +400,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_gap_detection_complete_flow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_gap_detection_complete_flow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_execute_backfills_real_objects(self, real_service, test_data):
         """Real objects version of test_execute_backfills"""
         # Test with real database integration
@@ -560,14 +416,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.execute_backfills_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.execute_backfills_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_shutdown_real_objects(self, real_service, test_data):
         """Real objects version of test_shutdown"""
         # Test with real database integration
@@ -582,14 +432,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.shutdown_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.shutdown_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_polygon_api_rate_limit_real_objects(self, real_service, test_data):
         """Real objects version of test_polygon_api_rate_limit"""
         # Test with real database integration
@@ -604,14 +448,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.polygon_api_rate_limit_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.polygon_api_rate_limit_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_tiingo_api_server_error_real_objects(self, real_service, test_data):
         """Real objects version of test_tiingo_api_server_error"""
         # Test with real database integration
@@ -626,14 +464,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.tiingo_api_server_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.tiingo_api_server_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fmp_api_authentication_error_real_objects(self, real_service, test_data):
         """Real objects version of test_fmp_api_authentication_error"""
         # Test with real database integration
@@ -648,14 +480,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fmp_api_authentication_error_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fmp_api_authentication_error_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_network_timeout_handling_real_objects(self, real_service, test_data):
         """Real objects version of test_network_timeout_handling"""
         # Test with real database integration
@@ -670,14 +496,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.network_timeout_handling_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.network_timeout_handling_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_missing_api_key_real_objects(self, real_service, test_data):
         """Real objects version of test_missing_api_key"""
         # Test with real database integration
@@ -692,14 +512,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.missing_api_key_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.missing_api_key_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_gaps_list_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_gaps_list"""
         # Test with real database integration
@@ -714,14 +528,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_gaps_list_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_gaps_list_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_gap_prioritization_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_gap_prioritization_edge_cases"""
         # Test with real database integration
@@ -736,14 +544,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.gap_prioritization_edge_cases_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.gap_prioritization_edge_cases_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_error_during_gap_storage_real_objects(self, real_service, test_data):
         """Real objects version of test_database_error_during_gap_storage"""
         # Test with real database integration
@@ -758,15 +560,8 @@ class TestRealObjectsDataGap:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_error_during_gap_storage_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.database_error_during_gap_storage_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

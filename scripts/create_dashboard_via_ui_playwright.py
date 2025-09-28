@@ -34,80 +34,66 @@ class SignOzDashboardCreator:
             )
             page = await context.new_page()
 
-            try:
-                # Enable detailed logging
-                await page.route("**/*", self._log_requests)
+            # Enable detailed logging
+            await page.route("**/*", self._log_requests)
 
-                print("📊 Step 1: Loading SignOz main page...")
-                await page.goto(self.signoz_url, wait_until="networkidle", timeout=30000)
+            print("📊 Step 1: Loading SignOz main page...")
+            await page.goto(self.signoz_url, wait_until="networkidle", timeout=30000)
 
-                # Wait for any JavaScript to load
-                await page.wait_for_timeout(5000)
+            # Wait for any JavaScript to load
+            await page.wait_for_timeout(5000)
 
-                # Take screenshot of main page
-                await page.screenshot(path="/tmp/signoz_main_page.png")
-                print("📸 Main page screenshot: /tmp/signoz_main_page.png")
+            # Take screenshot of main page
+            await page.screenshot(path="/tmp/signoz_main_page.png")
+            print("📸 Main page screenshot: /tmp/signoz_main_page.png")
 
-                # Check if we can see any UI elements
+            # Check if we can see any UI elements
+            await self._explore_page_structure(page)
+
+            # Try different potential dashboard paths
+            dashboard_paths = [
+                "/dashboard",
+                "/dashboards",
+                "/metrics",
+                "/application",
+                "/#/dashboard",
+                "/#/dashboards"
+            ]
+
+            working_path = None
+            for path in dashboard_paths:
+                print(f"🔍 Testing path: {path}")
+                await page.goto(f"{self.signoz_url}{path}", wait_until="networkidle", timeout=10000)
+                await page.wait_for_timeout(3000)
+
+                # Check if we see dashboard-related content
+                page_text = await page.inner_text("body")
+                if any(keyword in page_text.lower() for keyword in ["dashboard", "create", "panel", "metric"]):
+                    working_path = path
+                    print(f"✅ Found working path: {path}")
+                    break
+
+            if working_path:
+                await page.screenshot(path="/tmp/signoz_working_path.png")
+                print(f"📸 Working path screenshot: /tmp/signoz_working_path.png")
+
+                # Try to find dashboard creation button
+                await self._create_dashboard_through_ui(page)
+            else:
+                print("❌ No working dashboard paths found")
+
+                # Try to wait for single page app to load
+                print("⏳ Waiting for SPA to load...")
+                await page.wait_for_timeout(10000)
+                await page.screenshot(path="/tmp/signoz_after_wait.png")
+                print("📸 After wait screenshot: /tmp/signoz_after_wait.png")
+
+                # Check if any content loaded
                 await self._explore_page_structure(page)
 
-                # Try different potential dashboard paths
-                dashboard_paths = [
-                    "/dashboard",
-                    "/dashboards",
-                    "/metrics",
-                    "/application",
-                    "/#/dashboard",
-                    "/#/dashboards"
-                ]
-
-                working_path = None
-                for path in dashboard_paths:
-                    print(f"🔍 Testing path: {path}")
-                    try:
-                        await page.goto(f"{self.signoz_url}{path}", wait_until="networkidle", timeout=10000)
-                        await page.wait_for_timeout(3000)
-
-                        # Check if we see dashboard-related content
-                        page_text = await page.inner_text("body")
-                        if any(keyword in page_text.lower() for keyword in ["dashboard", "create", "panel", "metric"]):
-                            working_path = path
-                            print(f"✅ Found working path: {path}")
-                            break
-
-                    except Exception as e:
-                        print(f"  ❌ Path {path} failed: {e}")
-                        continue
-
-                if working_path:
-                    await page.screenshot(path="/tmp/signoz_working_path.png")
-                    print(f"📸 Working path screenshot: /tmp/signoz_working_path.png")
-
-                    # Try to find dashboard creation button
-                    await self._create_dashboard_through_ui(page)
-                else:
-                    print("❌ No working dashboard paths found")
-
-                    # Try to wait for single page app to load
-                    print("⏳ Waiting for SPA to load...")
-                    await page.wait_for_timeout(10000)
-                    await page.screenshot(path="/tmp/signoz_after_wait.png")
-                    print("📸 After wait screenshot: /tmp/signoz_after_wait.png")
-
-                    # Check if any content loaded
-                    await self._explore_page_structure(page)
-
-                # Final verification
-                print("🔍 Final verification of page state...")
-                await page.wait_for_timeout(2000)
-
-            except Exception as e:
-                print(f"❌ Dashboard creation failed: {e}")
-                await page.screenshot(path="/tmp/signoz_error.png")
-                print("📸 Error screenshot: /tmp/signoz_error.png")
-
-            finally:
-                await browser.close()
+            # Final verification
+            print("🔍 Final verification of page state...")
+            await page.wait_for_timeout(2000)
 
     async def _log_requests(self, route):
         """Log network requests for debugging"""
@@ -159,14 +145,10 @@ class SignOzDashboardCreator:
         ]
 
         for indicator in react_indicators:
-            try:
-                element = page.locator(indicator)
-                if await element.count() > 0:
-                    content = await element.inner_text()
-                    print(f"⚛️ Found React app indicator {indicator}: {content[:100]}...")
-            except:
-                continue
-
+            element = page.locator(indicator)
+            if await element.count() > 0:
+                content = await element.inner_text()
+                print(f"⚛️ Found React app indicator {indicator}: {content[:100]}...")
     async def _create_dashboard_through_ui(self, page):
         """Try to create dashboard through UI interactions"""
         print("🎨 Attempting to create dashboard through UI...")
@@ -185,27 +167,22 @@ class SignOzDashboardCreator:
 
         for button_text in creation_buttons:
             print(f"🔘 Looking for button: '{button_text}'")
-            try:
-                button = page.locator(f"button:has-text('{button_text}')").first
-                if await button.count() > 0:
-                    print(f"✅ Found button: {button_text}")
-                    await button.click()
-                    await page.wait_for_timeout(3000)
+            button = page.locator(f"button:has-text('{button_text}')").first
+            if await button.count() > 0:
+                print(f"✅ Found button: {button_text}")
+                await button.click()
+                await page.wait_for_timeout(3000)
 
-                    # Take screenshot after clicking
-                    await page.screenshot(path=f"/tmp/signoz_after_click_{button_text.replace(' ', '_')}.png")
-                    print(f"📸 After clicking '{button_text}': /tmp/signoz_after_click_{button_text.replace(' ', '_')}.png")
+                # Take screenshot after clicking
+                await page.screenshot(path=f"/tmp/signoz_after_click_{button_text.replace(' ', '_')}.png")
+                print(f"📸 After clicking '{button_text}': /tmp/signoz_after_click_{button_text.replace(' ', '_')}.png")
 
-                    # Check if dashboard creation interface opened
-                    page_text = await page.inner_text("body")
-                    if any(keyword in page_text.lower() for keyword in ["panel", "widget", "metric", "query"]):
-                        print("✅ Dashboard creation interface detected!")
-                        await self._configure_dashboard_panels(page)
-                        return True
-
-            except Exception as e:
-                print(f"  ❌ Button '{button_text}' failed: {e}")
-                continue
+                # Check if dashboard creation interface opened
+                page_text = await page.inner_text("body")
+                if any(keyword in page_text.lower() for keyword in ["panel", "widget", "metric", "query"]):
+                    print("✅ Dashboard creation interface detected!")
+                    await self._configure_dashboard_panels(page)
+                    return True
 
         print("❌ No dashboard creation buttons found")
         return False
@@ -234,22 +211,17 @@ class SignOzDashboardCreator:
             ]
 
             for selector in query_inputs:
-                try:
-                    input_field = page.locator(selector).first
-                    if await input_field.count() > 0:
-                        print(f"✅ Found query input: {selector}")
-                        await input_field.fill(metric)
-                        await page.keyboard.press("Enter")
-                        await page.wait_for_timeout(2000)
+                input_field = page.locator(selector).first
+                if await input_field.count() > 0:
+                    print(f"✅ Found query input: {selector}")
+                    await input_field.fill(metric)
+                    await page.keyboard.press("Enter")
+                    await page.wait_for_timeout(2000)
 
-                        # Take screenshot
-                        await page.screenshot(path=f"/tmp/signoz_metric_{metric}.png")
-                        print(f"📸 After adding {metric}: /tmp/signoz_metric_{metric}.png")
-                        break
-                except Exception as e:
-                    continue
-
-        # Try to save the dashboard
+                    # Take screenshot
+                    await page.screenshot(path=f"/tmp/signoz_metric_{metric}.png")
+                    print(f"📸 After adding {metric}: /tmp/signoz_metric_{metric}.png")
+                    break
         save_buttons = [
             "Save",
             "Save Dashboard",
@@ -259,19 +231,15 @@ class SignOzDashboardCreator:
         ]
 
         for save_text in save_buttons:
-            try:
-                save_button = page.locator(f"button:has-text('{save_text}')").first
-                if await save_button.count() > 0:
-                    print(f"✅ Found save button: {save_text}")
-                    await save_button.click()
-                    await page.wait_for_timeout(3000)
+            save_button = page.locator(f"button:has-text('{save_text}')").first
+            if await save_button.count() > 0:
+                print(f"✅ Found save button: {save_text}")
+                await save_button.click()
+                await page.wait_for_timeout(3000)
 
-                    await page.screenshot(path="/tmp/signoz_dashboard_saved.png")
-                    print("📸 Dashboard saved: /tmp/signoz_dashboard_saved.png")
-                    break
-            except Exception as e:
-                continue
-
+                await page.screenshot(path="/tmp/signoz_dashboard_saved.png")
+                print("📸 Dashboard saved: /tmp/signoz_dashboard_saved.png")
+                break
 async def main():
     creator = SignOzDashboardCreator()
     await creator.create_dashboard_via_ui()

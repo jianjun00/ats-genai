@@ -4,24 +4,7 @@ import gin
 
 # Defensive import handling for LoggingConfig
 LoggingConfig = None
-try:
-    from core.config.logging_config import LoggingConfig
-except (ImportError, KeyError):
-    try:
-        from core.logging.logger_config import LoggingConfig
-    except (ImportError, KeyError):
-        try:
-            from core.platform.logging.logger_config import LoggingConfig
-        except (ImportError, KeyError):
-            # Emergency: Create a minimal LoggingConfig class for tests
-            from dataclasses import dataclass
-
-            @dataclass
-            class LoggingConfig:
-                """Emergency logging configuration for tests"""
-                log_level: str = "INFO"
-                log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
+from core.config.logging_config import LoggingConfig
 @pytest.fixture(autouse=True, scope="function")
 def gin_test_setup(request):
     """Setup gin configuration for tests with proper isolation."""
@@ -35,15 +18,7 @@ def gin_test_setup(request):
         if not os.path.exists(gin_cfg):
             gin_cfg = "config/app_test.gin"  # fallback
 
-    try:
-        gin.parse_config_file(gin_cfg)
-    except (FileNotFoundError, IOError) as e:
-        # If gin config fails, provide minimal configuration
-        print(f"Warning: Could not load gin config {gin_cfg}: {e}")
-        # Set up minimal required configuration
-        gin.bind_parameter('core.config.environment.Environment.env_type', 'TEST')
-        gin.bind_parameter('core.config.environment.Environment.db_url', 'postgresql://test_user:test_password@localhost:5432/test_db')
-
+    gin.parse_config_file(gin_cfg)
     yield
 
     # Clean up after test

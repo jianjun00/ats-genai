@@ -17,7 +17,7 @@ import tempfile
 import shutil
 from typing import AsyncGenerator, Dict, List
 
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 from domains.market_data.managers.unified_market_data_manager import UnifiedMarketDataManager

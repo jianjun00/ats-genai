@@ -14,7 +14,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from domains.market_data.services.backfill.enhanced_minute_backfill_orchestrator import (
+from domains.market_data.services.data_collection.backfill.enhanced_minute_backfill_orchestrator import (
     EnhancedMinuteBackfillOrchestrator,
     EnhancedBackfillConfig,
     JobSegment,
@@ -22,7 +22,7 @@ from domains.market_data.services.backfill.enhanced_minute_backfill_orchestrator
     BackfillProgress,
     run_enhanced_minute_backfill
 )
-from domains.market_data.services.reconciliation.cross_vendor_reconciler import ReconciliationMethod
+from domains.market_data.services.core.reconciliation.cross_vendor_reconciler import ReconciliationMethod
 
 
 class TestJobSegment:

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 None
 
-class import:
+class TestImport:
     """Real objects test class replacing mock-based testing"""
     
     @pytest.fixture
@@ -45,13 +45,7 @@ class import:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_cross_vendor_comparison_initialization_real_objects(self, real_service, test_data):
         """Real objects version of test_cross_vendor_comparison_initialization"""
         # Test with real database integration
@@ -66,14 +60,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cross_vendor_comparison_initialization_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cross_vendor_comparison_initialization_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_single_symbol_price_comparison_real_objects(self, real_service, test_data):
         """Real objects version of test_single_symbol_price_comparison"""
         # Test with real database integration
@@ -88,14 +76,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.single_symbol_price_comparison_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.single_symbol_price_comparison_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_vendor_data_retrieval_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_vendor_data_retrieval"""
         # Test with real database integration
@@ -110,14 +92,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_vendor_data_retrieval_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_vendor_data_retrieval_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_price_variance_detection_real_objects(self, real_service, test_data):
         """Real objects version of test_price_variance_detection"""
         # Test with real database integration
@@ -132,14 +108,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.price_variance_detection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.price_variance_detection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_acceptable_variance_scenario_real_objects(self, real_service, test_data):
         """Real objects version of test_acceptable_variance_scenario"""
         # Test with real database integration
@@ -154,14 +124,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.acceptable_variance_scenario_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.acceptable_variance_scenario_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_insufficient_vendor_data_real_objects(self, real_service, test_data):
         """Real objects version of test_insufficient_vendor_data"""
         # Test with real database integration
@@ -176,14 +140,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.insufficient_vendor_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.insufficient_vendor_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_vendor_comparison_report_structure_real_objects(self, real_service, test_data):
         """Real objects version of test_vendor_comparison_report_structure"""
         # Test with real database integration
@@ -198,14 +156,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.vendor_comparison_report_structure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.vendor_comparison_report_structure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_cross_vendor_comparison_result_creation_real_objects(self, real_service, test_data):
         """Real objects version of test_cross_vendor_comparison_result_creation"""
         # Test with real database integration
@@ -220,14 +172,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.cross_vendor_comparison_result_creation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.cross_vendor_comparison_result_creation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_comparison_performance_single_symbol_real_objects(self, real_service, test_data):
         """Real objects version of test_comparison_performance_single_symbol"""
         # Test with real database integration
@@ -242,15 +188,8 @@ class import:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.comparison_performance_single_symbol_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.comparison_performance_single_symbol_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

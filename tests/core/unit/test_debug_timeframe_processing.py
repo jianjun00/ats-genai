@@ -15,7 +15,7 @@ import asyncio
 
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 from core.business.calendars.time_duration import TimeDuration
 
 
@@ -184,32 +184,23 @@ class TestDebugTimeframeProcessing:
         
         # Test async version directly
         print(f"\n🔍 Testing addUniverseState (async) directly...")
-        try:
-            async def test_async():
-                with patch('builtins.print') as mock_print:
-                    await universe_manager.addUniverseState(duration_to_state, test_time)
-                    return [str(call) for call in mock_print.call_args_list]
-            
-            async_output = asyncio.run(test_async())
-            usm_calls = [call for call in async_output if 'USM.addUniverseState' in call]
-            print(f"   Async output: {usm_calls}")
-            
-        except Exception as e:
-            print(f"   Async error: {e}")
-        
-        # Test sync wrapper
-        print(f"\n🔍 Testing addUniverseStateInterval (sync wrapper)...")
-        try:
+        async def test_async():
             with patch('builtins.print') as mock_print:
-                universe_manager.addUniverseStateInterval(duration_to_state, test_time)
-                sync_output = [str(call) for call in mock_print.call_args_list]
-            
-            usm_calls = [call for call in sync_output if 'USM.addUniverseState' in call]
-            print(f"   Sync output: {usm_calls}")
-            
-        except Exception as e:
-            print(f"   Sync error: {e}")
-
+                await universe_manager.addUniverseState(duration_to_state, test_time)
+                return [str(call) for call in mock_print.call_args_list]
+        
+        async_output = asyncio.run(test_async())
+        usm_calls = [call for call in async_output if 'USM.addUniverseState' in call]
+        print(f"   Async output: {usm_calls}")
+        
+        print(f"\n🔍 Testing addUniverseStateInterval (sync wrapper)...")
+        with patch('builtins.print') as mock_print:
+            universe_manager.addUniverseStateInterval(duration_to_state, test_time)
+            sync_output = [str(call) for call in mock_print.call_args_list]
+        
+        usm_calls = [call for call in sync_output if 'USM.addUniverseState' in call]
+        print(f"   Sync output: {usm_calls}")
+        
     def test_debug_duration_filtering_logic(self):
         """Debug: Check if there's filtering logic that reduces durations."""
         
@@ -251,27 +242,23 @@ class TestDebugTimeframeProcessing:
             print(f"   Input: {len(duration_to_state)} durations")
             
             with patch('builtins.print') as mock_print:
-                try:
-                    universe_manager.addUniverseStateInterval(duration_to_state, test_time)
-                    
-                    debug_calls = [str(call) for call in mock_print.call_args_list if 'USM.addUniverseState' in str(call)]
-                    
-                    for call in debug_calls:
-                        if 'durations=' in call:
-                            import re
-                            match = re.search(r'durations=(\d+)', call)
-                            if match:
-                                processed = int(match.group(1))
-                                print(f"   Output: {processed} durations processed")
-                                
-                                if processed != len(duration_to_state):
-                                    print(f"   ❌ FILTERING DETECTED: {len(duration_to_state)} → {processed}")
-                                else:
-                                    print(f"   ✅ NO FILTERING: {len(duration_to_state)} → {processed}")
-                                
-                except Exception as e:
-                    print(f"   Error: {e}")
-
+                universe_manager.addUniverseStateInterval(duration_to_state, test_time)
+                
+                debug_calls = [str(call) for call in mock_print.call_args_list if 'USM.addUniverseState' in str(call)]
+                
+                for call in debug_calls:
+                    if 'durations=' in call:
+                        import re
+                        match = re.search(r'durations=(\d+)', call)
+                        if match:
+                            processed = int(match.group(1))
+                            print(f"   Output: {processed} durations processed")
+                            
+                            if processed != len(duration_to_state):
+                                print(f"   ❌ FILTERING DETECTED: {len(duration_to_state)} → {processed}")
+                            else:
+                                print(f"   ✅ NO FILTERING: {len(duration_to_state)} → {processed}")
+                            
     def test_debug_real_training_data_callback_flow(self):
         """Debug: Simulate the real training data callback flow."""
         

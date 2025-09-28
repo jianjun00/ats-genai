@@ -17,13 +17,9 @@ class TestRayEDAEndToEnd:
     @classmethod
     def setup_class(cls):
         """Ensure analytics service is running"""
-        try:
-            response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
-            if response.status_code != 200:
-                pytest.skip("Analytics service not available")
-        except Exception:
+        response = requests.get(f"{cls.BASE_URL}/health", timeout=5)
+        if response.status_code != 200:
             pytest.skip("Analytics service not available")
-
     def test_01_service_health(self):
         """Test 1: Service health and basic connectivity"""
         response = requests.get(f"{self.BASE_URL}/health")

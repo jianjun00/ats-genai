@@ -48,134 +48,111 @@ async def collect_tiingo_data(lookback_days: int = 10, max_symbols: int = 100, d
         'error_symbols': []
     }
 
-    try:
-        conn = await asyncpg.connect(db_url)
+    conn = await asyncpg.connect(db_url)
+    if debug:
+        print("✅ Database connected")
+
+    # Get active symbols
+    symbols_result = await conn.fetch(f"""
+        SELECT DISTINCT symbol, id
+        FROM intg_instrument
+        WHERE active = true
+          AND symbol IS NOT NULL
+          AND symbol ~ '^[A-Z]{{1,5}}$'
+        ORDER BY symbol
+        LIMIT {max_symbols}
+    """)
+
+    symbols = [(row['symbol'], row['id']) for row in symbols_result]
+    if debug:
+        print(f"📊 Found {len(symbols)} active symbols to process")
+
+    for i, (symbol, instrument_id) in enumerate(symbols):
         if debug:
-            print("✅ Database connected")
+            print(f"🔄 [{i+1}/{len(symbols)}] Processing {symbol} (ID: {instrument_id})")
 
-        # Get active symbols
-        symbols_result = await conn.fetch(f"""
-            SELECT DISTINCT symbol, id
-            FROM intg_instrument
-            WHERE active = true
-              AND symbol IS NOT NULL
-              AND symbol ~ '^[A-Z]{{1,5}}$'
-            ORDER BY symbol
-            LIMIT {max_symbols}
-        """)
+        # Fetch data from Tiingo API
+        url = f"https://api.tiingo.com/tiingo/daily/{symbol}/prices"
+        params = {
+            'startDate': start_date.strftime('%Y-%m-%d'),
+            'endDate': end_date.strftime('%Y-%m-%d'),
+            'token': api_key
+        }
 
-        symbols = [(row['symbol'], row['id']) for row in symbols_result]
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        if not data:
+            results['symbols_without_data'].append(symbol)
+            if debug:
+                print(f"⚠️ No data returned for {symbol}")
+            continue
+
+        results['symbols_with_data'].append(symbol)
         if debug:
-            print(f"📊 Found {len(symbols)} active symbols to process")
+            print(f"📈 Fetched {len(data)} records for {symbol}")
 
-        for i, (symbol, instrument_id) in enumerate(symbols):
-            try:
-                if debug:
-                    print(f"🔄 [{i+1}/{len(symbols)}] Processing {symbol} (ID: {instrument_id})")
+        # Process each price record
+        symbol_inserted = 0
+        symbol_updated = 0
 
-                # Fetch data from Tiingo API
-                url = f"https://api.tiingo.com/tiingo/daily/{symbol}/prices"
-                params = {
-                    'startDate': start_date.strftime('%Y-%m-%d'),
-                    'endDate': end_date.strftime('%Y-%m-%d'),
-                    'token': api_key
-                }
+        for record in data:
+            # Parse date
+            record_date = datetime.fromisoformat(record['date'].replace('Z', '+00:00')).date()
 
-                response = requests.get(url, params=params, timeout=30)
-                response.raise_for_status()
-                data = response.json()
+            # Check if record exists
+            existing = await conn.fetchrow(
+                "SELECT instrument_id FROM intg_daily_price_tiingo WHERE instrument_id = $1 AND date = $2",
+                instrument_id, record_date
+            )
 
-                if not data:
-                    results['symbols_without_data'].append(symbol)
-                    if debug:
-                        print(f"⚠️ No data returned for {symbol}")
-                    continue
+            if existing:
+                # Update existing record
+                await conn.execute("""
+                    UPDATE intg_daily_price_tiingo
+                    SET open = $3, high = $4, low = $5, close = $6, volume = $7,
+                        adjusted_close = $8, symbol = $9, updated_at = CURRENT_TIMESTAMP
+                    WHERE instrument_id = $1 AND date = $2
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
+                symbol_updated += 1
+            else:
+                # Insert new record
+                await conn.execute("""
+                    INSERT INTO intg_daily_price_tiingo
+                    (instrument_id, date, open, high, low, close, volume, adjusted_close, symbol, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (instrument_id, date) DO NOTHING
+                """, instrument_id, record_date,
+                    float(record['open']), float(record['high']), float(record['low']),
+                    float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
+                symbol_inserted += 1
 
-                results['symbols_with_data'].append(symbol)
-                if debug:
-                    print(f"📈 Fetched {len(data)} records for {symbol}")
+        results['total_records_inserted'] += symbol_inserted
+        results['total_records_updated'] += symbol_updated
+        results['total_symbols_processed'] += 1
 
-                # Process each price record
-                symbol_inserted = 0
-                symbol_updated = 0
+        if debug:
+            print(f"✅ {symbol}: {symbol_inserted} inserted, {symbol_updated} updated")
 
-                for record in data:
-                    try:
-                        # Parse date
-                        record_date = datetime.fromisoformat(record['date'].replace('Z', '+00:00')).date()
+        # Rate limiting - 1 request per second
+        await asyncio.sleep(1.1)
 
-                        # Check if record exists
-                        existing = await conn.fetchrow(
-                            "SELECT instrument_id FROM intg_daily_price_tiingo WHERE instrument_id = $1 AND date = $2",
-                            instrument_id, record_date
-                        )
+    recent_count = await conn.fetchval("""
+        SELECT COUNT(*)
+        FROM intg_daily_price_tiingo
+        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+    """)
 
-                        if existing:
-                            # Update existing record
-                            await conn.execute("""
-                                UPDATE intg_daily_price_tiingo
-                                SET open = $3, high = $4, low = $5, close = $6, volume = $7,
-                                    adjusted_close = $8, symbol = $9, updated_at = CURRENT_TIMESTAMP
-                                WHERE instrument_id = $1 AND date = $2
-                            """, instrument_id, record_date,
-                                float(record['open']), float(record['high']), float(record['low']),
-                                float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
-                            symbol_updated += 1
-                        else:
-                            # Insert new record
-                            await conn.execute("""
-                                INSERT INTO intg_daily_price_tiingo
-                                (instrument_id, date, open, high, low, close, volume, adjusted_close, symbol, created_at, updated_at)
-                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                                ON CONFLICT (instrument_id, date) DO NOTHING
-                            """, instrument_id, record_date,
-                                float(record['open']), float(record['high']), float(record['low']),
-                                float(record['close']), int(record['volume']), float(record['adjClose']), symbol)
-                            symbol_inserted += 1
+    latest_date = await conn.fetchval("""
+        SELECT MAX(date)
+        FROM intg_daily_price_tiingo
+    """)
 
-                    except Exception as e:
-                        if debug:
-                            print(f"⚠️ Error processing record for {symbol}: {e}")
-
-                results['total_records_inserted'] += symbol_inserted
-                results['total_records_updated'] += symbol_updated
-                results['total_symbols_processed'] += 1
-
-                if debug:
-                    print(f"✅ {symbol}: {symbol_inserted} inserted, {symbol_updated} updated")
-
-                # Rate limiting - 1 request per second
-                await asyncio.sleep(1.1)
-
-            except Exception as e:
-                results['total_errors'] += 1
-                results['error_symbols'].append(symbol)
-                if debug:
-                    print(f"❌ Error processing {symbol}: {e}")
-
-        # Final verification
-        recent_count = await conn.fetchval("""
-            SELECT COUNT(*)
-            FROM intg_daily_price_tiingo
-            WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-        """)
-
-        latest_date = await conn.fetchval("""
-            SELECT MAX(date)
-            FROM intg_daily_price_tiingo
-        """)
-
-        results['recent_records_count'] = recent_count
-        results['latest_data_date'] = latest_date.isoformat() if latest_date else None
-
-    except Exception as e:
-        print(f"❌ Database connection or query failed: {e}")
-        results['database_error'] = str(e)
-        return results
-
-    finally:
-        if 'conn' in locals():
-            await conn.close()
+    results['recent_records_count'] = recent_count
+    results['latest_data_date'] = latest_date.isoformat() if latest_date else None
 
     return results
 

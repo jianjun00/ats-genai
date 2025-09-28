@@ -542,69 +542,59 @@ Examples:
     # Initialize CLI
     cli = ServiceMigrationCLI()
 
-    try:
-        # Initialize orchestrator
-        await cli.initialize_orchestrator(
-            database_url=args.database_url,
-            source_directory=args.source_dir,
-            config_directory=args.config_dir,
-            test_directory=args.test_dir
+    # Initialize orchestrator
+    await cli.initialize_orchestrator(
+        database_url=args.database_url,
+        source_directory=args.source_dir,
+        config_directory=args.config_dir,
+        test_directory=args.test_dir
+    )
+
+    # Execute command
+    if args.command == 'plan':
+        await cli.plan_migration(
+            services=args.services,
+            output_file=args.output_file
         )
 
-        # Execute command
-        if args.command == 'plan':
-            await cli.plan_migration(
-                services=args.services,
-                output_file=args.output_file
+    elif args.command == 'execute':
+        # Load or create migration plan
+        if args.plan_file:
+            with open(args.plan_file, 'r') as f:
+                plan_data = json.load(f)
+
+            migration_plan = MigrationPlan(
+                migration_id=plan_data['migration_id'],
+                target_services=plan_data['target_services'],
+                phases=plan_data['phases'],
+                estimated_duration_hours=plan_data['estimated_duration_hours'],
+                rollback_plan=plan_data.get('rollback_plan', {}),
+                prerequisites=plan_data.get('prerequisites', []),
+                post_migration_validation=plan_data.get('post_migration_validation', []),
+                created_at=datetime.fromisoformat(plan_data['created_at'])
             )
+        else:
+            migration_plan = await cli.plan_migration(services=args.services)
 
-        elif args.command == 'execute':
-            # Load or create migration plan
-            if args.plan_file:
-                with open(args.plan_file, 'r') as f:
-                    plan_data = json.load(f)
+        await cli.execute_migration(
+            migration_plan=migration_plan,
+            dry_run=args.dry_run,
+            continue_on_failure=args.continue_on_failure,
+            confirm=args.confirm
+        )
 
-                migration_plan = MigrationPlan(
-                    migration_id=plan_data['migration_id'],
-                    target_services=plan_data['target_services'],
-                    phases=plan_data['phases'],
-                    estimated_duration_hours=plan_data['estimated_duration_hours'],
-                    rollback_plan=plan_data.get('rollback_plan', {}),
-                    prerequisites=plan_data.get('prerequisites', []),
-                    post_migration_validation=plan_data.get('post_migration_validation', []),
-                    created_at=datetime.fromisoformat(plan_data['created_at'])
-                )
-            else:
-                migration_plan = await cli.plan_migration(services=args.services)
+    elif args.command == 'validate':
+        await cli.validate_migration(args.migration_id)
 
-            await cli.execute_migration(
-                migration_plan=migration_plan,
-                dry_run=args.dry_run,
-                continue_on_failure=args.continue_on_failure,
-                confirm=args.confirm
-            )
+    elif args.command == 'rollback':
+        await cli.rollback_migration(
+            migration_id=args.migration_id,
+            target_phase=args.target_phase,
+            confirm=args.confirm
+        )
 
-        elif args.command == 'validate':
-            await cli.validate_migration(args.migration_id)
-
-        elif args.command == 'rollback':
-            await cli.rollback_migration(
-                migration_id=args.migration_id,
-                target_phase=args.target_phase,
-                confirm=args.confirm
-            )
-
-        elif args.command == 'status':
-            cli.get_migration_status(args.migration_id)
-
-    except KeyboardInterrupt:
-        print("\n🛑 Migration interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"Migration failed: {e}")
-        print(f"\n❌ Migration failed: {e}")
-        sys.exit(1)
-
+    elif args.command == 'status':
+        cli.get_migration_status(args.migration_id)
 
 if __name__ == "__main__":
     asyncio.run(main())

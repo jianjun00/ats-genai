@@ -25,7 +25,7 @@ sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 # Set environment to skip gin loading
 os.environ['GIN_LOAD_DEFAULT_CONFIG'] = '0'
 
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.universe_state import UniverseStateInterval
 from domains.trading.services.state.instrument_interval import InstrumentInterval
@@ -205,18 +205,14 @@ class TestTimeframeAwareCache:
         self.manager._instrument_history[instrument_id] = timeframe_data['1d']  # Default to daily data
         
         # Test: Request different timeframes and verify correct data is returned
-        try:
-            # Test 1d timeframe
-            result_1d = self.manager.get_lag_prices(instrument_id, self.base_time + timedelta(hours=1), 2, '1d')
-            print(f"   1d result shape: {result_1d.shape}")
-            print(f"   1d result closes: {result_1d['close'].tolist() if 'close' in result_1d.columns else 'No close column'}")
-            
-            # Verify 1d data characteristics (should be 300+ range for daily)
-            if len(result_1d) > 0 and 'close' in result_1d.columns:
-                assert result_1d['close'].mean() > 200, "Daily data should have higher prices (300+ range)"
-                
-        except Exception as e:
-            print(f"   Expected error with current implementation: {e}")
+        # Test 1d timeframe
+        result_1d = self.manager.get_lag_prices(instrument_id, self.base_time + timedelta(hours=1), 2, '1d')
+        print(f"   1d result shape: {result_1d.shape}")
+        print(f"   1d result closes: {result_1d['close'].tolist() if 'close' in result_1d.columns else 'No close column'}")
+        
+        # Verify 1d data characteristics (should be 300+ range for daily)
+        if len(result_1d) > 0 and 'close' in result_1d.columns:
+            assert result_1d['close'].mean() > 200, "Daily data should have higher prices (300+ range)"
             
         print("✅ get_lag_prices timeframe specificity test setup complete")
         
@@ -232,13 +228,9 @@ class TestTimeframeAwareCache:
         print(f"   get_lagged_signals method exists: {has_method}")
         
         if has_method:
-            try:
-                # Test the method (will likely fail with current implementation)
-                # result = self.manager.get_lagged_signals(self.instrument_ids[0], self.base_time, 2, '5m')
-                pass
-            except Exception as e:
-                print(f"   Expected error with current implementation: {e}")
-        else:
+            # Test the method (will likely fail with current implementation)
+            # result = self.manager.get_lagged_signals(self.instrument_ids[0], self.base_time, 2, '5m')
+            pass
             print("   Method not yet implemented - test validates requirement")
             
         print("✅ get_lagged_signals timeframe specificity test setup complete")

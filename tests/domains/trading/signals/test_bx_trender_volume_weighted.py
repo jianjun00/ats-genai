@@ -12,7 +12,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
 from domains.trading.signals.indicator import BXTrenderVolumeWeighted
-from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
+from domains.trading.services.indicators.enhanced_indicators import BXTrenderIndicator
 
 class TestBXTrenderVolumeWeighted(unittest.TestCase):
     """Test cases for BX Trender Volume Weighted indicator."""
@@ -380,13 +380,9 @@ class TestBXTrenderVolumeWeighted(unittest.TestCase):
             raise ValueError("Test calculation error")
 
         self.indicator.__class__.update = error_update
-        try:
-            self.indicator.update(intervals)
-            self.assertEqual(self.indicator.status, 'calculation_error')
-            self.assertIsNone(self.indicator.get_value())
-        finally:
-            self.indicator.__class__.update = original_update
-
+        self.indicator.update(intervals)
+        self.assertEqual(self.indicator.status, 'calculation_error')
+        self.assertIsNone(self.indicator.get_value())
     def test_extreme_volume_scenarios(self):
         """Test handling of extreme volume scenarios."""
         # Test with very high volumes

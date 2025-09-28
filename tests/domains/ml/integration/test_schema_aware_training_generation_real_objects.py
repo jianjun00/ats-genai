@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.ml.services.training_data.training_data_generator import TrainingDataGenerator
+from domains.ml.services.training_data.generators.training_data_generator import TrainingDataGenerator
 from domains.ml.services.training_data.callbacks.training_data_callback import TrainingDataCallback
-from domains.ml.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.repositories.training_dataset_dao import TrainingDatasetDAO
 
 
 class TestRealObjectsSchemaAwareTrainingGeneration:
@@ -56,13 +51,7 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_basic_training_generation_with_schema_real_objects(self, real_service, test_data):
         """Real objects version of test_basic_training_generation_with_schema"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.basic_training_generation_with_schema_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.basic_training_generation_with_schema_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_feature_type_inference_real_objects(self, real_service, test_data):
         """Real objects version of test_feature_type_inference"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.feature_type_inference_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.feature_type_inference_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_schema_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_schema_validation"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.schema_validation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.schema_validation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_backwards_compatibility_real_objects(self, real_service, test_data):
         """Real objects version of test_backwards_compatibility"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.backwards_compatibility_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.backwards_compatibility_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_convenience_function_real_objects(self, real_service, test_data):
         """Real objects version of test_convenience_function"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.convenience_function_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.convenience_function_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multi_instrument_schema_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_instrument_schema_generation"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multi_instrument_schema_generation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multi_instrument_schema_generation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_database_schema_registration_real_objects(self, real_service, test_data):
         """Real objects version of test_database_schema_registration"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.database_schema_registration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.database_schema_registration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_empty_training_data_real_objects(self, real_service, test_data):
         """Real objects version of test_empty_training_data"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.empty_training_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.empty_training_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_data_quality_scoring_real_objects(self, real_service, test_data):
         """Real objects version of test_data_quality_scoring"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.data_quality_scoring_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.data_quality_scoring_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_feature_description_generation_real_objects(self, real_service, test_data):
         """Real objects version of test_feature_description_generation"""
         # Test with real database integration
@@ -275,14 +210,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.feature_description_generation_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.feature_description_generation_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_complete_schema_workflow_real_objects(self, real_service, test_data):
         """Real objects version of test_complete_schema_workflow"""
         # Test with real database integration
@@ -297,15 +226,8 @@ class TestRealObjectsSchemaAwareTrainingGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.complete_schema_workflow_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.complete_schema_workflow_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

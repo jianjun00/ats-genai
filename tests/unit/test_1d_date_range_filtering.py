@@ -146,21 +146,16 @@ class Test1dDateRangeFiltering:
         assert daily_file.exists(), f"1d file should exist: {daily_file}"
         
         # Read the file and verify it contains the expected record
-        try:
-            reader = array_record.ArrayRecordReader(str(daily_file))
-            records = list(reader)
-            print(f"📊 1d file contains {len(records)} records")
-            assert len(records) == 1, f"Expected 1 record in 1d file, got {len(records)}"
-            
-            # Verify the record content
-            record = records[0]
-            assert record['symbol'] == 'AAPL'
-            assert record['open'] == pytest.approx(207.50, rel=1e-2)
-            print("✅ 1d single day filtering test PASSED")
-        except Exception as e:
-            print(f"❌ Failed to read 1d file: {e}")
-            raise
-
+        reader = array_record.ArrayRecordReader(str(daily_file))
+        records = list(reader)
+        print(f"📊 1d file contains {len(records)} records")
+        assert len(records) == 1, f"Expected 1 record in 1d file, got {len(records)}"
+        
+        # Verify the record content
+        record = records[0]
+        assert record['symbol'] == 'AAPL'
+        assert record['open'] == pytest.approx(207.50, rel=1e-2)
+        print("✅ 1d single day filtering test PASSED")
     @pytest.mark.asyncio
     async def test_1d_date_range_multi_day_filtering(self, test_output_dir,
                                                     mock_runner_for_date_testing, 
@@ -212,24 +207,19 @@ class Test1dDateRangeFiltering:
         assert daily_file.exists(), f"1d file should exist: {daily_file}"
         
         # Read the file and verify it contains the expected records
-        try:
-            reader = array_record.ArrayRecordReader(str(daily_file))
-            records = list(reader)
-            print(f"📊 1d file contains {len(records)} records")
-            assert len(records) == 3, f"Expected 3 records in 1d file, got {len(records)}"
-            
-            # Verify the records are in chronological order and have correct data
-            for i, record in enumerate(records):
-                assert record['symbol'] == 'AAPL'
-                expected_open = 207.50 + i
-                assert record['open'] == pytest.approx(expected_open, rel=1e-2)
-                print(f"✅ Record {i}: open={record['open']:.2f} (expected={expected_open:.2f})")
-            
-            print("✅ 1d multi-day filtering test PASSED")
-        except Exception as e:
-            print(f"❌ Failed to read 1d file: {e}")
-            raise
-
+        reader = array_record.ArrayRecordReader(str(daily_file))
+        records = list(reader)
+        print(f"📊 1d file contains {len(records)} records")
+        assert len(records) == 3, f"Expected 3 records in 1d file, got {len(records)}"
+        
+        # Verify the records are in chronological order and have correct data
+        for i, record in enumerate(records):
+            assert record['symbol'] == 'AAPL'
+            expected_open = 207.50 + i
+            assert record['open'] == pytest.approx(expected_open, rel=1e-2)
+            print(f"✅ Record {i}: open={record['open']:.2f} (expected={expected_open:.2f})")
+        
+        print("✅ 1d multi-day filtering test PASSED")
     @pytest.mark.asyncio 
     async def test_1d_timestamp_format_investigation(self, test_output_dir,
                                                     mock_runner_for_date_testing):
@@ -293,18 +283,14 @@ class Test1dDateRangeFiltering:
             daily_file = test_output_dir / f"test_1d_timestamp_{fmt['name']}" / "AAPL_2025_07" / "1d" / "AAPL_2025_07.arrayrecord"
             
             if daily_file.exists():
-                try:
-                    reader = array_record.ArrayRecordReader(str(daily_file))
-                    records = list(reader)
-                    print(f"✅ {fmt['name']}: File created successfully, {len(records)} records")
-                    
-                    if records:
-                        record = records[0]
-                        stored_timestamp = record['timestamp']
-                        print(f"📊 Stored timestamp: {stored_timestamp} ({datetime.fromtimestamp(stored_timestamp)})")
-                except Exception as e:
-                    print(f"❌ {fmt['name']}: File exists but read failed: {e}")
-            else:
+                reader = array_record.ArrayRecordReader(str(daily_file))
+                records = list(reader)
+                print(f"✅ {fmt['name']}: File created successfully, {len(records)} records")
+                
+                if records:
+                    record = records[0]
+                    stored_timestamp = record['timestamp']
+                    print(f"📊 Stored timestamp: {stored_timestamp} ({datetime.fromtimestamp(stored_timestamp)})")
                 print(f"❌ {fmt['name']}: File was not created")
         
         print("\n📊 Timestamp format investigation completed")

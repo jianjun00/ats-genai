@@ -17,11 +17,11 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from domains.ml.legacy.training_data.generators.training_data_metadata import (
+from domains.ml.services.training_data.generators.training_data_metadata import (
     TrainingDataMetadataManager, FeatureType, VisualizationType
 )
-from services.dataset_service import DatasetService
-from clients.dataset_client import DatasetClient
+from infrastructure.services_legacy.data_services.dataset_service import DatasetService
+from core.shared.clients.dataset_client import DatasetClient
 
 class TestFeatureMetadataEndToEnd:
     """Test complete feature metadata workflow from generation to API access."""
@@ -561,109 +561,100 @@ class TestFeatureMetadataEndToEnd:
 
         # Step 1: Generate metadata with visualization hints
         temp_dir = tempfile.mkdtemp()
-        try:
-            metadata_manager = TrainingDataMetadataManager(temp_dir)
+        metadata_manager = TrainingDataMetadataManager(temp_dir)
 
-            # Create metadata with diverse feature types
-            feature_configs = [
-                {'source_column': 'open', 'visualization_priority': 'high'},
-                {'source_column': 'high', 'visualization_priority': 'high'},
-                {'source_column': 'low', 'visualization_priority': 'high'},
-                {'source_column': 'close', 'visualization_priority': 'high'},
-                {'source_column': 'volume', 'visualization_priority': 'medium'},
-                {'indicator_type': 'price_envelope', 'percentage': 2.5},
-                {'indicator_type': 'price_envelope', 'percentage': 2.5},
-                {'indicator_type': 'pivot_low_dots'},
-                {'indicator_type': 'bx_trender', 'variant': 'basic'},
-                {'indicator_type': 'bx_trender', 'variant': 'directional'},
-                {'indicator_type': 'bx_trender', 'variant': 'volume_weighted'}
-            ]
+        # Create metadata with diverse feature types
+        feature_configs = [
+            {'source_column': 'open', 'visualization_priority': 'high'},
+            {'source_column': 'high', 'visualization_priority': 'high'},
+            {'source_column': 'low', 'visualization_priority': 'high'},
+            {'source_column': 'close', 'visualization_priority': 'high'},
+            {'source_column': 'volume', 'visualization_priority': 'medium'},
+            {'indicator_type': 'price_envelope', 'percentage': 2.5},
+            {'indicator_type': 'price_envelope', 'percentage': 2.5},
+            {'indicator_type': 'pivot_low_dots'},
+            {'indicator_type': 'bx_trender', 'variant': 'basic'},
+            {'indicator_type': 'bx_trender', 'variant': 'directional'},
+            {'indicator_type': 'bx_trender', 'variant': 'volume_weighted'}
+        ]
 
-            metadata = metadata_manager.create_training_metadata(
-                dataset_name="viz_test_dataset",
-                features_data=sample_training_data['features_data'],
-                labels_data=sample_training_data['labels_data'],
-                feature_names=sample_training_data['feature_names'],
-                label_names=sample_training_data['label_names'],
-                feature_configs=feature_configs,
-                label_configs=[{}, {}],
-                symbols=['AAPL'],
-                date_range={'start': '2024-01-01', 'end': '2024-12-31'}
-            )
+        metadata = metadata_manager.create_training_metadata(
+            dataset_name="viz_test_dataset",
+            features_data=sample_training_data['features_data'],
+            labels_data=sample_training_data['labels_data'],
+            feature_names=sample_training_data['feature_names'],
+            label_names=sample_training_data['label_names'],
+            feature_configs=feature_configs,
+            label_configs=[{}, {}],
+            symbols=['AAPL'],
+            date_range={'start': '2024-01-01', 'end': '2024-12-31'}
+        )
 
-            # Step 2: Validate visualization hints generation
-            for feature in metadata.features:
-                assert 'color_scheme' in feature.visualization_hints
-                assert 'scale_type' in feature.visualization_hints
-                assert 'is_primary_indicator' in feature.visualization_hints
+        # Step 2: Validate visualization hints generation
+        for feature in metadata.features:
+            assert 'color_scheme' in feature.visualization_hints
+            assert 'scale_type' in feature.visualization_hints
+            assert 'is_primary_indicator' in feature.visualization_hints
 
-                # Check specific visualization recommendations
-                if feature.name in ['open', 'high', 'low', 'close']:
-                    assert feature.visualization_hints['color_scheme'] == 'green_red'
-                    assert feature.visualization_hints['is_primary_indicator'] == True
-                    assert feature.visualization_type == VisualizationType.CANDLESTICK
-                elif feature.name == 'volume':
-                    assert feature.visualization_hints['color_scheme'] == 'orange'
-                    assert feature.visualization_type == VisualizationType.BAR_CHART
-                else:  # Technical indicators
-                    assert feature.visualization_type == VisualizationType.LINE_CHART
-                    assert feature.visualization_hints['is_primary_indicator'] == False
+            # Check specific visualization recommendations
+            if feature.name in ['open', 'high', 'low', 'close']:
+                assert feature.visualization_hints['color_scheme'] == 'green_red'
+                assert feature.visualization_hints['is_primary_indicator'] == True
+                assert feature.visualization_type == VisualizationType.CANDLESTICK
+            elif feature.name == 'volume':
+                assert feature.visualization_hints['color_scheme'] == 'orange'
+                assert feature.visualization_type == VisualizationType.BAR_CHART
+            else:  # Technical indicators
+                assert feature.visualization_type == VisualizationType.LINE_CHART
+                assert feature.visualization_hints['is_primary_indicator'] == False
 
-            # Step 3: Test multi-panel visualization configuration
-            # Group features by visualization priority
-            primary_features = [f for f in metadata.features if f.visualization_hints.get('is_primary_indicator')]
-            secondary_features = [f for f in metadata.features if not f.visualization_hints.get('is_primary_indicator')]
+        # Step 3: Test multi-panel visualization configuration
+        # Group features by visualization priority
+        primary_features = [f for f in metadata.features if f.visualization_hints.get('is_primary_indicator')]
+        secondary_features = [f for f in metadata.features if not f.visualization_hints.get('is_primary_indicator')]
 
-            assert len(primary_features) == 4  # OHLC features
-            assert len(secondary_features) == 7  # Volume + indicators
+        assert len(primary_features) == 4  # OHLC features
+        assert len(secondary_features) == 7  # Volume + indicators
 
-            # Validate chart layout recommendations
-            candlestick_features = [f for f in metadata.features if f.visualization_type == VisualizationType.CANDLESTICK]
-            line_features = [f for f in metadata.features if f.visualization_type == VisualizationType.LINE_CHART]
-            bar_features = [f for f in metadata.features if f.visualization_type == VisualizationType.BAR_CHART]
+        # Validate chart layout recommendations
+        candlestick_features = [f for f in metadata.features if f.visualization_type == VisualizationType.CANDLESTICK]
+        line_features = [f for f in metadata.features if f.visualization_type == VisualizationType.LINE_CHART]
+        bar_features = [f for f in metadata.features if f.visualization_type == VisualizationType.BAR_CHART]
 
-            assert len(candlestick_features) == 4  # OHLC
-            assert len(line_features) == 6  # Technical indicators
-            assert len(bar_features) == 1  # Volume
+        assert len(candlestick_features) == 4  # OHLC
+        assert len(line_features) == 6  # Technical indicators
+        assert len(bar_features) == 1  # Volume
 
-            print("✅ Visualization metadata workflow validated")
-
-        finally:
-            shutil.rmtree(temp_dir)
+        print("✅ Visualization metadata workflow validated")
 
     def test_error_handling_and_recovery_workflow(self):
         """Test error handling and recovery mechanisms in the metadata workflow."""
 
         # Step 1: Test metadata generation with corrupted data
         temp_dir = tempfile.mkdtemp()
-        try:
-            metadata_manager = TrainingDataMetadataManager(temp_dir)
+        metadata_manager = TrainingDataMetadataManager(temp_dir)
 
-            # Create data with various issues
-            corrupted_features = np.array([
-                [1.0, 2.0, np.nan],  # NaN values
-                [np.inf, 4.0, 5.0],  # Infinite values
-                [6.0, 7.0, 8.0]
-            ])
+        # Create data with various issues
+        corrupted_features = np.array([
+            [1.0, 2.0, np.nan],  # NaN values
+            [np.inf, 4.0, 5.0],  # Infinite values
+            [6.0, 7.0, 8.0]
+        ])
 
-            # Test feature metadata creation with problematic data
-            metadata = metadata_manager.create_feature_metadata(
-                name="corrupted_feature",
-                feature_type=FeatureType.FLOAT,
-                data=corrupted_features,
-                config={}
-            )
+        # Test feature metadata creation with problematic data
+        metadata = metadata_manager.create_feature_metadata(
+            name="corrupted_feature",
+            feature_type=FeatureType.FLOAT,
+            data=corrupted_features,
+            config={}
+        )
 
-            # Should handle corrupted data gracefully
-            assert metadata.name == "corrupted_feature"
-            assert metadata.null_count > 0  # Should detect NaN
-            assert metadata.min_value is not None  # Should work with finite values
-            assert metadata.max_value is not None
+        # Should handle corrupted data gracefully
+        assert metadata.name == "corrupted_feature"
+        assert metadata.null_count > 0  # Should detect NaN
+        assert metadata.min_value is not None  # Should work with finite values
+        assert metadata.max_value is not None
 
-        finally:
-            shutil.rmtree(temp_dir)
-
-        # Step 2: Test dataset service error recovery
         dataset_service = DatasetService({
             'host': 'localhost', 'port': 3432, 'database': 'test_db',
             'user': 'test_user', 'password': 'test_password'

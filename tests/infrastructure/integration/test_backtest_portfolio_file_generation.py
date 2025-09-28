@@ -292,18 +292,14 @@ if __name__ == "__main__":
     # Run basic file structure tests
     test = TestBacktestPortfolioFileGeneration()
 
-    try:
-        test.test_portfolio_files_exist_on_disk()
-        print("✅ Portfolio files exist on disk")
+    test.test_portfolio_files_exist_on_disk()
+    print("✅ Portfolio files exist on disk")
 
-        test.test_portfolio_file_structure()
-        print("✅ Portfolio file structure is valid")
+    test.test_portfolio_file_structure()
+    print("✅ Portfolio file structure is valid")
 
-        test.test_current_portfolio_file_updates()
-        print("✅ Portfolio file updates work")
+    test.test_current_portfolio_file_updates()
+    print("✅ Portfolio file updates work")
 
-        print("\n🎯 All portfolio file tests passed!")
+    print("\n🎯 All portfolio file tests passed!")
 
-    except Exception as e:
-        print(f"❌ Test failed: {e}")
-        raise

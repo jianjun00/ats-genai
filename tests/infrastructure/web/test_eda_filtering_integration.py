@@ -417,51 +417,45 @@ if __name__ == "__main__":
     test_suite = TestEDAFilteringIntegration()
     test_suite.setup_class()
 
-    try:
-        print("🧪 Testing EDA Filtering Integration...")
+    print("🧪 Testing EDA Filtering Integration...")
 
-        test_suite.test_health_endpoint()
-        print("✅ Health endpoint test passed")
+    test_suite.test_health_endpoint()
+    print("✅ Health endpoint test passed")
 
-        test_suite.test_column_values_endpoint_categorical()
-        print("✅ Column values (categorical) test passed")
+    test_suite.test_column_values_endpoint_categorical()
+    print("✅ Column values (categorical) test passed")
 
-        test_suite.test_column_values_endpoint_numeric()
-        print("✅ Column values (numeric) test passed")
+    test_suite.test_column_values_endpoint_numeric()
+    print("✅ Column values (numeric) test passed")
 
-        test_suite.test_column_values_endpoint_with_different_limits()
-        print("✅ Column values (limits) test passed")
+    test_suite.test_column_values_endpoint_with_different_limits()
+    print("✅ Column values (limits) test passed")
 
-        test_suite.test_filtered_data_endpoint_no_filters()
-        print("✅ Filtered data (no filters) test passed")
+    test_suite.test_filtered_data_endpoint_no_filters()
+    print("✅ Filtered data (no filters) test passed")
 
-        test_suite.test_filtered_data_endpoint_categorical_filter()
-        print("✅ Filtered data (categorical filter) test passed")
+    test_suite.test_filtered_data_endpoint_categorical_filter()
+    print("✅ Filtered data (categorical filter) test passed")
 
-        test_suite.test_filtered_data_endpoint_numeric_filter()
-        print("✅ Filtered data (numeric filter) test passed")
+    test_suite.test_filtered_data_endpoint_numeric_filter()
+    print("✅ Filtered data (numeric filter) test passed")
 
-        test_suite.test_filtered_data_endpoint_mixed_filters()
-        print("✅ Filtered data (mixed filters) test passed")
+    test_suite.test_filtered_data_endpoint_mixed_filters()
+    print("✅ Filtered data (mixed filters) test passed")
 
-        test_suite.test_filtered_data_endpoint_pagination()
-        print("✅ Filtered data (pagination) test passed")
+    test_suite.test_filtered_data_endpoint_pagination()
+    print("✅ Filtered data (pagination) test passed")
 
-        test_suite.test_filtered_data_endpoint_invalid_requests()
-        print("✅ Error handling test passed")
+    test_suite.test_filtered_data_endpoint_invalid_requests()
+    print("✅ Error handling test passed")
 
-        test_suite.test_column_values_endpoint_invalid_requests()
-        print("✅ Column values error handling test passed")
+    test_suite.test_column_values_endpoint_invalid_requests()
+    print("✅ Column values error handling test passed")
 
-        test_suite.test_filtering_workflow_integration()
-        print("✅ Complete workflow integration test passed")
+    test_suite.test_filtering_workflow_integration()
+    print("✅ Complete workflow integration test passed")
 
-        print("\\n🎉 All filtering integration tests passed!")
+    print("\\n🎉 All filtering integration tests passed!")
 
-        test_manual_filtering_ui_verification()
+    test_manual_filtering_ui_verification()
 
-    except Exception as e:
-        print(f"❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        exit(1)

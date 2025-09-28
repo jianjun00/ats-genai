@@ -116,32 +116,27 @@ class DailyMinuteBarBackfill:
 
     async def initialize(self):
         """Initialize database connections and create output directories."""
-        try:
-            # Database connection for INTG environment
-            db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
+        # Database connection for INTG environment
+        db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
 
-            self.db_pool = await asyncpg.create_pool(
-                db_url,
-                min_size=2,
-                max_size=10,
-                command_timeout=60
-            )
+        self.db_pool = await asyncpg.create_pool(
+            db_url,
+            min_size=2,
+            max_size=10,
+            command_timeout=60
+        )
 
-            # Initialize API status tracker
-            await initialize_global_tracker()
+        # Initialize API status tracker
+        await initialize_global_tracker()
 
-            # Create output directory structure
-            self.daily_output_path.mkdir(parents=True, exist_ok=True)
+        # Create output directory structure
+        self.daily_output_path.mkdir(parents=True, exist_ok=True)
 
-            logger.info("✅ Daily minute bar backfill system initialized")
-            logger.info(f"📁 Base data path: {self.base_data_path}")
-            logger.info(f"📁 Daily output path: {self.daily_output_path}")
-            logger.info(f"📅 Lookback days: {self.lookback_days}")
-            logger.info("✅ API status tracking initialized")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize backfill system: {e}")
-            raise
+        logger.info("✅ Daily minute bar backfill system initialized")
+        logger.info(f"📁 Base data path: {self.base_data_path}")
+        logger.info(f"📁 Daily output path: {self.daily_output_path}")
+        logger.info(f"📅 Lookback days: {self.lookback_days}")
+        logger.info("✅ API status tracking initialized")
 
     async def close(self):
         """Close database connections."""
@@ -155,54 +150,49 @@ class DailyMinuteBarBackfill:
         Returns:
             List of tuples: (symbol, instrument_type, exchange)
         """
-        try:
-            query = """
-                SELECT DISTINCT
-                    symbol,
-                    CASE
-                        WHEN symbol IN ('SPY', 'QQQ', 'VTI', 'IWM', 'EFA', 'VWO', 'GLD', 'SLV', 'TLT', 'HYG',
-                                        'LQD', 'EEM', 'XLF', 'XLK', 'XLE', 'XLI', 'XLV', 'XLY', 'XLP', 'XLU',
-                                        'VNQ', 'EWJ', 'FXI', 'EWZ', 'RSX', 'ARKK', 'ARKG', 'ARKW', 'JETS', 'ICLN')
-                        THEN 'critical_etf'
-                        WHEN symbol LIKE '%--%' OR symbol LIKE '%-%' OR symbol LIKE '%.%'
-                        THEN 'other_etf'
-                        ELSE 'stock'
-                    END as instrument_type,
-                    COALESCE(exchange, 'UNKNOWN') as exchange
-                FROM intg_instrument
-                WHERE active = true
-                  AND symbol IS NOT NULL
-                  AND LENGTH(symbol) BETWEEN 1 AND 5
-                  AND symbol NOT LIKE '%.%'  -- Exclude complex symbols
-                ORDER BY
-                    CASE
-                        WHEN symbol IN ('SPY', 'QQQ', 'VTI', 'IWM', 'EFA', 'VWO', 'GLD', 'SLV', 'TLT', 'HYG',
-                                        'LQD', 'EEM', 'XLF', 'XLK', 'XLE', 'XLI', 'XLV', 'XLY', 'XLP', 'XLU',
-                                        'VNQ', 'EWJ', 'FXI', 'EWZ', 'RSX', 'ARKK', 'ARKG', 'ARKW', 'JETS', 'ICLN')
-                        THEN 0  -- Critical ETFs first
-                        ELSE 1
-                    END,
-                    symbol
-            """
+        query = """
+            SELECT DISTINCT
+                symbol,
+                CASE
+                    WHEN symbol IN ('SPY', 'QQQ', 'VTI', 'IWM', 'EFA', 'VWO', 'GLD', 'SLV', 'TLT', 'HYG',
+                                    'LQD', 'EEM', 'XLF', 'XLK', 'XLE', 'XLI', 'XLV', 'XLY', 'XLP', 'XLU',
+                                    'VNQ', 'EWJ', 'FXI', 'EWZ', 'RSX', 'ARKK', 'ARKG', 'ARKW', 'JETS', 'ICLN')
+                    THEN 'critical_etf'
+                    WHEN symbol LIKE '%--%' OR symbol LIKE '%-%' OR symbol LIKE '%.%'
+                    THEN 'other_etf'
+                    ELSE 'stock'
+                END as instrument_type,
+                COALESCE(exchange, 'UNKNOWN') as exchange
+            FROM intg_instrument
+            WHERE active = true
+              AND symbol IS NOT NULL
+              AND LENGTH(symbol) BETWEEN 1 AND 5
+              AND symbol NOT LIKE '%.%'  -- Exclude complex symbols
+            ORDER BY
+                CASE
+                    WHEN symbol IN ('SPY', 'QQQ', 'VTI', 'IWM', 'EFA', 'VWO', 'GLD', 'SLV', 'TLT', 'HYG',
+                                    'LQD', 'EEM', 'XLF', 'XLK', 'XLE', 'XLI', 'XLV', 'XLY', 'XLP', 'XLU',
+                                    'VNQ', 'EWJ', 'FXI', 'EWZ', 'RSX', 'ARKK', 'ARKG', 'ARKW', 'JETS', 'ICLN')
+                    THEN 0  -- Critical ETFs first
+                    ELSE 1
+                END,
+                symbol
+        """
 
-            async with self.db_pool.acquire() as conn:
-                rows = await conn.fetch(query)
+        async with self.db_pool.acquire() as conn:
+            rows = await conn.fetch(query)
 
-            instruments = [(row['symbol'], row['instrument_type'], row['exchange']) for row in rows]
+        instruments = [(row['symbol'], row['instrument_type'], row['exchange']) for row in rows]
 
-            # Update stats
-            instrument_counts = Counter(row['instrument_type'] for row in rows)
-            self.stats['instrument_types'].update(instrument_counts)
+        # Update stats
+        instrument_counts = Counter(row['instrument_type'] for row in rows)
+        self.stats['instrument_types'].update(instrument_counts)
 
-            logger.info(f"📊 Retrieved {len(instruments)} active instruments:")
-            for inst_type, count in instrument_counts.items():
-                logger.info(f"  {inst_type}: {count:,}")
+        logger.info(f"📊 Retrieved {len(instruments)} active instruments:")
+        for inst_type, count in instrument_counts.items():
+            logger.info(f"  {inst_type}: {count:,}")
 
-            return instruments
-
-        except Exception as e:
-            logger.error(f"❌ Failed to get active instruments: {e}")
-            return []
+        return instruments
 
     def get_processing_dates(self) -> List[date]:
         """Get list of dates to process (last N days)."""
@@ -255,95 +245,67 @@ class DailyMinuteBarBackfill:
         """
         start_time_ms = time.time()
 
-        try:
-            # Use FirstRate adapter to get 1-minute data
-            start_time = datetime.combine(processing_date, datetime.min.time())
-            end_time = start_time + timedelta(hours=23, minutes=59, seconds=59)
+        # Use FirstRate adapter to get 1-minute data
+        start_time = datetime.combine(processing_date, datetime.min.time())
+        end_time = start_time + timedelta(hours=23, minutes=59, seconds=59)
 
-            # Get data from FirstRate (this would need to be implemented based on FirstRate API)
-            # For now, simulate the call structure
-            minute_data = await self.firstrate.get_minute_bars(
-                symbol=symbol,
-                start_time=start_time,
-                end_time=end_time
+        # Get data from FirstRate (this would need to be implemented based on FirstRate API)
+        # For now, simulate the call structure
+        minute_data = await self.firstrate.get_minute_bars(
+            symbol=symbol,
+            start_time=start_time,
+            end_time=end_time
+        )
+
+        # Calculate latency
+        latency_ms = (time.time() - start_time_ms) * 1000
+
+        # Track API call (simulating successful file access)
+        if minute_data:
+            # Simulate successful data retrieval
+            self.api_tracker.track_request(
+                vendor="firstrate",
+                api_endpoint="minute_bars",
+                status_code=200,
+                latency_ms=latency_ms,
+                response_size_bytes=len(minute_data) * 32 if minute_data else 0,  # Estimate: 32 bytes per tick
+                symbol=symbol
             )
 
-            # Calculate latency
-            latency_ms = (time.time() - start_time_ms) * 1000
+            # Convert to DataFrame
+            df = pd.DataFrame([
+                {
+                    'timestamp': tick.timestamp,
+                    'open': tick.open_price,
+                    'high': tick.high_price,
+                    'low': tick.low_price,
+                    'close': tick.close_price,
+                    'volume': tick.volume
+                }
+                for tick in minute_data
+            ])
 
-            # Track API call (simulating successful file access)
-            if minute_data:
-                # Simulate successful data retrieval
-                self.api_tracker.track_request(
-                    vendor="firstrate",
-                    api_endpoint="minute_bars",
-                    status_code=200,
-                    latency_ms=latency_ms,
-                    response_size_bytes=len(minute_data) * 32 if minute_data else 0,  # Estimate: 32 bytes per tick
-                    symbol=symbol
-                )
-
-                # Convert to DataFrame
-                df = pd.DataFrame([
-                    {
-                        'timestamp': tick.timestamp,
-                        'open': tick.open_price,
-                        'high': tick.high_price,
-                        'low': tick.low_price,
-                        'close': tick.close_price,
-                        'volume': tick.volume
-                    }
-                    for tick in minute_data
-                ])
-
-                if df.empty:
-                    return None
-
-                # Ensure proper time indexing
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                df = df.set_index('timestamp')
-                df = df.sort_index()
-
-                logger.debug(f"📊 Downloaded {len(df)} minute bars for {symbol} on {processing_date}")
-                return df
-            else:
-                # Track no data found as 404
-                self.api_tracker.track_request(
-                    vendor="firstrate",
-                    api_endpoint="minute_bars",
-                    status_code=404,
-                    latency_ms=latency_ms,
-                    error_message="No data found",
-                    symbol=symbol
-                )
-                logger.debug(f"📊 No data for {symbol} on {processing_date}")
+            if df.empty:
                 return None
 
-        except FileNotFoundError as e:
-            latency_ms = (time.time() - start_time_ms) * 1000
+            # Ensure proper time indexing
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.set_index('timestamp')
+            df = df.sort_index()
+
+            logger.debug(f"📊 Downloaded {len(df)} minute bars for {symbol} on {processing_date}")
+            return df
+        else:
+            # Track no data found as 404
             self.api_tracker.track_request(
                 vendor="firstrate",
                 api_endpoint="minute_bars",
                 status_code=404,
                 latency_ms=latency_ms,
-                error_message=f"File not found: {str(e)}",
+                error_message="No data found",
                 symbol=symbol
             )
-            logger.debug(f"📊 No data file for {symbol} on {processing_date}")
-            return None
-
-        except Exception as e:
-            latency_ms = (time.time() - start_time_ms) * 1000
-            self.api_tracker.track_request(
-                vendor="firstrate",
-                api_endpoint="minute_bars",
-                status_code=500,
-                latency_ms=latency_ms,
-                error_message=str(e),
-                symbol=symbol
-            )
-            logger.error(f"❌ Failed to download data for {symbol} on {processing_date}: {e}")
-            self.stats['processing_errors'].append(f"{symbol}_{processing_date}: {str(e)}")
+            logger.debug(f"📊 No data for {symbol} on {processing_date}")
             return None
 
     async def process_symbol(self, symbol: str, instrument_type: str, processing_dates: List[date]) -> Dict:
@@ -368,67 +330,54 @@ class DailyMinuteBarBackfill:
             'processing_errors': []
         }
 
-        try:
-            for processing_date in processing_dates:
-                try:
-                    # Download minute data
-                    minute_df = await self.download_minute_data(symbol, processing_date)
+        for processing_date in processing_dates:
+            # Download minute data
+            minute_df = await self.download_minute_data(symbol, processing_date)
 
-                    if minute_df is None or minute_df.empty:
-                        continue
+            if minute_df is None or minute_df.empty:
+                continue
 
-                    # Get output path
-                    output_path = self.get_output_path(symbol, processing_date)
+            # Get output path
+            output_path = self.get_output_path(symbol, processing_date)
 
-                    # Check if file exists (will be overwritten as per requirement)
-                    file_existed = output_path.exists()
+            # Check if file exists (will be overwritten as per requirement)
+            file_existed = output_path.exists()
 
-                    # Save to Parquet
-                    minute_df.to_parquet(output_path, compression='gzip', index=True)
+            # Save to Parquet
+            minute_df.to_parquet(output_path, compression='gzip', index=True)
 
-                    # Update stats
-                    file_size = output_path.stat().st_size / (1024 * 1024)  # MB
-                    minute_bars = len(minute_df)
+            # Update stats
+            file_size = output_path.stat().st_size / (1024 * 1024)  # MB
+            minute_bars = len(minute_df)
 
-                    if file_existed:
-                        symbol_stats['files_updated'] += 1
-                        self.stats['files_updated'] += 1
-                    else:
-                        symbol_stats['files_created'] += 1
-                        self.stats['files_created'] += 1
+            if file_existed:
+                symbol_stats['files_updated'] += 1
+                self.stats['files_updated'] += 1
+            else:
+                symbol_stats['files_created'] += 1
+                self.stats['files_created'] += 1
 
-                    symbol_stats['minute_bars_total'] += minute_bars
-                    symbol_stats['data_size_mb'] += file_size
+            symbol_stats['minute_bars_total'] += minute_bars
+            symbol_stats['data_size_mb'] += file_size
 
-                    # Update global stats
-                    self.stats['total_minute_bars'] += minute_bars
-                    self.stats['total_data_size_mb'] += file_size
-                    self.stats['minute_bars_by_type'][instrument_type] += minute_bars
-                    self.stats['minute_bars_by_day'][processing_date.isoformat()] += minute_bars
-                    self.stats['symbols_by_first_letter'][symbol[0].upper()] += 1
+            # Update global stats
+            self.stats['total_minute_bars'] += minute_bars
+            self.stats['total_data_size_mb'] += file_size
+            self.stats['minute_bars_by_type'][instrument_type] += minute_bars
+            self.stats['minute_bars_by_day'][processing_date.isoformat()] += minute_bars
+            self.stats['symbols_by_first_letter'][symbol[0].upper()] += 1
 
-                    logger.debug(f"✅ {symbol} {processing_date}: {minute_bars} bars, {file_size:.2f}MB")
+            logger.debug(f"✅ {symbol} {processing_date}: {minute_bars} bars, {file_size:.2f}MB")
 
-                except Exception as e:
-                    error_msg = f"{symbol}_{processing_date}: {str(e)}"
-                    symbol_stats['processing_errors'].append(error_msg)
-                    self.stats['processing_errors'].append(error_msg)
-                    logger.error(f"❌ Error processing {symbol} {processing_date}: {e}")
+        if instrument_type == 'critical_etf':
+            self.stats['critical_etfs_processed'] += 1
+        elif instrument_type == 'stock':
+            self.stats['active_stocks_processed'] += 1
 
-            # Update instrument type counters
-            if instrument_type == 'critical_etf':
-                self.stats['critical_etfs_processed'] += 1
-            elif instrument_type == 'stock':
-                self.stats['active_stocks_processed'] += 1
+        self.stats['instruments_processed'] += 1
 
-            self.stats['instruments_processed'] += 1
-
-            if symbol_stats['files_created'] + symbol_stats['files_updated'] > 0:
-                logger.info(f"✅ {symbol} ({instrument_type}): {symbol_stats['files_created']} new, {symbol_stats['files_updated']} updated, {symbol_stats['minute_bars_total']:,} bars")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to process symbol {symbol}: {e}")
-            symbol_stats['processing_errors'].append(f"Symbol processing failed: {str(e)}")
+        if symbol_stats['files_created'] + symbol_stats['files_updated'] > 0:
+            logger.info(f"✅ {symbol} ({instrument_type}): {symbol_stats['files_created']} new, {symbol_stats['files_updated']} updated, {symbol_stats['minute_bars_total']:,} bars")
 
         return symbol_stats
 
@@ -438,47 +387,43 @@ class DailyMinuteBarBackfill:
             logger.debug("📊 Prometheus gateway not configured, skipping metrics")
             return
 
-        try:
-            metrics = []
-            timestamp = int(datetime.now().timestamp())
+        metrics = []
+        timestamp = int(datetime.now().timestamp())
 
-            # Total metrics
-            metrics.extend([
-                f"ats_daily_minute_backfill_instruments_processed {self.stats['instruments_processed']} {timestamp}",
-                f"ats_daily_minute_backfill_files_created {self.stats['files_created']} {timestamp}",
-                f"ats_daily_minute_backfill_files_updated {self.stats['files_updated']} {timestamp}",
-                f"ats_daily_minute_backfill_total_minute_bars {self.stats['total_minute_bars']} {timestamp}",
-                f"ats_daily_minute_backfill_total_data_size_mb {self.stats['total_data_size_mb']:.2f} {timestamp}",
-                f"ats_daily_minute_backfill_processing_errors {len(self.stats['processing_errors'])} {timestamp}",
-            ])
+        # Total metrics
+        metrics.extend([
+            f"ats_daily_minute_backfill_instruments_processed {self.stats['instruments_processed']} {timestamp}",
+            f"ats_daily_minute_backfill_files_created {self.stats['files_created']} {timestamp}",
+            f"ats_daily_minute_backfill_files_updated {self.stats['files_updated']} {timestamp}",
+            f"ats_daily_minute_backfill_total_minute_bars {self.stats['total_minute_bars']} {timestamp}",
+            f"ats_daily_minute_backfill_total_data_size_mb {self.stats['total_data_size_mb']:.2f} {timestamp}",
+            f"ats_daily_minute_backfill_processing_errors {len(self.stats['processing_errors'])} {timestamp}",
+        ])
 
-            # Instrument type metrics
-            for inst_type, count in self.stats['instrument_types'].items():
-                metrics.append(f'ats_daily_minute_backfill_symbols_by_type{{type="{inst_type}"}} {count} {timestamp}')
+        # Instrument type metrics
+        for inst_type, count in self.stats['instrument_types'].items():
+            metrics.append(f'ats_daily_minute_backfill_symbols_by_type{{type="{inst_type}"}} {count} {timestamp}')
 
-            # Minute bars by type
-            for inst_type, bars in self.stats['minute_bars_by_type'].items():
-                metrics.append(f'ats_daily_minute_backfill_bars_by_type{{type="{inst_type}"}} {bars} {timestamp}')
+        # Minute bars by type
+        for inst_type, bars in self.stats['minute_bars_by_type'].items():
+            metrics.append(f'ats_daily_minute_backfill_bars_by_type{{type="{inst_type}"}} {bars} {timestamp}')
 
-            # First letter distribution
-            for letter, count in self.stats['symbols_by_first_letter'].items():
-                metrics.append(f'ats_daily_minute_backfill_symbols_by_letter{{letter="{letter}"}} {count} {timestamp}')
+        # First letter distribution
+        for letter, count in self.stats['symbols_by_first_letter'].items():
+            metrics.append(f'ats_daily_minute_backfill_symbols_by_letter{{letter="{letter}"}} {count} {timestamp}')
 
-            # Send to Prometheus
-            async with aiohttp.ClientSession() as session:
-                metrics_data = '\n'.join(metrics) + '\n'
+        # Send to Prometheus
+        async with aiohttp.ClientSession() as session:
+            metrics_data = '\n'.join(metrics) + '\n'
 
-                await session.post(
-                    f"{self.prometheus_gateway}/metrics/job/ats_daily_minute_backfill",
-                    data=metrics_data,
-                    headers={'Content-Type': 'text/plain'}
-                )
+            await session.post(
+                f"{self.prometheus_gateway}/metrics/job/ats_daily_minute_backfill",
+                data=metrics_data,
+                headers={'Content-Type': 'text/plain'}
+            )
 
-            self.stats['prometheus_metrics_sent'] = True
-            logger.info(f"📊 Sent {len(metrics)} metrics to Prometheus")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to send Prometheus metrics: {e}")
+        self.stats['prometheus_metrics_sent'] = True
+        logger.info(f"📊 Sent {len(metrics)} metrics to Prometheus")
 
     async def send_slack_notification(self):
         """Send daily stats summary to Slack."""
@@ -486,88 +431,84 @@ class DailyMinuteBarBackfill:
             logger.debug("🔔 Slack webhook not configured, skipping notification")
             return
 
-        try:
-            duration = datetime.now() - self.stats['start_time']
+        duration = datetime.now() - self.stats['start_time']
 
-            # Create summary message
-            message = {
-                "text": "🎯 ATS-INTG Daily 1-Minute Bar Backfill Complete",
-                "blocks": [
-                    {
-                        "type": "header",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "🎯 Daily 1-Minute Bar Backfill Summary"
+        # Create summary message
+        message = {
+            "text": "🎯 ATS-INTG Daily 1-Minute Bar Backfill Complete",
+            "blocks": [
+                {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "🎯 Daily 1-Minute Bar Backfill Summary"
+                    }
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*📅 Processing Period:* {self.lookback_days} days\n*⏱️ Duration:* {duration}"
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*📊 Instruments:* {self.stats['instruments_processed']:,}\n*📄 Files:* {self.stats['files_created']:,} new, {self.stats['files_updated']:,} updated"
                         }
-                    },
-                    {
-                        "type": "section",
-                        "fields": [
-                            {
-                                "type": "mrkdwn",
-                                "text": f"*📅 Processing Period:* {self.lookback_days} days\n*⏱️ Duration:* {duration}"
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": f"*📊 Instruments:* {self.stats['instruments_processed']:,}\n*📄 Files:* {self.stats['files_created']:,} new, {self.stats['files_updated']:,} updated"
-                            }
-                        ]
-                    },
-                    {
-                        "type": "section",
-                        "fields": [
-                            {
-                                "type": "mrkdwn",
-                                "text": f"*📈 Minute Bars:* {self.stats['total_minute_bars']:,}\n*💾 Data Size:* {self.stats['total_data_size_mb']:.1f} MB"
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": f"*🏆 Critical ETFs:* {self.stats['critical_etfs_processed']:,}\n*📈 Stocks:* {self.stats['active_stocks_processed']:,}"
-                            }
-                        ]
-                    }
-                ]
-            }
-
-            # Add instrument type breakdown if available
-            if self.stats['minute_bars_by_type']:
-                type_breakdown = []
-                for inst_type, bars in self.stats['minute_bars_by_type'].items():
-                    type_breakdown.append(f"• {inst_type}: {bars:,} bars")
-
-                message["blocks"].append({
+                    ]
+                },
+                {
                     "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*📊 Minute Bars by Type:*\n" + "\n".join(type_breakdown)
-                    }
-                })
+                    "fields": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*📈 Minute Bars:* {self.stats['total_minute_bars']:,}\n*💾 Data Size:* {self.stats['total_data_size_mb']:.1f} MB"
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*🏆 Critical ETFs:* {self.stats['critical_etfs_processed']:,}\n*📈 Stocks:* {self.stats['active_stocks_processed']:,}"
+                        }
+                    ]
+                }
+            ]
+        }
 
-            # Add errors if any
-            if self.stats['processing_errors']:
-                error_count = len(self.stats['processing_errors'])
-                message["blocks"].append({
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*⚠️ Processing Errors:* {error_count}\n" +
-                               f"First few: {', '.join(self.stats['processing_errors'][:3])}"
-                    }
-                })
+        # Add instrument type breakdown if available
+        if self.stats['minute_bars_by_type']:
+            type_breakdown = []
+            for inst_type, bars in self.stats['minute_bars_by_type'].items():
+                type_breakdown.append(f"• {inst_type}: {bars:,} bars")
 
-            # Send to Slack
-            async with aiohttp.ClientSession() as session:
-                await session.post(
-                    self.slack_webhook,
-                    json=message,
-                    headers={'Content-Type': 'application/json'}
-                )
+            message["blocks"].append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*📊 Minute Bars by Type:*\n" + "\n".join(type_breakdown)
+                }
+            })
 
-            self.stats['slack_notification_sent'] = True
-            logger.info("🔔 Daily stats summary sent to Slack")
+        # Add errors if any
+        if self.stats['processing_errors']:
+            error_count = len(self.stats['processing_errors'])
+            message["blocks"].append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*⚠️ Processing Errors:* {error_count}\n" +
+                           f"First few: {', '.join(self.stats['processing_errors'][:3])}"
+                }
+            })
 
-        except Exception as e:
-            logger.error(f"❌ Failed to send Slack notification: {e}")
+        # Send to Slack
+        async with aiohttp.ClientSession() as session:
+            await session.post(
+                self.slack_webhook,
+                json=message,
+                headers={'Content-Type': 'application/json'}
+            )
+
+        self.stats['slack_notification_sent'] = True
+        logger.info("🔔 Daily stats summary sent to Slack")
 
     async def run_daily_backfill(
         self,
@@ -583,99 +524,93 @@ class DailyMinuteBarBackfill:
             instrument_types: Optional filter by instrument types
             test_limit: Optional limit for testing (process only N symbols)
         """
-        try:
-            logger.info("🚀 Starting ATS-INTG daily 1-minute bar backfill")
+        logger.info("🚀 Starting ATS-INTG daily 1-minute bar backfill")
 
-            # Get processing dates
-            processing_dates = self.get_processing_dates()
-            if not processing_dates:
-                logger.warning("📅 No processing dates found")
-                return
+        # Get processing dates
+        processing_dates = self.get_processing_dates()
+        if not processing_dates:
+            logger.warning("📅 No processing dates found")
+            return
 
-            # Get active instruments
-            all_instruments = await self.get_active_instruments()
-            if not all_instruments:
-                logger.error("❌ No active instruments found")
-                return
+        # Get active instruments
+        all_instruments = await self.get_active_instruments()
+        if not all_instruments:
+            logger.error("❌ No active instruments found")
+            return
 
-            # Apply filters
-            instruments = all_instruments
+        # Apply filters
+        instruments = all_instruments
 
-            if instrument_filter:
-                instruments = [
-                    (symbol, inst_type, exchange)
-                    for symbol, inst_type, exchange in instruments
-                    if symbol in instrument_filter
-                ]
-                logger.info(f"🔍 Filtered to {len(instruments)} specific symbols")
+        if instrument_filter:
+            instruments = [
+                (symbol, inst_type, exchange)
+                for symbol, inst_type, exchange in instruments
+                if symbol in instrument_filter
+            ]
+            logger.info(f"🔍 Filtered to {len(instruments)} specific symbols")
 
-            if instrument_types:
-                instruments = [
-                    (symbol, inst_type, exchange)
-                    for symbol, inst_type, exchange in instruments
-                    if inst_type in instrument_types
-                ]
-                logger.info(f"🔍 Filtered to {len(instruments)} instruments of types: {instrument_types}")
+        if instrument_types:
+            instruments = [
+                (symbol, inst_type, exchange)
+                for symbol, inst_type, exchange in instruments
+                if inst_type in instrument_types
+            ]
+            logger.info(f"🔍 Filtered to {len(instruments)} instruments of types: {instrument_types}")
 
-            if test_limit:
-                instruments = instruments[:test_limit]
-                logger.info(f"🔍 Limited to {len(instruments)} instruments for testing")
+        if test_limit:
+            instruments = instruments[:test_limit]
+            logger.info(f"🔍 Limited to {len(instruments)} instruments for testing")
 
-            if not instruments:
-                logger.warning("📊 No instruments to process after filtering")
-                return
+        if not instruments:
+            logger.warning("📊 No instruments to process after filtering")
+            return
 
-            logger.info(f"📊 Processing {len(instruments)} instruments for {len(processing_dates)} days")
+        logger.info(f"📊 Processing {len(instruments)} instruments for {len(processing_dates)} days")
 
-            # Process instruments in batches
-            batch_size = 50  # Process 50 symbols at a time
-            processed_count = 0
+        # Process instruments in batches
+        batch_size = 50  # Process 50 symbols at a time
+        processed_count = 0
 
-            for i in range(0, len(instruments), batch_size):
-                batch = instruments[i:i + batch_size]
-                batch_tasks = []
+        for i in range(0, len(instruments), batch_size):
+            batch = instruments[i:i + batch_size]
+            batch_tasks = []
 
-                for symbol, inst_type, exchange in batch:
-                    task = self.process_symbol(symbol, inst_type, processing_dates)
-                    batch_tasks.append(task)
+            for symbol, inst_type, exchange in batch:
+                task = self.process_symbol(symbol, inst_type, processing_dates)
+                batch_tasks.append(task)
 
-                # Process batch concurrently
-                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+            # Process batch concurrently
+            batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
-                # Update processed count
-                processed_count += len(batch)
+            # Update processed count
+            processed_count += len(batch)
 
-                # Log progress
-                success_count = sum(1 for result in batch_results if not isinstance(result, Exception))
-                logger.info(f"📊 Progress: {processed_count}/{len(instruments)} instruments processed ({success_count}/{len(batch)} successful in batch)")
+            # Log progress
+            success_count = sum(1 for result in batch_results if not isinstance(result, Exception))
+            logger.info(f"📊 Progress: {processed_count}/{len(instruments)} instruments processed ({success_count}/{len(batch)} successful in batch)")
 
-                # Brief pause between batches to avoid overwhelming the system
-                if i + batch_size < len(instruments):
-                    await asyncio.sleep(1)
+            # Brief pause between batches to avoid overwhelming the system
+            if i + batch_size < len(instruments):
+                await asyncio.sleep(1)
 
-            # Final stats
-            duration = datetime.now() - self.stats['start_time']
-            logger.info("✅ Daily 1-minute bar backfill completed!")
-            logger.info(f"📊 Final Stats:")
-            logger.info(f"  ⏱️ Duration: {duration}")
-            logger.info(f"  📈 Instruments processed: {self.stats['instruments_processed']:,}")
-            logger.info(f"  📄 Files created: {self.stats['files_created']:,}")
-            logger.info(f"  📄 Files updated: {self.stats['files_updated']:,}")
-            logger.info(f"  📊 Total minute bars: {self.stats['total_minute_bars']:,}")
-            logger.info(f"  💾 Total data size: {self.stats['total_data_size_mb']:.1f} MB")
-            logger.info(f"  ❌ Processing errors: {len(self.stats['processing_errors'])}")
+        # Final stats
+        duration = datetime.now() - self.stats['start_time']
+        logger.info("✅ Daily 1-minute bar backfill completed!")
+        logger.info(f"📊 Final Stats:")
+        logger.info(f"  ⏱️ Duration: {duration}")
+        logger.info(f"  📈 Instruments processed: {self.stats['instruments_processed']:,}")
+        logger.info(f"  📄 Files created: {self.stats['files_created']:,}")
+        logger.info(f"  📄 Files updated: {self.stats['files_updated']:,}")
+        logger.info(f"  📊 Total minute bars: {self.stats['total_minute_bars']:,}")
+        logger.info(f"  💾 Total data size: {self.stats['total_data_size_mb']:.1f} MB")
+        logger.info(f"  ❌ Processing errors: {len(self.stats['processing_errors'])}")
 
-            # Send metrics and notifications
-            await asyncio.gather(
-                self.send_prometheus_metrics(),
-                self.send_slack_notification(),
-                return_exceptions=True
-            )
-
-        except Exception as e:
-            logger.error(f"❌ Daily backfill process failed: {e}")
-            raise
-
+        # Send metrics and notifications
+        await asyncio.gather(
+            self.send_prometheus_metrics(),
+            self.send_slack_notification(),
+            return_exceptions=True
+        )
 
 async def main():
     """Main function for daily minute bar backfill."""
@@ -710,36 +645,25 @@ async def main():
         prometheus_gateway=args.prometheus_gateway
     )
 
-    try:
-        await backfill.initialize()
+    await backfill.initialize()
 
-        # Parse filters
-        symbol_filter = None
-        if args.symbols:
-            symbol_filter = [s.strip().upper() for s in args.symbols.split(',')]
+    # Parse filters
+    symbol_filter = None
+    if args.symbols:
+        symbol_filter = [s.strip().upper() for s in args.symbols.split(',')]
 
-        type_filter = None
-        if args.instrument_types:
-            type_filter = [t.strip() for t in args.instrument_types.split(',')]
+    type_filter = None
+    if args.instrument_types:
+        type_filter = [t.strip() for t in args.instrument_types.split(',')]
 
-        test_limit = args.limit if args.test else None
+    test_limit = args.limit if args.test else None
 
-        # Run backfill
-        await backfill.run_daily_backfill(
-            instrument_filter=symbol_filter,
-            instrument_types=type_filter,
-            test_limit=test_limit
-        )
-
-    except KeyboardInterrupt:
-        logger.info("📤 Received keyboard interrupt")
-    except Exception as e:
-        logger.error(f"❌ Backfill failed: {e}")
-        raise
-    finally:
-        await backfill.close()
-        logger.info("✅ Daily minute bar backfill shutdown complete")
-
+    # Run backfill
+    await backfill.run_daily_backfill(
+        instrument_filter=symbol_filter,
+        instrument_types=type_filter,
+        test_limit=test_limit
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())

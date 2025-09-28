@@ -1,5 +1,5 @@
 import pytest
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 from domains.instruments.repositories.instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from domains.instruments.repositories.instrument_interval_dao import InstrumentIntervalDAO
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO

@@ -45,6 +45,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 # Set environment type for Gin config system - use DEV for development
 os.environ['ENVIRONMENT_TYPE'] = 'dev'
 
+<<<<<<< Updated upstream
 # Note: This script is deprecated and uses non-existent dependencies
 # Use populate_firstrate_minute_bars.py or other working scripts instead
 import logging
@@ -62,6 +63,12 @@ class MinuteBar:
     def __init__(self, **kwargs):
         pass
 
+=======
+from market_data.agent.eodhd_minute_adapter import EODHDMinuteAdapter, EODHDMinuteBar
+from storage.file_based_minute_manager import FileBasedMinuteManager, MinuteBar
+from core.logging.logger_config import get_logger
+from core.run_context import RunContext
+>>>>>>> Stashed changes
 logger = get_logger(__name__)
 
 @dataclass
@@ -125,14 +132,8 @@ class RunsTableManager:
             await self.connect()
 
         # Get git info
-        try:
-            git_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=os.path.dirname(__file__)).decode().strip()
-            git_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=os.path.dirname(__file__)).decode().strip()
-        except:
-            git_commit = 'unknown'
-            git_branch = 'unknown'
-
-        # Get system info
+        git_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=os.path.dirname(__file__)).decode().strip()
+        git_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=os.path.dirname(__file__)).decode().strip()
         host_info = {
             'hostname': platform.node(),
             'platform': platform.platform(),
@@ -268,22 +269,16 @@ class EODHD30YearPopulator:
         self.runs_manager = RunsTableManager(environment)
 
         # Initialize storage manager for D: drive (if available)
-        try:
-            # Use EODHD-specific storage path to avoid mixing with other vendors
-            eodhd_storage_path = self.storage_path / "minute-bars" / "eodhd"
-            eodhd_storage_path.mkdir(parents=True, exist_ok=True)
+        # Use EODHD-specific storage path to avoid mixing with other vendors
+        eodhd_storage_path = self.storage_path / "minute-bars" / "eodhd"
+        eodhd_storage_path.mkdir(parents=True, exist_ok=True)
 
-            self.file_manager = FileBasedMinuteManager(
-                base_path=str(eodhd_storage_path),
-                max_concurrent_operations=max_concurrent,
-                backup_enabled=True,
-                compression='snappy'
-            )
-        except Exception as e:
-            logger.warning(f"Could not initialize FileBasedMinuteManager: {e}")
-            self.file_manager = None
-
-        # Initialize EODHD adapter
+        self.file_manager = FileBasedMinuteManager(
+            base_path=str(eodhd_storage_path),
+            max_concurrent_operations=max_concurrent,
+            backup_enabled=True,
+            compression='snappy'
+        )
         self.eodhd_adapter = None
 
         # Processing state
@@ -320,30 +315,18 @@ class EODHD30YearPopulator:
         logger.info("Initializing EODHD 30-year populator...")
 
         # Initialize EODHD adapter - use centralized API key management
-        try:
-            from config.environment import env
-            if env:
-                api_key = env.get_api_key('eodhd')
-            else:
-                # Fallback if env not initialized
-                api_key = os.getenv('EODHD_API_KEY')
-        except:
-            # Fallback if import fails
+        from config.environment import env
+        if env:
+            api_key = env.get_api_key('eodhd')
+        else:
+            # Fallback if env not initialized
             api_key = os.getenv('EODHD_API_KEY')
-
         if not api_key:
             logger.error("❌ No EODHD API key available. Set EODHD_API_KEY environment variable.")
             raise ValueError("EODHD API key required for data collection")
 
-        try:
-            self.eodhd_adapter = EODHDMinuteAdapter(api_key)
-            logger.info("EODHD adapter initialized")
-        except Exception as e:
-            logger.warning(f"Could not initialize EODHD adapter: {e}")
-            logger.info("Will use basic HTTP requests for data fetching")
-            self.eodhd_adapter = None
-
-        # Load universe if not resuming
+        self.eodhd_adapter = EODHDMinuteAdapter(api_key)
+        logger.info("EODHD adapter initialized")
         if not self.checkpoint:
             await self._load_universe()
 
@@ -353,24 +336,14 @@ class EODHD30YearPopulator:
         """Load the complete universe of instruments from EODHD"""
         logger.info("Loading instrument universe from EODHD...")
 
-        try:
-            instruments = self.eodhd_adapter.fetch_instruments()
-            self.universe_symbols = {inst.symbol for inst in instruments if inst.symbol}
-            logger.info(f"Loaded {len(self.universe_symbols)} instruments from EODHD")
+        instruments = self.eodhd_adapter.fetch_instruments()
+        self.universe_symbols = {inst.symbol for inst in instruments if inst.symbol}
+        logger.info(f"Loaded {len(self.universe_symbols)} instruments from EODHD")
 
-            if self.debug:
-                # Limit to small subset for debugging
-                self.universe_symbols = set(list(self.universe_symbols)[:10])
-                logger.info(f"DEBUG mode: Limited to {len(self.universe_symbols)} symbols")
-
-        except Exception as e:
-            logger.error(f"Failed to load universe: {e}")
-            # Fallback to common symbols
-            self.universe_symbols = {
-                'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA',
-                'JPM', 'JNJ', 'V', 'PG', 'UNH', 'DIS', 'NFLX', 'CRM', 'ADBE'
-            }
-            logger.warning(f"Using fallback universe: {len(self.universe_symbols)} symbols")
+        if self.debug:
+            # Limit to small subset for debugging
+            self.universe_symbols = set(list(self.universe_symbols)[:10])
+            logger.info(f"DEBUG mode: Limited to {len(self.universe_symbols)} symbols")
 
     async def create_checkpoint(self,
                                 start_date: date,
@@ -418,60 +391,50 @@ class EODHD30YearPopulator:
 
         # Try to load from runs table first if run_id provided
         if run_id:
-            try:
-                await self.runs_manager.connect()
-                query = f"SELECT results, parameters FROM {self.environment}_runs WHERE id = $1"
-                row = await self.runs_manager.connection.fetchrow(query, run_id)
+            await self.runs_manager.connect()
+            query = f"SELECT results, parameters FROM {self.environment}_runs WHERE id = $1"
+            row = await self.runs_manager.connection.fetchrow(query, run_id)
 
-                if row and row['results']:
-                    results = json.loads(row['results'])
-                    parameters = json.loads(row['parameters'])
+            if row and row['results']:
+                results = json.loads(row['results'])
+                parameters = json.loads(row['parameters'])
 
-                    # Reconstruct checkpoint from runs table data
-                    checkpoint = PopulationCheckpoint(
-                        start_date=parameters.get('start_date', ''),
-                        end_date=parameters.get('end_date', ''),
-                        total_symbols=parameters.get('total_symbols', 0),
-                        processed_symbols=results.get('processed_symbols', 0),
-                        current_symbol=results.get('current_symbol', ''),
-                        current_date=results.get('current_date', ''),
-                        symbols_completed=results.get('symbols_completed', []),
-                        symbols_failed=results.get('symbols_failed', []),
-                        total_bars_stored=results.get('total_bars_stored', 0),
-                        total_files_created=results.get('total_files_created', 0),
-                        last_update_timestamp=results.get('last_update', datetime.now().isoformat()),
-                        errors=results.get('errors', []),
-                        processing_stats=results.get('processing_stats', {}),
-                        run_id=run_id
-                    )
+                # Reconstruct checkpoint from runs table data
+                checkpoint = PopulationCheckpoint(
+                    start_date=parameters.get('start_date', ''),
+                    end_date=parameters.get('end_date', ''),
+                    total_symbols=parameters.get('total_symbols', 0),
+                    processed_symbols=results.get('processed_symbols', 0),
+                    current_symbol=results.get('current_symbol', ''),
+                    current_date=results.get('current_date', ''),
+                    symbols_completed=results.get('symbols_completed', []),
+                    symbols_failed=results.get('symbols_failed', []),
+                    total_bars_stored=results.get('total_bars_stored', 0),
+                    total_files_created=results.get('total_files_created', 0),
+                    last_update_timestamp=results.get('last_update', datetime.now().isoformat()),
+                    errors=results.get('errors', []),
+                    processing_stats=results.get('processing_stats', {}),
+                    run_id=run_id
+                )
 
-                    logger.info(f"Loaded checkpoint from runs table: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols processed")
-                    return checkpoint
-            except Exception as e:
-                logger.warning(f"Failed to load checkpoint from runs table: {e}")
-
-        # Fallback to file-based checkpoint
+                logger.info(f"Loaded checkpoint from runs table: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols processed")
+                return checkpoint
         file_path = checkpoint_file or self.checkpoint_file
 
         if not file_path.exists():
             logger.info(f"No checkpoint file found at {file_path}")
             return None
 
-        try:
-            async with aiofiles.open(file_path, 'r') as f:
-                data = json.loads(await f.read())
+        async with aiofiles.open(file_path, 'r') as f:
+            data = json.loads(await f.read())
 
-            # Handle legacy checkpoints without run_id
-            if 'run_id' not in data:
-                data['run_id'] = None
+        # Handle legacy checkpoints without run_id
+        if 'run_id' not in data:
+            data['run_id'] = None
 
-            checkpoint = PopulationCheckpoint(**data)
-            logger.info(f"Loaded checkpoint from file: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols processed")
-            return checkpoint
-
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            return None
+        checkpoint = PopulationCheckpoint(**data)
+        logger.info(f"Loaded checkpoint from file: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols processed")
+        return checkpoint
 
     async def save_checkpoint(self, checkpoint: PopulationCheckpoint):
         """Save checkpoint to file and update runs table"""
@@ -481,17 +444,13 @@ class EODHD30YearPopulator:
             await self.runs_manager.update_run_progress(checkpoint)
 
         # Also save to file for backup
-        try:
-            checkpoint.last_update_timestamp = datetime.now().isoformat()
+        checkpoint.last_update_timestamp = datetime.now().isoformat()
 
-            async with aiofiles.open(self.checkpoint_file, 'w') as f:
-                await f.write(json.dumps(asdict(checkpoint), indent=2))
+        async with aiofiles.open(self.checkpoint_file, 'w') as f:
+            await f.write(json.dumps(asdict(checkpoint), indent=2))
 
-            if self.debug:
-                logger.debug(f"Checkpoint saved: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols")
-
-        except Exception as e:
-            logger.error(f"Failed to save checkpoint: {e}")
+        if self.debug:
+            logger.debug(f"Checkpoint saved: {checkpoint.processed_symbols}/{checkpoint.total_symbols} symbols")
 
     async def populate_symbol_data(self,
                                    symbol: str,
@@ -512,64 +471,54 @@ class EODHD30YearPopulator:
         start_time = datetime.now()
         logger.info(f"Starting {symbol} population: {start_date} to {end_date}")
 
-        try:
-            async with self.eodhd_adapter:
-                # Fetch all minute bars for the date range
-                bars = await self.eodhd_adapter.fetch_minute_bars_async(
+        async with self.eodhd_adapter:
+            # Fetch all minute bars for the date range
+            bars = await self.eodhd_adapter.fetch_minute_bars_async(
+                symbol,
+                datetime.combine(start_date, datetime.min.time()),
+                datetime.combine(end_date, datetime.min.time())
+            )
+
+            symbol_stats['bars_collected'] = len(bars)
+            symbol_stats['api_calls'] = (end_date - start_date).days + 1
+            self.stats['total_api_calls'] += symbol_stats['api_calls']
+
+            if bars:
+                # Convert EODHD bars to MinuteBar format
+                minute_bars = []
+                for bar in bars:
+                    minute_bar = MinuteBar(
+                        symbol=bar.symbol,
+                        timestamp=bar.timestamp,
+                        open=bar.open,
+                        high=bar.high,
+                        low=bar.low,
+                        close=bar.close,
+                        volume=bar.volume,
+                        vendor=bar.vendor,
+                        quality_score=0.9  # EODHD default quality
+                    )
+                    minute_bars.append(minute_bar)
+
+                # Store data using file manager
+                store_result = await self.file_manager.store_minute_data(
                     symbol,
-                    datetime.combine(start_date, datetime.min.time()),
-                    datetime.combine(end_date, datetime.min.time())
+                    minute_bars,
+                    overlap_strategy='merge'  # Handle overlaps gracefully
                 )
 
-                symbol_stats['bars_collected'] = len(bars)
-                symbol_stats['api_calls'] = (end_date - start_date).days + 1
-                self.stats['total_api_calls'] += symbol_stats['api_calls']
+                symbol_stats['bars_stored'] = store_result.get('stored', 0)
+                symbol_stats['files_created'] = store_result.get('files_created', 0)
 
-                if bars:
-                    # Convert EODHD bars to MinuteBar format
-                    minute_bars = []
-                    for bar in bars:
-                        minute_bar = MinuteBar(
-                            symbol=bar.symbol,
-                            timestamp=bar.timestamp,
-                            open=bar.open,
-                            high=bar.high,
-                            low=bar.low,
-                            close=bar.close,
-                            volume=bar.volume,
-                            vendor=bar.vendor,
-                            quality_score=0.9  # EODHD default quality
-                        )
-                        minute_bars.append(minute_bar)
+                self.stats['total_bars_collected'] += symbol_stats['bars_collected']
+                self.stats['total_bars_stored'] += symbol_stats['bars_stored']
+                self.stats['total_files_created'] += symbol_stats['files_created']
 
-                    # Store data using file manager
-                    store_result = await self.file_manager.store_minute_data(
-                        symbol,
-                        minute_bars,
-                        overlap_strategy='merge'  # Handle overlaps gracefully
-                    )
-
-                    symbol_stats['bars_stored'] = store_result.get('stored', 0)
-                    symbol_stats['files_created'] = store_result.get('files_created', 0)
-
-                    self.stats['total_bars_collected'] += symbol_stats['bars_collected']
-                    self.stats['total_bars_stored'] += symbol_stats['bars_stored']
-                    self.stats['total_files_created'] += symbol_stats['files_created']
-
-                    logger.info(f"{symbol}: {symbol_stats['bars_collected']} bars collected, "
-                               f"{symbol_stats['bars_stored']} stored, "
-                               f"{symbol_stats['files_created']} files created")
-                else:
-                    logger.warning(f"{symbol}: No data available for date range")
-
-        except Exception as e:
-            error_msg = f"Error processing {symbol}: {e}"
-            logger.error(error_msg)
-            symbol_stats['errors'].append({
-                'timestamp': datetime.now().isoformat(),
-                'error': str(e)
-            })
-            self.stats['errors'].append(error_msg)
+                logger.info(f"{symbol}: {symbol_stats['bars_collected']} bars collected, "
+                           f"{symbol_stats['bars_stored']} stored, "
+                           f"{symbol_stats['files_created']} files created")
+            else:
+                logger.warning(f"{symbol}: No data available for date range")
 
         symbol_stats['processing_time'] = (datetime.now() - start_time).total_seconds()
         return symbol_stats
@@ -582,34 +531,28 @@ class EODHD30YearPopulator:
             'total_expected_months': 0
         }
 
-        try:
-            # Generate expected month-year combinations
-            current_date = start_date.replace(day=1)
-            end_month = end_date.replace(day=1)
+        # Generate expected month-year combinations
+        current_date = start_date.replace(day=1)
+        end_month = end_date.replace(day=1)
 
-            expected_months = []
-            while current_date <= end_month:
-                expected_months.append((current_date.year, current_date.month))
-                # Move to next month
-                if current_date.month == 12:
-                    current_date = current_date.replace(year=current_date.year + 1, month=1)
-                else:
-                    current_date = current_date.replace(month=current_date.month + 1)
+        expected_months = []
+        while current_date <= end_month:
+            expected_months.append((current_date.year, current_date.month))
+            # Move to next month
+            if current_date.month == 12:
+                current_date = current_date.replace(year=current_date.year + 1, month=1)
+            else:
+                current_date = current_date.replace(month=current_date.month + 1)
 
-            analysis['total_expected_months'] = len(expected_months)
+        analysis['total_expected_months'] = len(expected_months)
 
-            # Check which files exist
-            for year, month in expected_months:
-                file_path = self.file_manager._get_monthly_file_path(symbol, year, month)
-                if file_path.exists():
-                    analysis['existing'].append((year, month))
-                else:
-                    analysis['missing'].append((year, month))
-
-        except Exception as e:
-            logger.warning(f"Error analyzing existing data for {symbol}: {e}")
-            # Return empty analysis on error
-            analysis['missing'] = [(start_date.year, start_date.month)]
+        # Check which files exist
+        for year, month in expected_months:
+            file_path = self.file_manager._get_monthly_file_path(symbol, year, month)
+            if file_path.exists():
+                analysis['existing'].append((year, month))
+            else:
+                analysis['missing'].append((year, month))
 
         return analysis
 
@@ -647,77 +590,66 @@ class EODHD30YearPopulator:
         logger.info(f"📝 {symbol}: Processing {len(missing_months)} missing months, "
                    f"skipping {len(existing_months)} existing months")
 
-        try:
-            async with self.eodhd_adapter:
-                # Process only missing months
-                for year, month in missing_months:
-                    month_start = date(year, month, 1)
-                    # Get last day of month
-                    if month == 12:
-                        month_end = date(year + 1, 1, 1) - timedelta(days=1)
-                    else:
-                        month_end = date(year, month + 1, 1) - timedelta(days=1)
+        async with self.eodhd_adapter:
+            # Process only missing months
+            for year, month in missing_months:
+                month_start = date(year, month, 1)
+                # Get last day of month
+                if month == 12:
+                    month_end = date(year + 1, 1, 1) - timedelta(days=1)
+                else:
+                    month_end = date(year, month + 1, 1) - timedelta(days=1)
 
-                    logger.info(f"📊 Fetching {symbol} data for {year}-{month:02d}")
+                logger.info(f"📊 Fetching {symbol} data for {year}-{month:02d}")
 
-                    # Fetch data for this specific month only
-                    month_bars = await self.eodhd_adapter.fetch_minute_bars_async(
+                # Fetch data for this specific month only
+                month_bars = await self.eodhd_adapter.fetch_minute_bars_async(
+                    symbol,
+                    datetime.combine(month_start, datetime.min.time()),
+                    datetime.combine(month_end, datetime.min.time())
+                )
+
+                month_api_calls = (month_end - month_start).days + 1
+                symbol_stats['api_calls'] += month_api_calls
+                self.stats['total_api_calls'] += month_api_calls
+
+                if month_bars:
+                    # Convert to MinuteBar format
+                    minute_bars = []
+                    for bar in month_bars:
+                        minute_bar = MinuteBar(
+                            symbol=bar.symbol,
+                            timestamp=bar.timestamp,
+                            open=bar.open,
+                            high=bar.high,
+                            low=bar.low,
+                            close=bar.close,
+                            volume=bar.volume,
+                            vendor="eodhd",  # Explicitly mark as EODHD data
+                            quality_score=0.9
+                        )
+                        minute_bars.append(minute_bar)
+
+                    # Store month data
+                    store_result = await self.file_manager.store_minute_data(
                         symbol,
-                        datetime.combine(month_start, datetime.min.time()),
-                        datetime.combine(month_end, datetime.min.time())
+                        minute_bars,
+                        overlap_strategy='skip'  # Skip overlaps for incremental
                     )
 
-                    month_api_calls = (month_end - month_start).days + 1
-                    symbol_stats['api_calls'] += month_api_calls
-                    self.stats['total_api_calls'] += month_api_calls
+                    symbol_stats['bars_collected'] += len(month_bars)
+                    symbol_stats['bars_stored'] += store_result.get('stored', 0)
+                    symbol_stats['files_created'] += store_result.get('files_created', 0)
+                    symbol_stats['months_processed'] += 1
 
-                    if month_bars:
-                        # Convert to MinuteBar format
-                        minute_bars = []
-                        for bar in month_bars:
-                            minute_bar = MinuteBar(
-                                symbol=bar.symbol,
-                                timestamp=bar.timestamp,
-                                open=bar.open,
-                                high=bar.high,
-                                low=bar.low,
-                                close=bar.close,
-                                volume=bar.volume,
-                                vendor="eodhd",  # Explicitly mark as EODHD data
-                                quality_score=0.9
-                            )
-                            minute_bars.append(minute_bar)
+                    logger.info(f"✅ {symbol} {year}-{month:02d}: {len(month_bars)} bars collected, "
+                               f"{store_result.get('stored', 0)} stored")
+                else:
+                    logger.warning(f"⚠️ {symbol} {year}-{month:02d}: No data available")
 
-                        # Store month data
-                        store_result = await self.file_manager.store_minute_data(
-                            symbol,
-                            minute_bars,
-                            overlap_strategy='skip'  # Skip overlaps for incremental
-                        )
+                # Rate limiting between months
+                await asyncio.sleep(1.0)
 
-                        symbol_stats['bars_collected'] += len(month_bars)
-                        symbol_stats['bars_stored'] += store_result.get('stored', 0)
-                        symbol_stats['files_created'] += store_result.get('files_created', 0)
-                        symbol_stats['months_processed'] += 1
-
-                        logger.info(f"✅ {symbol} {year}-{month:02d}: {len(month_bars)} bars collected, "
-                                   f"{store_result.get('stored', 0)} stored")
-                    else:
-                        logger.warning(f"⚠️ {symbol} {year}-{month:02d}: No data available")
-
-                    # Rate limiting between months
-                    await asyncio.sleep(1.0)
-
-        except Exception as e:
-            error_msg = f"Error in incremental backfill for {symbol}: {e}"
-            logger.error(error_msg)
-            symbol_stats['errors'].append({
-                'timestamp': datetime.now().isoformat(),
-                'error': str(e)
-            })
-            self.stats['errors'].append(error_msg)
-
-        # Update global stats
         self.stats['total_bars_collected'] += symbol_stats['bars_collected']
         self.stats['total_bars_stored'] += symbol_stats['bars_stored']
         self.stats['total_files_created'] += symbol_stats['files_created']
@@ -755,35 +687,29 @@ class EODHD30YearPopulator:
 
         # Process each symbol
         for symbol in sorted(target_symbols):
-            try:
-                self.checkpoint.current_symbol = symbol
-                await self.save_checkpoint(self.checkpoint)
+            self.checkpoint.current_symbol = symbol
+            await self.save_checkpoint(self.checkpoint)
 
-                # Use incremental backfill - only process missing data
-                symbol_stats = await self.populate_missing_data_only(symbol, start_date, end_date)
+            # Use incremental backfill - only process missing data
+            symbol_stats = await self.populate_missing_data_only(symbol, start_date, end_date)
 
-                if symbol_stats['errors']:
-                    self.checkpoint.symbols_failed.append(symbol)
-                    self.stats['symbols_failed'] += 1
-                else:
-                    self.checkpoint.symbols_completed.append(symbol)
-                    self.stats['symbols_completed'] += 1
-
-                self.checkpoint.processed_symbols += 1
-                self.stats['symbols_processed'] += 1
-
-                # Update checkpoint every symbol
-                await self.save_checkpoint(self.checkpoint)
-
-                # Progress report
-                progress = (self.checkpoint.processed_symbols / self.checkpoint.total_symbols) * 100
-                logger.info(f"Progress: {self.checkpoint.processed_symbols}/{self.checkpoint.total_symbols} "
-                           f"({progress:.1f}%) - Current: {symbol}")
-
-            except Exception as e:
-                logger.error(f"Critical error processing {symbol}: {e}")
+            if symbol_stats['errors']:
                 self.checkpoint.symbols_failed.append(symbol)
                 self.stats['symbols_failed'] += 1
+            else:
+                self.checkpoint.symbols_completed.append(symbol)
+                self.stats['symbols_completed'] += 1
+
+            self.checkpoint.processed_symbols += 1
+            self.stats['symbols_processed'] += 1
+
+            # Update checkpoint every symbol
+            await self.save_checkpoint(self.checkpoint)
+
+            # Progress report
+            progress = (self.checkpoint.processed_symbols / self.checkpoint.total_symbols) * 100
+            logger.info(f"Progress: {self.checkpoint.processed_symbols}/{self.checkpoint.total_symbols} "
+                       f"({progress:.1f}%) - Current: {symbol}")
 
         logger.info("Full population complete")
         await self._print_final_stats()
@@ -827,32 +753,26 @@ class EODHD30YearPopulator:
 
         # Continue processing remaining symbols
         for symbol in sorted(remaining_symbols):
-            try:
-                self.checkpoint.current_symbol = symbol
-                await self.save_checkpoint(self.checkpoint)
+            self.checkpoint.current_symbol = symbol
+            await self.save_checkpoint(self.checkpoint)
 
-                symbol_stats = await self.populate_symbol_data(symbol, start_date, end_date)
+            symbol_stats = await self.populate_symbol_data(symbol, start_date, end_date)
 
-                if symbol_stats['errors']:
-                    self.checkpoint.symbols_failed.append(symbol)
-                    self.stats['symbols_failed'] += 1
-                else:
-                    self.checkpoint.symbols_completed.append(symbol)
-                    self.stats['symbols_completed'] += 1
-
-                self.checkpoint.processed_symbols += 1
-                self.stats['symbols_processed'] += 1
-
-                await self.save_checkpoint(self.checkpoint)
-
-                progress = (self.checkpoint.processed_symbols / self.checkpoint.total_symbols) * 100
-                logger.info(f"Progress: {self.checkpoint.processed_symbols}/{self.checkpoint.total_symbols} "
-                           f"({progress:.1f}%) - Current: {symbol}")
-
-            except Exception as e:
-                logger.error(f"Critical error processing {symbol}: {e}")
+            if symbol_stats['errors']:
                 self.checkpoint.symbols_failed.append(symbol)
                 self.stats['symbols_failed'] += 1
+            else:
+                self.checkpoint.symbols_completed.append(symbol)
+                self.stats['symbols_completed'] += 1
+
+            self.checkpoint.processed_symbols += 1
+            self.stats['symbols_processed'] += 1
+
+            await self.save_checkpoint(self.checkpoint)
+
+            progress = (self.checkpoint.processed_symbols / self.checkpoint.total_symbols) * 100
+            logger.info(f"Progress: {self.checkpoint.processed_symbols}/{self.checkpoint.total_symbols} "
+                       f"({progress:.1f}%) - Current: {symbol}")
 
         logger.info("Resume population complete")
         await self._print_final_stats()
@@ -884,67 +804,55 @@ class EODHD30YearPopulator:
                 logger.info(f"  ... and {len(self.stats['errors']) - 5} more errors")
 
         # Get storage stats
-        try:
-            storage_stats = await self.file_manager.get_storage_stats()
-            logger.info(f"Storage statistics:")
-            logger.info(f"  - Total files: {storage_stats.get('files', 0)}")
-            logger.info(f"  - Total symbols: {storage_stats.get('symbols', 0)}")
-            logger.info(f"  - Total size: {storage_stats.get('total_size_mb', 0):.2f} MB")
-        except Exception as e:
-            logger.warning(f"Could not retrieve storage stats: {e}")
-
+        storage_stats = await self.file_manager.get_storage_stats()
+        logger.info(f"Storage statistics:")
+        logger.info(f"  - Total files: {storage_stats.get('files', 0)}")
+        logger.info(f"  - Total symbols: {storage_stats.get('symbols', 0)}")
+        logger.info(f"  - Total size: {storage_stats.get('total_size_mb', 0):.2f} MB")
         logger.info("=" * 80)
 
     async def close(self):
         """Clean up resources"""
-        try:
-            if self.file_manager:
-                await self.file_manager.close()
-            logger.info("Resources cleaned up successfully")
-        except Exception as e:
-            logger.error(f"Error during cleanup: {e}")
-
+        if self.file_manager:
+            await self.file_manager.close()
+        logger.info("Resources cleaned up successfully")
     async def _store_data_direct(self, symbol: str, minute_bars: List) -> Dict:
         """Direct parquet storage fallback when file manager not available"""
 
         storage_stats = {'stored': 0, 'files_created': 0}
 
-        try:
-            # Group bars by month
-            monthly_data = {}
-            for bar in minute_bars:
-                month_key = bar.timestamp.strftime('%Y_%m')
-                if month_key not in monthly_data:
-                    monthly_data[month_key] = []
-                monthly_data[month_key].append({
-                    'timestamp': bar.timestamp,
-                    'open': bar.open,
-                    'high': bar.high,
-                    'low': bar.low,
-                    'close': bar.close,
-                    'volume': bar.volume,
-                    'symbol': symbol
-                })
+        # Group bars by month
+        monthly_data = {}
+        for bar in minute_bars:
+            month_key = bar.timestamp.strftime('%Y_%m')
+            if month_key not in monthly_data:
+                monthly_data[month_key] = []
+            monthly_data[month_key].append({
+                'timestamp': bar.timestamp,
+                'open': bar.open,
+                'high': bar.high,
+                'low': bar.low,
+                'close': bar.close,
+                'volume': bar.volume,
+                'symbol': symbol
+            })
 
-            # Store each month
-            for month_key, bars_data in monthly_data.items():
-                year, month = month_key.split('_')
-                output_dir = self.storage_path / "minute-bars" / symbol / year / month
-                output_dir.mkdir(parents=True, exist_ok=True)
+        # Store each month
+        for month_key, bars_data in monthly_data.items():
+            year, month = month_key.split('_')
+            output_dir = self.storage_path / "minute-bars" / symbol / year / month
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-                output_file = output_dir / f"{symbol}_{month_key}.parquet"
+            output_file = output_dir / f"{symbol}_{month_key}.parquet"
 
-                # Convert to DataFrame and save
-                df = pd.DataFrame(bars_data)
-                df.to_parquet(output_file, index=False)
+            # Convert to DataFrame and save
+            df = pd.DataFrame(bars_data)
+            df.to_parquet(output_file, index=False)
 
-                storage_stats['stored'] += len(bars_data)
-                storage_stats['files_created'] += 1
+            storage_stats['stored'] += len(bars_data)
+            storage_stats['files_created'] += 1
 
-                logger.info(f"Stored {len(bars_data)} bars for {symbol} {month_key}")
-
-        except Exception as e:
-            logger.error(f"Error in direct storage for {symbol}: {e}")
+            logger.info(f"Stored {len(bars_data)} bars for {symbol} {month_key}")
 
         return storage_stats
 
@@ -964,23 +872,19 @@ class EODHD30YearPopulator:
         symbols_with_gaps = 0
 
         for symbol in self.checkpoint.symbols_completed[:10]:  # Sample first 10
-            try:
-                start_date = date.fromisoformat(self.checkpoint.start_date)
-                end_date = date.fromisoformat(self.checkpoint.end_date)
+            start_date = date.fromisoformat(self.checkpoint.start_date)
+            end_date = date.fromisoformat(self.checkpoint.end_date)
 
-                data_analysis = await self.analyze_existing_data(symbol, start_date, end_date)
-                missing_count = len(data_analysis['missing'])
-                existing_count = len(data_analysis['existing'])
+            data_analysis = await self.analyze_existing_data(symbol, start_date, end_date)
+            missing_count = len(data_analysis['missing'])
+            existing_count = len(data_analysis['existing'])
 
-                if missing_count > 0:
-                    symbols_with_gaps += 1
-                    total_gaps += missing_count
+            if missing_count > 0:
+                symbols_with_gaps += 1
+                total_gaps += missing_count
 
-                coverage = (existing_count / (existing_count + missing_count)) * 100 if (existing_count + missing_count) > 0 else 0
-                logger.info(f"{symbol:8}: {coverage:6.1f}% coverage ({existing_count:3} months complete, {missing_count:3} missing)")
-
-            except Exception as e:
-                logger.error(f"Error analyzing {symbol}: {e}")
+            coverage = (existing_count / (existing_count + missing_count)) * 100 if (existing_count + missing_count) > 0 else 0
+            logger.info(f"{symbol:8}: {coverage:6.1f}% coverage ({existing_count:3} months complete, {missing_count:3} missing)")
 
         logger.info(f"\nSummary: {symbols_with_gaps} symbols with gaps, {total_gaps} total missing months")
         logger.info("=" * 80 + "\n")
@@ -1048,42 +952,34 @@ async def main():
     populator.force_refresh = args.force_refresh
     populator.gap_analysis = args.gap_analysis
 
-    try:
-        await populator.initialize()
+    await populator.initialize()
 
-        if args.resume:
-            # Resume from checkpoint
-            if args.run_id:
-                # Load checkpoint from runs table
-                populator.checkpoint = await populator.load_checkpoint(run_id=args.run_id)
-                if populator.checkpoint:
-                    await populator.resume_population()
-                else:
-                    logger.error(f"No checkpoint found for run ID {args.run_id}")
+    if args.resume:
+        # Resume from checkpoint
+        if args.run_id:
+            # Load checkpoint from runs table
+            populator.checkpoint = await populator.load_checkpoint(run_id=args.run_id)
+            if populator.checkpoint:
+                await populator.resume_population()
             else:
-                await populator.resume_population(args.checkpoint_file)
+                logger.error(f"No checkpoint found for run ID {args.run_id}")
         else:
-            # Start new population
-            start_date = date.fromisoformat(args.start_date)
-            end_date = date.fromisoformat(args.end_date)
+            await populator.resume_population(args.checkpoint_file)
+    else:
+        # Start new population
+        start_date = date.fromisoformat(args.start_date)
+        end_date = date.fromisoformat(args.end_date)
 
-            symbols = None
-            if args.symbols:
-                symbols = [s.strip() for s in args.symbols.split(',')]
+        symbols = None
+        if args.symbols:
+            symbols = [s.strip() for s in args.symbols.split(',')]
 
-            await populator.run_full_population(
-                start_date=start_date,
-                end_date=end_date,
-                limit=args.limit,
-                symbols=symbols
-            )
-
-    except KeyboardInterrupt:
-        logger.info("Population interrupted by user")
-    except Exception as e:
-        logger.error(f"Population failed: {e}")
-    finally:
-        await populator.close()
+        await populator.run_full_population(
+            start_date=start_date,
+            end_date=end_date,
+            limit=args.limit,
+            symbols=symbols
+        )
 
     logger.info("EODHD 30-year population script completed")
 

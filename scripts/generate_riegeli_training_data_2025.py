@@ -82,39 +82,29 @@ async def generate_riegeli_training_data():
             config=storage_config
         )
 
-        try:
-            # Create job runner
-            job_runner = TrainingDataJobRunner(
-                config=config,
-                environment=Environment.DEV,
-                storage_manager=storage_manager
-            )
+        # Create job runner
+        job_runner = TrainingDataJobRunner(
+            config=config,
+            environment=Environment.DEV,
+            storage_manager=storage_manager
+        )
 
-            # Execute training data generation
-            logger.info(f"⚙️ Generating Riegeli training data for {symbol}...")
+        # Execute training data generation
+        logger.info(f"⚙️ Generating Riegeli training data for {symbol}...")
 
-            result = await job_runner.run()
+        result = await job_runner.run()
 
-            results[symbol] = {
-                'status': 'success',
-                'config': config.__dict__,
-                'result': result,
-                'output_directory': output_dir,
-                'storage_format': 'riegeli'
-            }
+        results[symbol] = {
+            'status': 'success',
+            'config': config.__dict__,
+            'result': result,
+            'output_directory': output_dir,
+            'storage_format': 'riegeli'
+        }
 
-            logger.info(f"✅ Training data generation completed for {symbol}")
-            logger.info(f"📁 Output directory: {output_dir}")
+        logger.info(f"✅ Training data generation completed for {symbol}")
+        logger.info(f"📁 Output directory: {output_dir}")
 
-        except Exception as e:
-            logger.error(f"❌ Training data generation failed for {symbol}: {e}")
-            results[symbol] = {
-                'status': 'failed',
-                'error': str(e),
-                'output_directory': output_dir
-            }
-
-    # Save generation summary
     summary_file = "/data/training/riegeli_generation_summary_2025.json"
     with open(summary_file, 'w') as f:
         json.dump(results, f, indent=2, default=str)

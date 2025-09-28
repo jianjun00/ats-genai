@@ -18,7 +18,7 @@ import pandas as pd
 from datetime import datetime, date
 from unittest.mock import Mock
 
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 
 class TestUniverseStateManagerParameterValidation:

@@ -2,9 +2,9 @@ import pytest
 import asyncio
 import json
 from datetime import datetime
-from shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.market_data.services.news.turbo_news_backfill import (
+from domains.market_data.services.vendor_adapters.news.turbo_news_backfill import (
     TurboNewsDatabaseInserter
 )
 
@@ -91,44 +91,39 @@ async def test_end_to_end_polygon_news_backfill(unit_test_db):
             database=db_config['database']
         )
 
-        try:
-            async with pool.acquire() as conn:
-                # Get inserted news articles
-                news_articles = await conn.fetch(
-                    "SELECT * FROM test_news_polygon ORDER BY published_utc"
-                )
+        async with pool.acquire() as conn:
+            # Get inserted news articles
+            news_articles = await conn.fetch(
+                "SELECT * FROM test_news_polygon ORDER BY published_utc"
+            )
 
-                assert len(news_articles) == 2
+            assert len(news_articles) == 2
 
-                # Verify first article
-                first_article = news_articles[0]
-                assert first_article['polygon_id'] == 'test-polygon-news-1'
-                assert first_article['title'] == 'Test Integration News Article'
-                assert first_article['author'] == 'Test Author'
-                assert first_article['publisher_name'] == 'Test Publisher'
-                assert first_article['keywords'] == ['test', 'integration', 'news']
-                assert first_article['tickers'] == ['AAPL', 'MSFT']
+            # Verify first article
+            first_article = news_articles[0]
+            assert first_article['polygon_id'] == 'test-polygon-news-1'
+            assert first_article['title'] == 'Test Integration News Article'
+            assert first_article['author'] == 'Test Author'
+            assert first_article['publisher_name'] == 'Test Publisher'
+            assert first_article['keywords'] == ['test', 'integration', 'news']
+            assert first_article['tickers'] == ['AAPL', 'MSFT']
 
-                # Verify insights JSON structure
-                insights_data = json.loads(first_article['insights'])
-                assert len(insights_data) == 1
-                assert insights_data[0]['sentiment'] == 'positive'
+            # Verify insights JSON structure
+            insights_data = json.loads(first_article['insights'])
+            assert len(insights_data) == 1
+            assert insights_data[0]['sentiment'] == 'positive'
 
-                # Verify original data JSON structure
-                original_data = json.loads(first_article['data'])
-                assert original_data['original_api_response'] == 'test_data'
-                assert original_data['additional_fields'] == ['field1', 'field2']
+            # Verify original data JSON structure
+            original_data = json.loads(first_article['data'])
+            assert original_data['original_api_response'] == 'test_data'
+            assert original_data['additional_fields'] == ['field1', 'field2']
 
-                # Verify second article (with null handling)
-                second_article = news_articles[1]
-                assert second_article['polygon_id'] == 'test-polygon-news-2'
-                assert second_article['image_url'] is None
-                assert second_article['publisher_logo_url'] is None
-                assert second_article['insights'] is None
-
-        finally:
-            await pool.close()
-
+            # Verify second article (with null handling)
+            second_article = news_articles[1]
+            assert second_article['polygon_id'] == 'test-polygon-news-2'
+            assert second_article['image_url'] is None
+            assert second_article['publisher_logo_url'] is None
+            assert second_article['insights'] is None
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -196,36 +191,31 @@ async def test_end_to_end_tiingo_news_backfill(unit_test_db):
             database=db_config['database']
         )
 
-        try:
-            async with pool.acquire() as conn:
-                # Get inserted news articles
-                news_articles = await conn.fetch(
-                    "SELECT * FROM test_news_tiingo ORDER BY published_date"
-                )
+        async with pool.acquire() as conn:
+            # Get inserted news articles
+            news_articles = await conn.fetch(
+                "SELECT * FROM test_news_tiingo ORDER BY published_date"
+            )
 
-                assert len(news_articles) == 2
+            assert len(news_articles) == 2
 
-                # Verify first article
-                first_article = news_articles[0]
-                assert first_article['tiingo_id'] == 12345
-                assert first_article['title'] == 'Test Tiingo Integration News'
-                assert first_article['source'] == 'test-source.com'
-                assert first_article['tags'] == ['finance', 'technology', 'integration']
-                assert first_article['tickers'] == ['aapl', 'msft']
+            # Verify first article
+            first_article = news_articles[0]
+            assert first_article['tiingo_id'] == 12345
+            assert first_article['title'] == 'Test Tiingo Integration News'
+            assert first_article['source'] == 'test-source.com'
+            assert first_article['tags'] == ['finance', 'technology', 'integration']
+            assert first_article['tickers'] == ['aapl', 'msft']
 
-                # Verify data JSON structure
-                original_data = json.loads(first_article['data'])
-                assert original_data['source_metadata'] == 'test_metadata'
-                assert original_data['crawl_info']['version'] == '1.0'
+            # Verify data JSON structure
+            original_data = json.loads(first_article['data'])
+            assert original_data['source_metadata'] == 'test_metadata'
+            assert original_data['crawl_info']['version'] == '1.0'
 
-                # Verify second article
-                second_article = news_articles[1]
-                assert second_article['tiingo_id'] == 67890
-                assert second_article['url'] == 'https://example.com/tiingo-test-2'
-
-        finally:
-            await pool.close()
-
+            # Verify second article
+            second_article = news_articles[1]
+            assert second_article['tiingo_id'] == 67890
+            assert second_article['url'] == 'https://example.com/tiingo-test-2'
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -284,17 +274,12 @@ async def test_duplicate_news_handling(unit_test_db):
             database=db_config['database']
         )
 
-        try:
-            async with pool.acquire() as conn:
-                news_articles = await conn.fetch(
-                    "SELECT * FROM test_news_polygon WHERE polygon_id = 'test-duplicate-news'"
-                )
+        async with pool.acquire() as conn:
+            news_articles = await conn.fetch(
+                "SELECT * FROM test_news_polygon WHERE polygon_id = 'test-duplicate-news'"
+            )
 
-                assert len(news_articles) == 1  # Should still be only 1 record
-
-        finally:
-            await pool.close()
-
+            assert len(news_articles) == 1  # Should still be only 1 record
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -379,31 +364,26 @@ async def test_concurrent_news_insertions(unit_test_db):
             database=db_config['database']
         )
 
-        try:
-            async with pool.acquire() as conn:
-                # Check total count
-                total_count = await conn.fetchval(
-                    "SELECT COUNT(*) FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-%'"
-                )
-                assert total_count == 10
+        async with pool.acquire() as conn:
+            # Check total count
+            total_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-%'"
+            )
+            assert total_count == 10
 
-                # Check batch 1 articles
-                batch1_articles = await conn.fetch(
-                    "SELECT * FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-1-%' ORDER BY polygon_id"
-                )
-                assert len(batch1_articles) == 5
-                assert all('batch1' in article['keywords'] for article in batch1_articles)
+            # Check batch 1 articles
+            batch1_articles = await conn.fetch(
+                "SELECT * FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-1-%' ORDER BY polygon_id"
+            )
+            assert len(batch1_articles) == 5
+            assert all('batch1' in article['keywords'] for article in batch1_articles)
 
-                # Check batch 2 articles
-                batch2_articles = await conn.fetch(
-                    "SELECT * FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-2-%' ORDER BY polygon_id"
-                )
-                assert len(batch2_articles) == 5
-                assert all('batch2' in article['keywords'] for article in batch2_articles)
-
-        finally:
-            await pool.close()
-
+            # Check batch 2 articles
+            batch2_articles = await conn.fetch(
+                "SELECT * FROM test_news_polygon WHERE polygon_id LIKE 'test-concurrent-2-%' ORDER BY polygon_id"
+            )
+            assert len(batch2_articles) == 5
+            assert all('batch2' in article['keywords'] for article in batch2_articles)
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -459,39 +439,34 @@ async def test_large_news_batch_processing(unit_test_db):
             database=db_config['database']
         )
 
-        try:
-            async with pool.acquire() as conn:
-                # Check total count
-                total_count = await conn.fetchval(
-                    "SELECT COUNT(*) FROM test_news_tiingo WHERE tiingo_id BETWEEN 10000 AND 10049"
-                )
-                assert total_count == 50
+        async with pool.acquire() as conn:
+            # Check total count
+            total_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM test_news_tiingo WHERE tiingo_id BETWEEN 10000 AND 10049"
+            )
+            assert total_count == 50
 
-                # Verify data integrity (check first and last records)
-                first_article = await conn.fetchrow(
-                    "SELECT * FROM test_news_tiingo WHERE tiingo_id = 10000"
-                )
-                assert first_article['title'] == 'Large Batch Test Article 0'
-                assert first_article['source'] == 'source-0.com'
+            # Verify data integrity (check first and last records)
+            first_article = await conn.fetchrow(
+                "SELECT * FROM test_news_tiingo WHERE tiingo_id = 10000"
+            )
+            assert first_article['title'] == 'Large Batch Test Article 0'
+            assert first_article['source'] == 'source-0.com'
 
-                last_article = await conn.fetchrow(
-                    "SELECT * FROM test_news_tiingo WHERE tiingo_id = 10049"
-                )
-                assert last_article['title'] == 'Large Batch Test Article 49'
-                assert last_article['source'] == 'source-4.com'
+            last_article = await conn.fetchrow(
+                "SELECT * FROM test_news_tiingo WHERE tiingo_id = 10049"
+            )
+            assert last_article['title'] == 'Large Batch Test Article 49'
+            assert last_article['source'] == 'source-4.com'
 
-                # Verify JSON data structure
-                first_data = json.loads(first_article['data'])
-                assert first_data['article_index'] == 0
-                assert first_data['batch_info'] == 'large_batch_test'
+            # Verify JSON data structure
+            first_data = json.loads(first_article['data'])
+            assert first_data['article_index'] == 0
+            assert first_data['batch_info'] == 'large_batch_test'
 
-                last_data = json.loads(last_article['data'])
-                assert last_data['article_index'] == 49
-                assert last_data['metadata']['word_count'] == 500 + 49 * 10
-
-        finally:
-            await pool.close()
-
+            last_data = json.loads(last_article['data'])
+            assert last_data['article_index'] == 49
+            assert last_data['metadata']['word_count'] == 500 + 49 * 10
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio
@@ -595,30 +570,29 @@ async def test_json_data_integrity(unit_test_db):
             database=db_config['database']
         )
 
-        try:
-            async with pool.acquire() as conn:
-                article = await conn.fetchrow(
-                    "SELECT * FROM test_news_polygon WHERE polygon_id = 'test-json-integrity'"
-                )
+        async with pool.acquire() as conn:
+            article = await conn.fetchrow(
+                "SELECT * FROM test_news_polygon WHERE polygon_id = 'test-json-integrity'"
+            )
 
-                # Parse and verify insights JSON
-                retrieved_insights = json.loads(article['insights'])
-                assert len(retrieved_insights) == 2
-                assert retrieved_insights[0]['ticker'] == 'AAPL'
-                assert retrieved_insights[0]['confidence_score'] == 0.85
-                assert retrieved_insights[0]['entities']['companies'] == ['Apple Inc.', 'Samsung']
-                assert retrieved_insights[1]['related_articles'][0]['id'] == 'article-1'
+            # Parse and verify insights JSON
+            retrieved_insights = json.loads(article['insights'])
+            assert len(retrieved_insights) == 2
+            assert retrieved_insights[0]['ticker'] == 'AAPL'
+            assert retrieved_insights[0]['confidence_score'] == 0.85
+            assert retrieved_insights[0]['entities']['companies'] == ['Apple Inc.', 'Samsung']
+            assert retrieved_insights[1]['related_articles'][0]['id'] == 'article-1'
 
-                # Parse and verify data JSON
-                retrieved_data = json.loads(article['data'])
-                assert retrieved_data['api_metadata']['version'] == '2.1'
-                assert retrieved_data['content_analysis']['word_count'] == 1500
-                assert retrieved_data['content_analysis']['named_entities']['persons'] == ['Tim Cook', 'Satya Nadella']
-                assert retrieved_data['social_metrics']['engagement_rate'] == 0.045
+            # Parse and verify data JSON
+            retrieved_data = json.loads(article['data'])
+            assert retrieved_data['api_metadata']['version'] == '2.1'
+            assert retrieved_data['content_analysis']['word_count'] == 1500
+            assert retrieved_data['content_analysis']['named_entities']['persons'] == ['Tim Cook', 'Satya Nadella']
+            assert retrieved_data['social_metrics']['engagement_rate'] == 0.045
 
-                # Verify the original complex structure is preserved
-                assert retrieved_insights == complex_insights
-                assert retrieved_data == complex_data
+            # Verify the original complex structure is preserved
+            assert retrieved_insights == complex_insights
+            assert retrieved_data == complex_data
 
         finally:
             await pool.close()

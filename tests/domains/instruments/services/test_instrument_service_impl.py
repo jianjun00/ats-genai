@@ -14,7 +14,7 @@ from unittest.mock import Mock, AsyncMock
 from datetime import date
 
 from domains.instruments.services.impl.instrument_service_impl import InstrumentServiceImpl
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.impl.instrument_service_cached import (
     InstrumentDTO,
     InstrumentXrefDTO,
     InstrumentSearchCriteria

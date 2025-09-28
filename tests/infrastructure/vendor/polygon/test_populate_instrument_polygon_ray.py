@@ -6,11 +6,7 @@ from unittest.mock import MagicMock
 def parse_date(val):
     if not val:
         return None
-    try:
-        return datetime.datetime.strptime(val[:10], "%Y-%m-%d").date()
-    except Exception:
-        return None
-
+    return datetime.datetime.strptime(val[:10], "%Y-%m-%d").date()
 def test_parse_date_valid():
     assert parse_date("2023-08-07") == datetime.date(2023, 8, 7)
     assert parse_date("1992-11-19T00:00:00Z") == datetime.date(1992, 11, 19)

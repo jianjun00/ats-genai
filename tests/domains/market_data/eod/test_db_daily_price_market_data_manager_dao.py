@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import date, datetime
 
-from domains.market_data.services.eod.db_daily_price_market_data_manager import DBDailyPriceMarketDataManager
+from domains.trading.services.core.eod.enhanced_eod_service import DBDailyPriceMarketDataManager
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO
 
 

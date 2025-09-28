@@ -74,28 +74,20 @@ async def test_database_connection(args):
         logger.info(f"Database URL: {db.get_database_url().replace(db.password, '******')}")
 
         # Test connection with retry logic
-        try:
-            # Import asyncpg here to avoid import errors if not installed
-            import asyncpg
+        # Import asyncpg here to avoid import errors if not installed
+        import asyncpg
 
-            logger.info("Attempting to connect to database...")
-            pool = await db.create_pool_with_retry(asyncpg, max_retries=2, initial_delay=1.0)
-            logger.info("Successfully connected to database!")
+        logger.info("Attempting to connect to database...")
+        pool = await db.create_pool_with_retry(asyncpg, max_retries=2, initial_delay=1.0)
+        logger.info("Successfully connected to database!")
 
-            # Test query
-            async with pool.acquire() as conn:
-                version = await conn.fetchval("SELECT version()")
-                logger.info(f"PostgreSQL version: {version}")
+        # Test query
+        async with pool.acquire() as conn:
+            version = await conn.fetchval("SELECT version()")
+            logger.info(f"PostgreSQL version: {version}")
 
-            # Close pool
-            await pool.close()
-
-        except ImportError:
-            logger.error("asyncpg not installed. Skipping connection test.")
-        except Exception as e:
-            logger.error(f"Failed to connect to database: {str(e)}")
-            logger.error(f"Exception type: {type(e).__name__}")
-            logger.error(f"Exception details: {repr(e)}")
+        # Close pool
+        await pool.close()
 
 if __name__ == "__main__":
     args = parser.parse_args()

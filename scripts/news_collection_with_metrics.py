@@ -164,22 +164,17 @@ class NewsCollectionService:
 
     async def initialize(self):
         """Initialize the news collector"""
-        try:
-            # For now, just validate we can get the API key
-            api_key = get_polygon_api_key()
-            if not api_key:
-                api_key = os.getenv('POLYGON_API_KEY')
+        # For now, just validate we can get the API key
+        api_key = get_polygon_api_key()
+        if not api_key:
+            api_key = os.getenv('POLYGON_API_KEY')
 
-            if not api_key:
-                raise ValueError("Polygon API key not found")
+        if not api_key:
+            raise ValueError("Polygon API key not found")
 
-            self.api_key = api_key
-            logger.info(f"✅ News collection service initialized for {self.environment}")
-            return True
-
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize service: {e}")
-            return False
+        self.api_key = api_key
+        logger.info(f"✅ News collection service initialized for {self.environment}")
+        return True
 
     async def collect_news(self, start_date: str, end_date: str) -> Dict[str, Any]:
         """Collect news with metrics tracking"""
@@ -193,91 +188,72 @@ class NewsCollectionService:
                 "environment": self.environment
             })
 
-            try:
-                # Track API call
-                api_start_time = time.time()
+            # Track API call
+            api_start_time = time.time()
 
-                # Simulate collection (replace with actual collector call)
-                await asyncio.sleep(0.1)  # Simulate API call
+            # Simulate collection (replace with actual collector call)
+            await asyncio.sleep(0.1)  # Simulate API call
 
-                api_duration = (time.time() - api_start_time) * 1000
+            api_duration = (time.time() - api_start_time) * 1000
 
-                # Record metrics
-                self.metrics.news_api_calls_total.add(1, {
-                    "vendor": "polygon",
-                    "success": "true",
-                    "environment": self.environment
-                })
+            # Record metrics
+            self.metrics.news_api_calls_total.add(1, {
+                "vendor": "polygon",
+                "success": "true",
+                "environment": self.environment
+            })
 
-                self.metrics.news_api_response_duration.record(api_duration, {
-                    "vendor": "polygon",
-                    "environment": self.environment
-                })
+            self.metrics.news_api_response_duration.record(api_duration, {
+                "vendor": "polygon",
+                "environment": self.environment
+            })
 
-                # Simulate articles fetched and stored
-                articles_fetched = 50  # Example count
-                articles_stored = 48   # Example count (some might be duplicates)
+            # Simulate articles fetched and stored
+            articles_fetched = 50  # Example count
+            articles_stored = 48   # Example count (some might be duplicates)
 
-                self.metrics.news_articles_fetched_total.add(articles_fetched, {
-                    "vendor": "polygon",
-                    "environment": self.environment
-                })
+            self.metrics.news_articles_fetched_total.add(articles_fetched, {
+                "vendor": "polygon",
+                "environment": self.environment
+            })
 
-                self.metrics.news_articles_stored_total.add(articles_stored, {
-                    "vendor": "polygon",
-                    "environment": self.environment
-                })
+            self.metrics.news_articles_stored_total.add(articles_stored, {
+                "vendor": "polygon",
+                "environment": self.environment
+            })
 
-                # Update service state
-                self.last_collection_time = datetime.now()
-                self.total_articles_collected += articles_stored
+            # Update service state
+            self.last_collection_time = datetime.now()
+            self.total_articles_collected += articles_stored
 
-                # Record cycle duration
-                cycle_duration = (time.time() - cycle_start_time) * 1000
-                self.metrics.news_ingestion_cycle_duration.record(cycle_duration, {
-                    "environment": self.environment,
-                    "articles_processed": str(articles_stored)
-                })
+            # Record cycle duration
+            cycle_duration = (time.time() - cycle_start_time) * 1000
+            self.metrics.news_ingestion_cycle_duration.record(cycle_duration, {
+                "environment": self.environment,
+                "articles_processed": str(articles_stored)
+            })
 
-                # Update data freshness
-                self.metrics.news_data_freshness.add(-1, {
-                    "vendor": "polygon",
-                    "environment": self.environment
-                })
+            # Update data freshness
+            self.metrics.news_data_freshness.add(-1, {
+                "vendor": "polygon",
+                "environment": self.environment
+            })
 
-                span.set_attributes({
-                    "articles_fetched": articles_fetched,
-                    "articles_stored": articles_stored,
-                    "cycle_duration_ms": cycle_duration
-                })
+            span.set_attributes({
+                "articles_fetched": articles_fetched,
+                "articles_stored": articles_stored,
+                "cycle_duration_ms": cycle_duration
+            })
 
-                logger.info(f"📰 Collected {articles_stored} articles (fetched: {articles_fetched})")
+            logger.info(f"📰 Collected {articles_stored} articles (fetched: {articles_fetched})")
 
-                return {
-                    "success": True,
-                    "articles_fetched": articles_fetched,
-                    "articles_stored": articles_stored,
-                    "duration_ms": cycle_duration
-                }
+            return {
+                "success": True,
+                "articles_fetched": articles_fetched,
+                "articles_stored": articles_stored,
+                "duration_ms": cycle_duration
+            }
 
-            except Exception as e:
-                # Record error metric
-                self.metrics.news_api_errors_total.add(1, {
-                    "vendor": "polygon",
-                    "environment": self.environment
-                })
-
-                span.record_exception(e)
-                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-
-                logger.error(f"❌ Collection failed: {e}")
-
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
-
-# Web server for health and metrics endpoints
 async def health_handler(request):
     """Health check endpoint"""
     service = request.app['news_service']
@@ -358,18 +334,12 @@ async def main():
     async def background_collection():
         """Background task for periodic news collection"""
         while True:
-            try:
-                yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-                await service.collect_news(yesterday, yesterday)
+            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+            await service.collect_news(yesterday, yesterday)
 
-                # Wait 1 hour between collections
-                await asyncio.sleep(3600)
+            # Wait 1 hour between collections
+            await asyncio.sleep(3600)
 
-            except Exception as e:
-                logger.error(f"❌ Background collection error: {e}")
-                await asyncio.sleep(300)  # Wait 5 minutes on error
-
-    # Start background task
     collection_task = asyncio.create_task(background_collection())
 
     # Start web server
@@ -383,13 +353,6 @@ async def main():
     logger.info(f"📊 Metrics: http://localhost:{port}/metrics")
     logger.info(f"🔍 SigNoz Dashboard: http://localhost:8080")
 
-    try:
-        await collection_task
-    except KeyboardInterrupt:
-        logger.info("👋 Shutting down service...")
-    finally:
-        collection_task.cancel()
-        await runner.cleanup()
-
+    await collection_task
 if __name__ == "__main__":
     asyncio.run(main())

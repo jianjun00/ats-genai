@@ -12,7 +12,7 @@ from datetime import date
 import sys
 sys.path.insert(0, 'src')
 
-from domains.market_data.services.news.comprehensive_news_backfill import ComprehensiveNewsBackfiller
+from domains.market_data.services.vendor_adapters.news.comprehensive_news_backfill import ComprehensiveNewsBackfiller
 
 
 class TestComprehensiveNewsBackfillIntegration:
@@ -289,14 +289,9 @@ class TestComprehensiveNewsBackfillIntegration:
         }
 
         # Should handle database connection errors gracefully
-        try:
-            async with ComprehensiveNewsBackfiller(bad_db_config, test_symbols) as backfiller:
-                # This should fail during database pool creation
-                pass
-        except Exception as e:
-            # Should be a connection-related error
-            assert any(keyword in str(e).lower() for keyword in ['connection', 'connect', 'host'])
-
+        async with ComprehensiveNewsBackfiller(bad_db_config, test_symbols) as backfiller:
+            # This should fail during database pool creation
+            pass
 if __name__ == "__main__":
     # Run specific tests
     pytest.main([__file__, "-v", "-s"])

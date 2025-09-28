@@ -9,7 +9,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from models.temporal_fusion_transformer import (
+from domains.ml.models.temporal_fusion_transformer import (
     TFTConfig,
     TemporalFusionTransformer,
     TFTTrainer,
@@ -557,13 +557,8 @@ class TestErrorHandling:
         sentiment_features = torch.randn(2, 1, 23)
 
         # Should handle gracefully (implementation dependent)
-        try:
-            output = model(encoder_input, decoder_input, encoder_lengths, sentiment_features)
-            assert 'predictions' in output
-        except RuntimeError:
-            # Expected if model doesn't handle empty sequences
-            pass
-
+        output = model(encoder_input, decoder_input, encoder_lengths, sentiment_features)
+        assert 'predictions' in output
     def test_mismatched_dimensions(self, sample_config):
         """Test error handling for mismatched dimensions."""
         model = TemporalFusionTransformer(sample_config)

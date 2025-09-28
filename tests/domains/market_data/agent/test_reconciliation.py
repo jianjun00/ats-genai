@@ -1,5 +1,5 @@
-from domains.market_data.services.agent.reconciliation import ReconciliationEngine
-from domains.market_data.services.agent.models import EODPrice
+from domains.market_data.services.core.agent.reconciliation import ReconciliationEngine
+from domains.market_data.services.core.agent.models import EODPrice
 from datetime import date
 
 def make_eod(symbol, close, open_=None, high=None, low=None, volume=None, vendor=None):

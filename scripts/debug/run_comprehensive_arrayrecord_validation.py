@@ -27,30 +27,21 @@ def run_pytest_test(test_path: str, test_name: str = None) -> dict:
 
     cmd.extend(["-v", "--tb=short", "--no-header", "-q"])
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd="/home/jianjun/ats-genai-pm",
-            env={**os.environ, "PYTHONPATH": "src"}
-        )
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd="/home/jianjun/ats-genai-pm",
+        env={**os.environ, "PYTHONPATH": "src"}
+    )
 
-        return {
-            'command': ' '.join(cmd),
-            'returncode': result.returncode,
-            'stdout': result.stdout,
-            'stderr': result.stderr,
-            'passed': result.returncode == 0
-        }
-
-    except Exception as e:
-        return {
-            'command': ' '.join(cmd),
-            'error': str(e),
-            'passed': False
-        }
-
+    return {
+        'command': ' '.join(cmd),
+        'returncode': result.returncode,
+        'stdout': result.stdout,
+        'stderr': result.stderr,
+        'passed': result.returncode == 0
+    }
 
 def main():
     """Run comprehensive validation and generate report"""
@@ -187,31 +178,22 @@ def main():
 
     # Save detailed results
     output_file = "comprehensive_arrayrecord_validation.json"
-    try:
-        with open(output_file, 'w') as f:
-            json.dump(validation_results, f, indent=2)
-        print(f"\n📄 Detailed results saved to: {output_file}")
-    except Exception as e:
-        print(f"\n⚠️  Could not save results file: {e}")
-
-    # Also run the debug analysis script
+    with open(output_file, 'w') as f:
+        json.dump(validation_results, f, indent=2)
+    print(f"\n📄 Detailed results saved to: {output_file}")
     print("\n🔍 Running detailed ArrayRecord analysis...")
-    try:
-        debug_result = subprocess.run(
-            ["python3", "scripts/debug/analyze_arrayrecord_timeframe_bug.py"],
-            capture_output=True,
-            text=True,
-            cwd="/home/jianjun/ats-genai-pm",
-            env={**os.environ, "PYTHONPATH": "src"}
-        )
+    debug_result = subprocess.run(
+        ["python3", "scripts/debug/analyze_arrayrecord_timeframe_bug.py"],
+        capture_output=True,
+        text=True,
+        cwd="/home/jianjun/ats-genai-pm",
+        env={**os.environ, "PYTHONPATH": "src"}
+    )
 
-        if debug_result.returncode == 0:
-            print("✅ Debug analysis completed successfully")
-        else:
-            print("⚠️  Debug analysis completed with warnings")
-
-    except Exception as e:
-        print(f"⚠️  Could not run debug analysis: {e}")
+    if debug_result.returncode == 0:
+        print("✅ Debug analysis completed successfully")
+    else:
+        print("⚠️  Debug analysis completed with warnings")
 
     print(f"\n🎯 Validation completed. Bug confirmed: {'YES' if summary['bug_confirmed'] else 'NO'}")
 

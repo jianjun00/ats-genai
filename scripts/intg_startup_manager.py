@@ -32,24 +32,20 @@ class IntgStartupManager:
         logger.info(f"Waiting for database {self.db_host}:{self.db_port}...")
 
         for i in range(timeout):
-            try:
-                import psycopg2
-                conn = psycopg2.connect(
-                    host=self.db_host,
-                    port=self.db_port,
-                    user=self.db_user,
-                    password=self.db_password,
-                    database=self.db_name
-                )
-                cursor = conn.cursor()
-                cursor.execute("SELECT 1")
-                cursor.close()
-                conn.close()
-                logger.info("✅ Database connection established")
-                return True
-            except Exception as e:
-                logger.debug(f"Database connection attempt {i+1}: {e}")
-
+            import psycopg2
+            conn = psycopg2.connect(
+                host=self.db_host,
+                port=self.db_port,
+                user=self.db_user,
+                password=self.db_password,
+                database=self.db_name
+            )
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.close()
+            conn.close()
+            logger.info("✅ Database connection established")
+            return True
             time.sleep(1)
 
         logger.error(f"❌ Database not available after {timeout} seconds")
@@ -59,28 +55,22 @@ class IntgStartupManager:
         """Run database migrations if enabled"""
         if os.getenv('AUTO_MIGRATION_ENABLED', 'false').lower() == 'true':
             logger.info("🔄 Running database migrations...")
-            try:
-                # Run migrations using the standard migration script
-                cmd = "PYTHONPATH=/workspace/src python3 -m src.db.migration_manager"
-                result = subprocess.run(cmd, shell=True, cwd="/workspace")
-                if result.returncode == 0:
-                    logger.info("✅ Migrations completed successfully")
-                else:
-                    logger.warning("⚠️ Migrations completed with warnings")
-            except Exception as e:
-                logger.error(f"❌ Migration failed: {e}")
-
+            # Run migrations using the standard migration script
+            cmd = "PYTHONPATH=/workspace/src python3 -m src.db.migration_manager"
+            result = subprocess.run(cmd, shell=True, cwd="/workspace")
+            if result.returncode == 0:
+                logger.info("✅ Migrations completed successfully")
+            else:
+                logger.warning("⚠️ Migrations completed with warnings")
     def setup_cron_jobs(self):
         """Setup scheduled data refresh jobs"""
         if os.getenv('CRON_ENABLED', 'false').lower() == 'true':
             logger.info("📅 Setting up cron jobs...")
-            try:
-                # Install cron if not present
-                subprocess.run("apt-get update && apt-get install -y cron", shell=True, capture_output=True)
+            # Install cron if not present
+            subprocess.run("apt-get update && apt-get install -y cron", shell=True, capture_output=True)
 
-                # Create crontab for data refresh with proper scheduling
-                crontab_content = """
-# ATS-INTG Daily Data Refresh Jobs - Multi-vendor price collection with overlap validation
+            # Create crontab for data refresh with proper scheduling
+            crontab_content = """
 0 3 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/daily_data_refresh.py --vendors tiingo,polygon,eodhd --max-symbols 1000 >> /logs/daily_refresh.log 2>&1
 
 # ATS-INTG Daily Price Coverage Validation - 90-day lookback with Prometheus metrics and Slack alerts
@@ -115,28 +105,20 @@ class IntgStartupManager:
         logger.info("🔍 Starting health monitoring loop...")
 
         while True:
-            try:
-                # Check database connectivity
-                if not self.wait_for_database(timeout=10):
-                    logger.warning("⚠️ Database connectivity lost")
+            # Check database connectivity
+            if not self.wait_for_database(timeout=10):
+                logger.warning("⚠️ Database connectivity lost")
 
-                # Check disk space
-                disk_usage = subprocess.run("df -h /data", shell=True, capture_output=True, text=True)
-                if "100%" in disk_usage.stdout:
-                    logger.warning("⚠️ Data disk is full")
+            # Check disk space
+            disk_usage = subprocess.run("df -h /data", shell=True, capture_output=True, text=True)
+            if "100%" in disk_usage.stdout:
+                logger.warning("⚠️ Data disk is full")
 
-                # Log status
-                logger.info(f"✅ Health check passed - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            # Log status
+            logger.info(f"✅ Health check passed - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-                # Wait 5 minutes between checks
-                time.sleep(300)
-
-            except KeyboardInterrupt:
-                logger.info("🛑 Health monitoring stopped by user")
-                break
-            except Exception as e:
-                logger.error(f"❌ Health check error: {e}")
-                time.sleep(60)  # Wait 1 minute before retrying
+            # Wait 5 minutes between checks
+            time.sleep(300)
 
     def run(self):
         """Main startup sequence"""

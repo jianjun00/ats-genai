@@ -23,9 +23,9 @@ from datetime import datetime
 import asyncpg
 
 from services.realtime_news_service_launcher import RealTimeNewsServiceManager
-from domains.market_data.services.news.realtime_news_ingestion import RealTimeNewsIngestionService
+from domains.market_data.services.vendor_adapters.news.realtime_news_ingestion import RealTimeNewsIngestionService
 from domains.market_data.services.signals.signal_broadcasting_system import TradingSignalBroadcastingSystem
-from core.config.environment import Environment
+from core.platform.config.environment import Environment
 
 
 class TestCompleteNewsSystemIntegration:
@@ -363,38 +363,33 @@ class TestCompleteNewsSystemIntegration:
             service_manager.broadcasting_system = mock_broadcasting_service
 
             # Test complete workflow
-            try:
-                # Start services
-                await service_manager.start()
+            # Start services
+            await service_manager.start()
 
-                # Process article through the system
-                processed_article = await mock_news_service._process_article(news_article)
+            # Process article through the system
+            processed_article = await mock_news_service._process_article(news_article)
 
-                # Verify processing
-                assert processed_article is not None
-                assert processed_article.id == news_article['id']
-                assert processed_article.tickers == ['TSLA']
+            # Verify processing
+            assert processed_article is not None
+            assert processed_article.id == news_article['id']
+            assert processed_article.tickers == ['TSLA']
 
-                # Check system status
-                status = await service_manager.get_status()
+            # Check system status
+            status = await service_manager.get_status()
 
-                # Verify system health
-                assert status['status'] in ['healthy', 'degraded']
-                assert 'components' in status
-                assert 'metrics' in status
+            # Verify system health
+            assert status['status'] in ['healthy', 'degraded']
+            assert 'components' in status
+            assert 'metrics' in status
 
-                # Verify all components are running
-                expected_components = ['database', 'llm_client', 'news_service', 'broadcasting_system']
-                for component in expected_components:
-                    assert component in status['components']
+            # Verify all components are running
+            expected_components = ['database', 'llm_client', 'news_service', 'broadcasting_system']
+            for component in expected_components:
+                assert component in status['components']
 
-                print(f"✅ Complete workflow test passed")
-                print(f"System status: {status['status']}")
-                print(f"Components: {list(status['components'].keys())}")
-
-            finally:
-                # Cleanup
-                await service_manager.shutdown()
+            print(f"✅ Complete workflow test passed")
+            print(f"System status: {status['status']}")
+            print(f"Components: {list(status['components'].keys())}")
 
     @pytest.mark.asyncio
     async def test_system_health_monitoring(
@@ -646,31 +641,23 @@ class TestRealWorldIntegrationScenarios:
 
         for scenario in config_scenarios:
             with patch.dict(os.environ, scenario['env_vars'], clear=True):
-                try:
-                    service_manager = RealTimeNewsServiceManager()
+                service_manager = RealTimeNewsServiceManager()
 
-                    # Mock components that would normally validate configuration
-                    with patch.object(service_manager, '_initialize_database'), \
-                         patch.object(service_manager, '_initialize_llm_client'), \
-                         patch.object(service_manager, '_initialize_news_service'), \
-                         patch.object(service_manager, '_initialize_broadcasting_system'):
+                # Mock components that would normally validate configuration
+                with patch.object(service_manager, '_initialize_database'), \
+                     patch.object(service_manager, '_initialize_llm_client'), \
+                     patch.object(service_manager, '_initialize_news_service'), \
+                     patch.object(service_manager, '_initialize_broadcasting_system'):
 
-                        if scenario['expected_valid']:
-                            # Should initialize without errors
-                            await service_manager.initialize()
-                            print(f"✅ {scenario['name']} configuration valid")
-                        else:
-                            # Should raise configuration error
-                            with pytest.raises((ValueError, KeyError, Exception)):
-                                await service_manager.initialize()
-                            print(f"✅ {scenario['name']} configuration properly rejected")
-
-                except Exception as e:
                     if scenario['expected_valid']:
-                        pytest.fail(f"Valid configuration {scenario['name']} failed: {e}")
+                        # Should initialize without errors
+                        await service_manager.initialize()
+                        print(f"✅ {scenario['name']} configuration valid")
                     else:
-                        print(f"✅ Invalid configuration {scenario['name']} properly rejected: {e}")
-
+                        # Should raise configuration error
+                        with pytest.raises((ValueError, KeyError, Exception)):
+                            await service_manager.initialize()
+                        print(f"✅ {scenario['name']} configuration properly rejected")
 
 if __name__ == "__main__":
     # Run a quick integration test
@@ -698,13 +685,8 @@ if __name__ == "__main__":
         }
 
         # Run test
-        try:
-            await test_instance.test_service_manager_initialization(
-                mock_env, mock_db, api_keys
-            )
-            print("✅ Quick integration test passed!")
-        except Exception as e:
-            print(f"❌ Quick integration test failed: {e}")
-
-    # Run if executed directly
+        await test_instance.test_service_manager_initialization(
+            mock_env, mock_db, api_keys
+        )
+        print("✅ Quick integration test passed!")
     asyncio.run(quick_integration_test())

@@ -153,32 +153,8 @@ if __name__ == "__main__":
     print("🧪 Testing Monitoring and LLM Files Gin Configuration Refactoring")
     print("=" * 75)
 
-    try:
-        test_data_quality_config()
-        test_data_validation_config()
-        test_pilot_router_config()
-        test_hardcoded_values_gin_updated()
-        test_configuration_completeness()
-
-        print("\n🎉 All monitoring and LLM gin configuration tests passed!")
-        print("✅ Hardcoded values successfully moved to gin configuration!")
-
-        print("\n📋 Refactoring Summary:")
-        print("  • 3 major modules refactored (monitoring + LLM)")
-        print("  • 37+ hardcoded values moved to gin configuration")
-        print("  • All thresholds, timeouts, and costs are now configurable")
-        print("  • Comprehensive gin configuration file updated")
-        print("  • Backward compatibility maintained through default values")
-
-        print("\n🔧 Refactored Modules:")
-        print("  • Data Quality Dashboard (17 quality thresholds)")
-        print("  • Data Validation Reporter (10 operational parameters)")
-        print("  • LLM Pilot Router (20 routing and cost parameters)")
-
-        print("\n🚀 Monitoring and LLM refactoring is complete and validated!")
-
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    test_data_quality_config()
+    test_data_validation_config()
+    test_pilot_router_config()
+    test_hardcoded_values_gin_updated()
+    test_configuration_completeness()

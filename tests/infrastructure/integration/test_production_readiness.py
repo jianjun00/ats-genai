@@ -87,56 +87,48 @@ class ProductionReadinessTest:
 
     def calculate_hlc_indicator(self, name: str, intervals: List[ProductionInterval]) -> Optional[float]:
         """Production HLC indicator calculation."""
-        try:
-            if len(intervals) < 3:
-                return None
-
-            if name not in self.hlc_coefficients:
-                return None
-
-            # Extract features with validation
-            features = []
-            for i in range(3):
-                interval = intervals[i]
-                if interval.status != 'ok':
-                    return None
-                features.extend([interval.high, interval.low, interval.close])
-
-            # Calculate with production coefficients
-            coeffs = self.hlc_coefficients[name]
-            result = sum(coef * feat for coef, feat in zip(coeffs, features))
-
-            # Validate result
-            if math.isnan(result) or math.isinf(result):
-                return None
-
-            return result
-
-        except Exception:
+        if len(intervals) < 3:
             return None
+
+        if name not in self.hlc_coefficients:
+            return None
+
+        # Extract features with validation
+        features = []
+        for i in range(3):
+            interval = intervals[i]
+            if interval.status != 'ok':
+                return None
+            features.extend([interval.high, interval.low, interval.close])
+
+        # Calculate with production coefficients
+        coeffs = self.hlc_coefficients[name]
+        result = sum(coef * feat for coef, feat in zip(coeffs, features))
+
+        # Validate result
+        if math.isnan(result) or math.isinf(result):
+            return None
+
+        return result
 
     def calculate_five_nine(self, intervals: List[ProductionInterval]) -> Tuple[Optional[float], Optional[float]]:
         """Production Five Nine calculation."""
-        try:
-            if len(intervals) < 2:
-                return None, None
-
-            if intervals[0].status != 'ok' or intervals[1].status != 'ok':
-                return None, None
-
-            sell = 2 * intervals[1].high - intervals[0].low
-            buy = 2 * intervals[1].low - intervals[0].high
-
-            # Validate results
-            if math.isnan(sell) or math.isinf(sell):
-                sell = None
-            if math.isnan(buy) or math.isinf(buy):
-                buy = None
-
-            return sell, buy
-
-        except Exception:
+        if len(intervals) < 2:
             return None, None
+
+        if intervals[0].status != 'ok' or intervals[1].status != 'ok':
+            return None, None
+
+        sell = 2 * intervals[1].high - intervals[0].low
+        buy = 2 * intervals[1].low - intervals[0].high
+
+        # Validate results
+        if math.isnan(sell) or math.isinf(sell):
+            sell = None
+        if math.isnan(buy) or math.isinf(buy):
+            buy = None
+
+        return sell, buy
 
     def generate_production_data(self, count: int, base_price: float = 1000) -> List[ProductionInterval]:
         """Generate production-quality test data."""
@@ -198,13 +190,9 @@ class ProductionReadinessTest:
 
         rejected_count = 0
         for scenario in invalid_scenarios:
-            try:
-                interval = ProductionInterval(**scenario)
-                self.errors.append(f"Should have rejected invalid data: {scenario}")
-                success = False
-            except (ValueError, TypeError):
-                rejected_count += 1
-
+            interval = ProductionInterval(**scenario)
+            self.errors.append(f"Should have rejected invalid data: {scenario}")
+            success = False
         if rejected_count != len(invalid_scenarios):
             self.errors.append(f"Only rejected {rejected_count}/{len(invalid_scenarios)} invalid scenarios")
             success = False
@@ -218,13 +206,8 @@ class ProductionReadinessTest:
 
         accepted_count = 0
         for scenario in valid_edge_cases:
-            try:
-                interval = ProductionInterval(**scenario)
-                accepted_count += 1
-            except Exception:
-                self.errors.append(f"Should have accepted valid edge case: {scenario}")
-                success = False
-
+            interval = ProductionInterval(**scenario)
+            accepted_count += 1
         print(f"  ✅ Rejected {rejected_count} invalid scenarios")
         print(f"  ✅ Accepted {accepted_count} valid edge cases")
 
@@ -399,33 +382,29 @@ class ProductionReadinessTest:
             worker_errors = []
 
             for i in range(iterations):
-                try:
-                    # Random data selection
-                    start_idx = random.randint(3, len(shared_data) - 1)
-                    intervals = shared_data[start_idx-3:start_idx]
+                # Random data selection
+                start_idx = random.randint(3, len(shared_data) - 1)
+                intervals = shared_data[start_idx-3:start_idx]
 
-                    start_time = time.time()
+                start_time = time.time()
 
-                    # Test HLC indicator
-                    indicator_name = random.choice(list(self.hlc_coefficients.keys()))
-                    hlc_result = self.calculate_hlc_indicator(indicator_name, intervals)
+                # Test HLC indicator
+                indicator_name = random.choice(list(self.hlc_coefficients.keys()))
+                hlc_result = self.calculate_hlc_indicator(indicator_name, intervals)
 
-                    # Test Five Nine
-                    sell, buy = self.calculate_five_nine(intervals[-2:])
+                # Test Five Nine
+                sell, buy = self.calculate_five_nine(intervals[-2:])
 
-                    calc_time = time.time() - start_time
+                calc_time = time.time() - start_time
 
-                    worker_results.append({
-                        'worker_id': worker_id,
-                        'iteration': i,
-                        'hlc_result': hlc_result,
-                        'sell_result': sell,
-                        'buy_result': buy,
-                        'calc_time': calc_time
-                    })
-
-                except Exception as e:
-                    worker_errors.append(f"Worker {worker_id}, iteration {i}: {e}")
+                worker_results.append({
+                    'worker_id': worker_id,
+                    'iteration': i,
+                    'hlc_result': hlc_result,
+                    'sell_result': sell,
+                    'buy_result': buy,
+                    'calc_time': calc_time
+                })
 
             return worker_results, worker_errors
 
@@ -519,67 +498,62 @@ class ProductionReadinessTest:
         ]
 
         for scenario in scenarios:
-            try:
-                # Generate scenario data
-                data = []
-                base_price = scenario['base_price']
-                vol_factor = scenario['volatility_factor']
+            # Generate scenario data
+            data = []
+            base_price = scenario['base_price']
+            vol_factor = scenario['volatility_factor']
 
-                for i in range(scenario['data_points']):
-                    # Simulate price movement with scenario-specific volatility
-                    change = random.gauss(0, base_price * 0.01 * vol_factor)
-                    base_price += change
+            for i in range(scenario['data_points']):
+                # Simulate price movement with scenario-specific volatility
+                change = random.gauss(0, base_price * 0.01 * vol_factor)
+                base_price += change
 
-                    # Intraday range
-                    range_size = base_price * random.uniform(0.005, 0.03) * vol_factor
-                    high = base_price + random.uniform(0, range_size)
-                    low = base_price - random.uniform(0, range_size)
-                    close = low + random.uniform(0, high - low)
+                # Intraday range
+                range_size = base_price * random.uniform(0.005, 0.03) * vol_factor
+                high = base_price + random.uniform(0, range_size)
+                low = base_price - random.uniform(0, range_size)
+                close = low + random.uniform(0, high - low)
 
-                    data.append(ProductionInterval(
-                        high=high, low=low, close=close,
-                        timestamp=time.time() + i,
-                        volume=random.uniform(100000, 5000000)
-                    ))
+                data.append(ProductionInterval(
+                    high=high, low=low, close=close,
+                    timestamp=time.time() + i,
+                    volume=random.uniform(100000, 5000000)
+                ))
 
-                # Test all indicators throughout scenario
-                calculations_completed = 0
-                calculations_failed = 0
+            # Test all indicators throughout scenario
+            calculations_completed = 0
+            calculations_failed = 0
 
-                # Test HLC indicators
-                for indicator_name in self.hlc_coefficients.keys():
-                    for i in range(3, len(data), 10):  # Sample points
-                        intervals = data[i-3:i]
-                        result = self.calculate_hlc_indicator(indicator_name, intervals)
+            # Test HLC indicators
+            for indicator_name in self.hlc_coefficients.keys():
+                for i in range(3, len(data), 10):  # Sample points
+                    intervals = data[i-3:i]
+                    result = self.calculate_hlc_indicator(indicator_name, intervals)
 
-                        if result is not None:
-                            calculations_completed += 1
-                        else:
-                            calculations_failed += 1
-
-                # Test Five Nine indicators
-                for i in range(2, len(data), 10):
-                    intervals = data[i-2:i]
-                    sell, buy = self.calculate_five_nine(intervals)
-
-                    if sell is not None and buy is not None:
+                    if result is not None:
                         calculations_completed += 1
                     else:
                         calculations_failed += 1
 
-                # Validate scenario performance
-                total_calculations = calculations_completed + calculations_failed
-                success_rate = (calculations_completed / total_calculations * 100) if total_calculations > 0 else 0
+            # Test Five Nine indicators
+            for i in range(2, len(data), 10):
+                intervals = data[i-2:i]
+                sell, buy = self.calculate_five_nine(intervals)
 
-                if success_rate < self.production_thresholds['min_success_rate']:
-                    self.errors.append(f"{scenario['name']}: Success rate {success_rate:.1f}% too low")
-                    success = False
+                if sell is not None and buy is not None:
+                    calculations_completed += 1
+                else:
+                    calculations_failed += 1
 
-                print(f"  📊 {scenario['name']}: {success_rate:.1f}% success rate ({calculations_completed}/{total_calculations})")
+            # Validate scenario performance
+            total_calculations = calculations_completed + calculations_failed
+            success_rate = (calculations_completed / total_calculations * 100) if total_calculations > 0 else 0
 
-            except Exception as e:
-                self.errors.append(f"{scenario['name']}: Exception {e}")
+            if success_rate < self.production_thresholds['min_success_rate']:
+                self.errors.append(f"{scenario['name']}: Success rate {success_rate:.1f}% too low")
                 success = False
+
+            print(f"  📊 {scenario['name']}: {success_rate:.1f}% success rate ({calculations_completed}/{total_calculations})")
 
         if success:
             print("✅ Production scenarios handled successfully")
@@ -611,17 +585,11 @@ class ProductionReadinessTest:
             print(f"\n📋 {test_name}")
             print("-" * 55)
 
-            try:
-                if test_func():
-                    passed_tests += 1
-                    self.test_results[test_name] = "PASS"
-                else:
-                    self.test_results[test_name] = "FAIL"
-            except Exception as e:
-                self.errors.append(f"{test_name}: Exception - {str(e)}")
-                self.test_results[test_name] = "ERROR"
-                print(f"❌ Test failed with exception: {e}")
-
+            if test_func():
+                passed_tests += 1
+                self.test_results[test_name] = "PASS"
+            else:
+                self.test_results[test_name] = "FAIL"
         total_time = time.time() - start_time
 
         # Production readiness assessment

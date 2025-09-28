@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 from unittest.mock import Mock
 
-from src.infrastructure.service_discovery import (
+from infrastructure.service_discovery import (
     # Service Registry
     InMemoryServiceRegistry,
     ServiceInstance,
@@ -407,31 +407,22 @@ class TestServiceClient:
     async def test_service_client_get_request(self, registry_with_mock_service):
         """Test service client GET request."""
         async with service_client("httpbin", registry=registry_with_mock_service) as client:
-            try:
-                response = await client.get("/json")
-                assert response.status == 200
+            response = await client.get("/json")
+            assert response.status == 200
 
-                data = await response.json()
-                assert "url" in data
-            except Exception as e:
-                # Network issues in test environment are acceptable
-                pytest.skip(f"Network error in test environment: {e}")
-
+            data = await response.json()
+            assert "url" in data
     @pytest.mark.asyncio
     async def test_service_client_post_request(self, registry_with_mock_service):
         """Test service client POST request."""
         async with service_client("httpbin", registry=registry_with_mock_service) as client:
-            try:
-                test_data = {"test": "data", "number": 42}
-                response = await client.post("/post", json_data=test_data)
-                assert response.status == 200
+            test_data = {"test": "data", "number": 42}
+            response = await client.post("/post", json_data=test_data)
+            assert response.status == 200
 
-                data = await response.json()
-                assert data["json"]["test"] == "data"
-                assert data["json"]["number"] == 42
-            except Exception as e:
-                pytest.skip(f"Network error in test environment: {e}")
-
+            data = await response.json()
+            assert data["json"]["test"] == "data"
+            assert data["json"]["number"] == 42
     def test_round_robin_balancer(self):
         """Test round-robin load balancer."""
         balancer = RoundRobinBalancer()
@@ -475,45 +466,40 @@ async def test_full_integration_scenario():
     registry = InMemoryServiceRegistry()
     await registry.start()
 
-    try:
-        # Register a service
-        service_instance = ServiceInstance(
-            service_name="integration-test",
-            instance_id="integration-test-1",
-            version="1.0.0",
-            endpoint=ServiceEndpoint(host="localhost", port=8080),
-            metadata={"environment": "test"},
-            health_check=CustomHealthCheck("test-health", lambda: True)
-        )
+    # Register a service
+    service_instance = ServiceInstance(
+        service_name="integration-test",
+        instance_id="integration-test-1",
+        version="1.0.0",
+        endpoint=ServiceEndpoint(host="localhost", port=8080),
+        metadata={"environment": "test"},
+        health_check=CustomHealthCheck("test-health", lambda: True)
+    )
 
-        # Test service registration
-        await registry.register_service(service_instance)
-        await registry.update_health_status("integration-test", "integration-test-1", ServiceStatus.HEALTHY)
+    # Test service registration
+    await registry.register_service(service_instance)
+    await registry.update_health_status("integration-test", "integration-test-1", ServiceStatus.HEALTHY)
 
-        # Test service discovery
-        client = ServiceDiscoveryClient(registry)
-        instances = await client.discover_service("integration-test")
-        assert len(instances) == 1
-        assert instances[0].status == ServiceStatus.HEALTHY
+    # Test service discovery
+    client = ServiceDiscoveryClient(registry)
+    instances = await client.discover_service("integration-test")
+    assert len(instances) == 1
+    assert instances[0].status == ServiceStatus.HEALTHY
 
-        # Test health checks
-        health_manager = HealthCheckManager()
-        health_manager.add_health_check(
-            CustomHealthCheck("integration_check", lambda: {"status": "healthy", "test": True})
-        )
+    # Test health checks
+    health_manager = HealthCheckManager()
+    health_manager.add_health_check(
+        CustomHealthCheck("integration_check", lambda: {"status": "healthy", "test": True})
+    )
 
-        overall_health = await health_manager.perform_all_checks()
-        assert overall_health.status == HealthStatus.HEALTHY
-        assert len(overall_health.checks) == 1
+    overall_health = await health_manager.perform_all_checks()
+    assert overall_health.status == HealthStatus.HEALTHY
+    assert len(overall_health.checks) == 1
 
-        # Test service deregistration
-        await registry.deregister_service("integration-test", "integration-test-1")
-        instances = await client.discover_service("integration-test")
-        assert len(instances) == 0
-
-    finally:
-        await registry.stop()
-
+    # Test service deregistration
+    await registry.deregister_service("integration-test", "integration-test-1")
+    instances = await client.discover_service("integration-test")
+    assert len(instances) == 0
 
 if __name__ == "__main__":
     # Run tests

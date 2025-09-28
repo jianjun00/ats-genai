@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
-from domains.market_data.services.agent.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
+from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
 
 
 class TestDownloadJob:

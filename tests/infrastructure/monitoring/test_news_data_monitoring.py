@@ -62,27 +62,17 @@ class NewsDataMonitor:
         ]
 
         for check_name, check_func in checks:
-            try:
-                check_result = await check_func(pool)
-                results['checks'][check_name] = check_result
+            check_result = await check_func(pool)
+            results['checks'][check_name] = check_result
 
-                if not check_result.get('passed', False):
-                    results['overall_health'] = 'UNHEALTHY'
-                    if check_result.get('alert'):
-                        results['alerts'].append({
-                            'check': check_name,
-                            'message': check_result['alert'],
-                            'severity': check_result.get('severity', 'warning')
-                        })
-
-            except Exception as e:
-                results['checks'][check_name] = {
-                    'passed': False,
-                    'error': str(e),
-                    'alert': f'Check {check_name} failed with error: {e}',
-                    'severity': 'critical'
-                }
+            if not check_result.get('passed', False):
                 results['overall_health'] = 'UNHEALTHY'
+                if check_result.get('alert'):
+                    results['alerts'].append({
+                        'check': check_name,
+                        'message': check_result['alert'],
+                        'severity': check_result.get('severity', 'warning')
+                    })
 
         await pool.close()
         return results

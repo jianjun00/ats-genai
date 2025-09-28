@@ -26,46 +26,39 @@ def run_test_suite(test_file, category_name, fast_mode=False):
     
     start_time = time.time()
     
-    try:
-        # Run pytest with appropriate flags
-        cmd = [
-            'python3', '-m', 'pytest', 
-            str(test_file),
-            '-v', 
-            '--tb=short',
-            '--no-header'
-        ]
+    # Run pytest with appropriate flags
+    cmd = [
+        'python3', '-m', 'pytest', 
+        str(test_file),
+        '-v', 
+        '--tb=short',
+        '--no-header'
+    ]
+    
+    if fast_mode:
+        cmd.extend(['-x'])  # Stop on first failure in fast mode
         
-        if fast_mode:
-            cmd.extend(['-x'])  # Stop on first failure in fast mode
-            
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).parent,
-            env={'PYTHONPATH': 'src'}
-        )
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).parent,
+        env={'PYTHONPATH': 'src'}
+    )
+    
+    duration = time.time() - start_time
+    
+    if result.returncode == 0:
+        print(f"✅ {category_name} tests PASSED ({duration:.1f}s)")
+        return True, duration, result.stdout
+    else:
+        print(f"❌ {category_name} tests FAILED ({duration:.1f}s)")
+        print(f"   Error output:")
+        for line in result.stderr.split('\n'):
+            if line.strip():
+                print(f"     {line}")
+        return False, duration, result.stderr
         
-        duration = time.time() - start_time
-        
-        if result.returncode == 0:
-            print(f"✅ {category_name} tests PASSED ({duration:.1f}s)")
-            return True, duration, result.stdout
-        else:
-            print(f"❌ {category_name} tests FAILED ({duration:.1f}s)")
-            print(f"   Error output:")
-            for line in result.stderr.split('\n'):
-                if line.strip():
-                    print(f"     {line}")
-            return False, duration, result.stderr
-            
-    except Exception as e:
-        duration = time.time() - start_time
-        print(f"💥 {category_name} tests ERROR ({duration:.1f}s): {e}")
-        return False, duration, str(e)
-
-
 def main():
     """Main test runner."""
     

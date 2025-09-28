@@ -10,15 +10,8 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
-
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.platform.config.environment import Environment, EnvironmentType
+from core.dao.infrastructure.status_code_dao import StatusCodeDAO
 
 
 class TestRealObjectsStatusCodeDAO:
@@ -55,13 +48,7 @@ class TestRealObjectsStatusCodeDAO:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_init_real_objects(self, real_service, test_data):
         """Real objects version of test_init"""
         # Test with real database integration
@@ -76,14 +63,8 @@ class TestRealObjectsStatusCodeDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.init_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.init_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_insert_status_real_objects(self, real_service, test_data):
         """Real objects version of test_insert_status"""
         # Test with real database integration
@@ -98,14 +79,8 @@ class TestRealObjectsStatusCodeDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.insert_status_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.insert_status_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_status_real_objects(self, real_service, test_data):
         """Real objects version of test_get_status"""
         # Test with real database integration
@@ -120,14 +95,8 @@ class TestRealObjectsStatusCodeDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_status_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_status_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_list_statuses_real_objects(self, real_service, test_data):
         """Real objects version of test_list_statuses"""
         # Test with real database integration
@@ -142,14 +111,8 @@ class TestRealObjectsStatusCodeDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.list_statuses_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.list_statuses_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_environment_integration_real_objects(self, real_service, test_data):
         """Real objects version of test_environment_integration"""
         # Test with real database integration
@@ -164,14 +127,8 @@ class TestRealObjectsStatusCodeDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.environment_integration_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.environment_integration_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_sql_injection_protection_real_objects(self, real_service, test_data):
         """Real objects version of test_sql_injection_protection"""
         # Test with real database integration
@@ -186,15 +143,8 @@ class TestRealObjectsStatusCodeDAO:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.sql_injection_protection_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.sql_injection_protection_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

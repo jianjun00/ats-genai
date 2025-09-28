@@ -345,24 +345,17 @@ class EDAAnalyzer:
         """Calculate feature correlations with target."""
         correlations = {}
         for i in range(min(X.shape[1], 10)):
-            try:
-                corr = np.corrcoef(X[:, i], y)[0, 1]
-                correlations[f'feature_{i}'] = float(corr) if not np.isnan(corr) else 0.0
-            except:
-                correlations[f'feature_{i}'] = 0.0
+            corr = np.corrcoef(X[:, i], y)[0, 1]
+            correlations[f'feature_{i}'] = float(corr) if not np.isnan(corr) else 0.0
         return correlations
 
     def _calculate_variance_explained(self, X: np.ndarray) -> float:
         """Calculate variance explained by first principal component."""
-        try:
-            if X.shape[1] > 1:
-                cov_matrix = np.cov(X.T)
-                eigenvals = np.linalg.eigvals(cov_matrix)
-                return float(np.max(eigenvals) / np.sum(eigenvals))
-            return 1.0
-        except:
-            return 0.0
-
+        if X.shape[1] > 1:
+            cov_matrix = np.cov(X.T)
+            eigenvals = np.linalg.eigvals(cov_matrix)
+            return float(np.max(eigenvals) / np.sum(eigenvals))
+        return 1.0
     def _assess_distribution_type(self, data: np.ndarray) -> str:
         """Simple distribution type assessment."""
         skewness = self._calculate_skewness(data)
@@ -478,43 +471,38 @@ def main():
     # Initialize EDA analyzer that uses the client
     eda = EDAAnalyzer(client)
 
-    try:
-        # Explore available datasets
-        logger.info("📊 Step 1: Exploring available datasets")
-        datasets_overview = eda.explore_available_datasets(['AAPL', 'TSLA'])
+    # Explore available datasets
+    logger.info("📊 Step 1: Exploring available datasets")
+    datasets_overview = eda.explore_available_datasets(['AAPL', 'TSLA'])
 
-        if not datasets_overview.empty:
-            print("\n📋 Available Datasets:")
-            print(datasets_overview[['id', 'name', 'symbols', 'size', 'quality', 'created']].to_string(index=False))
+    if not datasets_overview.empty:
+        print("\n📋 Available Datasets:")
+        print(datasets_overview[['id', 'name', 'symbols', 'size', 'quality', 'created']].to_string(index=False))
 
-            # Analyze the best quality dataset
-            best_dataset = datasets_overview.loc[datasets_overview['quality_pct'].idxmax()]
-            dataset_id = int(best_dataset['id'])
+        # Analyze the best quality dataset
+        best_dataset = datasets_overview.loc[datasets_overview['quality_pct'].idxmax()]
+        dataset_id = int(best_dataset['id'])
 
-            logger.info(f"🔍 Step 2: Analyzing dataset {dataset_id} ({best_dataset['name']})")
+        logger.info(f"🔍 Step 2: Analyzing dataset {dataset_id} ({best_dataset['name']})")
 
-            # Generate comprehensive report
-            report = eda.generate_eda_report(dataset_id)
+        # Generate comprehensive report
+        report = eda.generate_eda_report(dataset_id)
 
-            print(f"\n📋 EDA Report for Dataset {dataset_id}:")
-            print("=" * 60)
-            print(report)
+        print(f"\n📋 EDA Report for Dataset {dataset_id}:")
+        print("=" * 60)
+        print(report)
 
-            # Save report to file
-            report_file = f"eda_report_dataset_{dataset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-            with open(report_file, 'w') as f:
-                f.write(report)
+        # Save report to file
+        report_file = f"eda_report_dataset_{dataset_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        with open(report_file, 'w') as f:
+            f.write(report)
 
-            logger.info(f"✅ EDA completed successfully")
-            logger.info(f"📄 Report saved: {report_file}")
+        logger.info(f"✅ EDA completed successfully")
+        logger.info(f"📄 Report saved: {report_file}")
 
-        else:
-            logger.warning("⚠️ No datasets found for analysis")
-            logger.info("Ensure datasets are registered in the dataset service")
-
-    except Exception as e:
-        logger.error(f"❌ EDA with dataset service failed: {e}")
-        raise
+    else:
+        logger.warning("⚠️ No datasets found for analysis")
+        logger.info("Ensure datasets are registered in the dataset service")
 
 if __name__ == "__main__":
     main()

@@ -29,75 +29,58 @@ class SignOzDebugger:
             page.on("pageerror", self._handle_page_error)
             page.on("requestfailed", self._handle_request_failed)
 
-            try:
-                print(f"📊 Loading SignOz at {self.signoz_url}...")
-                await page.goto(self.signoz_url, wait_until="networkidle", timeout=30000)
+            print(f"📊 Loading SignOz at {self.signoz_url}...")
+            await page.goto(self.signoz_url, wait_until="networkidle", timeout=30000)
 
-                # Wait for any async JavaScript to execute
-                print("⏳ Waiting for JavaScript execution...")
-                await page.wait_for_timeout(10000)
+            # Wait for any async JavaScript to execute
+            print("⏳ Waiting for JavaScript execution...")
+            await page.wait_for_timeout(10000)
 
-                # Try to evaluate some basic JavaScript
-                print("🔧 Testing JavaScript execution...")
-                try:
-                    dom_ready = await page.evaluate("document.readyState")
-                    print(f"📄 Document ready state: {dom_ready}")
+            # Try to evaluate some basic JavaScript
+            print("🔧 Testing JavaScript execution...")
+            dom_ready = await page.evaluate("document.readyState")
+            print(f"📄 Document ready state: {dom_ready}")
 
-                    react_root = await page.evaluate("document.querySelector('#root')")
-                    if react_root:
-                        print("⚛️ React root element found")
-                        root_html = await page.evaluate("document.querySelector('#root').innerHTML")
-                        print(f"📝 Root element HTML length: {len(root_html)} chars")
-                        if root_html.strip():
-                            print(f"📝 Root content preview: {root_html[:200]}...")
-                        else:
-                            print("❌ Root element is empty")
-                    else:
-                        print("❌ React root element not found")
+            react_root = await page.evaluate("document.querySelector('#root')")
+            if react_root:
+                print("⚛️ React root element found")
+                root_html = await page.evaluate("document.querySelector('#root').innerHTML")
+                print(f"📝 Root element HTML length: {len(root_html)} chars")
+                if root_html.strip():
+                    print(f"📝 Root content preview: {root_html[:200]}...")
+                else:
+                    print("❌ Root element is empty")
+            else:
+                print("❌ React root element not found")
 
-                    # Check for React DevTools
-                    react_version = await page.evaluate("window.React ? window.React.version : 'Not found'")
-                    print(f"⚛️ React version: {react_version}")
+            # Check for React DevTools
+            react_version = await page.evaluate("window.React ? window.React.version : 'Not found'")
+            print(f"⚛️ React version: {react_version}")
 
-                except Exception as e:
-                    print(f"❌ JavaScript evaluation error: {e}")
+            print("🔍 Looking for SignOz-specific elements...")
+            signoz_elements = [
+                ".ant-layout",
+                "[class*='Layout']",
+                "[class*='App']",
+                "[data-testid]",
+                "nav",
+                "header",
+                "main"
+            ]
 
-                # Check for specific SignOz elements
-                print("🔍 Looking for SignOz-specific elements...")
-                signoz_elements = [
-                    ".ant-layout",
-                    "[class*='Layout']",
-                    "[class*='App']",
-                    "[data-testid]",
-                    "nav",
-                    "header",
-                    "main"
-                ]
+            for selector in signoz_elements:
+                count = await page.locator(selector).count()
+                if count > 0:
+                    print(f"✅ Found {count} elements matching {selector}")
+                    # Try to get text content
+                    text = await page.locator(selector).first.inner_text()
+                    if text.strip():
+                        print(f"  📝 Text content: {text[:100]}...")
+                else:
+                    print(f"❌ No elements found for {selector}")
+            await page.screenshot(path="/tmp/signoz_debug.png")
+            print("📸 Debug screenshot: /tmp/signoz_debug.png")
 
-                for selector in signoz_elements:
-                    try:
-                        count = await page.locator(selector).count()
-                        if count > 0:
-                            print(f"✅ Found {count} elements matching {selector}")
-                            # Try to get text content
-                            text = await page.locator(selector).first.inner_text()
-                            if text.strip():
-                                print(f"  📝 Text content: {text[:100]}...")
-                        else:
-                            print(f"❌ No elements found for {selector}")
-                    except Exception as e:
-                        print(f"⚠️ Error checking {selector}: {e}")
-
-                # Final screenshot
-                await page.screenshot(path="/tmp/signoz_debug.png")
-                print("📸 Debug screenshot: /tmp/signoz_debug.png")
-
-            except Exception as e:
-                print(f"❌ Debug failed: {e}")
-            finally:
-                await browser.close()
-
-        # Report findings
         self._generate_debug_report()
 
     async def _handle_console(self, msg):

@@ -19,18 +19,12 @@ from unittest.mock import Mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 # Import the classes we're testing
-try:
-    from domains.ml.legacy.training_data.timeseries_sequence_training_generator import (
-        MultiTimeframeFeatureExtractor,
-        TrainingDataConfig,
-        SequenceWindowBuilder,
-        TimeSeriesSequenceTrainingGenerator
-    )
-except ImportError as e:
-    print(f"Import error: {e}")
-    pytest.skip("Required modules not available")
-
-
+from domains.ml.services.training_data.timeseries_sequence_training_generator import (
+    MultiTimeframeFeatureExtractor,
+    TrainingDataConfig,
+    SequenceWindowBuilder,
+    TimeSeriesSequenceTrainingGenerator
+)
 class TestTechnicalIndicatorsFromUniverseStateManager:
     """Test technical indicators extraction from UniverseStateManager."""
 

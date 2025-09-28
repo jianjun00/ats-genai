@@ -503,7 +503,7 @@ class TestUnifiedFundamentalProvider:
     @pytest.fixture
     def mock_unified_provider(self, mock_environment):
         """Mock UnifiedFundamentalProvider for testing"""
-        from domains.market_data.services.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
+        from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
 
         with patch.multiple(
             'src.market_data.fundamentals.unified_fundamental_provider',
@@ -517,7 +517,7 @@ class TestUnifiedFundamentalProvider:
     @pytest.fixture
     def sample_vendor_fundamentals(self, sample_fmp_fundamental, sample_polygon_fundamental, sample_tiingo_fundamental):
         """Sample vendor fundamental data for testing"""
-        from domains.market_data.services.fundamentals.unified_fundamental_provider import VendorFundamental
+        from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import VendorFundamental
 
         return [
             VendorFundamental(
@@ -560,7 +560,7 @@ class TestUnifiedFundamentalProvider:
 
     def test_init(self, mock_environment):
         """Test UnifiedFundamentalProvider initialization"""
-        from domains.market_data.services.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
+        from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import UnifiedFundamentalProvider
 
         with patch.multiple(
             'src.market_data.fundamentals.unified_fundamental_provider',
@@ -580,7 +580,7 @@ class TestUnifiedFundamentalProvider:
 
     async def test_get_unified_fundamental_all_vendors(self, mock_unified_provider, sample_vendor_fundamentals):
         """Test getting unified fundamental with data from all vendors"""
-        from domains.market_data.services.fundamentals.unified_fundamental_provider import UnifiedFundamental, ValidationStatus
+        from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import UnifiedFundamental, ValidationStatus
 
         # Mock DAO responses
         mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
@@ -606,7 +606,7 @@ class TestUnifiedFundamentalProvider:
 
     async def test_get_unified_fundamental_partial_data(self, mock_unified_provider, sample_vendor_fundamentals):
         """Test getting unified fundamental with partial vendor data"""
-        from domains.market_data.services.fundamentals.unified_fundamental_provider import ValidationStatus
+        from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import ValidationStatus
 
         # Mock DAO responses - only 2 out of 3 vendors have data
         mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])
@@ -639,7 +639,7 @@ class TestUnifiedFundamentalProvider:
 
     async def test_get_unified_fundamental_single_vendor(self, mock_unified_provider, sample_vendor_fundamentals):
         """Test getting unified fundamental with only one vendor"""
-        from domains.market_data.services.fundamentals.unified_fundamental_provider import ValidationStatus
+        from domains.market_data.services.vendor_adapters.fundamentals.unified_fundamental_provider import ValidationStatus
 
         # Mock DAO responses - only FMP has data
         mock_unified_provider.fmp_core.dao.get_fundamental = AsyncMock(return_value=sample_vendor_fundamentals[0])

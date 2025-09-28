@@ -10,15 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from core.dao.dao_base import DAOBase
-from core.services.service_base import ServiceBase
+from core.dao.base.base_dao import BaseDAO
 
 
 class TestRealObjectsStartupManagerDecisionTree:
@@ -55,13 +49,7 @@ class TestRealObjectsStartupManagerDecisionTree:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_wait_for_postgres_success_real_objects(self, real_service, test_data):
         """Real objects version of test_wait_for_postgres_success"""
         # Test with real database integration
@@ -76,14 +64,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.wait_for_postgres_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.wait_for_postgres_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_wait_for_postgres_timeout_real_objects(self, real_service, test_data):
         """Real objects version of test_wait_for_postgres_timeout"""
         # Test with real database integration
@@ -98,14 +80,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.wait_for_postgres_timeout_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.wait_for_postgres_timeout_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_check_intg_database_status_empty_real_objects(self, real_service, test_data):
         """Real objects version of test_check_intg_database_status_empty"""
         # Test with real database integration
@@ -120,14 +96,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.check_intg_database_status_empty_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.check_intg_database_status_empty_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_check_intg_database_status_has_data_real_objects(self, real_service, test_data):
         """Real objects version of test_check_intg_database_status_has_data"""
         # Test with real database integration
@@ -142,14 +112,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.check_intg_database_status_has_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.check_intg_database_status_has_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_check_dev_database_connectivity_success_real_objects(self, real_service, test_data):
         """Real objects version of test_check_dev_database_connectivity_success"""
         # Test with real database integration
@@ -164,14 +128,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.check_dev_database_connectivity_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.check_dev_database_connectivity_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_check_dev_database_connectivity_failed_real_objects(self, real_service, test_data):
         """Real objects version of test_check_dev_database_connectivity_failed"""
         # Test with real database integration
@@ -186,14 +144,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.check_dev_database_connectivity_failed_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.check_dev_database_connectivity_failed_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_dev_data_summary_with_data_real_objects(self, real_service, test_data):
         """Real objects version of test_get_dev_data_summary_with_data"""
         # Test with real database integration
@@ -208,14 +160,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_dev_data_summary_with_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_dev_data_summary_with_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_get_dev_data_summary_no_connectivity_real_objects(self, real_service, test_data):
         """Real objects version of test_get_dev_data_summary_no_connectivity"""
         # Test with real database integration
@@ -230,14 +176,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.get_dev_data_summary_no_connectivity_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.get_dev_data_summary_no_connectivity_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_startup_scenario_auto_migration_disabled_real_objects(self, real_service, test_data):
         """Real objects version of test_startup_scenario_auto_migration_disabled"""
         # Test with real database integration
@@ -252,14 +192,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.startup_scenario_auto_migration_disabled_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.startup_scenario_auto_migration_disabled_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_startup_scenario_has_existing_data_real_objects(self, real_service, test_data):
         """Real objects version of test_startup_scenario_has_existing_data"""
         # Test with real database integration
@@ -274,14 +208,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.startup_scenario_has_existing_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.startup_scenario_has_existing_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_startup_scenario_empty_with_dev_data_real_objects(self, real_service, test_data):
         """Real objects version of test_startup_scenario_empty_with_dev_data"""
         # Test with real database integration
@@ -296,14 +224,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.startup_scenario_empty_with_dev_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.startup_scenario_empty_with_dev_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_startup_scenario_empty_no_dev_data_real_objects(self, real_service, test_data):
         """Real objects version of test_startup_scenario_empty_no_dev_data"""
         # Test with real database integration
@@ -318,14 +240,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.startup_scenario_empty_no_dev_data_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.startup_scenario_empty_no_dev_data_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_startup_postgres_not_ready_real_objects(self, real_service, test_data):
         """Real objects version of test_startup_postgres_not_ready"""
         # Test with real database integration
@@ -340,14 +256,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.startup_postgres_not_ready_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.startup_postgres_not_ready_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_full_migration_success_real_objects(self, real_service, test_data):
         """Real objects version of test_run_full_migration_success"""
         # Test with real database integration
@@ -362,14 +272,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_full_migration_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_full_migration_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_full_migration_validation_failed_real_objects(self, real_service, test_data):
         """Real objects version of test_run_full_migration_validation_failed"""
         # Test with real database integration
@@ -384,14 +288,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_full_migration_validation_failed_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_full_migration_validation_failed_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_incremental_sync_setup_success_real_objects(self, real_service, test_data):
         """Real objects version of test_run_incremental_sync_setup_success"""
         # Test with real database integration
@@ -406,14 +304,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_incremental_sync_setup_success_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_incremental_sync_setup_success_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_run_incremental_sync_setup_graceful_failure_real_objects(self, real_service, test_data):
         """Real objects version of test_run_incremental_sync_setup_graceful_failure"""
         # Test with real database integration
@@ -428,14 +320,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.run_incremental_sync_setup_graceful_failure_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.run_incremental_sync_setup_graceful_failure_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_create_startup_status_report_real_objects(self, real_service, test_data):
         """Real objects version of test_create_startup_status_report"""
         # Test with real database integration
@@ -450,15 +336,8 @@ class TestRealObjectsStartupManagerDecisionTree:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.create_startup_status_report_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.create_startup_status_report_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

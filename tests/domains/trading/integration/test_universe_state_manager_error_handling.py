@@ -19,7 +19,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 import logging
 
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 
 class TestUniverseStateManagerErrorHandling:
@@ -250,44 +250,26 @@ class TestUniverseStateManagerErrorHandling:
         original_error = "Connection refused on port 5432"
         universe_manager.market_data_manager.get_ohlcv_data.side_effect = ConnectionError(original_error)
 
-        try:
-            universe_manager.get_lag_prices(
-                instrument_id=valid_params['instrument_id'],
-                cur_datetime=valid_params['cur_datetime'],
-                lag_periods=valid_params['periods'],
-                time_interval=valid_params['time_interval']
-            )
-            assert False, "Expected IOError to be raised"
-        except IOError as e:
-            error_message = str(e)
-            # Verify the error message contains useful debugging info
-            assert "Failed to get lag prices from market_data_manager" in error_message
-            assert original_error in error_message
-
+        universe_manager.get_lag_prices(
+            instrument_id=valid_params['instrument_id'],
+            cur_datetime=valid_params['cur_datetime'],
+            lag_periods=valid_params['periods'],
+            time_interval=valid_params['time_interval']
+        )
+        assert False, "Expected IOError to be raised"
     def test_exception_message_contains_debugging_info_lead_prices(self, universe_manager, valid_params):
         """Test that IOError messages contain useful debugging information for lead prices."""
 
         original_error = "Table 'dev_minute_data' does not exist"
         universe_manager.market_data_manager.get_ohlcv_data.side_effect = RuntimeError(original_error)
 
-        try:
-            universe_manager.get_lead_prices(
-                instrument_id=valid_params['instrument_id'],
-                cur_datetime=valid_params['cur_datetime'],
-                lead_periods=valid_params['periods'],
-                time_interval=valid_params['time_interval']
-            )
-            assert False, "Expected IOError to be raised"
-        except IOError as e:
-            error_message = str(e)
-            # Verify the error message contains useful debugging info
-            assert "Failed to get lead prices from market_data_manager" in error_message
-            assert original_error in error_message
-
-    # ========================================
-    # EDGE CASE ERROR SCENARIOS
-    # ========================================
-
+        universe_manager.get_lead_prices(
+            instrument_id=valid_params['instrument_id'],
+            cur_datetime=valid_params['cur_datetime'],
+            lead_periods=valid_params['periods'],
+            time_interval=valid_params['time_interval']
+        )
+        assert False, "Expected IOError to be raised"
     def test_market_data_manager_attribute_error(self, universe_manager, valid_params):
         """Test when market_data_manager has method signature issues."""
 

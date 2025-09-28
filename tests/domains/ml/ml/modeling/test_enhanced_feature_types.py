@@ -7,7 +7,7 @@ import json
 import tempfile
 import os
 
-from src.modeling.enhanced_feature_types import (
+from domains.ml.modeling.enhanced_feature_types import (
     FeatureType, TimeframeSpec, TechnicalIndicator,
     FeatureSpecification, VisualizationMetadata,
     EnhancedFeatureRegistry
@@ -367,40 +367,34 @@ class TestEnhancedFeatureRegistry:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             temp_file = f.name
 
-        try:
-            # Export registry
-            sample_registry.export_registry(temp_file)
-            assert os.path.exists(temp_file)
+        # Export registry
+        sample_registry.export_registry(temp_file)
+        assert os.path.exists(temp_file)
 
-            # Verify export file structure
-            with open(temp_file, 'r') as f:
-                data = json.load(f)
+        # Verify export file structure
+        with open(temp_file, 'r') as f:
+            data = json.load(f)
 
-            assert "features" in data
-            assert "metadata" in data
-            assert len(data["features"]) == len(sample_registry.feature_specs)
+        assert "features" in data
+        assert "metadata" in data
+        assert len(data["features"]) == len(sample_registry.feature_specs)
 
-            # Create new registry and load
-            new_registry = EnhancedFeatureRegistry()
-            new_registry.feature_specs.clear()  # Clear defaults
-            new_registry.load_registry(temp_file)
+        # Create new registry and load
+        new_registry = EnhancedFeatureRegistry()
+        new_registry.feature_specs.clear()  # Clear defaults
+        new_registry.load_registry(temp_file)
 
-            # Compare registries
-            assert len(new_registry.feature_specs) == len(sample_registry.feature_specs)
+        # Compare registries
+        assert len(new_registry.feature_specs) == len(sample_registry.feature_specs)
 
-            # Test a few specific features
-            for name in ["ohlc_5min_8", "etop_15min_16"]:
-                original = sample_registry.get_feature_spec(name)
-                loaded = new_registry.get_feature_spec(name)
-                if original and loaded:  # Both should exist
-                    assert loaded.name == original.name
-                    assert loaded.feature_type == original.feature_type
-                    assert loaded.timeframe == original.timeframe
-
-        finally:
-            # Cleanup
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+        # Test a few specific features
+        for name in ["ohlc_5min_8", "etop_15min_16"]:
+            original = sample_registry.get_feature_spec(name)
+            loaded = new_registry.get_feature_spec(name)
+            if original and loaded:  # Both should exist
+                assert loaded.name == original.name
+                assert loaded.feature_type == original.feature_type
+                assert loaded.timeframe == original.timeframe
 
     def test_get_visualization_config(self, sample_registry):
         """Test getting visualization configuration for multiple features."""
@@ -525,22 +519,17 @@ class TestIntegration:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             temp_file = f.name
 
-        try:
-            registry.export_registry(temp_file)
+        registry.export_registry(temp_file)
 
-            new_registry = EnhancedFeatureRegistry()
-            new_registry.feature_specs.clear()
-            new_registry.load_registry(temp_file)
+        new_registry = EnhancedFeatureRegistry()
+        new_registry.feature_specs.clear()
+        new_registry.load_registry(temp_file)
 
-            # Verify custom feature survived roundtrip
-            loaded_custom = new_registry.get_feature_spec("custom_rsi_daily_20")
-            assert loaded_custom is not None
-            assert loaded_custom.indicator_type == TechnicalIndicator.RSI
-            assert loaded_custom.intervals == 20
-
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+        # Verify custom feature survived roundtrip
+        loaded_custom = new_registry.get_feature_spec("custom_rsi_daily_20")
+        assert loaded_custom is not None
+        assert loaded_custom.indicator_type == TechnicalIndicator.RSI
+        assert loaded_custom.intervals == 20
 
 if __name__ == "__main__":
     # Run tests manually for debugging
@@ -563,31 +552,26 @@ if __name__ == "__main__":
                        if method.startswith('test_')]
 
         for method_name in test_methods:
-            try:
-                # Create instance and run test
-                instance = test_class()
+            # Create instance and run test
+            instance = test_class()
 
-                # Handle fixture dependencies (simplified)
-                if hasattr(instance, method_name):
-                    method = getattr(instance, method_name)
+            # Handle fixture dependencies (simplified)
+            if hasattr(instance, method_name):
+                method = getattr(instance, method_name)
 
-                    # Simple fixture handling
-                    if 'empty_registry' in method.__code__.co_varnames:
-                        empty_reg = EnhancedFeatureRegistry()
-                        empty_reg.feature_specs.clear()
-                        method(empty_reg)
-                    elif 'sample_registry' in method.__code__.co_varnames:
-                        sample_reg = EnhancedFeatureRegistry()
-                        method(sample_reg)
-                    else:
-                        method()
+                # Simple fixture handling
+                if 'empty_registry' in method.__code__.co_varnames:
+                    empty_reg = EnhancedFeatureRegistry()
+                    empty_reg.feature_specs.clear()
+                    method(empty_reg)
+                elif 'sample_registry' in method.__code__.co_varnames:
+                    sample_reg = EnhancedFeatureRegistry()
+                    method(sample_reg)
+                else:
+                    method()
 
-                    print(f"  ✓ {method_name}")
-                    passed += 1
-
-            except Exception as e:
-                print(f"  ✗ {method_name}: {str(e)}")
-                failed += 1
+                print(f"  ✓ {method_name}")
+                passed += 1
 
     print(f"\n=== Test Summary ===")
     print(f"Passed: {passed}")

@@ -221,23 +221,22 @@ if __name__ == "__main__":
     start_time = datetime.now()
     logger.info("🚀 FIRSTRATE 90-DAY VALIDATION")
     
-    try:
-        results = validate_firstrate_coverage(90)
+    results = validate_firstrate_coverage(90)
+    
+    duration = datetime.now() - start_time
+    logger.info("="*60)
+    logger.info("🏁 VALIDATION COMPLETE")
+    logger.info("="*60)
+    logger.info(f"⏱️ Duration: {duration}")
+    logger.info(f"🎯 Summary: {results['coverage_rate']:.1f}% coverage across {results['total_instruments']:,} instruments")
+    
+    if results['coverage_rate'] > 90:
+        logger.info("✅ EXCELLENT: High coverage achieved")
+    elif results['coverage_rate'] > 70:
+        logger.info("⚠️ GOOD: Moderate coverage, some gaps")
+    else:
+        logger.info("❌ POOR: Significant coverage gaps need attention")
         
-        duration = datetime.now() - start_time
-        logger.info("="*60)
-        logger.info("🏁 VALIDATION COMPLETE")
-        logger.info("="*60)
-        logger.info(f"⏱️ Duration: {duration}")
-        logger.info(f"🎯 Summary: {results['coverage_rate']:.1f}% coverage across {results['total_instruments']:,} instruments")
-        
-        if results['coverage_rate'] > 90:
-            logger.info("✅ EXCELLENT: High coverage achieved")
-        elif results['coverage_rate'] > 70:
-            logger.info("⚠️ GOOD: Moderate coverage, some gaps")
-        else:
-            logger.info("❌ POOR: Significant coverage gaps need attention")
-            
     except Exception as e:
         logger.error(f"💥 Validation failed: {e}")
         import traceback

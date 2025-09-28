@@ -17,7 +17,7 @@ class TestAnalyticsServiceVisualization(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         # Mock the analytics service
-        from services.analytics_service import UnifiedAnalyticsService
+        from infrastructure.services_legacy.analytics_service import UnifiedAnalyticsService
         self.service = UnifiedAnalyticsService()
 
     @patch('core.database.connection_manager.get_raw_connection')

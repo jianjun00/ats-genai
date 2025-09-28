@@ -11,7 +11,7 @@ import torch
 from datetime import datetime, timedelta
 from typing import List
 
-from src.domains.analytics.events.event_integration import (
+from domains.analytics.services.events.event_integration import (
     EventIntegrationLayer,
     EventEncoder,
     TemporalEventAttention,

@@ -63,22 +63,18 @@ class MarketCalendar:
     @staticmethod
     def is_trading_day(date_str):
         """Check if given date is a trading day (weekday, not holiday)"""
-        try:
-            date_obj = pd.to_datetime(date_str).date()
+        date_obj = pd.to_datetime(date_str).date()
 
-            # Skip weekends
-            if date_obj.weekday() >= 5:  # Saturday=5, Sunday=6
-                return False
-
-            # Skip holidays
-            holidays = MarketCalendar.get_us_holidays(date_obj.year)
-            if date_str in holidays:
-                return False
-
-            return True
-        except:
+        # Skip weekends
+        if date_obj.weekday() >= 5:  # Saturday=5, Sunday=6
             return False
 
+        # Skip holidays
+        holidays = MarketCalendar.get_us_holidays(date_obj.year)
+        if date_str in holidays:
+            return False
+
+        return True
     @staticmethod
     def get_expected_trading_days(start_date, end_date):
         """Get list of expected trading days in date range"""
@@ -174,67 +170,62 @@ class DailyPricesQualityAnalyzer:
         for vendor in self.vendors:
             table_name = f"{self.environment}_daily_price_polygon_{vendor}"
 
-            try:
-                # Get symbols that should have data
-                symbols_query = f"""
-                SELECT DISTINCT symbol
-                FROM {table_name}
-                WHERE date >= %s - INTERVAL '1 year'
-                ORDER BY symbol
-                """
+            # Get symbols that should have data
+            symbols_query = f"""
+            SELECT DISTINCT symbol
+            FROM {table_name}
+            WHERE date >= %s - INTERVAL '1 year'
+            ORDER BY symbol
+            """
 
-                with self.db.get_raw_connection() as conn:
-                    symbols_df = pd.read_sql(symbols_query, conn, params=[start_date])
-                    active_symbols = symbols_df['symbol'].tolist()
+            with self.db.get_raw_connection() as conn:
+                symbols_df = pd.read_sql(symbols_query, conn, params=[start_date])
+                active_symbols = symbols_df['symbol'].tolist()
 
-                if not active_symbols:
-                    print(f"⚠️ No active symbols found for {vendor}")
-                    continue
+            if not active_symbols:
+                print(f"⚠️ No active symbols found for {vendor}")
+                continue
 
-                print(f"📊 {vendor.upper()}: Checking {len(active_symbols)} active symbols")
+            print(f"📊 {vendor.upper()}: Checking {len(active_symbols)} active symbols")
 
-                # Check coverage for each symbol on trading days
-                coverage_query = f"""
-                SELECT
-                    symbol,
-                    COUNT(*) as days_with_data,
-                    %s::int - COUNT(*) as missing_days
-                FROM {table_name}
-                WHERE symbol = ANY(%s)
-                  AND date >= %s
-                  AND date <= %s
-                  AND EXTRACT(DOW FROM date) NOT IN (0, 6)  -- Exclude weekends
-                GROUP BY symbol
-                """
+            # Check coverage for each symbol on trading days
+            coverage_query = f"""
+            SELECT
+                symbol,
+                COUNT(*) as days_with_data,
+                %s::int - COUNT(*) as missing_days
+            FROM {table_name}
+            WHERE symbol = ANY(%s)
+              AND date >= %s
+              AND date <= %s
+              AND EXTRACT(DOW FROM date) NOT IN (0, 6)  -- Exclude weekends
+            GROUP BY symbol
+            """
 
-                with self.db.get_raw_connection() as conn:
-                    coverage_df = pd.read_sql(
-                        coverage_query,
-                        conn,
-                        params=[total_expected_days, active_symbols, start_date, end_date]
-                    )
+            with self.db.get_raw_connection() as conn:
+                coverage_df = pd.read_sql(
+                    coverage_query,
+                    conn,
+                    params=[total_expected_days, active_symbols, start_date, end_date]
+                )
 
-                # Calculate missing statistics
-                symbols_with_missing = len(coverage_df[coverage_df['missing_days'] > 0])
-                total_missing_records = coverage_df['missing_days'].sum()
+            # Calculate missing statistics
+            symbols_with_missing = len(coverage_df[coverage_df['missing_days'] > 0])
+            total_missing_records = coverage_df['missing_days'].sum()
 
-                coverage_pct = ((coverage_df['days_with_data'].sum() /
-                               (len(active_symbols) * total_expected_days)) * 100)
+            coverage_pct = ((coverage_df['days_with_data'].sum() /
+                           (len(active_symbols) * total_expected_days)) * 100)
 
-                missing_results[vendor] = {
-                    'symbols_with_missing': symbols_with_missing,
-                    'total_missing_records': total_missing_records,
-                    'coverage_percent': round(coverage_pct, 2),
-                    'active_symbols': len(active_symbols)
-                }
+            missing_results[vendor] = {
+                'symbols_with_missing': symbols_with_missing,
+                'total_missing_records': total_missing_records,
+                'coverage_percent': round(coverage_pct, 2),
+                'active_symbols': len(active_symbols)
+            }
 
-                print(f"  ❌ Symbols with missing data: {symbols_with_missing}")
-                print(f"  📉 Total missing records: {total_missing_records}")
-                print(f"  📊 Coverage: {coverage_pct:.2f}%")
-
-            except Exception as e:
-                print(f"❌ Error analyzing {vendor}: {e}")
-                missing_results[vendor] = {'error': str(e)}
+            print(f"  ❌ Symbols with missing data: {symbols_with_missing}")
+            print(f"  📉 Total missing records: {total_missing_records}")
+            print(f"  📊 Coverage: {coverage_pct:.2f}%")
 
         return missing_results
 
@@ -250,48 +241,43 @@ class DailyPricesQualityAnalyzer:
         for vendor in self.vendors:
             table_name = f"{self.environment}_daily_price_polygon_{vendor}"
 
-            try:
-                # Query for bad prices (invalid values, abnormal patterns)
-                bad_prices_query = f"""
-                SELECT
-                    COUNT(DISTINCT symbol) as symbols_with_bad_prices,
-                    COUNT(*) as bad_price_records
-                FROM {table_name}
-                WHERE date >= %s
-                  AND date <= %s
-                  AND (
-                    open <= 0 OR high <= 0 OR low <= 0 OR close <= 0 OR  -- Invalid prices
-                    volume < 0 OR                                          -- Negative volume
-                    high < low OR                                          -- High < Low
-                    high < open OR high < close OR                         -- High < Open/Close
-                    low > open OR low > close OR                           -- Low > Open/Close
-                    ABS(close - open) / open > 0.5 OR                      -- >50% price change
-                    open IS NULL OR high IS NULL OR low IS NULL OR close IS NULL  -- NULL values
-                  )
-                """
+            # Query for bad prices (invalid values, abnormal patterns)
+            bad_prices_query = f"""
+            SELECT
+                COUNT(DISTINCT symbol) as symbols_with_bad_prices,
+                COUNT(*) as bad_price_records
+            FROM {table_name}
+            WHERE date >= %s
+              AND date <= %s
+              AND (
+                open <= 0 OR high <= 0 OR low <= 0 OR close <= 0 OR  -- Invalid prices
+                volume < 0 OR                                          -- Negative volume
+                high < low OR                                          -- High < Low
+                high < open OR high < close OR                         -- High < Open/Close
+                low > open OR low > close OR                           -- Low > Open/Close
+                ABS(close - open) / open > 0.5 OR                      -- >50% price change
+                open IS NULL OR high IS NULL OR low IS NULL OR close IS NULL  -- NULL values
+              )
+            """
 
-                with self.db.get_raw_connection() as conn:
-                    result = pd.read_sql(bad_prices_query, conn, params=[start_date, end_date])
+            with self.db.get_raw_connection() as conn:
+                result = pd.read_sql(bad_prices_query, conn, params=[start_date, end_date])
 
-                if len(result) > 0:
-                    symbols_with_bad = result.iloc[0]['symbols_with_bad_prices'] or 0
-                    bad_records = result.iloc[0]['bad_price_records'] or 0
-                else:
-                    symbols_with_bad = 0
-                    bad_records = 0
+            if len(result) > 0:
+                symbols_with_bad = result.iloc[0]['symbols_with_bad_prices'] or 0
+                bad_records = result.iloc[0]['bad_price_records'] or 0
+            else:
+                symbols_with_bad = 0
+                bad_records = 0
 
-                bad_results[vendor] = {
-                    'symbols_with_bad_prices': symbols_with_bad,
-                    'bad_price_records': bad_records
-                }
+            bad_results[vendor] = {
+                'symbols_with_bad_prices': symbols_with_bad,
+                'bad_price_records': bad_records
+            }
 
-                print(f"📊 {vendor.upper()}:")
-                print(f"  ⚠️ Symbols with bad prices: {symbols_with_bad}")
-                print(f"  🚨 Bad price records: {bad_records}")
-
-            except Exception as e:
-                print(f"❌ Error analyzing bad prices for {vendor}: {e}")
-                bad_results[vendor] = {'error': str(e)}
+            print(f"📊 {vendor.upper()}:")
+            print(f"  ⚠️ Symbols with bad prices: {symbols_with_bad}")
+            print(f"  🚨 Bad price records: {bad_records}")
 
         return bad_results
 
@@ -302,187 +288,177 @@ class DailyPricesQualityAnalyzer:
 
         print(f"📤 Pushing metrics to SignOz via Pushgateway at {gateway_url} and OTLP...")
 
-        try:
-            # Set missing prices metrics
-            for vendor, data in missing_results.items():
-                if 'error' not in data:
-                    self.missing_prices_by_vendor.labels(
-                        vendor=vendor, environment=self.environment
-                    ).set(data.get('symbols_with_missing', 0))
+        # Set missing prices metrics
+        for vendor, data in missing_results.items():
+            if 'error' not in data:
+                self.missing_prices_by_vendor.labels(
+                    vendor=vendor, environment=self.environment
+                ).set(data.get('symbols_with_missing', 0))
 
-                    self.missing_price_records.labels(
-                        vendor=vendor, environment=self.environment
-                    ).set(data.get('total_missing_records', 0))
+                self.missing_price_records.labels(
+                    vendor=vendor, environment=self.environment
+                ).set(data.get('total_missing_records', 0))
 
-                    self.coverage_percentage.labels(
-                        vendor=vendor, environment=self.environment
-                    ).set(data.get('coverage_percent', 0))
+                self.coverage_percentage.labels(
+                    vendor=vendor, environment=self.environment
+                ).set(data.get('coverage_percent', 0))
 
-            # Set bad prices metrics
-            for vendor, data in bad_results.items():
-                if 'error' not in data:
-                    self.bad_prices_by_vendor.labels(
-                        vendor=vendor, environment=self.environment
-                    ).set(data.get('symbols_with_bad_prices', 0))
+        # Set bad prices metrics
+        for vendor, data in bad_results.items():
+            if 'error' not in data:
+                self.bad_prices_by_vendor.labels(
+                    vendor=vendor, environment=self.environment
+                ).set(data.get('symbols_with_bad_prices', 0))
 
-                    self.bad_price_records.labels(
-                        vendor=vendor, environment=self.environment
-                    ).set(data.get('bad_price_records', 0))
+                self.bad_price_records.labels(
+                    vendor=vendor, environment=self.environment
+                ).set(data.get('bad_price_records', 0))
 
-            # Push to Pushgateway (existing)
-            push_to_gateway(
-                gateway_url,
-                job='daily-prices-quality-metrics',
-                registry=self.registry
-            )
+        # Push to Pushgateway (existing)
+        push_to_gateway(
+            gateway_url,
+            job='daily-prices-quality-metrics',
+            registry=self.registry
+        )
 
-            # Also push directly to SignOz via OTLP
-            self.push_metrics_via_otlp(missing_results, bad_results)
+        # Also push directly to SignOz via OTLP
+        self.push_metrics_via_otlp(missing_results, bad_results)
 
-            print("✅ Metrics pushed successfully to SignOz via both Pushgateway and OTLP!")
-
-        except Exception as e:
-            print(f"❌ Failed to push metrics: {e}")
-            return False
+        print("✅ Metrics pushed successfully to SignOz via both Pushgateway and OTLP!")
 
         return True
 
     def push_metrics_via_otlp(self, missing_results, bad_results):
         """Push metrics directly to SignOz via OTLP"""
-        try:
-            import requests
-            import json
-            from datetime import datetime
-            import time
+        import requests
+        import json
+        from datetime import datetime
+        import time
 
-            # SignOz OTLP HTTP endpoint
-            otlp_url = "http://localhost:4318/v1/metrics"
+        # SignOz OTLP HTTP endpoint
+        otlp_url = "http://localhost:4318/v1/metrics"
 
-            # Convert our metrics to OTLP format
-            current_time = int(time.time() * 1_000_000_000)  # nanoseconds
+        # Convert our metrics to OTLP format
+        current_time = int(time.time() * 1_000_000_000)  # nanoseconds
 
-            metrics_data = []
+        metrics_data = []
 
-            # Add missing prices metrics
-            for vendor, data in missing_results.items():
-                if 'error' not in data:
-                    metrics_data.extend([
-                        {
-                            "name": "ats_daily_price_polygon_missing_symbols_total",
-                            "description": "Number of symbols missing daily prices per vendor",
-                            "unit": "1",
-                            "gauge": {
-                                "dataPoints": [{
-                                    "attributes": [
-                                        {"key": "vendor", "value": {"stringValue": vendor}},
-                                        {"key": "environment", "value": {"stringValue": self.environment}}
-                                    ],
-                                    "timeUnixNano": str(current_time),
-                                    "asDouble": float(data.get('symbols_with_missing', 0))
-                                }]
-                            }
-                        },
-                        {
-                            "name": "ats_daily_price_polygon_missing_records_total",
-                            "description": "Number of missing daily price records per vendor",
-                            "unit": "1",
-                            "gauge": {
-                                "dataPoints": [{
-                                    "attributes": [
-                                        {"key": "vendor", "value": {"stringValue": vendor}},
-                                        {"key": "environment", "value": {"stringValue": self.environment}}
-                                    ],
-                                    "timeUnixNano": str(current_time),
-                                    "asDouble": float(data.get('total_missing_records', 0))
-                                }]
-                            }
-                        },
-                        {
-                            "name": "ats_daily_price_polygon_coverage_percent",
-                            "description": "Daily prices coverage percentage per vendor",
-                            "unit": "1",
-                            "gauge": {
-                                "dataPoints": [{
-                                    "attributes": [
-                                        {"key": "vendor", "value": {"stringValue": vendor}},
-                                        {"key": "environment", "value": {"stringValue": self.environment}}
-                                    ],
-                                    "timeUnixNano": str(current_time),
-                                    "asDouble": float(data.get('coverage_percent', 0))
-                                }]
-                            }
+        # Add missing prices metrics
+        for vendor, data in missing_results.items():
+            if 'error' not in data:
+                metrics_data.extend([
+                    {
+                        "name": "ats_daily_price_polygon_missing_symbols_total",
+                        "description": "Number of symbols missing daily prices per vendor",
+                        "unit": "1",
+                        "gauge": {
+                            "dataPoints": [{
+                                "attributes": [
+                                    {"key": "vendor", "value": {"stringValue": vendor}},
+                                    {"key": "environment", "value": {"stringValue": self.environment}}
+                                ],
+                                "timeUnixNano": str(current_time),
+                                "asDouble": float(data.get('symbols_with_missing', 0))
+                            }]
                         }
-                    ])
-
-            # Add bad prices metrics
-            for vendor, data in bad_results.items():
-                if 'error' not in data:
-                    metrics_data.extend([
-                        {
-                            "name": "ats_daily_price_polygon_bad_symbols_total",
-                            "description": "Number of symbols with bad daily prices per vendor",
-                            "unit": "1",
-                            "gauge": {
-                                "dataPoints": [{
-                                    "attributes": [
-                                        {"key": "vendor", "value": {"stringValue": vendor}},
-                                        {"key": "environment", "value": {"stringValue": self.environment}}
-                                    ],
-                                    "timeUnixNano": str(current_time),
-                                    "asDouble": float(data.get('symbols_with_bad_prices', 0))
-                                }]
-                            }
-                        },
-                        {
-                            "name": "ats_daily_price_polygon_bad_records_total",
-                            "description": "Number of bad daily price records per vendor",
-                            "unit": "1",
-                            "gauge": {
-                                "dataPoints": [{
-                                    "attributes": [
-                                        {"key": "vendor", "value": {"stringValue": vendor}},
-                                        {"key": "environment", "value": {"stringValue": self.environment}}
-                                    ],
-                                    "timeUnixNano": str(current_time),
-                                    "asDouble": float(data.get('bad_price_records', 0))
-                                }]
-                            }
-                        }
-                    ])
-
-            # Build OTLP payload
-            otlp_payload = {
-                "resourceMetrics": [{
-                    "resource": {
-                        "attributes": [
-                            {"key": "service.name", "value": {"stringValue": "ats-daily-prices-metrics"}},
-                            {"key": "service.version", "value": {"stringValue": "1.0.0"}}
-                        ]
                     },
-                    "scopeMetrics": [{
-                        "scope": {
-                            "name": "ats.daily_price_polygon.metrics",
-                            "version": "1.0.0"
-                        },
-                        "metrics": metrics_data
-                    }]
+                    {
+                        "name": "ats_daily_price_polygon_missing_records_total",
+                        "description": "Number of missing daily price records per vendor",
+                        "unit": "1",
+                        "gauge": {
+                            "dataPoints": [{
+                                "attributes": [
+                                    {"key": "vendor", "value": {"stringValue": vendor}},
+                                    {"key": "environment", "value": {"stringValue": self.environment}}
+                                ],
+                                "timeUnixNano": str(current_time),
+                                "asDouble": float(data.get('total_missing_records', 0))
+                            }]
+                        }
+                    },
+                    {
+                        "name": "ats_daily_price_polygon_coverage_percent",
+                        "description": "Daily prices coverage percentage per vendor",
+                        "unit": "1",
+                        "gauge": {
+                            "dataPoints": [{
+                                "attributes": [
+                                    {"key": "vendor", "value": {"stringValue": vendor}},
+                                    {"key": "environment", "value": {"stringValue": self.environment}}
+                                ],
+                                "timeUnixNano": str(current_time),
+                                "asDouble": float(data.get('coverage_percent', 0))
+                            }]
+                        }
+                    }
+                ])
+
+        # Add bad prices metrics
+        for vendor, data in bad_results.items():
+            if 'error' not in data:
+                metrics_data.extend([
+                    {
+                        "name": "ats_daily_price_polygon_bad_symbols_total",
+                        "description": "Number of symbols with bad daily prices per vendor",
+                        "unit": "1",
+                        "gauge": {
+                            "dataPoints": [{
+                                "attributes": [
+                                    {"key": "vendor", "value": {"stringValue": vendor}},
+                                    {"key": "environment", "value": {"stringValue": self.environment}}
+                                ],
+                                "timeUnixNano": str(current_time),
+                                "asDouble": float(data.get('symbols_with_bad_prices', 0))
+                            }]
+                        }
+                    },
+                    {
+                        "name": "ats_daily_price_polygon_bad_records_total",
+                        "description": "Number of bad daily price records per vendor",
+                        "unit": "1",
+                        "gauge": {
+                            "dataPoints": [{
+                                "attributes": [
+                                    {"key": "vendor", "value": {"stringValue": vendor}},
+                                    {"key": "environment", "value": {"stringValue": self.environment}}
+                                ],
+                                "timeUnixNano": str(current_time),
+                                "asDouble": float(data.get('bad_price_records', 0))
+                            }]
+                        }
+                    }
+                ])
+
+        # Build OTLP payload
+        otlp_payload = {
+            "resourceMetrics": [{
+                "resource": {
+                    "attributes": [
+                        {"key": "service.name", "value": {"stringValue": "ats-daily-prices-metrics"}},
+                        {"key": "service.version", "value": {"stringValue": "1.0.0"}}
+                    ]
+                },
+                "scopeMetrics": [{
+                    "scope": {
+                        "name": "ats.daily_price_polygon.metrics",
+                        "version": "1.0.0"
+                    },
+                    "metrics": metrics_data
                 }]
-            }
+            }]
+        }
 
-            # Send to SignOz
-            headers = {
-                "Content-Type": "application/json"
-            }
+        # Send to SignOz
+        headers = {
+            "Content-Type": "application/json"
+        }
 
-            response = requests.post(otlp_url, json=otlp_payload, headers=headers)
-            if response.status_code == 200:
-                print("✅ OTLP metrics pushed successfully to SignOz")
-            else:
-                print(f"⚠️ OTLP push returned status {response.status_code}: {response.text}")
-
-        except Exception as e:
-            print(f"⚠️ OTLP push failed: {e}")
-            # Don't fail the whole process if OTLP fails
+        response = requests.post(otlp_url, json=otlp_payload, headers=headers)
+        if response.status_code == 200:
+            print("✅ OTLP metrics pushed successfully to SignOz")
+        else:
+            print(f"⚠️ OTLP push returned status {response.status_code}: {response.text}")
 
     def generate_report(self, missing_results, bad_results):
         """Generate summary report"""

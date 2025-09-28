@@ -6,7 +6,7 @@ Test to verify UniverseStateIntervalBuilder correctly requests trading session d
 import asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
-from core.shared.data_handling.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 async def test_universe_state_builder_data_request():
     """Test that UniverseStateIntervalBuilder requests correct time range."""

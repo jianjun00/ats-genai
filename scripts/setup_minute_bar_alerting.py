@@ -81,15 +81,11 @@ async def check_and_alert():
         message = f"🚨 *Minute Bar Collection Issues Detected*\n\n" + "\n".join(alerts)
         message += f"\n\n📊 Dashboard: http://localhost:4002/d/cb0f07fd-9f56-486e-8cd6-7c9893e63116/ats-vendor-monitoring-dashboard-postgresql"
 
-        try:
-            response = requests.post(SLACK_WEBHOOK, json={"text": message}, timeout=10)
-            if response.status_code == 200:
-                print(f"✅ Alert sent to Slack: {len(alerts)} issues")
-            else:
-                print(f"❌ Failed to send Slack alert: {response.status_code}")
-        except Exception as e:
-            print(f"❌ Slack notification error: {e}")
-    else:
+        response = requests.post(SLACK_WEBHOOK, json={"text": message}, timeout=10)
+        if response.status_code == 200:
+            print(f"✅ Alert sent to Slack: {len(alerts)} issues")
+        else:
+            print(f"❌ Failed to send Slack alert: {response.status_code}")
         print("✅ No minute bar issues detected")
 
 if __name__ == "__main__":

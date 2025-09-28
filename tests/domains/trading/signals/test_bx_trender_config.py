@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
-from domains.trading.signals.enhanced_indicators import BXTrenderIndicator
+from domains.trading.services.indicators.enhanced_indicators import BXTrenderIndicator
 from domains.trading.signals.indicator import BXTrenderBasic, BXTrenderDirectional, BXTrenderVolumeWeighted
 
 class TestBXTrenderConfiguration(unittest.TestCase):

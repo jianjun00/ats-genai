@@ -103,37 +103,33 @@ class ImportUpdater:
 
     def update_file(self, file_path):
         """Update imports in a single file"""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
 
-            original_content = content
-            file_imports_updated = 0
+        original_content = content
+        file_imports_updated = 0
 
-            # Apply each import mapping
-            for pattern, replacement in self.import_mapping.items():
-                if callable(replacement):
-                    # Handle dynamic replacements
-                    def replace_func(match):
-                        return replacement(match)
-                    new_content, count = re.subn(pattern, replace_func, content)
-                    content = new_content
-                    file_imports_updated += count
-                else:
-                    # Handle static replacements
-                    content, count = re.subn(pattern, replacement, content)
-                    file_imports_updated += count
+        # Apply each import mapping
+        for pattern, replacement in self.import_mapping.items():
+            if callable(replacement):
+                # Handle dynamic replacements
+                def replace_func(match):
+                    return replacement(match)
+                new_content, count = re.subn(pattern, replace_func, content)
+                content = new_content
+                file_imports_updated += count
+            else:
+                # Handle static replacements
+                content, count = re.subn(pattern, replacement, content)
+                file_imports_updated += count
 
-            # Write back if changes were made
-            if content != original_content:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(content)
-                self.files_updated += 1
-                self.imports_updated += file_imports_updated
-                print(f"✅ Updated {file_imports_updated} imports in {file_path}")
-
-        except Exception as e:
-            print(f"❌ Error updating {file_path}: {e}")
+        # Write back if changes were made
+        if content != original_content:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            self.files_updated += 1
+            self.imports_updated += file_imports_updated
+            print(f"✅ Updated {file_imports_updated} imports in {file_path}")
 
     def update_all_files(self):
         """Update imports in all Python files in the new structure"""

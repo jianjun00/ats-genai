@@ -3,7 +3,7 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from domains.trading.services.universe_manager import UniverseManager
 from domains.trading.services.universe_manager import UniverseMembershipChange
-from core.shared.utils.environment import Environment, EnvironmentType
+from core.platform.config.environment import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 @pytest.mark.asyncio

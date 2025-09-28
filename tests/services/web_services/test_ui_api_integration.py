@@ -13,14 +13,8 @@ def test_api_endpoints():
     print("🧪 Testing API endpoints...")
 
     # Read HTML file
-    try:
-        with open('dataset_detail_page_frontend.html', 'r') as f:
-            html_content = f.read()
-    except FileNotFoundError:
-        print("❌ HTML file not found")
-        return False
-
-    # Extract API calls
+    with open('dataset_detail_page_frontend.html', 'r') as f:
+        html_content = f.read()
     api_calls = re.findall(r'fetch\(`([^`]+)`\)', html_content)
 
     print(f"Found {len(api_calls)} API calls in HTML:")
@@ -32,22 +26,17 @@ def test_api_endpoints():
     for api_call in api_calls:
         test_url = api_call.replace('${currentDatasetId}', '24').replace('?${params}', '')
 
-        try:
-            result = subprocess.run(['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}',
-                                   f'http://localhost:4000{test_url}'],
-                                  capture_output=True, text=True, timeout=5)
+        result = subprocess.run(['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}',
+                               f'http://localhost:4000{test_url}'],
+                              capture_output=True, text=True, timeout=5)
 
-            status_code = result.stdout.strip()
-            test_results[test_url] = status_code
+        status_code = result.stdout.strip()
+        test_results[test_url] = status_code
 
-            if status_code == '200':
-                print(f"✅ {test_url} - {status_code}")
-            else:
-                print(f"❌ {test_url} - {status_code}")
-
-        except Exception as e:
-            print(f"❌ {test_url} - ERROR: {e}")
-            test_results[test_url] = 'ERROR'
+        if status_code == '200':
+            print(f"✅ {test_url} - {status_code}")
+        else:
+            print(f"❌ {test_url} - {status_code}")
 
     return test_results
 
@@ -55,14 +44,8 @@ def test_global_axis_control():
     """Test for global vs per-column axis controls."""
     print("\n🧪 Testing x-axis control structure...")
 
-    try:
-        with open('dataset_detail_page_frontend.html', 'r') as f:
-            html_content = f.read()
-    except FileNotFoundError:
-        print("❌ HTML file not found")
-        return False
-
-    # Count x-axis controls
+    with open('dataset_detail_page_frontend.html', 'r') as f:
+        html_content = f.read()
     global_axis_count = html_content.count('global-x-axis')
     chart_config_mentions = html_content.count('Chart Configuration')
     data_filter_mentions = html_content.count('Data Filter')
@@ -105,14 +88,8 @@ def test_date_column_filtering():
     """Test that date columns are filtered out."""
     print("\n🧪 Testing date column filtering...")
 
-    try:
-        with open('dataset_detail_page_frontend.html', 'r') as f:
-            html_content = f.read()
-    except FileNotFoundError:
-        print("❌ HTML file not found")
-        return False
-
-    # Check for date filtering logic
+    with open('dataset_detail_page_frontend.html', 'r') as f:
+        html_content = f.read()
     has_date_columns = 'dateColumns' in html_content
     has_filtering = 'filteredDistributions' in html_content
     has_date_filter = 'date' in html_content and 'timestamp' in html_content
@@ -132,54 +109,47 @@ def test_actual_interface():
     """Test the actual running interface."""
     print("\n🧪 Testing live interface...")
 
-    try:
-        # Test if service is running
-        result = subprocess.run(['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}',
-                               'http://localhost:4000/dataset-detail'],
-                              capture_output=True, text=True, timeout=5)
+    # Test if service is running
+    result = subprocess.run(['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}',
+                           'http://localhost:4000/dataset-detail'],
+                          capture_output=True, text=True, timeout=5)
 
-        if result.stdout.strip() == '200':
-            print("✅ Interface is accessible")
-        else:
-            print("❌ Interface not accessible")
-            return False
-
-        # Test training datasets API
-        result = subprocess.run(['curl', '-s', 'http://localhost:4000/api/v1/training-datasets'],
-                              capture_output=True, text=True, timeout=5)
-
-        try:
-            data = json.loads(result.stdout)
-            if 'datasets' in data and data['datasets']:
-                print(f"✅ Found {len(data['datasets'])} training datasets")
-
-                # Test with first dataset
-                dataset_id = data['datasets'][0]['id']
-                print(f"Testing with dataset ID: {dataset_id}")
-
-                # Test data endpoint
-                result = subprocess.run(['curl', '-s',
-                                       f'http://localhost:4000/api/v1/training-datasets/{dataset_id}/data?limit=1'],
-                                      capture_output=True, text=True, timeout=5)
-
-                data_response = json.loads(result.stdout)
-                if 'total_count' in data_response:
-                    print(f"✅ Data endpoint works: {data_response['total_count']} total records")
-                else:
-                    print("❌ Data endpoint response invalid")
-
-                return True
-            else:
-                print("❌ No training datasets found")
-                return False
-
-        except json.JSONDecodeError:
-            print("❌ API response not valid JSON")
-            return False
-
-    except Exception as e:
-        print(f"❌ Interface test failed: {e}")
+    if result.stdout.strip() == '200':
+        print("✅ Interface is accessible")
+    else:
+        print("❌ Interface not accessible")
         return False
+
+    # Test training datasets API
+    result = subprocess.run(['curl', '-s', 'http://localhost:4000/api/v1/training-datasets'],
+                          capture_output=True, text=True, timeout=5)
+
+    data = json.loads(result.stdout)
+    if 'datasets' in data and data['datasets']:
+        print(f"✅ Found {len(data['datasets'])} training datasets")
+
+        # Test with first dataset
+        dataset_id = data['datasets'][0]['id']
+        print(f"Testing with dataset ID: {dataset_id}")
+
+        # Test data endpoint
+        result = subprocess.run(['curl', '-s',
+                               f'http://localhost:4000/api/v1/training-datasets/{dataset_id}/data?limit=1'],
+                              capture_output=True, text=True, timeout=5)
+
+        data_response = json.loads(result.stdout)
+        if 'total_count' in data_response:
+            print(f"✅ Data endpoint works: {data_response['total_count']} total records")
+        else:
+            print("❌ Data endpoint response invalid")
+
+        return True
+    else:
+        print("❌ No training datasets found")
+        return False
+
+    print(f"❌ Interface test failed: {e}")
+    return False
 
 def main():
     """Run all tests."""

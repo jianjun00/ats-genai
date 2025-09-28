@@ -24,13 +24,9 @@ class TestEDADatabaseFallbackSystem:
         # Wait for service to be ready
         max_retries = 10
         for i in range(max_retries):
-            try:
-                response = requests.get(f"{cls.base_url}/health", timeout=5)
-                if response.status_code == 200:
-                    break
-            except:
-                time.sleep(2)
-        else:
+            response = requests.get(f"{cls.base_url}/health", timeout=5)
+            if response.status_code == 200:
+                break
             raise Exception("EDA service not available after 20 seconds")
 
     def test_datasets_endpoint_returns_fallback_data(self):
@@ -214,74 +210,63 @@ class TestEDADatabaseFallbackSystem:
 
 def test_fallback_system_regression():
     """Regression test to ensure fallback system is properly implemented in code."""
-    try:
-        # Check that analytics service has fallback data implemented
-        with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
-            content = f.read()
+    # Check that analytics service has fallback data implemented
+    with open('/home/jianjun/ats-genai-admin/src/services/analytics_service.py', 'r') as f:
+        content = f.read()
 
-        # Verify fallback data exists in the code
-        assert "fallback" in content.lower(), "Service should implement fallback data system"
-        assert "dev_instrument_tiingo" in content, "Should have Tiingo fallback data"
-        assert "dev_daily_price_polygon" in content, "Should have Polygon fallback data"
-        assert "market_cap" in content, "Should have realistic column definitions"
+    # Verify fallback data exists in the code
+    assert "fallback" in content.lower(), "Service should implement fallback data system"
+    assert "dev_instrument_tiingo" in content, "Should have Tiingo fallback data"
+    assert "dev_daily_price_polygon" in content, "Should have Polygon fallback data"
+    assert "market_cap" in content, "Should have realistic column definitions"
 
-        # Verify row counts are realistic (not zero)
-        import re
-        row_count_matches = re.findall(r"'row_count':\s*(\d+)", content)
-        for count_str in row_count_matches:
-            count = int(count_str)
-            assert count > 0, f"Found zero row count {count} in fallback data - would cause 'Loading...' issue"
+    # Verify row counts are realistic (not zero)
+    import re
+    row_count_matches = re.findall(r"'row_count':\s*(\d+)", content)
+    for count_str in row_count_matches:
+        count = int(count_str)
+        assert count > 0, f"Found zero row count {count} in fallback data - would cause 'Loading...' issue"
 
-        print("✅ Fallback system regression check passed")
-
-    except FileNotFoundError:
-        pytest.skip("Analytics service file not found")
-    except Exception as e:
-        pytest.fail(f"Fallback system regression check failed: {e}")
-
+    print("✅ Fallback system regression check passed")
 
 if __name__ == "__main__":
     # Run database fallback tests
     test_suite = TestEDADatabaseFallbackSystem()
     test_suite.setup_class()
 
-    try:
-        print("🧪 Testing EDA Database Fallback System...")
+    print("🧪 Testing EDA Database Fallback System...")
 
-        test_suite.test_datasets_endpoint_returns_fallback_data()
-        print("✅ Datasets fallback data test passed")
+    test_suite.test_datasets_endpoint_returns_fallback_data()
+    print("✅ Datasets fallback data test passed")
 
-        test_suite.test_fallback_datasets_include_expected_tables()
-        print("✅ Expected datasets fallback test passed")
+    test_suite.test_fallback_datasets_include_expected_tables()
+    print("✅ Expected datasets fallback test passed")
 
-        test_suite.test_schema_endpoint_with_fallback_for_tiingo()
-        print("✅ Tiingo schema fallback test passed")
+    test_suite.test_schema_endpoint_with_fallback_for_tiingo()
+    print("✅ Tiingo schema fallback test passed")
 
-        test_suite.test_schema_endpoint_with_fallback_for_polygon_prices()
-        print("✅ Polygon OHLCV schema fallback test passed")
+    test_suite.test_schema_endpoint_with_fallback_for_polygon_prices()
+    print("✅ Polygon OHLCV schema fallback test passed")
 
-        test_suite.test_schema_endpoint_nonexistent_dataset_fallback()
-        print("✅ Non-existent dataset fallback test passed")
+    test_suite.test_schema_endpoint_nonexistent_dataset_fallback()
+    print("✅ Non-existent dataset fallback test passed")
 
-        test_suite.test_fallback_data_prevents_loading_forever()
-        print("✅ 'Loading...' issue prevention test passed")
+    test_suite.test_fallback_data_prevents_loading_forever()
+    print("✅ 'Loading...' issue prevention test passed")
 
-        test_suite.test_fallback_performance_response_time()
-        print("✅ Fallback performance test passed")
+    test_suite.test_fallback_performance_response_time()
+    print("✅ Fallback performance test passed")
 
-        test_suite.test_fallback_schema_performance()
-        print("✅ Schema fallback performance test passed")
+    test_suite.test_fallback_schema_performance()
+    print("✅ Schema fallback performance test passed")
 
-        test_suite.test_analysis_endpoint_with_database_unavailable()
-        print("✅ Analysis endpoint fallback test passed")
+    test_suite.test_analysis_endpoint_with_database_unavailable()
+    print("✅ Analysis endpoint fallback test passed")
 
-        test_fallback_system_regression()
+    test_fallback_system_regression()
 
-        print("\n🎉 All database fallback tests passed!")
-        print("✅ Service provides fallback data when database is unavailable")
-        print("✅ Fallback data prevents 'Loading...' UI issue")
-        print("✅ Fast fallback response times (no waiting for DB timeout)")
+    print("\n🎉 All database fallback tests passed!")
+    print("✅ Service provides fallback data when database is unavailable")
+    print("✅ Fallback data prevents 'Loading...' UI issue")
+    print("✅ Fast fallback response times (no waiting for DB timeout)")
 
-    except Exception as e:
-        print(f"❌ Database fallback test failed: {e}")
-        exit(1)

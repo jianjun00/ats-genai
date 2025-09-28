@@ -89,37 +89,26 @@ async def process_symbol_batch(symbols: List[str], start_date: datetime,
 
     processor = SimpleSRBackfillProcessor()
 
-    try:
-        await processor.initialize()
+    await processor.initialize()
 
-        for i, symbol in enumerate(symbols, 1):
-            logger.info(f"📊 Processing {symbol} ({i}/{len(symbols)} in batch {batch_num})")
+    for i, symbol in enumerate(symbols, 1):
+        logger.info(f"📊 Processing {symbol} ({i}/{len(symbols)} in batch {batch_num})")
 
-            try:
-                result = await processor.run_backfill(symbol, start_date, end_date, limit=50)
+        result = await processor.run_backfill(symbol, start_date, end_date, limit=50)
 
-                if result['success']:
-                    results['symbols_processed'] += 1
-                    results['total_events'] += result['events_processed']
-                    results['symbol_results'][symbol] = result['events_processed']
+        if result['success']:
+            results['symbols_processed'] += 1
+            results['total_events'] += result['events_processed']
+            results['symbol_results'][symbol] = result['events_processed']
 
-                    logger.info(f"✅ {symbol}: {result['events_processed']} events")
-                else:
-                    results['errors'] += 1
-                    results['symbol_results'][symbol] = f"ERROR: {result['error']}"
-                    logger.warning(f"⚠️  {symbol}: {result['error']}")
+            logger.info(f"✅ {symbol}: {result['events_processed']} events")
+        else:
+            results['errors'] += 1
+            results['symbol_results'][symbol] = f"ERROR: {result['error']}"
+            logger.warning(f"⚠️  {symbol}: {result['error']}")
 
-            except Exception as e:
-                results['errors'] += 1
-                results['symbol_results'][symbol] = f"EXCEPTION: {str(e)}"
-                logger.error(f"❌ {symbol}: {e}")
-
-    except Exception as e:
-        logger.error(f"❌ Batch {batch_num} initialization failed: {e}")
-        results['errors'] = len(symbols)
-
-    finally:
-        await processor.close()
+    logger.error(f"❌ Batch {batch_num} initialization failed: {e}")
+    results['errors'] = len(symbols)
 
     return results
 
@@ -141,13 +130,8 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     # Parse dates
-    try:
-        start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
-        end_date = datetime.strptime(args.end_date, '%Y-%m-%d') if args.end_date else datetime.now()
-    except ValueError as e:
-        logger.error(f"❌ Invalid date format: {e}")
-        return
-
+    start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
+    end_date = datetime.strptime(args.end_date, '%Y-%m-%d') if args.end_date else datetime.now()
     logger.info("🚀 Starting Bulk S/R Event Backfill")
     logger.info(f"📅 Date range: {start_date.date()} to {end_date.date()}")
     logger.info(f"📦 Batch size: {args.batch_size}")
@@ -189,27 +173,21 @@ async def main():
 
         logger.info(f"\n📦 Starting batch {batch_num + 1}/{total_batches}")
 
-        try:
-            batch_result = await process_symbol_batch(
-                batch_symbols, start_date, end_date, batch_num + 1
-            )
+        batch_result = await process_symbol_batch(
+            batch_symbols, start_date, end_date, batch_num + 1
+        )
 
-            # Update overall results
-            overall_results['symbols_processed'] += batch_result['symbols_processed']
-            overall_results['total_events'] += batch_result['total_events']
-            overall_results['errors'] += batch_result['errors']
-            overall_results['batch_results'].append(batch_result)
+        # Update overall results
+        overall_results['symbols_processed'] += batch_result['symbols_processed']
+        overall_results['total_events'] += batch_result['total_events']
+        overall_results['errors'] += batch_result['errors']
+        overall_results['batch_results'].append(batch_result)
 
-            logger.info(f"✅ Batch {batch_num + 1} complete: "
-                       f"{batch_result['symbols_processed']}/{len(batch_symbols)} symbols, "
-                       f"{batch_result['total_events']} events, "
-                       f"{batch_result['errors']} errors")
+        logger.info(f"✅ Batch {batch_num + 1} complete: "
+                   f"{batch_result['symbols_processed']}/{len(batch_symbols)} symbols, "
+                   f"{batch_result['total_events']} events, "
+                   f"{batch_result['errors']} errors")
 
-        except Exception as e:
-            logger.error(f"❌ Batch {batch_num + 1} failed: {e}")
-            overall_results['errors'] += len(batch_symbols)
-
-    # Final summary
     processing_time = (datetime.now() - start_time).total_seconds()
 
     logger.info("\n🎉 Bulk S/R Backfill Complete!")

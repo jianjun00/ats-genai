@@ -10,9 +10,9 @@ import pytest
 import pandas as pd
 from unittest.mock import MagicMock
 
-from state.universe_state_builder import UniverseStateIntervalBuilder
-from state.universe_state_manager import UniverseStateManager
-from core.shared.utils.environment import Environment
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
+from core.platform.config.environment import Environment
 
 class TestUniverseStateIntervalBuilder:
     """Test suite for UniverseStateIntervalBuilder class."""
@@ -72,7 +72,7 @@ class TestUniverseStateIntervalBuilder:
     @pytest.mark.asyncio
     async def test_indicator_builder_rolling_cache(self):
         """Test that UniverseStateIntervalBuilder maintains rolling cache and builds indicator intervals correctly."""
-        from state.universe_state_builder import UniverseStateIntervalBuilder
+        from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from datetime import datetime, timedelta
         import random
         # Setup
@@ -83,8 +83,8 @@ class TestUniverseStateIntervalBuilder:
                         return current_time + timedelta(minutes=5)
                 return [DummyDuration()]
             def get_indicator_config(self):
-                from domains.trading.services.indicator_config import IndicatorConfig
-                from domains.trading.services.indicator import OneOneDot
+                from domains.trading.services.indicators_config import IndicatorConfig
+                from domains.trading.services.indicators import OneOneDot
                 cfg = IndicatorConfig.empty_config()
                 cfg.add_indicator('OneOneDot', OneOneDot)
                 return cfg

@@ -103,47 +103,43 @@ class TestOriginalValueErrorBugFixed:
             print(f"   Old logic would fail: int(parts[3]) = int('{parts[3]}')")
             
             # New robust parsing logic (from the fixed code)
-            try:
-                # The year and month are always the last two parts
-                month_str = parts[-1]
-                year_str = parts[-2]
-                
-                # Validate that these look like year/month
-                year = int(year_str)
-                month = int(month_str)
-                
-                # Basic validation
-                if year < 2000 or year > 2100 or month < 1 or month > 12:
-                    continue
-                
-                year_month = f"{year_str}_{month_str}"
-                
-                # Extract symbol (always first part)
-                symbol = parts[0]
-                
-                # Find timeframe by looking for specific patterns
-                import re
-                timeframe = None
-                timeframe_pattern = re.compile(r'^\d+[mhdw]$')
-                for part in parts[1:-2]:
-                    if timeframe_pattern.match(part):
-                        timeframe = part
-                        break
-                
-                if not timeframe:
-                    timeframe = parts[1] if len(parts) > 1 else 'unknown'
-                
-                print(f"   ✅ New logic succeeds: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
-                
-                # Verify expected values
-                assert symbol in ['AAPL', 'TSLA']
-                assert timeframe in ['5m', '15m']
-                assert year in [2024, 2025]
-                assert month in [7, 12]
-                
-            except ValueError as e:
-                pytest.fail(f"New logic should not fail for {file_key}: {e}")
-        
+            # The year and month are always the last two parts
+            month_str = parts[-1]
+            year_str = parts[-2]
+            
+            # Validate that these look like year/month
+            year = int(year_str)
+            month = int(month_str)
+            
+            # Basic validation
+            if year < 2000 or year > 2100 or month < 1 or month > 12:
+                continue
+            
+            year_month = f"{year_str}_{month_str}"
+            
+            # Extract symbol (always first part)
+            symbol = parts[0]
+            
+            # Find timeframe by looking for specific patterns
+            import re
+            timeframe = None
+            timeframe_pattern = re.compile(r'^\d+[mhdw]$')
+            for part in parts[1:-2]:
+                if timeframe_pattern.match(part):
+                    timeframe = part
+                    break
+            
+            if not timeframe:
+                timeframe = parts[1] if len(parts) > 1 else 'unknown'
+            
+            print(f"   ✅ New logic succeeds: symbol={symbol}, timeframe={timeframe}, year={year}, month={month}")
+            
+            # Verify expected values
+            assert symbol in ['AAPL', 'TSLA']
+            assert timeframe in ['5m', '15m']
+            assert year in [2024, 2025]
+            assert month in [7, 12]
+            
         print("   ✅ All problematic patterns handled by new parsing logic")
 
     def test_demonstrates_exact_error_fix(self):

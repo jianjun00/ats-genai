@@ -10,16 +10,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 
-from core.config.environment import Environment, EnvironmentType
-# Using built-in exceptions for robust testing
-    Exception,
-    Exception,
-    Exception
-)
+from core.platform.config.environment import Environment, EnvironmentType
 
-from domains.trading.services.state.universe_state_builder import UniverseStateBuilder
+from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
-from domains.trading.dao.universe_state_dao import UniverseStateDAO
+from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
 class TestRealObjectsUniverseStateBuilderTimeRangeFix:
@@ -36,7 +31,7 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
     @pytest.fixture
     async def real_dao(self, test_environment):
         """Real DAO with actual database connection"""
-        # return UniverseStateDAO(test_environment)  # Real DAO integration needed
+        # return UniverseStateIntervalDAO(test_environment)  # Real DAO integration needed
     
     @pytest.fixture
     async def real_service(self, test_environment):
@@ -56,13 +51,7 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
         yield test_record
         
         # Real cleanup
-        try:
-            await real_dao.delete_test_record(test_record.id)
-        except Exception as e:
-            # Log but don't fail test cleanup
-            print(f"Cleanup warning: {e}")
-    
-
+        await real_dao.delete_test_record(test_record.id)
     async def test_time_range_fix_basic_logic_real_objects(self, real_service, test_data):
         """Real objects version of test_time_range_fix_basic_logic"""
         # Test with real database integration
@@ -77,14 +66,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.time_range_fix_basic_logic_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.time_range_fix_basic_logic_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_time_range_fix_different_durations_real_objects(self, real_service, test_data):
         """Real objects version of test_time_range_fix_different_durations"""
         # Test with real database integration
@@ -99,14 +82,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.time_range_fix_different_durations_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.time_range_fix_different_durations_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_instrument_interval_uses_correct_time_range_real_objects(self, real_service, test_data):
         """Real objects version of test_instrument_interval_uses_correct_time_range"""
         # Test with real database integration
@@ -121,14 +98,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.instrument_interval_uses_correct_time_range_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.instrument_interval_uses_correct_time_range_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_time_range_fix_prevents_future_data_access_real_objects(self, real_service, test_data):
         """Real objects version of test_time_range_fix_prevents_future_data_access"""
         # Test with real database integration
@@ -143,14 +114,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.time_range_fix_prevents_future_data_access_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.time_range_fix_prevents_future_data_access_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_time_range_debug_logging_real_objects(self, real_service, test_data):
         """Real objects version of test_time_range_debug_logging"""
         # Test with real database integration
@@ -165,14 +130,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.time_range_debug_logging_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.time_range_debug_logging_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_multiple_instruments_use_same_time_range_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_instruments_use_same_time_range"""
         # Test with real database integration
@@ -187,14 +146,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.multiple_instruments_use_same_time_range_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.multiple_instruments_use_same_time_range_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_original_problem_reproduction_real_objects(self, real_service, test_data):
         """Real objects version of test_original_problem_reproduction"""
         # Test with real database integration
@@ -209,14 +162,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.original_problem_reproduction_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.original_problem_reproduction_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_fixed_behavior_verification_real_objects(self, real_service, test_data):
         """Real objects version of test_fixed_behavior_verification"""
         # Test with real database integration
@@ -231,14 +178,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.fixed_behavior_verification_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.fixed_behavior_verification_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_zero_values_problem_fix_real_objects(self, real_service, test_data):
         """Real objects version of test_zero_values_problem_fix"""
         # Test with real database integration
@@ -253,14 +194,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.zero_values_problem_fix_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
+        await real_service.zero_values_problem_fix_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_market_hours_data_availability_real_objects(self, real_service, test_data):
         """Real objects version of test_market_hours_data_availability"""
         # Test with real database integration
@@ -275,15 +210,8 @@ class TestRealObjectsUniverseStateBuilderTimeRangeFix:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        try:
-            await real_service.market_hours_data_availability_with_invalid_data()
-            assert False, "Should have raised specific exception"
-        except Exception as e:
-            assert e.error_code is not None
-            assert len(str(e)) > 10  # Meaningful error message
-
-
-    # Performance and concurrency tests with real objects
+        await real_service.market_hours_data_availability_with_invalid_data()
+        assert False, "Should have raised specific exception"
     async def test_performance_characteristics_real_objects(self, real_service):
         """Test actual performance with real database operations"""
         import time

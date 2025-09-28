@@ -3,7 +3,7 @@ import datetime as dt
 import pandas as pd
 import pytest
 
-from state.universe_state_manager import UniverseStateManager
+from domains.trading.services.state.universe_state_manager import UniverseStateManager
 
 class DummyDuration:
     def get_duration_string(self):

@@ -109,22 +109,17 @@ class DailyPriceCoverageValidator:
 
     async def initialize(self):
         """Initialize database connections."""
-        try:
-            # Database connection for INTG environment
-            db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
+        # Database connection for INTG environment
+        db_url = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'intg_password')}@{os.getenv('DB_HOST', 'ats-intg-postgres')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'intg_db')}"
 
-            self.db_pool = await asyncpg.create_pool(
-                db_url,
-                min_size=2,
-                max_size=10,
-                command_timeout=300
-            )
+        self.db_pool = await asyncpg.create_pool(
+            db_url,
+            min_size=2,
+            max_size=10,
+            command_timeout=300
+        )
 
-            logger.info("✅ Daily price coverage validator initialized successfully")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize coverage validator: {e}")
-            raise
+        logger.info("✅ Daily price coverage validator initialized successfully")
 
     async def close(self):
         """Close database connections."""
@@ -203,48 +198,43 @@ class DailyPriceCoverageValidator:
 
             # Validate coverage for each trading day
             for trading_day in trading_days:
-                try:
-                    # Get instruments with data for this date
-                    coverage_query = f"""
-                    SELECT DISTINCT instrument_id
-                    FROM {table_name}
-                    WHERE date = $1
-                    """
+                # Get instruments with data for this date
+                coverage_query = f"""
+                SELECT DISTINCT instrument_id
+                FROM {table_name}
+                WHERE date = $1
+                """
 
-                    instruments_with_data = await conn.fetch(coverage_query, trading_day)
-                    instruments_with_data_ids = {row['instrument_id'] for row in instruments_with_data}
+                instruments_with_data = await conn.fetch(coverage_query, trading_day)
+                instruments_with_data_ids = {row['instrument_id'] for row in instruments_with_data}
 
-                    # Calculate coverage
-                    instruments_with_data_count = len(instruments_with_data_ids)
-                    coverage_percentage = (instruments_with_data_count / len(instruments)) * 100 if instruments else 0
+                # Calculate coverage
+                instruments_with_data_count = len(instruments_with_data_ids)
+                coverage_percentage = (instruments_with_data_count / len(instruments)) * 100 if instruments else 0
 
-                    # Find missing instruments
-                    all_instrument_ids = {inst_id for inst_id, symbol in instruments}
-                    missing_instrument_ids = all_instrument_ids - instruments_with_data_ids
-                    missing_symbols = [symbol for inst_id, symbol in instruments if inst_id in missing_instrument_ids]
+                # Find missing instruments
+                all_instrument_ids = {inst_id for inst_id, symbol in instruments}
+                missing_instrument_ids = all_instrument_ids - instruments_with_data_ids
+                missing_symbols = [symbol for inst_id, symbol in instruments if inst_id in missing_instrument_ids]
 
-                    # Create daily metric
-                    daily_metric = CoverageMetric(
-                        date=trading_day,
-                        vendor=vendor,
-                        total_instruments=len(instruments),
-                        instruments_with_data=instruments_with_data_count,
-                        coverage_percentage=coverage_percentage,
-                        missing_instruments=missing_symbols[:50],  # Limit for readability
-                        is_trading_day=True
-                    )
+                # Create daily metric
+                daily_metric = CoverageMetric(
+                    date=trading_day,
+                    vendor=vendor,
+                    total_instruments=len(instruments),
+                    instruments_with_data=instruments_with_data_count,
+                    coverage_percentage=coverage_percentage,
+                    missing_instruments=missing_symbols[:50],  # Limit for readability
+                    is_trading_day=True
+                )
 
-                    daily_metrics.append(daily_metric)
-                    total_actual_records += instruments_with_data_count
+                daily_metrics.append(daily_metric)
+                total_actual_records += instruments_with_data_count
 
-                    # Log significant coverage issues
-                    if coverage_percentage < 90:
-                        logger.warning(f"⚠️ {vendor} {trading_day}: Low coverage {coverage_percentage:.1f}% ({len(missing_symbols)} missing)")
+                # Log significant coverage issues
+                if coverage_percentage < 90:
+                    logger.warning(f"⚠️ {vendor} {trading_day}: Low coverage {coverage_percentage:.1f}% ({len(missing_symbols)} missing)")
 
-                except Exception as e:
-                    logger.error(f"❌ Error validating {vendor} coverage for {trading_day}: {e}")
-
-        # Calculate overall coverage
         overall_coverage_percentage = (total_actual_records / total_expected_records) * 100 if total_expected_records > 0 else 0
 
         # Find worst coverage dates
@@ -302,55 +292,47 @@ class DailyPriceCoverageValidator:
             for vendor, summary in self.vendor_summaries.items():
                 table_name = f"intg_daily_price_polygon_{vendor}"
 
-                try:
-                    # Instruments with recent data (last 7 days)
-                    recent_cutoff = date.today() - timedelta(days=7)
-                    recent_data_query = f"""
-                    SELECT COUNT(DISTINCT instrument_id)
-                    FROM {table_name}
-                    WHERE date >= $1
+                # Instruments with recent data (last 7 days)
+                recent_cutoff = date.today() - timedelta(days=7)
+                recent_data_query = f"""
+                SELECT COUNT(DISTINCT instrument_id)
+                FROM {table_name}
+                WHERE date >= $1
+                """
+                instruments_with_recent_data[vendor] = await conn.fetchval(recent_data_query, recent_cutoff)
+
+                # Overall coverage percentage
+                coverage_percentage[vendor] = summary.overall_coverage_percentage
+
+                # Missing data alerts (instruments missing data in last 5 days)
+                alert_cutoff = date.today() - timedelta(days=5)
+                trading_days_recent = self.get_trading_days(alert_cutoff, date.today() - timedelta(days=1))
+
+                if trading_days_recent:
+                    # Count instruments missing data on most recent trading day
+                    latest_trading_day = trading_days_recent[-1]
+                    missing_query = f"""
+                    SELECT COUNT(*)
+                    FROM intg_instrument i
+                    WHERE i.active = true
+                      AND i.id NOT IN (
+                          SELECT DISTINCT instrument_id
+                          FROM {table_name}
+                          WHERE date = $1
+                      )
                     """
-                    instruments_with_recent_data[vendor] = await conn.fetchval(recent_data_query, recent_cutoff)
+                    missing_data_alerts[vendor] = await conn.fetchval(missing_query, latest_trading_day)
+                else:
+                    missing_data_alerts[vendor] = 0
 
-                    # Overall coverage percentage
-                    coverage_percentage[vendor] = summary.overall_coverage_percentage
+                # Data freshness (hours since most recent data)
+                freshness_query = f"SELECT MAX(date) FROM {table_name}"
+                latest_date = await conn.fetchval(freshness_query)
 
-                    # Missing data alerts (instruments missing data in last 5 days)
-                    alert_cutoff = date.today() - timedelta(days=5)
-                    trading_days_recent = self.get_trading_days(alert_cutoff, date.today() - timedelta(days=1))
-
-                    if trading_days_recent:
-                        # Count instruments missing data on most recent trading day
-                        latest_trading_day = trading_days_recent[-1]
-                        missing_query = f"""
-                        SELECT COUNT(*)
-                        FROM intg_instrument i
-                        WHERE i.active = true
-                          AND i.id NOT IN (
-                              SELECT DISTINCT instrument_id
-                              FROM {table_name}
-                              WHERE date = $1
-                          )
-                        """
-                        missing_data_alerts[vendor] = await conn.fetchval(missing_query, latest_trading_day)
-                    else:
-                        missing_data_alerts[vendor] = 0
-
-                    # Data freshness (hours since most recent data)
-                    freshness_query = f"SELECT MAX(date) FROM {table_name}"
-                    latest_date = await conn.fetchval(freshness_query)
-
-                    if latest_date:
-                        hours_since = (datetime.now().date() - latest_date).days * 24
-                        data_freshness_hours[vendor] = float(hours_since)
-                    else:
-                        data_freshness_hours[vendor] = float('inf')
-
-                except Exception as e:
-                    logger.error(f"❌ Error calculating metrics for {vendor}: {e}")
-                    instruments_with_recent_data[vendor] = 0
-                    coverage_percentage[vendor] = 0.0
-                    missing_data_alerts[vendor] = total_instruments
+                if latest_date:
+                    hours_since = (datetime.now().date() - latest_date).days * 24
+                    data_freshness_hours[vendor] = float(hours_since)
+                else:
                     data_freshness_hours[vendor] = float('inf')
 
         self.prometheus_metrics = PrometheusMetrics(
@@ -468,20 +450,16 @@ class DailyPriceCoverageValidator:
                     for symbol, missing_days in frequently_missing:
                         alert_text += f"• {symbol}: Missing {missing_days} days\n"
 
-            try:
-                async with aiohttp.ClientSession() as session:
-                    payload = {"text": alert_text}
-                    async with session.post(webhook_url, json=payload) as resp:
-                        if resp.status == 200:
-                            logger.info(f"✅ Coverage alert sent for {alert['vendor']}")
-                        else:
-                            logger.error(f"❌ Failed to send alert for {alert['vendor']}: {resp.status}")
+            async with aiohttp.ClientSession() as session:
+                payload = {"text": alert_text}
+                async with session.post(webhook_url, json=payload) as resp:
+                    if resp.status == 200:
+                        logger.info(f"✅ Coverage alert sent for {alert['vendor']}")
+                    else:
+                        logger.error(f"❌ Failed to send alert for {alert['vendor']}: {resp.status}")
 
-                # Rate limiting between alerts
-                await asyncio.sleep(1)
-
-            except Exception as e:
-                logger.error(f"❌ Error sending alert for {alert['vendor']}: {e}")
+            # Rate limiting between alerts
+            await asyncio.sleep(1)
 
     async def _send_success_summary(self):
         """Send success summary when no alerts are needed."""
@@ -501,15 +479,11 @@ class DailyPriceCoverageValidator:
             summary_text += f"\n📈 **Total Instruments**: {self.prometheus_metrics.total_instruments}\n"
             summary_text += f"⚠️ **Missing Recent Data**: {total_missing}\n"
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                payload = {"text": summary_text}
-                async with session.post(webhook_url, json=payload) as resp:
-                    if resp.status == 200:
-                        logger.info("✅ Coverage success summary sent")
-
-        except Exception as e:
-            logger.error(f"❌ Error sending success summary: {e}")
+        async with aiohttp.ClientSession() as session:
+            payload = {"text": summary_text}
+            async with session.post(webhook_url, json=payload) as resp:
+                if resp.status == 200:
+                    logger.info("✅ Coverage success summary sent")
 
     async def generate_coverage_report(self) -> Dict:
         """Generate comprehensive coverage validation report."""
@@ -550,76 +524,69 @@ class DailyPriceCoverageValidator:
         start_time = time.time()
         logger.info("🚀 Starting daily price coverage validation...")
 
-        try:
-            # Default to all vendors if none specified
-            if not vendors:
-                vendors = ['tiingo', 'polygon', 'eodhd']
+        # Default to all vendors if none specified
+        if not vendors:
+            vendors = ['tiingo', 'polygon', 'eodhd']
 
-            # Calculate validation period
-            end_date = date.today() - timedelta(days=1)  # Yesterday (most recent complete day)
-            start_date = end_date - timedelta(days=self.validation_days)
-            trading_days = self.get_trading_days(start_date, end_date)
+        # Calculate validation period
+        end_date = date.today() - timedelta(days=1)  # Yesterday (most recent complete day)
+        start_date = end_date - timedelta(days=self.validation_days)
+        trading_days = self.get_trading_days(start_date, end_date)
 
-            logger.info(f"📅 Validation period: {start_date} to {end_date} ({len(trading_days)} trading days)")
+        logger.info(f"📅 Validation period: {start_date} to {end_date} ({len(trading_days)} trading days)")
 
-            # Get active instruments
-            instruments = await self.get_active_instruments()
-            if not instruments:
-                logger.error("❌ No active instruments found for validation")
-                return {'error': 'No instruments available'}
+        # Get active instruments
+        instruments = await self.get_active_instruments()
+        if not instruments:
+            logger.error("❌ No active instruments found for validation")
+            return {'error': 'No instruments available'}
 
-            # Validate coverage for each vendor
-            for vendor in vendors:
-                logger.info(f"\n🔍 Validating {vendor} coverage...")
-                summary = await self.validate_vendor_coverage(vendor, instruments, trading_days)
-                self.vendor_summaries[vendor] = summary
+        # Validate coverage for each vendor
+        for vendor in vendors:
+            logger.info(f"\n🔍 Validating {vendor} coverage...")
+            summary = await self.validate_vendor_coverage(vendor, instruments, trading_days)
+            self.vendor_summaries[vendor] = summary
 
-                # Log summary
-                logger.info(f"✅ {vendor}: {summary.overall_coverage_percentage:.1f}% coverage ({summary.total_actual_records:,} records)")
+            # Log summary
+            logger.info(f"✅ {vendor}: {summary.overall_coverage_percentage:.1f}% coverage ({summary.total_actual_records:,} records)")
 
-            # Generate Prometheus metrics
-            if export_prometheus:
-                logger.info("\n📊 Generating Prometheus metrics...")
-                await self.generate_prometheus_metrics()
-                await self.export_prometheus_metrics()
+        # Generate Prometheus metrics
+        if export_prometheus:
+            logger.info("\n📊 Generating Prometheus metrics...")
+            await self.generate_prometheus_metrics()
+            await self.export_prometheus_metrics()
 
-            # Send Slack alerts
-            logger.info("\n📤 Checking alert thresholds...")
-            await self.send_slack_alerts(alert_threshold=alert_threshold)
+        # Send Slack alerts
+        logger.info("\n📤 Checking alert thresholds...")
+        await self.send_slack_alerts(alert_threshold=alert_threshold)
 
-            # Generate final report
-            report = await self.generate_coverage_report()
-            report['execution_time_seconds'] = time.time() - start_time
+        # Generate final report
+        report = await self.generate_coverage_report()
+        report['execution_time_seconds'] = time.time() - start_time
 
-            # Save report
-            output_dir = Path("/logs")
-            output_dir.mkdir(exist_ok=True)
+        # Save report
+        output_dir = Path("/logs")
+        output_dir.mkdir(exist_ok=True)
 
-            report_file = output_dir / f"price_coverage_validation_{date.today().strftime('%Y%m%d')}.json"
-            with open(report_file, 'w') as f:
-                json.dump(report, f, indent=2, default=str)
+        report_file = output_dir / f"price_coverage_validation_{date.today().strftime('%Y%m%d')}.json"
+        with open(report_file, 'w') as f:
+            json.dump(report, f, indent=2, default=str)
 
-            logger.info(f"📋 Coverage validation report saved: {report_file}")
+        logger.info(f"📋 Coverage validation report saved: {report_file}")
 
-            # Log final summary
-            logger.info(f"\n✅ Coverage validation completed in {report['execution_time_seconds']:.1f} seconds")
+        # Log final summary
+        logger.info(f"\n✅ Coverage validation completed in {report['execution_time_seconds']:.1f} seconds")
 
-            if report.get('summary_statistics'):
-                stats = report['summary_statistics']
-                logger.info(f"📊 Summary: {stats['vendors_validated']} vendors, avg coverage {stats['average_coverage']:.1f}%")
+        if report.get('summary_statistics'):
+            stats = report['summary_statistics']
+            logger.info(f"📊 Summary: {stats['vendors_validated']} vendors, avg coverage {stats['average_coverage']:.1f}%")
 
-                if stats['vendors_below_95_percent'] > 0:
-                    logger.warning(f"⚠️ {stats['vendors_below_95_percent']} vendors below 95% coverage")
-                else:
-                    logger.info("✅ All vendors above 95% coverage threshold")
+            if stats['vendors_below_95_percent'] > 0:
+                logger.warning(f"⚠️ {stats['vendors_below_95_percent']} vendors below 95% coverage")
+            else:
+                logger.info("✅ All vendors above 95% coverage threshold")
 
-            return report
-
-        except Exception as e:
-            logger.error(f"❌ Coverage validation failed: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
+        return report
 
 async def main():
     """Main function for daily price coverage validation."""
@@ -659,19 +626,15 @@ async def main():
     # Initialize and run validation
     validator = DailyPriceCoverageValidator(validation_days=args.days)
 
-    try:
-        await validator.initialize()
+    await validator.initialize()
 
-        report = await validator.run_validation(
-            vendors=vendors,
-            export_prometheus=args.export_prometheus,
-            alert_threshold=args.alert_threshold
-        )
+    report = await validator.run_validation(
+        vendors=vendors,
+        export_prometheus=args.export_prometheus,
+        alert_threshold=args.alert_threshold
+    )
 
-        logger.info("\n🎯 COVERAGE VALIDATION COMPLETED SUCCESSFULLY")
-
-    finally:
-        await validator.close()
+    logger.info("\n🎯 COVERAGE VALIDATION COMPLETED SUCCESSFULLY")
 
 if __name__ == "__main__":
     asyncio.run(main())

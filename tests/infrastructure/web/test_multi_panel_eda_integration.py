@@ -17,7 +17,7 @@ import requests
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from services.multi_panel_eda_service import MultiPanelEDAService, create_enhanced_analytics_server
+from infrastructure.services_legacy.web_services.multi_panel_eda_service import MultiPanelEDAService, create_enhanced_analytics_server
 
 class TestMultiPanelEDAService:
     """Test multi-panel EDA service functionality."""
@@ -166,13 +166,9 @@ class TestMultiPanelEDAServer:
         time.sleep(2)
 
         # Verify server is running
-        try:
-            response = requests.get(f'http://localhost:{self.port}/health', timeout=5)
-            assert response.status_code == 200
-            return True
-        except:
-            return False
-
+        response = requests.get(f'http://localhost:{self.port}/health', timeout=5)
+        assert response.status_code == 200
+        return True
     def stop_test_server(self):
         """Stop test server."""
         if self.server:
@@ -185,18 +181,14 @@ class TestMultiPanelEDAServer:
         if not self.start_test_server():
             pytest.skip("Could not start test server")
 
-        try:
-            response = requests.get(f'http://localhost:{self.port}/eda', timeout=10)
+        response = requests.get(f'http://localhost:{self.port}/eda', timeout=10)
 
-            assert response.status_code == 200
-            assert 'text/html' in response.headers.get('content-type', '')
+        assert response.status_code == 200
+        assert 'text/html' in response.headers.get('content-type', '')
 
-            html_content = response.text
-            assert 'Multi-Panel Trading Analysis' in html_content
-            assert 'generateMultiPanelChart' in html_content
-
-        finally:
-            self.stop_test_server()
+        html_content = response.text
+        assert 'Multi-Panel Trading Analysis' in html_content
+        assert 'generateMultiPanelChart' in html_content
 
     @pytest.mark.skipif(not os.getenv('TEST_SERVER'), reason="Server tests require TEST_SERVER env var")
     def test_health_check_endpoint(self):
@@ -204,19 +196,15 @@ class TestMultiPanelEDAServer:
         if not self.start_test_server():
             pytest.skip("Could not start test server")
 
-        try:
-            response = requests.get(f'http://localhost:{self.port}/health', timeout=10)
+        response = requests.get(f'http://localhost:{self.port}/health', timeout=10)
 
-            assert response.status_code == 200
-            assert 'application/json' in response.headers.get('content-type', '')
+        assert response.status_code == 200
+        assert 'application/json' in response.headers.get('content-type', '')
 
-            health_data = response.json()
-            assert health_data['status'] == 'healthy'
-            assert 'Enhanced Multi-Panel EDA Service' in health_data['service']
-            assert health_data['features']['multi_panel_visualization'] == True
-
-        finally:
-            self.stop_test_server()
+        health_data = response.json()
+        assert health_data['status'] == 'healthy'
+        assert 'Enhanced Multi-Panel EDA Service' in health_data['service']
+        assert health_data['features']['multi_panel_visualization'] == True
 
     @pytest.mark.skipif(not os.getenv('TEST_SERVER'), reason="Server tests require TEST_SERVER env var")
     def test_multi_panel_chart_api_endpoint(self):
@@ -224,27 +212,23 @@ class TestMultiPanelEDAServer:
         if not self.start_test_server():
             pytest.skip("Could not start test server")
 
-        try:
-            # Test with query parameters
-            response = requests.get(
-                f'http://localhost:{self.port}/api/multi-panel-chart?symbol=AAPL&timeframe=1h&dataset_id=1',
-                timeout=30  # Chart generation may take time
-            )
+        # Test with query parameters
+        response = requests.get(
+            f'http://localhost:{self.port}/api/multi-panel-chart?symbol=AAPL&timeframe=1h&dataset_id=1',
+            timeout=30  # Chart generation may take time
+        )
 
-            assert response.status_code in [200, 500]  # 500 expected if no database
+        assert response.status_code in [200, 500]  # 500 expected if no database
 
-            if response.status_code == 200:
-                chart_data = response.json()
-                assert 'success' in chart_data
+        if response.status_code == 200:
+            chart_data = response.json()
+            assert 'success' in chart_data
 
-                if chart_data['success']:
-                    assert 'chart_image' in chart_data
-                    assert 'features_count' in chart_data
-                else:
-                    assert 'error' in chart_data
-
-        finally:
-            self.stop_test_server()
+            if chart_data['success']:
+                assert 'chart_image' in chart_data
+                assert 'features_count' in chart_data
+            else:
+                assert 'error' in chart_data
 
 def test_comprehensive_integration_workflow():
     """Test complete workflow from service to visualization."""

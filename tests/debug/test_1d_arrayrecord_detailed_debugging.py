@@ -271,52 +271,31 @@ class Test1dArrayRecordDetailedDebugging:
                 logger.info(f"   📏 File size: {file_size:,} bytes")
                 
                 # Read file with detailed error handling
-                try:
-                    logger.info(f"   📖 Attempting to read ArrayRecord...")
-                    reader = array_record.ArrayRecordReader()
-                    reader.OpenFromFile(str(arrayrecord_file))
-                    
-                    records = []
-                    record_count = 0
-                    
-                    for record in reader:
-                        records.append(record)
-                        record_count += 1
-                        if record_count <= 3:  # Log first few records
-                            logger.info(f"      📋 Record {record_count}: {record}")
-                        if record_count >= 10:  # Limit for debugging
-                            break
-                    
-                    logger.info(f"   ✅ Successfully read {record_count} records")
-                    
-                    file_analysis[timeframe] = {
-                        'exists': True,
-                        'file_size': file_size,
-                        'record_count': record_count,
-                        'readable': True,
-                        'first_record': records[0] if records else None
-                    }
-                    
-                except Exception as e:
-                    logger.error(f"   ❌ ArrayRecord reading failed: {e}")
-                    logger.error(f"   🔍 Exception type: {type(e).__name__}")
-                    
-                    file_analysis[timeframe] = {
-                        'exists': True,
-                        'file_size': file_size,
-                        'record_count': 0,
-                        'readable': False,
-                        'error': str(e)
-                    }
-                    
-                    # Try to debug the file contents
-                    try:
-                        with open(arrayrecord_file, 'rb') as f:
-                            raw_bytes = f.read(200)
-                            logger.info(f"   🔍 Raw file content (first 200 bytes): {raw_bytes}")
-                    except Exception as raw_e:
-                        logger.error(f"   🔍 Could not read raw file: {raw_e}")
-            else:
+                logger.info(f"   📖 Attempting to read ArrayRecord...")
+                reader = array_record.ArrayRecordReader()
+                reader.OpenFromFile(str(arrayrecord_file))
+                
+                records = []
+                record_count = 0
+                
+                for record in reader:
+                    records.append(record)
+                    record_count += 1
+                    if record_count <= 3:  # Log first few records
+                        logger.info(f"      📋 Record {record_count}: {record}")
+                    if record_count >= 10:  # Limit for debugging
+                        break
+                
+                logger.info(f"   ✅ Successfully read {record_count} records")
+                
+                file_analysis[timeframe] = {
+                    'exists': True,
+                    'file_size': file_size,
+                    'record_count': record_count,
+                    'readable': True,
+                    'first_record': records[0] if records else None
+                }
+                
                 logger.warning(f"   ❌ File not found: {arrayrecord_file}")
                 file_analysis[timeframe] = {
                     'exists': False,
@@ -381,48 +360,38 @@ class Test1dArrayRecordDetailedDebugging:
             
             output_file = debug_output_dir / f"direct_{timeframe}_test.arrayrecord"
             
-            try:
-                # Write records
-                logger.info(f"   ✍️ Writing {len(records)} records to {output_file}")
-                writer = array_record.ArrayRecordWriter()
-                writer.OpenFromFile(str(output_file))
-                
-                for idx, record in enumerate(records):
-                    logger.debug(f"      📋 Writing record {idx}: {record}")
-                    writer.WriteRecord(record)
-                
-                writer.Close()
-                logger.info(f"   ✅ Writing completed")
-                
-                # Verify by reading
-                logger.info(f"   📖 Reading back from {output_file}")
-                reader = array_record.ArrayRecordReader()
-                reader.OpenFromFile(str(output_file))
-                
-                read_records = []
-                for idx, record in enumerate(reader):
-                    read_records.append(record)
-                    logger.debug(f"      📋 Read record {idx}: {record}")
-                
-                logger.info(f"   ✅ Read {len(read_records)} records successfully")
-                
-                results[timeframe] = {
-                    'write_success': True,
-                    'read_success': True,
-                    'records_written': len(records),
-                    'records_read': len(read_records),
-                    'data_matches': records[0] == dict(read_records[0]) if read_records else False
-                }
-                
-            except Exception as e:
-                logger.error(f"   ❌ Direct ArrayRecord test failed for {timeframe}: {e}")
-                results[timeframe] = {
-                    'write_success': False,
-                    'read_success': False,
-                    'error': str(e)
-                }
-        
-        # Verify both timeframes work with direct writing
+            # Write records
+            logger.info(f"   ✍️ Writing {len(records)} records to {output_file}")
+            writer = array_record.ArrayRecordWriter()
+            writer.OpenFromFile(str(output_file))
+            
+            for idx, record in enumerate(records):
+                logger.debug(f"      📋 Writing record {idx}: {record}")
+                writer.WriteRecord(record)
+            
+            writer.Close()
+            logger.info(f"   ✅ Writing completed")
+            
+            # Verify by reading
+            logger.info(f"   📖 Reading back from {output_file}")
+            reader = array_record.ArrayRecordReader()
+            reader.OpenFromFile(str(output_file))
+            
+            read_records = []
+            for idx, record in enumerate(reader):
+                read_records.append(record)
+                logger.debug(f"      📋 Read record {idx}: {record}")
+            
+            logger.info(f"   ✅ Read {len(read_records)} records successfully")
+            
+            results[timeframe] = {
+                'write_success': True,
+                'read_success': True,
+                'records_written': len(records),
+                'records_read': len(read_records),
+                'data_matches': records[0] == dict(read_records[0]) if read_records else False
+            }
+            
         for timeframe, result in results.items():
             if result.get('write_success') and result.get('read_success'):
                 logger.info(f"✅ {timeframe}: Direct ArrayRecord writing/reading works")

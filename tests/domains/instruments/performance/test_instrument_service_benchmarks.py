@@ -13,7 +13,7 @@ import psutil
 from typing import Dict, Any
 
 # Service imports
-from domains.instruments.services.interfaces.instrument_service_interface import (
+from domains.instruments.services.impl.instrument_service_cached import (
     InstrumentDTO,
     InstrumentSearchCriteria
 )
@@ -59,30 +59,20 @@ class ResourceMonitor:
         self.monitoring = False
         if self._monitor_task:
             self._monitor_task.cancel()
-            try:
-                await self._monitor_task
-            except asyncio.CancelledError:
-                pass
-    
+            await self._monitor_task
     async def _monitor_loop(self):
         """Resource monitoring loop"""
         while self.monitoring:
-            try:
-                # Sample CPU and memory usage
-                cpu_percent = psutil.cpu_percent(interval=None)
-                memory_info = psutil.virtual_memory()
-                memory_mb = memory_info.used / (1024 * 1024)
-                
-                self.cpu_samples.append(cpu_percent)
-                self.memory_samples.append(memory_mb)
-                
-                await asyncio.sleep(0.1)  # Sample every 100ms
-                
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                pass  # Ignore monitoring errors
-    
+            # Sample CPU and memory usage
+            cpu_percent = psutil.cpu_percent(interval=None)
+            memory_info = psutil.virtual_memory()
+            memory_mb = memory_info.used / (1024 * 1024)
+            
+            self.cpu_samples.append(cpu_percent)
+            self.memory_samples.append(memory_mb)
+            
+            await asyncio.sleep(0.1)  # Sample every 100ms
+            
     def get_stats(self) -> Dict[str, Any]:
         """Get resource usage statistics"""
         if not self.cpu_samples or not self.memory_samples:
@@ -151,12 +141,7 @@ class TestInstrumentServicePerformance:
         for operation_name, operation_func in operations:
             # Warmup
             for _ in range(5):
-                try:
-                    await operation_func()
-                except:
-                    pass
-            
-            # Benchmark
+                await operation_func()
             iterations = 50
             latencies = []
             success_count = 0
@@ -165,14 +150,10 @@ class TestInstrumentServicePerformance:
             
             for _ in range(iterations):
                 op_start = time.time()
-                try:
-                    await operation_func()
-                    op_end = time.time()
-                    latencies.append((op_end - op_start) * 1000)  # Convert to ms
-                    success_count += 1
-                except Exception:
-                    pass
-            
+                await operation_func()
+                op_end = time.time()
+                latencies.append((op_end - op_start) * 1000)  # Convert to ms
+                success_count += 1
             total_time = time.time() - start_time
             
             if latencies:
@@ -207,61 +188,44 @@ class TestInstrumentServicePerformance:
         """Test performance under concurrent load"""
         await resource_monitor.start_monitoring()
         
-        try:
-            # Test concurrent validate_symbol operations
-            async def validate_operation():
-                try:
-                    return await instrument_service.validate_symbol("AAPL")
-                except:
-                    return False
+        # Test concurrent validate_symbol operations
+        async def validate_operation():
+            return await instrument_service.validate_symbol("AAPL")
+        concurrency_levels = [5, 10, 20]
+        results = {}
+        
+        for concurrency in concurrency_levels:
+            print(f"\nTesting with concurrency level: {concurrency}")
             
-            # Test with increasing concurrency levels
-            concurrency_levels = [5, 10, 20]
-            results = {}
+            start_time = time.time()
             
-            for concurrency in concurrency_levels:
-                print(f"\nTesting with concurrency level: {concurrency}")
-                
-                start_time = time.time()
-                
-                # Create concurrent tasks
-                tasks = [validate_operation() for _ in range(concurrency * 10)]  # 10 ops per concurrent thread
-                
-                # Run tasks concurrently
-                task_results = await asyncio.gather(*tasks, return_exceptions=True)
-                
-                total_time = time.time() - start_time
-                success_count = sum(1 for r in task_results if r is True)
-                total_ops = len(tasks)
-                
-                results[concurrency] = {
-                    'concurrency': concurrency,
-                    'total_operations': total_ops,
-                    'success_count': success_count,
-                    'success_rate': success_count / total_ops if total_ops > 0 else 0,
-                    'total_time_s': total_time,
-                    'operations_per_second': success_count / total_time if total_time > 0 else 0
-                }
-                
-                print(f"  Success rate: {results[concurrency]['success_rate']*100:.1f}%")
-                print(f"  Ops/sec: {results[concurrency]['operations_per_second']:.2f}")
+            # Create concurrent tasks
+            tasks = [validate_operation() for _ in range(concurrency * 10)]  # 10 ops per concurrent thread
             
-            # Verify concurrent performance
-            for concurrency, stats in results.items():
-                assert stats['success_rate'] >= 0.8, f"Concurrent operations success rate too low at {concurrency}: {stats['success_rate']}"
-                assert stats['operations_per_second'] > 5, f"Throughput too low at concurrency {concurrency}: {stats['operations_per_second']}"
-                
-        finally:
-            await resource_monitor.stop_monitoring()
+            # Run tasks concurrently
+            task_results = await asyncio.gather(*tasks, return_exceptions=True)
             
-            # Print resource usage
-            resource_stats = resource_monitor.get_stats()
-            if resource_stats:
-                print(f"\nResource Usage:")
-                print(f"  Avg CPU: {resource_stats['cpu_usage']['avg']:.1f}%")
-                print(f"  Max CPU: {resource_stats['cpu_usage']['max']:.1f}%")
-                print(f"  Avg Memory: {resource_stats['memory_usage_mb']['avg']:.1f}MB")
-    
+            total_time = time.time() - start_time
+            success_count = sum(1 for r in task_results if r is True)
+            total_ops = len(tasks)
+            
+            results[concurrency] = {
+                'concurrency': concurrency,
+                'total_operations': total_ops,
+                'success_count': success_count,
+                'success_rate': success_count / total_ops if total_ops > 0 else 0,
+                'total_time_s': total_time,
+                'operations_per_second': success_count / total_time if total_time > 0 else 0
+            }
+            
+            print(f"  Success rate: {results[concurrency]['success_rate']*100:.1f}%")
+            print(f"  Ops/sec: {results[concurrency]['operations_per_second']:.2f}")
+        
+        # Verify concurrent performance
+        for concurrency, stats in results.items():
+            assert stats['success_rate'] >= 0.8, f"Concurrent operations success rate too low at {concurrency}: {stats['success_rate']}"
+            assert stats['operations_per_second'] > 5, f"Throughput too low at concurrency {concurrency}: {stats['operations_per_second']}"
+            
     @pytest.mark.asyncio
     async def test_batch_operations_performance(self, instrument_service, sample_instruments):
         """Test performance of batch operations"""
@@ -274,32 +238,22 @@ class TestInstrumentServicePerformance:
             
             start_time = time.time()
             
-            try:
-                result = await instrument_service.create_instruments_batch(batch_instruments)
-                total_time = time.time() - start_time
-                
-                results[batch_size] = {
-                    'batch_size': batch_size,
-                    'success': result.success,
-                    'created_count': result.created_count,
-                    'total_time_s': total_time,
-                    'instruments_per_second': result.created_count / total_time if total_time > 0 else 0
-                }
-                
-                print(f"\nBatch size {batch_size}:")
-                print(f"  Created: {result.created_count}")
-                print(f"  Time: {total_time:.3f}s")
-                print(f"  Rate: {results[batch_size]['instruments_per_second']:.2f} instruments/sec")
-                
-            except Exception as e:
-                print(f"Batch size {batch_size} failed: {e}")
-                results[batch_size] = {
-                    'batch_size': batch_size,
-                    'success': False,
-                    'error': str(e)
-                }
-        
-        # Verify batch performance scales reasonably
+            result = await instrument_service.create_instruments_batch(batch_instruments)
+            total_time = time.time() - start_time
+            
+            results[batch_size] = {
+                'batch_size': batch_size,
+                'success': result.success,
+                'created_count': result.created_count,
+                'total_time_s': total_time,
+                'instruments_per_second': result.created_count / total_time if total_time > 0 else 0
+            }
+            
+            print(f"\nBatch size {batch_size}:")
+            print(f"  Created: {result.created_count}")
+            print(f"  Time: {total_time:.3f}s")
+            print(f"  Rate: {results[batch_size]['instruments_per_second']:.2f} instruments/sec")
+            
         successful_results = {k: v for k, v in results.items() if v.get('success', False)}
         if len(successful_results) >= 2:
             # Check that larger batches have better throughput per item
@@ -315,44 +269,26 @@ class TestInstrumentServicePerformance:
         """Test memory usage patterns under sustained load"""
         await resource_monitor.start_monitoring()
         
-        try:
-            # Perform sustained operations for memory leak detection
-            operations_count = 200
+        # Perform sustained operations for memory leak detection
+        operations_count = 200
+        
+        for i in range(operations_count):
+            # Mix of different operations
+            if i % 4 == 0:
+                await instrument_service.validate_symbol("AAPL")
+            elif i % 4 == 1:
+                await instrument_service.get_instrument_count()
+            elif i % 4 == 2:
+                criteria = InstrumentSearchCriteria(limit=5)
+                await instrument_service.list_instruments(criteria)
+            else:
+                # Light operation
+                await instrument_service.validate_symbol("GOOGL")
             
-            for i in range(operations_count):
-                # Mix of different operations
-                if i % 4 == 0:
-                    await instrument_service.validate_symbol("AAPL")
-                elif i % 4 == 1:
-                    await instrument_service.get_instrument_count()
-                elif i % 4 == 2:
-                    criteria = InstrumentSearchCriteria(limit=5)
-                    await instrument_service.list_instruments(criteria)
-                else:
-                    # Light operation
-                    await instrument_service.validate_symbol("GOOGL")
-                
-                # Small delay to allow memory patterns to emerge
-                if i % 50 == 0:
-                    await asyncio.sleep(0.1)
-            
-        finally:
-            await resource_monitor.stop_monitoring()
-            
-            resource_stats = resource_monitor.get_stats()
-            if resource_stats and 'memory_usage_mb' in resource_stats:
-                memory_stats = resource_stats['memory_usage_mb']
-                memory_growth = memory_stats['max'] - memory_stats['min']
-                
-                print(f"\nMemory Usage Analysis:")
-                print(f"  Min memory: {memory_stats['min']:.1f}MB")
-                print(f"  Max memory: {memory_stats['max']:.1f}MB")
-                print(f"  Avg memory: {memory_stats['avg']:.1f}MB")
-                print(f"  Memory growth: {memory_growth:.1f}MB")
-                
-                # Check for reasonable memory usage patterns
-                assert memory_growth < 100, f"Excessive memory growth: {memory_growth}MB"
-    
+            # Small delay to allow memory patterns to emerge
+            if i % 50 == 0:
+                await asyncio.sleep(0.1)
+        
     @pytest.mark.asyncio
     async def test_service_monitoring_integration_performance(self, instrument_service):
         """Test performance impact of monitoring system"""
@@ -417,13 +353,8 @@ class TestInstrumentServiceLoadTesting:
         
         # Create operation tasks with controlled timing
         async def rate_limited_operation():
-            try:
-                await instrument_service.validate_symbol("AAPL")
-                return True
-            except:
-                return False
-        
-        # Run operations at target rate
+            await instrument_service.validate_symbol("AAPL")
+            return True
         tasks = []
         for i in range(total_target_operations):
             task = asyncio.create_task(rate_limited_operation())
