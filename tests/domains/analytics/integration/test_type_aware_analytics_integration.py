@@ -9,6 +9,7 @@ and database interaction using the type system.
 import asyncio
 import sys
 import os
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
@@ -138,8 +139,13 @@ class MockDatabase:
 
 
 # Import after setting up the path to avoid dependency issues
-from domains.analytics.services.type_aware_analytics_standalone import TypeAwareAnalyticsService
-SERVICE_AVAILABLE = True
+SERVICE_AVAILABLE = False
+try:
+    from domains.analytics.services.analytics_service import UnifiedAnalyticsService as TypeAwareAnalyticsService
+    SERVICE_AVAILABLE = True
+except ImportError:
+    TypeAwareAnalyticsService = None
+
 class TestTypeAwareIntelligentFilters:
     """Test intelligent filter generation based on field types."""
 
