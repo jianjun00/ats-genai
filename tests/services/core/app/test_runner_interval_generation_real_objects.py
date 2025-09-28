@@ -53,7 +53,7 @@ class TestRealObjectsRunnerIntervalGeneration:
     async def test_60_minute_intervals_single_day_real_objects(self, real_service, test_data):
         """Real objects version of test_60_minute_intervals_single_day"""
         # Test with real database integration
-        result = await real_service.60_minute_intervals_single_day(test_data)
+        result = await real_service.sixty_minute_intervals_single_day(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -64,12 +64,12 @@ class TestRealObjectsRunnerIntervalGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.60_minute_intervals_single_day_with_invalid_data()
+        await real_service.sixty_minute_intervals_single_day_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_30_minute_intervals_single_day_real_objects(self, real_service, test_data):
         """Real objects version of test_30_minute_intervals_single_day"""
         # Test with real database integration
-        result = await real_service.30_minute_intervals_single_day(test_data)
+        result = await real_service.thirty_minute_intervals_single_day(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -80,12 +80,12 @@ class TestRealObjectsRunnerIntervalGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.30_minute_intervals_single_day_with_invalid_data()
+        await real_service.thirty_minute_intervals_single_day_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_15_minute_intervals_single_day_real_objects(self, real_service, test_data):
         """Real objects version of test_15_minute_intervals_single_day"""
         # Test with real database integration
-        result = await real_service.15_minute_intervals_single_day(test_data)
+        result = await real_service.fifteen_minute_intervals_single_day(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -96,12 +96,12 @@ class TestRealObjectsRunnerIntervalGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.15_minute_intervals_single_day_with_invalid_data()
+        await real_service.fifteen_minute_intervals_single_day_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_5_minute_intervals_market_hours_subset_real_objects(self, real_service, test_data):
         """Real objects version of test_5_minute_intervals_market_hours_subset"""
         # Test with real database integration
-        result = await real_service.5_minute_intervals_market_hours_subset(test_data)
+        result = await real_service.five_minute_intervals_market_hours_subset(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -112,7 +112,7 @@ class TestRealObjectsRunnerIntervalGeneration:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.5_minute_intervals_market_hours_subset_with_invalid_data()
+        await real_service.five_minute_intervals_market_hours_subset_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_multiple_trading_days_real_objects(self, real_service, test_data):
         """Real objects version of test_multiple_trading_days"""

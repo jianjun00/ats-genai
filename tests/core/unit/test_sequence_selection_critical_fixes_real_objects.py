@@ -85,7 +85,7 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
     async def test_21_bar_selection_logic_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_21_bar_selection_logic_validation"""
         # Test with real database integration
-        result = await real_service.21_bar_selection_logic_validation(test_data)
+        result = await real_service.twenty_one_bar_selection_logic_validation(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -96,12 +96,12 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.21_bar_selection_logic_validation_with_invalid_data()
+        await real_service.twenty_one_bar_selection_logic_validation_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_21_bar_selection_edge_cases_real_objects(self, real_service, test_data):
         """Real objects version of test_21_bar_selection_edge_cases"""
         # Test with real database integration
-        result = await real_service.21_bar_selection_edge_cases(test_data)
+        result = await real_service.twenty_one_bar_selection_edge_cases(test_data)
         
         # Authentic assertions with real data
         assert result is not None
@@ -112,7 +112,7 @@ class TestRealObjectsSequenceSelectionCriticalFixes:
             assert result.timestamp is not None
         
         # Test fail-fast behavior
-        await real_service.21_bar_selection_edge_cases_with_invalid_data()
+        await real_service.twenty_one_bar_selection_edge_cases_with_invalid_data()
         assert False, "Should have raised specific exception"
     async def test_multi_timeframe_data_structure_validation_real_objects(self, real_service, test_data):
         """Real objects version of test_multi_timeframe_data_structure_validation"""
