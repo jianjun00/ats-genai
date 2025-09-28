@@ -256,16 +256,12 @@ class FirstRateAdapter(VendorAdapter):
         timeframe: TimeframeType
     ) -> Dict[str, pd.DataFrame]:
         """Get OHLCV data from FirstRate parquet files."""
-        logger.info(f"🔍 [DEBUG] FirstRateAdapter.get_ohlcv called for symbols={symbols}, start={start_datetime}, end={end_datetime}, timeframe={timeframe}")
-        logger.info(f"🔍 [DEBUG] FirstRateAdapter base_path={self.base_path}")
         results = {}
         
         for symbol in symbols:
-            logger.info(f"🔍 [DEBUG] Processing symbol {symbol}")
             try:
                 # FirstRate file structure: /base_path/{first_letter}/{SYMBOL}/{YYYY}/{MM}/{SYMBOL}_{YYYY}_{MM}.parquet
                 symbol_dir = self.base_path / symbol[0] / symbol  # First letter subdirectory
-                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Looking in directory {symbol_dir}")
                 
                 # Generate month range to look for files
                 import pandas as pd
@@ -275,41 +271,29 @@ class FirstRateAdapter(VendorAdapter):
                 end = end_datetime.replace(day=1)        # First day of end month
                 
                 all_data = []
-                logger.info(f"start_datetime:{start_datetime}, end_datetime:{end_datetime}, current:{current}, end:{end}")
                 while current <= end:
                     year_month_dir = symbol_dir / str(current.year) / f"{current.month:02d}"
                     parquet_file = year_month_dir / f"{symbol}_{current.year}_{current.month:02d}.parquet"
-                    
-                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Checking file {parquet_file}")
-                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Parquet file absolute path: {parquet_file.absolute()}")
-                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Symbol dir {symbol_dir} exists: {symbol_dir.exists()}")
-                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Year-month dir {year_month_dir} exists: {year_month_dir.exists()}")
-                    logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: File {parquet_file} exists: {parquet_file.exists()}")
-                    
+                                        
                     # Additional debug to see what's actually in the directory
                     if year_month_dir.exists():
                         try:
                             files_in_dir = list(year_month_dir.glob("*"))
-                            logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Files in {year_month_dir}: {files_in_dir}")
                         except Exception as e:
                             logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Error listing {year_month_dir}: {e}")
                     else:
-                        logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Year-month dir {year_month_dir} does not exist")
+                        logger.warning(f"🔍 [ULTRA DEBUG] Symbol {symbol}: Year-month dir {year_month_dir} does not exist")
                     
                     if parquet_file.exists():
-                        logger.info(f"🔍 [ULTRA DEBUG] Symbol {symbol}: File exists, reading parquet data")
                         try:
                             # Read monthly parquet file
                             monthly_df = pd.read_parquet(parquet_file)
-                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Loaded {len(monthly_df)} rows from {parquet_file}")
                             if not monthly_df.empty:
-                                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data columns: {list(monthly_df.columns)}")
                                 if 'timestamp' in monthly_df.columns:
                                     data_start = monthly_df['timestamp'].min()
                                     data_end = monthly_df['timestamp'].max() 
-                                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data time range: {data_start} to {data_end}")
                                 else:
-                                    logger.info(f"🔍 [DEBUG] Symbol {symbol}: Index range: {monthly_df.index.min()} to {monthly_df.index.max()}")
+                                    logger.warning(f"🔍 [DEBUG] Symbol {symbol}: Index range: {monthly_df.index.min()} to {monthly_df.index.max()}")
                             
                             # Convert timestamp column to datetime and set as index
                             if 'timestamp' in monthly_df.columns:
@@ -328,8 +312,6 @@ class FirstRateAdapter(VendorAdapter):
                             start_dt = start_datetime.astimezone(gmt_tz) if start_datetime.tzinfo else start_datetime.replace(tzinfo=gmt_tz)
                             end_dt = end_datetime.astimezone(gmt_tz) if end_datetime.tzinfo else end_datetime.replace(tzinfo=gmt_tz)
                             
-                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Filtering data range {start_dt} to {end_dt}")
-                            
                             # 🔧 SIMPLIFIED: Convert DataFrame index to GMT timezone consistently
                             original_index_tz = monthly_df.index.tz
                             if monthly_df.index.tz is None:
@@ -338,37 +320,28 @@ class FirstRateAdapter(VendorAdapter):
                             else:
                                 # Timezone-aware index - convert to GMT
                                 monthly_df.index = monthly_df.index.tz_convert(gmt_tz)
-                            
-                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data index timezone converted from {original_index_tz} to {monthly_df.index.tz}")
-                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: Data index range after timezone conversion: {monthly_df.index.min()} to {monthly_df.index.max()}")
-                            
+                                                        
                             mask = (monthly_df.index >= start_dt) & (monthly_df.index <= end_dt)
                             filtered_monthly = monthly_df[mask]
                             
-                            logger.info(f"🔍 [DEBUG] Symbol {symbol}: After filtering: {len(filtered_monthly)} rows (from {len(monthly_df)} original)")
                             if not filtered_monthly.empty:
-                                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Filtered time range: {filtered_monthly.index.min()} to {filtered_monthly.index.max()}")
                                 all_data.append(filtered_monthly)
-                                logger.info(f"Loaded {len(filtered_monthly)} rows for {symbol} from {parquet_file}")
                             else:
-                                logger.info(f"🔍 [DEBUG] Symbol {symbol}: No data in requested time range")
+                                logger.warning(f"🔍 [DEBUG] Symbol {symbol}: No data in requested time range")
                         
                         except Exception as file_error:
                             logger.error(f"Error reading {parquet_file}: {file_error}")
                             continue
                     else:
-                        logger.info(f"🔍 [DEBUG] Symbol {symbol}: File not found: {parquet_file}")
+                        logger.warning(f"🔍 [DEBUG] Symbol {symbol}: File not found: {parquet_file}")
                     
                     # Move to next month
                     current += relativedelta(months=1)
                 
                 # Combine all monthly data
-                logger.info(f"🔍 [DEBUG] Symbol {symbol}: Found {len(all_data)} monthly files with data")
                 if all_data:
                     combined_df = pd.concat(all_data, axis=0).sort_index()
                     results[symbol] = combined_df
-                    logger.info(f"🔍 [DEBUG] Total loaded {len(combined_df)} rows for {symbol} across {len(all_data)} files")
-                    logger.info(f"🔍 [DEBUG] Final combined data range: {combined_df.index.min()} to {combined_df.index.max()}")
                 else:
                     logger.warning(f"🔍 [DEBUG] No FirstRate data found for {symbol} between {start_datetime} and {end_datetime}")
                     results[symbol] = pd.DataFrame()
@@ -388,9 +361,6 @@ class VendorAdapterRegistry:
     def register_adapter(self, adapter: VendorAdapter):
         """Register a vendor adapter."""
         self._adapters[adapter.vendor_type] = adapter
-        logger.info(f"🔍 [ULTRA DEBUG] Registered {adapter.vendor_type.value} adapter")
-        logger.info(f"🔍 [ULTRA DEBUG] Total registered adapters: {len(self._adapters)}")
-        logger.info(f"🔍 [ULTRA DEBUG] All adapter types: {[vt.value for vt in self._adapters.keys()]}")
         
     def get_adapter(self, vendor_type: VendorType) -> Optional[VendorAdapter]:
         """Get adapter for vendor type."""
