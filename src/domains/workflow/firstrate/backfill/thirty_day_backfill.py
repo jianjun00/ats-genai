@@ -128,6 +128,81 @@ CRITICAL_ETFS = [
 ]
 
 
+def process_symbol_standalone(symbol: str, zip_files: List[Path], start_date: date, end_date: date, period: str, output_path: Path) -> int:
+    """Standalone function for Ray parallel processing"""
+    import pandas as pd
+    import zipfile
+    import io
+    
+    new_records = []
+    
+    for zip_file in zip_files:
+        try:
+            with zipfile.ZipFile(zip_file, 'r') as zf:
+                txt_file = f"{symbol}_{period}_1min_adjsplit.txt"
+                if txt_file not in zf.namelist():
+                    continue
+                
+                with zf.open(txt_file) as f:
+                    content = f.read()
+                    if len(content) < 50:
+                        continue
+                    
+                    df = pd.read_csv(
+                        io.BytesIO(content),
+                        header=None,
+                        names=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                    )
+                    
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    df = df[(df['timestamp'].dt.date >= start_date) & (df['timestamp'].dt.date <= end_date)]
+                    
+                    if len(df) > 0:
+                        df['symbol'] = symbol
+                        df['vendor'] = 'firstrate'
+                        df['vwap'] = df['close']
+                        df['trade_count'] = 0
+                        df['quality_score'] = 1.0
+                        new_records.append(df)
+                        
+        except Exception as e:
+            continue
+    
+    if not new_records:
+        return 0
+    
+    new_df = pd.concat(new_records, ignore_index=True)
+    new_df = new_df.drop_duplicates(subset=['timestamp'], keep='last')
+    new_df = new_df.sort_values('timestamp')
+    
+    monthly_groups = new_df.groupby([new_df['timestamp'].dt.year, new_df['timestamp'].dt.month])
+    
+    total_written = 0
+    for (year, month), month_df in monthly_groups:
+        symbol_dir = output_path / symbol[0] / symbol / str(year) / f"{month:02d}"
+        parquet_path = symbol_dir / f"{symbol}_{year}_{month:02d}.parquet"
+        
+        if parquet_path.exists():
+            existing_df = pd.read_parquet(parquet_path)
+            
+            if existing_df['timestamp'].dt.tz is not None:
+                existing_df['timestamp'] = existing_df['timestamp'].dt.tz_localize(None)
+            if month_df['timestamp'].dt.tz is not None:
+                month_df['timestamp'] = month_df['timestamp'].dt.tz_localize(None)
+            
+            merged_df = pd.concat([existing_df, month_df], ignore_index=True)
+            merged_df = merged_df.drop_duplicates(subset=['timestamp'], keep='last')
+            merged_df = merged_df.sort_values('timestamp')
+        else:
+            merged_df = month_df
+        
+        symbol_dir.mkdir(parents=True, exist_ok=True)
+        merged_df.to_parquet(parquet_path, engine='pyarrow', compression='snappy', index=False)
+        total_written += len(month_df)
+    
+    return total_written
+
+
 class FirstRate30DayBackfill:
     """Complete 30-day backfill processor with download and merge capabilities"""
 
@@ -167,8 +242,8 @@ class FirstRate30DayBackfill:
             import zipfile
             with zipfile.ZipFile(zip_file_path, 'r') as zf:
                 for filename in zf.namelist():
-                    if filename.endswith('.csv') or filename.endswith('.txt'):
-                        symbol = Path(filename).stem.upper()
+                    if filename.endswith('_1min_adjsplit.txt'):
+                        symbol = filename.split('_')[0].upper()
                         if 1 <= len(symbol) <= 5 and symbol.isalpha():
                             symbols.append(symbol)
         except Exception as e:
@@ -345,6 +420,12 @@ class FirstRate30DayBackfill:
             
             if parquet_path.exists():
                 existing_df = pd.read_parquet(parquet_path)
+                
+                if existing_df['timestamp'].dt.tz is not None:
+                    existing_df['timestamp'] = existing_df['timestamp'].dt.tz_localize(None)
+                if month_df['timestamp'].dt.tz is not None:
+                    month_df['timestamp'] = month_df['timestamp'].dt.tz_localize(None)
+                
                 merged_df = pd.concat([existing_df, month_df], ignore_index=True)
                 merged_df = merged_df.drop_duplicates(subset=['timestamp'], keep='last')
                 merged_df = merged_df.sort_values('timestamp')
@@ -366,13 +447,38 @@ class FirstRate30DayBackfill:
         symbols: List[str],
         start_date: date,
         end_date: date,
-        period: str = "day"
+        period: str = "day",
+        use_ray: bool = False
     ) -> Dict:
         """Process all symbols for the date range"""
         logger.info(f"🚀 Processing {len(symbols)} symbols from daily zip files...")
 
         zip_files = self.get_daily_zip_files_for_date_range(start_date, end_date)
         logger.info(f"📁 Found {len(zip_files)} daily zip files to process")
+
+        if use_ray:
+            import ray
+            if not ray.is_initialized():
+                ray.init(ignore_reinit_error=True)
+                logger.info("🎯 Ray initialized for parallel processing")
+            
+            process_symbol_remote = ray.remote(process_symbol_standalone)
+            
+            logger.info(f"🚀 Processing {len(symbols)} symbols in parallel with Ray...")
+            futures = [
+                process_symbol_remote.remote(symbol, zip_files, start_date, end_date, period, self.output_path)
+                for symbol in symbols
+            ]
+            
+            results = ray.get(futures)
+            total_records = sum(results)
+            
+            logger.info(f"✅ Parallel processing complete: {len(symbols)} symbols, {total_records:,} records")
+            
+            return {
+                'symbols_processed': len(symbols),
+                'total_records': total_records
+            }
 
         total_records = 0
         for i, symbol in enumerate(symbols, 1):
@@ -400,7 +506,8 @@ class FirstRate30DayBackfill:
         download: bool = True,
         period: str = "month",
         symbols: Optional[List[str]] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
+        use_ray: bool = False
     ) -> Dict:
         """Run complete 30-day backfill"""
         logger.info("🚀 Starting FirstRate 30-day backfill")
@@ -433,7 +540,7 @@ class FirstRate30DayBackfill:
         
         start_date, end_date = self.get_30_day_date_range()
         
-        process_results = await self.process_all_symbols(symbol_list, start_date, end_date, period=period)
+        process_results = await self.process_all_symbols(symbol_list, start_date, end_date, period=period, use_ray=use_ray)
 
         elapsed_time = time.time() - start_time
 
@@ -473,6 +580,8 @@ def main():
     parser.add_argument("--environment", default="dev",
                         choices=['dev', 'intg', 'prod'],
                         help="Environment (dev, intg, prod) for run tracking")
+    parser.add_argument("--use-ray", action="store_true",
+                        help="Use Ray for parallel symbol processing")
     parser.add_argument("--period", default="month",
                         choices=['day', 'week', 'month', 'full'],
                         help="Download period: day (1 day), week (current week), month (30 days), full (all history)")
@@ -510,6 +619,7 @@ def main():
             download=args.full or not args.process_only,
             period=args.period,
             symbols=symbols,
+            use_ray=args.use_ray,
             limit=args.limit
         ))
 
