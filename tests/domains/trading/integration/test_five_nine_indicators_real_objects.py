@@ -17,7 +17,7 @@ from domains.trading.services.state.universe_state_manager import UniverseStateM
 from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 
 
-class import:
+class TestImport:
     """Real objects test class replacing mock-based testing"""
     
     @pytest.fixture
