@@ -193,20 +193,20 @@ class TestUniverseAnalyticsComprehensive:
                 }
 
                 for symbol, expected_date in known_ipo_dates.items():
-                cursor.execute("""
-                    SELECT start_at FROM intg_universe_membership
-                    WHERE universe_id = 2 AND symbol = %s AND end_at IS NULL
-                """, (symbol,))
+                    cursor.execute("""
+                        SELECT start_at FROM intg_universe_membership
+                        WHERE universe_id = 2 AND symbol = %s AND end_at IS NULL
+                    """, (symbol,))
 
-                member = cursor.fetchone()
-                assert member is not None, f"{symbol} should be in universe"
+                    member = cursor.fetchone()
+                    assert member is not None, f"{symbol} should be in universe"
 
-                actual_date = member['start_at']
-                # Allow some flexibility (same year is good enough for validation)
-                assert actual_date.year == expected_date.year, \
-                    f"{symbol} IPO year should be {expected_date.year}, got {actual_date.year}"
+                    actual_date = member['start_at']
+                    # Allow some flexibility (same year is good enough for validation)
+                    assert actual_date.year == expected_date.year, \
+                        f"{symbol} IPO year should be {expected_date.year}, got {actual_date.year}"
 
-                print(f"✅ {symbol}: IPO {expected_date.strftime('%Y-%m-%d')} → Universe {actual_date.strftime('%Y-%m-%d')}")
+                    print(f"✅ {symbol}: IPO {expected_date.strftime('%Y-%m-%d')} → Universe {actual_date.strftime('%Y-%m-%d')}")
 
     def test_membership_statistics(self, db_connection):
         """Test overall universe membership statistics"""
@@ -296,16 +296,16 @@ class TestUniverseAnalyticsComprehensive:
 
                 sectors_found = {}
                 for sector, symbols in sector_representatives.items():
-                cursor.execute("""
-                    SELECT COUNT(*) as count
-                    FROM intg_universe_membership
-                    WHERE universe_id = 2 AND end_at IS NULL
-                    AND symbol = ANY(%s)
-                """, (symbols,))
+                    cursor.execute("""
+                        SELECT COUNT(*) as count
+                        FROM intg_universe_membership
+                        WHERE universe_id = 2 AND end_at IS NULL
+                        AND symbol = ANY(%s)
+                    """, (symbols,))
 
-                count = cursor.fetchone()['count']
-                if count > 0:
-                    sectors_found[sector] = count
+                    count = cursor.fetchone()['count']
+                    if count > 0:
+                        sectors_found[sector] = count
 
                 # Should have representation from multiple sectors
                 assert len(sectors_found) >= 4, f"Should have 4+ sectors represented, got: {list(sectors_found.keys())}"
@@ -314,7 +314,7 @@ class TestUniverseAnalyticsComprehensive:
 
                 print(f"✅ Sector Diversity:")
                 for sector, count in sectors_found.items():
-                print(f"   {sector}: {count} stocks")
+                    print(f"   {sector}: {count} stocks")
 
     def test_data_integrity_constraints(self, db_connection):
         """Test database integrity and constraint validation"""

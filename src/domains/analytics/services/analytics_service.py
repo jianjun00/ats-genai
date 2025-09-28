@@ -329,7 +329,7 @@ class UnifiedAnalyticsService:
             from core.platform.database.connection_manager import get_raw_connection
 
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 from psycopg2.extras import RealDictCursor
@@ -393,7 +393,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -606,7 +606,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -750,7 +750,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"  # Fixed: plural form to match main API
+            table_name = f"{environment}_training_dataset"  # Fixed: plural form to match main API
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -1005,7 +1005,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -1029,25 +1029,86 @@ class UnifiedAnalyticsService:
                         Path("/mnt/d/ats-data/training_data")  # Host path alternative
                     ]
 
-                    # Find the sequence directory and read all timeframes
+                    # Parse sequence_id to extract symbol and date range
+                    # Expected format: TSLA_20250701_000000_20250906_000000
+                    import re
+                    from datetime import datetime
+                    
+                    sequence_parts = sequence_id.split('_')
+                    if len(sequence_parts) >= 5:
+                        symbol = sequence_parts[0]
+                        start_date_str = sequence_parts[1]
+                        end_date_str = sequence_parts[3]
+                        
+                        # Extract year-month from date strings (YYYYMMDD format)
+                        start_year_month = f"{start_date_str[:4]}_{start_date_str[4:6]}"
+                        end_year_month = f"{end_date_str[:4]}_{end_date_str[4:6]}"
+                        
+                        logger.info(f"Parsed sequence_id: symbol={symbol}, start={start_year_month}, end={end_year_month}")
+                    else:
+                        logger.error(f"Invalid sequence_id format: {sequence_id}")
+                        return {"error": f"Invalid sequence_id format: {sequence_id}"}
+
+                    # Find the dataset directory and read from feature group structure
                     multi_timeframe_data = {}
                     timeframes = ['5m', '15m', '1h', '1d', '1w']
+                    feature_groups = ['ohlcv_basic', 'technical_momentum', 'technical_volatility', 'fundamental_quarterly']
 
                     for base_path in training_base_paths:
-                        sequence_dir = Path(base_path) / str(run_id) / sequence_id
-                        logger.info(f"Checking sequence directory: {sequence_dir}")
-                        if sequence_dir.exists():
-                            logger.info(f"✅ Found sequence directory: {sequence_dir}")
-
-                            for timeframe in timeframes:
-                                timeframe_dir = sequence_dir / timeframe
-                                arrayrecord_file = timeframe_dir / f"{sequence_id}.arrayrecord"
-                                logger.info(f"Checking ArrayRecord file: {arrayrecord_file}")
-
-                                if arrayrecord_file.exists():
+                        dataset_dir = Path(base_path) / str(run_id)
+                        logger.info(f"Checking dataset directory: {dataset_dir}")
+                        
+                        if not dataset_dir.exists():
+                            logger.warning(f"❌ Dataset directory not found: {dataset_dir}")
+                            continue
+                            
+                        logger.info(f"✅ Found dataset directory: {dataset_dir}")
+                        
+                        # Generate list of monthly directories to check
+                        # For simplicity, check all months between start and end
+                        from dateutil.rrule import rrule, MONTHLY
+                        start_dt = datetime.strptime(start_date_str[:6], "%Y%m")
+                        end_dt = datetime.strptime(end_date_str[:6], "%Y%m")
+                        
+                        monthly_patterns = []
+                        for dt in rrule(MONTHLY, dtstart=start_dt, until=end_dt):
+                            monthly_patterns.append(f"{symbol}_{dt.year}_{dt.month:02d}")
+                        
+                        logger.info(f"Searching for monthly patterns: {monthly_patterns}")
+                        
+                        # Try to find files in feature group structure
+                        for feature_group in feature_groups:
+                            feature_group_dir = dataset_dir / feature_group
+                            if not feature_group_dir.exists():
+                                continue
+                                
+                            logger.info(f"Checking feature group: {feature_group_dir}")
+                            
+                            for monthly_pattern in monthly_patterns:
+                                monthly_dir = feature_group_dir / monthly_pattern
+                                if not monthly_dir.exists():
+                                    logger.info(f"Monthly dir not found: {monthly_dir}")
+                                    continue
+                                    
+                                logger.info(f"✅ Found monthly directory: {monthly_dir}")
+                                
+                                for timeframe in timeframes:
+                                    if timeframe in multi_timeframe_data:
+                                        continue
+                                        
+                                    timeframe_dir = monthly_dir / timeframe
+                                    if not timeframe_dir.exists():
+                                        continue
+                                        
+                                    arrayrecord_files = list(timeframe_dir.glob("*.arrayrecord"))
+                                    if not arrayrecord_files:
+                                        continue
+                                        
+                                    arrayrecord_file = arrayrecord_files[0]
+                                    logger.info(f"Checking ArrayRecord file: {arrayrecord_file}")
+                                    
                                     try:
                                         logger.info(f"✅ Found file: {arrayrecord_file}")
-                                        # Read ArrayRecord data for this timeframe
                                         ohlc_data = self._read_arrayrecord_ohlc(arrayrecord_file)
                                         if ohlc_data:
                                             multi_timeframe_data[timeframe] = ohlc_data
@@ -1056,12 +1117,14 @@ class UnifiedAnalyticsService:
                                             logger.warning(f"⚠️  ArrayRecord file returned no data: {arrayrecord_file}")
                                     except Exception as e:
                                         logger.error(f"❌ Failed to read {timeframe} data from {arrayrecord_file}: {e}")
-                                else:
-                                    logger.warning(f"❌ ArrayRecord file not found: {arrayrecord_file}")
-
-                            break  # Found sequence directory
-                        else:
-                            logger.warning(f"❌ Sequence directory not found: {sequence_dir}")
+                            
+                            # If we found data for all timeframes, break
+                            if len(multi_timeframe_data) == len(timeframes):
+                                break
+                        
+                        # If we found any data, break from base_path loop
+                        if multi_timeframe_data:
+                            break
 
                     if not multi_timeframe_data:
                         return {"error": f"No data files found for sequence {sequence_id}"}
@@ -5979,7 +6042,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             environment = os.getenv('ENVIRONMENT', 'dev')
             response = {
                 "tables": [
-                    f"{environment}_daily_prices", f"{environment}_training_datasets", f"{environment}_instruments",
+                    f"{environment}_daily_prices", f"{environment}_training_dataset", f"{environment}_instruments",
                     f"{environment}_daily_price_polygon", f"{environment}_daily_price_tiingo", f"{environment}_daily_price_eodhd"
                 ],
                 "error": str(e)
