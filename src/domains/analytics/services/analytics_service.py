@@ -329,7 +329,7 @@ class UnifiedAnalyticsService:
             from core.platform.database.connection_manager import get_raw_connection
 
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 from psycopg2.extras import RealDictCursor
@@ -393,7 +393,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -606,7 +606,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -750,7 +750,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"  # Fixed: plural form to match main API
+            table_name = f"{environment}_training_dataset"  # Fixed: plural form to match main API
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -1005,7 +1005,7 @@ class UnifiedAnalyticsService:
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
-            table_name = f"{environment}_training_datasets"
+            table_name = f"{environment}_training_dataset"
 
             with get_raw_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -5979,7 +5979,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             environment = os.getenv('ENVIRONMENT', 'dev')
             response = {
                 "tables": [
-                    f"{environment}_daily_prices", f"{environment}_training_datasets", f"{environment}_instruments",
+                    f"{environment}_daily_prices", f"{environment}_training_dataset", f"{environment}_instruments",
                     f"{environment}_daily_price_polygon", f"{environment}_daily_price_tiingo", f"{environment}_daily_price_eodhd"
                 ],
                 "error": str(e)
