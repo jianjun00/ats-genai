@@ -90,36 +90,36 @@ result = subprocess.run(cmd, capture_output=False, text=True)
 sys.exit(result.returncode)
 '''
 
-        # Write temporary script
-        temp_script = Path('temp_test_stock_batch.py')
-        temp_script.write_text(temp_script_content)
+    # Write temporary script
+    temp_script = Path('temp_test_stock_batch.py')
+    temp_script.write_text(temp_script_content)
 
-        # Execute the test batch
-        result = subprocess.run([
-            'python3', 'scripts/run_dev.py', 'run',
-            '--script', 'temp_test_stock_batch.py'
-        ], capture_output=True, text=True, cwd=os.getcwd())
+    # Execute the test batch
+    result = subprocess.run([
+        'python3', 'scripts/run_dev.py', 'run',
+        '--script', 'temp_test_stock_batch.py'
+    ], capture_output=True, text=True, cwd=os.getcwd())
 
-        processing_time = time.time() - start_time
+    processing_time = time.time() - start_time
 
-        # Clean up temp script
-        if temp_script.exists():
-            temp_script.unlink()
+    # Clean up temp script
+    if temp_script.exists():
+        temp_script.unlink()
 
-        if result.returncode == 0:
-            logger.info(f"✅ Test batch completed successfully in {processing_time:.1f}s")
-            logger.info(f"   Average: {processing_time/len(symbols):.1f}s per symbol")
+    if result.returncode == 0:
+        logger.info(f"✅ Test batch completed successfully in {processing_time:.1f}s")
+        logger.info(f"   Average: {processing_time/len(symbols):.1f}s per symbol")
 
-            # Log output for analysis
-            if result.stdout:
-                logger.info(f"Output: {result.stdout[-500:]}")  # Last 500 chars
+        # Log output for analysis
+        if result.stdout:
+            logger.info(f"Output: {result.stdout[-500:]}")  # Last 500 chars
 
-            return True, processing_time
-        else:
-            error_output = result.stderr or result.stdout or "Unknown error"
-            logger.error(f"❌ Test batch failed after {processing_time:.1f}s")
-            logger.error(f"   Error: {error_output[-500:]}")  # Last 500 chars
-            return False, processing_time
+        return True, processing_time
+    else:
+        error_output = result.stderr or result.stdout or "Unknown error"
+        logger.error(f"❌ Test batch failed after {processing_time:.1f}s")
+        logger.error(f"   Error: {error_output[-500:]}")  # Last 500 chars
+        return False, processing_time
 
 def run_test_backfill():
     """Run test backfill to validate system before comprehensive run"""
