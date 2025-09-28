@@ -145,15 +145,14 @@ if __name__ == "__main__":
     print("🔍 REPRODUCING ESTIMATED_ACTUAL_SEQUENCES ERROR")
     print("=" * 50)
     
-    try:
-        print("\n1. Testing estimated sequences calculation...")
-        test.test_what_estimated_sequences_represents()
+    print("\n1. Testing estimated sequences calculation...")
+    test.test_what_estimated_sequences_represents()
         
-        print("\n2. Testing variable name mismatch identification...")
-        test.test_identify_variable_name_mismatch()
+    print("\n2. Testing variable name mismatch identification...")
+    test.test_identify_variable_name_mismatch()
         
-        print("\n3. Testing reproduction of NameError...")
-        test.test_reproduce_estimated_actual_sequences_undefined_error()
+    print("\n3. Testing reproduction of NameError...")
+    test.test_reproduce_estimated_actual_sequences_undefined_error()
         
     print("\n🔧 READY TO FIX:")
     print("   - Change 'estimated_actual_sequences' to 'estimated_sequences' in completion summary")

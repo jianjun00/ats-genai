@@ -160,12 +160,11 @@ if __name__ == "__main__":
     print("🔍 REPRODUCING COLLECTION DATE ERROR")
     print("=" * 50)
     
-    try:
-        print("\n1. Testing collection date calculation logic...")
-        test.test_what_collection_dates_should_be_calculated_from()
+    print("\n1. Testing collection date calculation logic...")
+    test.test_what_collection_dates_should_be_calculated_from()
         
-        print("\n2. Testing missing variables in execution summary...")
-        test.test_identify_missing_variables_in_execution_summary()
+    print("\n2. Testing missing variables in execution summary...")
+    test.test_identify_missing_variables_in_execution_summary()
         
     print("\n🔧 READY TO FIX:")
     print("   - Add collection date calculation after date parsing")

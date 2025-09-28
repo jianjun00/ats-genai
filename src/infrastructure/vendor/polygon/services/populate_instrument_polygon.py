@@ -356,14 +356,13 @@ async def fetch_and_store_instruments(start_ticker='', ticker=None):
             yield seq[i:i+size]
 
     processed_count = 0
+    # Let all batch processing exceptions propagate - fail fast on batch errors
     for batch in batcher(all_symbols, batch_size):
-        try:
-            # Call the async version with await
-            result = await fetch_and_upsert_direct(batch, env.env_type, table_name, POLYGON_API_KEY)
-            logger.info(f"Processed batch of {len(batch)} instruments: {result}")
-            processed_count += len(batch)
-            time.sleep(2.0)  # Sleep between batches for rate limits
-        # Let all batch processing exceptions propagate - fail fast on batch errors
+        # Call the async version with await
+        result = await fetch_and_upsert_direct(batch, env.env_type, table_name, POLYGON_API_KEY)
+        logger.info(f"Processed batch of {len(batch)} instruments: {result}")
+        processed_count += len(batch)
+        time.sleep(2.0)  # Sleep between batches for rate limits
 
     logger.info(f"Total instruments processed: {processed_count}/{len(all_symbols)}")
 
@@ -495,6 +494,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Bind Gin-configurable API key
-    try:
-        # Get API key from environment variable first, then fall back to Gin config
-        POLYGON_API_KEY = get_polygon_api_key()
+    # Get API key from environment variable first, then fall back to Gin config
+    POLYGON_API_KEY = get_polygon_api_key()

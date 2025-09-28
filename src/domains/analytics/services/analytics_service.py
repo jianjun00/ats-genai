@@ -1022,6 +1022,17 @@ class UnifiedAnalyticsService:
 
                     file_metadata = dataset_info.get('file_metadata', {})
                     run_id = dataset_info.get('run_id')
+                    
+                    # Get actual dataset_path from feature_extraction_runs table
+                    cursor.execute(f"""
+                        SELECT dataset_path
+                        FROM {environment}_feature_extraction_runs
+                        WHERE run_id = %s
+                    """, (run_id,))
+                    
+                    extraction_info = cursor.fetchone()
+                    actual_dataset_path = extraction_info['dataset_path'] if extraction_info and extraction_info.get('dataset_path') else str(run_id)
+                    logger.info(f"Resolved dataset path: {actual_dataset_path} from run_id {run_id}")
 
                     # Define training base paths (container-aware)
                     training_base_paths = [
@@ -1055,7 +1066,7 @@ class UnifiedAnalyticsService:
                     feature_groups = ['ohlcv_basic', 'technical_momentum', 'technical_volatility', 'fundamental_quarterly']
 
                     for base_path in training_base_paths:
-                        dataset_dir = Path(base_path) / str(run_id)
+                        dataset_dir = Path(base_path) / actual_dataset_path
                         logger.info(f"Checking dataset directory: {dataset_dir}")
                         
                         if not dataset_dir.exists():

@@ -373,23 +373,22 @@ class TestUniverseAnalyticsAPI:
 
         # Parse JSON response
         import json
-        try:
-            data = json.loads(result.stdout)
-            assert data['success'] == True, "API should return success=true"
-            assert len(data['universes']) >= 1, "Should have at least one universe"
+        data = json.loads(result.stdout)
+        assert data['success'] == True, "API should return success=true"
+        assert len(data['universes']) >= 1, "Should have at least one universe"
 
-            # Find our high volume universe
-            high_vol_universe = None
-            for universe in data['universes']:
-                if universe['id'] == 2:
-                    high_vol_universe = universe
-                    break
+        # Find our high volume universe
+        high_vol_universe = None
+        for universe in data['universes']:
+            if universe['id'] == 2:
+                high_vol_universe = universe
+                break
 
-            assert high_vol_universe is not None, "Should find high volume universe (ID=2)"
-            assert high_vol_universe['name'] == 'high_volume_large_cap', "Universe name should match"
-            assert 'comprehensive' in high_vol_universe['description'].lower(), "Should have comprehensive description"
+        assert high_vol_universe is not None, "Should find high volume universe (ID=2)"
+        assert high_vol_universe['name'] == 'high_volume_large_cap', "Universe name should match"
+        assert 'comprehensive' in high_vol_universe['description'].lower(), "Should have comprehensive description"
 
-            print(f"✅ Universe API: Found universe '{high_vol_universe['name']}'")
+        print(f"✅ Universe API: Found universe '{high_vol_universe['name']}'")
 
     def test_universe_members_api_endpoint(self):
         """Test /api/universe-members/{id} endpoint returns member data"""
@@ -404,28 +403,27 @@ class TestUniverseAnalyticsAPI:
         assert result.returncode == 0, "Members API endpoint should be accessible"
 
         import json
-        try:
-            data = json.loads(result.stdout)
-            assert data['success'] == True, "Members API should return success=true"
-            assert 'universe_info' in data, "Should include universe info"
-            assert 'members' in data, "Should include members array"
-            assert len(data['members']) >= 100, f"Should have substantial member count, got {len(data['members'])}"
+        data = json.loads(result.stdout)
+        assert data['success'] == True, "Members API should return success=true"
+        assert 'universe_info' in data, "Should include universe info"
+        assert 'members' in data, "Should include members array"
+        assert len(data['members']) >= 100, f"Should have substantial member count, got {len(data['members'])}"
 
-            # Check for expected stocks
-            symbols = [member['symbol'] for member in data['members']]
-            expected_symbols = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA']
+        # Check for expected stocks
+        symbols = [member['symbol'] for member in data['members']]
+        expected_symbols = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA']
 
-            for symbol in expected_symbols:
-                assert symbol in symbols, f"Major stock {symbol} should be in members"
+        for symbol in expected_symbols:
+            assert symbol in symbols, f"Major stock {symbol} should be in members"
 
-            # Check for both active and historical members
-            active_members = [m for m in data['members'] if m['end_at'] is None]
-            historical_members = [m for m in data['members'] if m['end_at'] is not None]
+        # Check for both active and historical members
+        active_members = [m for m in data['members'] if m['end_at'] is None]
+        historical_members = [m for m in data['members'] if m['end_at'] is not None]
 
-            assert len(active_members) >= 600, f"Should have 600+ active members, got {len(active_members)}"
-            assert len(historical_members) >= 3, f"Should have some historical members, got {len(historical_members)}"
+        assert len(active_members) >= 600, f"Should have 600+ active members, got {len(active_members)}"
+        assert len(historical_members) >= 3, f"Should have some historical members, got {len(historical_members)}"
 
-            print(f"✅ Members API: {len(active_members)} active + {len(historical_members)} historical")
+        print(f"✅ Members API: {len(active_members)} active + {len(historical_members)} historical")
 
 # Pytest configuration
 def pytest_configure(config):

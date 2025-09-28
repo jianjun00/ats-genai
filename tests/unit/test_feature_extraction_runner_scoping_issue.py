@@ -48,13 +48,12 @@ class TestFeatureExtractionRunnerScopingIssue:
             
             # Later in main, try to create completion_summary (line 409)
             # estimated_sequences is not available here - it was in a different function scope
-            try:
-                completion_summary = {
-                    'status': 'completed',
-                    'estimated_sequences': estimated_sequences,  # NameError: not defined in this scope
-                }
-                return completion_summary
-        # This should reproduce the exact scoping issue
+            completion_summary = {
+                'status': 'completed',
+                'estimated_sequences': estimated_sequences,  # NameError: not defined in this scope
+            }
+            return completion_summary
+    # This should reproduce the exact scoping issue
         with pytest.raises(NameError, match="name 'estimated_sequences' is not defined"):
             main_function_simulation()
 
@@ -226,15 +225,14 @@ if __name__ == "__main__":
     print("🔍 REPRODUCING ACTUAL SCOPING ISSUE AND VERIFYING FIX")
     print("=" * 60)
     
-    try:
-        print("\n1. Testing why original test was flawed...")
-        test.test_identify_why_original_test_was_flawed()
+    print("\n1. Testing why original test was flawed...")
+    test.test_identify_why_original_test_was_flawed()
         
-        print("\n2. Testing possible solutions...")
-        test.test_identify_possible_solutions()
+    print("\n2. Testing possible solutions...")
+    test.test_identify_possible_solutions()
         
-        print("\n3. Testing reproduction of actual scoping issue...")
-        test.test_reproduce_scoping_issue_with_estimated_sequences()
+    print("\n3. Testing reproduction of actual scoping issue...")
+    test.test_reproduce_scoping_issue_with_estimated_sequences()
         
     print("\n4. Testing scoping fix implementation...")
     test.test_verify_scoping_fix_implementation()
