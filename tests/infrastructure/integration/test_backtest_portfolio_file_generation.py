@@ -303,6 +303,3 @@ if __name__ == "__main__":
 
     print("\n🎯 All portfolio file tests passed!")
 
-    except Exception as e:
-        print(f"❌ Test failed: {e}")
-        raise

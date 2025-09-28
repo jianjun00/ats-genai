@@ -26,7 +26,7 @@ def validate_universe_state_manager():
     validations = []
 
     # Check 1: get_lag_prices method has time_interval parameter
-    if 'def get_lag_prices(self, instrument_id: int, cur_date, lag_days: int, time_interval: str = \'1d\')' in content:
+    if 'def get_lag_prices(self, instrument_id: int, cur_date, lag_days: int, time_interval: str = '1d')' in content:
         validations.append(("✅", "get_lag_prices has time_interval parameter"))
     else:
         validations.append(("❌", "get_lag_prices missing time_interval parameter"))
@@ -52,7 +52,7 @@ def validate_universe_state_manager():
         validations.append(("⚠️", f"Only documents {interval_mentions} time intervals"))
 
     # Check 5: Has market_data_manager integration
-    if 'hasattr(self, \'market_data_manager\')' in content and 'get_ohlcv_data' in content:
+    if 'hasattr(self, 'market_data_manager')' in content and 'get_ohlcv_data' in content:
         validations.append(("✅", "Has market_data_manager integration"))
     else:
         validations.append(("❌", "Missing market_data_manager integration"))

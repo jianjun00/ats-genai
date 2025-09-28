@@ -195,7 +195,7 @@ def main():
 
     print("\n🔧 REQUIRED FIX:")
     print("Update dataset_id generation to include run_id:")
-    print('dataset_id = f"dataset_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime(\'%Y%m%d_%H%M%S\')}"')
+    print('dataset_id = f"dataset_{self.config.job_name}_run{self.run_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"')
 
     return passed == len(results)
 

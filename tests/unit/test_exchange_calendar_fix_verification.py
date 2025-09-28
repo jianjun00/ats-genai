@@ -88,12 +88,6 @@ class TestExchangeCalendarFixVerification:
                 assert calendar.exchange == exchange.upper()
                 assert hasattr(calendar, 'calendar')
                 print(f"   ✅ {exchange} calendar initialized successfully")
-            except ValueError as e:
-                # Some exchanges might not be available in pandas_market_calendars
-                print(f"   ⚠️ {exchange} not available: {e}")
-            except Exception as e:
-                pytest.fail(f"Unexpected error for {exchange}: {e}")
-
     def test_exchange_calendar_error_handling(self):
         """
         Test that ExchangeCalendar provides proper error messages for invalid exchanges.
@@ -163,9 +157,6 @@ class TestExchangeCalendarFixVerification:
             trading_days = calendar.all_trading_days(today, today + datetime.timedelta(days=1))
             working_functionality.append("✅ all_trading_days works correctly")
             
-        except Exception as e:
-            pytest.fail(f"Fix verification failed: {e}")
-        
         print("📊 BEFORE/AFTER COMPARISON:")
         print("\n❌ ISSUES THAT WERE FIXED:")
         for issue in issues_that_were_fixed:

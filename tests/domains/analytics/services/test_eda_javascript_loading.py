@@ -300,6 +300,3 @@ if __name__ == "__main__":
     print("✅ 'Loading...' issue resolved with proper data flow")
     print("✅ Interactive chart rendering configured correctly")
 
-    except Exception as e:
-        print(f"❌ JavaScript loading test failed: {e}")
-        exit(1)

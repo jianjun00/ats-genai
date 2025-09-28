@@ -121,12 +121,6 @@ sys.exit(result.returncode)
             logger.error(f"   Error: {error_output[-500:]}")  # Last 500 chars
             return False, processing_time
 
-    except Exception as e:
-        processing_time = time.time() - start_time
-        logger.error(f"❌ Exception in test batch: {e}")
-        return False, processing_time
-
-
 def run_test_backfill():
     """Run test backfill to validate system before comprehensive run"""
 

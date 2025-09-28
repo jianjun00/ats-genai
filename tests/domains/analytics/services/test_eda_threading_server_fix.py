@@ -260,6 +260,3 @@ if __name__ == "__main__":
     print("✅ Service can handle concurrent requests without blocking")
     print("✅ JavaScript polling won't cause service timeouts")
 
-    except Exception as e:
-        print(f"❌ Threading server test failed: {e}")
-        exit(1)

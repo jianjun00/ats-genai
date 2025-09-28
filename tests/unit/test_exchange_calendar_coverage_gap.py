@@ -143,16 +143,10 @@ class TestExchangeCalendarCoverageGap:
         try:
             import pandas_market_calendars as mcal
             mcal_available_as_import = True
-        except ImportError:
-            mcal_available_as_import = False
-        
         # Option 2: Import specific calendar factory
         try:
             from pandas_market_calendars import get_calendar
             get_calendar_available = True
-        except ImportError:
-            get_calendar_available = False
-        
         # The class should likely also initialize self.calendar
         def expected_initialization_pattern(exchange):
             """Expected pattern for proper initialization."""
@@ -162,9 +156,6 @@ class TestExchangeCalendarCoverageGap:
                     # Should create self.calendar here
                     calendar = mcal.get_calendar(exchange.upper())
                     return calendar
-            except ImportError:
-                raise ImportError("pandas_market_calendars is required for ExchangeCalendar. Install via pip.")
-        
         print("✅ MCAL SHOULD BE:")
         print(f"   1. pandas_market_calendars imported as mcal: Available={mcal_available_as_import}")
         print(f"   2. get_calendar function available: Available={get_calendar_available}")
@@ -224,15 +215,6 @@ class TestExchangeCalendarCoverageGap:
                 is_holiday = calendar.is_holiday(today)
                 return True
                 
-            except NameError as e:
-                # This catches the actual mcal import bug
-                print(f"❌ CAUGHT IMPORT BUG: {e}")
-                return False
-            except AttributeError as e:
-                # This would catch the missing self.calendar bug
-                print(f"❌ CAUGHT ATTRIBUTE BUG: {e}")
-                return False
-        
         # Run the proper test approach
         test_passed = proper_test_approach()
         assert test_passed == False  # Currently fails due to bugs
@@ -281,9 +263,6 @@ class TestExchangeCalendarCoverageGap:
             try:
                 calendar = ExchangeCalendar("NYSE")
                 return True
-            except (NameError, AttributeError):
-                return False  # Bugs caught!
-        
         # Compare patterns
         bad1_passes = bad_pattern_mock_everything()
         bad2_passes = bad_pattern_methods_only()
@@ -314,15 +293,9 @@ if __name__ == "__main__":
     try:
         print("\n1. Reproducing mcal NameError...")
         test.test_reproduce_mcal_nameerror_before_fix()
-    except Exception as e:
-        print(f"✅ Successfully reproduced error: {e}")
-    
     try:
         print("\n2. Reproducing via runner integration...")
         test.test_reproduce_via_runner_integration()
-    except Exception as e:
-        print(f"✅ Successfully reproduced error: {e}")
-    
     print("\n3. Analyzing why test coverage is missing...")
     test.test_analyze_why_test_coverage_is_missing()
     

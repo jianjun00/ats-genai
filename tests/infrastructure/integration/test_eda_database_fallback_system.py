@@ -270,6 +270,3 @@ if __name__ == "__main__":
     print("✅ Fallback data prevents 'Loading...' UI issue")
     print("✅ Fast fallback response times (no waiting for DB timeout)")
 
-    except Exception as e:
-        print(f"❌ Database fallback test failed: {e}")
-        exit(1)

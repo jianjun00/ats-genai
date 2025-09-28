@@ -128,19 +128,6 @@ class TestArrayRecordWriterValidation:
                 
                 print(f"✅ {timeframe}: {len(records)} records read successfully")
                 
-            except Exception as e:
-                print(f"❌ {timeframe}: Error - {e}")
-                results[timeframe] = {
-                    'writer_success': False,
-                    'error': str(e),
-                    'file_exists': file_path.exists() if file_path else False,
-                    'file_size': file_path.stat().st_size if file_path and file_path.exists() else 0,
-                    'records_written': 0,
-                    'records_read': 0,
-                    'read_success': False,
-                    'sample_record': None
-                }
-        
         # Analysis
         print("\n📊 WRITER COMPARISON ANALYSIS:")
         for timeframe, result in results.items():
@@ -242,10 +229,6 @@ class TestArrayRecordWriterValidation:
                 assert len(records) == 1, f"Should have 1 record for {variation['name']}"
                 assert records[0]['symbol'] == 'AAPL', f"Symbol should be AAPL for {variation['name']}"
                 
-            except Exception as e:
-                print(f"❌ {variation['name']}: Failed - {e}")
-                raise
-
     @pytest.mark.asyncio
     async def test_1d_arrayrecord_large_volume_data(self, test_output_dir):
         """Test 1d ArrayRecord with larger data volume similar to real files."""
@@ -294,6 +277,3 @@ class TestArrayRecordWriterValidation:
             
             print("✅ 1d large volume test PASSED")
             
-        except Exception as e:
-            print(f"❌ 1d large volume test FAILED: {e}")
-            raise

@@ -123,8 +123,3 @@ if __name__ == "__main__":
     print("  • Debug date range: 2020-01-10 to 2024-12-31 → gin configurable")
     print("  • Debug log path: 'tests/data' → gin configurable")
 
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)

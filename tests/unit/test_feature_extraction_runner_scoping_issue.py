@@ -54,10 +54,6 @@ class TestFeatureExtractionRunnerScopingIssue:
                     'estimated_sequences': estimated_sequences,  # NameError: not defined in this scope
                 }
                 return completion_summary
-            except NameError as e:
-                print(f"❌ NameError in main function: {e}")
-                raise
-        
         # This should reproduce the exact scoping issue
         with pytest.raises(NameError, match="name 'estimated_sequences' is not defined"):
             main_function_simulation()
@@ -239,9 +235,6 @@ if __name__ == "__main__":
         
         print("\n3. Testing reproduction of actual scoping issue...")
         test.test_reproduce_scoping_issue_with_estimated_sequences()
-        
-    except Exception as e:
-        print(f"✅ Successfully reproduced scoping error: {e}")
         
     print("\n4. Testing scoping fix implementation...")
     test.test_verify_scoping_fix_implementation()
