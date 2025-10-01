@@ -1,0 +1,141 @@
+// Universe State Testing Proto Schema
+// Comprehensive proto definitions for UniverseStateInterval and all nested business objects
+// Version: 1.0.0
+
+syntax = "proto3";
+
+package universe_state_test;
+
+// Core time duration representation
+message TimeDuration {
+    string duration_string = 1;  // e.g., "5m", "15m", "1h", "1d"
+    int64 duration_minutes = 2;  // Duration in minutes for calculations
+}
+
+// Instrument OHLCV interval data
+message InstrumentInterval {
+    int32 instrument_id = 1;
+    int64 start_timestamp_utc_micros = 2;
+    int64 end_timestamp_utc_micros = 3;
+    
+    // OHLCV data in micro-dollars for deterministic serialization
+    int64 open_micro_dollars = 4;    // open * 1,000,000
+    int64 high_micro_dollars = 5;    // high * 1,000,000
+    int64 low_micro_dollars = 6;     // low * 1,000,000
+    int64 close_micro_dollars = 7;   // close * 1,000,000
+    
+    // Volume and dollar data
+    int64 traded_volume = 8;         // Exact volume (integer)
+    int64 traded_dollar_micro = 9;   // traded_dollar * 1,000,000
+    
+    // Status and metadata
+    optional string status = 10;     // 'trusted', 'suspended', 'halted', etc.
+    optional int64 market_cap_micro_dollars = 11;  // market_cap * 1,000,000
+}
+
+// Technical indicator values for an instrument
+message IndicatorInterval {
+    int32 instrument_id = 1;
+    int64 start_timestamp_utc_micros = 2;
+    int64 end_timestamp_utc_micros = 3;
+    
+    // Map of indicator name to indicator result
+    map<string, IndicatorResult> indicators = 4;
+}
+
+// Individual indicator calculation result
+message IndicatorResult {
+    optional double value = 1;       // Computed indicator value (null if invalid)
+    string status = 2;               // 'ok' or 'invalid'
+    int64 update_timestamp_utc_micros = 3;  // When indicator was computed
+}
+
+// Factor/universe membership interval data
+message FactorInterval {
+    int64 start_timestamp_utc_micros = 1;
+    int64 end_timestamp_utc_micros = 2;
+    string factor_type = 3;          // Type of factor (e.g., 'universe_membership')
+    map<string, string> properties = 4;  // Flexible key-value properties
+}
+
+// ML forecast data for an instrument
+message ForecastInterval {
+    int32 instrument_id = 1;
+    int64 start_timestamp_utc_micros = 2;
+    int64 end_timestamp_utc_micros = 3;
+    
+    // Forecast predictions
+    map<string, ForecastResult> forecasts = 4;  // e.g., 'price_direction', 'volatility'
+}
+
+// Individual forecast result
+message ForecastResult {
+    double prediction_value = 1;     // Predicted value
+    double confidence_score = 2;     // Model confidence (0.0 - 1.0)
+    string model_version = 3;        // Model version used for prediction
+    int64 prediction_timestamp_utc_micros = 4;  // When prediction was made
+}
+
+// Complete universe state for a specific time interval
+message UniverseStateInterval {
+    // Core timing and duration
+    TimeDuration duration = 1;
+    int64 start_timestamp_utc_micros = 2;
+    int64 end_timestamp_utc_micros = 3;
+    
+    // Universe metadata
+    int32 universe_id = 4;
+    
+    // Factor intervals (universe membership, etc.)
+    repeated FactorInterval factor_intervals = 5;
+    
+    // Instrument OHLCV data - map from instrument_id to interval
+    map<int32, InstrumentInterval> instrument_intervals = 6;
+    
+    // Technical indicators - map from indicator_type to map of instrument_id to interval
+    map<string, IndicatorIntervalMap> instrument_indicator_intervals = 7;
+    
+    // ML forecasts - map from instrument_id to forecast interval
+    map<int32, ForecastInterval> instrument_forecast_intervals = 8;
+}
+
+// Helper message for nested indicator mapping
+message IndicatorIntervalMap {
+    map<int32, IndicatorInterval> intervals = 1;  // instrument_id -> IndicatorInterval
+}
+
+// Test result wrapper with metadata
+message UniverseStateTestResult {
+    string test_name = 1;
+    string schema_version = 2;
+    int64 generated_at_utc_micros = 3;
+    
+    // Test metadata
+    repeated string symbols = 4;      // Symbols tested (for reference)
+    string timeframe = 5;             // Primary timeframe tested
+    int64 test_start_timestamp_utc_micros = 6;
+    int64 test_end_timestamp_utc_micros = 7;
+    string test_data_hash = 8;        // Hash of input data for validation
+    
+    // The actual universe state being tested
+    UniverseStateInterval universe_state = 9;
+    
+    // Test execution metadata
+    map<string, string> test_metadata = 10;  // Additional test context
+}
+
+// Collection of universe states for multi-interval testing
+message UniverseStateCollection {
+    string test_name = 1;
+    string schema_version = 2;
+    int64 generated_at_utc_micros = 3;
+    
+    // Multiple universe states (e.g., rolling window testing)
+    repeated UniverseStateTestResult universe_states = 4;
+    
+    // Collection-level metadata
+    int32 total_intervals = 5;
+    repeated string timeframes_tested = 6;
+    repeated string symbols_tested = 7;
+    map<string, string> collection_metadata = 8;
+}
