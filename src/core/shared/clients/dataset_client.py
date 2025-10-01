@@ -9,7 +9,19 @@ from typing import Dict, List, Optional, Any, Iterator, Tuple
 import numpy as np
 import pandas as pd
 
-from infrastructure.services_legacy.data_services.dataset_service import DatasetService, DatasetMetadata
+from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO
+from domains.ml.services.training_data.apis.training_dataset_api import TrainingDatasetAPI
+
+# Legacy compatibility - migrate to domains-based services
+class DatasetMetadata:
+    """Legacy compatibility class - should migrate to modern domains-based DTOs."""
+    pass
+
+class DatasetService:
+    """Legacy compatibility class - should migrate to TrainingDatasetDAO."""
+    def __init__(self, db_config=None):
+        self.training_dataset_dao = TrainingDatasetDAO()
+        self.training_dataset_api = TrainingDatasetAPI()
 
 logger = logging.getLogger(__name__)
 
