@@ -89,12 +89,12 @@ class UniverseStateManager:
         
         # Check if timeframe exists in cache
         if time_interval not in self._rolling_instrument_history:
-            self.logger.debug(f"No cached data for timeframe {time_interval}")
+            self.logger.warning(f"No cached data for timeframe {time_interval}")
             return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'date'])
         
         # Check if instrument exists for this timeframe
         if instrument_id not in self._rolling_instrument_history[time_interval]:
-            self.logger.debug(f"No cached data for instrument_id={instrument_id} in timeframe {time_interval}")
+            self.logger.warning(f"No cached data for instrument_id={instrument_id} in timeframe {time_interval}")
             return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'date'])
         
         # Get intervals for this timeframe and instrument
@@ -112,7 +112,7 @@ class UniverseStateManager:
         lagged_intervals = lagged_intervals[-lag_periods:] if len(lagged_intervals) > lag_periods else lagged_intervals
         
         if not lagged_intervals:
-            self.logger.debug(f"No lagged intervals found for instrument_id={instrument_id} in timeframe {time_interval}")
+            self.logger.warning(f"No lagged intervals found for instrument_id={instrument_id} in timeframe {time_interval}")
             return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'date'])
         
         # Convert InstrumentInterval objects to DataFrame rows
@@ -186,17 +186,11 @@ class UniverseStateManager:
             DataFrame with OHLCV data from Runner cache, or None if not available
         """
         try:
-            pass
-
-            self.logger.debug(f"Looking for cached data for instrument_id={instrument_id}")
-
             cached_data = self._get_instrument_history(instrument_id)
 
             if cached_data is None or cached_data.empty:
-                self.logger.debug(f"No cached data found for instrument_id={instrument_id}")
+                self.logger.warning(f"No cached data found for instrument_id={instrument_id}")
                 return None
-
-            self.logger.debug(f"Found {len(cached_data)} cached records")
 
             # The cached data is from the Runner's universe state builder which has the correct time ranges
             # Convert it to the format expected by get_lag_prices
@@ -214,14 +208,12 @@ class UniverseStateManager:
                     # Sort by date and get last lag_periods
                     daily_data = daily_data.sort_values('date').tail(lag_periods)
 
-                    self.logger.debug(f"Aggregated to {len(daily_data)} daily records")
                     return daily_data
 
             # For intraday intervals, use the cached data directly
             # The Runner has already collected this with the correct [past_time, current_time] range
             result_data = cached_data.head(lag_periods)
 
-            self.logger.debug(f"Returning {len(result_data)} records from cache")
             return result_data
 
         except Exception as e:
@@ -251,16 +243,14 @@ class UniverseStateManager:
             raise ValueError(f"cur_datetime must be a datetime or date object, got {type(cur_datetime)}")
 
     def _get_lag_prices_from_cache(self, instrument_id: int, cur_datetime, lag_periods: int) -> pd.DataFrame:
-        """Get lag prices from instrument history cache."""
-        self.logger.debug(f"get_lag_prices: instrument_id={instrument_id}, lag_periods={lag_periods}")
-        
+        """Get lag prices from instrument history cache."""        
         if not hasattr(self, '_instrument_history') or instrument_id not in self._instrument_history:
-            self.logger.debug(f"No historical data found for instrument_id={instrument_id}")
+            self.logger.warning(f"No historical data found for instrument_id={instrument_id}")
             self._raise_cache_insufficient_error(instrument_id, lag_periods)
             
         instrument_data = self._instrument_history[instrument_id]
         if len(instrument_data) < lag_periods:
-            self.logger.debug(f"Insufficient historical data: {len(instrument_data)} < {lag_periods}")
+            self.logger.warning(f"Insufficient historical data: {len(instrument_data)} < {lag_periods}")
             self._raise_cache_insufficient_error(instrument_id, lag_periods)
             
         # Convert to DataFrame and process
@@ -275,7 +265,6 @@ class UniverseStateManager:
         if 'date' in df.columns:
             result_df['date'] = df['date']
             
-        self.logger.debug(f"Returning {len(result_df)} records from instrument cache")
         return result_df
 
     def _raise_cache_insufficient_error(self, instrument_id: int, lag_periods: int):
@@ -387,7 +376,6 @@ class UniverseStateManager:
                 # DB-backed path  
                 universe_state = metadata.get('universe_state')
                 record_count = len(getattr(universe_state, 'instrument_intervals', {})) if universe_state else 0
-                self.logger.debug(f"save_universe_state DB: {record_count} instrument intervals, ts={timestamp}")
                 # Parse dates using common utility
                 from core.shared.data_handling.utils.datetime_utils import parse_flexible_datetime
                 start_dt = parse_flexible_datetime(metadata['start_date_time'])
@@ -712,8 +700,6 @@ class UniverseStateManager:
             self._rolling_instrument_history[timeframe_str][inst_id] = []
         
         cache_list = self._rolling_instrument_history[timeframe_str][inst_id]
-        self.logger.info(f"Before adding interval to rolling cache: {timeframe_str} inst_id={inst_id}, "
-                         f"cache_size={len(cache_list)}")
         
         # 🔧 DUPLICATION PREVENTION: Check if interval with same timestamp already exists
         interval_timestamp = getattr(interval, 'start_date_time', getattr(interval, 'timestamp', None))
@@ -722,8 +708,6 @@ class UniverseStateManager:
             for existing_interval in cache_list:
                 existing_timestamp = getattr(existing_interval, 'start_date_time', getattr(existing_interval, 'timestamp', None))
                 if existing_timestamp is not None and existing_timestamp == interval_timestamp:
-                    self.logger.info(f"🔍 [DUPLICATE PREVENTION] Skipping duplicate interval for {timeframe_str} inst_id={inst_id} "
-                                   f"at timestamp {interval_timestamp} - already in cache")
                     return
         
         # Add new interval (no duplicate found)
@@ -733,8 +717,6 @@ class UniverseStateManager:
         if len(cache_list) > self.rolling_window:
             self._rolling_instrument_history[timeframe_str][inst_id] = cache_list[-self.rolling_window:]
         
-        self.logger.info(f"Added interval to rolling cache: {timeframe_str} inst_id={inst_id}, "
-                         f"cache_size={len(self._rolling_instrument_history[timeframe_str][inst_id])}")
     
     def get_rolling_cache_debug_info(self) -> Dict[str, Any]:
         """Get debug information about rolling cache state."""
@@ -812,11 +794,10 @@ class UniverseStateManager:
                 # Data processing complete for this specific timeframe
         
         if not result_rows:
-            self.logger.debug(f"No lead price data found for instrument_id={instrument_id} after {center_datetime}")
+            self.logger.warning(f"No lead price data found for instrument_id={instrument_id} after {center_datetime}")
             return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume', 'date'])
         
         result_df = pd.DataFrame(result_rows)
-        self.logger.debug(f"get_lead_prices returning {len(result_df)} intervals for instrument_id={instrument_id}")
         return result_df
 
     async def get_lagged_signals(self, instrument_id: int, cur_datetime, lag_periods: int, 
@@ -846,12 +827,12 @@ class UniverseStateManager:
         
         # Look for signals in the specified timeframe
         if time_interval not in self._rolling_instrument_history:
-            self.logger.debug(f"No cached data for timeframe {time_interval}")
+            self.logger.warning(f"No cached data for timeframe {time_interval}")
             signal_columns = signal_names + ['date'] if signal_names else ['date']
             return pd.DataFrame(columns=signal_columns)
         
         if instrument_id not in self._rolling_instrument_history[time_interval]:
-            self.logger.debug(f"No cached data for instrument_id={instrument_id} in timeframe {time_interval}")
+            self.logger.warning(f"No cached data for instrument_id={instrument_id} in timeframe {time_interval}")
             signal_columns = signal_names + ['date'] if signal_names else ['date']
             return pd.DataFrame(columns=signal_columns)
         
@@ -869,7 +850,7 @@ class UniverseStateManager:
         lagged_intervals = lagged_intervals[:lag_periods]
         
         if not lagged_intervals:
-            self.logger.debug(f"No lagged signals found for instrument_id={instrument_id} before {cur_datetime}")
+            self.logger.warning(f"No lagged signals found for instrument_id={instrument_id} before {cur_datetime}")
             signal_columns = signal_names + ['date'] if signal_names else ['date']
             return pd.DataFrame(columns=signal_columns)
         
@@ -890,11 +871,8 @@ class UniverseStateManager:
         
         result_df = pd.DataFrame(result_rows)
         
-        if result_rows:
-            self.logger.debug(f"get_lagged_signals returning {len(result_df)} intervals for instrument_id={instrument_id} "
-                            f"in timeframe {time_interval}")
-        else:
-            self.logger.debug(f"get_lagged_signals returning empty DataFrame - no signal data available")
+        if not result_rows:
+            self.logger.warning(f"get_lagged_signals returning empty DataFrame - no signal data available")
         
         return result_df
 
@@ -942,22 +920,10 @@ class UniverseStateManager:
             interval_start_minutes = (minutes_since_epoch // interval_minutes) * interval_minutes
             interval_start = datetime.fromtimestamp(interval_start_minutes * 60)
             interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60)
-            
-            self.logger.debug(f"Looking for {timeframe} interval: {interval_start} to {interval_end}")
-            
-            # Query database for stored UniverseStateInterval - UniverseStateBuilder should have created these
-            self.logger.debug(f"Querying database for UniverseStateInterval {timeframe} from {interval_start} to {interval_end}")
-            
-            # CRITICAL FIX: Build UniverseStateInterval from rolling cache data
-            # Check if we have cached data for this timeframe
-            self.logger.debug(f"Looking for {timeframe} at {current_time}")
-            self.logger.debug(f"Available timeframes in cache: {list(self._rolling_instrument_history.keys())}")
-            
+                                    
             if timeframe not in self._rolling_instrument_history:
-                self.logger.debug(f"No rolling cache data for {timeframe} lookup")
+                self.logger.warning(f"No rolling cache data for {timeframe} lookup")
                 return None
-                
-            self.logger.debug(f"Cache debug for {timeframe}: {len(self._rolling_instrument_history[timeframe])} instruments cached")
                 
             # Import UniverseStateInterval here to avoid circular imports
             from domains.trading.services.state.universe_state import UniverseStateInterval
@@ -978,17 +944,14 @@ class UniverseStateManager:
                         # Check if current_time falls within this interval OR is the end time
                         is_within_interval = interval_start_time <= current_time <= interval_end_time
                         is_end_time_match = abs((interval_end_time - current_time).total_seconds()) < 60
-                        
-                        self.logger.debug(f"Checking interval: start={interval_start_time}, end={interval_end_time}, target={current_time}")
-                        
+                                                
                         if is_within_interval or is_end_time_match:
                             # Found matching interval for this instrument
                             instrument_intervals[instrument_id] = interval
-                            self.logger.debug(f"Found matching interval for instrument {instrument_id}")
                             break
             
             if not instrument_intervals:
-                self.logger.debug(f"No cached instrument intervals found for {timeframe} at {interval_start}")
+                self.logger.warning(f"No cached instrument intervals found for {timeframe} at {interval_start}")
                 return None
             
             # Create UniverseStateInterval from cached InstrumentInterval objects
@@ -1006,7 +969,6 @@ class UniverseStateManager:
                 instrument_intervals=instrument_intervals
             )
             
-            self.logger.debug(f"✅ Built UniverseStateInterval from cache: {timeframe} at {interval_start} with {len(instrument_intervals)} instruments")
             return universe_interval
             
         except Exception as e:
@@ -1054,8 +1016,6 @@ class UniverseStateManager:
             # For lead_periods=1, get the next interval after current_time
             future_time = current_time + timedelta(minutes=lead_periods * interval_minutes)
             
-            self.logger.debug(f"Looking for future {timeframe} interval at {future_time} (lead_periods={lead_periods})")
-            
             # TODO: Implement async database query to find matching future UniverseStateInterval
             # For now, check the rolling cache as a fallback
             return self._get_future_universe_state_interval_from_cache(timeframe, future_time)
@@ -1077,7 +1037,7 @@ class UniverseStateManager:
         try:
             # Check if we have cached data for this timeframe
             if timeframe not in self._rolling_instrument_history:
-                self.logger.debug(f"No rolling cache data for future {timeframe} lookup")
+                self.logger.warning(f"No rolling cache data for future {timeframe} lookup")
                 return None
             
             duration = TimeDuration(timeframe)
@@ -1109,7 +1069,7 @@ class UniverseStateManager:
                         break
             
             if not instrument_intervals:
-                self.logger.debug(f"No cached future instrument intervals found for {timeframe} at {interval_start}")
+                self.logger.warning(f"No cached future instrument intervals found for {timeframe} at {interval_start}")
                 return None
             
             # Create UniverseStateInterval with cached future data
@@ -1123,7 +1083,6 @@ class UniverseStateManager:
                 universe_id=1  # Default universe ID
             )
             
-            self.logger.debug(f"Created future UniverseStateInterval from cache: {len(instrument_intervals)} instruments")
             return universe_state_interval
             
         except Exception as e:

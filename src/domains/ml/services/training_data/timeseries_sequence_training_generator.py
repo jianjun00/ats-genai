@@ -37,7 +37,6 @@ class TrainingDataConfig:
 
     def __init__(self,
                  base_interval_minutes: int = 1,
-                 training_interval_minutes: int = 60,
                  feature_types: Optional[List[str]] = None,
                  signal_names: Optional[List[str]] = None):
         """
@@ -45,12 +44,10 @@ class TrainingDataConfig:
 
         Args:
             base_interval_minutes: Base data collection interval (1 minute)
-            training_interval_minutes: Training data generation interval (60 minutes)
             feature_types: Types of features to extract
             signal_names: List of technical indicator signal names to retrieve from UniverseStateManager
         """
         self.base_interval_minutes = base_interval_minutes
-        self.training_interval_minutes = training_interval_minutes
 
         self.feature_types = feature_types
         if self.feature_types is None:

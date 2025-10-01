@@ -90,10 +90,25 @@ def save_as_riegeli(df: pd.DataFrame, riegeli_file: Path):
         logger.warning(f"Riegeli not available, saved as numpy: {np_file}")
 
 
-async def register_feature_extraction(symbols: List[str], start_date: date, end_date: date,
+async def register_feature_extraction(run_id: int, dataset_id: str, symbols: List[str], start_date: date, end_date: date,
                                      feature_groups: List[str], arrayrecord_files: Dict[str, Path],
                                      metadata: Dict[str, Any], environment: str = 'dev') -> int:
-    """Register feature extraction run in database using new feature extraction schema."""
+    """Register feature extraction run in database using new feature extraction schema.
+    
+    Args:
+        run_id: Integer run ID from {env}_runs table
+        dataset_id: Dataset directory name (e.g., 'dataset_20250928_022056')
+        symbols: List of symbols processed
+        start_date: Start date of extraction
+        end_date: End date of extraction
+        feature_groups: List of feature groups generated
+        arrayrecord_files: Dictionary of arrayrecord files created
+        metadata: Additional metadata
+        environment: Environment name ('dev' or 'intg')
+        
+    Returns:
+        Feature extraction run ID
+    """
     logger = logging.getLogger(__name__)
 
     # Connect directly to database
@@ -107,10 +122,6 @@ async def register_feature_extraction(symbols: List[str], start_date: date, end_
     conn = await asyncpg.connect(db_url)
 
     try:
-        # Generate unique run ID
-        now = datetime.now()
-        run_id = f"feature_extraction_{now.strftime('%Y%m%d_%H%M%S')}_{now.microsecond // 1000:03d}"
-
         # Calculate total file sizes
         total_size_mb = sum(
             file_path.stat().st_size / (1024 * 1024) 
@@ -118,13 +129,13 @@ async def register_feature_extraction(symbols: List[str], start_date: date, end_
             if file_path.exists()
         )
 
-        # Create feature extraction run record
+        # Create feature extraction run record with dataset_path
         run_query = f"""
         INSERT INTO {environment}_feature_extraction_runs (
             run_id, status, feature_groups, date_range_start, date_range_end, 
             total_instruments, total_features_generated, execution_duration_seconds,
-            command_line, environment, parameters, results
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            command_line, environment, parameters, results, dataset_path
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING id
         """
 
@@ -157,7 +168,8 @@ async def register_feature_extraction(symbols: List[str], start_date: date, end_
             "feature_extraction_runner",
             environment,
             json.dumps(run_parameters),
-            json.dumps(results)
+            json.dumps(results),
+            dataset_id
         )
 
         logger.info(f"📝 Created feature extraction run record: {extraction_run_id} (run_id: {run_id})")
@@ -165,7 +177,7 @@ async def register_feature_extraction(symbols: List[str], start_date: date, end_
         # Register instruments for this run
         for symbol in symbols:
             # Get instrument_id for symbol (assume it exists)
-            instrument_query = f"SELECT id FROM {environment}_instruments WHERE symbol = $1 LIMIT 1"
+            instrument_query = f"SELECT id FROM {environment}_instrument WHERE symbol = $1 LIMIT 1"
             instrument_id = await conn.fetchval(instrument_query, symbol)
             
             if instrument_id:
@@ -187,7 +199,7 @@ async def register_feature_extraction(symbols: List[str], start_date: date, end_
 
         # Register feature availability for each symbol/feature group combination
         for symbol in symbols:
-            instrument_id = await conn.fetchval(f"SELECT id FROM {environment}_instruments WHERE symbol = $1 LIMIT 1", symbol)
+            instrument_id = await conn.fetchval(f"SELECT id FROM {environment}_instrument WHERE symbol = $1 LIMIT 1", symbol)
             if not instrument_id:
                 continue
                 
@@ -270,8 +282,6 @@ def parse_args():
     # Training data parameters
     parser.add_argument('--base-interval', type=int, default=1,
                        help='Base data interval in minutes (default: 1)')
-    parser.add_argument('--training-interval', type=int, default=60,
-                       help='Training data generation interval in minutes (default: 60)')
 
     # Sequence configuration
     parser.add_argument('--sequence-5m', type=int, default=52,
@@ -309,14 +319,14 @@ def parse_args():
 async def register_training_dataset(environment: Environment, symbols: List[str],
                                    start_date: date, end_date: date,
                                    config: TrainingDataConfig, output_dir: str,
-                                   storage_format: str, run_id: Optional[int] = None) -> int:
+                                   storage_format: str, run_id: Optional[int] = None) -> tuple[int, int]:
     """
     Register a training dataset in the database.
     
     This function:
     1. Creates a run record in the runs table (gets auto-generated integer ID)
     2. Uses that run_id to create a unique training dataset record
-    3. Returns the dataset_id for reference
+    3. Returns (dataset_id, run_id) tuple
     
     The run_id parameter is optional - if None, a new run record will be created.
     """
@@ -374,11 +384,8 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
         finally:
             await conn.close()
 
-    # STEP 2: Generate unique dataset name using the run_id
-    # Now we have a guaranteed unique integer run_id from the database
-    
-    symbols_str = "_".join(symbols) if symbols else "multi_symbol"
-    dataset_name = f"callback_training_{symbols_str}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{run_id}"
+    # STEP 2: Skip dataset_name generation - will use dataset_id consistently
+    # The filesystem dataset_id will be used as the single identifier
 
     # Calculate estimated feature count based on config
     # FIX: Use actual TrainingDataConfig attributes (timeframes, feature_types)
@@ -392,49 +399,14 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
 
     # Calculate estimated total sequences (rough approximation)
     days_range = (end_date - start_date).days
-    intervals_per_day = 24 * 60 // config.training_interval_minutes  # Training intervals per day
-    estimated_sequences = days_range * intervals_per_day * len(symbols)
+    estimated_sequences = days_range * len(symbols)
 
-    # Create training dataset record
-    record = TrainingDatasetRecord(
-        dataset_name=dataset_name,
-        run_id=run_id,
-        total_sequences=estimated_sequences,
-        sequence_length=len(timeframes),  # Use number of timeframes as sequence length
-        feature_count=total_features,
-        label_count=1,  # FIX: Default to 1 label (price prediction)
-        symbols=symbols,
-        date_range_start=start_date,
-        date_range_end=end_date,
-        features_file_path=str(Path(output_dir) / f"{dataset_name}_features.{storage_format}"),
-        labels_file_path=str(Path(output_dir) / f"{dataset_name}_labels.{storage_format}"),
-        metadata_file_path=str(Path(output_dir) / f"{dataset_name}_metadata.json"),
-        prediction_horizon=1,  # FIX: Default to 1-day prediction horizon
-        status="generating",
-        created_by="training_data_callback_runner",
-        data_sources=["universe_state_manager"],
-        generation_parameters={
-            "base_interval_minutes": config.base_interval_minutes,
-            "training_interval_minutes": config.training_interval_minutes,
-            "timeframes": timeframes,  # FIX: Use actual timeframes list
-            "storage_format": storage_format,
-            "output_directory": output_dir
-        },
-        technical_indicators=','.join(get_technical_indicators()),
-        feature_metadata=json.dumps({
-            "timeframes": timeframes,  # FIX: Use actual timeframes list
-            "features_per_timeframe": {tf: 7 for tf in timeframes},  # FIX: Simple mapping
-            "total_features": total_features,
-            "feature_types": ["open", "high", "low", "close", "volume", "etop", "ebot", "pldot"]
-        })
-    )
-
-    # Register in database
-    dataset_id = await dao.create_training_dataset(record)
-
-    print(f"📝 Registered training dataset: {dataset_name} (ID: {dataset_id})")
-
-    return dataset_id
+    # POSTPONE DATABASE REGISTRATION: Will register after dataset_id is generated
+    # This ensures consistent naming between filesystem and database
+    
+    # TODO: Move database registration to after dataset_id generation
+    # For now, return placeholder values - will be updated later
+    return (None, run_id)
 
 
 async def update_training_dataset_completion(environment: Environment, dataset_id: int,
@@ -511,24 +483,20 @@ async def main():
     # DEBUG STEP 1: Configuration Loading
     logger.info("🔧 STEP 1: Loading configuration files")
 
-    # Load Gin configuration if provided
-    if args.gin_config and Path(args.gin_config).exists():
-        logger.debug(f"Loading gin config from {args.gin_config}")
-        gin.parse_config_file(args.gin_config)
-        logger.info(f"✅ Gin config loaded successfully from {args.gin_config}")
+    # Load Gin configuration ONLY if explicitly provided via --gin-config
+    # NO default loading, NO fallbacks - clean explicit configuration
+    if args.gin_config:
+        if Path(args.gin_config).exists():
+            logger.debug(f"Loading gin config from {args.gin_config}")
+            gin.parse_config_file(args.gin_config)
+            logger.info(f"✅ Gin config loaded successfully from {args.gin_config}")
+            operative_config = gin.operative_config_str()
+            logger.debug(f"Current gin operative config:\n{operative_config}")
+        else:
+            logger.error(f"❌ Specified gin config file not found: {args.gin_config}")
+            raise FileNotFoundError(f"Gin config file not found: {args.gin_config}")
     else:
-        logger.warning(f"❌ No gin config file found at {args.gin_config}")
-
-    # Also load training data specific config
-    training_data_gin = Path("config/training_data.gin")
-    if training_data_gin.exists():
-        logger.debug(f"Loading training data gin config from {training_data_gin}")
-        gin.parse_config_file(str(training_data_gin))
-        logger.info(f"✅ Training data gin config loaded from {training_data_gin}")
-        operative_config = gin.operative_config_str()
-        logger.debug(f"Current gin operative config after loading:\n{operative_config}")
-    else:
-        logger.warning(f"❌ No training data gin config found at {training_data_gin}")
+        logger.info("ℹ️ No gin config specified - using programmatic configuration")
 
     logger.info("✅ STEP 1 COMPLETE: Configuration loading finished")
 
@@ -655,8 +623,7 @@ async def main():
         'timeframes': getattr(training_config, 'timeframes', 'MISSING'),
         'feature_types': getattr(training_config, 'feature_types', 'MISSING'),
         'signal_names': getattr(training_config, 'signal_names', 'MISSING'),
-        'base_interval_minutes': getattr(training_config, 'base_interval_minutes', 'MISSING'),
-        'training_interval_minutes': getattr(training_config, 'training_interval_minutes', 'MISSING')
+        'base_interval_minutes': getattr(training_config, 'base_interval_minutes', 'MISSING')
     }
 
     logger.info(f"✅ TrainingDataConfig created with settings:")
@@ -740,6 +707,61 @@ async def main():
 
     logger.info("✅ STEP 4 COMPLETE: Dataset setup and metadata creation finished")
 
+    # STEP 4.5: Get run_id first, then register dataset in database using dataset_id as name
+    logger.info("📝 STEP 4.5: Getting run_id and registering dataset in database")
+    try:
+        # Get run_id from the original registration function (which now only returns run_id)
+        _, run_id = await register_training_dataset(
+            environment=environment,
+            symbols=args.symbols,
+            start_date=start_date,
+            end_date=end_date,
+            config=training_config,
+            output_dir=args.output_dir,
+            storage_format=args.storage_format,
+            run_id=None  # Triggers auto-generation of run_id in runs table
+        )
+        
+        from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+        import json
+        dao = TrainingDatasetDAO(environment)
+        
+        # Use dataset_id as the name for consistency
+        record = TrainingDatasetRecord(
+            dataset_name=dataset_id,  # Use filesystem dataset_id as name
+            run_id=run_id,  # Use the run_id from registration
+            total_sequences=0,  # Will be updated after generation
+            sequence_length=len(['5m', '15m', '60m', '1d', '1w']),
+            feature_count=0,  # Will be updated after generation
+            label_count=1,
+            symbols=args.symbols,
+            date_range_start=start_date,
+            date_range_end=end_date,
+            features_file_path="",  # ArrayRecord format doesn't use single files
+            labels_file_path="",
+            metadata_file_path=str(metadata_file),
+            prediction_horizon=1,
+            status="generating",
+            created_by="feature_extraction_runner",
+            data_sources=["firstrate"],
+            generation_parameters={
+                "base_interval_minutes": training_config.base_interval_minutes,
+                "timeframes": ['5m', '15m', '60m', '1d', '1w'],
+                "storage_format": args.storage_format,
+                "output_directory": args.output_dir
+            },
+            technical_indicators=','.join(training_config.signal_names),
+            feature_metadata=json.dumps({"dataset_path": str(dataset_dir)})
+        )
+        
+        db_dataset_id = await dao.create_training_dataset(record)
+        logger.info(f"✅ Dataset registered: {dataset_id} (DB ID: {db_dataset_id})")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to register dataset in database: {e}")
+        # Continue anyway - don't fail the entire process for database registration
+        db_dataset_id = None
+
     # DEBUG STEP 5: Callback and Runner Creation
     logger.info("🔄 STEP 5: Creating training callback and runner")
 
@@ -786,7 +808,8 @@ async def main():
         market_data_config = MarketDataConfig(
             vendors=[VendorType.FIRSTRATE],  # Use FirstRate for minute data
             storage_backend=StorageBackend.FILE, 
-            file_storage_path="/data/minute-bars/firstrate"  # FIXED: Use container path not host path
+            file_storage_path="/data/minute-bars/firstrate",  # FIXED: Use container path not host path
+            enable_cache=False  # DISABLE CACHE: Prevents duplicate OHLCV values in training data
         )
         minute_data_manager = UnifiedMarketDataManager(market_data_config)
         logger.info(f"✅ Created UnifiedMarketDataManager for training data generation")
@@ -928,8 +951,7 @@ async def main():
         if estimated_actual_sequences == 0:
             # Fallback estimation based on date range
             days_range = (end_date - start_date).days + 1
-            intervals_per_day = 24 * 60 // training_config.training_interval_minutes
-            estimated_actual_sequences = days_range * intervals_per_day * len(args.symbols)
+            estimated_actual_sequences = days_range * len(args.symbols)
             logger.warning(f"⚠️ Using fallback sequence estimation: {estimated_actual_sequences}")
         else:
             logger.info(f"✅ Actual sequences generated: {estimated_actual_sequences}")
@@ -973,147 +995,163 @@ async def main():
     # DEBUG STEP 8: Database Registration
     logger.info("🗄️ STEP 8: Registering training dataset in database")
 
-    try:
-        logger.debug("Registering dataset in database...")
+    logger.debug("Registering dataset in database...")
 
-        # ========================================================================
-        # CRITICAL: Database ID Handling Strategy
-        # ========================================================================
-        # 
-        # PROBLEM SOLVED: 
-        # - Original error: "invalid input for query argument $2: 2612043706 (value out of int32 range)"
-        # - Caused by converting string UUID "run_20250921_012528_bfac28e9" to hash integer
-        # - Hash conversion could exceed PostgreSQL int32 max (2,147,483,647)
-        #
-        # SOLUTION IMPLEMENTED:
-        # 1. Let database auto-generate integer IDs using sequences (guaranteed unique)
-        # 2. Use auto-generated run_id for all database operations and foreign keys
-        # 3. Store original string UUID separately for debugging/traceability
-        # 4. No hash conversion needed - eliminates int32 range errors completely
-        #
-        # DATABASE DESIGN:
-        # - runs table: id (auto-increment PRIMARY KEY), parameters (JSONB with original UUID)
-        # - training_datasets table: run_id (FOREIGN KEY references runs.id)
-        # - This maintains referential integrity with guaranteed int32 compliance
-        # ========================================================================
-        
-        # Store the original string UUID for reference/debugging
-        # This preserves traceability without affecting database operations
-        external_run_context_id = None
-        if runner.run_context and runner.run_context.run_id:
-            external_run_context_id = str(runner.run_context.run_id)
-            logger.debug(f"📋 External run context ID: '{external_run_context_id}' (preserved for reference)")
-            logger.debug(f"💡 Database will auto-generate integer run_id - no conversion needed")
-        
-        # FIXED: register_training_dataset now creates run record automatically
-        # It will auto-generate a unique integer run_id from the database
-        # No need to convert string UUID - let database handle ID generation
-        db_dataset_id = await register_training_dataset(
-            environment=environment,
-            symbols=args.symbols,
-            start_date=start_date,
-            end_date=end_date,
-            config=training_config,
-            output_dir=args.output_dir,
-            storage_format=args.storage_format,
-            run_id=None  # Triggers auto-generation of run_id in runs table
-        )
+    # ========================================================================
+    # CRITICAL: Database ID Handling Strategy
+    # ========================================================================
+    # 
+    # PROBLEM SOLVED: 
+    # - Original error: "invalid input for query argument $2: 2612043706 (value out of int32 range)"
+    # - Caused by converting string UUID "run_20250921_012528_bfac28e9" to hash integer
+    # - Hash conversion could exceed PostgreSQL int32 max (2,147,483,647)
+    #
+    # SOLUTION IMPLEMENTED:
+    # 1. Let database auto-generate integer IDs using sequences (guaranteed unique)
+    # 2. Use auto-generated run_id for all database operations and foreign keys
+    # 3. Store original string UUID separately for debugging/traceability
+    # 4. No hash conversion needed - eliminates int32 range errors completely
+    #
+    # DATABASE DESIGN:
+    # - runs table: id (auto-increment PRIMARY KEY), parameters (JSONB with original UUID)
+    # - training_datasets table: run_id (FOREIGN KEY references runs.id)
+    # - This maintains referential integrity with guaranteed int32 compliance
+    # ========================================================================
+    
+    # Store the original string UUID for reference/debugging
+    # This preserves traceability without affecting database operations
+    external_run_context_id = None
+    if runner.run_context and runner.run_context.run_id:
+        external_run_context_id = str(runner.run_context.run_id)
+        logger.debug(f"📋 External run context ID: '{external_run_context_id}' (preserved for reference)")
+        logger.debug(f"💡 Database will auto-generate integer run_id - no conversion needed")
+    
+    # UNIFIED: Database registration already happened earlier using dataset_id as name
+    # Use the db_dataset_id and db_run_id from the earlier registration
+    # No need for duplicate registration here
+    
+    logger.info(f"✅ Dataset was registered earlier with filesystem dataset_id as name")
 
-        logger.info(f"✅ Dataset registered in database with ID: {db_dataset_id}")
+    # CRITICAL FIX: Verify actual files were created before marking as completed
+    logger.debug(f"Verifying actual ArrayRecord files were created...")
 
-        # CRITICAL FIX: Verify actual files were created before marking as completed
-        logger.debug(f"Verifying actual ArrayRecord files were created...")
+    # Check if any ArrayRecord files actually exist
+    dataset_dir = Path(args.output_dir) / dataset_id
+    arrayrecord_files = list(dataset_dir.rglob("*.arrayrecord"))
 
-        # Check if any ArrayRecord files actually exist
-        dataset_dir = Path(args.output_dir) / dataset_id
-        arrayrecord_files = list(dataset_dir.rglob("*.arrayrecord"))
+    total_file_size_mb = 0.0
+    actual_files_with_content = 0
 
-        total_file_size_mb = 0.0
-        actual_files_with_content = 0
+    for file_path in arrayrecord_files:
+        file_size_bytes = file_path.stat().st_size
+        file_size_mb = file_size_bytes / (1024 * 1024)
+        total_file_size_mb += file_size_mb
 
-        for file_path in arrayrecord_files:
-            file_size_bytes = file_path.stat().st_size
-            file_size_mb = file_size_bytes / (1024 * 1024)
-            total_file_size_mb += file_size_mb
+        # ArrayRecord files have 128KB minimum size, check if they have actual data
+        # Files with only the 128KB header should be considered empty
+        if file_size_bytes > 131072:  # More than 128KB indicates actual data
+            actual_files_with_content += 1
 
-            # ArrayRecord files have 128KB minimum size, check if they have actual data
-            # Files with only the 128KB header should be considered empty
-            if file_size_bytes > 131072:  # More than 128KB indicates actual data
-                actual_files_with_content += 1
+    logger.info(f"File verification results:")
+    logger.info(f"   ArrayRecord files found: {len(arrayrecord_files)}")
+    logger.info(f"   Files with actual content: {actual_files_with_content}")
+    logger.info(f"   Total file size: {total_file_size_mb:.2f} MB")
 
-        logger.info(f"File verification results:")
-        logger.info(f"   ArrayRecord files found: {len(arrayrecord_files)}")
-        logger.info(f"   Files with actual content: {actual_files_with_content}")
-        logger.info(f"   Total file size: {total_file_size_mb:.2f} MB")
+    # Determine actual status and sequences based on file verification
+    if len(arrayrecord_files) == 0:
+        # No files created at all - complete failure
+        actual_status = "failed"
+        actual_sequences = 0
+        actual_file_size_mb = 0.0
+        logger.error(f"❌ CRITICAL: No ArrayRecord files were created - generation failed completely")
 
-        # Determine actual status and sequences based on file verification
-        if len(arrayrecord_files) == 0:
-            # No files created at all - complete failure
-            actual_status = "failed"
-            actual_sequences = 0
-            actual_file_size_mb = 0.0
-            logger.error(f"❌ CRITICAL: No ArrayRecord files were created - generation failed completely")
+    elif actual_files_with_content == 0:
+        # Files created but empty - partial failure
+        actual_status = "partial"
+        actual_sequences = 0
+        actual_file_size_mb = total_file_size_mb
+        logger.warning(f"⚠️ ArrayRecord files created but contain no actual data - empty generation")
 
-        elif actual_files_with_content == 0:
-            # Files created but empty - partial failure
-            actual_status = "partial"
-            actual_sequences = 0
-            actual_file_size_mb = total_file_size_mb
-            logger.warning(f"⚠️ ArrayRecord files created but contain no actual data - empty generation")
+    else:
+        # Files with content - success
+        actual_status = "completed"
+        actual_sequences = estimated_actual_sequences
+        actual_file_size_mb = total_file_size_mb
+        logger.info(f"✅ ArrayRecord files successfully created with content")
 
-        else:
-            # Files with content - success
-            actual_status = "completed"
-            actual_sequences = estimated_actual_sequences
-            actual_file_size_mb = total_file_size_mb
-            logger.info(f"✅ ArrayRecord files successfully created with content")
+    # Update database with actual results
+    logger.debug(f"Updating database with actual status: {actual_status}")
+    await update_training_dataset_completion_with_status(
+        environment=environment,
+        dataset_id=db_dataset_id,
+        actual_sequences=actual_sequences,
+        generation_duration_seconds=generation_duration,
+        file_size_mb=actual_file_size_mb,
+        status=actual_status
+    )
 
-        # Update database with actual results
-        logger.debug(f"Updating database with actual status: {actual_status}")
-        await update_training_dataset_completion_with_status(
-            environment=environment,
-            dataset_id=db_dataset_id,
-            actual_sequences=actual_sequences,
-            generation_duration_seconds=generation_duration,
-            file_size_mb=actual_file_size_mb,
-            status=actual_status
-        )
+    logger.info(f"✅ Dataset completion status updated in database")
 
-        logger.info(f"✅ Dataset completion status updated in database")
+    # Add database info to metadata file
+    if os.path.exists(metadata_file):
+        logger.debug("Adding database registration info to metadata file")
 
-        # Add database info to metadata file
-        try:
-            if os.path.exists(metadata_file):
-                logger.debug("Adding database registration info to metadata file")
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
 
-                with open(metadata_file, 'r') as f:
-                    metadata = json.load(f)
+        database_info = {
+            "database_id": db_dataset_id,
+            "database_registered": True,
+            "database_table": environment.get_table_name("training_dataset")
+        }
 
-                database_info = {
-                    "database_id": db_dataset_id,
-                    "database_registered": True,
-                    "database_table": environment.get_table_name("training_dataset")
-                }
+        metadata.update(database_info)
 
-                metadata.update(database_info)
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
 
-                with open(metadata_file, 'w') as f:
-                    json.dump(metadata, f, indent=2)
+        logger.info(f"✅ Added database registration info to metadata file")
 
-                logger.info(f"✅ Added database registration info to metadata file")
-
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to update metadata with database info: {e}")
-
-        logger.info("✅ STEP 8 COMPLETE: Database registration completed successfully")
-
-    except Exception as e:
-        logger.error(f"❌ Failed to register dataset in database: {e}")
-        logger.warning(f"⚠️ Training data files created successfully, but database registration failed")
-        logger.warning(f"   Dataset will not appear in UI until manually registered")
-        # Don't fail the entire process - files are still created successfully
-
-        logger.info("⚠️ STEP 8 PARTIAL: Database registration failed but files created")
+    logger.info("✅ STEP 8 COMPLETE: Database registration completed successfully")
+    
+    # STEP 8.5: Register feature extraction run
+    logger.info("📝 STEP 8.5: Registering feature extraction run")
+    
+    # Find all arrayrecord files created
+    dataset_path = Path(args.output_dir) / dataset_id
+    arrayrecord_files = list(dataset_path.rglob("*.arrayrecord"))
+    
+    # Determine feature groups from directory structure
+    feature_groups_found = set()
+    for ar_file in arrayrecord_files:
+        # Path structure: dataset_id/feature_group/symbol_month/timeframe/file.arrayrecord
+        parts = ar_file.relative_to(dataset_path).parts
+        if len(parts) >= 2:
+            feature_groups_found.add(parts[0])
+    
+    # Prepare metadata
+    extraction_metadata = {
+        'total_files': len(arrayrecord_files),
+        'total_features': actual_file_size_mb,
+        'duration_seconds': generation_duration
+    }
+    
+    # Call register_feature_extraction with all required parameters
+    extraction_run_id = await register_feature_extraction(
+        run_id=db_run_id,
+        dataset_id=dataset_id,
+        symbols=args.symbols,
+        start_date=start_date,
+        end_date=end_date,
+        feature_groups=list(feature_groups_found),
+        arrayrecord_files={str(f): f for f in arrayrecord_files},
+        metadata=extraction_metadata,
+        environment=args.environment
+    )
+    
+    logger.info(f"✅ Feature extraction run registered: ID {extraction_run_id}")
+    logger.info(f"   Dataset path: {dataset_id}")
+    logger.info(f"   Feature groups: {list(feature_groups_found)}")
 
     # DEBUG STEP 9: Final Summary and Completion
     logger.info("🎯 STEP 9: Final summary and completion")

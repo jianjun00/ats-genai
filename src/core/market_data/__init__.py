@@ -9,8 +9,9 @@ Consolidates ALL market data management from 10,401+ lines across 30+ files:
 TARGET CONSOLIDATION: 10,401+ lines → 4,500 lines (57% reduction)
 """
 
-# Import main classes from unified_manager module
-from .unified_manager import (
+# MOVED: Import main classes from new domain services location
+# Backward compatibility imports - redirect to new location
+from domains.market_data.services.core.unified_market_data_manager import (
     UnifiedMarketDataManager,
     MarketDataConfig,
     VendorType,
@@ -21,6 +22,7 @@ from .unified_manager import (
     PolygonAdapter,
     TiingoAdapter,
     EODHDAdapter,
+    FirstRateAdapter,
     VendorAdapterRegistry,
     UnifiedStorageManager,
     TimeframeManager,
@@ -40,6 +42,7 @@ __all__ = [
     'PolygonAdapter',
     'TiingoAdapter', 
     'EODHDAdapter',
+    'FirstRateAdapter',
     'VendorAdapterRegistry',
     'UnifiedStorageManager',
     'TimeframeManager',

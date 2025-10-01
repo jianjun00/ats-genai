@@ -734,43 +734,192 @@ def test_market_data_processing():
     # Any unexpected exception will fail the test with clear stack trace
 ```
 
-#### **3️⃣ VALIDATE ACTUAL RESULTS (NOT JUST EXISTENCE)**
+#### **3️⃣ VALIDATE ACTUAL RESULTS (NOT JUST EXISTENCE) - ZERO TOLERANCE FOR SUPERFICIAL TESTING**
+
+**🚨 CRITICAL: EXACT VALUE VALIDATION REQUIREMENTS**
+
 - **❌ NEVER check only if results exist (assert result is not None)**
 - **❌ NEVER use superficial validations (assert len(result) > 0)**
 - **❌ NEVER ignore content validation for performance convenience**
+- **❌ NEVER check generic properties without validating specific business values**
+- **❌ NEVER validate error scenarios without checking EXACT error types and messages**
+- **❌ NEVER check "partial success" without validating which SPECIFIC data is missing and WHY**
+
+**✅ MANDATORY EXACT VALUE VALIDATION:**
 - **✅ ALWAYS verify exact values, counts, and business logic correctness**
 - **✅ ALWAYS check data integrity and expected transformations**
 - **✅ ALWAYS validate edge cases and boundary conditions**
+- **✅ ALWAYS validate EXACT error types, messages, and root causes**
+- **✅ ALWAYS validate PRECISE time calculations down to the second**
+- **✅ ALWAYS validate EXACT OHLCV values match expected mathematical calculations**
+- **✅ ALWAYS validate SPECIFIC symbols, parameters, and request details**
 
-**Example Pattern:**
+**🔥 CONCRETE VALIDATION PATTERNS:**
+
+**❌ TERRIBLE: Superficial Error Validation**
 ```python
-# ❌ WRONG: Superficial existence checks
-def test_training_data_generation():
-    dataset = generate_training_data(symbols=['AAPL'])
-    assert dataset is not None  # Meaningless
-    assert len(dataset) > 0     # Weak validation
-
-# ✅ RIGHT: Exact result validation
-def test_training_data_generation():
-    dataset = generate_training_data(symbols=['AAPL'], timeframe='5m', days=1)
+# This is the worst test code - validates nothing meaningful
+if scenario['expected_behavior'] == 'partial_success':
+    assert result is not None, f"Should return partial data"
+    assert len(result) <= len(test_symbols), f"Partial data size incorrect"
     
-    # Validate exact expected count (192 = 6.5 hours * 12 intervals/hour)
-    assert len(dataset) == 192
+elif scenario['expected_behavior'] == 'empty_result':
+    assert result == {}, f"Should return empty dict"
     
-    # Validate data structure and content
-    assert all(record.symbol == 'AAPL' for record in dataset)
-    assert all(record.timeframe == '5m' for record in dataset)
-    assert all(record.open > 0 for record in dataset)
-    assert all(record.volume >= 0 for record in dataset)
-    
-    # Validate business logic
-    first_record = dataset[0]
-    assert first_record.timestamp.minute % 5 == 0  # 5-minute alignment
-    
-    # Validate sequence integrity  
-    timestamps = [r.timestamp for r in dataset]
-    assert timestamps == sorted(timestamps)  # Chronological order
+else:
+    print(f"Expected exception but got result")  # Validates nothing
 ```
+
+**✅ EXCELLENT: Exact Value Validation**
+```python
+# EXACT validation of error scenarios
+if scenario['expected_behavior'] == 'partial_success':
+    # Validate EXACTLY which symbols are present and missing
+    expected_missing = ['DELISTED_SYMBOL', 'INVALID_SYMBOL']
+    expected_present = ['AAPL', 'TSLA', 'MSFT']
+    
+    assert len(result) == len(expected_present), f"Expected exactly {len(expected_present)} symbols"
+    
+    for symbol in expected_present:
+        assert symbol in result, f"Expected symbol {symbol} missing from partial result"
+        # Validate EXACT OHLCV structure and values
+        ohlcv = result[symbol]
+        assert 'open' in ohlcv and ohlcv['open'] > 0, f"{symbol} missing valid open price"
+        assert 'high' in ohlcv and ohlcv['high'] >= ohlcv['open'], f"{symbol} high < open: {ohlcv['high']} < {ohlcv['open']}"
+        assert 'low' in ohlcv and ohlcv['low'] <= ohlcv['close'], f"{symbol} low > close: {ohlcv['low']} > {ohlcv['close']}"
+        assert 'volume' in ohlcv and ohlcv['volume'] >= 0, f"{symbol} invalid volume: {ohlcv['volume']}"
+    
+    for symbol in expected_missing:
+        assert symbol not in result, f"Unexpected symbol {symbol} in partial result"
+        
+elif scenario['expected_behavior'] == 'api_rate_limit_error':
+    # Validate EXACT exception type and message
+    with pytest.raises(APIRateLimitError) as exc_info:
+        result = await market_data_manager.get_ohlcv(symbols, start, end)
+    
+    # Validate EXACT error message and details
+    assert "rate limit exceeded" in str(exc_info.value).lower(), f"Wrong error message: {exc_info.value}"
+    assert exc_info.value.retry_after_seconds > 0, f"Missing retry timing: {exc_info.value.retry_after_seconds}"
+    assert exc_info.value.vendor == 'polygon', f"Wrong vendor in error: {exc_info.value.vendor}"
+    
+elif scenario['expected_behavior'] == 'network_timeout':
+    # Validate EXACT timeout behavior
+    with pytest.raises(asyncio.TimeoutError) as exc_info:
+        result = await asyncio.wait_for(
+            market_data_manager.get_ohlcv(symbols, start, end), 
+            timeout=5.0
+        )
+    
+    # Validate timeout occurred within expected window
+    elapsed_time = time.time() - start_time
+    assert 4.5 <= elapsed_time <= 6.0, f"Timeout occurred outside expected window: {elapsed_time}s"
+```
+
+**✅ EXCELLENT: Exact OHLCV Value Validation**
+```python
+def test_ohlcv_calculation_accuracy():
+    """Validate EXACT OHLCV calculations with mathematical precision."""
+    
+    # Test with known minute data
+    minute_data = [
+        {'timestamp': '09:30', 'open': 100.0, 'high': 102.5, 'low': 99.5, 'close': 101.0, 'volume': 1000},
+        {'timestamp': '09:31', 'open': 101.0, 'high': 103.0, 'low': 100.5, 'close': 102.5, 'volume': 1500},
+        {'timestamp': '09:32', 'open': 102.5, 'high': 104.0, 'low': 102.0, 'close': 103.5, 'volume': 2000},
+        {'timestamp': '09:33', 'open': 103.5, 'high': 105.0, 'low': 103.0, 'close': 104.0, 'volume': 1200},
+        {'timestamp': '09:34', 'open': 104.0, 'high': 104.5, 'low': 103.5, 'close': 104.25, 'volume': 800},
+    ]
+    
+    # Aggregate to 5-minute bar
+    result = aggregate_to_5min(minute_data)
+    
+    # Validate EXACT mathematical calculations
+    assert result['open'] == 100.0, f"5min open must be first minute open: {result['open']} != 100.0"
+    assert result['high'] == 105.0, f"5min high must be max of minute highs: {result['high']} != 105.0"
+    assert result['low'] == 99.5, f"5min low must be min of minute lows: {result['low']} != 99.5"
+    assert result['close'] == 104.25, f"5min close must be last minute close: {result['close']} != 104.25"
+    assert result['volume'] == 6500, f"5min volume must be sum: {result['volume']} != 6500"
+    
+    # Validate VWAP calculation precision
+    expected_vwap = (100.0*1000 + 102.5*1500 + 103.5*2000 + 104.0*1200 + 104.25*800) / 6500
+    assert abs(result['vwap'] - expected_vwap) < 0.01, f"VWAP calculation error: {result['vwap']} vs {expected_vwap}"
+```
+
+**✅ EXCELLENT: Exact Time Range Validation**
+```python
+def test_time_range_calculation_precision():
+    """Validate EXACT time calculations down to the second."""
+    
+    test_timestamp = datetime(2024, 1, 15, 14, 30, 0, tzinfo=ZoneInfo("US/Eastern"))
+    
+    start_time, end_time = builder._get_market_data_time_range(test_timestamp)
+    
+    # Validate EXACT time calculations
+    expected_start = datetime(2024, 1, 15, 13, 30, 0, tzinfo=ZoneInfo("US/Eastern"))
+    expected_end = datetime(2024, 1, 15, 14, 30, 0, tzinfo=ZoneInfo("US/Eastern"))
+    
+    # ZERO tolerance for time discrepancies
+    start_diff = abs((start_time.replace(tzinfo=None) - expected_start.replace(tzinfo=None)).total_seconds())
+    end_diff = abs((end_time.replace(tzinfo=None) - expected_end.replace(tzinfo=None)).total_seconds())
+    
+    assert start_diff == 0, f"Start time calculation error: {start_time} vs {expected_start} (diff: {start_diff}s)"
+    assert end_diff == 0, f"End time calculation error: {end_time} vs {expected_end} (diff: {end_diff}s)"
+    
+    # Validate EXACT window duration
+    window_duration = end_time - start_time
+    expected_duration = timedelta(hours=1)
+    
+    duration_diff = abs((window_duration - expected_duration).total_seconds())
+    assert duration_diff == 0, f"Window duration error: {window_duration} vs {expected_duration} (diff: {duration_diff}s)"
+    
+    # Validate EXACT timezone handling
+    assert start_time.tzinfo.zone == "US/Eastern", f"Start time wrong timezone: {start_time.tzinfo}"
+    assert end_time.tzinfo.zone == "US/Eastern", f"End time wrong timezone: {end_time.tzinfo}"
+```
+
+**✅ EXCELLENT: Exact Parameter Validation**
+```python
+def test_market_data_request_parameters():
+    """Validate EXACT parameters passed to underlying services."""
+    
+    symbols = ['AAPL', 'TSLA']
+    start_date = '2024-01-15'
+    end_date = '2024-01-15'
+    timeframe = '1m'
+    
+    # Capture actual parameters sent to vendor API
+    with patch('vendor_api.get_data') as mock_api:
+        mock_api.return_value = expected_response
+        
+        result = await market_data_manager.get_ohlcv(symbols, start_date, end_date, timeframe)
+        
+        # Validate EXACT API call parameters
+        mock_api.assert_called_once()
+        actual_call = mock_api.call_args
+        
+        # Validate EXACT symbols list
+        assert actual_call[1]['symbols'] == ['AAPL', 'TSLA'], f"Wrong symbols: {actual_call[1]['symbols']}"
+        
+        # Validate EXACT date format
+        assert actual_call[1]['from'] == '2024-01-15T00:00:00-05:00', f"Wrong start date format: {actual_call[1]['from']}"
+        assert actual_call[1]['to'] == '2024-01-15T23:59:59-05:00', f"Wrong end date format: {actual_call[1]['to']}"
+        
+        # Validate EXACT timeframe mapping
+        assert actual_call[1]['multiplier'] == 1, f"Wrong multiplier: {actual_call[1]['multiplier']}"
+        assert actual_call[1]['timespan'] == 'minute', f"Wrong timespan: {actual_call[1]['timespan']}"
+        
+        # Validate EXACT API key usage
+        assert 'Authorization' in actual_call[1]['headers'], "Missing Authorization header"
+        assert actual_call[1]['headers']['Authorization'].startswith('Bearer '), "Wrong auth format"
+```
+
+**🔥 CRITICAL SUCCESS CRITERIA:**
+
+1. **ZERO Superficial Assertions**: Every `assert` must validate exact business values
+2. **EXACT Error Validation**: Test specific exception types, messages, and error details
+3. **PRECISE Mathematical Validation**: OHLCV calculations must be mathematically correct
+4. **EXACT Time Validation**: Zero tolerance for time calculation errors
+5. **SPECIFIC Parameter Validation**: Validate exact API parameters, not just that calls happen
+6. **CONCRETE Business Logic**: Test actual business rules, not generic existence
 
 #### **4️⃣ REAL OBJECTS ONLY (NO MOCK OBJECTS)**
 - **❌ NEVER use unittest.mock.Mock() or @patch decorators**

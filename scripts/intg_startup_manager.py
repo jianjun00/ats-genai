@@ -91,14 +91,12 @@ class IntgStartupManager:
 # ATS-INTG Slack Daily Coverage Summary - 7PM EST daily notification with 90-day coverage table
 0 19 * * * cd /workspace && PYTHONPATH=/workspace/src python3 scripts/slack_daily_coverage_summary.py --days 90 >> /logs/slack_daily_summary.log 2>&1
 """
-                with open('/tmp/ats-crontab', 'w') as f:
-                    f.write(crontab_content.strip())
+            with open('/tmp/ats-crontab', 'w') as f:
+                f.write(crontab_content.strip())
 
-                subprocess.run("crontab /tmp/ats-crontab", shell=True)
-                subprocess.run("service cron start", shell=True)
-                logger.info("✅ Cron jobs configured and started")
-            except Exception as e:
-                logger.error(f"❌ Cron setup failed: {e}")
+            subprocess.run("crontab /tmp/ats-crontab", shell=True)
+            subprocess.run("service cron start", shell=True)
+            logger.info("✅ Cron jobs configured and started")
 
     def health_monitor(self):
         """Continuous health monitoring loop"""
