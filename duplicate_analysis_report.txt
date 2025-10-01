@@ -1,0 +1,2016 @@
+🔍 Scanning tests for test files...
+   Found 1472 test files
+
+🔍 DUPLICATE TEST FILE ANALYSIS
+================================================================================
+Found 322 duplicate basenames affecting 803 files
+
+📄 test_ui_api_integration.py (6 copies)
+      7,726 bytes (   7.5 KB) - tests/infrastructure/integration/test_ui_api_integration.py
+      7,118 bytes (   7.0 KB) - tests/infrastructure/services/web_services/test_ui_api_integration.py
+      7,118 bytes (   7.0 KB) - tests/infrastructure/web/browser_tests/test_ui_api_integration.py
+      7,118 bytes (   7.0 KB) - tests/infrastructure/web/test_ui_api_integration.py
+      7,118 bytes (   7.0 KB) - tests/infrastructure/web/ui_tests/test_ui_api_integration.py
+      7,118 bytes (   7.0 KB) - tests/services/web_services/test_ui_api_integration.py
+
+📄 test_data_quality_dashboard.py (6 copies)
+     20,514 bytes (  20.0 KB) - tests/infrastructure/monitoring/test_data_quality_dashboard.py
+      5,628 bytes (   5.5 KB) - tests/infrastructure/services/web_services/test_data_quality_dashboard.py
+      5,628 bytes (   5.5 KB) - tests/infrastructure/web/browser_tests/test_data_quality_dashboard.py
+      5,628 bytes (   5.5 KB) - tests/infrastructure/web/test_data_quality_dashboard.py
+      5,628 bytes (   5.5 KB) - tests/infrastructure/web/ui_tests/test_data_quality_dashboard.py
+      5,628 bytes (   5.5 KB) - tests/services/web_services/test_data_quality_dashboard.py
+
+📄 test_comprehensive_features_display.py (5 copies)
+      7,289 bytes (   7.1 KB) - tests/infrastructure/services/web_services/test_comprehensive_features_display.py
+      7,289 bytes (   7.1 KB) - tests/infrastructure/web/browser_tests/test_comprehensive_features_display.py
+      7,289 bytes (   7.1 KB) - tests/infrastructure/web/test_comprehensive_features_display.py
+      7,289 bytes (   7.1 KB) - tests/infrastructure/web/ui_tests/test_comprehensive_features_display.py
+      7,289 bytes (   7.1 KB) - tests/services/web_services/test_comprehensive_features_display.py
+
+📄 test_symbol_filter_complete.py (5 copies)
+      6,599 bytes (   6.4 KB) - tests/infrastructure/services/web_services/test_symbol_filter_complete.py
+      6,599 bytes (   6.4 KB) - tests/infrastructure/web/browser_tests/test_symbol_filter_complete.py
+      6,599 bytes (   6.4 KB) - tests/infrastructure/web/test_symbol_filter_complete.py
+      6,599 bytes (   6.4 KB) - tests/infrastructure/web/ui_tests/test_symbol_filter_complete.py
+      6,599 bytes (   6.4 KB) - tests/services/web_services/test_symbol_filter_complete.py
+
+📄 test_eda_interface.py (5 copies)
+     15,307 bytes (  14.9 KB) - tests/infrastructure/web/ui_tests/test_eda_interface.py
+      9,613 bytes (   9.4 KB) - tests/infrastructure/services/web_services/test_eda_interface.py
+      9,613 bytes (   9.4 KB) - tests/infrastructure/web/browser_tests/test_eda_interface.py
+      9,613 bytes (   9.4 KB) - tests/infrastructure/web/test_eda_interface.py
+      9,613 bytes (   9.4 KB) - tests/services/web_services/test_eda_interface.py
+
+📄 test_javascript_debug.py (5 copies)
+      4,276 bytes (   4.2 KB) - tests/infrastructure/services/web_services/test_javascript_debug.py
+      4,276 bytes (   4.2 KB) - tests/infrastructure/web/browser_tests/test_javascript_debug.py
+      4,276 bytes (   4.2 KB) - tests/infrastructure/web/test_javascript_debug.py
+      4,276 bytes (   4.2 KB) - tests/infrastructure/web/ui_tests/test_javascript_debug.py
+      4,276 bytes (   4.2 KB) - tests/services/web_services/test_javascript_debug.py
+
+📄 test_simple_agent_status.py (5 copies)
+      2,234 bytes (   2.2 KB) - tests/infrastructure/services/web_services/test_simple_agent_status.py
+      2,234 bytes (   2.2 KB) - tests/infrastructure/web/browser_tests/test_simple_agent_status.py
+      2,234 bytes (   2.2 KB) - tests/infrastructure/web/test_simple_agent_status.py
+      2,234 bytes (   2.2 KB) - tests/infrastructure/web/ui_tests/test_simple_agent_status.py
+      2,234 bytes (   2.2 KB) - tests/services/web_services/test_simple_agent_status.py
+
+📄 test_navigation_debugging.py (5 copies)
+      7,626 bytes (   7.4 KB) - tests/infrastructure/services/web_services/test_navigation_debugging.py
+      7,626 bytes (   7.4 KB) - tests/infrastructure/web/browser_tests/test_navigation_debugging.py
+      7,626 bytes (   7.4 KB) - tests/infrastructure/web/test_navigation_debugging.py
+      7,626 bytes (   7.4 KB) - tests/infrastructure/web/ui_tests/test_navigation_debugging.py
+      7,626 bytes (   7.4 KB) - tests/services/web_services/test_navigation_debugging.py
+
+📄 test_earnings_events_integration.py (5 copies)
+     16,946 bytes (  16.5 KB) - tests/infrastructure/services/web_services/test_earnings_events_integration.py
+     16,946 bytes (  16.5 KB) - tests/infrastructure/web/browser_tests/test_earnings_events_integration.py
+     16,946 bytes (  16.5 KB) - tests/infrastructure/web/test_earnings_events_integration.py
+     16,946 bytes (  16.5 KB) - tests/infrastructure/web/ui_tests/test_earnings_events_integration.py
+     16,946 bytes (  16.5 KB) - tests/services/web_services/test_earnings_events_integration.py
+
+📄 test_news_analytics_playwright.py (5 copies)
+     15,063 bytes (  14.7 KB) - tests/infrastructure/services/web_services/test_news_analytics_playwright.py
+     15,063 bytes (  14.7 KB) - tests/infrastructure/web/browser_tests/test_news_analytics_playwright.py
+     15,063 bytes (  14.7 KB) - tests/infrastructure/web/test_news_analytics_playwright.py
+     15,063 bytes (  14.7 KB) - tests/infrastructure/web/ui_tests/test_news_analytics_playwright.py
+     15,063 bytes (  14.7 KB) - tests/services/web_services/test_news_analytics_playwright.py
+
+📄 test_gap_events_integration.py (5 copies)
+     16,976 bytes (  16.6 KB) - tests/infrastructure/services/web_services/test_gap_events_integration.py
+     16,976 bytes (  16.6 KB) - tests/infrastructure/web/browser_tests/test_gap_events_integration.py
+     16,976 bytes (  16.6 KB) - tests/infrastructure/web/test_gap_events_integration.py
+     16,976 bytes (  16.6 KB) - tests/infrastructure/web/ui_tests/test_gap_events_integration.py
+     16,976 bytes (  16.6 KB) - tests/services/web_services/test_gap_events_integration.py
+
+📄 test_eda_playwright.py (5 copies)
+      5,578 bytes (   5.4 KB) - tests/infrastructure/services/web_services/test_eda_playwright.py
+      5,578 bytes (   5.4 KB) - tests/infrastructure/web/browser_tests/test_eda_playwright.py
+      5,578 bytes (   5.4 KB) - tests/infrastructure/web/test_eda_playwright.py
+      5,578 bytes (   5.4 KB) - tests/infrastructure/web/ui_tests/test_eda_playwright.py
+      5,578 bytes (   5.4 KB) - tests/services/web_services/test_eda_playwright.py
+
+📄 test_monthly_training_data_playwright.py (5 copies)
+     13,805 bytes (  13.5 KB) - tests/infrastructure/services/web_services/test_monthly_training_data_playwright.py
+     13,805 bytes (  13.5 KB) - tests/infrastructure/web/browser_tests/test_monthly_training_data_playwright.py
+     13,805 bytes (  13.5 KB) - tests/infrastructure/web/test_monthly_training_data_playwright.py
+     13,805 bytes (  13.5 KB) - tests/infrastructure/web/ui_tests/test_monthly_training_data_playwright.py
+     13,805 bytes (  13.5 KB) - tests/services/web_services/test_monthly_training_data_playwright.py
+
+📄 test_sequence_visualization_playwright.py (5 copies)
+     15,331 bytes (  15.0 KB) - tests/infrastructure/services/web_services/test_sequence_visualization_playwright.py
+     15,331 bytes (  15.0 KB) - tests/infrastructure/web/browser_tests/test_sequence_visualization_playwright.py
+     15,331 bytes (  15.0 KB) - tests/infrastructure/web/test_sequence_visualization_playwright.py
+     15,331 bytes (  15.0 KB) - tests/infrastructure/web/ui_tests/test_sequence_visualization_playwright.py
+     15,331 bytes (  15.0 KB) - tests/services/web_services/test_sequence_visualization_playwright.py
+
+📄 test_start_button_workflow.py (5 copies)
+      5,556 bytes (   5.4 KB) - tests/infrastructure/services/web_services/test_start_button_workflow.py
+      5,556 bytes (   5.4 KB) - tests/infrastructure/web/browser_tests/test_start_button_workflow.py
+      5,556 bytes (   5.4 KB) - tests/infrastructure/web/test_start_button_workflow.py
+      5,556 bytes (   5.4 KB) - tests/infrastructure/web/ui_tests/test_start_button_workflow.py
+      5,556 bytes (   5.4 KB) - tests/services/web_services/test_start_button_workflow.py
+
+📄 test_timestamp_visualization_fixes.py (5 copies)
+     12,013 bytes (  11.7 KB) - tests/infrastructure/services/web_services/test_timestamp_visualization_fixes.py
+     12,013 bytes (  11.7 KB) - tests/infrastructure/web/browser_tests/test_timestamp_visualization_fixes.py
+     12,013 bytes (  11.7 KB) - tests/infrastructure/web/test_timestamp_visualization_fixes.py
+     12,013 bytes (  11.7 KB) - tests/infrastructure/web/ui_tests/test_timestamp_visualization_fixes.py
+     12,013 bytes (  11.7 KB) - tests/services/web_services/test_timestamp_visualization_fixes.py
+
+📄 test_function_existence.py (5 copies)
+      3,658 bytes (   3.6 KB) - tests/infrastructure/services/web_services/test_function_existence.py
+      3,658 bytes (   3.6 KB) - tests/infrastructure/web/browser_tests/test_function_existence.py
+      3,658 bytes (   3.6 KB) - tests/infrastructure/web/test_function_existence.py
+      3,658 bytes (   3.6 KB) - tests/infrastructure/web/ui_tests/test_function_existence.py
+      3,658 bytes (   3.6 KB) - tests/services/web_services/test_function_existence.py
+
+📄 test_table_data_validation.py (5 copies)
+      8,967 bytes (   8.8 KB) - tests/infrastructure/services/web_services/test_table_data_validation.py
+      8,967 bytes (   8.8 KB) - tests/infrastructure/web/browser_tests/test_table_data_validation.py
+      8,967 bytes (   8.8 KB) - tests/infrastructure/web/test_table_data_validation.py
+      8,967 bytes (   8.8 KB) - tests/infrastructure/web/ui_tests/test_table_data_validation.py
+      8,967 bytes (   8.8 KB) - tests/services/web_services/test_table_data_validation.py
+
+📄 test_data_quality_debug.py (5 copies)
+      7,340 bytes (   7.2 KB) - tests/infrastructure/services/web_services/test_data_quality_debug.py
+      7,340 bytes (   7.2 KB) - tests/infrastructure/web/browser_tests/test_data_quality_debug.py
+      7,340 bytes (   7.2 KB) - tests/infrastructure/web/test_data_quality_debug.py
+      7,340 bytes (   7.2 KB) - tests/infrastructure/web/ui_tests/test_data_quality_debug.py
+      7,340 bytes (   7.2 KB) - tests/services/web_services/test_data_quality_debug.py
+
+📄 test_eda_browser_simulation.py (5 copies)
+     12,813 bytes (  12.5 KB) - tests/infrastructure/services/web_services/test_eda_browser_simulation.py
+     12,813 bytes (  12.5 KB) - tests/infrastructure/web/browser_tests/test_eda_browser_simulation.py
+     12,813 bytes (  12.5 KB) - tests/infrastructure/web/test_eda_browser_simulation.py
+     12,813 bytes (  12.5 KB) - tests/infrastructure/web/ui_tests/test_eda_browser_simulation.py
+     12,813 bytes (  12.5 KB) - tests/services/web_services/test_eda_browser_simulation.py
+
+📄 test_eda_navigation_integration.py (5 copies)
+      9,351 bytes (   9.1 KB) - tests/infrastructure/services/web_services/test_eda_navigation_integration.py
+      9,351 bytes (   9.1 KB) - tests/infrastructure/web/browser_tests/test_eda_navigation_integration.py
+      9,351 bytes (   9.1 KB) - tests/infrastructure/web/test_eda_navigation_integration.py
+      9,351 bytes (   9.1 KB) - tests/infrastructure/web/ui_tests/test_eda_navigation_integration.py
+      9,351 bytes (   9.1 KB) - tests/services/web_services/test_eda_navigation_integration.py
+
+📄 test_agent_status_loading.py (5 copies)
+      4,863 bytes (   4.7 KB) - tests/infrastructure/services/web_services/test_agent_status_loading.py
+      4,863 bytes (   4.7 KB) - tests/infrastructure/web/browser_tests/test_agent_status_loading.py
+      4,863 bytes (   4.7 KB) - tests/infrastructure/web/test_agent_status_loading.py
+      4,863 bytes (   4.7 KB) - tests/infrastructure/web/ui_tests/test_agent_status_loading.py
+      4,863 bytes (   4.7 KB) - tests/services/web_services/test_agent_status_loading.py
+
+📄 test_chart_loading_error_scenarios.py (5 copies)
+     12,581 bytes (  12.3 KB) - tests/infrastructure/services/web_services/test_chart_loading_error_scenarios.py
+     12,581 bytes (  12.3 KB) - tests/infrastructure/web/browser_tests/test_chart_loading_error_scenarios.py
+     12,581 bytes (  12.3 KB) - tests/infrastructure/web/test_chart_loading_error_scenarios.py
+     12,581 bytes (  12.3 KB) - tests/infrastructure/web/ui_tests/test_chart_loading_error_scenarios.py
+     12,581 bytes (  12.3 KB) - tests/services/web_services/test_chart_loading_error_scenarios.py
+
+📄 test_eda_fixes.py (5 copies)
+      5,392 bytes (   5.3 KB) - tests/infrastructure/services/web_services/test_eda_fixes.py
+      5,392 bytes (   5.3 KB) - tests/infrastructure/web/browser_tests/test_eda_fixes.py
+      5,392 bytes (   5.3 KB) - tests/infrastructure/web/test_eda_fixes.py
+      5,392 bytes (   5.3 KB) - tests/infrastructure/web/ui_tests/test_eda_fixes.py
+      5,392 bytes (   5.3 KB) - tests/services/web_services/test_eda_fixes.py
+
+📄 test_news_filtering_playwright.py (5 copies)
+     12,705 bytes (  12.4 KB) - tests/infrastructure/services/web_services/test_news_filtering_playwright.py
+     12,705 bytes (  12.4 KB) - tests/infrastructure/web/browser_tests/test_news_filtering_playwright.py
+     12,705 bytes (  12.4 KB) - tests/infrastructure/web/test_news_filtering_playwright.py
+     12,705 bytes (  12.4 KB) - tests/infrastructure/web/ui_tests/test_news_filtering_playwright.py
+     12,705 bytes (  12.4 KB) - tests/services/web_services/test_news_filtering_playwright.py
+
+📄 test_eda_playwright_final.py (5 copies)
+      7,046 bytes (   6.9 KB) - tests/infrastructure/services/web_services/test_eda_playwright_final.py
+      7,046 bytes (   6.9 KB) - tests/infrastructure/web/browser_tests/test_eda_playwright_final.py
+      7,046 bytes (   6.9 KB) - tests/infrastructure/web/test_eda_playwright_final.py
+      7,046 bytes (   6.9 KB) - tests/infrastructure/web/ui_tests/test_eda_playwright_final.py
+      7,046 bytes (   6.9 KB) - tests/services/web_services/test_eda_playwright_final.py
+
+📄 test_sequence_selection_dom_validation.py (5 copies)
+      8,788 bytes (   8.6 KB) - tests/infrastructure/services/web_services/test_sequence_selection_dom_validation.py
+      8,788 bytes (   8.6 KB) - tests/infrastructure/web/browser_tests/test_sequence_selection_dom_validation.py
+      8,788 bytes (   8.6 KB) - tests/infrastructure/web/test_sequence_selection_dom_validation.py
+      8,788 bytes (   8.6 KB) - tests/infrastructure/web/ui_tests/test_sequence_selection_dom_validation.py
+      8,788 bytes (   8.6 KB) - tests/services/web_services/test_sequence_selection_dom_validation.py
+
+📄 test_with_features_enabled.py (5 copies)
+      6,214 bytes (   6.1 KB) - tests/infrastructure/web/test_with_features_enabled.py
+      6,214 bytes (   6.1 KB) - tests/infrastructure/web/ui_tests/test_with_features_enabled.py
+      6,214 bytes (   6.1 KB) - tests/services/web_services/test_with_features_enabled.py
+      6,199 bytes (   6.1 KB) - tests/infrastructure/services/web_services/test_with_features_enabled.py
+      6,199 bytes (   6.1 KB) - tests/infrastructure/web/browser_tests/test_with_features_enabled.py
+
+📄 test_playwright_validation.py (5 copies)
+      3,080 bytes (   3.0 KB) - tests/infrastructure/services/web_services/test_playwright_validation.py
+      3,080 bytes (   3.0 KB) - tests/infrastructure/web/browser_tests/test_playwright_validation.py
+      3,080 bytes (   3.0 KB) - tests/infrastructure/web/test_playwright_validation.py
+      3,080 bytes (   3.0 KB) - tests/infrastructure/web/ui_tests/test_playwright_validation.py
+      3,080 bytes (   3.0 KB) - tests/services/web_services/test_playwright_validation.py
+
+📄 test_playwright_simple.py (5 copies)
+      1,779 bytes (   1.7 KB) - tests/infrastructure/services/web_services/test_playwright_simple.py
+      1,779 bytes (   1.7 KB) - tests/infrastructure/web/browser_tests/test_playwright_simple.py
+      1,779 bytes (   1.7 KB) - tests/infrastructure/web/test_playwright_simple.py
+      1,779 bytes (   1.7 KB) - tests/infrastructure/web/ui_tests/test_playwright_simple.py
+      1,779 bytes (   1.7 KB) - tests/services/web_services/test_playwright_simple.py
+
+📄 test_universe_analytics_playwright.py (5 copies)
+     16,834 bytes (  16.4 KB) - tests/infrastructure/services/web_services/test_universe_analytics_playwright.py
+     16,834 bytes (  16.4 KB) - tests/infrastructure/web/browser_tests/test_universe_analytics_playwright.py
+     16,834 bytes (  16.4 KB) - tests/infrastructure/web/test_universe_analytics_playwright.py
+     16,834 bytes (  16.4 KB) - tests/infrastructure/web/ui_tests/test_universe_analytics_playwright.py
+     16,834 bytes (  16.4 KB) - tests/services/web_services/test_universe_analytics_playwright.py
+
+📄 test_training_dataset_sequences.py (5 copies)
+     13,695 bytes (  13.4 KB) - tests/infrastructure/services/web_services/test_training_dataset_sequences.py
+     13,695 bytes (  13.4 KB) - tests/infrastructure/web/browser_tests/test_training_dataset_sequences.py
+     13,695 bytes (  13.4 KB) - tests/infrastructure/web/test_training_dataset_sequences.py
+     13,695 bytes (  13.4 KB) - tests/infrastructure/web/ui_tests/test_training_dataset_sequences.py
+     13,695 bytes (  13.4 KB) - tests/services/web_services/test_training_dataset_sequences.py
+
+📄 test_sequence_visualization_debug.py (5 copies)
+      9,625 bytes (   9.4 KB) - tests/infrastructure/services/web_services/test_sequence_visualization_debug.py
+      9,625 bytes (   9.4 KB) - tests/infrastructure/web/browser_tests/test_sequence_visualization_debug.py
+      9,625 bytes (   9.4 KB) - tests/infrastructure/web/test_sequence_visualization_debug.py
+      9,625 bytes (   9.4 KB) - tests/infrastructure/web/ui_tests/test_sequence_visualization_debug.py
+      9,625 bytes (   9.4 KB) - tests/services/web_services/test_sequence_visualization_debug.py
+
+📄 test_api_status_tracker.py (5 copies)
+     10,730 bytes (  10.5 KB) - tests/infrastructure/services/web_services/test_api_status_tracker.py
+     10,730 bytes (  10.5 KB) - tests/infrastructure/web/browser_tests/test_api_status_tracker.py
+     10,730 bytes (  10.5 KB) - tests/infrastructure/web/test_api_status_tracker.py
+     10,730 bytes (  10.5 KB) - tests/infrastructure/web/ui_tests/test_api_status_tracker.py
+     10,730 bytes (  10.5 KB) - tests/services/web_services/test_api_status_tracker.py
+
+📄 test_timestamp_navigation_playwright.py (5 copies)
+     21,844 bytes (  21.3 KB) - tests/infrastructure/services/web_services/test_timestamp_navigation_playwright.py
+     21,844 bytes (  21.3 KB) - tests/infrastructure/web/browser_tests/test_timestamp_navigation_playwright.py
+     21,844 bytes (  21.3 KB) - tests/infrastructure/web/test_timestamp_navigation_playwright.py
+     21,844 bytes (  21.3 KB) - tests/infrastructure/web/ui_tests/test_timestamp_navigation_playwright.py
+     21,844 bytes (  21.3 KB) - tests/services/web_services/test_timestamp_navigation_playwright.py
+
+📄 test_sequence_visualization_fix.py (5 copies)
+      8,533 bytes (   8.3 KB) - tests/infrastructure/services/web_services/test_sequence_visualization_fix.py
+      8,533 bytes (   8.3 KB) - tests/infrastructure/web/browser_tests/test_sequence_visualization_fix.py
+      8,533 bytes (   8.3 KB) - tests/infrastructure/web/test_sequence_visualization_fix.py
+      8,533 bytes (   8.3 KB) - tests/infrastructure/web/ui_tests/test_sequence_visualization_fix.py
+      8,533 bytes (   8.3 KB) - tests/services/web_services/test_sequence_visualization_fix.py
+
+📄 test_sequence_data_investigation.py (5 copies)
+      7,540 bytes (   7.4 KB) - tests/infrastructure/services/web_services/test_sequence_data_investigation.py
+      7,540 bytes (   7.4 KB) - tests/infrastructure/web/browser_tests/test_sequence_data_investigation.py
+      7,540 bytes (   7.4 KB) - tests/infrastructure/web/test_sequence_data_investigation.py
+      7,540 bytes (   7.4 KB) - tests/infrastructure/web/ui_tests/test_sequence_data_investigation.py
+      7,540 bytes (   7.4 KB) - tests/services/web_services/test_sequence_data_investigation.py
+
+📄 test_time_navigation_playwright.py (5 copies)
+     10,999 bytes (  10.7 KB) - tests/infrastructure/services/web_services/test_time_navigation_playwright.py
+     10,999 bytes (  10.7 KB) - tests/infrastructure/web/browser_tests/test_time_navigation_playwright.py
+     10,999 bytes (  10.7 KB) - tests/infrastructure/web/test_time_navigation_playwright.py
+     10,999 bytes (  10.7 KB) - tests/infrastructure/web/ui_tests/test_time_navigation_playwright.py
+     10,999 bytes (  10.7 KB) - tests/services/web_services/test_time_navigation_playwright.py
+
+📄 test_eda_column_availability_explanation.py (4 copies)
+      9,844 bytes (   9.6 KB) - tests/domains/analytics/unit/test_eda_column_availability_explanation.py
+      9,844 bytes (   9.6 KB) - tests/infrastructure/services/web_services/test_eda_column_availability_explanation.py
+      9,844 bytes (   9.6 KB) - tests/infrastructure/web/test_eda_column_availability_explanation.py
+      9,844 bytes (   9.6 KB) - tests/services/web_services/test_eda_column_availability_explanation.py
+
+📄 test_eda_filtering_unit.py (4 copies)
+     10,210 bytes (  10.0 KB) - tests/domains/analytics/unit/test_eda_filtering_unit.py
+     10,210 bytes (  10.0 KB) - tests/infrastructure/services/web_services/test_eda_filtering_unit.py
+     10,210 bytes (  10.0 KB) - tests/infrastructure/web/test_eda_filtering_unit.py
+     10,210 bytes (  10.0 KB) - tests/services/web_services/test_eda_filtering_unit.py
+
+📄 test_dataset_fix_verification_real_objects.py (4 copies)
+      8,148 bytes (   8.0 KB) - tests/infrastructure/services/web_services/test_dataset_fix_verification_real_objects.py
+      8,137 bytes (   7.9 KB) - tests/infrastructure/web/webapp/test_dataset_fix_verification_real_objects.py
+      8,133 bytes (   7.9 KB) - tests/services/web_services/test_dataset_fix_verification_real_objects.py
+      8,130 bytes (   7.9 KB) - tests/infrastructure/web/test_dataset_fix_verification_real_objects.py
+
+📄 test_dataset_endpoint_detection.py (4 copies)
+     12,767 bytes (  12.5 KB) - tests/infrastructure/services/web_services/test_dataset_endpoint_detection.py
+     12,767 bytes (  12.5 KB) - tests/infrastructure/web/test_dataset_endpoint_detection.py
+     12,767 bytes (  12.5 KB) - tests/infrastructure/web/webapp/test_dataset_endpoint_detection.py
+     12,767 bytes (  12.5 KB) - tests/services/web_services/test_dataset_endpoint_detection.py
+
+📄 test_dataset_filesystem_fix.py (4 copies)
+      7,294 bytes (   7.1 KB) - tests/infrastructure/services/web_services/test_dataset_filesystem_fix.py
+      7,294 bytes (   7.1 KB) - tests/infrastructure/web/test_dataset_filesystem_fix.py
+      7,294 bytes (   7.1 KB) - tests/infrastructure/web/webapp/test_dataset_filesystem_fix.py
+      7,294 bytes (   7.1 KB) - tests/services/web_services/test_dataset_filesystem_fix.py
+
+📄 test_dataset_detail_404_regression_real_objects.py (4 copies)
+      6,827 bytes (   6.7 KB) - tests/infrastructure/services/web_services/test_dataset_detail_404_regression_real_objects.py
+      6,816 bytes (   6.7 KB) - tests/infrastructure/web/webapp/test_dataset_detail_404_regression_real_objects.py
+      6,812 bytes (   6.7 KB) - tests/services/web_services/test_dataset_detail_404_regression_real_objects.py
+      6,809 bytes (   6.6 KB) - tests/infrastructure/web/test_dataset_detail_404_regression_real_objects.py
+
+📄 test_enhanced_dataset_features.py (4 copies)
+      9,554 bytes (   9.3 KB) - tests/infrastructure/services/web_services/test_enhanced_dataset_features.py
+      9,554 bytes (   9.3 KB) - tests/infrastructure/web/test_enhanced_dataset_features.py
+      9,554 bytes (   9.3 KB) - tests/infrastructure/web/webapp/test_enhanced_dataset_features.py
+      9,554 bytes (   9.3 KB) - tests/services/web_services/test_enhanced_dataset_features.py
+
+📄 test_dataset_detail_page_fix_real_objects.py (4 copies)
+      9,803 bytes (   9.6 KB) - tests/infrastructure/services/web_services/test_dataset_detail_page_fix_real_objects.py
+      9,792 bytes (   9.6 KB) - tests/infrastructure/web/webapp/test_dataset_detail_page_fix_real_objects.py
+      9,788 bytes (   9.6 KB) - tests/services/web_services/test_dataset_detail_page_fix_real_objects.py
+      9,785 bytes (   9.6 KB) - tests/infrastructure/web/test_dataset_detail_page_fix_real_objects.py
+
+📄 test_dataset_fix_verification.py (4 copies)
+      7,331 bytes (   7.2 KB) - tests/infrastructure/services/web_services/test_dataset_fix_verification.py
+      7,331 bytes (   7.2 KB) - tests/infrastructure/web/test_dataset_fix_verification.py
+      7,331 bytes (   7.2 KB) - tests/infrastructure/web/webapp/test_dataset_fix_verification.py
+      7,331 bytes (   7.2 KB) - tests/services/web_services/test_dataset_fix_verification.py
+
+📄 test_dataset_detail_page_fix.py (4 copies)
+     13,085 bytes (  12.8 KB) - tests/infrastructure/services/web_services/test_dataset_detail_page_fix.py
+     13,085 bytes (  12.8 KB) - tests/infrastructure/web/test_dataset_detail_page_fix.py
+     13,085 bytes (  12.8 KB) - tests/infrastructure/web/webapp/test_dataset_detail_page_fix.py
+     13,085 bytes (  12.8 KB) - tests/services/web_services/test_dataset_detail_page_fix.py
+
+📄 test_backtest_webapp_real_objects.py (4 copies)
+     15,267 bytes (  14.9 KB) - tests/infrastructure/services/web_services/test_backtest_webapp_real_objects.py
+     15,256 bytes (  14.9 KB) - tests/infrastructure/web/webapp/test_backtest_webapp_real_objects.py
+     15,252 bytes (  14.9 KB) - tests/services/web_services/test_backtest_webapp_real_objects.py
+     15,249 bytes (  14.9 KB) - tests/infrastructure/web/test_backtest_webapp_real_objects.py
+
+📄 test_dataset_detail_404_regression.py (4 copies)
+      7,031 bytes (   6.9 KB) - tests/infrastructure/services/web_services/test_dataset_detail_404_regression.py
+      7,031 bytes (   6.9 KB) - tests/infrastructure/web/test_dataset_detail_404_regression.py
+      7,031 bytes (   6.9 KB) - tests/infrastructure/web/webapp/test_dataset_detail_404_regression.py
+      7,031 bytes (   6.9 KB) - tests/services/web_services/test_dataset_detail_404_regression.py
+
+📄 test_eda_column_selection_unit.py (4 copies)
+      6,337 bytes (   6.2 KB) - tests/domains/analytics/unit/test_eda_column_selection_unit.py
+      6,337 bytes (   6.2 KB) - tests/infrastructure/services/web_services/test_eda_column_selection_unit.py
+      6,337 bytes (   6.2 KB) - tests/infrastructure/web/test_eda_column_selection_unit.py
+      6,337 bytes (   6.2 KB) - tests/services/web_services/test_eda_column_selection_unit.py
+
+📄 test_eda_performance_unit.py (4 copies)
+     11,171 bytes (  10.9 KB) - tests/domains/analytics/unit/test_eda_performance_unit.py
+     11,171 bytes (  10.9 KB) - tests/infrastructure/services/web_services/test_eda_performance_unit.py
+     11,171 bytes (  10.9 KB) - tests/infrastructure/web/test_eda_performance_unit.py
+     11,171 bytes (  10.9 KB) - tests/services/web_services/test_eda_performance_unit.py
+
+📄 test_ray_eda_end_to_end.py (3 copies)
+     11,717 bytes (  11.4 KB) - tests/infrastructure/services/web_services/test_ray_eda_end_to_end.py
+     11,717 bytes (  11.4 KB) - tests/infrastructure/web/test_ray_eda_end_to_end.py
+     11,717 bytes (  11.4 KB) - tests/services/web_services/test_ray_eda_end_to_end.py
+
+📄 test_ray_eda_system.py (3 copies)
+     19,154 bytes (  18.7 KB) - tests/infrastructure/services/web_services/test_ray_eda_system.py
+     18,455 bytes (  18.0 KB) - tests/infrastructure/web/test_ray_eda_system.py
+     18,455 bytes (  18.0 KB) - tests/services/web_services/test_ray_eda_system.py
+
+📄 test_eda_filtering_integration.py (3 copies)
+     16,236 bytes (  15.9 KB) - tests/infrastructure/services/web_services/test_eda_filtering_integration.py
+     16,236 bytes (  15.9 KB) - tests/infrastructure/web/test_eda_filtering_integration.py
+     16,236 bytes (  15.9 KB) - tests/services/web_services/test_eda_filtering_integration.py
+
+📄 test_multi_panel_eda_integration_real_objects.py (3 copies)
+     11,113 bytes (  10.9 KB) - tests/infrastructure/services/web_services/test_multi_panel_eda_integration_real_objects.py
+     11,098 bytes (  10.8 KB) - tests/services/web_services/test_multi_panel_eda_integration_real_objects.py
+     11,095 bytes (  10.8 KB) - tests/infrastructure/web/test_multi_panel_eda_integration_real_objects.py
+
+📄 test_ui_layout_regression_protection.py (3 copies)
+     10,747 bytes (  10.5 KB) - tests/infrastructure/services/web_services/test_ui_layout_regression_protection.py
+     10,747 bytes (  10.5 KB) - tests/infrastructure/web/test_ui_layout_regression_protection.py
+     10,747 bytes (  10.5 KB) - tests/services/web_services/test_ui_layout_regression_protection.py
+
+📄 test_comprehensive_eda_system.py (3 copies)
+     17,396 bytes (  17.0 KB) - tests/infrastructure/web/test_comprehensive_eda_system.py
+     17,396 bytes (  17.0 KB) - tests/services/web_services/test_comprehensive_eda_system.py
+     17,378 bytes (  17.0 KB) - tests/infrastructure/services/web_services/test_comprehensive_eda_system.py
+
+📄 test_ray_eda_coverage.py (3 copies)
+      8,537 bytes (   8.3 KB) - tests/infrastructure/services/web_services/test_ray_eda_coverage.py
+      8,537 bytes (   8.3 KB) - tests/infrastructure/web/test_ray_eda_coverage.py
+      8,537 bytes (   8.3 KB) - tests/services/web_services/test_ray_eda_coverage.py
+
+📄 test_eda_column_selection.py (3 copies)
+      8,064 bytes (   7.9 KB) - tests/infrastructure/services/web_services/test_eda_column_selection.py
+      8,064 bytes (   7.9 KB) - tests/infrastructure/web/test_eda_column_selection.py
+      8,064 bytes (   7.9 KB) - tests/services/web_services/test_eda_column_selection.py
+
+📄 test_eda_performance_integration.py (3 copies)
+     13,718 bytes (  13.4 KB) - tests/infrastructure/services/web_services/test_eda_performance_integration.py
+     13,718 bytes (  13.4 KB) - tests/infrastructure/web/test_eda_performance_integration.py
+     13,718 bytes (  13.4 KB) - tests/services/web_services/test_eda_performance_integration.py
+
+📄 test_ray_eda_system_real_objects.py (3 copies)
+     17,268 bytes (  16.9 KB) - tests/infrastructure/services/web_services/test_ray_eda_system_real_objects.py
+     17,253 bytes (  16.8 KB) - tests/services/web_services/test_ray_eda_system_real_objects.py
+     17,250 bytes (  16.8 KB) - tests/infrastructure/web/test_ray_eda_system_real_objects.py
+
+📄 test_multi_panel_eda_integration.py (3 copies)
+     13,200 bytes (  12.9 KB) - tests/infrastructure/services/web_services/test_multi_panel_eda_integration.py
+     13,200 bytes (  12.9 KB) - tests/infrastructure/web/test_multi_panel_eda_integration.py
+     13,200 bytes (  12.9 KB) - tests/services/web_services/test_multi_panel_eda_integration.py
+
+📄 test_comprehensive_eda_system_real_objects.py (3 copies)
+     15,526 bytes (  15.2 KB) - tests/infrastructure/services/web_services/test_comprehensive_eda_system_real_objects.py
+     15,511 bytes (  15.1 KB) - tests/services/web_services/test_comprehensive_eda_system_real_objects.py
+     15,508 bytes (  15.1 KB) - tests/infrastructure/web/test_comprehensive_eda_system_real_objects.py
+
+📄 test_exchange_dao_integration_real_objects.py (3 copies)
+     13,315 bytes (  13.0 KB) - tests/domains/instruments/repositories/test_exchange_dao_integration_real_objects.py
+     13,307 bytes (  13.0 KB) - tests/domains/instruments/unit/test_exchange_dao_integration_real_objects.py
+      2,468 bytes (   2.4 KB) - tests/core/unit/test_exchange_dao_integration_real_objects.py
+
+📄 test_experiment_framework_real_objects.py (3 copies)
+     19,966 bytes (  19.5 KB) - tests/domains/ml/services/evaluation/test_experiment_framework_real_objects.py
+     19,960 bytes (  19.5 KB) - tests/domains/ml/ml/evaluation/test_experiment_framework_real_objects.py
+     19,957 bytes (  19.5 KB) - tests/domains/ml/evaluation/test_experiment_framework_real_objects.py
+
+📄 test_experiment_framework.py (3 copies)
+     26,311 bytes (  25.7 KB) - tests/domains/ml/evaluation/test_experiment_framework.py
+     26,311 bytes (  25.7 KB) - tests/domains/ml/ml/evaluation/test_experiment_framework.py
+     26,311 bytes (  25.7 KB) - tests/domains/ml/services/evaluation/test_experiment_framework.py
+
+📄 test_analytics_service_comprehensive_real_objects.py (2 copies)
+     14,423 bytes (  14.1 KB) - tests/infrastructure/services/test_analytics_service_comprehensive_real_objects.py
+      2,478 bytes (   2.4 KB) - tests/services/test_analytics_service_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_news_processing_pipeline_e2e_real_objects.py (2 copies)
+      7,497 bytes (   7.3 KB) - tests/infrastructure/services/test_news_processing_pipeline_e2e_real_objects.py
+      2,487 bytes (   2.4 KB) - tests/services/test_news_processing_pipeline_e2e_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_news_system_load_tests_real_objects.py (2 copies)
+      8,146 bytes (   8.0 KB) - tests/domains/market_data/performance/test_news_system_load_tests_real_objects.py
+      2,475 bytes (   2.4 KB) - tests/performance/test_news_system_load_tests_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_multimodal_performance_real_objects.py (2 copies)
+     12,242 bytes (  12.0 KB) - tests/domains/ml/performance/test_multimodal_performance_real_objects.py
+      2,477 bytes (   2.4 KB) - tests/performance/test_multimodal_performance_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_migration_manager_prefixing.py (2 copies)
+      5,096 bytes (   5.0 KB) - tests/infrastructure/database/test_migration_manager_prefixing.py
+      5,096 bytes (   5.0 KB) - tests/infrastructure/db/test_migration_manager_prefixing.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_migration_manager_comprehensive.py (2 copies)
+     22,230 bytes (  21.7 KB) - tests/infrastructure/database/test_migration_manager_comprehensive.py
+     22,230 bytes (  21.7 KB) - tests/infrastructure/db/test_migration_manager_comprehensive.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_migration_edge_cases.py (2 copies)
+     21,963 bytes (  21.4 KB) - tests/infrastructure/database/test_migration_edge_cases.py
+     21,948 bytes (  21.4 KB) - tests/infrastructure/db/test_migration_edge_cases.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_db_naming.py (2 copies)
+        640 bytes (   0.6 KB) - tests/infrastructure/database/test_db_naming.py
+        640 bytes (   0.6 KB) - tests/infrastructure/db/test_db_naming.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_migration_manager.py (2 copies)
+      1,977 bytes (   1.9 KB) - tests/infrastructure/database/test_migration_manager.py
+      1,977 bytes (   1.9 KB) - tests/infrastructure/db/test_migration_manager.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_dao_base_real_objects.py (2 copies)
+      9,837 bytes (   9.6 KB) - tests/infrastructure/database/test_dao_base_real_objects.py
+      9,822 bytes (   9.6 KB) - tests/core/dao/test_dao_base_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_migration_manager_comprehensive_fixed.py (2 copies)
+     26,596 bytes (  26.0 KB) - tests/infrastructure/database/test_migration_manager_comprehensive_fixed.py
+     26,596 bytes (  26.0 KB) - tests/infrastructure/db/test_migration_manager_comprehensive_fixed.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_migration_edge_cases_real_objects.py (2 copies)
+     16,744 bytes (  16.4 KB) - tests/infrastructure/database/test_migration_edge_cases_real_objects.py
+     16,738 bytes (  16.3 KB) - tests/infrastructure/db/test_migration_edge_cases_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_migration_manager_comprehensive_fixed_real_objects.py (2 copies)
+     18,681 bytes (  18.2 KB) - tests/infrastructure/database/test_migration_manager_comprehensive_fixed_real_objects.py
+     18,675 bytes (  18.2 KB) - tests/infrastructure/db/test_migration_manager_comprehensive_fixed_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_migration_manager_comprehensive_real_objects.py (2 copies)
+     17,117 bytes (  16.7 KB) - tests/infrastructure/database/test_migration_manager_comprehensive_real_objects.py
+     17,111 bytes (  16.7 KB) - tests/infrastructure/db/test_migration_manager_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_all_daos_with_test_db.py (2 copies)
+     26,491 bytes (  25.9 KB) - tests/infrastructure/database/test_all_daos_with_test_db.py
+     26,339 bytes (  25.7 KB) - tests/core/dao/test_all_daos_with_test_db.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_dao_base.py (2 copies)
+      7,369 bytes (   7.2 KB) - tests/core/dao/test_dao_base.py
+      7,369 bytes (   7.2 KB) - tests/infrastructure/database/test_dao_base.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_universe_state_manager_comprehensive_real_objects.py (2 copies)
+     26,698 bytes (  26.1 KB) - tests/infrastructure/integration/test_universe_state_manager_comprehensive_real_objects.py
+     13,816 bytes (  13.5 KB) - tests/domains/trading/integration/test_universe_state_manager_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_trading_service_integration_real_objects.py (2 copies)
+     14,206 bytes (  13.9 KB) - tests/domains/trading/integration/test_trading_service_integration_real_objects.py
+      2,492 bytes (   2.4 KB) - tests/infrastructure/integration/test_trading_service_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_instruments_api_integration_real_objects.py (2 copies)
+     19,389 bytes (  18.9 KB) - tests/domains/instruments/integration/test_instruments_api_integration_real_objects.py
+      2,491 bytes (   2.4 KB) - tests/infrastructure/integration/test_instruments_api_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_eda_unified_metadata_system.py (2 copies)
+     19,238 bytes (  18.8 KB) - tests/domains/analytics/services/test_eda_unified_metadata_system.py
+     19,238 bytes (  18.8 KB) - tests/infrastructure/integration/test_eda_unified_metadata_system.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_news_collection_comprehensive_real_objects.py (2 copies)
+     11,210 bytes (  10.9 KB) - tests/domains/market_data/integration/test_news_collection_comprehensive_real_objects.py
+      2,494 bytes (   2.4 KB) - tests/infrastructure/integration/test_news_collection_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_arrayrecord_training_data_pipeline_real_objects.py (2 copies)
+      7,866 bytes (   7.7 KB) - tests/domains/ml/integration/test_arrayrecord_training_data_pipeline_real_objects.py
+      2,511 bytes (   2.5 KB) - tests/infrastructure/integration/test_arrayrecord_training_data_pipeline_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_infrastructure_comprehensive_real_objects.py (2 copies)
+     13,595 bytes (  13.3 KB) - tests/domains/ml/integration/test_training_data_infrastructure_comprehensive_real_objects.py
+      2,512 bytes (   2.5 KB) - tests/infrastructure/integration/test_training_data_infrastructure_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_data_population_issues_real_objects.py (2 copies)
+     14,946 bytes (  14.6 KB) - tests/domains/instruments/services/test_data_population_issues_real_objects.py
+     14,703 bytes (  14.4 KB) - tests/infrastructure/integration/test_data_population_issues_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_monthly_training_data_integration_real_objects.py (2 copies)
+      8,505 bytes (   8.3 KB) - tests/domains/ml/integration/test_monthly_training_data_integration_real_objects.py
+      2,516 bytes (   2.5 KB) - tests/infrastructure/integration/test_monthly_training_data_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_arrayrecord_file_creation_locations_real_objects.py (2 copies)
+      7,383 bytes (   7.2 KB) - tests/domains/ml/integration/test_arrayrecord_file_creation_locations_real_objects.py
+      2,514 bytes (   2.5 KB) - tests/infrastructure/integration/test_arrayrecord_file_creation_locations_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_universe_state_manager_missing_methods_real_objects.py (2 copies)
+      8,737 bytes (   8.5 KB) - tests/domains/trading/integration/test_universe_state_manager_missing_methods_real_objects.py
+      2,522 bytes (   2.5 KB) - tests/infrastructure/integration/test_universe_state_manager_missing_methods_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_data_population_issues.py (2 copies)
+     16,657 bytes (  16.3 KB) - tests/domains/instruments/services/test_data_population_issues.py
+     16,657 bytes (  16.3 KB) - tests/infrastructure/integration/test_data_population_issues.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_universe_state_manager_error_handling_real_objects.py (2 copies)
+     15,207 bytes (  14.9 KB) - tests/domains/trading/integration/test_universe_state_manager_error_handling_real_objects.py
+      2,519 bytes (   2.5 KB) - tests/infrastructure/integration/test_universe_state_manager_error_handling_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_technical_indicators_from_universe_state_manager_real_objects.py (2 copies)
+     11,051 bytes (  10.8 KB) - tests/domains/trading/integration/test_technical_indicators_from_universe_state_manager_real_objects.py
+      2,551 bytes (   2.5 KB) - tests/infrastructure/integration/test_technical_indicators_from_universe_state_manager_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_unified_analytics_platform_real_objects.py (2 copies)
+     20,022 bytes (  19.6 KB) - tests/domains/analytics/integration/test_unified_analytics_platform_real_objects.py
+      2,492 bytes (   2.4 KB) - tests/infrastructure/integration/test_unified_analytics_platform_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_complete_news_system_integration_real_objects.py (2 copies)
+      9,800 bytes (   9.6 KB) - tests/domains/market_data/integration/test_complete_news_system_integration_real_objects.py
+      2,505 bytes (   2.4 KB) - tests/infrastructure/integration/test_complete_news_system_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_runner.py (2 copies)
+      6,223 bytes (   6.1 KB) - tests/domains/trading/services/core/app/test_runner.py
+      4,967 bytes (   4.9 KB) - tests/infrastructure/integration/test_runner.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_import_fixes_real_objects.py (2 copies)
+      6,360 bytes (   6.2 KB) - tests/domains/ml/integration/test_training_data_import_fixes_real_objects.py
+      2,487 bytes (   2.4 KB) - tests/infrastructure/integration/test_training_data_import_fixes_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_eda_unified_metadata_system_real_objects.py (2 copies)
+     18,005 bytes (  17.6 KB) - tests/domains/analytics/services/test_eda_unified_metadata_system_real_objects.py
+     17,752 bytes (  17.3 KB) - tests/infrastructure/integration/test_eda_unified_metadata_system_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_schema_eda_integration.py (2 copies)
+     30,685 bytes (  30.0 KB) - tests/domains/analytics/services/test_schema_eda_integration.py
+     30,678 bytes (  30.0 KB) - tests/infrastructure/integration/test_schema_eda_integration.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_run_id_uniqueness_validation.py (2 copies)
+     28,815 bytes (  28.1 KB) - tests/infrastructure/integration/test_run_id_uniqueness_validation.py
+     11,796 bytes (  11.5 KB) - tests/core/unit/test_run_id_uniqueness_validation.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_multi_run_training_dataset_path_resolution_real_objects.py (2 copies)
+      6,398 bytes (   6.2 KB) - tests/domains/ml/integration/test_multi_run_training_dataset_path_resolution_real_objects.py
+      2,533 bytes (   2.5 KB) - tests/infrastructure/integration/test_multi_run_training_dataset_path_resolution_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_file_based_market_data_manager_integration_real_objects.py (2 copies)
+     14,636 bytes (  14.3 KB) - tests/domains/market_data/integration/test_file_based_market_data_manager_integration_real_objects.py
+      2,533 bytes (   2.5 KB) - tests/infrastructure/integration/test_file_based_market_data_manager_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_generation_steps_real_objects.py (2 copies)
+     13,850 bytes (  13.5 KB) - tests/domains/ml/integration/test_training_data_generation_steps_real_objects.py
+      2,499 bytes (   2.4 KB) - tests/infrastructure/integration/test_training_data_generation_steps_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_eda_database_fallback_system.py (2 copies)
+     12,955 bytes (  12.7 KB) - tests/domains/analytics/services/test_eda_database_fallback_system.py
+     12,955 bytes (  12.7 KB) - tests/infrastructure/integration/test_eda_database_fallback_system.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_arrayrecord_file_writing_debug_real_objects.py (2 copies)
+     10,906 bytes (  10.7 KB) - tests/domains/ml/integration/test_arrayrecord_file_writing_debug_real_objects.py
+      2,499 bytes (   2.4 KB) - tests/infrastructure/integration/test_arrayrecord_file_writing_debug_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_news_data_analysis_real_objects.py (2 copies)
+     13,230 bytes (  12.9 KB) - tests/domains/market_data/integration/test_news_data_analysis_real_objects.py
+      2,464 bytes (   2.4 KB) - tests/infrastructure/integration/test_news_data_analysis_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_analytics_service_integration_real_objects.py (2 copies)
+     11,966 bytes (  11.7 KB) - tests/domains/analytics/integration/test_analytics_service_integration_real_objects.py
+      2,498 bytes (   2.4 KB) - tests/infrastructure/integration/test_analytics_service_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_bulk_instrument_population_real_objects.py (2 copies)
+     12,987 bytes (  12.7 KB) - tests/domains/instruments/services/test_bulk_instrument_population_real_objects.py
+      2,488 bytes (   2.4 KB) - tests/infrastructure/integration/test_bulk_instrument_population_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_eda_javascript_loading.py (2 copies)
+     13,640 bytes (  13.3 KB) - tests/domains/analytics/services/test_eda_javascript_loading.py
+     13,640 bytes (  13.3 KB) - tests/infrastructure/integration/test_eda_javascript_loading.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_backfill_critical_issues_real_objects.py (2 copies)
+      8,301 bytes (   8.1 KB) - tests/domains/market_data/integration/test_backfill_critical_issues_real_objects.py
+      2,488 bytes (   2.4 KB) - tests/infrastructure/integration/test_backfill_critical_issues_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_run_id_uniqueness_validation_real_objects.py (2 copies)
+     10,584 bytes (  10.3 KB) - tests/infrastructure/integration/test_run_id_uniqueness_validation_real_objects.py
+      6,784 bytes (   6.6 KB) - tests/core/unit/test_run_id_uniqueness_validation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_instrument_xrefs_dao_integration_real_objects.py (2 copies)
+     12,998 bytes (  12.7 KB) - tests/domains/instruments/integration/test_instrument_xrefs_dao_integration_real_objects.py
+      2,498 bytes (   2.4 KB) - tests/infrastructure/integration/test_instrument_xrefs_dao_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_schema_aware_training_generation_real_objects.py (2 copies)
+     11,347 bytes (  11.1 KB) - tests/domains/ml/integration/test_schema_aware_training_generation_real_objects.py
+      2,505 bytes (   2.4 KB) - tests/infrastructure/integration/test_schema_aware_training_generation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_market_data_service_integration_real_objects.py (2 copies)
+     13,957 bytes (  13.6 KB) - tests/domains/market_data/integration/test_market_data_service_integration_real_objects.py
+      2,503 bytes (   2.4 KB) - tests/infrastructure/integration/test_market_data_service_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_eda_threading_server_fix.py (2 copies)
+     12,145 bytes (  11.9 KB) - tests/domains/analytics/services/test_eda_threading_server_fix.py
+     12,145 bytes (  11.9 KB) - tests/infrastructure/integration/test_eda_threading_server_fix.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_universe_state_manager_parameter_validation_real_objects.py (2 copies)
+     14,627 bytes (  14.3 KB) - tests/domains/trading/integration/test_universe_state_manager_parameter_validation_real_objects.py
+      2,537 bytes (   2.5 KB) - tests/infrastructure/integration/test_universe_state_manager_parameter_validation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_actual_market_data_manager_lead_lag_integration_real_objects.py (2 copies)
+      7,291 bytes (   7.1 KB) - tests/domains/market_data/integration/test_actual_market_data_manager_lead_lag_integration_real_objects.py
+      2,547 bytes (   2.5 KB) - tests/infrastructure/integration/test_actual_market_data_manager_lead_lag_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_callback_comprehensive_real_objects.py (2 copies)
+     21,791 bytes (  21.3 KB) - tests/infrastructure/integration/test_training_data_callback_comprehensive_real_objects.py
+     15,050 bytes (  14.7 KB) - tests/domains/ml/integration/test_training_data_callback_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_arrayrecord_reading_compatibility_real_objects.py (2 copies)
+      6,411 bytes (   6.3 KB) - tests/domains/ml/integration/test_arrayrecord_reading_compatibility_real_objects.py
+      2,509 bytes (   2.5 KB) - tests/infrastructure/integration/test_arrayrecord_reading_compatibility_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_universe_state_builder_comprehensive_real_objects.py (2 copies)
+     16,205 bytes (  15.8 KB) - tests/domains/trading/integration/test_universe_state_builder_comprehensive_real_objects.py
+      2,518 bytes (   2.5 KB) - tests/infrastructure/integration/test_universe_state_builder_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_schema_eda_integration_real_objects.py (2 copies)
+      9,196 bytes (   9.0 KB) - tests/domains/analytics/services/test_schema_eda_integration_real_objects.py
+      8,943 bytes (   8.7 KB) - tests/infrastructure/integration/test_schema_eda_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_news_multimodal_integration_real_objects.py (2 copies)
+      8,204 bytes (   8.0 KB) - tests/domains/market_data/integration/test_news_multimodal_integration_real_objects.py
+      2,490 bytes (   2.4 KB) - tests/infrastructure/integration/test_news_multimodal_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_instrument_service_monitoring_real_objects.py (2 copies)
+     13,536 bytes (  13.2 KB) - tests/domains/instruments/integration/test_instrument_service_monitoring_real_objects.py
+      2,508 bytes (   2.4 KB) - tests/infrastructure/integration/test_instrument_service_monitoring_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_multi_timeframe_ohlc_signals_real_objects.py (2 copies)
+      9,631 bytes (   9.4 KB) - tests/infrastructure/market_data/test_multi_timeframe_ohlc_signals_real_objects.py
+      9,624 bytes (   9.4 KB) - tests/domains/market_data/test_multi_timeframe_ohlc_signals_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_market_cap_calculation_accuracy.py (2 copies)
+     11,295 bytes (  11.0 KB) - tests/domains/market_data/test_market_cap_calculation_accuracy.py
+     11,295 bytes (  11.0 KB) - tests/infrastructure/market_data/test_market_cap_calculation_accuracy.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_optimized_data_pipeline_performance.py (2 copies)
+     10,968 bytes (  10.7 KB) - tests/domains/market_data/test_optimized_data_pipeline_performance.py
+     10,968 bytes (  10.7 KB) - tests/infrastructure/market_data/test_optimized_data_pipeline_performance.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unified_db_daily_price_market_data_manager.py (2 copies)
+      3,463 bytes (   3.4 KB) - tests/domains/market_data/test_unified_db_daily_price_market_data_manager.py
+      3,463 bytes (   3.4 KB) - tests/infrastructure/market_data/test_unified_db_daily_price_market_data_manager.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_market_data_streamer.py (2 copies)
+      4,215 bytes (   4.1 KB) - tests/domains/market_data/test_market_data_streamer.py
+      4,215 bytes (   4.1 KB) - tests/infrastructure/market_data/test_market_data_streamer.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_market_data_streamer_real_objects.py (2 copies)
+      6,444 bytes (   6.3 KB) - tests/infrastructure/market_data/test_market_data_streamer_real_objects.py
+      6,437 bytes (   6.3 KB) - tests/domains/market_data/test_market_data_streamer_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_signals.py (2 copies)
+      4,723 bytes (   4.6 KB) - tests/domains/market_data/test_signals.py
+      4,723 bytes (   4.6 KB) - tests/infrastructure/market_data/test_signals.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unified_mgr.py (2 copies)
+      3,504 bytes (   3.4 KB) - tests/domains/market_data/test_unified_mgr.py
+      3,504 bytes (   3.4 KB) - tests/infrastructure/market_data/test_unified_mgr.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_market_data_simulator.py (2 copies)
+      1,751 bytes (   1.7 KB) - tests/domains/market_data/test_market_data_simulator.py
+      1,751 bytes (   1.7 KB) - tests/infrastructure/market_data/test_market_data_simulator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_multi_timeframe_ohlc_signals.py (2 copies)
+     23,301 bytes (  22.8 KB) - tests/domains/market_data/test_multi_timeframe_ohlc_signals.py
+     23,301 bytes (  22.8 KB) - tests/infrastructure/market_data/test_multi_timeframe_ohlc_signals.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_optimized_data_pipeline_performance_real_objects.py (2 copies)
+      6,813 bytes (   6.7 KB) - tests/infrastructure/market_data/test_optimized_data_pipeline_performance_real_objects.py
+      6,806 bytes (   6.6 KB) - tests/domains/market_data/test_optimized_data_pipeline_performance_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_startup_manager_core_real_objects.py (2 copies)
+     21,185 bytes (  20.7 KB) - tests/infrastructure/unit/test_startup_manager_core_real_objects.py
+      2,445 bytes (   2.4 KB) - tests/core/unit/test_startup_manager_core_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_analytics_schema_validation.py (2 copies)
+     18,051 bytes (  17.6 KB) - tests/domains/analytics/services/test_analytics_schema_validation.py
+     18,051 bytes (  17.6 KB) - tests/infrastructure/services/analytics/test_analytics_schema_validation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_enhanced_analytics.py (2 copies)
+     11,731 bytes (  11.5 KB) - tests/domains/analytics/services/test_enhanced_analytics.py
+     11,731 bytes (  11.5 KB) - tests/infrastructure/services/analytics/test_enhanced_analytics.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_analytics_endpoints.py (2 copies)
+     17,033 bytes (  16.6 KB) - tests/domains/analytics/services/test_analytics_endpoints.py
+     17,033 bytes (  16.6 KB) - tests/infrastructure/services/analytics/test_analytics_endpoints.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_agent_endpoints.py (2 copies)
+      3,964 bytes (   3.9 KB) - tests/domains/analytics/services/test_agent_endpoints.py
+      3,964 bytes (   3.9 KB) - tests/infrastructure/services/analytics/test_agent_endpoints.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_query_performance.py (2 copies)
+      8,644 bytes (   8.4 KB) - tests/domains/analytics/services/test_query_performance.py
+      8,644 bytes (   8.4 KB) - tests/infrastructure/services/analytics/test_query_performance.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_dataset_detail_page_regression_protection_real_objects.py (2 copies)
+      8,489 bytes (   8.3 KB) - tests/infrastructure/services/data_services/test_dataset_detail_page_regression_protection_real_objects.py
+      8,474 bytes (   8.3 KB) - tests/services/data_services/test_dataset_detail_page_regression_protection_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_dataset_service_feature_metadata_integration_real_objects.py (2 copies)
+     13,607 bytes (  13.3 KB) - tests/infrastructure/services/data_services/test_dataset_service_feature_metadata_integration_real_objects.py
+     13,592 bytes (  13.3 KB) - tests/services/data_services/test_dataset_service_feature_metadata_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_checkpoint_framework_real_objects.py (2 copies)
+     20,225 bytes (  19.8 KB) - tests/infrastructure/services/data_services/test_checkpoint_framework_real_objects.py
+     20,210 bytes (  19.7 KB) - tests/services/data_services/test_checkpoint_framework_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_dataset_service_feature_metadata_integration.py (2 copies)
+     22,407 bytes (  21.9 KB) - tests/infrastructure/services/data_services/test_dataset_service_feature_metadata_integration.py
+     22,407 bytes (  21.9 KB) - tests/services/data_services/test_dataset_service_feature_metadata_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_dataset_api_contract.py (2 copies)
+     15,162 bytes (  14.8 KB) - tests/infrastructure/services/data_services/test_dataset_api_contract.py
+     15,162 bytes (  14.8 KB) - tests/services/data_services/test_dataset_api_contract.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_checkpoint_framework.py (2 copies)
+     40,654 bytes (  39.7 KB) - tests/infrastructure/services/data_services/test_checkpoint_framework.py
+     40,654 bytes (  39.7 KB) - tests/services/data_services/test_checkpoint_framework.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_dataset_detail_page_regression_protection.py (2 copies)
+     20,784 bytes (  20.3 KB) - tests/infrastructure/services/data_services/test_dataset_detail_page_regression_protection.py
+     20,784 bytes (  20.3 KB) - tests/services/data_services/test_dataset_detail_page_regression_protection.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_tsla_direct_check.py (2 copies)
+      2,316 bytes (   2.3 KB) - tests/infrastructure/services/data_services/test_tsla_direct_check.py
+      2,316 bytes (   2.3 KB) - tests/services/data_services/test_tsla_direct_check.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_runner_interval_bug_fix_real_objects.py (2 copies)
+      8,966 bytes (   8.8 KB) - tests/infrastructure/services/core/app/test_runner_interval_bug_fix_real_objects.py
+      8,951 bytes (   8.7 KB) - tests/services/core/app/test_runner_interval_bug_fix_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_runner_interval_bug_fix.py (2 copies)
+     20,354 bytes (  19.9 KB) - tests/infrastructure/services/core/app/test_runner_interval_bug_fix.py
+     20,354 bytes (  19.9 KB) - tests/services/core/app/test_runner_interval_bug_fix.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_runner_interval_generation.py (2 copies)
+     21,998 bytes (  21.5 KB) - tests/infrastructure/services/core/app/test_runner_interval_generation.py
+     21,998 bytes (  21.5 KB) - tests/services/core/app/test_runner_interval_generation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_runner_interval_generation_real_objects.py (2 copies)
+     13,369 bytes (  13.1 KB) - tests/infrastructure/services/core/app/test_runner_interval_generation_real_objects.py
+     13,354 bytes (  13.0 KB) - tests/services/core/app/test_runner_interval_generation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_runner_trading_hours.py (2 copies)
+     10,445 bytes (  10.2 KB) - tests/services/core/app/test_runner_trading_hours.py
+     10,429 bytes (  10.2 KB) - tests/infrastructure/services/core/app/test_runner_trading_hours.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_runner_trading_hours_real_objects.py (2 copies)
+     13,943 bytes (  13.6 KB) - tests/infrastructure/services/core/app/test_runner_trading_hours_real_objects.py
+     13,928 bytes (  13.6 KB) - tests/services/core/app/test_runner_trading_hours_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_backtest_analytics_api_real_objects.py (2 copies)
+     24,023 bytes (  23.5 KB) - tests/infrastructure/interfaces/rest_api/test_backtest_analytics_api_real_objects.py
+     24,008 bytes (  23.4 KB) - tests/interfaces/rest_api/test_backtest_analytics_api_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_backtest_analytics_api.py (2 copies)
+     21,002 bytes (  20.5 KB) - tests/infrastructure/interfaces/rest_api/test_backtest_analytics_api.py
+     21,002 bytes (  20.5 KB) - tests/interfaces/rest_api/test_backtest_analytics_api.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_adjusted_price.py (2 copies)
+      3,262 bytes (   3.2 KB) - tests/domains/market_data/utils/test_adjusted_price.py
+      3,262 bytes (   3.2 KB) - tests/infrastructure/market_data/utils/test_adjusted_price.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_db_daily_price_market_data_manager_dao.py (2 copies)
+      5,619 bytes (   5.5 KB) - tests/domains/market_data/eod/test_db_daily_price_market_data_manager_dao.py
+      5,619 bytes (   5.5 KB) - tests/infrastructure/market_data/eod/test_db_daily_price_market_data_manager_dao.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unify_daily_prices_regression.py (2 copies)
+      2,795 bytes (   2.7 KB) - tests/domains/market_data/eod/test_unify_daily_prices_regression.py
+      2,795 bytes (   2.7 KB) - tests/infrastructure/market_data/eod/test_unify_daily_prices_regression.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unified_daily_price_validation.py (2 copies)
+     16,167 bytes (  15.8 KB) - tests/domains/market_data/eod/test_unified_daily_price_validation.py
+     16,167 bytes (  15.8 KB) - tests/infrastructure/market_data/eod/test_unified_daily_price_validation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_turbo_price_backfill_integration_real_objects.py (2 copies)
+      6,693 bytes (   6.5 KB) - tests/infrastructure/market_data/eod/test_turbo_price_backfill_integration_real_objects.py
+      6,686 bytes (   6.5 KB) - tests/domains/market_data/eod/test_turbo_price_backfill_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_db_daily_price_market_data_manager_dao_real_objects.py (2 copies)
+      6,107 bytes (   6.0 KB) - tests/infrastructure/market_data/eod/test_db_daily_price_market_data_manager_dao_real_objects.py
+      6,100 bytes (   6.0 KB) - tests/domains/market_data/eod/test_db_daily_price_market_data_manager_dao_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_file_daily_price_market_data_manager_real_objects.py (2 copies)
+      7,238 bytes (   7.1 KB) - tests/infrastructure/market_data/eod/test_file_daily_price_market_data_manager_real_objects.py
+      7,231 bytes (   7.1 KB) - tests/domains/market_data/eod/test_file_daily_price_market_data_manager_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_unified_daily_price_validation_real_objects.py (2 copies)
+     18,466 bytes (  18.0 KB) - tests/infrastructure/market_data/eod/test_unified_daily_price_validation_real_objects.py
+     18,459 bytes (  18.0 KB) - tests/domains/market_data/eod/test_unified_daily_price_validation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_turbo_price_backfill_real_objects.py (2 copies)
+     14,187 bytes (  13.9 KB) - tests/infrastructure/market_data/eod/test_turbo_price_backfill_real_objects.py
+     14,180 bytes (  13.8 KB) - tests/domains/market_data/eod/test_turbo_price_backfill_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_file_daily_price_market_data_manager.py (2 copies)
+      8,408 bytes (   8.2 KB) - tests/domains/market_data/eod/test_file_daily_price_market_data_manager.py
+      8,408 bytes (   8.2 KB) - tests/infrastructure/market_data/eod/test_file_daily_price_market_data_manager.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_turbo_price_backfill_integration.py (2 copies)
+     15,342 bytes (  15.0 KB) - tests/domains/market_data/eod/test_turbo_price_backfill_integration.py
+     15,342 bytes (  15.0 KB) - tests/infrastructure/market_data/eod/test_turbo_price_backfill_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unify_daily_prices_db.py (2 copies)
+      3,843 bytes (   3.8 KB) - tests/domains/market_data/eod/test_unify_daily_prices_db.py
+      3,843 bytes (   3.8 KB) - tests/infrastructure/market_data/eod/test_unify_daily_prices_db.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unify_daily_prices.py (2 copies)
+      6,438 bytes (   6.3 KB) - tests/domains/market_data/eod/test_unify_daily_prices.py
+      6,438 bytes (   6.3 KB) - tests/infrastructure/market_data/eod/test_unify_daily_prices.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_db_daily_price_market_data_manager.py (2 copies)
+      7,677 bytes (   7.5 KB) - tests/domains/market_data/eod/test_db_daily_price_market_data_manager.py
+      7,677 bytes (   7.5 KB) - tests/infrastructure/market_data/eod/test_db_daily_price_market_data_manager.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_db_daily_price_market_data_manager_real_objects.py (2 copies)
+      6,904 bytes (   6.7 KB) - tests/infrastructure/market_data/eod/test_db_daily_price_market_data_manager_real_objects.py
+      6,897 bytes (   6.7 KB) - tests/domains/market_data/eod/test_db_daily_price_market_data_manager_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_daily_adj.py (2 copies)
+          0 bytes (   0.0 KB) - tests/domains/market_data/eod/test_daily_adj.py
+          0 bytes (   0.0 KB) - tests/infrastructure/market_data/eod/test_daily_adj.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_turbo_news_backfill_real_objects.py (2 copies)
+     16,927 bytes (  16.5 KB) - tests/infrastructure/market_data/news/test_turbo_news_backfill_real_objects.py
+     16,920 bytes (  16.5 KB) - tests/domains/market_data/news/test_turbo_news_backfill_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_comprehensive_news_backfill_integration.py (2 copies)
+     11,297 bytes (  11.0 KB) - tests/domains/market_data/news/test_comprehensive_news_backfill_integration.py
+     11,297 bytes (  11.0 KB) - tests/infrastructure/market_data/news/test_comprehensive_news_backfill_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_comprehensive_news_backfill_integration_real_objects.py (2 copies)
+     11,052 bytes (  10.8 KB) - tests/infrastructure/market_data/news/test_comprehensive_news_backfill_integration_real_objects.py
+     11,045 bytes (  10.8 KB) - tests/domains/market_data/news/test_comprehensive_news_backfill_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_turbo_news_backfill_integration.py (2 copies)
+     23,258 bytes (  22.7 KB) - tests/domains/market_data/news/test_turbo_news_backfill_integration.py
+     23,258 bytes (  22.7 KB) - tests/infrastructure/market_data/news/test_turbo_news_backfill_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_models.py (2 copies)
+        942 bytes (   0.9 KB) - tests/domains/market_data/agent/test_models.py
+        942 bytes (   0.9 KB) - tests/infrastructure/market_data/agent/test_models.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_reconciliation.py (2 copies)
+      1,657 bytes (   1.6 KB) - tests/domains/market_data/agent/test_reconciliation.py
+      1,657 bytes (   1.6 KB) - tests/infrastructure/market_data/agent/test_reconciliation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_data_agent_integration_real_objects.py (2 copies)
+      5,857 bytes (   5.7 KB) - tests/infrastructure/market_data/agent/test_data_agent_integration_real_objects.py
+      5,850 bytes (   5.7 KB) - tests/domains/market_data/agent/test_data_agent_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_llm_assistant.py (2 copies)
+      8,246 bytes (   8.1 KB) - tests/domains/market_data/agent/test_llm_assistant.py
+      8,246 bytes (   8.1 KB) - tests/infrastructure/market_data/agent/test_llm_assistant.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_adapters_real_objects.py (2 copies)
+      5,749 bytes (   5.6 KB) - tests/infrastructure/market_data/agent/test_adapters_real_objects.py
+      5,742 bytes (   5.6 KB) - tests/domains/market_data/agent/test_adapters_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_reconciled_record_dao.py (2 copies)
+      2,150 bytes (   2.1 KB) - tests/domains/market_data/agent/test_reconciled_record_dao.py
+      2,150 bytes (   2.1 KB) - tests/infrastructure/market_data/agent/test_reconciled_record_dao.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_llm_assistant_real_objects.py (2 copies)
+      8,752 bytes (   8.5 KB) - tests/infrastructure/market_data/agent/test_llm_assistant_real_objects.py
+      8,745 bytes (   8.5 KB) - tests/domains/market_data/agent/test_llm_assistant_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_orchestrator.py (2 copies)
+      8,335 bytes (   8.1 KB) - tests/domains/market_data/agent/test_orchestrator.py
+      8,335 bytes (   8.1 KB) - tests/infrastructure/market_data/agent/test_orchestrator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_data_agent_integration.py (2 copies)
+      9,373 bytes (   9.2 KB) - tests/domains/market_data/agent/test_data_agent_integration.py
+      9,373 bytes (   9.2 KB) - tests/infrastructure/market_data/agent/test_data_agent_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_orchestrator_real_objects.py (2 copies)
+      7,233 bytes (   7.1 KB) - tests/infrastructure/market_data/agent/test_orchestrator_real_objects.py
+      7,226 bytes (   7.1 KB) - tests/domains/market_data/agent/test_orchestrator_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_enhanced_minute_backfill_orchestrator_real_objects.py (2 copies)
+     17,172 bytes (  16.8 KB) - tests/infrastructure/market_data/backfill/test_enhanced_minute_backfill_orchestrator_real_objects.py
+     17,165 bytes (  16.8 KB) - tests/domains/market_data/backfill/test_enhanced_minute_backfill_orchestrator_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_unified_backfill_orchestrator_real_objects.py (2 copies)
+     26,041 bytes (  25.4 KB) - tests/infrastructure/market_data/backfill/test_unified_backfill_orchestrator_real_objects.py
+     26,034 bytes (  25.4 KB) - tests/domains/market_data/backfill/test_unified_backfill_orchestrator_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_unified_backfill_orchestrator.py (2 copies)
+     31,025 bytes (  30.3 KB) - tests/domains/market_data/backfill/test_unified_backfill_orchestrator.py
+     31,025 bytes (  30.3 KB) - tests/infrastructure/market_data/backfill/test_unified_backfill_orchestrator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_enhanced_minute_backfill_orchestrator.py (2 copies)
+     33,693 bytes (  32.9 KB) - tests/domains/market_data/backfill/test_enhanced_minute_backfill_orchestrator.py
+     33,693 bytes (  32.9 KB) - tests/infrastructure/market_data/backfill/test_enhanced_minute_backfill_orchestrator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_majority_voting_reconciler.py (2 copies)
+     14,630 bytes (  14.3 KB) - tests/domains/market_data/reconciliation/test_majority_voting_reconciler.py
+     14,630 bytes (  14.3 KB) - tests/infrastructure/market_data/reconciliation/test_majority_voting_reconciler.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_timezone_fix_real_objects.py (2 copies)
+      9,933 bytes (   9.7 KB) - tests/infrastructure/market_data/reconciliation/test_timezone_fix_real_objects.py
+      9,926 bytes (   9.7 KB) - tests/domains/market_data/reconciliation/test_timezone_fix_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_majority_voting_reconciler_real_objects.py (2 copies)
+     16,720 bytes (  16.3 KB) - tests/infrastructure/market_data/reconciliation/test_majority_voting_reconciler_real_objects.py
+     16,713 bytes (  16.3 KB) - tests/domains/market_data/reconciliation/test_majority_voting_reconciler_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_cross_vendor_reconciler_real_objects.py (2 copies)
+     28,007 bytes (  27.4 KB) - tests/infrastructure/market_data/reconciliation/test_cross_vendor_reconciler_real_objects.py
+     28,000 bytes (  27.3 KB) - tests/domains/market_data/reconciliation/test_cross_vendor_reconciler_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_cross_vendor_reconciler.py (2 copies)
+     29,692 bytes (  29.0 KB) - tests/domains/market_data/reconciliation/test_cross_vendor_reconciler.py
+     29,692 bytes (  29.0 KB) - tests/infrastructure/market_data/reconciliation/test_cross_vendor_reconciler.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_timezone_fix.py (2 copies)
+      9,196 bytes (   9.0 KB) - tests/domains/market_data/reconciliation/test_timezone_fix.py
+      9,196 bytes (   9.0 KB) - tests/infrastructure/market_data/reconciliation/test_timezone_fix.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_aapl_tsla_collectors.py (2 copies)
+     23,036 bytes (  22.5 KB) - tests/domains/market_data/realtime/test_aapl_tsla_collectors.py
+     23,036 bytes (  22.5 KB) - tests/infrastructure/market_data/realtime/test_aapl_tsla_collectors.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_gap_detector.py (2 copies)
+     32,286 bytes (  31.5 KB) - tests/domains/market_data/realtime/test_gap_detector.py
+     32,286 bytes (  31.5 KB) - tests/infrastructure/market_data/realtime/test_gap_detector.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_weekly_backfill_real_objects.py (2 copies)
+     22,543 bytes (  22.0 KB) - tests/infrastructure/market_data/realtime/test_weekly_backfill_real_objects.py
+     22,536 bytes (  22.0 KB) - tests/domains/market_data/realtime/test_weekly_backfill_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_daily_validation_real_objects.py (2 copies)
+     23,851 bytes (  23.3 KB) - tests/infrastructure/market_data/realtime/test_daily_validation_real_objects.py
+     23,844 bytes (  23.3 KB) - tests/domains/market_data/realtime/test_daily_validation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_aapl_tsla_collectors_real_objects.py (2 copies)
+     23,295 bytes (  22.7 KB) - tests/infrastructure/market_data/realtime/test_aapl_tsla_collectors_real_objects.py
+     23,288 bytes (  22.7 KB) - tests/domains/market_data/realtime/test_aapl_tsla_collectors_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_performance_benchmarks.py (2 copies)
+     26,320 bytes (  25.7 KB) - tests/domains/market_data/realtime/test_performance_benchmarks.py
+     26,320 bytes (  25.7 KB) - tests/infrastructure/market_data/realtime/test_performance_benchmarks.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_streaming_collector_real_objects.py (2 copies)
+     19,545 bytes (  19.1 KB) - tests/infrastructure/market_data/realtime/test_streaming_collector_real_objects.py
+     19,538 bytes (  19.1 KB) - tests/domains/market_data/realtime/test_streaming_collector_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_streaming_collector.py (2 copies)
+     22,234 bytes (  21.7 KB) - tests/domains/market_data/realtime/test_streaming_collector.py
+     22,234 bytes (  21.7 KB) - tests/infrastructure/market_data/realtime/test_streaming_collector.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_weekly_backfill.py (2 copies)
+     28,144 bytes (  27.5 KB) - tests/domains/market_data/realtime/test_weekly_backfill.py
+     28,144 bytes (  27.5 KB) - tests/infrastructure/market_data/realtime/test_weekly_backfill.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_performance_benchmarks_real_objects.py (2 copies)
+     10,470 bytes (  10.2 KB) - tests/infrastructure/market_data/realtime/test_performance_benchmarks_real_objects.py
+     10,463 bytes (  10.2 KB) - tests/domains/market_data/realtime/test_performance_benchmarks_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_gap_detector_real_objects.py (2 copies)
+     25,725 bytes (  25.1 KB) - tests/infrastructure/market_data/realtime/test_gap_detector_real_objects.py
+     25,718 bytes (  25.1 KB) - tests/domains/market_data/realtime/test_gap_detector_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_daily_validation.py (2 copies)
+     32,238 bytes (  31.5 KB) - tests/domains/market_data/realtime/test_daily_validation.py
+     32,238 bytes (  31.5 KB) - tests/infrastructure/market_data/realtime/test_daily_validation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_metrics_exporter.py (2 copies)
+     24,422 bytes (  23.8 KB) - tests/domains/market_data/realtime/test_metrics_exporter.py
+     24,422 bytes (  23.8 KB) - tests/infrastructure/market_data/realtime/test_metrics_exporter.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_metrics_exporter_real_objects.py (2 copies)
+     21,896 bytes (  21.4 KB) - tests/infrastructure/market_data/realtime/test_metrics_exporter_real_objects.py
+     21,889 bytes (  21.4 KB) - tests/domains/market_data/realtime/test_metrics_exporter_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_eda_playwright_simple.py (2 copies)
+      4,605 bytes (   4.5 KB) - tests/infrastructure/web/ui/test_eda_playwright_simple.py
+      4,605 bytes (   4.5 KB) - tests/infrastructure/web/ui_tests/test_eda_playwright_simple.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_comprehensive_timeframe_validation.py (2 copies)
+      9,531 bytes (   9.3 KB) - tests/core/unit/test_comprehensive_timeframe_validation.py
+      9,531 bytes (   9.3 KB) - tests/domains/trading/integration/test_comprehensive_timeframe_validation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_universe_state_builder_multi_timeframe_real_objects.py (2 copies)
+      6,507 bytes (   6.4 KB) - tests/domains/trading/unit/test_universe_state_builder_multi_timeframe_real_objects.py
+      2,508 bytes (   2.4 KB) - tests/core/unit/test_universe_state_builder_multi_timeframe_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_universe_state_cache_population_issue_real_objects.py (2 copies)
+      6,449 bytes (   6.3 KB) - tests/domains/trading/unit/test_universe_state_cache_population_issue_real_objects.py
+      2,505 bytes (   2.4 KB) - tests/core/unit/test_universe_state_cache_population_issue_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_universe_cache_instrument_mismatch_real_objects.py (2 copies)
+      7,149 bytes (   7.0 KB) - tests/domains/trading/unit/test_universe_cache_instrument_mismatch_real_objects.py
+      2,497 bytes (   2.4 KB) - tests/core/unit/test_universe_cache_instrument_mismatch_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_universe_state_builder_to_dataframe_bug_real_objects.py (2 copies)
+      5,643 bytes (   5.5 KB) - tests/domains/trading/unit/test_universe_state_builder_to_dataframe_bug_real_objects.py
+      2,510 bytes (   2.5 KB) - tests/core/unit/test_universe_state_builder_to_dataframe_bug_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_unified_instruments_integrity.py (2 copies)
+     25,737 bytes (  25.1 KB) - tests/domains/instruments/integration/test_unified_instruments_integrity.py
+     25,737 bytes (  25.1 KB) - tests/domains/instruments/services/test_unified_instruments_integrity.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unified_instruments_integrity_real_objects.py (2 copies)
+     12,650 bytes (  12.4 KB) - tests/domains/instruments/integration/test_unified_instruments_integrity_real_objects.py
+     12,647 bytes (  12.4 KB) - tests/domains/instruments/services/test_unified_instruments_integrity_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_instruments_dao_real_objects.py (2 copies)
+     20,900 bytes (  20.4 KB) - tests/core/dao/test_instruments_dao_real_objects.py
+     18,113 bytes (  17.7 KB) - tests/domains/instruments/repositories/test_instruments_dao_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_exchange_dao_integration.py (2 copies)
+     13,367 bytes (  13.1 KB) - tests/domains/instruments/repositories/test_exchange_dao_integration.py
+     13,367 bytes (  13.1 KB) - tests/domains/instruments/unit/test_exchange_dao_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_instrument_interval_dao_real_objects.py (2 copies)
+     20,797 bytes (  20.3 KB) - tests/core/dao/test_instrument_interval_dao_real_objects.py
+      4,047 bytes (   4.0 KB) - tests/domains/instruments/repositories/test_instrument_interval_dao_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_secmaster_dao_real_objects.py (2 copies)
+     18,082 bytes (  17.7 KB) - tests/core/dao/test_secmaster_dao_real_objects.py
+     14,500 bytes (  14.2 KB) - tests/domains/instruments/repositories/test_secmaster_dao_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_market_cap_population.py (2 copies)
+     26,990 bytes (  26.4 KB) - tests/domains/instruments/services/secmaster/test_market_cap_population.py
+     26,990 bytes (  26.4 KB) - tests/domains/instruments/services/test_market_cap_population.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_secmaster_apis.py (2 copies)
+      3,238 bytes (   3.2 KB) - tests/domains/instruments/services/secmaster/test_secmaster_apis.py
+      3,238 bytes (   3.2 KB) - tests/domains/instruments/services/test_secmaster_apis.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_secmaster_apis_real_objects.py (2 copies)
+      5,401 bytes (   5.3 KB) - tests/domains/instruments/services/secmaster/test_secmaster_apis_real_objects.py
+      5,391 bytes (   5.3 KB) - tests/domains/instruments/services/test_secmaster_apis_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_db_connection_local.py (2 copies)
+      3,624 bytes (   3.5 KB) - tests/domains/instruments/services/secmaster/test_db_connection_local.py
+      3,624 bytes (   3.5 KB) - tests/domains/instruments/services/test_db_connection_local.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_populate_unified_instruments.py (2 copies)
+      4,073 bytes (   4.0 KB) - tests/domains/instruments/services/secmaster/test_populate_unified_instruments.py
+      4,073 bytes (   4.0 KB) - tests/domains/instruments/services/test_populate_unified_instruments.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_split_logic.py (2 copies)
+      1,164 bytes (   1.1 KB) - tests/domains/instruments/services/secmaster/test_split_logic.py
+      1,164 bytes (   1.1 KB) - tests/domains/instruments/services/test_split_logic.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_secmaster.py (2 copies)
+      6,949 bytes (   6.8 KB) - tests/domains/instruments/services/secmaster/test_secmaster.py
+      6,949 bytes (   6.8 KB) - tests/domains/instruments/services/test_secmaster.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_market_cap_population_real_objects.py (2 copies)
+     20,577 bytes (  20.1 KB) - tests/domains/instruments/services/secmaster/test_market_cap_population_real_objects.py
+     20,567 bytes (  20.1 KB) - tests/domains/instruments/services/test_market_cap_population_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_advance_real_objects.py (2 copies)
+      3,980 bytes (   3.9 KB) - tests/domains/instruments/services/secmaster/test_advance_real_objects.py
+      3,970 bytes (   3.9 KB) - tests/domains/instruments/services/test_advance_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_secmaster_real_objects.py (2 copies)
+      4,759 bytes (   4.6 KB) - tests/domains/instruments/services/secmaster/test_secmaster_real_objects.py
+      4,749 bytes (   4.6 KB) - tests/domains/instruments/services/test_secmaster_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_db_connection.py (2 copies)
+      2,309 bytes (   2.3 KB) - tests/domains/instruments/services/secmaster/test_db_connection.py
+      2,309 bytes (   2.3 KB) - tests/domains/instruments/services/test_db_connection.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_advance.py (2 copies)
+      3,397 bytes (   3.3 KB) - tests/domains/instruments/services/secmaster/test_advance.py
+      3,397 bytes (   3.3 KB) - tests/domains/instruments/services/test_advance.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_secmaster_realdb.py (2 copies)
+      2,806 bytes (   2.7 KB) - tests/domains/instruments/services/secmaster/test_secmaster_realdb.py
+      2,806 bytes (   2.7 KB) - tests/domains/instruments/services/test_secmaster_realdb.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_populate_unified_instruments_real_objects.py (2 copies)
+      4,831 bytes (   4.7 KB) - tests/domains/instruments/services/secmaster/test_populate_unified_instruments_real_objects.py
+      4,821 bytes (   4.7 KB) - tests/domains/instruments/services/test_populate_unified_instruments_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_unified_market_cap_provider_real_objects.py (2 copies)
+     15,211 bytes (  14.9 KB) - tests/domains/instruments/unit/test_unified_market_cap_provider_real_objects.py
+      2,476 bytes (   2.4 KB) - tests/core/unit/test_unified_market_cap_provider_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_pytorch_multi_instrument_train.py (2 copies)
+      1,675 bytes (   1.6 KB) - tests/domains/ml/ml/modeling/test_pytorch_multi_instrument_train.py
+      1,675 bytes (   1.6 KB) - tests/domains/ml/modeling/test_pytorch_multi_instrument_train.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_interpretability_framework.py (2 copies)
+     16,299 bytes (  15.9 KB) - tests/domains/ml/ml/modeling/test_interpretability_framework.py
+     16,299 bytes (  15.9 KB) - tests/domains/ml/modeling/test_interpretability_framework.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_llm_pattern_recognition_real_objects.py (2 copies)
+     30,394 bytes (  29.7 KB) - tests/domains/ml/ml/modeling/test_llm_pattern_recognition_real_objects.py
+     30,391 bytes (  29.7 KB) - tests/domains/ml/modeling/test_llm_pattern_recognition_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_event_features.py (2 copies)
+     24,920 bytes (  24.3 KB) - tests/domains/ml/ml/modeling/test_event_features.py
+     24,920 bytes (  24.3 KB) - tests/domains/ml/modeling/test_event_features.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_portfolio_evaluator_real_objects.py (2 copies)
+     21,092 bytes (  20.6 KB) - tests/domains/ml/ml/modeling/test_portfolio_evaluator_real_objects.py
+     21,089 bytes (  20.6 KB) - tests/domains/ml/modeling/test_portfolio_evaluator_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_factor_models_real_objects.py (2 copies)
+     19,900 bytes (  19.4 KB) - tests/domains/ml/ml/modeling/test_factor_models_real_objects.py
+     19,897 bytes (  19.4 KB) - tests/domains/ml/modeling/test_factor_models_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_generator.py (2 copies)
+     36,768 bytes (  35.9 KB) - tests/domains/ml/ml/modeling/test_training_data_generator.py
+     36,768 bytes (  35.9 KB) - tests/domains/ml/modeling/test_training_data_generator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_enhanced_feature_types.py (2 copies)
+     22,995 bytes (  22.5 KB) - tests/domains/ml/ml/modeling/test_enhanced_feature_types.py
+     22,995 bytes (  22.5 KB) - tests/domains/ml/modeling/test_enhanced_feature_types.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_factor_models.py (2 copies)
+     23,769 bytes (  23.2 KB) - tests/domains/ml/ml/modeling/test_factor_models.py
+     23,769 bytes (  23.2 KB) - tests/domains/ml/modeling/test_factor_models.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_training_data_generator_real_objects.py (2 copies)
+     28,086 bytes (  27.4 KB) - tests/domains/ml/ml/modeling/test_training_data_generator_real_objects.py
+     28,083 bytes (  27.4 KB) - tests/domains/ml/modeling/test_training_data_generator_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_event_features_real_objects.py (2 copies)
+     20,204 bytes (  19.7 KB) - tests/domains/ml/ml/modeling/test_event_features_real_objects.py
+     20,201 bytes (  19.7 KB) - tests/domains/ml/modeling/test_event_features_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_portfolio_evaluator.py (2 copies)
+     26,882 bytes (  26.3 KB) - tests/domains/ml/ml/modeling/test_portfolio_evaluator.py
+     26,882 bytes (  26.3 KB) - tests/domains/ml/modeling/test_portfolio_evaluator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_cross_timeframe_aligner_real_objects.py (2 copies)
+     20,733 bytes (  20.2 KB) - tests/domains/ml/ml/modeling/test_cross_timeframe_aligner_real_objects.py
+     20,730 bytes (  20.2 KB) - tests/domains/ml/modeling/test_cross_timeframe_aligner_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_cross_timeframe_aligner.py (2 copies)
+     21,364 bytes (  20.9 KB) - tests/domains/ml/ml/modeling/test_cross_timeframe_aligner.py
+     21,364 bytes (  20.9 KB) - tests/domains/ml/modeling/test_cross_timeframe_aligner.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_unified_loss_comprehensive.py (2 copies)
+     42,351 bytes (  41.4 KB) - tests/domains/ml/ml/modeling/test_unified_loss_comprehensive.py
+     42,351 bytes (  41.4 KB) - tests/domains/ml/modeling/test_unified_loss_comprehensive.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_interpretability_framework_real_objects.py (2 copies)
+     18,631 bytes (  18.2 KB) - tests/domains/ml/ml/modeling/test_interpretability_framework_real_objects.py
+     18,628 bytes (  18.2 KB) - tests/domains/ml/modeling/test_interpretability_framework_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_multi_timeframe_analyzer.py (2 copies)
+     34,236 bytes (  33.4 KB) - tests/domains/ml/ml/modeling/test_multi_timeframe_analyzer.py
+     34,236 bytes (  33.4 KB) - tests/domains/ml/modeling/test_multi_timeframe_analyzer.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_configurable_train_data_generator_comprehensive.py (2 copies)
+     34,263 bytes (  33.5 KB) - tests/domains/ml/ml/modeling/test_configurable_train_data_generator_comprehensive.py
+     34,263 bytes (  33.5 KB) - tests/domains/ml/modeling/test_configurable_train_data_generator_comprehensive.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_llm_pattern_recognition.py (2 copies)
+     27,045 bytes (  26.4 KB) - tests/domains/ml/ml/modeling/test_llm_pattern_recognition.py
+     27,045 bytes (  26.4 KB) - tests/domains/ml/modeling/test_llm_pattern_recognition.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_multi_timeframe_analyzer_real_objects.py (2 copies)
+     29,836 bytes (  29.1 KB) - tests/domains/ml/ml/modeling/test_multi_timeframe_analyzer_real_objects.py
+     29,833 bytes (  29.1 KB) - tests/domains/ml/modeling/test_multi_timeframe_analyzer_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_unified_loss_performance.py (2 copies)
+     20,867 bytes (  20.4 KB) - tests/domains/ml/ml/modeling/test_unified_loss_performance.py
+     20,867 bytes (  20.4 KB) - tests/domains/ml/modeling/test_unified_loss_performance.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_complete_sr_pipeline_real_objects.py (2 copies)
+      9,779 bytes (   9.5 KB) - tests/domains/ml/services/test_complete_sr_pipeline_real_objects.py
+      9,773 bytes (   9.5 KB) - tests/domains/ml/ml/test_complete_sr_pipeline_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_support_resistance_generator.py (2 copies)
+     19,171 bytes (  18.7 KB) - tests/domains/ml/ml/test_support_resistance_generator.py
+     19,171 bytes (  18.7 KB) - tests/domains/ml/services/test_support_resistance_generator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_sr_backtester.py (2 copies)
+     22,997 bytes (  22.5 KB) - tests/domains/ml/ml/test_sr_backtester.py
+     22,997 bytes (  22.5 KB) - tests/domains/ml/services/test_sr_backtester.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_complete_sr_pipeline.py (2 copies)
+     24,875 bytes (  24.3 KB) - tests/domains/ml/ml/test_complete_sr_pipeline.py
+     24,875 bytes (  24.3 KB) - tests/domains/ml/services/test_complete_sr_pipeline.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_run_metadata_tracking.py (2 copies)
+     21,202 bytes (  20.7 KB) - tests/domains/ml/services/test_run_metadata_tracking.py
+     21,185 bytes (  20.7 KB) - tests/domains/ml/ml/test_run_metadata_tracking.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_adaptive_sr_model.py (2 copies)
+     19,627 bytes (  19.2 KB) - tests/domains/ml/ml/test_adaptive_sr_model.py
+     19,627 bytes (  19.2 KB) - tests/domains/ml/services/test_adaptive_sr_model.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_adaptive_sr_model_real_objects.py (2 copies)
+     16,867 bytes (  16.5 KB) - tests/domains/ml/services/test_adaptive_sr_model_real_objects.py
+     16,861 bytes (  16.5 KB) - tests/domains/ml/ml/test_adaptive_sr_model_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_sr_backtester_real_objects.py (2 copies)
+     20,859 bytes (  20.4 KB) - tests/domains/ml/services/test_sr_backtester_real_objects.py
+     20,853 bytes (  20.4 KB) - tests/domains/ml/ml/test_sr_backtester_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_type_system_demonstration.py (2 copies)
+     18,703 bytes (  18.3 KB) - tests/domains/ml/ml/test_type_system_demonstration.py
+     18,703 bytes (  18.3 KB) - tests/domains/ml/services/test_type_system_demonstration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_support_resistance_model.py (2 copies)
+     22,279 bytes (  21.8 KB) - tests/domains/ml/ml/test_support_resistance_model.py
+     22,279 bytes (  21.8 KB) - tests/domains/ml/services/test_support_resistance_model.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_support_resistance_generator_real_objects.py (2 copies)
+     17,742 bytes (  17.3 KB) - tests/domains/ml/services/test_support_resistance_generator_real_objects.py
+     17,736 bytes (  17.3 KB) - tests/domains/ml/ml/test_support_resistance_generator_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_run_metadata_tracking_real_objects.py (2 copies)
+     13,409 bytes (  13.1 KB) - tests/domains/ml/services/test_run_metadata_tracking_real_objects.py
+     13,403 bytes (  13.1 KB) - tests/domains/ml/ml/test_run_metadata_tracking_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_data_loader.py (2 copies)
+     29,549 bytes (  28.9 KB) - tests/domains/ml/ml/models/test_data_loader.py
+     29,549 bytes (  28.9 KB) - tests/domains/ml/models/test_data_loader.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_data_loader_real_objects.py (2 copies)
+     21,907 bytes (  21.4 KB) - tests/domains/ml/ml/models/test_data_loader_real_objects.py
+     21,904 bytes (  21.4 KB) - tests/domains/ml/models/test_data_loader_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_temporal_fusion_transformer.py (2 copies)
+     21,071 bytes (  20.6 KB) - tests/domains/ml/ml/models/test_temporal_fusion_transformer.py
+     21,071 bytes (  20.6 KB) - tests/domains/ml/models/test_temporal_fusion_transformer.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_temporal_fusion_transformer_real_objects.py (2 copies)
+     24,772 bytes (  24.2 KB) - tests/domains/ml/ml/models/test_temporal_fusion_transformer_real_objects.py
+     24,769 bytes (  24.2 KB) - tests/domains/ml/models/test_temporal_fusion_transformer_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_schema_components_real_objects.py (2 copies)
+     20,575 bytes (  20.1 KB) - tests/domains/ml/unit/test_training_schema_components_real_objects.py
+      2,463 bytes (   2.4 KB) - tests/core/unit/test_training_schema_components_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_dataset_path_resolution_algorithm_real_objects.py (2 copies)
+      7,910 bytes (   7.7 KB) - tests/domains/ml/unit/test_training_dataset_path_resolution_algorithm_real_objects.py
+      2,520 bytes (   2.5 KB) - tests/core/unit/test_training_dataset_path_resolution_algorithm_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_timeseries_sequence_training_generator_aggregation_real_objects.py (2 copies)
+      4,979 bytes (   4.9 KB) - tests/domains/ml/services/training_data/test_timeseries_sequence_training_generator_aggregation_real_objects.py
+      4,961 bytes (   4.8 KB) - tests/domains/ml/unit/test_timeseries_sequence_training_generator_aggregation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_uses_future_universe_state_intervals_real_objects.py (2 copies)
+      5,006 bytes (   4.9 KB) - tests/domains/ml/services/training_data/test_training_data_uses_future_universe_state_intervals_real_objects.py
+      4,988 bytes (   4.9 KB) - tests/domains/ml/unit/test_training_data_uses_future_universe_state_intervals_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_arrayrecord_timeframe_symbol_combination_real_objects.py (2 copies)
+     10,406 bytes (  10.2 KB) - tests/domains/ml/unit/test_arrayrecord_timeframe_symbol_combination_real_objects.py
+      2,515 bytes (   2.5 KB) - tests/core/unit/test_arrayrecord_timeframe_symbol_combination_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_timeframe_aggregation_duplication_bug_real_objects.py (2 copies)
+      6,603 bytes (   6.4 KB) - tests/domains/ml/unit/test_timeframe_aggregation_duplication_bug_real_objects.py
+      2,506 bytes (   2.4 KB) - tests/core/unit/test_timeframe_aggregation_duplication_bug_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_timeseries_sequence_training_generator_aggregation.py (2 copies)
+     20,083 bytes (  19.6 KB) - tests/domains/ml/services/training_data/test_timeseries_sequence_training_generator_aggregation.py
+     20,083 bytes (  19.6 KB) - tests/domains/ml/unit/test_timeseries_sequence_training_generator_aggregation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_training_sequence_generation_comprehensive_real_objects.py (2 copies)
+      7,362 bytes (   7.2 KB) - tests/domains/ml/unit/test_training_sequence_generation_comprehensive_real_objects.py
+      2,521 bytes (   2.5 KB) - tests/core/unit/test_training_sequence_generation_comprehensive_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_uses_universe_state_intervals_real_objects.py (2 copies)
+      4,217 bytes (   4.1 KB) - tests/domains/ml/services/training_data/test_training_data_uses_universe_state_intervals_real_objects.py
+      4,199 bytes (   4.1 KB) - tests/domains/ml/unit/test_training_data_uses_universe_state_intervals_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_uses_future_universe_state_intervals.py (2 copies)
+     22,444 bytes (  21.9 KB) - tests/domains/ml/services/training_data/test_training_data_uses_future_universe_state_intervals.py
+     22,444 bytes (  21.9 KB) - tests/domains/ml/unit/test_training_data_uses_future_universe_state_intervals.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_arrayrecord_binary_format_fix_real_objects.py (2 copies)
+      7,981 bytes (   7.8 KB) - tests/domains/ml/unit/test_arrayrecord_binary_format_fix_real_objects.py
+      2,482 bytes (   2.4 KB) - tests/core/unit/test_arrayrecord_binary_format_fix_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_uses_universe_state_intervals.py (2 copies)
+      5,592 bytes (   5.5 KB) - tests/domains/ml/services/training_data/test_training_data_uses_universe_state_intervals.py
+      5,592 bytes (   5.5 KB) - tests/domains/ml/unit/test_training_data_uses_universe_state_intervals.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_monthly_training_data_generation_real_objects.py (2 copies)
+     14,293 bytes (  14.0 KB) - tests/domains/ml/unit/test_monthly_training_data_generation_real_objects.py
+      2,484 bytes (   2.4 KB) - tests/core/unit/test_monthly_training_data_generation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_temporal_isolation.py (2 copies)
+     18,765 bytes (  18.3 KB) - tests/domains/ml/services/training_data/test_training_data_temporal_isolation.py
+     18,765 bytes (  18.3 KB) - tests/domains/ml/unit/test_training_data_temporal_isolation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_training_data_temporal_isolation_real_objects.py (2 copies)
+      6,468 bytes (   6.3 KB) - tests/domains/ml/services/training_data/test_training_data_temporal_isolation_real_objects.py
+      6,450 bytes (   6.3 KB) - tests/domains/ml/unit/test_training_data_temporal_isolation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_training_data_serialization.py (2 copies)
+      7,515 bytes (   7.3 KB) - tests/domains/ml/services/training_data/test_training_data_serialization.py
+      7,515 bytes (   7.3 KB) - tests/domains/ml/unit/test_training_data_serialization.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_training_data_serialization_real_objects.py (2 copies)
+      8,633 bytes (   8.4 KB) - tests/domains/ml/services/training_data/test_training_data_serialization_real_objects.py
+      8,615 bytes (   8.4 KB) - tests/domains/ml/unit/test_training_data_serialization_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_timeframe_boundary_bug_fix_real_objects.py (2 copies)
+      6,365 bytes (   6.2 KB) - tests/domains/ml/unit/test_timeframe_boundary_bug_fix_real_objects.py
+      2,473 bytes (   2.4 KB) - tests/core/unit/test_timeframe_boundary_bug_fix_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_ray_parallel_training_data_callback_real_objects.py (2 copies)
+     14,563 bytes (  14.2 KB) - tests/domains/ml/unit/test_ray_parallel_training_data_callback_real_objects.py
+      2,493 bytes (   2.4 KB) - tests/core/unit/test_ray_parallel_training_data_callback_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_single_file_multi_day_arrayrecord.py (2 copies)
+     18,100 bytes (  17.7 KB) - tests/domains/ml/services/training_data/test_single_file_multi_day_arrayrecord.py
+     18,100 bytes (  17.7 KB) - tests/domains/ml/training_data/test_single_file_multi_day_arrayrecord.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_dynamic_technical_indicators_real_objects.py (2 copies)
+      7,758 bytes (   7.6 KB) - tests/domains/ml/services/training_data/test_dynamic_technical_indicators_real_objects.py
+      7,749 bytes (   7.6 KB) - tests/domains/ml/training_data/test_dynamic_technical_indicators_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_database_registration_failure.py (2 copies)
+     16,841 bytes (  16.4 KB) - tests/domains/ml/services/training_data/test_database_registration_failure.py
+     16,841 bytes (  16.4 KB) - tests/domains/ml/training_data/test_database_registration_failure.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_structure_issues_real_objects.py (2 copies)
+      8,636 bytes (   8.4 KB) - tests/domains/ml/services/training_data/test_structure_issues_real_objects.py
+      8,627 bytes (   8.4 KB) - tests/domains/ml/training_data/test_structure_issues_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_database_registration_failure_real_objects.py (2 copies)
+      8,608 bytes (   8.4 KB) - tests/domains/ml/services/training_data/test_database_registration_failure_real_objects.py
+      8,599 bytes (   8.4 KB) - tests/domains/ml/training_data/test_database_registration_failure_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_structure_issues.py (2 copies)
+      8,903 bytes (   8.7 KB) - tests/domains/ml/services/training_data/test_structure_issues.py
+      8,903 bytes (   8.7 KB) - tests/domains/ml/training_data/test_structure_issues.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_dynamic_technical_indicators.py (2 copies)
+     15,707 bytes (  15.3 KB) - tests/domains/ml/services/training_data/test_dynamic_technical_indicators.py
+     15,707 bytes (  15.3 KB) - tests/domains/ml/training_data/test_dynamic_technical_indicators.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_single_file_multi_day_arrayrecord_real_objects.py (2 copies)
+      8,571 bytes (   8.4 KB) - tests/domains/ml/services/training_data/test_single_file_multi_day_arrayrecord_real_objects.py
+      8,562 bytes (   8.4 KB) - tests/domains/ml/training_data/test_single_file_multi_day_arrayrecord_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_multimodal_dataset_generator_real_objects.py (2 copies)
+     21,069 bytes (  20.6 KB) - tests/domains/ml/services/training/test_multimodal_dataset_generator_real_objects.py
+     21,060 bytes (  20.6 KB) - tests/domains/ml/training/test_multimodal_dataset_generator_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_multimodal_dataset_generator.py (2 copies)
+     26,428 bytes (  25.8 KB) - tests/domains/ml/services/training/test_multimodal_dataset_generator.py
+     26,428 bytes (  25.8 KB) - tests/domains/ml/training/test_multimodal_dataset_generator.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_training_data_callback_refactored.py (2 copies)
+     12,821 bytes (  12.5 KB) - tests/domains/ml/services/training_data/test_training_data_callback_refactored.py
+     12,804 bytes (  12.5 KB) - tests/domains/ml/ml/training_data/test_training_data_callback_refactored.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_news_event_integration_real_objects.py (2 copies)
+      9,371 bytes (   9.2 KB) - tests/domains/ml/services/training_data/test_news_event_integration_real_objects.py
+      9,365 bytes (   9.1 KB) - tests/domains/ml/ml/training_data/test_news_event_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_news_event_integration.py (2 copies)
+     10,158 bytes (   9.9 KB) - tests/domains/ml/ml/training_data/test_news_event_integration.py
+     10,158 bytes (   9.9 KB) - tests/domains/ml/services/training_data/test_news_event_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_training_data_callback_refactored_real_objects.py (2 copies)
+     11,753 bytes (  11.5 KB) - tests/domains/ml/services/training_data/test_training_data_callback_refactored_real_objects.py
+     11,747 bytes (  11.5 KB) - tests/domains/ml/ml/training_data/test_training_data_callback_refactored_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_hourly_aggregation.py (2 copies)
+     12,260 bytes (  12.0 KB) - tests/domains/ml/services/training/hourly_data_generation/test_hourly_aggregation.py
+     12,260 bytes (  12.0 KB) - tests/domains/ml/training/hourly_data_generation/test_hourly_aggregation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_with_real_data_real_objects.py (2 copies)
+      6,322 bytes (   6.2 KB) - tests/domains/ml/services/training/hourly_data_generation/test_with_real_data_real_objects.py
+      6,313 bytes (   6.2 KB) - tests/domains/ml/training/hourly_data_generation/test_with_real_data_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_simple_aggregation.py (2 copies)
+      9,642 bytes (   9.4 KB) - tests/domains/ml/services/training/hourly_data_generation/test_simple_aggregation.py
+      9,642 bytes (   9.4 KB) - tests/domains/ml/training/hourly_data_generation/test_simple_aggregation.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_integration.py (2 copies)
+     11,573 bytes (  11.3 KB) - tests/domains/ml/services/training/hourly_data_generation/test_integration.py
+     11,573 bytes (  11.3 KB) - tests/domains/ml/training/hourly_data_generation/test_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_universe_state_integration_real_objects.py (2 copies)
+      7,234 bytes (   7.1 KB) - tests/domains/ml/services/training/hourly_data_generation/test_universe_state_integration_real_objects.py
+      7,225 bytes (   7.1 KB) - tests/domains/ml/training/hourly_data_generation/test_universe_state_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_hourly_aggregation_real_objects.py (2 copies)
+      8,594 bytes (   8.4 KB) - tests/domains/ml/services/training/hourly_data_generation/test_hourly_aggregation_real_objects.py
+      8,585 bytes (   8.4 KB) - tests/domains/ml/training/hourly_data_generation/test_hourly_aggregation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_simple_aggregation_real_objects.py (2 copies)
+      6,282 bytes (   6.1 KB) - tests/domains/ml/services/training/hourly_data_generation/test_simple_aggregation_real_objects.py
+      6,273 bytes (   6.1 KB) - tests/domains/ml/training/hourly_data_generation/test_simple_aggregation_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_universe_state_integration.py (2 copies)
+     14,856 bytes (  14.5 KB) - tests/domains/ml/services/training/hourly_data_generation/test_universe_state_integration.py
+     14,856 bytes (  14.5 KB) - tests/domains/ml/training/hourly_data_generation/test_universe_state_integration.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_with_real_data.py (2 copies)
+     15,347 bytes (  15.0 KB) - tests/domains/ml/services/training/hourly_data_generation/test_with_real_data.py
+     15,347 bytes (  15.0 KB) - tests/domains/ml/training/hourly_data_generation/test_with_real_data.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+📄 test_integration_real_objects.py (2 copies)
+      7,229 bytes (   7.1 KB) - tests/domains/ml/services/training/hourly_data_generation/test_integration_real_objects.py
+      7,220 bytes (   7.1 KB) - tests/domains/ml/training/hourly_data_generation/test_integration_real_objects.py
+   ⚠️  FILES DIFFER - manual review required
+
+📄 test_cross_scale_attention.py (2 copies)
+     26,369 bytes (  25.8 KB) - tests/domains/ml/ml/models/attention/test_cross_scale_attention.py
+     26,369 bytes (  25.8 KB) - tests/domains/ml/models/attention/test_cross_scale_attention.py
+   ⚠️  FILES ARE IDENTICAL - safe to remove smaller/wrong location
+
+
+================================================================================
+🎯 RECOMMENDED ACTIONS
+================================================================================
+
+113 identical duplicates (safe to auto-remove)
+67 cases requiring manual review
+
+✅ Safe to remove (identical files):
+   rm tests/infrastructure/db/test_migration_manager_prefixing.py
+      (keeping tests/infrastructure/database/test_migration_manager_prefixing.py)
+   rm tests/infrastructure/db/test_migration_manager_comprehensive.py
+      (keeping tests/infrastructure/database/test_migration_manager_comprehensive.py)
+   rm tests/infrastructure/db/test_db_naming.py
+      (keeping tests/infrastructure/database/test_db_naming.py)
+   rm tests/infrastructure/db/test_migration_manager.py
+      (keeping tests/infrastructure/database/test_migration_manager.py)
+   rm tests/infrastructure/db/test_migration_manager_comprehensive_fixed.py
+      (keeping tests/infrastructure/database/test_migration_manager_comprehensive_fixed.py)
+   rm tests/core/dao/test_dao_base.py
+      (keeping tests/infrastructure/database/test_dao_base.py)
+   rm tests/infrastructure/integration/test_eda_unified_metadata_system.py
+      (keeping tests/domains/analytics/services/test_eda_unified_metadata_system.py)
+   rm tests/infrastructure/integration/test_data_population_issues.py
+      (keeping tests/domains/instruments/services/test_data_population_issues.py)
+   rm tests/infrastructure/integration/test_eda_database_fallback_system.py
+      (keeping tests/domains/analytics/services/test_eda_database_fallback_system.py)
+   rm tests/infrastructure/integration/test_eda_javascript_loading.py
+      (keeping tests/domains/analytics/services/test_eda_javascript_loading.py)
+   rm tests/infrastructure/integration/test_eda_threading_server_fix.py
+      (keeping tests/domains/analytics/services/test_eda_threading_server_fix.py)
+   rm tests/infrastructure/market_data/test_market_cap_calculation_accuracy.py
+      (keeping tests/domains/market_data/test_market_cap_calculation_accuracy.py)
+   rm tests/infrastructure/market_data/test_optimized_data_pipeline_performance.py
+      (keeping tests/domains/market_data/test_optimized_data_pipeline_performance.py)
+   rm tests/infrastructure/market_data/test_unified_db_daily_price_market_data_manager.py
+      (keeping tests/domains/market_data/test_unified_db_daily_price_market_data_manager.py)
+   rm tests/infrastructure/market_data/test_market_data_streamer.py
+      (keeping tests/domains/market_data/test_market_data_streamer.py)
+   rm tests/infrastructure/market_data/test_signals.py
+      (keeping tests/domains/market_data/test_signals.py)
+   rm tests/infrastructure/market_data/test_unified_mgr.py
+      (keeping tests/domains/market_data/test_unified_mgr.py)
+   rm tests/infrastructure/market_data/test_market_data_simulator.py
+      (keeping tests/domains/market_data/test_market_data_simulator.py)
+   rm tests/infrastructure/market_data/test_multi_timeframe_ohlc_signals.py
+      (keeping tests/domains/market_data/test_multi_timeframe_ohlc_signals.py)
+   rm tests/infrastructure/services/analytics/test_analytics_schema_validation.py
+      (keeping tests/domains/analytics/services/test_analytics_schema_validation.py)
+   rm tests/infrastructure/services/analytics/test_enhanced_analytics.py
+      (keeping tests/domains/analytics/services/test_enhanced_analytics.py)
+   rm tests/infrastructure/services/analytics/test_analytics_endpoints.py
+      (keeping tests/domains/analytics/services/test_analytics_endpoints.py)
+   rm tests/infrastructure/services/analytics/test_agent_endpoints.py
+      (keeping tests/domains/analytics/services/test_agent_endpoints.py)
+   rm tests/infrastructure/services/analytics/test_query_performance.py
+      (keeping tests/domains/analytics/services/test_query_performance.py)
+   rm tests/services/data_services/test_dataset_service_feature_metadata_integration.py
+      (keeping tests/infrastructure/services/data_services/test_dataset_service_feature_metadata_integration.py)
+   rm tests/services/data_services/test_dataset_api_contract.py
+      (keeping tests/infrastructure/services/data_services/test_dataset_api_contract.py)
+   rm tests/services/data_services/test_checkpoint_framework.py
+      (keeping tests/infrastructure/services/data_services/test_checkpoint_framework.py)
+   rm tests/services/data_services/test_dataset_detail_page_regression_protection.py
+      (keeping tests/infrastructure/services/data_services/test_dataset_detail_page_regression_protection.py)
+   rm tests/services/data_services/test_tsla_direct_check.py
+      (keeping tests/infrastructure/services/data_services/test_tsla_direct_check.py)
+   rm tests/services/core/app/test_runner_interval_bug_fix.py
+      (keeping tests/infrastructure/services/core/app/test_runner_interval_bug_fix.py)
+   rm tests/services/core/app/test_runner_interval_generation.py
+      (keeping tests/infrastructure/services/core/app/test_runner_interval_generation.py)
+   rm tests/interfaces/rest_api/test_backtest_analytics_api.py
+      (keeping tests/infrastructure/interfaces/rest_api/test_backtest_analytics_api.py)
+   rm tests/infrastructure/market_data/utils/test_adjusted_price.py
+      (keeping tests/domains/market_data/utils/test_adjusted_price.py)
+   rm tests/infrastructure/market_data/eod/test_db_daily_price_market_data_manager_dao.py
+      (keeping tests/domains/market_data/eod/test_db_daily_price_market_data_manager_dao.py)
+   rm tests/infrastructure/market_data/eod/test_unify_daily_prices_regression.py
+      (keeping tests/domains/market_data/eod/test_unify_daily_prices_regression.py)
+   rm tests/infrastructure/market_data/eod/test_unified_daily_price_validation.py
+      (keeping tests/domains/market_data/eod/test_unified_daily_price_validation.py)
+   rm tests/infrastructure/market_data/eod/test_file_daily_price_market_data_manager.py
+      (keeping tests/domains/market_data/eod/test_file_daily_price_market_data_manager.py)
+   rm tests/infrastructure/market_data/eod/test_turbo_price_backfill_integration.py
+      (keeping tests/domains/market_data/eod/test_turbo_price_backfill_integration.py)
+   rm tests/infrastructure/market_data/eod/test_unify_daily_prices_db.py
+      (keeping tests/domains/market_data/eod/test_unify_daily_prices_db.py)
+   rm tests/infrastructure/market_data/eod/test_unify_daily_prices.py
+      (keeping tests/domains/market_data/eod/test_unify_daily_prices.py)
+   rm tests/infrastructure/market_data/eod/test_db_daily_price_market_data_manager.py
+      (keeping tests/domains/market_data/eod/test_db_daily_price_market_data_manager.py)
+   rm tests/infrastructure/market_data/eod/test_daily_adj.py
+      (keeping tests/domains/market_data/eod/test_daily_adj.py)
+   rm tests/infrastructure/market_data/news/test_comprehensive_news_backfill_integration.py
+      (keeping tests/domains/market_data/news/test_comprehensive_news_backfill_integration.py)
+   rm tests/infrastructure/market_data/news/test_turbo_news_backfill_integration.py
+      (keeping tests/domains/market_data/news/test_turbo_news_backfill_integration.py)
+   rm tests/infrastructure/market_data/agent/test_models.py
+      (keeping tests/domains/market_data/agent/test_models.py)
+   rm tests/infrastructure/market_data/agent/test_reconciliation.py
+      (keeping tests/domains/market_data/agent/test_reconciliation.py)
+   rm tests/infrastructure/market_data/agent/test_llm_assistant.py
+      (keeping tests/domains/market_data/agent/test_llm_assistant.py)
+   rm tests/infrastructure/market_data/agent/test_reconciled_record_dao.py
+      (keeping tests/domains/market_data/agent/test_reconciled_record_dao.py)
+   rm tests/infrastructure/market_data/agent/test_orchestrator.py
+      (keeping tests/domains/market_data/agent/test_orchestrator.py)
+   rm tests/infrastructure/market_data/agent/test_data_agent_integration.py
+      (keeping tests/domains/market_data/agent/test_data_agent_integration.py)
+   rm tests/infrastructure/market_data/backfill/test_unified_backfill_orchestrator.py
+      (keeping tests/domains/market_data/backfill/test_unified_backfill_orchestrator.py)
+   rm tests/infrastructure/market_data/backfill/test_enhanced_minute_backfill_orchestrator.py
+      (keeping tests/domains/market_data/backfill/test_enhanced_minute_backfill_orchestrator.py)
+   rm tests/infrastructure/market_data/reconciliation/test_majority_voting_reconciler.py
+      (keeping tests/domains/market_data/reconciliation/test_majority_voting_reconciler.py)
+   rm tests/infrastructure/market_data/reconciliation/test_cross_vendor_reconciler.py
+      (keeping tests/domains/market_data/reconciliation/test_cross_vendor_reconciler.py)
+   rm tests/infrastructure/market_data/reconciliation/test_timezone_fix.py
+      (keeping tests/domains/market_data/reconciliation/test_timezone_fix.py)
+   rm tests/infrastructure/market_data/realtime/test_aapl_tsla_collectors.py
+      (keeping tests/domains/market_data/realtime/test_aapl_tsla_collectors.py)
+   rm tests/infrastructure/market_data/realtime/test_gap_detector.py
+      (keeping tests/domains/market_data/realtime/test_gap_detector.py)
+   rm tests/infrastructure/market_data/realtime/test_performance_benchmarks.py
+      (keeping tests/domains/market_data/realtime/test_performance_benchmarks.py)
+   rm tests/infrastructure/market_data/realtime/test_streaming_collector.py
+      (keeping tests/domains/market_data/realtime/test_streaming_collector.py)
+   rm tests/infrastructure/market_data/realtime/test_weekly_backfill.py
+      (keeping tests/domains/market_data/realtime/test_weekly_backfill.py)
+   rm tests/infrastructure/market_data/realtime/test_daily_validation.py
+      (keeping tests/domains/market_data/realtime/test_daily_validation.py)
+   rm tests/infrastructure/market_data/realtime/test_metrics_exporter.py
+      (keeping tests/domains/market_data/realtime/test_metrics_exporter.py)
+   rm tests/infrastructure/web/ui/test_eda_playwright_simple.py
+      (keeping tests/infrastructure/web/ui_tests/test_eda_playwright_simple.py)
+   rm tests/core/unit/test_comprehensive_timeframe_validation.py
+      (keeping tests/domains/trading/integration/test_comprehensive_timeframe_validation.py)
+   rm tests/domains/instruments/services/test_unified_instruments_integrity.py
+      (keeping tests/domains/instruments/integration/test_unified_instruments_integrity.py)
+   rm tests/domains/instruments/unit/test_exchange_dao_integration.py
+      (keeping tests/domains/instruments/repositories/test_exchange_dao_integration.py)
+   rm tests/domains/instruments/services/secmaster/test_market_cap_population.py
+      (keeping tests/domains/instruments/services/test_market_cap_population.py)
+   rm tests/domains/instruments/services/secmaster/test_secmaster_apis.py
+      (keeping tests/domains/instruments/services/test_secmaster_apis.py)
+   rm tests/domains/instruments/services/secmaster/test_db_connection_local.py
+      (keeping tests/domains/instruments/services/test_db_connection_local.py)
+   rm tests/domains/instruments/services/secmaster/test_populate_unified_instruments.py
+      (keeping tests/domains/instruments/services/test_populate_unified_instruments.py)
+   rm tests/domains/instruments/services/secmaster/test_split_logic.py
+      (keeping tests/domains/instruments/services/test_split_logic.py)
+   rm tests/domains/instruments/services/secmaster/test_secmaster.py
+      (keeping tests/domains/instruments/services/test_secmaster.py)
+   rm tests/domains/instruments/services/secmaster/test_db_connection.py
+      (keeping tests/domains/instruments/services/test_db_connection.py)
+   rm tests/domains/instruments/services/secmaster/test_advance.py
+      (keeping tests/domains/instruments/services/test_advance.py)
+   rm tests/domains/instruments/services/secmaster/test_secmaster_realdb.py
+      (keeping tests/domains/instruments/services/test_secmaster_realdb.py)
+   rm tests/domains/ml/ml/modeling/test_pytorch_multi_instrument_train.py
+      (keeping tests/domains/ml/modeling/test_pytorch_multi_instrument_train.py)
+   rm tests/domains/ml/ml/modeling/test_interpretability_framework.py
+      (keeping tests/domains/ml/modeling/test_interpretability_framework.py)
+   rm tests/domains/ml/ml/modeling/test_event_features.py
+      (keeping tests/domains/ml/modeling/test_event_features.py)
+   rm tests/domains/ml/ml/modeling/test_training_data_generator.py
+      (keeping tests/domains/ml/modeling/test_training_data_generator.py)
+   rm tests/domains/ml/ml/modeling/test_enhanced_feature_types.py
+      (keeping tests/domains/ml/modeling/test_enhanced_feature_types.py)
+   rm tests/domains/ml/ml/modeling/test_factor_models.py
+      (keeping tests/domains/ml/modeling/test_factor_models.py)
+   rm tests/domains/ml/ml/modeling/test_portfolio_evaluator.py
+      (keeping tests/domains/ml/modeling/test_portfolio_evaluator.py)
+   rm tests/domains/ml/ml/modeling/test_cross_timeframe_aligner.py
+      (keeping tests/domains/ml/modeling/test_cross_timeframe_aligner.py)
+   rm tests/domains/ml/ml/modeling/test_unified_loss_comprehensive.py
+      (keeping tests/domains/ml/modeling/test_unified_loss_comprehensive.py)
+   rm tests/domains/ml/ml/modeling/test_multi_timeframe_analyzer.py
+      (keeping tests/domains/ml/modeling/test_multi_timeframe_analyzer.py)
+   rm tests/domains/ml/ml/modeling/test_configurable_train_data_generator_comprehensive.py
+      (keeping tests/domains/ml/modeling/test_configurable_train_data_generator_comprehensive.py)
+   rm tests/domains/ml/ml/modeling/test_llm_pattern_recognition.py
+      (keeping tests/domains/ml/modeling/test_llm_pattern_recognition.py)
+   rm tests/domains/ml/ml/modeling/test_unified_loss_performance.py
+      (keeping tests/domains/ml/modeling/test_unified_loss_performance.py)
+   rm tests/domains/ml/ml/test_support_resistance_generator.py
+      (keeping tests/domains/ml/services/test_support_resistance_generator.py)
+   rm tests/domains/ml/ml/test_sr_backtester.py
+      (keeping tests/domains/ml/services/test_sr_backtester.py)
+   rm tests/domains/ml/ml/test_complete_sr_pipeline.py
+      (keeping tests/domains/ml/services/test_complete_sr_pipeline.py)
+   rm tests/domains/ml/ml/test_adaptive_sr_model.py
+      (keeping tests/domains/ml/services/test_adaptive_sr_model.py)
+   rm tests/domains/ml/ml/test_type_system_demonstration.py
+      (keeping tests/domains/ml/services/test_type_system_demonstration.py)
+   rm tests/domains/ml/ml/test_support_resistance_model.py
+      (keeping tests/domains/ml/services/test_support_resistance_model.py)
+   rm tests/domains/ml/ml/models/test_data_loader.py
+      (keeping tests/domains/ml/models/test_data_loader.py)
+   rm tests/domains/ml/ml/models/test_temporal_fusion_transformer.py
+      (keeping tests/domains/ml/models/test_temporal_fusion_transformer.py)
+   rm tests/domains/ml/services/training_data/test_timeseries_sequence_training_generator_aggregation.py
+      (keeping tests/domains/ml/unit/test_timeseries_sequence_training_generator_aggregation.py)
+   rm tests/domains/ml/services/training_data/test_training_data_uses_future_universe_state_intervals.py
+      (keeping tests/domains/ml/unit/test_training_data_uses_future_universe_state_intervals.py)
+   rm tests/domains/ml/services/training_data/test_training_data_uses_universe_state_intervals.py
+      (keeping tests/domains/ml/unit/test_training_data_uses_universe_state_intervals.py)
+   rm tests/domains/ml/services/training_data/test_training_data_temporal_isolation.py
+      (keeping tests/domains/ml/unit/test_training_data_temporal_isolation.py)
+   rm tests/domains/ml/services/training_data/test_training_data_serialization.py
+      (keeping tests/domains/ml/unit/test_training_data_serialization.py)
+   rm tests/domains/ml/services/training_data/test_single_file_multi_day_arrayrecord.py
+      (keeping tests/domains/ml/training_data/test_single_file_multi_day_arrayrecord.py)
+   rm tests/domains/ml/services/training_data/test_database_registration_failure.py
+      (keeping tests/domains/ml/training_data/test_database_registration_failure.py)
+   rm tests/domains/ml/services/training_data/test_structure_issues.py
+      (keeping tests/domains/ml/training_data/test_structure_issues.py)
+   rm tests/domains/ml/services/training_data/test_dynamic_technical_indicators.py
+      (keeping tests/domains/ml/training_data/test_dynamic_technical_indicators.py)
+   rm tests/domains/ml/services/training/test_multimodal_dataset_generator.py
+      (keeping tests/domains/ml/training/test_multimodal_dataset_generator.py)
+   rm tests/domains/ml/ml/training_data/test_news_event_integration.py
+      (keeping tests/domains/ml/services/training_data/test_news_event_integration.py)
+   rm tests/domains/ml/training/hourly_data_generation/test_hourly_aggregation.py
+      (keeping tests/domains/ml/services/training/hourly_data_generation/test_hourly_aggregation.py)
+   rm tests/domains/ml/training/hourly_data_generation/test_simple_aggregation.py
+      (keeping tests/domains/ml/services/training/hourly_data_generation/test_simple_aggregation.py)
+   rm tests/domains/ml/training/hourly_data_generation/test_integration.py
+      (keeping tests/domains/ml/services/training/hourly_data_generation/test_integration.py)
+   rm tests/domains/ml/training/hourly_data_generation/test_universe_state_integration.py
+      (keeping tests/domains/ml/services/training/hourly_data_generation/test_universe_state_integration.py)
+   rm tests/domains/ml/training/hourly_data_generation/test_with_real_data.py
+      (keeping tests/domains/ml/services/training/hourly_data_generation/test_with_real_data.py)
+   rm tests/domains/ml/models/attention/test_cross_scale_attention.py
+      (keeping tests/domains/ml/ml/models/attention/test_cross_scale_attention.py)
+
+⚠️  Requires manual review (multiple copies or different content):
+   tests/infrastructure/integration/test_ui_api_integration.py - review all copies manually
+   tests/infrastructure/web/test_eda_column_availability_explanation.py - review all copies manually
+   tests/infrastructure/web/test_comprehensive_features_display.py - review all copies manually
+   tests/infrastructure/web/test_symbol_filter_complete.py - review all copies manually
+   tests/infrastructure/web/ui_tests/test_eda_interface.py - review all copies manually
+   tests/infrastructure/web/test_ray_eda_end_to_end.py - review all copies manually
+   tests/infrastructure/web/test_javascript_debug.py - review all copies manually
+   tests/infrastructure/web/test_simple_agent_status.py - review all copies manually
+   tests/infrastructure/web/test_navigation_debugging.py - review all copies manually
+   tests/infrastructure/web/test_earnings_events_integration.py - review all copies manually
+   tests/infrastructure/web/test_news_analytics_playwright.py - review all copies manually
+   tests/infrastructure/web/test_eda_filtering_unit.py - review all copies manually
+   tests/infrastructure/services/web_services/test_dataset_fix_verification_real_objects.py - review all copies manually
+   tests/infrastructure/web/test_gap_events_integration.py - review all copies manually
+   tests/infrastructure/web/test_dataset_endpoint_detection.py - review all copies manually
+   tests/infrastructure/web/test_eda_playwright.py - review all copies manually
+   tests/infrastructure/services/web_services/test_ray_eda_system.py - review all copies manually
+   tests/infrastructure/web/test_monthly_training_data_playwright.py - review all copies manually
+   tests/infrastructure/web/test_sequence_visualization_playwright.py - review all copies manually
+   tests/infrastructure/web/test_dataset_filesystem_fix.py - review all copies manually
+   tests/infrastructure/web/test_start_button_workflow.py - review all copies manually
+   tests/infrastructure/web/test_timestamp_visualization_fixes.py - review all copies manually
+   tests/infrastructure/web/test_function_existence.py - review all copies manually
+   tests/infrastructure/services/web_services/test_dataset_detail_404_regression_real_objects.py - review all copies manually
+   tests/infrastructure/web/test_enhanced_dataset_features.py - review all copies manually
+   tests/infrastructure/services/web_services/test_dataset_detail_page_fix_real_objects.py - review all copies manually
+   tests/infrastructure/web/test_table_data_validation.py - review all copies manually
+   tests/infrastructure/web/test_data_quality_debug.py - review all copies manually
+   tests/infrastructure/web/test_eda_filtering_integration.py - review all copies manually
+   tests/infrastructure/web/test_eda_browser_simulation.py - review all copies manually
+   tests/infrastructure/web/test_eda_navigation_integration.py - review all copies manually
+   tests/infrastructure/web/test_agent_status_loading.py - review all copies manually
+   tests/infrastructure/services/web_services/test_multi_panel_eda_integration_real_objects.py - review all copies manually
+   tests/infrastructure/web/test_chart_loading_error_scenarios.py - review all copies manually
+   tests/infrastructure/web/test_dataset_fix_verification.py - review all copies manually
+   tests/infrastructure/web/test_dataset_detail_page_fix.py - review all copies manually
+   tests/infrastructure/web/test_ui_layout_regression_protection.py - review all copies manually
+   tests/infrastructure/web/test_eda_fixes.py - review all copies manually
+   tests/infrastructure/services/web_services/test_backtest_webapp_real_objects.py - review all copies manually
+   tests/infrastructure/web/test_comprehensive_eda_system.py - review all copies manually
+   tests/infrastructure/web/test_news_filtering_playwright.py - review all copies manually
+   tests/infrastructure/web/test_eda_playwright_final.py - review all copies manually
+   tests/infrastructure/web/test_dataset_detail_404_regression.py - review all copies manually
+   tests/infrastructure/web/test_ray_eda_coverage.py - review all copies manually
+   tests/infrastructure/web/test_sequence_selection_dom_validation.py - review all copies manually
+   tests/infrastructure/web/test_with_features_enabled.py - review all copies manually
+   tests/infrastructure/web/test_eda_column_selection_unit.py - review all copies manually
+   tests/infrastructure/monitoring/test_data_quality_dashboard.py - review all copies manually
+   tests/infrastructure/web/test_eda_column_selection.py - review all copies manually
+   tests/infrastructure/web/test_playwright_validation.py - review all copies manually
+   tests/infrastructure/web/test_eda_performance_integration.py - review all copies manually
+   tests/infrastructure/web/test_playwright_simple.py - review all copies manually
+   tests/infrastructure/web/test_universe_analytics_playwright.py - review all copies manually
+   tests/infrastructure/web/test_training_dataset_sequences.py - review all copies manually
+   tests/infrastructure/services/web_services/test_ray_eda_system_real_objects.py - review all copies manually
+   tests/infrastructure/web/test_multi_panel_eda_integration.py - review all copies manually
+   tests/infrastructure/web/test_sequence_visualization_debug.py - review all copies manually
+   tests/infrastructure/web/test_api_status_tracker.py - review all copies manually
+   tests/infrastructure/services/web_services/test_comprehensive_eda_system_real_objects.py - review all copies manually
+   tests/infrastructure/web/test_timestamp_navigation_playwright.py - review all copies manually
+   tests/infrastructure/web/test_sequence_visualization_fix.py - review all copies manually
+   tests/infrastructure/web/test_sequence_data_investigation.py - review all copies manually
+   tests/infrastructure/web/test_eda_performance_unit.py - review all copies manually
+   tests/infrastructure/web/test_time_navigation_playwright.py - review all copies manually
+   tests/domains/instruments/repositories/test_exchange_dao_integration_real_objects.py - review all copies manually
+   tests/domains/ml/services/evaluation/test_experiment_framework_real_objects.py - review all copies manually
+   tests/domains/ml/evaluation/test_experiment_framework.py - review all copies manually
+
+📝 Generated removal script: scripts/remove_duplicate_tests.sh
+   Review and run: scripts/remove_duplicate_tests.sh
