@@ -140,22 +140,19 @@ class TestExchangeCalendarCoverageGap:
         # 3. The class is checking if the library is available before using it
         
         # Option 1: Import pandas_market_calendars as mcal
-        try:
-            import pandas_market_calendars as mcal
-            mcal_available_as_import = True
-        # Option 2: Import specific calendar factory
-        try:
-            from pandas_market_calendars import get_calendar
-            get_calendar_available = True
+        import pandas_market_calendars as mcal
+        mcal_available_as_import = True
+    # Option 2: Import specific calendar factory
+        from pandas_market_calendars import get_calendar
+        get_calendar_available = True
         # The class should likely also initialize self.calendar
         def expected_initialization_pattern(exchange):
             """Expected pattern for proper initialization."""
-            try:
-                import pandas_market_calendars as mcal
-                if mcal is not None:
-                    # Should create self.calendar here
-                    calendar = mcal.get_calendar(exchange.upper())
-                    return calendar
+            import pandas_market_calendars as mcal
+            if mcal is not None:
+                # Should create self.calendar here
+                calendar = mcal.get_calendar(exchange.upper())
+                return calendar
         print("✅ MCAL SHOULD BE:")
         print(f"   1. pandas_market_calendars imported as mcal: Available={mcal_available_as_import}")
         print(f"   2. get_calendar function available: Available={get_calendar_available}")
@@ -205,15 +202,14 @@ class TestExchangeCalendarCoverageGap:
             """Demonstrate proper testing that would catch the bug."""
             
             # PROPER APPROACH: Test real class instantiation
-            try:
-                # This SHOULD work but currently fails - that's what tests should catch
-                calendar = ExchangeCalendar("NYSE")
+            # This SHOULD work but currently fails - that's what tests should catch
+            calendar = ExchangeCalendar("NYSE")
                 
-                # If it worked, verify basic functionality
-                import datetime
-                today = datetime.date.today()
-                is_holiday = calendar.is_holiday(today)
-                return True
+            # If it worked, verify basic functionality
+            import datetime
+            today = datetime.date.today()
+            is_holiday = calendar.is_holiday(today)
+            return True
                 
         # Run the proper test approach
         test_passed = proper_test_approach()
@@ -260,9 +256,8 @@ class TestExchangeCalendarCoverageGap:
         # GOOD PATTERN: Test real implementation with isolated setup
         def good_pattern_real_implementation():
             # Test real class instantiation - this reveals both bugs
-            try:
-                calendar = ExchangeCalendar("NYSE")
-                return True
+            calendar = ExchangeCalendar("NYSE")
+            return True
         # Compare patterns
         bad1_passes = bad_pattern_mock_everything()
         bad2_passes = bad_pattern_methods_only()
@@ -290,12 +285,10 @@ if __name__ == "__main__":
     print("🔍 ANALYZING EXCHANGE_CALENDAR TEST COVERAGE GAP")
     print("=" * 60)
     
-    try:
-        print("\n1. Reproducing mcal NameError...")
-        test.test_reproduce_mcal_nameerror_before_fix()
-    try:
-        print("\n2. Reproducing via runner integration...")
-        test.test_reproduce_via_runner_integration()
+    print("\n1. Reproducing mcal NameError...")
+    test.test_reproduce_mcal_nameerror_before_fix()
+    print("\n2. Reproducing via runner integration...")
+    test.test_reproduce_via_runner_integration()
     print("\n3. Analyzing why test coverage is missing...")
     test.test_analyze_why_test_coverage_is_missing()
     

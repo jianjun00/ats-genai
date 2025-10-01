@@ -212,19 +212,18 @@ class TestCreateRunContextCoverageGap:
                 manager = RunContextManager(base_artifacts_dir=temp_dir)
                 
                 # This SHOULD work but currently fails - that's what tests should catch
-                try:
-                    result = manager.create_run_context(
-                        run_id="test_run_12345",
-                        metadata={"test_key": "test_value"}
-                    )
+                result = manager.create_run_context(
+                    run_id="test_run_12345",
+                    metadata={"test_key": "test_value"}
+                )
                     
-                    # If it worked, verify the result
-                    assert result is not None
-                    assert result.run_id == "test_run_12345"
-                    assert "working_directory" in result.metadata
-                    return True
+                # If it worked, verify the result
+                assert result is not None
+                assert result.run_id == "test_run_12345"
+                assert "working_directory" in result.metadata
+                return True
                     
-        # Run the proper test approach
+    # Run the proper test approach
         test_passed = proper_test_approach()
         assert test_passed == False  # Currently fails due to bug
         
@@ -270,9 +269,8 @@ class TestCreateRunContextCoverageGap:
                 manager = RunContextManager(base_artifacts_dir=temp_dir)
                 
                 # Test real function - this reveals the bug
-                try:
-                    manager.create_run_context(run_id="test")
-                    return True
+                manager.create_run_context(run_id="test")
+                return True
         # Compare patterns
         bad1_passes = bad_pattern_mock_everything()
         bad2_passes = bad_pattern_happy_path_only()
@@ -300,12 +298,10 @@ if __name__ == "__main__":
     print("🔍 ANALYZING CREATE_RUN_CONTEXT TEST COVERAGE GAP")
     print("=" * 60)
     
-    try:
-        print("\n1. Reproducing working_dir NameError...")
-        test.test_reproduce_working_dir_nameerror()
-    try:
-        print("\n2. Reproducing via module-level function...")
-        test.test_reproduce_via_module_level_function()
+    print("\n1. Reproducing working_dir NameError...")
+    test.test_reproduce_working_dir_nameerror()
+    print("\n2. Reproducing via module-level function...")
+    test.test_reproduce_via_module_level_function()
     print("\n3. Analyzing why test coverage is missing...")
     test.test_analyze_why_test_coverage_is_missing()
     

@@ -162,10 +162,10 @@ class TestFixVerificationEndToEnd:
                 print(f"   30m OHLCV: O={aggregated_30m.open:.2f} H={aggregated_30m.high:.2f} L={aggregated_30m.low:.2f} C={aggregated_30m.close:.2f} V={aggregated_30m.traded_volume}")
                 
                 # CRITICAL TEST: Verify values are DIFFERENT (no duplication)
-                assert latest_5m.high != aggregated_15m.high or latest_5m.low != aggregated_15m.low or latest_5m.traded_volume != aggregated_15m.traded_volume, \\
+                assert latest_5m.high != aggregated_15m.high or latest_5m.low != aggregated_15m.low or latest_5m.traded_volume != aggregated_15m.traded_volume, \
                     "5m and 15m should have different OHLCV values"
                     
-                assert aggregated_15m.high != aggregated_30m.high or aggregated_15m.low != aggregated_30m.low or aggregated_15m.traded_volume != aggregated_30m.traded_volume, \\
+                assert aggregated_15m.high != aggregated_30m.high or aggregated_15m.low != aggregated_30m.low or aggregated_15m.traded_volume != aggregated_30m.traded_volume, \
                     "15m and 30m should have different OHLCV values"
                 
                 # Verify aggregation logic correctness

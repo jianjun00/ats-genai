@@ -18,7 +18,7 @@ except ImportError:
 # Import type system components
 from domains.ml.schema.registry import schema_registry
 from domains.ml.schema.types import FieldSemantics
-from domains.analytics.services.analytics_service import AnalyticsService
+from domains.analytics.services.analytics_service import UnifiedAnalyticsService
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ if FASTAPI_AVAILABLE:
                     # Mock implementation for demo purposes
                     return []
 
-            analytics_service = AnalyticsService(MockDBManager())
+            analytics_service = UnifiedAnalyticsService(MockDBManager())
             logger.info("Type-aware analytics service started successfully")
             logger.info(f"Schema registry loaded with {len(schema_registry.get_schema_summary()['entities'])} entities")
         except Exception as e:
@@ -101,7 +101,7 @@ if FASTAPI_AVAILABLE:
     @app.get("/filters/{table_name}")
     async def get_intelligent_filters(
         table_name: str,
-        analytics_service: AnalyticsService = Depends(get_analytics_service)
+        analytics_service: UnifiedAnalyticsService = Depends(get_analytics_service)
     ):
         """Get intelligent filter definitions for a table using type system."""
         try:
@@ -293,7 +293,7 @@ def main():
         async def execute_query(self, query, params=None):
             return []
 
-    service = AnalyticsService(MockDBManager())
+    service = UnifiedAnalyticsService(MockDBManager())
     print("✅ Type-aware analytics service initialized")
 
     # Test intelligent filter generation

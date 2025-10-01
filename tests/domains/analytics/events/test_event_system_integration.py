@@ -9,6 +9,9 @@ from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
 
+# Skip entire module if celery is not available
+celery = pytest.importorskip("celery", reason="Celery module not installed")
+
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 

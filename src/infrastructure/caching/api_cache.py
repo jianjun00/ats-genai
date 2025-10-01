@@ -208,31 +208,31 @@ class APICacheManager:
         return f"api_cache:{key_string}"
 
     async def get_cached_response(self, request: Request) -> Optional[CachedResponse]:
-        """Get cached response for request."""
-        try:
-            cache_key = self.generate_cache_key(request)
-            cached_data = await self.cache.get(cache_key)
+        """Get cached response for request.
+        
+        Let all cache access exceptions propagate - fail fast on cache infrastructure issues.
+        """
+        cache_key = self.generate_cache_key(request)
+        cached_data = await self.cache.get(cache_key)
 
-            if cached_data is None:
-                self.stats['misses'] += 1
-                return None
+        if cached_data is None:
+            self.stats['misses'] += 1
+            return None
 
-            cached_response = CachedResponse(**cached_data)
+        cached_response = CachedResponse(**cached_data)
 
-            # Check if response is expired
-            if cached_response.is_expired():
-                await self.cache.delete(cache_key)
-                self.stats['misses'] += 1
-                return None
+        # Check if response is expired
+        if cached_response.is_expired():
+            await self.cache.delete(cache_key)
+            self.stats['misses'] += 1
+            return None
 
-            # Update hit count
-            cached_response.touch()
-            self.stats['hits'] += 1
+        # Update hit count
+        cached_response.touch()
+        self.stats['hits'] += 1
 
-            logger.debug(f"Cache hit for {request.method} {request.url.path}")
-            return cached_response
-
-        # Let all cache access exceptions propagate - fail fast on cache infrastructure issues
+        logger.debug(f"Cache hit for {request.method} {request.url.path}")
+        return cached_response
 
     async def store_response(
         self,
@@ -334,13 +334,14 @@ class APICacheManager:
         return total_invalidated
 
     async def invalidate_by_pattern(self, pattern: str) -> int:
-        """Invalidate cache entries matching pattern."""
-        try:
-            count = await self.cache.clear(pattern)
-            self.stats['invalidations'] += count
-            logger.info(f"Invalidated {count} cache entries for pattern: {pattern}")
-            return count
-        # Let all cache invalidation exceptions propagate - fail fast on cache operation errors
+        """Invalidate cache entries matching pattern.
+        
+        Let all cache invalidation exceptions propagate - fail fast on cache operation errors.
+        """
+        count = await self.cache.clear(pattern)
+        self.stats['invalidations'] += count
+        logger.info(f"Invalidated {count} cache entries for pattern: {pattern}")
+        return count
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""

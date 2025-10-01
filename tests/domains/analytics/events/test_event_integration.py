@@ -17,7 +17,6 @@ from domains.analytics.services.events.event_integration import (
     TemporalEventAttention,
     EventGatingMechanism,
     TemporalPositionEncoder,
-    RelativePositionBias,
     MarketEvent,
     EventSequence,
     EventType,
