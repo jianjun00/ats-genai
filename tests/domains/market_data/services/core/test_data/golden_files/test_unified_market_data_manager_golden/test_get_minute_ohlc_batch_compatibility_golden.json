@@ -1,0 +1,25 @@
+{
+  "ats_version": "1.0.0",
+  "data_points": [
+    {
+      "close_micro_dollars": 219691300,
+      "high_micro_dollars": 219949500,
+      "low_micro_dollars": 219601900,
+      "open_micro_dollars": 219741000,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722508200000000,
+      "volume": 138371.0,
+      "vwap_micro_dollars": null
+    }
+  ],
+  "end_datetime": "2024-08-01T10:30:00",
+  "generated_at_utc_micros": 1759265657280194,
+  "start_datetime": "2024-08-01T10:00:00",
+  "symbols": [
+    "AAPL"
+  ],
+  "test_data_hash": "43a1a4750838d0b0c1efe2b9f4d2a42e",
+  "test_name": "test_get_minute_ohlc_batch_compatibility_golden",
+  "timeframe": "1m_batch",
+  "vendor": "firstrate"
+}

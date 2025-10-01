@@ -1,0 +1,85 @@
+{
+  "ats_version": "1.0.0",
+  "data_points": [
+    {
+      "close_micro_dollars": 222293200,
+      "high_micro_dollars": 222928800,
+      "low_micro_dollars": 221876100,
+      "open_micro_dollars": 222819500,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722504600000000,
+      "volume": 841801,
+      "vwap_micro_dollars": null
+    },
+    {
+      "close_micro_dollars": 222327900,
+      "high_micro_dollars": 222759900,
+      "low_micro_dollars": 222193900,
+      "open_micro_dollars": 222690400,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722506400000000,
+      "volume": 168380,
+      "vwap_micro_dollars": null
+    },
+    {
+      "close_micro_dollars": 222327900,
+      "high_micro_dollars": 222759900,
+      "low_micro_dollars": 222193900,
+      "open_micro_dollars": 222690400,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722506400000000,
+      "volume": 168380,
+      "vwap_micro_dollars": null
+    },
+    {
+      "close_micro_dollars": 219338700,
+      "high_micro_dollars": 219646600,
+      "low_micro_dollars": 219304000,
+      "open_micro_dollars": 219472800,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722510000000000,
+      "volume": 50918,
+      "vwap_micro_dollars": null
+    },
+    {
+      "close_micro_dollars": 218291000,
+      "high_micro_dollars": 218370500,
+      "low_micro_dollars": 218171900,
+      "open_micro_dollars": 218271300,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722513600000000,
+      "volume": 56750,
+      "vwap_micro_dollars": null
+    },
+    {
+      "close_micro_dollars": 215897700,
+      "high_micro_dollars": 215967200,
+      "low_micro_dollars": 215828200,
+      "open_micro_dollars": 215867900,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722519900000000,
+      "volume": 54241,
+      "vwap_micro_dollars": null
+    },
+    {
+      "close_micro_dollars": 216016900,
+      "high_micro_dollars": 216165800,
+      "low_micro_dollars": 215848000,
+      "open_micro_dollars": 215977100,
+      "symbol": "AAPL",
+      "timestamp_utc_micros": 1722524400000000,
+      "volume": 50271,
+      "vwap_micro_dollars": null
+    }
+  ],
+  "end_datetime": "2024-08-01T15:30:00",
+  "generated_at_utc_micros": 1759304224000669,
+  "start_datetime": "2024-08-01T09:30:00",
+  "symbols": [
+    "AAPL"
+  ],
+  "test_data_hash": "",
+  "test_name": "test_timeframe_datetime_matrix_consistency_golden",
+  "timeframe": "matrix_test",
+  "vendor": "firstrate"
+}

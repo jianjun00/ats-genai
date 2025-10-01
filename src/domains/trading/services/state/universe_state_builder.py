@@ -52,7 +52,7 @@ except ImportError:
 
 @gin.configurable
 class UniverseStateIntervalBuilder(RunnerCallback):
-    def __init__(self, env: Environment = None, base_duration: str = '1m', target_durations: str = '1m,5m,15m,1h,1d', forecast_callback=None, universe_state_manager=None):
+    def __init__(self, env: Environment = None, base_duration: str = '1m', target_durations: str = '1m,5m,15m,1h,1d,1w', forecast_callback=None, universe_state_manager=None):
         """
         Initialize UniverseStateIntervalBuilder.
         Args:
@@ -85,6 +85,44 @@ class UniverseStateIntervalBuilder(RunnerCallback):
 
         # Default business logic parameters (from test expectations)
         self.min_market_cap = 100_000_000
+    
+    def _get_market_data_time_range(self, current_time):
+        """
+        Get the time range for market data fetching for a given interval.
+        
+        Args:
+            current_time: The current interval time being processed
+            
+        Returns:
+            tuple: (start_time, end_time) both timezone-aware in GMT
+            
+        Note:
+            This function determines what historical data to fetch for the current interval.
+            The current implementation fetches from market open to current time, but this
+            could be adjusted to fetch specific windows (e.g., last hour, last day, etc.)
+        """
+        from core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
+        from zoneinfo import ZoneInfo
+        
+        gmt_tz = ZoneInfo("GMT")
+        
+        # Get trading session times for this date
+        session_times = get_session_times(current_time.date())
+        
+        # FIXED: Use interval-specific time window instead of market open
+        # This prevents OHLCV duplication by fetching unique data for each interval
+        
+        # Use 1-hour lookback window for each interval
+        from datetime import timedelta
+        window_duration = timedelta(hours=1)
+        minute_start_time = current_time - window_duration
+        minute_end_time = current_time
+        
+        # Ensure both times are GMT timezone-aware for consistent market data manager input
+        minute_start_time = minute_start_time.astimezone(gmt_tz) if minute_start_time.tzinfo else minute_start_time.replace(tzinfo=gmt_tz)
+        minute_end_time = minute_end_time.astimezone(gmt_tz) if minute_end_time.tzinfo else minute_end_time.replace(tzinfo=gmt_tz)
+        
+        return minute_start_time, minute_end_time
     
     def handleStartOfDay(self, runner, current_time):
         self.logger.debug(f"UniverseStateIntervalBuilder.handleStartOfDay called at {current_time}")
@@ -197,22 +235,10 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         
         # --- 1. ALWAYS update rolling cache with 1-minute data ---
         # ✅ CRITICAL FIX: Request data from market open to current interval time only
-        from core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
-        
-        # Get trading session start time and use current_time as end - ensure both are GMT
-        from zoneinfo import ZoneInfo
-        gmt_tz = ZoneInfo("GMT")
-        
-        session_times = get_session_times(current_time.date())
-        minute_start_time = to_utc(session_times['market_open'])  # 9:30 AM EDT -> 13:30 UTC
-        minute_end_time = current_time  # 🔧 FIXED: Use current_time to prevent data leakage
-        
-        # 🔧 ENSURE BOTH ARE GMT TIMEZONE-AWARE for consistent market data manager input
-        minute_start_time = minute_start_time.astimezone(gmt_tz) if minute_start_time.tzinfo else minute_start_time.replace(tzinfo=gmt_tz)
-        minute_end_time = minute_end_time.astimezone(gmt_tz) if minute_end_time.tzinfo else minute_end_time.replace(tzinfo=gmt_tz)
+        # Get data fetch time range for this interval
+        minute_start_time, minute_end_time = self._get_market_data_time_range(current_time)
         
         self.logger.debug(f"[handleInterval] Fetching 1-minute data: [{minute_start_time}, {minute_end_time}]")
-        
         # Convert instrument_ids to symbols for FileBasedMinuteMarketDataManager
         from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
         xrefs_dao = InstrumentXrefsDAO(runner.get_environment())
@@ -227,33 +253,24 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 self.logger.warning(f"No symbol mapping found for instrument_id {inst_id}")
 
         # Fetch 1-minute OHLC data
-        self.logger.info(f"🔍 [DEBUG] [handleInterval] Fetching OHLC for symbols: {symbols} from {minute_start_time} to {minute_end_time}")
         ohlc_batch = await runner.market_data_manager.get_minute_ohlc_batch(symbols, minute_start_time, minute_end_time)
-        self.logger.info(f"🔍 [DEBUG] [handleInterval] Received OHLC batch: {ohlc_batch}")
         
         # Check what we actually got
         for symbol, ohlc_data in ohlc_batch.items():
-            if ohlc_data is not None:
-                self.logger.info(f"🔍 [DEBUG] Symbol {symbol}: Got OHLC data = {ohlc_data}")
-            else:
-                self.logger.info(f"🔍 [DEBUG] Symbol {symbol}: Got None (no data)")
+            if not ohlc_data:
+                self.logger.warning(f"🔍 [DEBUG] Symbol {symbol}: Got None (no data)")
 
         # Convert back to instrument_id-based dictionary
         symbol_to_inst_id = {symbol: inst_id for inst_id, symbol in inst_id_to_symbol.items() if symbol is not None}
-        self.logger.info(f"🔍 [DEBUG] inst_id_to_symbol original: {inst_id_to_symbol}")
-        self.logger.info(f"🔍 [DEBUG] symbol_to_inst_id reverse: {symbol_to_inst_id}")
         
         ohlc_batch_by_inst_id = {}
         for symbol, ohlc_data in ohlc_batch.items():
             inst_id = symbol_to_inst_id.get(symbol)
-            self.logger.info(f"🔍 [DEBUG] Converting symbol '{symbol}' -> instrument_id '{inst_id}'")
             if inst_id:
                 ohlc_batch_by_inst_id[inst_id] = ohlc_data
-                self.logger.info(f"🔍 [DEBUG] Successfully mapped {symbol} -> {inst_id} with OHLC data")
             else:
                 self.logger.warning(f"🔍 [DEBUG] No instrument_id mapping found for symbol '{symbol}' in {symbol_to_inst_id}")
 
-        self.logger.info(f"🔍 [DEBUG] Final ohlc_batch_by_inst_id keys: {list(ohlc_batch_by_inst_id.keys())}")
         ohlc_batch = ohlc_batch_by_inst_id
         
         # Fetch market cap data
@@ -261,13 +278,9 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         market_caps = {row['instrument_id']: row['market_cap'] for row in rows}
         
         # Update rolling cache with 1-minute intervals
-        self.logger.info(f"🔍 [DEBUG] Processing instrument_ids: {instrument_ids}")
-        self.logger.info(f"🔍 [DEBUG] Available ohlc_batch keys: {list(ohlc_batch.keys())}")
         for inst_id in instrument_ids:
             ohlc = ohlc_batch.get(inst_id)
-            self.logger.info(f"🔍 [DEBUG] instrument_id {inst_id}: ohlc data = {ohlc}")
             if ohlc is not None:
-                self.logger.info(f"🔍 [DEBUG] instrument_id {inst_id}: Creating InstrumentInterval from OHLC data")
                 # ✅ CRITICAL FIX: Convert pandas Series to scalar values for InstrumentInterval
                 def safe_scalar_conversion(value, default=None):
                     """Convert pandas Series or other types to scalar float."""
@@ -298,7 +311,6 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                 status = 'missing' if all_none else 'ok'
                 traded_dollar = (close_ * volume_) if (close_ is not None and volume_ is not None) else None
                 # Create 1-minute interval
-                self.logger.info(f"🔍 [DEBUG] instrument_id {inst_id}: Creating InstrumentInterval with open={open_}, high={high_}, low={low_}, close={close_}, volume={volume_}")
                 interval = InstrumentInterval(
                     instrument_id=inst_id,
                     start_date_time=minute_start_time,
@@ -313,15 +325,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                     market_cap=market_caps.get(inst_id)
                 )
                 
-                self.logger.info(f"🔍 [DEBUG] instrument_id {inst_id}: InstrumentInterval created successfully")
-                
                 # Add to 1-minute rolling cache
                 timeframe = '1m'
-                self.logger.info(f"🔍 [DEBUG] instrument_id {inst_id}: Adding to rolling cache for timeframe {timeframe}")
                 self._add_interval_to_cache(inst_id, timeframe, interval)
                 
                 history_size = len(self._get_instrument_history_for_timeframe(inst_id, timeframe))
-                self.logger.info(f"🔍 [DEBUG] [1MIN CACHE] instrument_id={inst_id}, history_size={history_size}")
             else:
                 self.logger.warning(f"No 1-minute OHLC data for instrument_id: {inst_id} at {current_time}")
         # --- 2. Check which timeframes should be processed at current_time ---
@@ -332,7 +340,6 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             should_process = self._should_process_timeframe(duration, current_time)
             
             if should_process:
-                self.logger.debug(f"[TIMEFRAME] Processing {duration.get_duration_string()} at {current_time}")
                 duration_to_state.update(await self._build_universe_state_for_duration(duration, current_time, instrument_ids, runner))
             else:
                 self.logger.debug(f"Skipping {duration.get_duration_string()} at {current_time} - not complete")
@@ -563,7 +570,6 @@ class UniverseStateIntervalBuilder(RunnerCallback):
 
         if has_enough_history and self.indicator_builder is not None:
             # Normal indicator calculation
-            self.logger.debug(f"[INDICATORS] Using normal indicator calculation for {duration.get_duration_string()}")
             instrument_indicator_intervals['default'] = self.indicator_builder.build_indicator_intervals(
                 instrument_histories,
                 start_date_time=current_time,

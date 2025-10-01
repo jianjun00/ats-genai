@@ -111,20 +111,30 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         when the process crashes before handleEnd() is called. ArrayRecord
         requires proper closing to finalize the file format.
         """
+        print(f"🔧 _ensure_writers_closed CALLED")
         if self._cleanup_attempted:
+            print(f"   ⚠️  Already attempted cleanup, skipping")
             return
 
         self._cleanup_attempted = True
 
         if not hasattr(self, 'array_record_writers') or not self.array_record_writers:
+            print(f"   ⚠️  No writers to close")
             return
 
+        print(f"   Closing {len(self.array_record_writers)} writers...")
+        closed_count = 0
         for file_key, writer in self.array_record_writers.items():
             try:
                 if writer and hasattr(writer, 'close'):
+                    print(f"   Closing: {file_key}")
                     writer.close()
+                    closed_count += 1
+                    print(f"   ✅ Closed: {file_key}")
             except Exception as e:
+                print(f"   ❌ Error closing {file_key}: {e}")
                 self.logger.error(f"Error closing writer {file_key}: {e}")
+        print(f"✅ Successfully closed {closed_count}/{len(self.array_record_writers)} writers")
 
     def __enter__(self):
         """Context manager entry."""
@@ -190,17 +200,21 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             # Generate examples for each symbol and timeframe combination
             for symbol in self.symbols:
                 for timeframe in target_timeframes:
+                    print(f"🔍 GENERATE: {symbol} {timeframe} at {current_time}")
                     example = await self.training_generator.generate_training_example(
                         symbol=symbol,
                         prediction_timestamp=current_time,
                         target_timeframes=[timeframe]  # Generate for single timeframe only
                     )
-
+                    print(f"🔍 EXAMPLE: {example is not None}, keys={list(example.keys()) if example else 'NONE'}")
                     examples_generated.append(example)
 
             # Save immediately if we have examples
             if examples_generated:
+                print(f"🔍 SAVE: {len(examples_generated)} examples")
                 await self._save_simple_arrayrecord(examples_generated, current_time, runner)
+            else:
+                print(f"⚠️ NO EXAMPLES GENERATED at {current_time}")
 
         except Exception as e:
             self.logger.error(f"CRITICAL ERROR in handleInterval: {e}")
@@ -240,34 +254,45 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         - Categorize features into groups: ohlcv_basic, technical_momentum, technical_volatility, fundamental_quarterly
         - Use new file key structure: symbol_featuregroup_timeframe_YYYY_MM
         """
+        print(f"🔧 _stream_training_examples_to_writers CALLED: {len(examples)} examples at {current_time}")
 
         # CRITICAL: Only save data within target date range, not collection window
         current_date = current_time.date()
+        print(f"🔧   Date check: current={current_date}, start={self.start_date}, end={self.end_date}")
         if current_date < self.start_date or current_date > self.end_date:
+            print(f"⚠️   SKIPPED: Date {current_date} outside target range [{self.start_date} to {self.end_date}]")
             return
 
         # Determine which month this data belongs to
         year_month_str = current_date.strftime('%Y_%m')
+        print(f"🔧   Year-month: {year_month_str}")
 
         for example_idx, example in enumerate(examples):
             if not isinstance(example, dict):
+                print(f"⚠️   Example {example_idx} is not a dict: {type(example)}")
                 continue
 
             symbol = example.get('symbol', 'UNKNOWN')
             timeframe_features = example.get('timeframe_features', {})
+            print(f"🔧   Processing example {example_idx}: symbol={symbol}, {len(timeframe_features)} timeframes")
 
             # Stream each timeframe to respective feature group files
             for timeframe, features in timeframe_features.items():
+                print(f"🔧     Timeframe {timeframe}: {len(features)} features")
                 if not isinstance(features, dict) or not features:
+                    print(f"⚠️     SKIPPED: features not a dict or empty")
                     continue
 
                 # Separate features into feature groups using database-driven mapping
                 feature_dao = await self._get_feature_dao(runner)
                 feature_groups_data = await self._categorize_features_by_group(features, timeframe, feature_dao)
+                print(f"🔧     Categorized into {len(feature_groups_data)} feature groups: {list(feature_groups_data.keys())}")
                 
                 # Write each feature group to its respective ArrayRecord file
                 for feature_group, feature_data in feature_groups_data.items():
+                    print(f"🔧       Feature group '{feature_group}': {len(feature_data)} features")
                     if not feature_data:  # Skip empty feature groups
+                        print(f"⚠️       SKIPPED: Empty feature data for {feature_group}")
                         continue
                         
                     # Create interval record for this feature group
@@ -276,19 +301,25 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                         'symbol': symbol,
                         **feature_data  # Include all features for this group
                     }
+                    print(f"🔧       Interval record created: {list(interval_record.keys())}")
 
                     # Write to appropriate monthly ArrayRecord file with feature group
                     monthly_file_key = f"{symbol}_{feature_group}_{timeframe}_{year_month_str}"
+                    print(f"🔧       Looking for writer with key: {monthly_file_key}")
                     if monthly_file_key in self.array_record_writers:
                         writer = self.array_record_writers[monthly_file_key]
+                        print(f"🔧       Writer found, calling _write_interval_to_writer")
                         await self._write_interval_to_writer(writer, symbol, interval_record)
 
                         # Track record count for database storage
                         if monthly_file_key not in self.monthly_record_counts:
                             self.monthly_record_counts[monthly_file_key] = 0
                         self.monthly_record_counts[monthly_file_key] += 1
+                        print(f"✅       Written successfully, count: {self.monthly_record_counts[monthly_file_key]}")
 
                     else:
+                        print(f"❌       NO WRITER FOUND for key: {monthly_file_key}")
+                        print(f"         Available writers: {list(self.array_record_writers.keys())[:5]}...")
                         self.logger.warning(f"No monthly writer found for {monthly_file_key}")
 
     async def _categorize_features_by_group(self, features: Dict[str, Any], timeframe: str, 
@@ -307,6 +338,8 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         Returns:
             Dictionary mapping feature group name to feature data for that group
         """
+        print(f"🔧 _categorize_features_by_group CALLED: timeframe={timeframe}, {len(features)} features")
+        print(f"   Input features: {list(features.keys())[:10]}...")
         feature_groups_data = {}
         feature_names_for_batch = []
         
@@ -324,9 +357,12 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         
         # Get all feature mappings in one batch operation for efficiency
         try:
+            print(f"   Fetching mappings for {len(feature_names_for_batch)} base feature names...")
             feature_mappings = await feature_dao.get_feature_mappings_batch(feature_names_for_batch)
             feature_mapping_dict = {mapping.feature_name: mapping for mapping in feature_mappings}
+            print(f"   Got {len(feature_mapping_dict)} feature mappings from database")
         except Exception as e:
+            print(f"⚠️  Database feature mapping failed: {e}")
             self.logger.warning(f"Database feature mapping failed, falling back to basic categorization: {e}")
             # Fallback to basic categorization if database fails
             return await self._categorize_features_by_group_fallback(features, timeframe)
@@ -359,10 +395,13 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         
         # Log final categorization summary
         group_counts = {group: len(data) for group, data in feature_groups_data.items()}
+        print(f"   Categorization complete: {group_counts}")
         self.logger.info(f"Database-driven feature categorization complete: {group_counts}")
         
         # Remove empty feature groups
-        return {group: data for group, data in feature_groups_data.items() if data}
+        result = {group: data for group, data in feature_groups_data.items() if data}
+        print(f"   Returning {len(result)} non-empty groups")
+        return result
 
     async def _categorize_features_by_group_fallback(self, features: Dict[str, Any], timeframe: str) -> Dict[str, Dict[str, Any]]:
         """
@@ -665,6 +704,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         Binary format: indicator_count(2) + timestamp(8) + symbol_len(4) + symbol + OHLCV(20) + indicators
         Compatible with Google ArrayRecord standard for ML training data pipelines.
         """
+        print(f"🔧 _write_interval_to_writer CALLED: symbol={symbol}, {len(interval)} fields")
 
         # 🔍 DEBUG LOGGING: Capture inputs to identify 1d vs 5m timeframe differences
         writer_info = getattr(writer, '_file_path', 'unknown') if hasattr(writer, '_file_path') else str(writer)
@@ -784,9 +824,12 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
     async def handleEnd(self, runner: Any, current_time: datetime):
         """Close all ArrayRecord writers and generate final summary."""
+        print(f"\n🏁 handleEnd CALLED at {current_time}")
+        print(f"   {len(self.array_record_writers)} writers to close")
 
         # 🚨 CRITICAL: Close all writers to finalize files using centralized cleanup
         self._ensure_writers_closed()
+        print(f"✅ Writer closure complete")
 
         try:
             # Save monthly training data records to database

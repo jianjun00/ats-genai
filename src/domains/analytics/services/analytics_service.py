@@ -993,15 +993,96 @@ class UnifiedAnalyticsService:
             # No test data - re-raise the error
             raise
 
-    def get_training_dataset_sequence_multi_timeframe(self, dataset_id: int, sequence_id: str, row_index: int = 50) -> Dict[str, Any]:
-        """Get multi-timeframe OHLC data for a specific sequence, showing 21 bars centered around row_index."""
+    def get_training_dataset_sequence_multi_timeframe(self, dataset_id: int, sequence_id: str, row_index: int = 50, timeframe: str = "60m") -> Dict[str, Any]:
+        """Get multi-timeframe OHLC data for a specific sequence using the new feature service."""
+        try:
+            from core.platform.database.connection_manager import get_raw_connection
+            import psycopg2.extras
+            from datetime import datetime
+            import os
+
+            logger.info(f"🚀 NEW: Getting multi-timeframe data using FeatureService for dataset {dataset_id}, sequence {sequence_id}")
+
+            # Import the new feature service
+            try:
+                from domains.ml.services.training_data.readers.arrayrecord_feature_reader import FeatureService, FeatureRequest
+                logger.info("✅ Successfully imported FeatureService")
+            except Exception as e:
+                logger.error(f"❌ Failed to import FeatureService: {e}")
+                # Fall back to old method
+                return self._get_training_dataset_sequence_multi_timeframe_legacy(dataset_id, sequence_id, row_index)
+
+            # Parse sequence_id to extract symbol and datetime
+            # Expected format: TSLA_20250701_000000_20250906_000000
+            try:
+                parts = sequence_id.split('_')
+                if len(parts) >= 5:
+                    symbol = parts[0]
+                    date_str = parts[1]  # 20250701
+                    target_datetime = datetime.strptime(date_str, "%Y%m%d")
+                    logger.info(f"✅ Parsed sequence: symbol={symbol}, date={target_datetime}")
+                else:
+                    raise ValueError("Invalid sequence format")
+            except Exception as e:
+                logger.error(f"❌ Failed to parse sequence_id {sequence_id}: {e}")
+                return {"error": f"Invalid sequence_id format: {sequence_id}"}
+
+            # Create feature service and request
+            feature_service = FeatureService()
+            request = FeatureRequest(
+                symbol=symbol,
+                target_datetime=target_datetime,
+                feature_groups=["ohlcv_basic", "technical_momentum", "technical_volatility"],
+                timeframe=timeframe  # Use requested timeframe
+            )
+
+            # Get feature data (run async function synchronously)
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(feature_service.get_feature_data(request))
+                loop.close()
+                logger.info(f"✅ FeatureService returned data for {symbol} with {len(result.file_paths)} files")
+                
+                # Convert to the expected response format
+                response = {
+                    "success": True,
+                    "sequence_id": sequence_id,
+                    "dataset_name": f"dataset_via_feature_service",
+                    "ohlc_data": {
+                        timeframe: result.sequence_data  # Use sequence data from feature service
+                    },
+                    "table_data": result.sequence_data,  # Same data for table
+                    "available_timeframes": [timeframe],
+                    "selected_row_index": row_index,
+                    "navigation": {
+                        "can_navigate_prev": row_index > 0,
+                        "can_navigate_next": row_index < len(result.sequence_data) - 1
+                    }
+                }
+                
+                logger.info(f"🎯 FeatureService SUCCESS: {len(result.sequence_data)} sequence records returned")
+                return response
+                
+            except Exception as e:
+                logger.error(f"❌ FeatureService failed: {e}")
+                # Fall back to legacy method
+                return self._get_training_dataset_sequence_multi_timeframe_legacy(dataset_id, sequence_id, row_index)
+
+        except Exception as e:
+            logger.error(f"❌ Error in get_training_dataset_sequence_multi_timeframe: {e}")
+            return {"error": str(e), "sequence_id": sequence_id}
+
+    def _get_training_dataset_sequence_multi_timeframe_legacy(self, dataset_id: int, sequence_id: str, row_index: int = 50) -> Dict[str, Any]:
+        """Legacy method for getting multi-timeframe data (fallback)."""
         try:
             from core.platform.database.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
             import os
 
-            logger.info(f"Getting multi-timeframe data for dataset {dataset_id}, sequence {sequence_id}")
+            logger.info(f"🔄 FALLBACK: Using legacy method for dataset {dataset_id}, sequence {sequence_id}")
 
             # Determine environment and table name
             environment = os.getenv('ENVIRONMENT', 'dev')
@@ -5800,17 +5881,18 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Invalid dataset_id or sequence_id"}).encode('utf-8'))
             return
 
-        # Extract row_index from query parameters (e.g., ?row_index=50)
+        # Extract row_index and timeframe from query parameters (e.g., ?row_index=50&timeframe=60m)
         row_index = int(query_params.get('row_index', [50])[0])
-        logger.info(f"Multi-timeframe request: dataset_id={dataset_id}, sequence_id={sequence_id}, row_index={row_index}")
+        timeframe = query_params.get('timeframe', ['60m'])[0]  # Default to 60m
+        logger.info(f"Multi-timeframe request: dataset_id={dataset_id}, sequence_id={sequence_id}, row_index={row_index}, timeframe={timeframe}")
 
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
 
         try:
-            # Get multi-timeframe data from the analytics service with row index
-            multi_data = self.analytics_service.get_training_dataset_sequence_multi_timeframe(dataset_id, sequence_id, row_index)
+            # Get multi-timeframe data from the analytics service with row index and timeframe
+            multi_data = self.analytics_service.get_training_dataset_sequence_multi_timeframe(dataset_id, sequence_id, row_index, timeframe)
             self.wfile.write(json.dumps(multi_data, indent=2, default=str).encode('utf-8'))
         except Exception as e:
             logger.error(f"Error getting multi-timeframe data for dataset {dataset_id}, sequence {sequence_id}: {e}")

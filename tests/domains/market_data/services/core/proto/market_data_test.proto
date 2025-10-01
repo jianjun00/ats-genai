@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package ats.market_data.test;
+
+// Single OHLCV data point with deterministic serialization
+message OHLCVPoint {
+    string symbol = 1;
+    int64 timestamp_utc_micros = 2;  // Microseconds since epoch for precision
+    
+    // Price data with fixed precision (6 decimal places)
+    int64 open_micro_dollars = 3;    // open * 1,000,000 for deterministic serialization
+    int64 high_micro_dollars = 4;    // high * 1,000,000
+    int64 low_micro_dollars = 5;     // low * 1,000,000  
+    int64 close_micro_dollars = 6;   // close * 1,000,000
+    
+    int64 volume = 7;
+    optional int64 vwap_micro_dollars = 8;  // vwap * 1,000,000
+}
+
+// Market data result for a specific test scenario
+message MarketDataTestResult {
+    repeated OHLCVPoint data_points = 1;
+    
+    // Test metadata for traceability
+    string test_name = 2;
+    string timeframe = 3;
+    repeated string symbols = 4;
+    string start_datetime = 5;
+    string end_datetime = 6;
+    string vendor = 7;
+    
+    // Generation metadata
+    int64 generated_at_utc_micros = 8;
+    string ats_version = 9;
+    string test_data_hash = 10;  // Hash of input data for validation
+}
+
+// Collection of test results for batch comparison
+message GoldenTestSuite {
+    repeated MarketDataTestResult test_results = 1;
+    string suite_name = 2;
+    string created_at = 3;
+}

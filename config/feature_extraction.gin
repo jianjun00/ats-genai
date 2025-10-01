@@ -1,0 +1,31 @@
+# Minimal clean gin config for feature extraction
+# No includes, no defaults, no fallbacks - explicit configuration only
+
+# Training Data Configuration
+TrainingDataConfig.base_interval_minutes = 1
+
+# Technical Indicators Signal Names
+TrainingDataConfig.signal_names = [
+    "etop", "ebot", "pldot",
+    "envelope_top", "envelope_bot",
+    "z1b", "z2b", "z5t", "z6t",
+    "sma_20", "ema_12", "rsi_14",
+    "macd_line", "macd_signal",
+    "bb_upper", "bb_lower", "bb_middle"
+]
+
+# Feature Types
+TrainingDataConfig.feature_types = [
+    "ohlcv",
+    "returns",
+    "volatility",
+    "volume_profile",
+    "technical",
+    "indicators",
+    "support_resistance",
+    "market_structure"
+]
+
+# Universe State Builder - Multi-timeframe processing
+UniverseStateIntervalBuilder.target_durations = '5m,15m,60m,1d,1w'
+UniverseStateIntervalBuilder.base_duration = '5m'
