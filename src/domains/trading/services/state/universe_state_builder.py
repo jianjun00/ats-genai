@@ -86,6 +86,44 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         # Default business logic parameters (from test expectations)
         self.min_market_cap = 100_000_000
     
+    def _get_market_data_time_range(self, current_time):
+        """
+        Get the time range for market data fetching for a given interval.
+        
+        Args:
+            current_time: The current interval time being processed
+            
+        Returns:
+            tuple: (start_time, end_time) both timezone-aware in GMT
+            
+        Note:
+            This function determines what historical data to fetch for the current interval.
+            The current implementation fetches from market open to current time, but this
+            could be adjusted to fetch specific windows (e.g., last hour, last day, etc.)
+        """
+        from core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
+        from zoneinfo import ZoneInfo
+        
+        gmt_tz = ZoneInfo("GMT")
+        
+        # Get trading session times for this date
+        session_times = get_session_times(current_time.date())
+        
+        # FIXED: Use interval-specific time window instead of market open
+        # This prevents OHLCV duplication by fetching unique data for each interval
+        
+        # Use 1-hour lookback window for each interval
+        from datetime import timedelta
+        window_duration = timedelta(hours=1)
+        minute_start_time = current_time - window_duration
+        minute_end_time = current_time
+        
+        # Ensure both times are GMT timezone-aware for consistent market data manager input
+        minute_start_time = minute_start_time.astimezone(gmt_tz) if minute_start_time.tzinfo else minute_start_time.replace(tzinfo=gmt_tz)
+        minute_end_time = minute_end_time.astimezone(gmt_tz) if minute_end_time.tzinfo else minute_end_time.replace(tzinfo=gmt_tz)
+        
+        return minute_start_time, minute_end_time
+    
     def handleStartOfDay(self, runner, current_time):
         self.logger.debug(f"UniverseStateIntervalBuilder.handleStartOfDay called at {current_time}")
 
@@ -197,19 +235,8 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         
         # --- 1. ALWAYS update rolling cache with 1-minute data ---
         # ✅ CRITICAL FIX: Request data from market open to current interval time only
-        from core.shared.data_handling.utils.datetime_utils import get_session_times, to_utc
-        
-        # Get trading session start time and use current_time as end - ensure both are GMT
-        from zoneinfo import ZoneInfo
-        gmt_tz = ZoneInfo("GMT")
-        
-        session_times = get_session_times(current_time.date())
-        minute_start_time = to_utc(session_times['market_open'])  # 9:30 AM EDT -> 13:30 UTC
-        minute_end_time = current_time  # 🔧 FIXED: Use current_time to prevent data leakage
-        
-        # 🔧 ENSURE BOTH ARE GMT TIMEZONE-AWARE for consistent market data manager input
-        minute_start_time = minute_start_time.astimezone(gmt_tz) if minute_start_time.tzinfo else minute_start_time.replace(tzinfo=gmt_tz)
-        minute_end_time = minute_end_time.astimezone(gmt_tz) if minute_end_time.tzinfo else minute_end_time.replace(tzinfo=gmt_tz)
+        # Get data fetch time range for this interval
+        minute_start_time, minute_end_time = self._get_market_data_time_range(current_time)
         
         self.logger.debug(f"[handleInterval] Fetching 1-minute data: [{minute_start_time}, {minute_end_time}]")
         

@@ -808,7 +808,8 @@ async def main():
         market_data_config = MarketDataConfig(
             vendors=[VendorType.FIRSTRATE],  # Use FirstRate for minute data
             storage_backend=StorageBackend.FILE, 
-            file_storage_path="/data/minute-bars/firstrate"  # FIXED: Use container path not host path
+            file_storage_path="/data/minute-bars/firstrate",  # FIXED: Use container path not host path
+            enable_cache=False  # DISABLE CACHE: Prevents duplicate OHLCV values in training data
         )
         minute_data_manager = UnifiedMarketDataManager(market_data_config)
         logger.info(f"✅ Created UnifiedMarketDataManager for training data generation")
