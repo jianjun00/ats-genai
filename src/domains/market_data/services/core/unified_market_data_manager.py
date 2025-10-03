@@ -307,10 +307,15 @@ class FirstRateAdapter(VendorAdapter):
                             from zoneinfo import ZoneInfo
                             gmt_tz = ZoneInfo("GMT")
                             
-                            # 🔧 SIMPLIFIED: Convert both start_datetime and end_datetime to GMT
-                            # Assumes both inputs are already GMT timezone-aware from runner
-                            start_dt = start_datetime.astimezone(gmt_tz) if start_datetime.tzinfo else start_datetime.replace(tzinfo=gmt_tz)
-                            end_dt = end_datetime.astimezone(gmt_tz) if end_datetime.tzinfo else end_datetime.replace(tzinfo=gmt_tz)
+                            # FAIL FAST: Require timezone-aware datetime for consistent market data processing
+                            if start_datetime.tzinfo is None:
+                                raise ValueError(f"start_datetime must be timezone-aware, got timezone-naive: {start_datetime}")
+                            if end_datetime.tzinfo is None:
+                                raise ValueError(f"end_datetime must be timezone-aware, got timezone-naive: {end_datetime}")
+                            
+                            # Convert both start_datetime and end_datetime to GMT
+                            start_dt = start_datetime.astimezone(gmt_tz)
+                            end_dt = end_datetime.astimezone(gmt_tz)
                             
                             # 🔧 SIMPLIFIED: Convert DataFrame index to GMT timezone consistently
                             original_index_tz = monthly_df.index.tz

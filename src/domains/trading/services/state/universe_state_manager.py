@@ -422,11 +422,16 @@ class UniverseStateManager:
                                 'value': factor_interval.factor_value
                             })
 
+                # Convert timezone-aware UTC datetimes to timezone-naive for PostgreSQL storage  
+                # Runner now provides timezone-aware UTC datetimes, DAO expects timezone-naive UTC
+                start_dt_naive = start_dt.replace(tzinfo=None) if start_dt.tzinfo else start_dt
+                end_dt_naive = end_dt.replace(tzinfo=None) if end_dt.tzinfo else end_dt
+                
                 interval_id = await self._interval_dao.create(
                     universe_id=metadata['universe_id'],
                     duration=metadata['duration'],
-                    start_date_time=start_dt,
-                    end_date_time=end_dt,
+                    start_date_time=start_dt_naive,
+                    end_date_time=end_dt_naive,
                     run_id=run_id,
                     state_data=state_data
                 )
@@ -437,6 +442,10 @@ class UniverseStateManager:
                     factor_interval_dao = FactorIntervalDAO(self.env)
                     instrument_interval_id_map = {}
                     for inst_id, inst_interval in universe_state.instrument_intervals.items():
+                        # Convert timezone-aware UTC datetimes to timezone-naive for PostgreSQL storage
+                        inst_start_naive = inst_interval.start_date_time.replace(tzinfo=None) if inst_interval.start_date_time.tzinfo else inst_interval.start_date_time
+                        inst_end_naive = inst_interval.end_date_time.replace(tzinfo=None) if inst_interval.end_date_time.tzinfo else inst_interval.end_date_time
+                        
                         instrument_interval_id = await instrument_interval_dao.create(
                             universe_state_interval_id=interval_id,
                             instrument_id=inst_interval.instrument_id,
@@ -448,8 +457,8 @@ class UniverseStateManager:
                             traded_dollar=inst_interval.traded_dollar,
                             status=inst_interval.status,
                             market_cap=inst_interval.market_cap,
-                            start_date_time=inst_interval.start_date_time,
-                            end_date_time=inst_interval.end_date_time,
+                            start_date_time=inst_start_naive,
+                            end_date_time=inst_end_naive,
                             interval_duration="60m",
                             run_id=run_id
                         )
@@ -916,10 +925,14 @@ class UniverseStateManager:
                     raise ValueError(f"Unsupported timeframe for minute-based interval calculation: {timeframe}")
             
             # Calculate the start time of the interval that contains current_time
+            # FAIL FAST: Require timezone-aware datetime for proper interval calculations
+            if current_time.tzinfo is None:
+                raise ValueError(f"current_time must be timezone-aware for accurate interval calculations, got timezone-naive: {current_time}")
+            
             minutes_since_epoch = int(current_time.timestamp() // 60)
             interval_start_minutes = (minutes_since_epoch // interval_minutes) * interval_minutes
-            interval_start = datetime.fromtimestamp(interval_start_minutes * 60)
-            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60)
+            interval_start = datetime.fromtimestamp(interval_start_minutes * 60, tz=current_time.tzinfo)
+            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60, tz=current_time.tzinfo)
                                     
             if timeframe not in self._rolling_instrument_history:
                 self.logger.warning(f"No rolling cache data for {timeframe} lookup")
@@ -1053,10 +1066,14 @@ class UniverseStateManager:
                     interval_minutes = 10080  # 7 days * 24 hours * 60 minutes
                 else:
                     raise ValueError(f"Unsupported timeframe for minute-based interval calculation: {timeframe}")
+            # FAIL FAST: Require timezone-aware datetime for proper interval calculations  
+            if target_time.tzinfo is None:
+                raise ValueError(f"target_time must be timezone-aware for accurate interval calculations, got timezone-naive: {target_time}")
+            
             minutes_since_epoch = int(target_time.timestamp() // 60)
             interval_start_minutes = (minutes_since_epoch // interval_minutes) * interval_minutes
-            interval_start = datetime.fromtimestamp(interval_start_minutes * 60)
-            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60)
+            interval_start = datetime.fromtimestamp(interval_start_minutes * 60, tz=target_time.tzinfo)
+            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60, tz=target_time.tzinfo)
             
             # Collect InstrumentInterval objects for all instruments at this future time
             for instrument_id, intervals in self._rolling_instrument_history[timeframe].items():
