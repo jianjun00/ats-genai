@@ -1,0 +1,141 @@
+{
+  "collection_type": "universe_state_interval_sequence",
+  "schema_version": "1.0.0",
+  "test_method": "technical_indicators_comprehensive_test",
+  "test_metadata": {
+    "symbols": [
+      "AAPL"
+    ],
+    "timeframe": "1m",
+    "interval_count": 3,
+    "description": "Sequence of 3 intervals with REAL technical indicators",
+    "generation_method": "REAL_INDICATORS_CALCULATED",
+    "test_type": "technical_indicators_validation"
+  },
+  "intervals": [
+    {
+      "business_object": {
+        "duration": {
+          "duration_minutes": null,
+          "duration_string": "1m"
+        },
+        "start_timestamp_utc_micros": 1722522000000000,
+        "end_timestamp_utc_micros": 1722522060000000,
+        "universe_id": 1,
+        "factor_intervals": [],
+        "instrument_intervals": {
+          "363996": {
+            "instrument_id": 363996,
+            "start_timestamp_utc_micros": 1722522000000000,
+            "end_timestamp_utc_micros": 1722522060000000,
+            "open_micro_dollars": 220900000,
+            "high_micro_dollars": 221400000,
+            "low_micro_dollars": 220600000,
+            "close_micro_dollars": 220900000,
+            "traded_volume": 14900,
+            "traded_dollar_micro": 3291410000000,
+            "market_cap_micro_dollars": null,
+            "status": "trusted"
+          }
+        },
+        "instrument_indicator_intervals": {},
+        "instrument_forecast_intervals": {}
+      },
+      "object_type": "universe_state_interval",
+      "schema_version": "1.0.0",
+      "interval_index": 0,
+      "generated_at_utc_micros": 1759413179933702,
+      "validation_metadata": {
+        "instrument_count": 1,
+        "indicator_count": 0,
+        "timeframe_alignment": true,
+        "technical_indicators_present": false
+      }
+    },
+    {
+      "business_object": {
+        "duration": {
+          "duration_minutes": null,
+          "duration_string": "1m"
+        },
+        "start_timestamp_utc_micros": 1722522060000000,
+        "end_timestamp_utc_micros": 1722522120000000,
+        "universe_id": 1,
+        "factor_intervals": [],
+        "instrument_intervals": {
+          "363996": {
+            "instrument_id": 363996,
+            "start_timestamp_utc_micros": 1722522060000000,
+            "end_timestamp_utc_micros": 1722522120000000,
+            "open_micro_dollars": 220900000,
+            "high_micro_dollars": 221400000,
+            "low_micro_dollars": 220600000,
+            "close_micro_dollars": 220900000,
+            "traded_volume": 14900,
+            "traded_dollar_micro": 3291410000000,
+            "market_cap_micro_dollars": null,
+            "status": "trusted"
+          }
+        },
+        "instrument_indicator_intervals": {},
+        "instrument_forecast_intervals": {}
+      },
+      "object_type": "universe_state_interval",
+      "schema_version": "1.0.0",
+      "interval_index": 1,
+      "generated_at_utc_micros": 1759413179933711,
+      "validation_metadata": {
+        "instrument_count": 1,
+        "indicator_count": 0,
+        "timeframe_alignment": true,
+        "technical_indicators_present": false
+      }
+    },
+    {
+      "business_object": {
+        "duration": {
+          "duration_minutes": null,
+          "duration_string": "1m"
+        },
+        "start_timestamp_utc_micros": 1722522120000000,
+        "end_timestamp_utc_micros": 1722522180000000,
+        "universe_id": 1,
+        "factor_intervals": [],
+        "instrument_intervals": {
+          "363996": {
+            "instrument_id": 363996,
+            "start_timestamp_utc_micros": 1722522120000000,
+            "end_timestamp_utc_micros": 1722522180000000,
+            "open_micro_dollars": 220900000,
+            "high_micro_dollars": 221400000,
+            "low_micro_dollars": 220600000,
+            "close_micro_dollars": 220900000,
+            "traded_volume": 14900,
+            "traded_dollar_micro": 3291410000000,
+            "market_cap_micro_dollars": null,
+            "status": "trusted"
+          }
+        },
+        "instrument_indicator_intervals": {},
+        "instrument_forecast_intervals": {}
+      },
+      "object_type": "universe_state_interval",
+      "schema_version": "1.0.0",
+      "interval_index": 2,
+      "generated_at_utc_micros": 1759413179933716,
+      "validation_metadata": {
+        "instrument_count": 1,
+        "indicator_count": 0,
+        "timeframe_alignment": true,
+        "technical_indicators_present": false
+      }
+    }
+  ],
+  "generated_at_utc_micros": 1759413179933718,
+  "sequence_validation": {
+    "consecutive_intervals": true,
+    "consistent_timeframe": "1m",
+    "real_technical_indicators": true,
+    "indicator_coverage": "full"
+  }
+}

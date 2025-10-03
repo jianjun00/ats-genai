@@ -34,20 +34,95 @@ This file provides focused guidance to Claude Code when working with the ATS fin
 - Creates false performance metrics
 - Results in production surprises when real data behaves differently
 
-### **🚫 NO MOCK OBJECTS IN TESTS**
-- **❌ NEVER use Mock objects** - replace all mocks with real objects
-- **❌ NEVER use unittest.mock.Mock()** - use actual instances
-- **❌ NEVER use @patch decorators** - inject real dependencies
-- **✅ Use real objects with controlled data** for predictable test scenarios
-- **✅ Create minimal real instances** instead of mocking behavior
-- **✅ Use dependency injection** to provide real test objects
+### **🚫 ABSOLUTE ZERO TOLERANCE FOR MOCK OBJECTS - CRITICAL VIOLATION**
 
-**Why Mock Objects Are Problematic:**
-- Hide interface changes and method signature mismatches
-- Don't catch integration issues between real components
-- Create brittle tests that pass with broken real implementations
-- Mask real-world object behavior and edge cases
-- Lead to false confidence in system integration
+**🚨 MANDATORY: ANY USE OF MOCK OBJECTS IS A CRITICAL ERROR**
+
+- **❌ FORBIDDEN: unittest.mock.Mock()** - NEVER use under any circumstances
+- **❌ FORBIDDEN: unittest.mock.AsyncMock()** - NEVER use under any circumstances  
+- **❌ FORBIDDEN: @patch decorators** - NEVER use under any circumstances
+- **❌ FORBIDDEN: Mock() for any service, manager, DAO, or business object**
+- **❌ FORBIDDEN: "mock_" prefixed variables** - indicates mock usage
+- **❌ FORBIDDEN: Mock objects in fixtures, test setup, or test methods**
+
+**🚨 CRITICAL ENFORCEMENT:**
+- **ANY mock usage is an immediate failure** - fix before proceeding
+- **Code review must reject any Mock usage** - zero exceptions
+- **Tests with Mock objects are invalid** - rewrite with real objects
+
+**✅ MANDATORY REAL OBJECT PATTERNS:**
+
+**1️⃣ Replace Mock Services with Real Instances:**
+```python
+# ❌ FORBIDDEN - Mock Pattern
+mock_universe_state_manager = Mock()
+mock_universe_state_manager.addUniverseState = AsyncMock(return_value=True)
+
+# ✅ REQUIRED - Real Object Pattern  
+real_universe_state_manager = InMemoryUniverseStateManager()
+# OR
+real_universe_state_manager = DatabaseUniverseStateManager(test_db_connection)
+```
+
+**2️⃣ Replace Mock DAOs with Real Test DAOs:**
+```python
+# ❌ FORBIDDEN - Mock Pattern
+mock_xrefs_dao = Mock()
+mock_xrefs_dao.get_symbols_by_instrument_ids_batch = AsyncMock(return_value={363996: 'AAPL'})
+
+# ✅ REQUIRED - Real Object Pattern
+real_xrefs_dao = InstrumentXrefsDAO(test_environment)
+await real_xrefs_dao.insert_test_mapping(363996, 'AAPL')  # Set up test data
+```
+
+**3️⃣ Replace Mock Runners with Real Runners:**
+```python
+# ❌ FORBIDDEN - Mock Pattern
+mock_runner = Mock()
+mock_runner.get_environment.return_value = environment
+mock_runner.universe_id = 1
+
+# ✅ REQUIRED - Real Object Pattern
+real_runner = TestRunner(
+    environment=test_environment,
+    universe_id=1,
+    market_data_manager=real_market_data_manager,
+    universe_state_manager=real_universe_state_manager
+)
+```
+
+**4️⃣ Replace Mock Managers with Real Test Managers:**
+```python
+# ❌ FORBIDDEN - Mock Pattern
+mock_universe_manager = Mock()
+mock_universe_manager.instrument_ids = [363996]
+
+# ✅ REQUIRED - Real Object Pattern
+real_universe_manager = UniverseManager(test_environment)
+await real_universe_manager.add_instrument_to_universe(1, 363996)  # Set up test data
+```
+
+**5️⃣ Use Real Test Databases and In-Memory Implementations:**
+```python
+# ✅ REQUIRED - Real Object Alternatives
+- InMemoryUniverseStateManager() - for isolated testing
+- TestDatabaseManager() - for integration testing
+- FileBasedMarketDataManager() - for data testing
+- InMemoryCache() - for cache testing
+```
+
+**Why Mock Objects Are Dangerous:**
+- **Hide real integration failures** that occur in production
+- **Mask interface changes** between components
+- **Create false test confidence** with broken real implementations  
+- **Hide performance issues** and resource constraints
+- **Lead to production surprises** when real objects behave differently
+
+**🔥 ZERO TOLERANCE ENFORCEMENT:**
+- **Tests must use real objects only** - no exceptions
+- **All mocks must be replaced immediately** when found
+- **Code reviews must reject any mock usage** - mandatory fix
+- **Mock usage indicates insufficient test infrastructure** - build real alternatives
 
 ### **🚫 NO EXCEPTION CATCHING - FAIL FAST POLICY**
 - **❌ NEVER use try/except blocks** to silence or mask errors
@@ -113,6 +188,30 @@ def fetch_market_data():
 - **❌ NEVER duplicate functionality** in new files
 - **✅ ALWAYS enhance existing services** - add features to current code
 - **✅ ALWAYS consolidate functionality** - reduce complexity, don't add it
+
+### **🚫 NO DUPLICATE SCRIPTS OR TEMPORARY FILES - MANDATORY FILE ANALYSIS**
+- **❌ NEVER create debug scripts, test files, or utility scripts** without thorough existing code analysis
+- **❌ NEVER create temporary files for debugging** - use existing test infrastructure
+- **❌ NEVER create new scripts when existing patterns can be reused** 
+- **❌ NEVER create standalone utilities** when functionality belongs in existing modules
+- **✅ ALWAYS analyze existing files first** to understand patterns and reuse infrastructure
+- **✅ ALWAYS use existing debugging/logging mechanisms** instead of new scripts
+- **✅ ALWAYS enhance existing test files** rather than creating new ones
+- **✅ ALWAYS follow established codebase patterns** for new functionality
+
+**Mandatory Analysis Process Before File Creation:**
+1. **Existing Code Search**: Use Grep/Glob to find similar functionality in codebase
+2. **Pattern Analysis**: Understand existing debugging/testing patterns
+3. **Reuse Assessment**: Identify existing infrastructure that can be enhanced
+4. **Integration Check**: Ensure new code follows established patterns
+5. **File Necessity**: Only create new files if absolutely necessary and no existing code can be enhanced
+
+**Why Duplicate Files Are Dangerous:**
+- Creates maintenance burden with scattered debugging code
+- Violates DRY (Don't Repeat Yourself) principles
+- Introduces inconsistent patterns across codebase
+- Makes debugging harder when logic is scattered
+- Creates technical debt that accumulates over time
 
 ### **🌿 MANDATORY BRANCH WORKFLOW - NO DIRECT MAIN COMMITS**
 - **❌ NEVER push commits directly to main branch**

@@ -18,6 +18,12 @@ class InstrumentIntervalDAO:
         elif effective_run_id is None:
             print(f"[UUID DEBUG] InstrumentIntervalDAO: No UUID available in Environment or parameters")
         
+        # FAIL FAST: Require timezone-naive datetime objects for PostgreSQL consistency
+        if start_date_time is not None and hasattr(start_date_time, 'tzinfo') and start_date_time.tzinfo is not None:
+            raise ValueError(f"start_date_time must be timezone-naive for PostgreSQL storage, got timezone-aware: {start_date_time}")
+        if end_date_time is not None and hasattr(end_date_time, 'tzinfo') and end_date_time.tzinfo is not None:
+            raise ValueError(f"end_date_time must be timezone-naive for PostgreSQL storage, got timezone-aware: {end_date_time}")
+        
         conn = await asyncpg.connect(self.db_url)
         try:
             # Include interval_start and interval_end if provided

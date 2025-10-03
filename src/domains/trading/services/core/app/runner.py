@@ -44,15 +44,17 @@ class Runner:
         print(f"[DEBUG] Runner.__init__ received start_date: {start_date!r} (type: {type(start_date)})")
         print(f"[DEBUG] Runner.__init__ received end_date: {end_date!r} (type: {type(end_date)})")
         if isinstance(start_date, str):
-            self.start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            self.start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.UTC)
         elif isinstance(start_date, (datetime, date)):
-            self.start_date = start_date if isinstance(start_date, datetime) else datetime.combine(start_date, datetime.min.time())
+            start_dt = start_date if isinstance(start_date, datetime) else datetime.combine(start_date, datetime.min.time())
+            self.start_date = start_dt.replace(tzinfo=pytz.UTC) if start_dt.tzinfo is None else start_dt
         else:
             raise TypeError(f"start_date must be str or date/datetime, got {type(start_date)}")
         if isinstance(end_date, str):
-            self.end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            self.end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.UTC)
         elif isinstance(end_date, (datetime, date)):
-            self.end_date = end_date if isinstance(end_date, datetime) else datetime.combine(end_date, datetime.min.time())
+            end_dt = end_date if isinstance(end_date, datetime) else datetime.combine(end_date, datetime.min.time())
+            self.end_date = end_dt.replace(tzinfo=pytz.UTC) if end_dt.tzinfo is None else end_dt
         else:
             raise TypeError(f"end_date must be str or date/datetime, got {type(end_date)}")
         print(f"[DEBUG] Runner.__init__ final self.start_date: {self.start_date!r} (type: {type(self.start_date)})")
@@ -163,15 +165,17 @@ class Runner:
         if not trading_days:
             logging.warning(f"[Runner.iter_events] No trading days found for {exchange} between {self.start_date} and {self.end_date}")
             return
-        # START event
+        # START event  
         start_time = self.start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=pytz.UTC)
         yield (start_time, "start")
         last_eod_date = None
         last_sod_date = None
         last_trading_week_end_date = None
         
         for day in trading_days:
-            sod_time = datetime.combine(day, datetime.min.time())
+            sod_time = datetime.combine(day, datetime.min.time()).replace(tzinfo=pytz.UTC)
             logging.debug(f"[Runner.iter_events] Yielding sod: {sod_time}")
             if last_sod_date != day:
                 yield (sod_time, "sod")
@@ -198,6 +202,9 @@ class Runner:
                 second=0, 
                 microsecond=0
             )
+            # Ensure timezone is preserved
+            if trading_day_end_time.tzinfo is None:
+                trading_day_end_time = trading_day_end_time.replace(tzinfo=pytz.UTC)
             logging.debug(f"[Runner.iter_events] Yielding trading_day_end: {trading_day_end_time}")
             if last_eod_date != day:
                 yield (trading_day_end_time, "trading_day_end")
@@ -222,17 +229,20 @@ class Runner:
                     yield (trading_week_end_time, "trading_week_end")
                     last_trading_week_end_date = day
                 
-            # Traditional EOD event (at end of calendar day for system cleanup)
+            # Traditional EOD event (at end of calendar day for system cleanup)  
             eod_time = sod_time.replace(hour=23, minute=59, second=59, microsecond=0)
+            # Ensure timezone is preserved
+            if eod_time.tzinfo is None:
+                eod_time = eod_time.replace(tzinfo=pytz.UTC)
             logging.debug(f"[Runner.iter_events] Yielding eod: {eod_time}")
             if last_eod_date != day:
                 yield (eod_time, "eod")
                 last_eod_date = day
         # END event
         end_time = self.end_date.replace(hour=23, minute=59, second=59, microsecond=0)
-        logging.debug(f"[Runner.iter_events] Yielding end: {end_time}")
-        yield (end_time, "end")
-        end_time = self.end_date.replace(hour=23, minute=59, second=59, microsecond=0)
+        # Ensure timezone is preserved  
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=pytz.UTC)
         logging.debug(f"[Runner.iter_events] Yielding end: {end_time}")
         yield (end_time, "end")
 
