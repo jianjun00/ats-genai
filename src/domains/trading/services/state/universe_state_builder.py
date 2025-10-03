@@ -118,9 +118,15 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         minute_start_time = current_time - window_duration
         minute_end_time = current_time
         
-        # Ensure both times are GMT timezone-aware for consistent market data manager input
-        minute_start_time = minute_start_time.astimezone(gmt_tz) if minute_start_time.tzinfo else minute_start_time.replace(tzinfo=gmt_tz)
-        minute_end_time = minute_end_time.astimezone(gmt_tz) if minute_end_time.tzinfo else minute_end_time.replace(tzinfo=gmt_tz)
+        # FAIL FAST: Require timezone-aware datetime for market data consistency
+        if minute_start_time.tzinfo is None:
+            raise ValueError(f"minute_start_time must be timezone-aware, got timezone-naive: {minute_start_time}")
+        if minute_end_time.tzinfo is None:
+            raise ValueError(f"minute_end_time must be timezone-aware, got timezone-naive: {minute_end_time}")
+        
+        # Convert to GMT for consistent market data manager input
+        minute_start_time = minute_start_time.astimezone(gmt_tz)
+        minute_end_time = minute_end_time.astimezone(gmt_tz)
         
         return minute_start_time, minute_end_time
     

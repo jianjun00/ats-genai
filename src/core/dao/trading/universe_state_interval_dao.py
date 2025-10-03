@@ -146,12 +146,11 @@ class UniverseStateIntervalDAO:
         
         state_data_json = json.dumps(state_data, default=json_serializer) if state_data else None
         
-        # Convert timezone-aware datetime to UTC and make timezone-naive for PostgreSQL
-        from datetime import timezone
+        # FAIL FAST: Require timezone-naive datetime objects for PostgreSQL consistency
         if hasattr(start_date_time, 'tzinfo') and start_date_time.tzinfo is not None:
-            start_date_time = start_date_time.astimezone(timezone.utc).replace(tzinfo=None)
+            raise ValueError(f"start_date_time must be timezone-naive for PostgreSQL storage, got timezone-aware: {start_date_time}")
         if hasattr(end_date_time, 'tzinfo') and end_date_time.tzinfo is not None:
-            end_date_time = end_date_time.astimezone(timezone.utc).replace(tzinfo=None)
+            raise ValueError(f"end_date_time must be timezone-naive for PostgreSQL storage, got timezone-aware: {end_date_time}")
         
         conn = await asyncpg.connect(self.db_url)
         try:

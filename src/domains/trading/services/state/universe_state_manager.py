@@ -916,11 +916,9 @@ class UniverseStateManager:
                     raise ValueError(f"Unsupported timeframe for minute-based interval calculation: {timeframe}")
             
             # Calculate the start time of the interval that contains current_time
-            # Ensure timezone consistency by using current_time's timezone
-            import zoneinfo
+            # FAIL FAST: Require timezone-aware datetime for proper interval calculations
             if current_time.tzinfo is None:
-                # If current_time is naive, make it timezone-aware (assume US/Eastern)
-                current_time = current_time.replace(tzinfo=zoneinfo.ZoneInfo("US/Eastern"))
+                raise ValueError(f"current_time must be timezone-aware for accurate interval calculations, got timezone-naive: {current_time}")
             
             minutes_since_epoch = int(current_time.timestamp() // 60)
             interval_start_minutes = (minutes_since_epoch // interval_minutes) * interval_minutes
@@ -1059,11 +1057,9 @@ class UniverseStateManager:
                     interval_minutes = 10080  # 7 days * 24 hours * 60 minutes
                 else:
                     raise ValueError(f"Unsupported timeframe for minute-based interval calculation: {timeframe}")
-            # Ensure timezone consistency for target_time
-            import zoneinfo
+            # FAIL FAST: Require timezone-aware datetime for proper interval calculations  
             if target_time.tzinfo is None:
-                # If target_time is naive, make it timezone-aware (assume US/Eastern)
-                target_time = target_time.replace(tzinfo=zoneinfo.ZoneInfo("US/Eastern"))
+                raise ValueError(f"target_time must be timezone-aware for accurate interval calculations, got timezone-naive: {target_time}")
             
             minutes_since_epoch = int(target_time.timestamp() // 60)
             interval_start_minutes = (minutes_since_epoch // interval_minutes) * interval_minutes
