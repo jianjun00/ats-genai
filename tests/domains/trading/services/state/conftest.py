@@ -9,6 +9,9 @@ import logging
 import gin
 from pathlib import Path
 
+# Import the test database fixtures so they're available to all tests in this directory
+from infrastructure.database.test_db_manager import unit_test_db_clean, unit_test_db
+
 # Configure logging for tests
 logging.basicConfig(
     level=logging.INFO,
@@ -59,18 +62,20 @@ def gin_test_setup(request):
     # Clear any existing configuration first
     gin.clear_config()
 
-    # Load test configuration for universe state builder
-    test_dir = Path(__file__).parent
-    gin_config_path = test_dir / "test_config.gin"
+    # Load training_data.gin configuration for realistic universe state testing
+    project_root = Path(__file__).parent.parent.parent.parent.parent
+    training_config_path = project_root / "config" / "training_data.gin"
     
-    if gin_config_path.exists():
-        gin.parse_config_file(str(gin_config_path))
+    if training_config_path.exists():
+        gin.parse_config_file(str(training_config_path))
+        # Override environment type for testing
+        gin.parse_config(['bind = ["env_type", "test"]'])
     else:
         # Fallback gin configuration for universe state testing
         gin.parse_config([
-            "UniverseStateIntervalBuilder.base_duration = '1m'",
-            "UniverseStateIntervalBuilder.target_durations = '1m,5m,15m,1h'",
-            "# Universe state test configuration",
+            "domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '1m'",
+            "domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '1m,5m,15m,1h'",
+            "# Universe state test configuration using training_data.gin format",
             "# Use test database and minimal dependencies"
         ])
     

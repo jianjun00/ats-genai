@@ -1,0 +1,181 @@
+{
+  "collection_type": "universe_state_interval_sequence",
+  "schema_version": "1.0.0",
+  "test_method": "test_single_symbol_1m_market_open_golden",
+  "test_metadata": {
+    "symbols": [
+      "AAPL"
+    ],
+    "timeframe": "1m",
+    "interval_count": 3,
+    "base_time": "2024-08-01T09:31:00-04:00",
+    "description": "Sequence of 3 consecutive 1m intervals",
+    "generation_method": "REAL_OBJECTS_ONLY",
+    "test_type": "multi_interval_sequence"
+  },
+  "intervals": [
+    {
+      "business_object": {
+        "duration": {
+          "duration_minutes": null,
+          "duration_string": "1m"
+        },
+        "start_timestamp_utc_micros": 1722519060000000,
+        "end_timestamp_utc_micros": 1725197460000000,
+        "universe_id": 1,
+        "factor_intervals": [
+          {
+            "factor_type": "unknown",
+            "start_timestamp_utc_micros": 1722519060000000,
+            "end_timestamp_utc_micros": 1725197460000000,
+            "properties": {}
+          }
+        ],
+        "instrument_intervals": {
+          "1": {
+            "instrument_id": 1,
+            "start_timestamp_utc_micros": 1722515460000000,
+            "end_timestamp_utc_micros": 1722519060000000,
+            "open_micro_dollars": 216573000,
+            "high_micro_dollars": 216632600,
+            "low_micro_dollars": 216513200,
+            "close_micro_dollars": 216612700,
+            "traded_volume": 26349,
+            "traded_dollar_micro": 5707528032300,
+            "market_cap_micro_dollars": null,
+            "status": "ok"
+          }
+        },
+        "instrument_indicator_intervals": {
+          "default": {
+            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 31, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 31, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.59837720075302, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 52, 883366)}, 'OneOneHigh': {'value': 216.65913333333336, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 52, 883452)}, 'OneOneLow': {'value': 216.53973333333337, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 52, 883569)}, 'OneOneDot': {'value': 216.58616666666668, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 52, 883579)}, 'EnvelopeBot': {'value': 216.518300555628, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 52, 883592)}, 'EnvelopeTop': {'value': 216.690215637045, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 52, 883647)}})"
+          }
+        },
+        "instrument_forecast_intervals": {}
+      },
+      "object_type": "universe_state_interval",
+      "schema_version": "1.0.0",
+      "interval_index": 0,
+      "generated_at_utc_micros": 1759450733179905,
+      "validation_metadata": {
+        "instrument_count": 1,
+        "timeframe_alignment": true,
+        "time_range_seconds": 2678400,
+        "instrument_ids": [
+          1
+        ]
+      }
+    },
+    {
+      "business_object": {
+        "duration": {
+          "duration_minutes": null,
+          "duration_string": "1m"
+        },
+        "start_timestamp_utc_micros": 1722519120000000,
+        "end_timestamp_utc_micros": 1725197520000000,
+        "universe_id": 1,
+        "factor_intervals": [
+          {
+            "factor_type": "unknown",
+            "start_timestamp_utc_micros": 1722519120000000,
+            "end_timestamp_utc_micros": 1725197520000000,
+            "properties": {}
+          }
+        ],
+        "instrument_intervals": {
+          "1": {
+            "instrument_id": 1,
+            "start_timestamp_utc_micros": 1722515520000000,
+            "end_timestamp_utc_micros": 1722519120000000,
+            "open_micro_dollars": 216632600,
+            "high_micro_dollars": 216831200,
+            "low_micro_dollars": 216612700,
+            "close_micro_dollars": 216741800,
+            "traded_volume": 90339,
+            "traded_dollar_micro": 19580237470200,
+            "market_cap_micro_dollars": null,
+            "status": "ok"
+          }
+        },
+        "instrument_indicator_intervals": {
+          "default": {
+            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 32, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 32, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.63125169814, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 31538)}, 'OneOneHigh': {'value': 216.84443333333334, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 31627)}, 'OneOneLow': {'value': 216.62593333333334, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 31749)}, 'OneOneDot': {'value': 216.72856666666667, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 31760)}, 'EnvelopeBot': {'value': 216.548414517047, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 31776)}, 'EnvelopeTop': {'value': 216.726366067461, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 31835)}})"
+          }
+        },
+        "instrument_forecast_intervals": {}
+      },
+      "object_type": "universe_state_interval",
+      "schema_version": "1.0.0",
+      "interval_index": 1,
+      "generated_at_utc_micros": 1759450733179919,
+      "validation_metadata": {
+        "instrument_count": 1,
+        "timeframe_alignment": true,
+        "time_range_seconds": 2678400,
+        "instrument_ids": [
+          1
+        ]
+      }
+    },
+    {
+      "business_object": {
+        "duration": {
+          "duration_minutes": null,
+          "duration_string": "1m"
+        },
+        "start_timestamp_utc_micros": 1722519180000000,
+        "end_timestamp_utc_micros": 1725197580000000,
+        "universe_id": 1,
+        "factor_intervals": [
+          {
+            "factor_type": "unknown",
+            "start_timestamp_utc_micros": 1722519180000000,
+            "end_timestamp_utc_micros": 1725197580000000,
+            "properties": {}
+          }
+        ],
+        "instrument_intervals": {
+          "1": {
+            "instrument_id": 1,
+            "start_timestamp_utc_micros": 1722515580000000,
+            "end_timestamp_utc_micros": 1722519180000000,
+            "open_micro_dollars": 216712000,
+            "high_micro_dollars": 216781500,
+            "low_micro_dollars": 216632600,
+            "close_micro_dollars": 216741800,
+            "traded_volume": 87215,
+            "traded_dollar_micro": 18903136087000,
+            "market_cap_micro_dollars": null,
+            "status": "ok"
+          }
+        },
+        "instrument_indicator_intervals": {
+          "default": {
+            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 33, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 33, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.67213151787502, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 179499)}, 'OneOneHigh': {'value': 216.80466666666663, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 179608)}, 'OneOneLow': {'value': 216.65576666666664, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 179733)}, 'OneOneDot': {'value': 216.71863333333332, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 179743)}, 'EnvelopeBot': {'value': 216.60673359433, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 179758)}, 'EnvelopeTop': {'value': 216.775486715702, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 2, 17, 18, 53, 179815)}})"
+          }
+        },
+        "instrument_forecast_intervals": {}
+      },
+      "object_type": "universe_state_interval",
+      "schema_version": "1.0.0",
+      "interval_index": 2,
+      "generated_at_utc_micros": 1759450733179928,
+      "validation_metadata": {
+        "instrument_count": 1,
+        "timeframe_alignment": true,
+        "time_range_seconds": 2678400,
+        "instrument_ids": [
+          1
+        ]
+      }
+    }
+  ],
+  "generated_at_utc_micros": 1759450733179933,
+  "sequence_validation": {
+    "consecutive_intervals": true,
+    "consistent_timeframe": "1m",
+    "total_instrument_coverage": 1,
+    "real_business_logic": true
+  }
+}

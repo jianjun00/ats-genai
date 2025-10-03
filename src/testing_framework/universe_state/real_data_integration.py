@@ -211,7 +211,19 @@ class UniverseStateTestScenario:
         from core.business.calendars.time_duration import TimeDuration
         duration = TimeDuration(self.timeframe)
         
-        # This is the core test: use real UniverseStateBuilder logic
+        # CRITICAL FIX: First populate the cache with real market data by calling handleInterval
+        # This simulates the normal flow where handleInterval populates the rolling cache
+        self.logger.info(f"🔧 Populating cache with real market data via handleInterval...")
+        
+        # Call handleInterval for each minute in our time range to populate the cache
+        current_minute = self.start_time
+        while current_minute <= self.end_time:
+            await universe_builder.handleInterval(runner, current_minute)
+            current_minute += timedelta(minutes=1)
+            
+        self.logger.info(f"✅ Cache populated with real market data")
+        
+        # Now call the core test: use real UniverseStateBuilder logic
         universe_state_data = await universe_builder._build_universe_state_for_duration(
             duration, self.end_time, instrument_ids, runner
         )
@@ -237,10 +249,10 @@ class UniverseStateRealDataTestSuite:
         self.test_dir = test_dir
         self.logger = logging.getLogger(f"{__name__}.TestSuite")
         
-        # Create test environment
+        # Create test environment (will use proper test database with migrations)
         self.environment = Environment(
             env_type=EnvironmentType.TEST,
-            db_url="postgresql://postgres:dev_password@localhost:3432/dev_db"
+            db_url="postgresql://test_user:test_password@localhost:5432/test_db"  # Will be overridden by fixture
         )
         
         self.test_data_manager = UniverseStateTestDataManager(self.environment)

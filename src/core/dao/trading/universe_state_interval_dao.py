@@ -136,7 +136,22 @@ class UniverseStateIntervalDAO:
         
         # Convert state_data to JSON if provided
         import json
-        state_data_json = json.dumps(state_data) if state_data else None
+        from datetime import datetime
+        
+        def json_serializer(obj):
+            """Custom JSON serializer for datetime objects"""
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+        
+        state_data_json = json.dumps(state_data, default=json_serializer) if state_data else None
+        
+        # Convert timezone-aware datetime to UTC and make timezone-naive for PostgreSQL
+        from datetime import timezone
+        if hasattr(start_date_time, 'tzinfo') and start_date_time.tzinfo is not None:
+            start_date_time = start_date_time.astimezone(timezone.utc).replace(tzinfo=None)
+        if hasattr(end_date_time, 'tzinfo') and end_date_time.tzinfo is not None:
+            end_date_time = end_date_time.astimezone(timezone.utc).replace(tzinfo=None)
         
         conn = await asyncpg.connect(self.db_url)
         try:

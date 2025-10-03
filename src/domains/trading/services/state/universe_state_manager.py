@@ -916,10 +916,16 @@ class UniverseStateManager:
                     raise ValueError(f"Unsupported timeframe for minute-based interval calculation: {timeframe}")
             
             # Calculate the start time of the interval that contains current_time
+            # Ensure timezone consistency by using current_time's timezone
+            import zoneinfo
+            if current_time.tzinfo is None:
+                # If current_time is naive, make it timezone-aware (assume US/Eastern)
+                current_time = current_time.replace(tzinfo=zoneinfo.ZoneInfo("US/Eastern"))
+            
             minutes_since_epoch = int(current_time.timestamp() // 60)
             interval_start_minutes = (minutes_since_epoch // interval_minutes) * interval_minutes
-            interval_start = datetime.fromtimestamp(interval_start_minutes * 60)
-            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60)
+            interval_start = datetime.fromtimestamp(interval_start_minutes * 60, tz=current_time.tzinfo)
+            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60, tz=current_time.tzinfo)
                                     
             if timeframe not in self._rolling_instrument_history:
                 self.logger.warning(f"No rolling cache data for {timeframe} lookup")
@@ -1053,10 +1059,16 @@ class UniverseStateManager:
                     interval_minutes = 10080  # 7 days * 24 hours * 60 minutes
                 else:
                     raise ValueError(f"Unsupported timeframe for minute-based interval calculation: {timeframe}")
+            # Ensure timezone consistency for target_time
+            import zoneinfo
+            if target_time.tzinfo is None:
+                # If target_time is naive, make it timezone-aware (assume US/Eastern)
+                target_time = target_time.replace(tzinfo=zoneinfo.ZoneInfo("US/Eastern"))
+            
             minutes_since_epoch = int(target_time.timestamp() // 60)
             interval_start_minutes = (minutes_since_epoch // interval_minutes) * interval_minutes
-            interval_start = datetime.fromtimestamp(interval_start_minutes * 60)
-            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60)
+            interval_start = datetime.fromtimestamp(interval_start_minutes * 60, tz=target_time.tzinfo)
+            interval_end = datetime.fromtimestamp((interval_start_minutes + interval_minutes) * 60, tz=target_time.tzinfo)
             
             # Collect InstrumentInterval objects for all instruments at this future time
             for instrument_id, intervals in self._rolling_instrument_history[timeframe].items():

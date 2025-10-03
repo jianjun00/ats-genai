@@ -12,8 +12,12 @@ BEGIN
         table_name := 'intg_runs';
     ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE information_schema.tables.table_name = 'dev_runs') THEN
         table_name := 'dev_runs';
-    ELSE
+    ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE information_schema.tables.table_name = 'runs') THEN
         table_name := 'runs';
+    ELSE
+        -- No runs table exists, skip this migration
+        RAISE NOTICE 'Migration 007 skipped: No runs table found (intg_runs, dev_runs, or runs)';
+        RETURN;
     END IF;
     
     -- Add missing columns to the identified table
