@@ -83,11 +83,10 @@ class TestExchangeCalendarFixVerification:
         exchanges_to_test = ["NYSE", "NASDAQ", "LSE"]
         
         for exchange in exchanges_to_test:
-            try:
-                calendar = ExchangeCalendar(exchange)
-                assert calendar.exchange == exchange.upper()
-                assert hasattr(calendar, 'calendar')
-                print(f"   ✅ {exchange} calendar initialized successfully")
+            calendar = ExchangeCalendar(exchange)
+            assert calendar.exchange == exchange.upper()
+            assert hasattr(calendar, 'calendar')
+            print(f"   ✅ {exchange} calendar initialized successfully")
     def test_exchange_calendar_error_handling(self):
         """
         Test that ExchangeCalendar provides proper error messages for invalid exchanges.
@@ -146,16 +145,15 @@ class TestExchangeCalendarFixVerification:
         # AFTER FIX: These now work
         working_functionality = []
         
-        try:
-            calendar = ExchangeCalendar("NYSE")
-            working_functionality.append("✅ Constructor works without NameError")
+        calendar = ExchangeCalendar("NYSE")
+        working_functionality.append("✅ Constructor works without NameError")
             
-            today = datetime.date.today()
-            calendar.is_holiday(today)
-            working_functionality.append("✅ is_holiday works without AttributeError")
+        today = datetime.date.today()
+        calendar.is_holiday(today)
+        working_functionality.append("✅ is_holiday works without AttributeError")
             
-            trading_days = calendar.all_trading_days(today, today + datetime.timedelta(days=1))
-            working_functionality.append("✅ all_trading_days works correctly")
+        trading_days = calendar.all_trading_days(today, today + datetime.timedelta(days=1))
+        working_functionality.append("✅ all_trading_days works correctly")
             
         print("📊 BEFORE/AFTER COMPARISON:")
         print("\n❌ ISSUES THAT WERE FIXED:")

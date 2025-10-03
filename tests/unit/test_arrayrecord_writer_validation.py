@@ -90,45 +90,44 @@ class TestArrayRecordWriterValidation:
             schema = self.create_test_schema_for_timeframe(timeframe)
             file_path = test_output_dir / f"test_{timeframe}.arrayrecord"
             
-            try:
-                # Initialize writer
-                print(f"🔧 Initializing writer for {timeframe}...")
-                writer = array_record.ArrayRecordWriter(str(file_path), schema)
+            # Initialize writer
+            print(f"🔧 Initializing writer for {timeframe}...")
+            writer = array_record.ArrayRecordWriter(str(file_path), schema)
                 
-                # Write test records
-                print(f"📝 Writing test records for {timeframe}...")
-                record_count = 3 if timeframe == '1d' else 10
+            # Write test records
+            print(f"📝 Writing test records for {timeframe}...")
+            record_count = 3 if timeframe == '1d' else 10
                 
-                for i in range(record_count):
-                    record = self.create_test_record_for_timeframe(timeframe, i)
-                    writer.write(record)
+            for i in range(record_count):
+                record = self.create_test_record_for_timeframe(timeframe, i)
+                writer.write(record)
                 
-                # Close writer
-                writer.close()
-                print(f"✅ Writer closed for {timeframe}")
+            # Close writer
+            writer.close()
+            print(f"✅ Writer closed for {timeframe}")
                 
-                # Verify file exists and has size
-                file_size = file_path.stat().st_size if file_path.exists() else 0
-                print(f"📁 File size: {file_size} bytes")
+            # Verify file exists and has size
+            file_size = file_path.stat().st_size if file_path.exists() else 0
+            print(f"📁 File size: {file_size} bytes")
                 
-                # Test reading the file
-                print(f"📖 Testing read for {timeframe}...")
-                reader = array_record.ArrayRecordReader(str(file_path))
-                records = list(reader)
+            # Test reading the file
+            print(f"📖 Testing read for {timeframe}...")
+            reader = array_record.ArrayRecordReader(str(file_path))
+            records = list(reader)
                 
-                results[timeframe] = {
-                    'writer_success': True,
-                    'file_exists': file_path.exists(),
-                    'file_size': file_size,
-                    'records_written': record_count,
-                    'records_read': len(records),
-                    'read_success': len(records) > 0,
-                    'sample_record': records[0] if records else None
-                }
+            results[timeframe] = {
+                'writer_success': True,
+                'file_exists': file_path.exists(),
+                'file_size': file_size,
+                'records_written': record_count,
+                'records_read': len(records),
+                'read_success': len(records) > 0,
+                'sample_record': records[0] if records else None
+            }
                 
-                print(f"✅ {timeframe}: {len(records)} records read successfully")
+            print(f"✅ {timeframe}: {len(records)} records read successfully")
                 
-        # Analysis
+    # Analysis
         print("\n📊 WRITER COMPARISON ANALYSIS:")
         for timeframe, result in results.items():
             status = "✅ SUCCESS" if result['read_success'] else "❌ FAILED"
@@ -203,31 +202,30 @@ class TestArrayRecordWriterValidation:
             schema_json = json.dumps(variation['schema'])
             file_path = test_output_dir / f"1d_{variation['name']}.arrayrecord"
             
-            try:
-                # Write with this schema
-                writer = array_record.ArrayRecordWriter(str(file_path), schema_json)
+            # Write with this schema
+            writer = array_record.ArrayRecordWriter(str(file_path), schema_json)
                 
-                # Create record compatible with this schema
-                if variation['name'] == 'minimal_fields':
-                    record = {
-                        'timestamp': 1751402100.0,
-                        'symbol': 'AAPL',
-                        'close': 207.75,
-                    }
-                else:
-                    record = self.create_test_record_for_timeframe('1d', 0)
+            # Create record compatible with this schema
+            if variation['name'] == 'minimal_fields':
+                record = {
+                    'timestamp': 1751402100.0,
+                    'symbol': 'AAPL',
+                    'close': 207.75,
+                }
+            else:
+                record = self.create_test_record_for_timeframe('1d', 0)
                 
-                writer.write(record)
-                writer.close()
+            writer.write(record)
+            writer.close()
                 
-                # Test reading
-                reader = array_record.ArrayRecordReader(str(file_path))
-                records = list(reader)
+            # Test reading
+            reader = array_record.ArrayRecordReader(str(file_path))
+            records = list(reader)
                 
-                print(f"✅ {variation['name']}: {len(records)} records, {file_path.stat().st_size} bytes")
+            print(f"✅ {variation['name']}: {len(records)} records, {file_path.stat().st_size} bytes")
                 
-                assert len(records) == 1, f"Should have 1 record for {variation['name']}"
-                assert records[0]['symbol'] == 'AAPL', f"Symbol should be AAPL for {variation['name']}"
+            assert len(records) == 1, f"Should have 1 record for {variation['name']}"
+            assert records[0]['symbol'] == 'AAPL', f"Symbol should be AAPL for {variation['name']}"
                 
     @pytest.mark.asyncio
     async def test_1d_arrayrecord_large_volume_data(self, test_output_dir):
@@ -242,38 +240,37 @@ class TestArrayRecordWriterValidation:
         # Estimate ~1K per record for JSON, maybe 200-500 bytes for binary
         target_records = 256  # Should create substantial file
         
-        try:
-            writer = array_record.ArrayRecordWriter(str(file_path), schema)
-            
-            print(f"📝 Writing {target_records} records to simulate real 1d data volume...")
-            for i in range(target_records):
-                record = self.create_test_record_for_timeframe('1d', i)
-                writer.write(record)
-            
-            writer.close()
-            
-            file_size = file_path.stat().st_size
-            print(f"📁 Created file: {file_size} bytes ({file_size/1024:.1f} KB)")
-            
-            # Test reading the large file
-            print("📖 Reading large 1d file...")
-            reader = array_record.ArrayRecordReader(str(file_path))
-            records = list(reader)
-            
-            print(f"✅ Successfully read {len(records)} records from {file_size} byte file")
-            
-            # Validate sample records
-            assert len(records) == target_records, f"Should read {target_records} records"
-            assert all(r['symbol'] == 'AAPL' for r in records), "All records should have AAPL symbol"
-            
-            # Test that timestamps are increasing (daily progression)
-            timestamps = [r['timestamp'] for r in records]
-            assert timestamps == sorted(timestamps), "Timestamps should be in ascending order"
-            
-            # Verify daily spacing (86400 seconds = 1 day)
-            if len(records) > 1:
-                daily_diff = timestamps[1] - timestamps[0]
-                assert abs(daily_diff - 86400) < 1, f"Daily records should be 86400 seconds apart, got {daily_diff}"
-            
-            print("✅ 1d large volume test PASSED")
+        writer = array_record.ArrayRecordWriter(str(file_path), schema)
+        
+        print(f"📝 Writing {target_records} records to simulate real 1d data volume...")
+        for i in range(target_records):
+            record = self.create_test_record_for_timeframe('1d', i)
+            writer.write(record)
+        
+        writer.close()
+        
+        file_size = file_path.stat().st_size
+        print(f"📁 Created file: {file_size} bytes ({file_size/1024:.1f} KB)")
+        
+        # Test reading the large file
+        print("📖 Reading large 1d file...")
+        reader = array_record.ArrayRecordReader(str(file_path))
+        records = list(reader)
+        
+        print(f"✅ Successfully read {len(records)} records from {file_size} byte file")
+        
+        # Validate sample records
+        assert len(records) == target_records, f"Should read {target_records} records"
+        assert all(r['symbol'] == 'AAPL' for r in records), "All records should have AAPL symbol"
+        
+        # Test that timestamps are increasing (daily progression)
+        timestamps = [r['timestamp'] for r in records]
+        assert timestamps == sorted(timestamps), "Timestamps should be in ascending order"
+        
+        # Verify daily spacing (86400 seconds = 1 day)
+        if len(records) > 1:
+            daily_diff = timestamps[1] - timestamps[0]
+            assert abs(daily_diff - 86400) < 1, f"Daily records should be 86400 seconds apart, got {daily_diff}"
+        
+        print("✅ 1d large volume test PASSED")
             

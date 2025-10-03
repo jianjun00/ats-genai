@@ -22,7 +22,9 @@ import sys
 from pathlib import Path
 from datetime import date, datetime, timedelta
 from typing import Dict, Any, List
-import array_record.python.array_record_module as array_record
+
+# Skip entire module if array_record is not available
+array_record = pytest.importorskip("array_record.python.array_record_module", reason="array_record module not installed")
 
 from core.platform.config.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
