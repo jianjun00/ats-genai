@@ -422,11 +422,16 @@ class UniverseStateManager:
                                 'value': factor_interval.factor_value
                             })
 
+                # Convert timezone-aware UTC datetimes to timezone-naive for PostgreSQL storage  
+                # Runner now provides timezone-aware UTC datetimes, DAO expects timezone-naive UTC
+                start_dt_naive = start_dt.replace(tzinfo=None) if start_dt.tzinfo else start_dt
+                end_dt_naive = end_dt.replace(tzinfo=None) if end_dt.tzinfo else end_dt
+                
                 interval_id = await self._interval_dao.create(
                     universe_id=metadata['universe_id'],
                     duration=metadata['duration'],
-                    start_date_time=start_dt,
-                    end_date_time=end_dt,
+                    start_date_time=start_dt_naive,
+                    end_date_time=end_dt_naive,
                     run_id=run_id,
                     state_data=state_data
                 )
@@ -437,6 +442,10 @@ class UniverseStateManager:
                     factor_interval_dao = FactorIntervalDAO(self.env)
                     instrument_interval_id_map = {}
                     for inst_id, inst_interval in universe_state.instrument_intervals.items():
+                        # Convert timezone-aware UTC datetimes to timezone-naive for PostgreSQL storage
+                        inst_start_naive = inst_interval.start_date_time.replace(tzinfo=None) if inst_interval.start_date_time.tzinfo else inst_interval.start_date_time
+                        inst_end_naive = inst_interval.end_date_time.replace(tzinfo=None) if inst_interval.end_date_time.tzinfo else inst_interval.end_date_time
+                        
                         instrument_interval_id = await instrument_interval_dao.create(
                             universe_state_interval_id=interval_id,
                             instrument_id=inst_interval.instrument_id,
@@ -448,8 +457,8 @@ class UniverseStateManager:
                             traded_dollar=inst_interval.traded_dollar,
                             status=inst_interval.status,
                             market_cap=inst_interval.market_cap,
-                            start_date_time=inst_interval.start_date_time,
-                            end_date_time=inst_interval.end_date_time,
+                            start_date_time=inst_start_naive,
+                            end_date_time=inst_end_naive,
                             interval_duration="60m",
                             run_id=run_id
                         )
