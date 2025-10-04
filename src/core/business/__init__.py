@@ -1,14 +1,17 @@
 """
-Business Domain Components.
+Analytics core module for ATS-GenAI platform.
 
-Contains analytics services and market calendar utilities
-for business logic and domain operations.
+Provides consolidated analytics functionality split from the monolithic service.
 """
 
-from . import analytics
-from . import calendars
+try:
+    from core.analytics.service import AnalyticsService
+except ImportError:
+    AnalyticsService = None
+
+from .dashboard.template_engine import DashboardTemplateEngine
 
 __all__ = [
-    'analytics',
-    'calendars'
+    'AnalyticsService',
+    'DashboardTemplateEngine'
 ]

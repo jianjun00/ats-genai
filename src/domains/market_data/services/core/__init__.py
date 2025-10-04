@@ -1,21 +1,27 @@
 """
-Market Data Core Services
+LLM-Powered News Processing Services
 
-Provides core market data functionality including:
-- Unified market data management
-- Abstract market data interfaces
-- Market data simulation
-- Data models and validation
+This package contains the core LLM processing services for financial news analysis,
+implementing state-of-the-art techniques for named entity recognition, event extraction,
+sentiment analysis, and contextual analysis using RAG.
 """
 
-from .market_data_manager import MarketDataManager
-from .unified_market_data_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, TimeframeType, StorageBackend
+from .news_llm_processor import (
+    LLMNewsProcessor,
+    NewsAnalysisResult,
+    FinancialEntity,
+    FinancialEvent,
+    SentimentScore,
+    RAGContext,
+    LLMProcessingError
+)
 
 __all__ = [
-    'MarketDataManager',
-    'UnifiedMarketDataManager', 
-    'MarketDataConfig',
-    'VendorType',
-    'TimeframeType', 
-    'StorageBackend'
+    'LLMNewsProcessor',
+    'NewsAnalysisResult',
+    'FinancialEntity',
+    'FinancialEvent',
+    'SentimentScore',
+    'RAGContext',
+    'LLMProcessingError'
 ]
