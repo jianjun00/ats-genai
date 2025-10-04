@@ -1,1 +1,0 @@
-"""Tests for FirstRate Data integration"""

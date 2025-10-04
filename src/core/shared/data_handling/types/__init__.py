@@ -13,7 +13,7 @@ Key Components:
 - CrossScaleFusion: Multi-scale output fusion
 """
 
-from .cross_scale_attention import (
+from domains.models.cross_scale_attention import (
     CrossScaleAttention,
     HierarchicalPositionalEncoding,
     RelativePositionBias,
