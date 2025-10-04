@@ -1,3 +1,0 @@
-"""
-Portfolio Management Service Implementations
-"""
