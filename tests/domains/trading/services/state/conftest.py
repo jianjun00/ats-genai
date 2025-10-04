@@ -10,7 +10,7 @@ import gin
 from pathlib import Path
 
 # Import consolidated test database fixtures
-from core.shared.utils.test_database import isolated_test_db, shared_integration_db, clean_shared_db
+from core.shared.utils_core.test_database import isolated_test_db, shared_integration_db, clean_shared_db
 
 # Configure logging for tests
 logging.basicConfig(

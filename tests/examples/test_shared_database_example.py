@@ -6,7 +6,7 @@ This demonstrates the consolidated test database patterns following CLAUDE.md pr
 
 import pytest
 import asyncpg
-from core.shared.utils.test_database import (
+from core.shared.utils_core.test_database import (
     isolated_test_db,
     shared_integration_db,
     clean_shared_db,

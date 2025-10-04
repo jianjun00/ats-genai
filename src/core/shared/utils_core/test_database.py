@@ -34,8 +34,8 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 from urllib.parse import urlparse
 
-from core.platform.config.environment import Environment, EnvironmentType
-from core.shared.utils.database import Database
+from core.platform.config_env.environment import Environment, EnvironmentType
+from core.shared.database import Database
 from infrastructure.database.migration_manager import MigrationManager
 
 import logging
