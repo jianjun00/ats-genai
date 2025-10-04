@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 from core.dao.base_dao import BaseDAO
 from core.data_validators import MarketDataValidator, ValidationResult
-from core.platform.logging.logger_config import get_logger
+from core.platform.logger_config import get_logger
 
 
 class DailyPriceDAO(BaseDAO):

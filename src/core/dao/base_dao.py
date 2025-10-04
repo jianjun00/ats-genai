@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from core.platform.connection_manager import get_session, get_async_session, get_raw_connection
-from core.platform.config.settings import get_settings
-from core.platform.logging.logger_config import get_logger
+from core.platform.config_core.settings import get_settings
+from core.platform.logger_config import get_logger
 from core.custom_exceptions import (
     DataValidationError, handle_database_error
 )
