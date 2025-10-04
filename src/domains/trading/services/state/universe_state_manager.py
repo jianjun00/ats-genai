@@ -939,7 +939,7 @@ class UniverseStateManager:
                 return None
                 
             # Import UniverseStateInterval here to avoid circular imports
-            from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+            from domains.trading.services.state.universe_state import UniverseStateInterval
             
             instrument_intervals = {}
             
@@ -1044,7 +1044,7 @@ class UniverseStateManager:
         This is a fallback method when database retrieval is not implemented.
         It reconstructs a UniverseStateInterval from cached InstrumentInterval objects for future time.
         """
-        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         from core.business.calendars.time_duration import TimeDuration
         
         try:

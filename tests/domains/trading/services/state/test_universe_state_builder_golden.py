@@ -640,7 +640,7 @@ class TestUniverseStateBuilderGolden:
         
         print("🔍 5M STEP 8: Creating synthetic 5-minute universe states")
         try:
-            from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+            from domains.trading.services.state.universe_state import UniverseStateInterval
             from core.business.calendars.time_duration import TimeDuration
             from domains.trading.services.state_core.instrument_interval import InstrumentInterval
             
@@ -785,7 +785,7 @@ class TestUniverseStateBuilderGolden:
         real_runner = RealTestRunner(environment, 1, real_market_data_manager)
         
         # Create synthetic universe states with multi-symbol data (bypassing database issues)
-        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         from core.business.calendars.time_duration import TimeDuration
         from domains.trading.services.state_core.instrument_interval import InstrumentInterval
         

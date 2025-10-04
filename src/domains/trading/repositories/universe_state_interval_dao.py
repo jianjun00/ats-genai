@@ -3,7 +3,7 @@ from domains.instruments.repositories.instrument_indicator_interval_dao import I
 from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
 from typing import Optional, Dict
-from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+from domains.trading.services.state.universe_state import UniverseStateInterval
 from core.platform.config_env.environment import Environment
 from datetime import datetime
 
@@ -17,7 +17,7 @@ class UniverseStateIntervalDAO:
         fully populated UniverseStateInterval.
         """
         from core.calendars.time_duration import TimeDuration
-        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         from domains.trading.services.state_core.instrument_interval import InstrumentInterval
         from domains.trading.services.state.indicator_interval import IndicatorInterval
         from domains.trading.services.state.factor_interval import FactorInterval
@@ -90,7 +90,7 @@ class UniverseStateIntervalDAO:
         )
     def _row_to_interval(self, row: dict):
         from core.calendars.time_duration import TimeDuration
-        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         from datetime import datetime
         # Parse duration
         duration = TimeDuration(row['duration'])
