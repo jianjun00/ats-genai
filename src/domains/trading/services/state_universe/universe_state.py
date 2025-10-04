@@ -2,10 +2,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 from datetime import datetime
 from core.business.calendars.time_duration import TimeDuration
-from .factor_interval import FactorInterval
-from .instrument_interval import InstrumentInterval
-from .indicator_interval import IndicatorInterval
-from .forecast_interval import ForecastInterval
+from domains.trading.services.state_core.factor_interval import FactorInterval
+from domains.trading.services.state_core.instrument_interval import InstrumentInterval
+from domains.trading.services.state_core.indicator_interval import IndicatorInterval
+from domains.trading.services.state_core.forecast_interval import ForecastInterval
 
 @dataclass
 class UniverseStateInterval:

@@ -28,7 +28,7 @@ INTERACTIONS:
 import pandas as pd
 import gin
 try:
-    from domains.trading.services.state.runner_callback import RunnerCallback
+    from domains.trading.services.state_core.runner_callback import RunnerCallback
 except Exception:
     # Fallback minimal base when runner_callback is not available in test context
     class RunnerCallback:
@@ -37,9 +37,9 @@ from typing import Dict, List
 import logging
 from datetime import datetime, timedelta
 from core.platform.config_env.environment import Environment
-from domains.trading.services.state.instrument_interval import InstrumentInterval
-from .factor_interval import FactorInterval
-from domains.trading.services.state.indicator_interval import IndicatorInterval
+from domains.trading.services.state_core.instrument_interval import InstrumentInterval
+from domains.trading.services.state_core.factor_interval import FactorInterval
+from domains.trading.services.state_core.indicator_interval import IndicatorInterval
 from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 
 try:

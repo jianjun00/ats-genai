@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict
-from domains.trading.services.state.instrument_interval import InstrumentInterval
+from domains.trading.services.state_core.instrument_interval import InstrumentInterval
 
 from datetime import datetime
 

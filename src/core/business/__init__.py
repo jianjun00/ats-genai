@@ -9,7 +9,7 @@ try:
 except ImportError:
     AnalyticsService = None
 
-from .dashboard.template_engine import DashboardTemplateEngine
+from .template_engine import DashboardTemplateEngine
 
 __all__ = [
     'AnalyticsService',
