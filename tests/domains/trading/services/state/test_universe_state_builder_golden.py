@@ -317,8 +317,8 @@ class TestUniverseStateBuilderGolden:
             builder.market_data_manager = real_market_data_manager
             
             # CRITICAL: Add IndicatorBuilder for real technical indicators
-            from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-            from domains.trading.services.indicators.indicator_config import IndicatorConfig
+            from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+            from domains.trading.services.indicator_config import IndicatorConfig
             builder.indicator_builder = IndicatorBuilder(IndicatorConfig.default_config())
             
             # DEBUG: Check if indicator_builder is set
@@ -328,8 +328,8 @@ class TestUniverseStateBuilderGolden:
             # Set up indicator builder if missing
             if builder.indicator_builder is None:
                 print("🔍 DEBUG: indicator_builder is None, creating one...")
-                from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-                from domains.trading.services.indicators.indicator_config import IndicatorConfig
+                from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+                from domains.trading.services.indicator_config import IndicatorConfig
                 
                 indicator_config = IndicatorConfig.default_config()
                 builder.indicator_builder = IndicatorBuilder(indicator_config)
@@ -601,8 +601,8 @@ class TestUniverseStateBuilderGolden:
             builder.market_data_manager = real_market_data_manager
             
             # CRITICAL: Add IndicatorBuilder for real technical indicators
-            from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-            from domains.trading.services.indicators.indicator_config import IndicatorConfig
+            from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+            from domains.trading.services.indicator_config import IndicatorConfig
             builder.indicator_builder = IndicatorBuilder(IndicatorConfig.default_config())
             
             print("✅ 5M STEP 6: UniverseStateBuilder created for 5m timeframe")
@@ -640,9 +640,9 @@ class TestUniverseStateBuilderGolden:
         
         print("🔍 5M STEP 8: Creating synthetic 5-minute universe states")
         try:
-            from domains.trading.services.state.universe_state import UniverseStateInterval
+            from domains.trading.services.state_universe.universe_state import UniverseStateInterval
             from core.business.calendars.time_duration import TimeDuration
-            from domains.trading.services.state.instrument_interval import InstrumentInterval
+            from domains.trading.services.state_core.instrument_interval import InstrumentInterval
             
             # Create synthetic universe states for 4 consecutive 5-minute intervals
             universe_states = []
@@ -759,8 +759,8 @@ class TestUniverseStateBuilderGolden:
         builder.market_data_manager = real_market_data_manager
         
         # Add real IndicatorBuilder for technical indicator calculations
-        from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-        from domains.trading.services.indicators.indicator_config import IndicatorConfig
+        from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+        from domains.trading.services.indicator_config import IndicatorConfig
         
         # Create indicator config from training_data.gin configuration
         indicator_config = IndicatorConfig.from_gin_config() if hasattr(IndicatorConfig, 'from_gin_config') else IndicatorConfig.default_config()
@@ -785,9 +785,9 @@ class TestUniverseStateBuilderGolden:
         real_runner = RealTestRunner(environment, 1, real_market_data_manager)
         
         # Create synthetic universe states with multi-symbol data (bypassing database issues)
-        from domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
         from core.business.calendars.time_duration import TimeDuration
-        from domains.trading.services.state.instrument_interval import InstrumentInterval
+        from domains.trading.services.state_core.instrument_interval import InstrumentInterval
         
         # Generate 3 consecutive 5-minute universe states with multiple symbols
         universe_states = []
@@ -913,8 +913,8 @@ class TestUniverseStateBuilderGolden:
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
         from core.platform.config_env.environment import Environment, EnvironmentType
-        from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-        from domains.trading.services.indicators.indicator_config import IndicatorConfig
+        from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+        from domains.trading.services.indicator_config import IndicatorConfig
         from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
         from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
         from zoneinfo import ZoneInfo

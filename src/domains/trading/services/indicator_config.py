@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Type
-from .indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EnvelopeBot, EnvelopeTop
+from .indicators_core.indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EnvelopeBot, EnvelopeTop
 
 
 @dataclass

@@ -230,7 +230,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         Called once per minute, but universe state is built separately for each timeframe
         (5m, 15m, 1h, 1d, etc.) only when that timeframe's interval is complete.
         """
-        from domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
         self.logger.debug(f"[handleInterval] Called at {current_time} - processing 1-minute interval")
         
         if not self.target_durations:
@@ -542,7 +542,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         """
         Build universe state for a single duration - extracted from original logic.
         """
-        from domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
         
         duration_to_state = {}
         d_end_time = duration.get_end_time(current_time)

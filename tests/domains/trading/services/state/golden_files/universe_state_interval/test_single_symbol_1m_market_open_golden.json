@@ -48,7 +48,7 @@
         },
         "instrument_indicator_intervals": {
           "default": {
-            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 31, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 31, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.59837720075302, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 377571)}, 'OneOneHigh': {'value': 216.65913333333336, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 377592)}, 'OneOneLow': {'value': 216.53973333333337, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 377606)}, 'OneOneDot': {'value': 216.58616666666668, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 377614)}, 'EnvelopeBot': {'value': 216.518300555628, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 377625)}, 'EnvelopeTop': {'value': 216.690215637045, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 377636)}})"
+            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 31, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 31, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.6127, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 31, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneHigh': {'value': 216.6326, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 31, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneLow': {'value': 216.5132, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 31, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneDot': {'value': 216.6127, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 31, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'EnvelopeBot': {'value': 212.28044599999998, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 31, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'EnvelopeTop': {'value': 220.944954, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 31, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}})"
           }
         },
         "instrument_forecast_intervals": {}
@@ -56,7 +56,7 @@
       "object_type": "universe_state_interval",
       "schema_version": "1.0.0",
       "interval_index": 0,
-      "generated_at_utc_micros": 1759496745662350,
+      "generated_at_utc_micros": 1759546327083238,
       "validation_metadata": {
         "instrument_count": 1,
         "timeframe_alignment": true,
@@ -100,7 +100,7 @@
         },
         "instrument_indicator_intervals": {
           "default": {
-            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 32, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 32, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.63125169814, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 518057)}, 'OneOneHigh': {'value': 216.84443333333334, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 518079)}, 'OneOneLow': {'value': 216.62593333333334, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 518093)}, 'OneOneDot': {'value': 216.72856666666667, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 518101)}, 'EnvelopeBot': {'value': 216.548414517047, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 518115)}, 'EnvelopeTop': {'value': 216.726366067461, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 518125)}})"
+            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 32, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 32, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.7418, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 32, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneHigh': {'value': 216.8312, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 32, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneLow': {'value': 216.6127, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 32, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneDot': {'value': 216.7418, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 32, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'EnvelopeBot': {'value': 212.40696400000002, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 32, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'EnvelopeTop': {'value': 221.076636, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 32, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}})"
           }
         },
         "instrument_forecast_intervals": {}
@@ -108,7 +108,7 @@
       "object_type": "universe_state_interval",
       "schema_version": "1.0.0",
       "interval_index": 1,
-      "generated_at_utc_micros": 1759496745662370,
+      "generated_at_utc_micros": 1759546327083253,
       "validation_metadata": {
         "instrument_count": 1,
         "timeframe_alignment": true,
@@ -152,7 +152,7 @@
         },
         "instrument_indicator_intervals": {
           "default": {
-            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 33, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 33, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.67213151787502, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 662164)}, 'OneOneHigh': {'value': 216.80466666666663, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 662186)}, 'OneOneLow': {'value': 216.65576666666664, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 662200)}, 'OneOneDot': {'value': 216.71863333333332, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 662208)}, 'EnvelopeBot': {'value': 216.60673359433, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 662222)}, 'EnvelopeTop': {'value': 216.775486715702, 'status': 'ok', 'update_at': datetime.datetime(2025, 10, 3, 6, 5, 45, 662233)}})"
+            "1": "IndicatorInterval(instrument_id=1, start_date_time=datetime.datetime(2024, 8, 1, 9, 33, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), end_date_time=datetime.datetime(2024, 9, 1, 9, 33, tzinfo=zoneinfo.ZoneInfo(key='America/New_York')), indicators={'PL': {'value': 216.7418, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 33, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneHigh': {'value': 216.7815, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 33, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneLow': {'value': 216.6326, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 33, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'OneOneDot': {'value': 216.7418, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 33, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'EnvelopeBot': {'value': 212.40696400000002, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 33, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}, 'EnvelopeTop': {'value': 221.076636, 'status': 'ok', 'update_at': datetime.datetime(2024, 8, 1, 13, 33, tzinfo=zoneinfo.ZoneInfo(key='GMT'))}})"
           }
         },
         "instrument_forecast_intervals": {}
@@ -160,7 +160,7 @@
       "object_type": "universe_state_interval",
       "schema_version": "1.0.0",
       "interval_index": 2,
-      "generated_at_utc_micros": 1759496745662379,
+      "generated_at_utc_micros": 1759546327083261,
       "validation_metadata": {
         "instrument_count": 1,
         "timeframe_alignment": true,
@@ -171,7 +171,7 @@
       }
     }
   ],
-  "generated_at_utc_micros": 1759496745662388,
+  "generated_at_utc_micros": 1759546327083270,
   "sequence_validation": {
     "consecutive_intervals": true,
     "consistent_timeframe": "1m",
