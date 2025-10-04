@@ -11,7 +11,7 @@ import argparse
 from datetime import datetime, date, timedelta
 from typing import Optional
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from core.platform.database.connection_manager import get_connection_manager
 from domains.analytics.services.economic_events.population_service import EconomicEventsPopulationService
 
@@ -218,7 +218,7 @@ def main():
 
         try:
             # Try centralized system
-            from core.platform.config.environment import env
+            from core.platform.config_env.environment import env
             if env:
                 key = env.get_api_key(vendor)
                 if key:

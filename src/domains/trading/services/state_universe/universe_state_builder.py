@@ -36,8 +36,8 @@ except Exception:
 from typing import Dict, List
 import logging
 from datetime import datetime, timedelta
-from core.platform.config.environment import Environment
-from domains.trading.services.state.instrument_interval import InstrumentInterval
+from core.platform.config_env.environment import Environment
+from domains.trading.services.state_core.instrument_interval import InstrumentInterval
 from .factor_interval import FactorInterval
 from domains.trading.services.state.indicator_interval import IndicatorInterval
 from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
@@ -61,7 +61,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             target_durations: comma-separated str (e.g. '1m,5m,15m,1h,1d'), overrides Gin config if provided
             universe_state_manager: UniverseStateManager instance for shared rolling cache
         """
-        from core.platform.config.environment import Environment
+        from core.platform.config_env.environment import Environment
         from core.dao.security_reference.market_cap_dao import DailyMarketCapDAO
         from core.business.calendars.time_duration import TimeDuration
         import logging
@@ -224,7 +224,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         Called once per minute, but universe state is built separately for each timeframe
         (5m, 15m, 1h, 1d, etc.) only when that timeframe's interval is complete.
         """
-        from domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
         self.logger.debug(f"[handleInterval] Called at {current_time} - processing 1-minute interval")
         
         if not self.target_durations:
@@ -536,7 +536,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         """
         Build universe state for a single duration - extracted from original logic.
         """
-        from domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
         
         duration_to_state = {}
         d_end_time = duration.get_end_time(current_time)

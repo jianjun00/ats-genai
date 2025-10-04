@@ -41,8 +41,8 @@ import asyncpg
 import json
 from urllib.parse import urlparse
 
-from core.shared.utils.config_utils import DatabaseConfig, load_database_config
-from core.shared.utils.validation_utils import ValidationResult, validate_data_completeness
+from core.shared.utils_core.config_utils import DatabaseConfig, load_database_config
+from core.shared.utils_core.validation_utils import ValidationResult, validate_data_completeness
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +248,7 @@ class QueryBuilder:
     
     def _get_table_name(self) -> str:
         """Get environment-specific table name."""
-        from core.shared.utils.config_utils import get_table_name
+        from core.shared.utils_core.config_utils import get_table_name
         return get_table_name(self.table_name, self.environment)
 
 # =============================================================================

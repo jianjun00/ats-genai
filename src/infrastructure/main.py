@@ -184,7 +184,7 @@ async def get_configuration_info():
 async def check_db_connection() -> bool:
     try:
         # Import here to avoid circular imports
-        from core.platform.config.environment import Environment
+        from core.platform.config_env.environment import Environment
         import asyncpg
 
         # Create a new environment instance which will use the Gin config

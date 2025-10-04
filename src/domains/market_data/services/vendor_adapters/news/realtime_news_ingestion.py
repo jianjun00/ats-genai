@@ -29,7 +29,7 @@ from collections import defaultdict
 import re
 
 import asyncpg
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from domains.market_data.services.llm.enhanced_news_llm_processor import EnhancedLLMNewsProcessor, NewsAnalysisResult
 from domains.market_data.services.llm.news_llm_processor import NewsArticle
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient

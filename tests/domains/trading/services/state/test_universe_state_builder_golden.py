@@ -256,13 +256,13 @@ class TestUniverseStateBuilderGolden:
     # === SINGLE SYMBOL TESTS ===
     
     @pytest.mark.asyncio
-    async def test_single_symbol_1m_market_open_golden(self, unit_test_db, real_market_data_manager, golden_test_case, update_golden):
+    async def test_single_symbol_1m_market_open_golden(self, isolated_test_db, real_market_data_manager, golden_test_case, update_golden):
         """Test 1-minute intervals with real technical indicators using actual FirstRate data and database integration."""
         import traceback
         
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
         
         symbols = ["AAPL"]
         timeframe = "1m"
@@ -275,9 +275,9 @@ class TestUniverseStateBuilderGolden:
             # Use TEST environment with real database connection from fixture
             environment = Environment(
                 env_type=EnvironmentType.TEST,
-                db_url=unit_test_db  # Use the real test database
+                db_url=isolated_test_db  # Use the real test database
             )
-            print(f"✅ STEP 3: Environment created - {environment.env_type} with db_url={unit_test_db}")
+            print(f"✅ STEP 3: Environment created - {environment.env_type} with db_url={isolated_test_db}")
         except Exception as e:
             print(f"❌ STEP 3: Environment creation failed: {e}")
             traceback.print_exc()
@@ -287,7 +287,7 @@ class TestUniverseStateBuilderGolden:
         try:
             import asyncpg
             # Test basic DB connectivity with the test database
-            pool = await asyncpg.create_pool(unit_test_db)
+            pool = await asyncpg.create_pool(isolated_test_db)
             async with pool.acquire() as conn:
                 result = await conn.fetchval("SELECT 1")
                 print(f"✅ STEP 4: Database connectivity test passed - result={result}")
@@ -317,8 +317,8 @@ class TestUniverseStateBuilderGolden:
             builder.market_data_manager = real_market_data_manager
             
             # CRITICAL: Add IndicatorBuilder for real technical indicators
-            from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-            from domains.trading.services.indicators.indicator_config import IndicatorConfig
+            from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+            from domains.trading.services.indicator_config import IndicatorConfig
             builder.indicator_builder = IndicatorBuilder(IndicatorConfig.default_config())
             
             # DEBUG: Check if indicator_builder is set
@@ -328,8 +328,8 @@ class TestUniverseStateBuilderGolden:
             # Set up indicator builder if missing
             if builder.indicator_builder is None:
                 print("🔍 DEBUG: indicator_builder is None, creating one...")
-                from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-                from domains.trading.services.indicators.indicator_config import IndicatorConfig
+                from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+                from domains.trading.services.indicator_config import IndicatorConfig
                 
                 indicator_config = IndicatorConfig.default_config()
                 builder.indicator_builder = IndicatorBuilder(indicator_config)
@@ -377,7 +377,7 @@ class TestUniverseStateBuilderGolden:
             except Exception as e:
                 if "duplicate key" in str(e):
                     # Get existing instrument ID  
-                    pool = await asyncpg.create_pool(unit_test_db)
+                    pool = await asyncpg.create_pool(isolated_test_db)
                     try:
                         async with pool.acquire() as conn:
                             row = await conn.fetchrow("SELECT id FROM test_instrument WHERE symbol = $1", "AAPL")
@@ -416,7 +416,7 @@ class TestUniverseStateBuilderGolden:
                 print(f"      Got: {symbol_mapping}")
                 
                 # Debug the xrefs table contents
-                pool = await asyncpg.create_pool(unit_test_db)
+                pool = await asyncpg.create_pool(isolated_test_db)
                 try:
                     async with pool.acquire() as conn:
                         xrefs_rows = await conn.fetch("SELECT * FROM test_instrument_xrefs WHERE instrument_id = $1", actual_instrument_id)
@@ -553,7 +553,7 @@ class TestUniverseStateBuilderGolden:
         try:
             from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
             from domains.trading.services.state.universe_state_manager import UniverseStateManager
-            from core.platform.config.environment import Environment, EnvironmentType
+            from core.platform.config_env.environment import Environment, EnvironmentType
             print("✅ 5M STEP 1: Imports successful")
         except Exception as e:
             print(f"❌ 5M STEP 1: Import failed: {e}")
@@ -601,8 +601,8 @@ class TestUniverseStateBuilderGolden:
             builder.market_data_manager = real_market_data_manager
             
             # CRITICAL: Add IndicatorBuilder for real technical indicators
-            from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-            from domains.trading.services.indicators.indicator_config import IndicatorConfig
+            from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+            from domains.trading.services.indicator_config import IndicatorConfig
             builder.indicator_builder = IndicatorBuilder(IndicatorConfig.default_config())
             
             print("✅ 5M STEP 6: UniverseStateBuilder created for 5m timeframe")
@@ -640,9 +640,9 @@ class TestUniverseStateBuilderGolden:
         
         print("🔍 5M STEP 8: Creating synthetic 5-minute universe states")
         try:
-            from domains.trading.services.state.universe_state import UniverseStateInterval
+            from domains.trading.services.state_universe.universe_state import UniverseStateInterval
             from core.business.calendars.time_duration import TimeDuration
-            from domains.trading.services.state.instrument_interval import InstrumentInterval
+            from domains.trading.services.state_core.instrument_interval import InstrumentInterval
             
             # Create synthetic universe states for 4 consecutive 5-minute intervals
             universe_states = []
@@ -733,7 +733,7 @@ class TestUniverseStateBuilderGolden:
         """Test multi-symbol universe state building using REAL UniverseStateBuilder API."""
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
         
         symbols = ["AAPL", "TSLA"]
         timeframe = "5m"
@@ -759,8 +759,8 @@ class TestUniverseStateBuilderGolden:
         builder.market_data_manager = real_market_data_manager
         
         # Add real IndicatorBuilder for technical indicator calculations
-        from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-        from domains.trading.services.indicators.indicator_config import IndicatorConfig
+        from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+        from domains.trading.services.indicator_config import IndicatorConfig
         
         # Create indicator config from training_data.gin configuration
         indicator_config = IndicatorConfig.from_gin_config() if hasattr(IndicatorConfig, 'from_gin_config') else IndicatorConfig.default_config()
@@ -785,9 +785,9 @@ class TestUniverseStateBuilderGolden:
         real_runner = RealTestRunner(environment, 1, real_market_data_manager)
         
         # Create synthetic universe states with multi-symbol data (bypassing database issues)
-        from domains.trading.services.state.universe_state import UniverseStateInterval
+        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
         from core.business.calendars.time_duration import TimeDuration
-        from domains.trading.services.state.instrument_interval import InstrumentInterval
+        from domains.trading.services.state_core.instrument_interval import InstrumentInterval
         
         # Generate 3 consecutive 5-minute universe states with multiple symbols
         universe_states = []
@@ -908,13 +908,13 @@ class TestUniverseStateBuilderGolden:
     # === MULTIPLE INTERVALS COMPREHENSIVE TEST ===
     
     @pytest.mark.asyncio
-    async def test_multi_interval_comprehensive_golden(self, unit_test_db, real_market_data_manager, golden_test_case, update_golden):
+    async def test_multi_interval_comprehensive_golden(self, isolated_test_db, real_market_data_manager, golden_test_case, update_golden):
         """Test comprehensive multiple interval generation across different timeframes using REAL OBJECTS ONLY."""
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
-        from core.platform.config.environment import Environment, EnvironmentType
-        from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-        from domains.trading.services.indicators.indicator_config import IndicatorConfig
+        from core.platform.config_env.environment import Environment, EnvironmentType
+        from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+        from domains.trading.services.indicator_config import IndicatorConfig
         from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
         from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
         from zoneinfo import ZoneInfo
@@ -924,8 +924,8 @@ class TestUniverseStateBuilderGolden:
         timeframes = ["1m", "5m"]  # Test multiple timeframes
         base_time = datetime(2024, 8, 1, 11, 0, tzinfo=ZoneInfo("America/New_York"))
         
-        # Create real test environment with the unit_test_db connection
-        test_environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+        # Create real test environment with the isolated_test_db connection
+        test_environment = Environment(env_type=EnvironmentType.TEST, db_url=isolated_test_db)
         
         # Create REAL objects for all timeframes
         all_timeframe_results = {}
@@ -1013,7 +1013,7 @@ class TestUniverseStateBuilderGolden:
                     if "duplicate key" in str(e):
                         # Get existing instrument ID if it already exists
                         import asyncpg
-                        pool = await asyncpg.create_pool(unit_test_db)
+                        pool = await asyncpg.create_pool(isolated_test_db)
                         try:
                             async with pool.acquire() as conn:
                                 row = await conn.fetchrow("SELECT id FROM test_instrument WHERE symbol = $1", symbol)
@@ -1158,7 +1158,7 @@ if __name__ == "__main__":
         """Run a single test for development."""
         # Set up test database using migration manager
         from infrastructure.database.test_db_manager import DatabaseTestManager
-        from core.shared.utils.database import Database
+        from core.shared.database import Database
         import uuid
         
         # Create unique test database

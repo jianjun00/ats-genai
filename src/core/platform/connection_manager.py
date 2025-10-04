@@ -16,8 +16,8 @@ from sqlalchemy.pool import QueuePool
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from core.platform.config.settings import get_settings
-from core.security.exceptions.custom_exceptions import DatabaseConnectionError, DatabaseError
+from core.platform.config_core.settings import get_settings
+from core.custom_exceptions import DatabaseConnectionError, DatabaseError
 
 
 logger = logging.getLogger(__name__)

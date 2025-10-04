@@ -12,7 +12,7 @@ from datetime import date
 from infrastructure.vendor.fmp.dao.fundamentals_fmp_dao import FundamentalsFMPDAO, FMPFundamental
 from infrastructure.vendor.polygon.dao.fundamentals_polygon_dao import FundamentalsPolygonDAO, PolygonFundamental
 from infrastructure.vendor.tiingo.dao.fundamentals_tiingo_dao import FundamentalsTiingoDAO, TiingoFundamental
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 
 @pytest.fixture

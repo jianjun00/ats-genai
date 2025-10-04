@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import aiohttp
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 logger = logging.getLogger(__name__)
 

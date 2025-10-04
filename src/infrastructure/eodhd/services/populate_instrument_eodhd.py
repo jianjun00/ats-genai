@@ -2,10 +2,10 @@ import os
 import requests
 from dotenv import load_dotenv
 from datetime import datetime
-from core.platform.config.environment import Environment, EnvironmentType
-from core.shared.utils.vendor_api_keys import get_eodhd_api_key
-from core.shared.utils.database_connections import get_database_pool, get_table_name
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from core.platform.config_env.environment import Environment, EnvironmentType
+from core.shared.vendor_api_keys import get_eodhd_api_key
+from core.shared.database_connections import get_database_pool, get_table_name
+from core.shared.utils_core.backfill_framework import BackfillStats, VendorRateLimiters
 import time
 import json
 import logging
@@ -97,7 +97,7 @@ async def fetch_fundamental_data(symbol, api_key=None):
     # Let all fundamental data exceptions propagate - fail fast on data retrieval errors
 
 async def fetch_and_store_instruments(start_ticker='', ticker=None, bulk_mode=False, exchange='US'):
-    from core.shared.utils.database import Database
+    from core.shared.database import Database
 
     # Use centralized database connection logic
     try:

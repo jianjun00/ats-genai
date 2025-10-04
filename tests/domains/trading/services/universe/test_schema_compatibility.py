@@ -9,7 +9,7 @@ from unittest.mock import Mock, AsyncMock
 import asyncpg
 import os
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from domains.trading.services.universe.dynamic_modeling_universe import DynamicModelingUniverse
 
 class TestSchemaCompatibility:

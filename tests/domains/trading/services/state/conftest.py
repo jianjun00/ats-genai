@@ -9,8 +9,8 @@ import logging
 import gin
 from pathlib import Path
 
-# Import the test database fixtures so they're available to all tests in this directory
-from infrastructure.database.test_db_manager import unit_test_db_clean, unit_test_db
+# Import consolidated test database fixtures
+from core.shared.utils_core.test_database import isolated_test_db, shared_integration_db, clean_shared_db
 
 # Configure logging for tests
 logging.basicConfig(

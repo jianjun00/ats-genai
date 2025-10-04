@@ -22,7 +22,7 @@ except ImportError:
     PROMETHEUS_AVAILABLE = False
     logging.warning("prometheus_client not installed. PostgreSQL Prometheus metrics will not be available.")
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 logger = logging.getLogger(__name__)
 

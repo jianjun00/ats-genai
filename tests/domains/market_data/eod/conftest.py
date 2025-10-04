@@ -1,7 +1,7 @@
 import os
 import json
 import pytest
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.dao.infrastructure.vendors_dao import VendorsDAO
 
 @pytest.fixture(scope="function")

@@ -29,7 +29,7 @@ sys.path.append('src')
 
 try:
     from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, TimeframeType
-    from core.platform.config.environment import Environment
+    from core.platform.config_env.environment import Environment
 except ImportError:
     # Create minimal test doubles if imports fail
     class UnifiedMarketDataManager:

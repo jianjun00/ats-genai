@@ -24,7 +24,7 @@ from statistics import median
 from enum import Enum
 
 # Add src to path for imports
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 class ReconciliationDecision(Enum):
     CONSENSUS = "consensus"

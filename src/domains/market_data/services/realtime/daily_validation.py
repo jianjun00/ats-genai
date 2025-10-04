@@ -16,7 +16,7 @@ from typing import Dict, List
 from dataclasses import dataclass
 import pytz
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.business.calendars.market_calendar_utils import get_previous_trading_day
 
 logger = logging.getLogger(__name__)

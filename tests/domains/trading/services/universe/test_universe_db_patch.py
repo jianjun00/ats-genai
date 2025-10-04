@@ -31,7 +31,7 @@ async def test_get_universe_members(monkeypatch):
     async def fake_create_pool(db_url): return FakePool()
     monkeypatch.setattr('asyncpg.create_pool', fake_create_pool)
 
-    from core.platform.config.environment import Environment, EnvironmentType
+    from core.platform.config_env.environment import Environment, EnvironmentType
     from domains.trading.services.universe_db import UniverseDB
     env = Environment(env_type=EnvironmentType.TEST, db_url="postgresql://test:test@localhost:5432/test_db_patch")
     db = UniverseDB(env=env)

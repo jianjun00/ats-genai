@@ -18,8 +18,8 @@ import asyncpg
 from dataclasses import dataclass
 import numpy as np
 
-from core.shared.exceptions.base import ATSBaseException
-from core.platform.config.environment import Environment
+from core.custom_exceptions import ATSBaseException
+from core.platform.config_env.environment import Environment
 
 
 @dataclass

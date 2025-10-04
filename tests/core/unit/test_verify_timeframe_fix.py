@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import gin
 
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.business.calendars.time_duration import TimeDuration
 
 

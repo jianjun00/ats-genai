@@ -1,5 +1,5 @@
 import pytest
-from core.platform.config.environment import EnvironmentType
+from core.platform.config_env.environment import EnvironmentType
 
 # Helper to run the main logic from daily_tiingo.py (should be refactored for direct import)
 
@@ -17,7 +17,7 @@ def test_tiingo_log_fixture(log_fixture):
 @pytest.mark.asyncio
 async def test_no_prior_instrument_and_xref(unit_test_db):
     """Test when there is no prior instrument and instrument_xref entry."""
-    from core.platform.config.environment import Environment
+    from core.platform.config_env.environment import Environment
     env = Environment(env_type=EnvironmentType.TEST, db_url="postgresql://postgres:password@localhost:5432/test_db")
     # Environment no longer has a config attribute; ensure db_url is correct in constructor.
     # DB is empty: no instruments, no xrefs

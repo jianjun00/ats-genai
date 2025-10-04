@@ -17,7 +17,7 @@ import json
 # Add src to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.logging.logger_config import get_logger
 
 logger = get_logger(__name__)

@@ -52,10 +52,10 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union, Callable
 import uuid
 
-from core.database import RepositoryFactory, ConnectionManager
-from core.vendor import VendorAdapterFactory
-from core.shared.utils.config_utils import load_database_config
-from core.shared.utils.validation_utils import ValidationResult
+from core.repository import RepositoryFactory, ConnectionManager
+from core.adapters import VendorAdapterFactory
+from core.shared.utils_core.config_utils import load_database_config
+from core.shared.utils_core.validation_utils import ValidationResult
 
 logger = logging.getLogger(__name__)
 

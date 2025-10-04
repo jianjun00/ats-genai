@@ -16,7 +16,7 @@ from decimal import Decimal
 # Skip this module - interfaces not yet implemented
 pytest.skip("Analytics service interfaces module not yet implemented", allow_module_level=True)
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 
 class TestAnalyticsServiceArchitecture:

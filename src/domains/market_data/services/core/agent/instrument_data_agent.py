@@ -15,7 +15,7 @@ import traceback
 from datetime import datetime, date, time, timedelta
 from pathlib import Path
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.instruments.repositories.instrument_xrefs_dao import InstrumentXrefsDAO

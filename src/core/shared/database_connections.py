@@ -50,7 +50,7 @@ async def get_database_pool(environment: str = 'dev', max_retries: int = 3, time
     # Method 1: Try advanced Database class from codebase
     try:
         from core.config.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(env_type=EnvironmentType(environment))
         if hasattr(Database, 'create_connection_pool'):
@@ -145,7 +145,7 @@ def get_table_name(base_name: str, environment: str = 'dev') -> str:
     """
     # Try to use Environment class first
     try:
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
         env = Environment(env_type=EnvironmentType(environment))
         return env.get_table_name(base_name)
     except (ImportError, Exception):

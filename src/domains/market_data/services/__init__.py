@@ -14,7 +14,7 @@ Key Components:
 All components are feature-flag controlled for safe deployment.
 """
 
-from core.platform.config.feature_flags import is_enabled
+from core.platform.config_core.feature_flags import is_enabled
 
 # Conditionally import based on feature flags
 if is_enabled("enable_agent_networks"):

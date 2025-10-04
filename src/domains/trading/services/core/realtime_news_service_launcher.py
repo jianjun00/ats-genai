@@ -21,7 +21,7 @@ from typing import Dict, Any, Optional
 import os
 
 import asyncpg
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.config.logging import setup_logging
 from infrastructure.llm.multi_provider_client import MultiProviderLLMClient
 from domains.market_data.services.news.realtime_news_ingestion import (

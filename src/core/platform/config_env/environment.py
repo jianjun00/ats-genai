@@ -135,7 +135,7 @@ class Environment:
         self.gin_config_path = config_path
         # Import Database before parsing Gin config to register it as a configurable
         from core.config.database import Database
-        from infrastructure.vendor.polygon.config import set_polygon_api_key, POLYGON_API_KEY
+        from infrastructure.polygon.config import set_polygon_api_key, POLYGON_API_KEY
         
         # Register FastAPI and CORS config classes as gin configurables to avoid import issues
         import gin
@@ -210,7 +210,7 @@ class Environment:
                 # Parse config file with skip_unknown=True to ignore missing configurables
                 gin.parse_config_file(config_path, skip_unknown=True)
                 print(f"[GIN DEBUG] Parsed config file with skip_unknown=True")
-        from core.platform.config.logging_config import LoggingConfig
+        from core.config.logging_config import LoggingConfig
         self.logging_config = LoggingConfig()
         set_polygon_api_key()  # This will set POLYGON_API_KEY from Gin config
         print(f"[DEBUG] POLYGON_API_KEY after Gin load: {POLYGON_API_KEY}")

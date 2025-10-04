@@ -11,7 +11,7 @@ import gin
 import sys
 import logging
 import datetime as dt
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

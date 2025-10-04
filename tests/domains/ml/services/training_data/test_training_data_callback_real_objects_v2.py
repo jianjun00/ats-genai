@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 
 

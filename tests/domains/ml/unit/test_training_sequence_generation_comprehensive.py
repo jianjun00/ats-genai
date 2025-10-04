@@ -19,7 +19,7 @@ from domains.trading.services.state.universe_state_manager import UniverseStateM
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state import UniverseStateInterval, InstrumentInterval
 from core.business.calendars.time_duration import TimeDuration
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 
 @pytest.fixture

@@ -19,7 +19,7 @@ from dataclasses import dataclass
 sys.path.insert(0, '/home/jianjun/ats-genai-data/src')
 
 import gin
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 
 class TestModularGinConfiguration:

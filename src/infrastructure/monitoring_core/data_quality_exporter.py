@@ -13,7 +13,7 @@ import os
 import asyncio
 import logging
 from prometheus_client import start_http_server, Gauge, Counter, Histogram
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 import gin
 
 # Configure logging

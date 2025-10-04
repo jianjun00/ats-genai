@@ -1,7 +1,7 @@
 import pytest
 import gin
 
-from core.shared.utils.database import Database  # Import first, so Gin registers it
+from core.shared.database import Database  # Import first, so Gin registers it
 from core.config.logging_config import LoggingConfig  # Register logging config
 
 @pytest.mark.skip(reason="Gin configuration parsing conflict - app.gin already loaded in test environment")

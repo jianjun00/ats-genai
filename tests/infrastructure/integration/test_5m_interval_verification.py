@@ -212,7 +212,7 @@ class Test5MinuteIntervalVerification:
         # and verify that 5-minute features are properly calculated
         
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
-        from core.platform.config.environment import Environment
+        from core.platform.config_env.environment import Environment
         from unittest.mock import Mock
         
         # Mock environment

@@ -12,7 +12,7 @@ import json
 from datetime import date, datetime, timedelta
 from typing import Dict, Optional
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from core.config.database import get_connection_pool
 from validation.daily_price_polygon_validator import DailyPricesValidator
 from validation.missing_data_handler import MissingDataHandler
@@ -228,7 +228,7 @@ def get_api_keys_from_env() -> Dict[str, str]:
     """Get API keys using centralized management system with environment fallback."""
     try:
         # Use centralized API key management system
-        from core.platform.config.environment import env
+        from core.platform.config_env.environment import env
 
         if env:
             api_keys = {

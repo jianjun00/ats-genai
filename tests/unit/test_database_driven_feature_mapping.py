@@ -16,7 +16,7 @@ from datetime import date, datetime
 from typing import Dict, Any, List
 from unittest.mock import Mock, patch, AsyncMock
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.dao.feature_extraction_dao import (
     FeatureExtractionDAO, 
     FeatureGroup, 

@@ -22,7 +22,7 @@ from typing import List, Tuple
 
 # Use proper relative imports
 try:
-    from core.platform.config.environment import Environment
+    from core.platform.config_env.environment import Environment
 except ImportError:
     # Fallback environment configuration
     class Environment:

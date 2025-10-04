@@ -22,7 +22,7 @@ from decimal import Decimal
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from domains.trading.services.state.instrument_interval import InstrumentInterval
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.business.calendars.time_duration import TimeDuration
 
 

@@ -52,7 +52,7 @@ import asyncpg
 import json
 from typing import Dict, List, Optional, Any
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from schema.training_schema import TrainingDatasetSchema, ValidationResult
 
 
@@ -432,7 +432,7 @@ class TrainingSchemaDAO:
 
 async def create_schema_dao(environment_type: str = 'dev') -> TrainingSchemaDAO:
     """Create a TrainingSchemaDAO instance."""
-    from core.platform.config.environment import Environment, EnvironmentType
+    from core.platform.config_env.environment import Environment, EnvironmentType
 
     env_type = EnvironmentType.DEV if environment_type == 'dev' else EnvironmentType.INTG
     env = Environment(env_type=env_type)

@@ -2086,7 +2086,7 @@ class UnifiedAnalyticsService:
         logger.info(f"NEW get_economic_events method called with limit={limit}, vendor={vendor}")
         try:
             from core.platform.database.connection_manager import get_raw_connection
-            from core.platform.config.environment import Environment
+            from core.platform.config_env.environment import Environment
             import psycopg2.extras
             from datetime import datetime
             import os
@@ -9289,7 +9289,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
             try:
                 from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
-                from core.platform.config.environment import Environment
+                from core.platform.config_env.environment import Environment
 
                 # Create environment and DAO
                 environment = Environment()
@@ -9395,7 +9395,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
             try:
                 from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO
-                from core.platform.config.environment import Environment
+                from core.platform.config_env.environment import Environment
                 import array_record.python.array_record_module as array_record
 
                 # Create environment and DAO

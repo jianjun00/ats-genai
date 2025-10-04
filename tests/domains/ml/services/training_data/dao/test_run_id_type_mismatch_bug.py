@@ -14,7 +14,7 @@ import pytest
 import asyncpg
 from datetime import date
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.dao.monthly_training_data_dao import (
     MonthlyTrainingDataDAO, 
     MonthlyTrainingDataRecord

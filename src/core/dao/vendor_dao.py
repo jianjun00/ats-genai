@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, date
 from enum import Enum
 
-from core.dao.base.base_dao import BaseDAO
+from core.dao.base_dao import BaseDAO
 from core.platform.logging.logger_config import get_logger
 from core.security.exceptions.custom_exceptions import DataValidationError
 

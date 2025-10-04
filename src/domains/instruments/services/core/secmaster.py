@@ -1,4 +1,4 @@
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from domains.instruments.repositories.secmaster_dao import SecMasterDAO
 from datetime import date
 from typing import List

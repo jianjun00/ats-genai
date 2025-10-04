@@ -28,7 +28,7 @@ def test_runner_creates_unique_run_ids():
     print("=" * 45)
     
     from domains.trading.services.core.app.runner import Runner
-    from core.platform.config.environment import Environment, EnvironmentType
+    from core.platform.config_env.environment import Environment, EnvironmentType
     
     # Mock environment to avoid complex setup
     mock_env = Mock()
@@ -95,7 +95,7 @@ def test_builder_gets_proper_manager():
     
     from domains.trading.services.core.app.runner import Runner
     from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-    from core.platform.config.environment import EnvironmentType
+    from core.platform.config_env.environment import EnvironmentType
     
     # Mock environment
     mock_env = Mock()

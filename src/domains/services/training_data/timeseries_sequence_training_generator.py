@@ -24,7 +24,7 @@ except ImportError:
     TimeDuration = None
 
 try:
-    from core.platform.config.environment import Environment
+    from core.platform.config_env.environment import Environment
 except ImportError:
     Environment = None
 

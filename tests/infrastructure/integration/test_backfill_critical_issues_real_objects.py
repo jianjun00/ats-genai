@@ -15,7 +15,7 @@ and provides authentic validation of business functionality.
 import pytest
 from datetime import date, datetime, timedelta
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 
 

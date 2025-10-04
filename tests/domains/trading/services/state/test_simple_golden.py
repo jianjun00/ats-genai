@@ -17,7 +17,7 @@ async def test_simple_golden_generation(request):
         request.fixturenames.remove('gin_test_setup')
     """Simple test to generate golden file with real UniverseStateBuilder."""
     from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-    from core.platform.config.environment import Environment, EnvironmentType
+    from core.platform.config_env.environment import Environment, EnvironmentType
     from domains.market_data.services.core.unified_market_data_manager import (
         UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
     )

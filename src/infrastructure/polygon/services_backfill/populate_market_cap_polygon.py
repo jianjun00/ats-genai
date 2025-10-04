@@ -13,9 +13,9 @@ import time
 from datetime import date
 from typing import Optional, List, Dict, Any
 
-from core.platform.config.environment import Environment, EnvironmentType
-from core.shared.utils.vendor_api_keys import get_polygon_api_key
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from core.platform.config_env.environment import Environment, EnvironmentType
+from core.shared.vendor_api_keys import get_polygon_api_key
+from core.shared.utils_core.backfill_framework import BackfillStats, VendorRateLimiters
 from infrastructure.database.repositories.daily_market_cap_dao import DailyMarketCapDAO
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -84,7 +84,7 @@ async def populate_market_cap_from_polygon(
         logger.info(f"Processing specific symbols: {instrument_symbols}")
     else:
         # Get instruments with Polygon vendor symbols
-        from core.shared.utils.database import Database
+        from core.shared.database import Database
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=30.0)
 
         try:
@@ -124,7 +124,7 @@ async def populate_market_cap_from_polygon(
         logger.info(f"Processing batch {batch_start//batch_size + 1}: items {batch_start+1}-{batch_end} of {len(instrument_symbols)}")
 
         # Create connection pool for this batch
-        from core.shared.utils.database import Database
+        from core.shared.database import Database
         pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=30.0)
         DailyMarketCapDAO(env)
         batch_records = []
@@ -213,7 +213,7 @@ async def resolve_instrument_id_by_polygon_vendor(env: Environment, symbol: str)
     """
     Resolve instrument_id for a symbol using the Polygon vendor.
     """
-    from core.shared.utils.database import Database
+    from core.shared.database import Database
 
     pool = await Database.create_connection_pool(max_retries=3, initial_delay=1.0, timeout=10.0)
 

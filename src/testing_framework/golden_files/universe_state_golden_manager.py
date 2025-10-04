@@ -11,10 +11,10 @@ from datetime import datetime
 import logging
 
 from .base_golden_test_framework import BaseGoldenFileManager, BaseGoldenTestCase
-from domains.trading.services.state.universe_state import UniverseStateInterval
-from domains.trading.services.state.instrument_interval import InstrumentInterval
-from domains.trading.services.state.indicator_interval import IndicatorInterval
-from domains.trading.services.state.factor_interval import FactorInterval
+from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+from domains.trading.services.state_core.instrument_interval import InstrumentInterval
+from domains.trading.services.state_core.indicator_interval import IndicatorInterval
+from domains.trading.services.state_core.factor_interval import FactorInterval
 
 
 class UniverseStateGoldenFileManager(BaseGoldenFileManager[UniverseStateInterval]):

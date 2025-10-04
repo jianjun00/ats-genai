@@ -15,7 +15,7 @@ NO EXCEPTION CATCHING - Test must fail fast if granularity is wrong.
 import pytest
 import asyncpg
 from datetime import datetime, timedelta
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 # FIXME: tests.utils module does not exist
 # from tests.utils.test_data_setup import setup_single_symbol_test
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback

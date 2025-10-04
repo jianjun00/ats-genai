@@ -14,7 +14,7 @@ import asyncio
 import asyncpg
 from datetime import date, datetime, timedelta
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 
 class TestMarketCapResilience:

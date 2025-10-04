@@ -30,7 +30,7 @@ from domains.analytics.events.analysis.support_resistance_detector import (
     SupportResistanceDetector, SRLevel, SRTest, SREvent,
     SRType, SRLevelType, SRTestOutcome, Timeframe
 )
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.market_data.unified_manager import UnifiedMarketDataManager
 # Optional logging import
 try:

@@ -23,7 +23,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.trading.services.universe.universe_manager import UniverseManager
 
 

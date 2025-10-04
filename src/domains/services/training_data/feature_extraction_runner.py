@@ -28,7 +28,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 
 from domains.trading.services.core.app.runner import Runner
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 # Removed: SequenceStorageManager - not needed per PRD/DRD QR5 single-step architecture

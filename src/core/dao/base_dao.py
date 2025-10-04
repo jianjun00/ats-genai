@@ -10,13 +10,13 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
-from core.platform.database.connection_manager import get_session, get_async_session, get_raw_connection
-from core.platform.config.settings import get_settings
-from core.platform.logging.logger_config import get_logger
-from core.security.exceptions.custom_exceptions import (
+from core.platform.connection_manager import get_session, get_async_session, get_raw_connection
+from core.platform.config_core.settings import get_settings
+from core.platform.logger_config import get_logger
+from core.custom_exceptions import (
     DataValidationError, handle_database_error
 )
-from core.security.validation.data_validators import ValidationResult
+from core.data_validators import ValidationResult
 
 
 logger = get_logger(__name__)
@@ -57,7 +57,7 @@ class BaseDAO(ABC):
             Validation result
         """
         # Default implementation - can be overridden by subclasses
-        from core.security.validation.data_validators import ValidationResult
+        from core.data_validators import ValidationResult
         return ValidationResult(is_valid=True)
 
     # Sync operations using context managers
