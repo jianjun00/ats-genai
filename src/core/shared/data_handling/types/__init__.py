@@ -1,20 +1,34 @@
-# Models Package for ATS Platform
+#!/usr/bin/env python3
 """
-Domain models for the ATS platform.
+Attention Mechanisms for Multi-Scale Financial Time Series
 
-Contains data classes and domain objects used throughout the application,
-following Domain-Driven Design principles.
+This module provides advanced attention mechanisms for financial time series modeling,
+including cross-scale attention, hierarchical processing, and interpretable patterns.
+
+Key Components:
+- CrossScaleAttention: Multi-temporal scale attention
+- HierarchicalPositionalEncoding: Scale-aware position encoding
+- RelativePositionBias: Relative position attention bias
+- ScaleSpecificAttention: Individual scale attention
+- CrossScaleFusion: Multi-scale output fusion
 """
 
-from .exchange_models import Exchange, ExchangeEntry, ExchangeMigration
-from .instrument_models import Instrument, InstrumentXref
-from .vendor_models import Vendor
+from .cross_scale_attention import (
+    CrossScaleAttention,
+    HierarchicalPositionalEncoding,
+    RelativePositionBias,
+    ScaleSpecificAttention,
+    CrossScaleFusion,
+    AttentionConfig,
+    create_cross_scale_attention
+)
 
 __all__ = [
-    'Exchange',
-    'ExchangeEntry',
-    'ExchangeMigration',
-    'Instrument',
-    'InstrumentXref',
-    'Vendor',
+    'CrossScaleAttention',
+    'HierarchicalPositionalEncoding',
+    'RelativePositionBias',
+    'ScaleSpecificAttention',
+    'CrossScaleFusion',
+    'AttentionConfig',
+    'create_cross_scale_attention'
 ]

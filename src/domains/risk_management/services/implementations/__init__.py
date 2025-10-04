@@ -1,3 +1,0 @@
-"""
-Risk Management Service Implementations
-"""
