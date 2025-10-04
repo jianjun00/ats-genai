@@ -256,7 +256,7 @@ class TestUniverseStateBuilderGolden:
     # === SINGLE SYMBOL TESTS ===
     
     @pytest.mark.asyncio
-    async def test_single_symbol_1m_market_open_golden(self, unit_test_db, real_market_data_manager, golden_test_case, update_golden):
+    async def test_single_symbol_1m_market_open_golden(self, isolated_test_db, real_market_data_manager, golden_test_case, update_golden):
         """Test 1-minute intervals with real technical indicators using actual FirstRate data and database integration."""
         import traceback
         
@@ -275,9 +275,9 @@ class TestUniverseStateBuilderGolden:
             # Use TEST environment with real database connection from fixture
             environment = Environment(
                 env_type=EnvironmentType.TEST,
-                db_url=unit_test_db  # Use the real test database
+                db_url=isolated_test_db  # Use the real test database
             )
-            print(f"✅ STEP 3: Environment created - {environment.env_type} with db_url={unit_test_db}")
+            print(f"✅ STEP 3: Environment created - {environment.env_type} with db_url={isolated_test_db}")
         except Exception as e:
             print(f"❌ STEP 3: Environment creation failed: {e}")
             traceback.print_exc()
@@ -287,7 +287,7 @@ class TestUniverseStateBuilderGolden:
         try:
             import asyncpg
             # Test basic DB connectivity with the test database
-            pool = await asyncpg.create_pool(unit_test_db)
+            pool = await asyncpg.create_pool(isolated_test_db)
             async with pool.acquire() as conn:
                 result = await conn.fetchval("SELECT 1")
                 print(f"✅ STEP 4: Database connectivity test passed - result={result}")
@@ -377,7 +377,7 @@ class TestUniverseStateBuilderGolden:
             except Exception as e:
                 if "duplicate key" in str(e):
                     # Get existing instrument ID  
-                    pool = await asyncpg.create_pool(unit_test_db)
+                    pool = await asyncpg.create_pool(isolated_test_db)
                     try:
                         async with pool.acquire() as conn:
                             row = await conn.fetchrow("SELECT id FROM test_instrument WHERE symbol = $1", "AAPL")
@@ -416,7 +416,7 @@ class TestUniverseStateBuilderGolden:
                 print(f"      Got: {symbol_mapping}")
                 
                 # Debug the xrefs table contents
-                pool = await asyncpg.create_pool(unit_test_db)
+                pool = await asyncpg.create_pool(isolated_test_db)
                 try:
                     async with pool.acquire() as conn:
                         xrefs_rows = await conn.fetch("SELECT * FROM test_instrument_xrefs WHERE instrument_id = $1", actual_instrument_id)
@@ -908,7 +908,7 @@ class TestUniverseStateBuilderGolden:
     # === MULTIPLE INTERVALS COMPREHENSIVE TEST ===
     
     @pytest.mark.asyncio
-    async def test_multi_interval_comprehensive_golden(self, unit_test_db, real_market_data_manager, golden_test_case, update_golden):
+    async def test_multi_interval_comprehensive_golden(self, isolated_test_db, real_market_data_manager, golden_test_case, update_golden):
         """Test comprehensive multiple interval generation across different timeframes using REAL OBJECTS ONLY."""
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
@@ -924,8 +924,8 @@ class TestUniverseStateBuilderGolden:
         timeframes = ["1m", "5m"]  # Test multiple timeframes
         base_time = datetime(2024, 8, 1, 11, 0, tzinfo=ZoneInfo("America/New_York"))
         
-        # Create real test environment with the unit_test_db connection
-        test_environment = Environment(env_type=EnvironmentType.TEST, db_url=unit_test_db)
+        # Create real test environment with the isolated_test_db connection
+        test_environment = Environment(env_type=EnvironmentType.TEST, db_url=isolated_test_db)
         
         # Create REAL objects for all timeframes
         all_timeframe_results = {}
@@ -1013,7 +1013,7 @@ class TestUniverseStateBuilderGolden:
                     if "duplicate key" in str(e):
                         # Get existing instrument ID if it already exists
                         import asyncpg
-                        pool = await asyncpg.create_pool(unit_test_db)
+                        pool = await asyncpg.create_pool(isolated_test_db)
                         try:
                             async with pool.acquire() as conn:
                                 row = await conn.fetchrow("SELECT id FROM test_instrument WHERE symbol = $1", symbol)
