@@ -8,7 +8,7 @@ from datetime import datetime
 
 # Use TYPE_CHECKING to avoid circular import
 if TYPE_CHECKING:
-    from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+    from domains.trading.services.state.universe_state import UniverseStateInterval
 
 class UniverseStateIntervalDAO:
     # ... existing methods ...
@@ -20,7 +20,7 @@ class UniverseStateIntervalDAO:
         fully populated UniverseStateInterval.
         """
         from core.calendars.time_duration import TimeDuration
-        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         from domains.trading.services.state_core.instrument_interval import InstrumentInterval
         from domains.trading.services.state.indicator_interval import IndicatorInterval
         from domains.trading.services.state.factor_interval import FactorInterval
@@ -83,7 +83,7 @@ class UniverseStateIntervalDAO:
                 instrument_intervals={}  # Extend if schema supports nested instrument intervals
             ))
         # Import at runtime to avoid circular dependency
-        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
 
         return UniverseStateInterval(
             universe_id=row.get('universe_id'),
@@ -96,7 +96,7 @@ class UniverseStateIntervalDAO:
         )
     def _row_to_interval(self, row: dict):
         from core.calendars.time_duration import TimeDuration
-        from domains.trading.services.state_universe.universe_state import UniverseStateInterval
+        from domains.trading.services.state.universe_state import UniverseStateInterval
         from datetime import datetime
         # Parse duration
         duration = TimeDuration(row['duration'])
