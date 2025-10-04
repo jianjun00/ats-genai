@@ -3,13 +3,13 @@ import asyncio
 import requests
 import time
 from datetime import datetime, date
-from core.platform.config.environment import Environment, EnvironmentType
-from core.shared.utils.vendor_api_keys import get_tiingo_api_key
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
-from core.shared.utils.http_response_handlers import handle_vendor_response
-from core.shared.utils.data_transformers import transform_vendor_dividend, parse_vendor_date
-from core.shared.utils.validation_utils import validate_dividend_data, validate_date_range
-from core.shared.utils.config_utils import get_api_key_with_fallback
+from core.platform.config_env.environment import Environment, EnvironmentType
+from core.shared.vendor_api_keys import get_tiingo_api_key
+from core.shared.utils_core.backfill_framework import BackfillStats, VendorRateLimiters
+from core.shared.utils_core.http_response_handlers import handle_vendor_response
+from core.shared.data_transformers import transform_vendor_dividend, parse_vendor_date
+from core.shared.utils_core.validation_utils import validate_dividend_data, validate_date_range
+from core.shared.utils_core.config_utils import get_api_key_with_fallback
 from infrastructure.database.repositories.dividend_tiingo_dao import DividendTiingoDAO
 import asyncpg
 

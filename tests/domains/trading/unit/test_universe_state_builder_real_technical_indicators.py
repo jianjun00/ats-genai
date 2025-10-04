@@ -34,7 +34,7 @@ class TestUniverseStateBuilderRealTechnicalIndicators:
     @pytest.fixture
     def real_environment(self):
         """Create real environment instance."""
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
         return Environment(gin_config_path=None, env_type=EnvironmentType.TEST)
 
     @pytest.fixture

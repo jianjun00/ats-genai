@@ -31,7 +31,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from domains.trading.services.state.universe_state import UniverseStateInterval
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from core.business.calendars.time_duration import TimeDuration
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 
 @pytest.mark.asyncio

@@ -36,7 +36,7 @@ except Exception:
 from typing import Dict, List
 import logging
 from datetime import datetime, timedelta
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from .factor_interval import FactorInterval
 from domains.trading.services.state.indicator_interval import IndicatorInterval
@@ -61,7 +61,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             target_durations: comma-separated str (e.g. '1m,5m,15m,1h,1d'), overrides Gin config if provided
             universe_state_manager: UniverseStateManager instance for shared rolling cache
         """
-        from core.platform.config.environment import Environment
+        from core.platform.config_env.environment import Environment
         from core.dao.security_reference.market_cap_dao import DailyMarketCapDAO
         from core.business.calendars.time_duration import TimeDuration
         import logging

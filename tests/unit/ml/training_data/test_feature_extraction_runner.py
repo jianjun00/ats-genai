@@ -19,7 +19,7 @@ async def test_register_feature_extraction_run_id_defined():
         register_training_dataset,
         register_feature_extraction
     )
-    from core.platform.config.environment import Environment, EnvironmentType
+    from core.platform.config_env.environment import Environment, EnvironmentType
     
     # Create test environment
     environment = Environment(None, EnvironmentType.TEST)

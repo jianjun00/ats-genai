@@ -11,13 +11,14 @@ from datetime import datetime
 
 from core.platform.config_env.environment import Environment, EnvironmentType
 from core.unified_service_framework import TradingPlatformService
-from ...repositories.universe_dao import UniverseDAO
-from ...repositories.universe_membership_dao import UniverseMembershipDAO
-from ...repositories.factor_interval_dao import FactorIntervalDAO
+# Interfaces consolidated into unified service framework
+from domains.trading.repositories.universe_dao import UniverseDAO
+from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
+from domains.trading.repositories.factor_interval_dao import FactorIntervalDAO
 
 # Optional universe state interval DAO import with fallback
 try:
-    from ...repositories.universe_state_interval_dao import UniverseStateIntervalDAO
+    from domains.trading.repositories.universe_state_interval_dao import UniverseStateIntervalDAO
 except ImportError:
     UniverseStateIntervalDAO = None
 
@@ -96,7 +97,7 @@ class TradingServiceContainer:
             self.logger.error(f"Failed to initialize TradingServiceContainer: {e}")
             raise
     
-    async def get_service(self) -> TradingServiceInterface:
+    async def get_service(self) -> TradingPlatformService:
         """Get the TradingService instance"""
         if not self._initialized:
             await self.initialize()
@@ -171,7 +172,7 @@ def get_trading_service_container(environment: Optional[Environment] = None) -> 
     return _containers[env_type]
 
 
-async def get_trading_service(environment: Optional[Environment] = None) -> TradingServiceInterface:
+async def get_trading_service(environment: Optional[Environment] = None) -> TradingPlatformService:
     """
     Get a TradingService instance for the given environment.
     

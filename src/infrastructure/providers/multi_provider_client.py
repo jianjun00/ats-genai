@@ -19,7 +19,7 @@ from enum import Enum
 import hashlib
 import redis.asyncio as redis
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.security.exceptions.custom_exceptions import ATSBaseException
 
 

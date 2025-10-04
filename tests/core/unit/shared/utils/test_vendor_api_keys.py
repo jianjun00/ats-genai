@@ -15,7 +15,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent / 'src'))
 
-from core.shared.utils.vendor_api_keys import (
+from core.shared.vendor_api_keys import (
     get_vendor_api_key,
     get_all_vendor_api_keys,
     validate_vendor_api_key,

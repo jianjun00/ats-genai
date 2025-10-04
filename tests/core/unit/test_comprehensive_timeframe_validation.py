@@ -10,7 +10,7 @@ import pytest
 import asyncio
 import asyncpg
 import os
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 @pytest.mark.asyncio
 async def test_comprehensive_multi_timeframe_training_data_pipeline(unit_test_db):

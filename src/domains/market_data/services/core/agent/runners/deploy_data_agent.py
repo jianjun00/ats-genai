@@ -12,7 +12,7 @@ import argparse
 import json
 
 import asyncpg
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 from market_data.agent.mcp_integration import MCPToolRegistry
 

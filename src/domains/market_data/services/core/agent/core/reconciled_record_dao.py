@@ -1,6 +1,6 @@
 from typing import List, Optional
 from domains.market_data.services.agent.models import ReconciledRecord
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 import asyncpg
 import json
 

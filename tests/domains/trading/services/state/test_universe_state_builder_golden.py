@@ -262,7 +262,7 @@ class TestUniverseStateBuilderGolden:
         
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
         
         symbols = ["AAPL"]
         timeframe = "1m"
@@ -553,7 +553,7 @@ class TestUniverseStateBuilderGolden:
         try:
             from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
             from domains.trading.services.state.universe_state_manager import UniverseStateManager
-            from core.platform.config.environment import Environment, EnvironmentType
+            from core.platform.config_env.environment import Environment, EnvironmentType
             print("✅ 5M STEP 1: Imports successful")
         except Exception as e:
             print(f"❌ 5M STEP 1: Import failed: {e}")
@@ -733,7 +733,7 @@ class TestUniverseStateBuilderGolden:
         """Test multi-symbol universe state building using REAL UniverseStateBuilder API."""
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
         
         symbols = ["AAPL", "TSLA"]
         timeframe = "5m"
@@ -912,7 +912,7 @@ class TestUniverseStateBuilderGolden:
         """Test comprehensive multiple interval generation across different timeframes using REAL OBJECTS ONLY."""
         from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
         from domains.trading.services.state.universe_state_manager import UniverseStateManager
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.platform.config_env.environment import Environment, EnvironmentType
         from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
         from domains.trading.services.indicators.indicator_config import IndicatorConfig
         from core.dao.instruments.instrument_xrefs_dao import InstrumentXrefsDAO
@@ -1158,7 +1158,7 @@ if __name__ == "__main__":
         """Run a single test for development."""
         # Set up test database using migration manager
         from infrastructure.database.test_db_manager import DatabaseTestManager
-        from core.shared.utils.database import Database
+        from core.shared.database import Database
         import uuid
         
         # Create unique test database

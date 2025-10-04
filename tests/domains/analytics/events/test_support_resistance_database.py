@@ -13,7 +13,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 class TestSupportResistanceDatabase:
     """Test database schema and operations for S/R system"""

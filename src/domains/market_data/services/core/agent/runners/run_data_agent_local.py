@@ -11,7 +11,7 @@ import argparse
 from datetime import datetime, date, timedelta
 
 import asyncpg
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 from market_data.agent.data_agent_orchestrator import DataAgentOrchestrator
 from market_data.agent.polygon_adapter import PolygonAdapter

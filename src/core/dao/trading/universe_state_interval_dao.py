@@ -3,7 +3,7 @@ from .instrument_indicator_interval_dao import InstrumentIndicatorIntervalDAO
 from .factor_interval_dao import FactorIntervalDAO
 import asyncpg
 from typing import Optional, Dict, TYPE_CHECKING
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from datetime import datetime
 
 # Use TYPE_CHECKING to avoid circular import

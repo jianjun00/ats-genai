@@ -5,7 +5,7 @@ This module provides environment-specific configuration management with support 
 test, integration, and production environments.
 """
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 __all__ = [
     "Environment",

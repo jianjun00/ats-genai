@@ -3,7 +3,7 @@ from typing import List, Optional
 import pytz
 
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.market_data.services.core.market_data_manager import MarketDataManager
 from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, LegacyMarketDataManager
 from domains.instruments.services.secmaster.security_master import SecurityMaster

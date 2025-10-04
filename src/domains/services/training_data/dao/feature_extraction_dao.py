@@ -19,7 +19,7 @@ from datetime import date, datetime
 from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass, field
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 
 @dataclass

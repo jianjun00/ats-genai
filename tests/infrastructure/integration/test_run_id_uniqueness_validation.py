@@ -38,7 +38,7 @@ sys.path.insert(0, '/home/jianjun/ats-genai-admin/src')
 # Set environment to skip gin loading
 os.environ['GIN_LOAD_DEFAULT_CONFIG'] = '0'
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from core.shared.run_context import RunContext
 
 

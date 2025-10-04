@@ -1,4 +1,4 @@
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from core.dao.analytics.events_dao import EventsDAO
 from domains.instruments.services.config.service_container import get_instrument_service
 from .schemas import EventIn
@@ -27,7 +27,7 @@ async def insert_event(event: EventIn):
 
 async def create_analytics_event(env: Environment, event_type: str, symbol: str, data: dict):
     """Create analytics event with instrument resolution via service"""
-    from core.shared.utils.database import Database
+    from core.shared.database import Database
     import json
     from datetime import datetime
     

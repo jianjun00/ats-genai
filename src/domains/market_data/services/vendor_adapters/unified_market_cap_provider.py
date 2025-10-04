@@ -24,7 +24,7 @@ import asyncpg
 import logging
 import statistics
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from domains.market_data.services.fundamentals.unified_fundamental_provider import (
     UnifiedFundamentalProvider
 )

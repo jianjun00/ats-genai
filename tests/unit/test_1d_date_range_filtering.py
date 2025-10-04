@@ -17,7 +17,7 @@ from datetime import date, datetime, timedelta
 from typing import Dict, Any, List
 import array_record.python.array_record_module as array_record
 
-from core.platform.config.environment import Environment, EnvironmentType  
+from core.platform.config_env.environment import Environment, EnvironmentType  
 from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
 
 

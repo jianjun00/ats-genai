@@ -51,8 +51,8 @@ import pandas as pd
 import requests
 import aiohttp
 
-from core.shared.utils.math_utils import calculate_vwap, calculate_returns
-from core.shared.utils.validation_utils import ValidationResult, validate_data_completeness
+from core.shared.utils_core.math_utils import calculate_vwap, calculate_returns
+from core.shared.utils_core.validation_utils import ValidationResult, validate_data_completeness
 
 logger = logging.getLogger(__name__)
 

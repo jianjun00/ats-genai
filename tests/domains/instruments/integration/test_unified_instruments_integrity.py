@@ -138,8 +138,8 @@ class TestUnifiedInstrumentCreation:
     async def test_unified_strategy_creation(self):
         """Test creation of comprehensive unification strategy"""
         from scripts.unified_instrument_population import UnifiedInstrumentPopulator
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -166,8 +166,8 @@ class TestDataIntegrityValidation:
     @pytest.mark.asyncio
     async def test_price_data_instrument_integrity(self):
         """Test referential integrity between price data and instruments"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -210,8 +210,8 @@ class TestDataIntegrityValidation:
     @pytest.mark.asyncio
     async def test_vendor_data_consistency(self):
         """Test consistency across vendor-specific instrument tables"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -280,8 +280,8 @@ class TestDataIntegrityValidation:
     @pytest.mark.asyncio
     async def test_unified_instrument_completeness(self):
         """Test completeness of unified instrument population"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -323,8 +323,8 @@ class TestDataQualityMetrics:
     @pytest.mark.asyncio
     async def test_instrument_data_completeness(self):
         """Test completeness of instrument data fields"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -361,8 +361,8 @@ class TestDataQualityMetrics:
     @pytest.mark.asyncio
     async def test_price_data_coverage(self):
         """Test coverage and quality of price data"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -411,8 +411,8 @@ class TestDataQualityMetrics:
     @pytest.mark.asyncio
     async def test_news_data_quality(self):
         """Test quality and coverage of news data"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -443,8 +443,8 @@ class TestSystemPerformance:
     @pytest.mark.asyncio
     async def test_query_performance(self):
         """Test performance of common queries"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -485,8 +485,8 @@ class TestSystemPerformance:
     @pytest.mark.asyncio
     async def test_index_effectiveness(self):
         """Test effectiveness of database indexes"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -526,8 +526,8 @@ class TestEndToEndDataFlow:
     @pytest.mark.asyncio
     async def test_complete_data_pipeline(self):
         """Test end-to-end data pipeline functionality"""
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=30.0)

@@ -195,8 +195,8 @@ class TestDatabaseSchema:
     async def test_fundamentals_table_creation(self):
         """Test creation of fundamentals table with proper schema"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -238,8 +238,8 @@ class TestDatabaseSchema:
     async def test_record_insertion_and_retrieval(self, sample_standardized_financial):
         """Test insertion and retrieval of financial records"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -269,8 +269,8 @@ class TestDatabaseSchema:
     async def test_duplicate_handling(self, sample_standardized_financial):
         """Test proper handling of duplicate records (upsert behavior)"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=10.0)
@@ -434,8 +434,8 @@ class TestEndToEndIntegration:
     async def test_complete_collection_workflow(self):
         """Test complete fundamentals collection workflow"""
         from scripts.simple_polygon_fundamentals_backfill import SimplePolygonFundamentalsCollector
-        from core.shared.utils.database import Database
-        from core.platform.config.environment import Environment, EnvironmentType
+        from core.shared.database import Database
+        from core.platform.config_env.environment import Environment, EnvironmentType
 
         env = Environment(EnvironmentType.DEV)
         pool = await Database.create_connection_pool(env=env, timeout=30.0)

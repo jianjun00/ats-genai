@@ -29,7 +29,7 @@ import array_record.python.array_record_module as array_record
 import sys
 sys.path.insert(0, '/workspace/src')
 
-from core.shared.utils.database_connections import get_database_pool
+from core.shared.database_connections import get_database_pool
 
 
 @pytest.mark.asyncio

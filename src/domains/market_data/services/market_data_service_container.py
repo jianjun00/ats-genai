@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from ..interfaces.market_data_service_interface import MarketDataServiceInterface
 from ..impl.market_data_service_impl import MarketDataServiceImpl
 from ...repositories.daily_price_polygon_dao import DailyPriceDAO

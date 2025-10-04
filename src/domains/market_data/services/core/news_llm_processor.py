@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from core.shared.exceptions.base import ATSBaseException
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 
 @dataclass

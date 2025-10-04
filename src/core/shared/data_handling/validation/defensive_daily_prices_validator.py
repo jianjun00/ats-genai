@@ -26,10 +26,10 @@ import json
 
 # Defensive imports with graceful degradation
 try:
-    from core.platform.config.environment import Environment
+    from core.platform.config_env.environment import Environment
 except ImportError:
     try:
-        from core.platform.config.environment import Environment
+        from core.platform.config_env.environment import Environment
     except ImportError:
         # Emergency environment class for system stability
         class Environment:

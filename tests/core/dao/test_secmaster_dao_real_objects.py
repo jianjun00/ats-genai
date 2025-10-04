@@ -13,7 +13,7 @@ from domains.instruments.repositories.secmaster_dao import SecMasterDAO
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 
 @pytest.fixture

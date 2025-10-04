@@ -15,8 +15,8 @@ from fastapi import FastAPI, Depends, Query, Path, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from core.platform.config.environment import Environment
-from core.shared.utils.database import Database
+from core.platform.config_env.environment import Environment
+from core.shared.database import Database
 
 # All configuration must use real database connections
 

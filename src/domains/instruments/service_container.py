@@ -8,7 +8,7 @@ This is the only place where service implementations are wired to their dependen
 from typing import Dict, Any
 import logging
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 # Service interfaces
 from domains.instruments.services.interfaces.instrument_service_interface import InstrumentServiceInterface

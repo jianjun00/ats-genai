@@ -20,9 +20,9 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'src'))
 
 # Import shared utilities
-from core.shared.utils.vendor_api_keys import get_polygon_api_key
-from core.shared.utils.database_connections import get_database_pool, get_table_name
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from core.shared.vendor_api_keys import get_polygon_api_key
+from core.shared.database_connections import get_database_pool, get_table_name
+from core.shared.utils_core.backfill_framework import BackfillStats, VendorRateLimiters
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -442,7 +442,7 @@ async def main():
     args = parser.parse_args()
 
     # Setup environment
-    from core.platform.config.environment import Environment
+    from core.platform.config_env.environment import Environment
     env = Environment(gin_config_path=args.gin_config)
 
     # Get API keys

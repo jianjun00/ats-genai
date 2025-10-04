@@ -45,7 +45,7 @@ async def insert_dividends_polygon(dividends, ticker, dao=None):
             await dao.insert_dividend(dividend_row)
 
 from infrastructure.vendor.polygon.dao.instrument_polygon_dao import InstrumentPolygonDAO
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 import argparse
 
 async def main():

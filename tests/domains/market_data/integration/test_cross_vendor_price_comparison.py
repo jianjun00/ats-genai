@@ -28,7 +28,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 from domains.market_data.services.core.reconciliation.majority_voting_reconciler import (
     MajorityVotingReconciler,
     VendorPrice

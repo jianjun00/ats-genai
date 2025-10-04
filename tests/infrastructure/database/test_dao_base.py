@@ -40,7 +40,7 @@ import pytest
 from unittest.mock import AsyncMock
 from domains.trading.repositories.universe_dao import UniverseDAO
 from domains.trading.repositories.universe_membership_dao import UniverseMembershipDAO
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from datetime import date
 
 @pytest.mark.asyncio

@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 import logging
 import asyncio
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 from domains.trading.services.state.universe_state import UniverseStateInterval
 from domains.trading.services.state.universe_state_manager import UniverseStateManager

@@ -19,7 +19,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 from domains.trading.services.state.instrument_interval import InstrumentInterval
 from domains.trading.services.state.universe_state import UniverseStateInterval
 from core.business.calendars.time_duration import TimeDuration
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 # FIXME: tests.utils module does not exist
 # from tests.utils.test_data_setup import setup_single_symbol_test
 import asyncpg

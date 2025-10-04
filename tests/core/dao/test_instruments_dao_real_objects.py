@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import List, Dict
 
 from domains.instruments.repositories.instruments_dao import InstrumentsDAO
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 
 @pytest.fixture

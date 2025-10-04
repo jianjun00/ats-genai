@@ -28,7 +28,7 @@ import json
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from core.shared.utils.database import get_database_pool
+from core.shared.database import get_database_pool
 
 class NewsDataMonitor:
     """Production monitoring for news data health"""

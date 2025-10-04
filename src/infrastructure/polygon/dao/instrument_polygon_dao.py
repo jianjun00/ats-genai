@@ -1,4 +1,4 @@
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 import asyncpg
 
 class InstrumentPolygonDAO:

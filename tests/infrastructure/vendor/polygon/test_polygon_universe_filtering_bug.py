@@ -12,7 +12,7 @@ import pytest
 import asyncpg
 from datetime import date
 
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 
 async def test_polygon_universe_filtering_bug_reproduction():

@@ -8,7 +8,7 @@ Train Data Generator using IndicatorRunner
 """
 from app.indicator_runner import IndicatorRunner
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
-from core.platform.config.environment import Environment, EnvironmentType
+from core.platform.config_env.environment import Environment, EnvironmentType
 
 # --- CONFIG ---
 LAG_STEPS = 10

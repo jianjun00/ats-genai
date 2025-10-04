@@ -2,10 +2,10 @@ import os
 import requests
 from dotenv import load_dotenv
 from datetime import datetime
-from core.platform.config.environment import Environment, EnvironmentType
-from core.shared.utils.vendor_api_keys import get_tiingo_api_key
-from core.shared.utils.database_connections import get_database_pool, get_table_name
-from core.shared.utils.backfill_framework import BackfillStats, VendorRateLimiters
+from core.platform.config_env.environment import Environment, EnvironmentType
+from core.shared.vendor_api_keys import get_tiingo_api_key
+from core.shared.database_connections import get_database_pool, get_table_name
+from core.shared.utils_core.backfill_framework import BackfillStats, VendorRateLimiters
 import time
 from requests.exceptions import ConnectionError
 import json

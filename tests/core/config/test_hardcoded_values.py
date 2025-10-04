@@ -13,7 +13,7 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
-from core.platform.config.environment import Environment
+from core.platform.config_env.environment import Environment
 
 class TestHardcodedValues:
     """Test cases for hardcoded values that will be moved to gin config"""
