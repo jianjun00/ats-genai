@@ -100,7 +100,7 @@ class TestVerifyTimeframeFix:
         
         # Load the gin configuration like the training data runner would
         gin.clear_config()
-        gin.parse_config_file('/home/jianjun/ats-genai-admin/config/training_data.gin')
+        gin.parse_config_file('/home/jianjun/ats-genai-data/config/feature_extraction.gin')
         
         with patch('domains.trading.services.state.universe_state_manager.UniverseStateManager') as mock_manager_class:
             mock_manager = Mock()

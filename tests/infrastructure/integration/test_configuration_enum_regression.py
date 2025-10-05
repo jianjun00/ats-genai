@@ -94,8 +94,8 @@ class TestGinConfigurationRegression:
     def test_gin_config_file_loading(self):
         """Test Gin configuration file can be loaded without errors."""
         
-        # Test loading the actual training_data.gin file
-        gin_config_path = "config/training_data.gin"
+        # Test loading the actual feature_extraction.gin file
+        gin_config_path = "config/feature_extraction.gin"
         
         import gin
         
@@ -120,7 +120,7 @@ class TestGinConfigurationRegression:
     def test_gin_config_parameter_validation(self):
         """Test Gin configuration parameters are valid."""
         
-        # Test the parameters that should be in training_data.gin
+        # Test the parameters that should be in feature_extraction.gin
         expected_parameters = {
             'base_interval_minutes': 1,
             'training_interval_minutes': 60,

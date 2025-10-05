@@ -72,7 +72,7 @@ async def test_simple_golden_generation(request):
     from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
     from domains.trading.services.indicators.indicator_config import IndicatorConfig
     
-    # Create indicator config from training_data.gin configuration
+    # Create indicator config from feature_extraction.gin configuration
     indicator_config = IndicatorConfig.from_gin_config() if hasattr(IndicatorConfig, 'from_gin_config') else IndicatorConfig.default_config()
     builder.indicator_builder = IndicatorBuilder(indicator_config)
     

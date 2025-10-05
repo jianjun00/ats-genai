@@ -137,7 +137,7 @@ async def test_aapl_training_data_generation():
         "--storage-format", "arrayrecord",
         "--output-dir", "/data/training_data",
         "--debug",
-        "--gin-config", "config/training_data.gin",
+        "--gin-config", "config/feature_extraction.gin",
         "--base-duration", "60m"
     ]
     

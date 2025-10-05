@@ -79,7 +79,7 @@ TIMEFRAMES = ["5m", "15m", "1h", "1d", "1w"]  # All supported aggregations (1w m
 # File Paths
 INPUT_PATH = "/mnt/d/ats-data/minute-bars/firstrate/"
 OUTPUT_PATH = "/data/training_data/"
-CONFIG_PATH = "config/training_data.gin"
+CONFIG_PATH = "config/feature_extraction.gin"
 ```
 
 ### **Database Schema**

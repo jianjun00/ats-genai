@@ -298,8 +298,8 @@ class TestMultiTimeframeUniverseStateManager:
         assert (result['low'] <= result['close']).all(), "Low prices should be <= close prices"
 
     def test_get_lag_prices_gin_config_compliance(self):
-        """Test compliance with training_data.gin configuration."""
-        # Test the exact configurations from training_data.gin
+        """Test compliance with feature_extraction.gin configuration."""
+        # Test the exact configurations from feature_extraction.gin
         gin_configs = {
             '5m': 52,   # Past 52 x 5-minute intervals (4.3 hours)
             '15m': 52,  # Past 52 x 15-minute intervals (13 hours)

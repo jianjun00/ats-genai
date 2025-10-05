@@ -6,7 +6,7 @@ Simple validation script to test if our enhanced implementation generates proper
 def test_enhanced_implementation_multi_timeframe_features():
     """Test that our enhanced implementation has proper multi-timeframe features."""
 
-    # Expected timeframes from training_data.gin
+    # Expected timeframes from feature_extraction.gin
     expected_timeframes = ['5m', '15m', '1h', '1d', '1w']
 
     # Simulate ENHANCED implementation output (what our updated training_data_job_runner.py should generate)
@@ -118,12 +118,12 @@ def test_enhanced_implementation_multi_timeframe_features():
     return validation_passed
 
 def test_gin_configuration_compliance():
-    """Test compliance with training_data.gin configuration."""
+    """Test compliance with feature_extraction.gin configuration."""
 
     print("\n🔍 GIN CONFIGURATION COMPLIANCE CHECK")
     print("=" * 60)
 
-    # Expected from training_data.gin
+    # Expected from feature_extraction.gin
     expected_gin_config = {
         'base_interval_minutes': 1,
         'training_interval_minutes': 60,
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     if feature_test_passed and gin_test_passed:
         print("🎉 ALL TESTS PASSED!")
         print("✅ Enhanced implementation ready for multi-timeframe training data generation")
-        print("✅ Compliance with training_data.gin configuration validated")
+        print("✅ Compliance with feature_extraction.gin configuration validated")
         print("✅ Ready to generate training data for AAPL and TSLA")
     else:
         print("💥 TESTS FAILED!")

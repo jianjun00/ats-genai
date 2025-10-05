@@ -139,12 +139,12 @@ def validate_training_data_job_runner():
     return passed == total
 
 def validate_gin_configuration():
-    """Validate training_data.gin configuration."""
+    """Validate feature_extraction.gin configuration."""
 
     print("\n🔍 VALIDATING GIN CONFIGURATION")
     print("=" * 50)
 
-    file_path = "config/training_data.gin"
+    file_path = "config/feature_extraction.gin"
 
     if not os.path.exists(file_path):
         print(f"❌ File not found: {file_path}")
