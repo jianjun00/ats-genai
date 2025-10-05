@@ -58,7 +58,7 @@ def test_comprehensive_indicator_extraction():
     print("=" * 70)
 
     # Load gin configuration to include BXTrender indicators
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'feature_extraction.gin')
     gin.parse_config_file(config_path)
     print(f"📋 Loaded gin config from: {config_path}")
     data = generate_comprehensive_test_data(100)
@@ -170,7 +170,7 @@ def create_visualization_training_sample():
     print("=" * 70)
 
     # Load gin configuration to include BXTrender indicators
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'feature_extraction.gin')
     gin.parse_config_file(config_path)
     data = generate_comprehensive_test_data(50)
     config = TrainingDataConfig()
@@ -225,7 +225,7 @@ def test_edge_cases():
     print("=" * 70)
 
     # Load gin configuration to include BXTrender indicators
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'training_data.gin')
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'feature_extraction.gin')
     gin.parse_config_file(config_path)
     config = TrainingDataConfig()
     extractor = MultiTimeframeFeatureExtractor(config)

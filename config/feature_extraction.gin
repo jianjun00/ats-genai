@@ -1,36 +1,49 @@
-# Minimal clean gin config for feature extraction
-# No includes, no defaults, no fallbacks - explicit configuration only
+# Gin configuration for multi-timeframe training data generation
+# Uses 1-minute base intervals with multi-timeframe sequences
 
-# Training Data Configuration
+# Training Data Configuration - Using full module path
 domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
+domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
 
-# Technical Indicators Signal Names
+# Note: Timeframes are automatically obtained from UniverseStateIntervalBuilder.target_durations
+# This ensures consistency between universe state building and training data generation
+
+# Note: Smart money zones timeframes would be configured when that module is available
+# domains.trading.services.indicators.smart_money_zones.MultiTimeframeAnalysis.timeframes = ['5m', '15m', '1h', '4h']
+
+# Technical Indicators Signal Names Configuration
 domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
-    "etop", "ebot", "pldot",
-    "envelope_top", "envelope_bot",
-    "z1b", "z2b", "z5t", "z6t",
-    "sma_20", "ema_12", "rsi_14",
-    "macd_line", "macd_signal",
-    "bb_upper", "bb_lower", "bb_middle"
+    "etop", "ebot", "pldot",           # Envelope indicators
+    "envelope_top", "envelope_bot",    # Alternative envelope names
+    "z1b", "z2b", "z5t", "z6t",       # Z-level indicators
+    "sma_20", "ema_12", "rsi_14",     # Traditional technical indicators
+    "macd_line", "macd_signal",       # MACD indicators
+    "bb_upper", "bb_lower", "bb_middle" # Bollinger bands
 ]
 
-# Feature Types
+# Feature Types Configuration
 domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = [
-    "ohlcv",
-    "returns",
-    "volatility",
-    "volume_profile",
-    "technical",
-    "indicators",
-    "support_resistance",
-    "market_structure"
+    "ohlcv",           # Open, High, Low, Close, Volume
+    "returns",         # Price returns
+    "volatility",      # Volatility measures
+    "volume_profile",  # Volume-based features
+    "technical",       # Technical indicators (computed locally)
+    "indicators",      # Pre-computed indicators from IndicatorBuilder
+    "support_resistance", # Support/resistance level analysis
+    "market_structure"    # Support/resistance, trends
 ]
 
-# Universe State Builder - Multi-timeframe processing
-domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m,15m,60m,1d,1w'
+# Universe State Builder Configuration - Multi-timeframe processing
+domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m,15m,60m,1d'
 domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
 
-# Runner Configuration
-domains.trading.services.core.app.runner.Runner.base_duration = '5m'
-
-# Note: IndicatorBuilder will auto-create indicators from signal_names when instantiated without config
+# Note: Trading hours configuration would be configured when that module is available
+# Trading Hours Configuration (Market Timezone)  
+# Default: Regular trading hours 9:35 AM - 4:00 PM Eastern Time
+# This prevents training data generation outside market hours
+# services.core.app.runner.Runner.trading_start_hour = 9     # 9:35 AM Eastern Time
+# services.core.app.runner.Runner.trading_start_minute = 35
+# services.core.app.runner.Runner.trading_end_hour = 16     # 4:00 PM Eastern Time
+# services.core.app.runner.Runner.trading_end_minute = 0
+# services.core.app.runner.Runner.timezone = 'America/New_York'  # Handles EDT/EST conversion automatically
+# services.core.app.runner.Runner.enable_trading_hours_filter = True

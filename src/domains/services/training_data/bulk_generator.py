@@ -35,7 +35,7 @@ class BulkGenerationTask:
             '--environment', self.environment,
             '--storage-format', 'arrayrecord',
             '--output-dir', output_dir,
-            '--gin-config', 'config/training_data.gin',
+            '--gin-config', 'config/feature_extraction.gin',
             '--base-duration', self.base_duration
         ]
 
