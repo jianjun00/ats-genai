@@ -291,12 +291,22 @@ class TestFeatureExtractionRunnerGolden:
             env = Environment()
             
             with tempfile.TemporaryDirectory() as temp_dir:
-                # Configure feature types for training data generation
+                # Use existing gin configuration 
                 import gin
                 gin.clear_config()
+                
+                # Load existing feature extraction configuration
+                gin.parse_config_file('/home/jianjun/ats-genai-data/config/feature_extraction.gin')
+                
+                # Add test-specific overrides
                 gin.parse_config("""
-                    TrainingDataConfig.feature_types = ['ohlcv', 'returns', 'technical', 'indicators']
-                    TrainingDataConfig.signal_names = ['price_direction']
+                    # Use minimal feature set for testing
+                    domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = ['ohlcv']
+                    domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = ['sma_20']
+                    
+                    # Single timeframe for testing
+                    domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m'
+                    domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
                 """)
                 
                 # Create training data callback with feature sink
@@ -308,18 +318,6 @@ class TestFeatureExtractionRunnerGolden:
                     feature_sink=feature_sink  # Inject feature sink to capture actual features
                 )
                 
-                # Create market data manager and universe manager first
-                from domains.instruments.services.secmaster.security_master import SecurityMaster
-                from domains.trading.services.universe.universe_manager import UniverseManager
-                from domains.trading.services.state.universe_state_manager import UniverseStateManager
-                from domains.market_data.services.core.market_data_manager import MarketDataManager
-                
-                # Initialize components in correct order
-                security_master = SecurityMaster(env)
-                universe_manager = UniverseManager(env, security_master)
-                market_data_manager = MarketDataManager(env)
-                universe_state_manager = UniverseStateManager(env, universe_manager, market_data_manager)
-                
                 # Create universe state builder
                 universe_builder = UniverseStateIntervalBuilder(
                     env=env,
@@ -327,19 +325,20 @@ class TestFeatureExtractionRunnerGolden:
                     target_durations='5m'
                 )
                 
-                # Create runner with real callbacks and initialized components
+                # Create runner with gin configuration (no manual dependency injection)
                 runner = Runner(
                     environment=env,
                     base_duration='5m',
                     start_date=datetime.strptime(start_date, '%Y-%m-%d'),
                     end_date=datetime.strptime(end_date, '%Y-%m-%d'),
                     universe_id=1,
-                    callbacks=[universe_builder, callback],
-                    security_master=security_master,
-                    universe_manager=universe_manager,
-                    market_data_manager=market_data_manager,
-                    universe_state_manager=universe_state_manager
+                    callbacks=[universe_builder, callback]
                 )
+                
+                # Initialize universe with test data before running
+                universe_manager = runner.get_universe_manager()
+                universe_manager.symbols = symbols  # Set symbols for the universe
+                await universe_manager.initialize()  # Initialize with database lookup
                 
                 # Run real feature extraction
                 print("🔍 FEATURE SINK: Starting real runner execution...")
