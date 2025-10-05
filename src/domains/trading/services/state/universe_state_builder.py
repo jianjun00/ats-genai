@@ -43,8 +43,9 @@ from domains.trading.services.state_core.indicator_interval import IndicatorInte
 from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 
 try:
-    from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-    from domains.trading.services.indicators.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+    # Note: IndicatorConfig not needed - IndicatorBuilder uses gin configuration directly
+    IndicatorConfig = None  # Not using old config system
 except ImportError:
     # Fallback - these may not be available in all environments
     IndicatorBuilder = None
@@ -671,11 +672,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         self.universe_state_manager = universe_state_manager
         
         # Load indicator config from env with proper fallbacks
-        if IndicatorConfig is not None:
-            indicator_config = getattr(self.env, 'get_indicator_config', lambda: IndicatorConfig.empty_config())()
-            self.indicator_builder = IndicatorBuilder(indicator_config) if IndicatorBuilder is not None else None
+        if IndicatorBuilder is not None:
+            # Create gin-configured IndicatorBuilder (no config needed - uses gin)
+            self.indicator_builder = IndicatorBuilder()
         else:
-            # Fallback when IndicatorBuilder/IndicatorConfig are not available
+            # Fallback when IndicatorBuilder is not available
             self.indicator_builder = None
 
         # Durations

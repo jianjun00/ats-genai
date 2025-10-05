@@ -425,10 +425,14 @@ class SequenceWindowBuilder:
                     
                     # Add technical indicators from UniverseStateInterval
                     if universe_state_interval.instrument_indicator_intervals:
-                        for indicator_name, indicator_dict in universe_state_interval.instrument_indicator_intervals.items():
+                        for indicator_type, indicator_dict in universe_state_interval.instrument_indicator_intervals.items():
                             if instrument_id in indicator_dict:
                                 indicator_interval = indicator_dict[instrument_id]
-                                data_df[indicator_name] = indicator_interval.value
+                                # Extract individual indicators from the indicators dictionary
+                                for indicator_name, indicator_data in indicator_interval.indicators.items():
+                                    indicator_value = indicator_data.get('value')
+                                    if indicator_value is not None:
+                                        data_df[indicator_name] = indicator_value
                 else:
                     raise RuntimeError(f"Instrument {instrument_id} not found in UniverseStateInterval for {timeframe} at {center_datetime}. "
                                      f"This indicates UniverseStateBuilder hasn't computed instrument data for this symbol. "
