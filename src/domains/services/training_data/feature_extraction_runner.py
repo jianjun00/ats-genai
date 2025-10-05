@@ -34,6 +34,7 @@ from domains.trading.services.state.universe_state_builder import UniverseStateI
 # Removed: SequenceStorageManager - not needed per PRD/DRD QR5 single-step architecture
 from domains.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
 from domains.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
 
 
 @gin.configurable
@@ -586,11 +587,15 @@ async def main():
         logger.info("Falling back to manual TrainingDataConfig() creation")
         training_config = TrainingDataConfig()
 
+    # Create IndicatorBuilder to get signal names
+    indicator_builder = IndicatorBuilder()
+    signal_names = indicator_builder.get_signal_names()
+    
     # Log configuration details
     config_details = {
         'timeframes': getattr(training_config, 'timeframes', 'MISSING'),
         'feature_types': getattr(training_config, 'feature_types', 'MISSING'),
-        'signal_names': getattr(training_config, 'signal_names', 'MISSING'),
+        'signal_names': signal_names,
         'base_interval_minutes': getattr(training_config, 'base_interval_minutes', 'MISSING')
     }
 
@@ -722,7 +727,7 @@ async def main():
                 "storage_format": args.storage_format,
                 "output_directory": args.output_dir
             },
-            technical_indicators=','.join(training_config.signal_names),
+            technical_indicators=','.join(signal_names),
             feature_metadata=json.dumps({"dataset_path": str(dataset_dir)})
         )
         
@@ -803,7 +808,7 @@ async def main():
         universe_state_builder = UniverseStateIntervalBuilder(
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
-            # target_durations will use gin config: '5m,15m,60m,1d' 
+            target_durations='5m,15m,60m,1d',  # Multi-timeframe processing
             # universe_state_manager will be set from Runner's properly configured manager
         )
         

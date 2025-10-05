@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 
 from .indicator import Indicator
-from .enhanced_indicators import EMAIndicator, ATRIndicator
+from .analysis.enhanced_indicators import EMAIndicator, ATRIndicator
 from .feature_registry import FeatureRegistry, FeatureConfig
 from .label_registry import LabelRegistry, LabelConfig
 

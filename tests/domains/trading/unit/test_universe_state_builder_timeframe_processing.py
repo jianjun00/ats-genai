@@ -201,7 +201,7 @@ def test_training_data_generator_fail_fast_behavior():
     # Create training data generator with mock config
     mock_config = Mock()
     mock_config.feature_types = ['ohlcv']
-    mock_config.signal_names = ['test_signal']
+    # signal_names now handled by IndicatorBuilder, not TrainingDataConfig
     
     generator = TimeSeriesSequenceTrainingGenerator(
         config=mock_config,

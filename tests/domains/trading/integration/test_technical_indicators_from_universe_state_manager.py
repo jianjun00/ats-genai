@@ -25,6 +25,7 @@ from domains.ml.services.training_data.timeseries_sequence_training_generator im
     SequenceWindowBuilder,
     TimeSeriesSequenceTrainingGenerator
 )
+from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
 class TestTechnicalIndicatorsFromUniverseStateManager:
     """Test technical indicators extraction from UniverseStateManager."""
 
@@ -77,14 +78,20 @@ class TestTechnicalIndicatorsFromUniverseStateManager:
     def config(self):
         """Create TrainingDataConfig with technical indicators enabled."""
         return TrainingDataConfig(
-            feature_types=['ohlcv', 'returns', 'indicators', 'technical'],
+            feature_types=['ohlcv', 'returns', 'indicators', 'technical']
+        )
+    
+    @pytest.fixture
+    def indicator_builder(self):
+        """Create IndicatorBuilder with test signal names."""
+        return IndicatorBuilder(
             signal_names=['pldot', 'etop', 'ebot', 'envelope_top', 'envelope_bot', 'z1b', 'z2b', 'z5t', 'z6t']
         )
 
     @pytest.fixture
-    def feature_extractor(self, config):
+    def feature_extractor(self, config, indicator_builder):
         """Create MultiTimeframeFeatureExtractor instance."""
-        return MultiTimeframeFeatureExtractor(config)
+        return MultiTimeframeFeatureExtractor(config, indicator_builder)
 
     def test_extract_technical_indicators_from_dataframe(self, feature_extractor):
         """Test extraction of technical indicators from DataFrame with IndicatorBuilder data."""
@@ -406,18 +413,18 @@ class TestTechnicalIndicatorsFromUniverseStateManager:
     def test_gin_configurable_signal_names(self):
         """Test that signal names are configurable via gin and not hardcoded."""
 
-        # Test with custom signal configuration
+        # Test with custom signal configuration - now done through IndicatorBuilder
         custom_signals = ['custom_signal_1', 'custom_signal_2', 'etop']
         custom_config = TrainingDataConfig(
-            feature_types=['indicators'],
-            signal_names=custom_signals
+            feature_types=['indicators']
         )
+        custom_indicator_builder = IndicatorBuilder(signal_names=custom_signals)
 
-        # Verify custom signals are stored in config
-        assert custom_config.signal_names == custom_signals, f"Expected {custom_signals}, got {custom_config.signal_names}"
+        # Verify custom signals are stored in indicator builder
+        assert custom_indicator_builder.get_signal_names() == custom_signals, f"Expected {custom_signals}, got {custom_indicator_builder.get_signal_names()}"
 
-        # Create feature extractor with custom config
-        custom_extractor = MultiTimeframeFeatureExtractor(custom_config)
+        # Create feature extractor with custom config and indicator builder
+        custom_extractor = MultiTimeframeFeatureExtractor(custom_config, custom_indicator_builder)
 
         # Create test data with one of the custom signals
         test_data = pd.DataFrame({
@@ -446,21 +453,23 @@ class TestTechnicalIndicatorsFromUniverseStateManager:
     def test_default_signal_configuration(self):
         """Test that default signal configuration includes expected indicators."""
 
-        default_config = TrainingDataConfig()
+        # Test default signals from IndicatorBuilder (signals moved from TrainingDataConfig)
+        default_indicator_builder = IndicatorBuilder()
+        default_signals = default_indicator_builder.get_signal_names()
 
         # Verify default signals include key technical indicators
         expected_defaults = ['etop', 'ebot', 'pldot', 'envelope_top', 'envelope_bot']
         for signal in expected_defaults:
-            assert signal in default_config.signal_names, f"Default config missing signal: {signal}"
+            assert signal in default_signals, f"Default IndicatorBuilder missing signal: {signal}"
 
         # Verify default signals include common indicators
         expected_common = ['sma_20', 'ema_12', 'rsi_14', 'macd_line']
         for signal in expected_common:
-            assert signal in default_config.signal_names, f"Default config missing common indicator: {signal}"
+            assert signal in default_signals, f"Default IndicatorBuilder missing common indicator: {signal}"
 
-        print(f"✅ Default configuration includes {len(default_config.signal_names)} signal types")
-        print(f"   Key indicators: {[s for s in expected_defaults if s in default_config.signal_names]}")
-        print(f"   Common indicators: {[s for s in expected_common if s in default_config.signal_names]}")
+        print(f"✅ Default IndicatorBuilder includes {len(default_signals)} signal types")
+        print(f"   Key indicators: {[s for s in expected_defaults if s in default_signals]}")
+        print(f"   Common indicators: {[s for s in expected_common if s in default_signals]}")
 
 
 if __name__ == "__main__":

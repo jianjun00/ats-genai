@@ -129,18 +129,18 @@ class TestFeatureExtractionRunnerGolden:
             if file_size == 0:
                 raise ValueError(f"Golden file is empty: {output_file}")
             
-            print(f"💾 Successfully saved feature extraction golden file: {output_file}")
-            print(f"   📊 File size: {file_size:,} bytes")
-            print(f"   🔢 Run ID: {extraction_results.get('run_id')}")
-            print(f"   🏢 Symbols: {extraction_results.get('symbols')}")
-            print(f"   ✅ Validation: Real feature extraction with ZERO mock objects")
+            logger.info(f"💾 Successfully saved feature extraction golden file: {output_file}")
+            logger.info(f"   📊 File size: {file_size:,} bytes")
+            logger.info(f"   🔢 Run ID: {extraction_results.get('run_id')}")
+            logger.info(f"   🏢 Symbols: {extraction_results.get('symbols')}")
+            logger.info(f"   ✅ Validation: Real feature extraction with ZERO mock objects")
             
             return True
             
         except Exception as e:
-            print(f"❌ ERROR writing feature extraction golden file: {e}")
+            logger.error(f"❌ ERROR writing feature extraction golden file: {e}")
             import traceback
-            traceback.print_exc()
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
     
     @pytest.mark.asyncio
@@ -167,6 +167,12 @@ class TestFeatureExtractionRunnerGolden:
             isolated_test_db, symbols, start_date, end_date, "basic", real_market_data_manager
         )
         
+        # Check if feature extraction was successful
+        if not result.get('success', False):
+            failure_reason = result.get('failure_reason', 'Unknown error')
+            logger.error(f"❌ Feature extraction failed: {failure_reason}")
+            pytest.fail(f"Feature extraction failed: {failure_reason}")
+        
         # Save golden file with actual captured features
         success = self._save_feature_extraction_golden_file(
             test_method_name="test_basic_feature_extraction_golden",
@@ -190,126 +196,118 @@ class TestFeatureExtractionRunnerGolden:
         
         start_time = time.time()
         
-        try:
-            print(f"🔍 REAL FEATURE SINK EXECUTION: Running feature extraction for {symbols}")
-            print(f"🔍 DEBUG: Method started with db_url: {isolated_test_db}")
+        print(f"🔍 REAL FEATURE SINK EXECUTION: Running feature extraction for {symbols}")
+        print(f"🔍 DEBUG: Method started with db_url: {isolated_test_db}")
+        
+        # Create feature sink to capture actual features during generation
+        feature_sink = FeatureSink()
+        
+        # Set up environment with test database (same pattern as universe state golden tests)
+        os.environ["DATABASE_URL"] = isolated_test_db
+        os.environ["ENVIRONMENT"] = "test"  # Use TEST environment like universe state tests
+        from core.platform.config_env.environment import EnvironmentType
+        env = Environment(
+            env_type=EnvironmentType.TEST,
+            db_url=isolated_test_db  # Use the real test database connection
+        )
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Use existing gin configuration 
+            import gin
+            gin.clear_config()
             
-            # Create feature sink to capture actual features during generation
-            feature_sink = FeatureSink()
+            # CRITICAL: Import classes BEFORE gin configuration so gin can find them
+            from domains.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+            from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+            logger.debug(f"🔍 DEBUG: Imported TrainingDataConfig and IndicatorBuilder for gin configuration")
             
-            # Set up environment with test database (same pattern as universe state golden tests)
-            os.environ["DATABASE_URL"] = isolated_test_db
-            os.environ["ENVIRONMENT"] = "test"  # Use TEST environment like universe state tests
-            from core.platform.config_env.environment import EnvironmentType
-            env = Environment(
-                env_type=EnvironmentType.TEST,
-                db_url=isolated_test_db  # Use the real test database connection
+            # Load existing feature extraction configuration using relative path
+            config_path = Path(__file__).parent.parent.parent.parent.parent / "config" / "feature_extraction.gin"
+            gin.parse_config_file(str(config_path))
+            logger.debug(f"🔍 DEBUG: Successfully loaded gin config from {config_path}")
+            
+            # No overrides - use gin config exactly as-is to avoid mismatches
+            print(f"🔍 DEBUG: Using gin config as-is without overrides")
+                
+            # Create training data callback with feature sink
+            callback = IntervalBasedTrainingDataCallback(
+                symbols=symbols,
+                start_date=start_date,
+                end_date=end_date,
+                output_dir=temp_dir,
+                feature_sink=feature_sink  # Inject feature sink to capture actual features
             )
             
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Use existing gin configuration 
-                import gin
-                gin.clear_config()
-                
-                # Load existing feature extraction configuration
-                gin.parse_config_file('/home/jianjun/ats-genai-data/config/feature_extraction.gin')
-                
-                # No overrides - use gin config exactly as-is to avoid mismatches
-                print(f"🔍 DEBUG: Using gin config as-is without overrides")
-                
-                # Create training data callback with feature sink
-                callback = IntervalBasedTrainingDataCallback(
-                    symbols=symbols,
-                    start_date=start_date,
-                    end_date=end_date,
-                    output_dir=temp_dir,
-                    feature_sink=feature_sink  # Inject feature sink to capture actual features
-                )
-                
-                # Create universe state manager first
-                from domains.trading.services.state.universe_state_manager import UniverseStateManager
-                universe_state_manager = UniverseStateManager(env)
-                
-                # Create universe state builder using gin configuration (no hardcoded values)
-                universe_builder = UniverseStateIntervalBuilder(
-                    env=env,
-                    universe_state_manager=universe_state_manager
-                    # gin configuration will provide base_duration and target_durations
-                )
-                
-                # CRITICAL: Add IndicatorBuilder that reads signal_names from gin config
-                from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
-                universe_builder.indicator_builder = IndicatorBuilder()  # Will read gin signal_names automatically
-                print(f"🔍 DEBUG: Added IndicatorBuilder with {len(universe_builder.indicator_builder.indicator_config.get_indicator_names())} indicators: {universe_builder.indicator_builder.indicator_config.get_indicator_names()}")
-                
-                # Create runner with gin configuration (no manual dependency injection)
-                runner = Runner(
-                    environment=env,
-                    # gin configuration will provide base_duration
-                    start_date=datetime.strptime(start_date, '%Y-%m-%d'),
-                    end_date=datetime.strptime(end_date, '%Y-%m-%d'),
-                    universe_id=1,
-                    callbacks=[universe_builder, callback]
-                )
-                
-                # CRITICAL: Replace with test market data manager using test data files
-                if real_market_data_manager:
-                    runner.market_data_manager = real_market_data_manager
-                    universe_builder.market_data_manager = real_market_data_manager
-                    print(f"🔍 DEBUG: Using test market data manager with path: {real_market_data_manager.config.file_storage_path}")
-                
-                # Initialize universe with test data before running
-                universe_manager = runner.get_universe_manager()
-                
-                # DEBUG: Check what database URL the universe manager is using
-                print(f"🔍 DEBUG: Test database URL: {isolated_test_db}")
-                print(f"🔍 DEBUG: Environment database URL: {env.get_database_url()}")
-                print(f"🔍 DEBUG: UniverseManager environment: {universe_manager.env}")
-                print(f"🔍 DEBUG: UniverseManager db_url: {getattr(universe_manager._instrument_xrefs_dao, 'db_url', 'NOT_SET')}")
-                
-                universe_manager.symbols = symbols  # Set symbols for the universe
-                await universe_manager.initialize()  # Initialize with database lookup
-                
-                # Run real feature extraction
-                print("🔍 FEATURE SINK: Starting real runner execution...")
-                await runner.run()
-                print("🔍 FEATURE SINK: Runner execution completed")
-                
-                # Get captured features from feature sink
-                captured_features = feature_sink.get_captured_features()
-                feature_summary = feature_sink.get_feature_summary()
-                
-                print(f"🔍 FEATURE SINK: Captured {len(captured_features)} training examples")
-                print(f"🔍 FEATURE SINK: Feature summary: {feature_summary}")
-                
-                # Build results with actual captured features
-                extraction_results = {
-                    "run_id": f"test_run_feature_sink_{test_name_suffix}_{int(start_time)}",
-                    "symbols": symbols,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "execution_duration_seconds": time.time() - start_time,
-                    "success": True,
-                    "captured_features_count": len(captured_features),
-                    "feature_summary": feature_summary,
-                    "actual_features": captured_features  # This contains the real feature dictionaries!
-                }
-                
-                return extraction_results
-                
-        except Exception as e:
-            print(f"❌ FEATURE SINK ERROR: {e}")
-            import traceback
-            traceback.print_exc()
-            return {
-                "run_id": f"test_run_feature_sink_error_{test_name_suffix}_{int(start_time)}",
+            # Create universe state manager first
+            from domains.trading.services.state.universe_state_manager import UniverseStateManager
+            universe_state_manager = UniverseStateManager(env)
+            
+            # Create universe state builder using gin configuration (no hardcoded values)
+            universe_builder = UniverseStateIntervalBuilder(
+                env=env,
+                universe_state_manager=universe_state_manager
+                # gin configuration will provide base_duration and target_durations
+            )
+            
+            # CRITICAL: Add IndicatorBuilder that reads signal_names from gin config
+            from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+            universe_builder.indicator_builder = IndicatorBuilder()  # Will read gin signal_names automatically
+            logger.debug(f"🔍 DEBUG: Added IndicatorBuilder with signal names: {universe_builder.indicator_builder.get_signal_names()}")
+            
+            # Create runner with gin configuration (no manual dependency injection)
+            runner = Runner(
+                environment=env,
+                # gin configuration will provide base_duration
+                start_date=datetime.strptime(start_date, '%Y-%m-%d'),
+                end_date=datetime.strptime(end_date, '%Y-%m-%d'),
+                universe_id=1,
+                callbacks=[universe_builder, callback]
+            )
+            
+            # CRITICAL: Replace with test market data manager using test data files
+            if real_market_data_manager:
+                runner.market_data_manager = real_market_data_manager
+                universe_builder.market_data_manager = real_market_data_manager
+                print(f"🔍 DEBUG: Using test market data manager with path: {real_market_data_manager.config.file_storage_path}")
+            
+            # Initialize universe with test data before running
+            universe_manager = runner.get_universe_manager()
+            
+            # DEBUG: Check what database URL the universe manager is using
+            print(f"🔍 DEBUG: Test database URL: {isolated_test_db}")
+            print(f"🔍 DEBUG: Environment database URL: {env.get_database_url()}")
+            print(f"🔍 DEBUG: UniverseManager environment: {universe_manager.env}")
+            print(f"🔍 DEBUG: UniverseManager db_url: {getattr(universe_manager._instrument_xrefs_dao, 'db_url', 'NOT_SET')}")
+            
+            universe_manager.symbols = symbols  # Set symbols for the universe
+            await universe_manager.initialize()  # Initialize with database lookup
+            
+            # Run real feature extraction
+            print("🔍 FEATURE SINK: Starting real runner execution...")
+            await runner.run()
+            print("🔍 FEATURE SINK: Runner execution completed")
+            
+            # Get captured features from feature sink
+            captured_features = feature_sink.get_captured_features()
+            feature_summary = feature_sink.get_feature_summary()
+            
+            print(f"🔍 FEATURE SINK: Captured {len(captured_features)} training examples")
+            print(f"🔍 FEATURE SINK: Feature summary: {feature_summary}")
+            
+            # Build results with actual captured features
+            extraction_results = {
+                "run_id": f"test_run_feature_sink_{test_name_suffix}_{int(start_time)}",
                 "symbols": symbols,
                 "start_date": start_date,
                 "end_date": end_date,
                 "execution_duration_seconds": time.time() - start_time,
-                "success": False,
-                "failure_reason": f"feature_sink_execution_error: {str(e)}"
+                "success": True,
+                "captured_features_count": len(captured_features),
+                "feature_summary": feature_summary,
+                "actual_features": captured_features  # This contains the real feature dictionaries!
             }
+            
+            return extraction_results
 
     async def _analyze_arrayrecord_files(self, arrayrecord_files):
         """Analyze ArrayRecord files to extract actual feature content."""

@@ -11,46 +11,32 @@ class IndicatorBuilder:
     Builds indicator intervals for a set of instruments using a rolling window of InstrumentIntervals.
     Can auto-create indicators based on gin-configured signal names.
     """
-    def __init__(self, indicator_config: Optional[IndicatorConfig] = None):
-        # If no config provided, create one based on gin-configured signal names
+    def __init__(self, 
+                 indicator_config: Optional[IndicatorConfig] = None,
+                 signal_names: Optional[List[str]] = None):
+        # Store signal names directly in IndicatorBuilder
+        self.signal_names = signal_names
+        if self.signal_names is None:
+            self.signal_names = [
+                "etop", "ebot", "pldot",           # Envelope indicators
+                "envelope_top", "envelope_bot",    # Alternative envelope names
+                "z1b", "z2b", "z5t", "z6t",       # Z-level indicators
+                "sma_20", "ema_12", "rsi_14",     # Traditional technical indicators
+                "macd_line", "macd_signal",       # MACD indicators
+                "bb_upper", "bb_lower", "bb_middle" # Bollinger bands
+            ]
+        
+        # If no config provided, create one based on signal names
         if indicator_config is None:
-            indicator_config = self._create_config_from_gin_signal_names()
+            indicator_config = self._create_config_from_signal_names()
         
         self.indicator_config = indicator_config
         # Map indicator name to indicator class
         self.indicator_classes = indicator_config.indicators
     
-    def _create_config_from_gin_signal_names(self) -> IndicatorConfig:
-        """Create IndicatorConfig automatically from gin-configured signal names."""
+    def _create_config_from_signal_names(self) -> IndicatorConfig:
+        """Create IndicatorConfig automatically from signal names."""
         try:
-            # Try to get signal names from gin configuration
-            # First check if gin has any configured parameters
-            try:
-                # Use gin.operative_config_str() to see what's configured
-                operative_config = gin.operative_config_str()
-                print(f"🔍 DEBUG: Gin operative config length: {len(operative_config)} chars")
-                
-                # Try multiple approaches to get signal_names
-                signal_names = None
-                
-                # Approach 1: Try gin.query_parameter
-                try:
-                    signal_names = gin.query_parameter('TrainingDataConfig.signal_names')
-                    print(f"🔍 DEBUG: Found signal_names via short name: {signal_names}")
-                except:
-                    try:
-                        signal_names = gin.query_parameter('domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names')
-                        print(f"🔍 DEBUG: Found signal_names via full name: {signal_names}")
-                    except:
-                        print("🔍 DEBUG: Could not find signal_names in gin config")
-                
-                if not signal_names:
-                    print("🔍 DEBUG: No gin-configured signal_names found, using default config")
-                    return IndicatorConfig.default_config()
-                
-            except Exception as e:
-                print(f"🔍 DEBUG: Error querying gin config: {e}")
-                return IndicatorConfig.default_config()
             
             # Create indicator config and factory
             indicator_config = IndicatorConfig()
@@ -59,7 +45,7 @@ class IndicatorBuilder:
             
             # Auto-create indicators for each signal name
             indicators_created = 0
-            for signal_name in signal_names:
+            for signal_name in self.signal_names:
                 try:
                     # Create appropriate indicator based on signal name
                     if signal_name == "sma_20":
@@ -98,9 +84,30 @@ class IndicatorBuilder:
             return indicator_config
             
         except Exception as e:
-            print(f"Warning: Could not create indicators from gin config: {e}")
+            print(f"Warning: Could not create indicators from signal names: {e}")
             # Fallback to default config
             return IndicatorConfig.default_config()
+    
+    def get_signal_names(self) -> List[str]:
+        """Get list of configured signal names."""
+        return self.signal_names.copy()
+    
+    def get_max_lookback_period(self) -> int:
+        """Calculate maximum lookback period needed for configured indicators."""
+        max_period = 20  # Default minimum for basic indicators
+        
+        for signal_name in self.signal_names:
+            # Extract period from signal names like 'sma_20', 'ema_12', 'rsi_14'
+            if '_' in signal_name:
+                parts = signal_name.split('_')
+                for part in parts:
+                    if part.isdigit():
+                        period = int(part)
+                        max_period = max(max_period, period)
+        
+        # Add 50% buffer for calculation stability and ensure minimum viable amount
+        lookback_periods = max(int(max_period * 1.5), 60)  # At least 60 periods
+        return lookback_periods
 
     def build_indicator_intervals(self, instrument_rolling_cache: Dict[int, List[InstrumentInterval]],
                                  start_date_time: datetime, end_date_time: datetime) -> Dict[int, IndicatorInterval]:

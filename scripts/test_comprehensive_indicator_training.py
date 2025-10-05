@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
 
 def generate_comprehensive_test_data(periods: int = 100) -> pd.DataFrame:
     """Generate test data with all required indicators."""
@@ -66,8 +67,9 @@ def test_comprehensive_indicator_extraction():
 
     # Initialize feature extractor with gin-configured settings
     config = TrainingDataConfig()
-    print(f"📋 Config signal_names: {config.signal_names}")
-    extractor = MultiTimeframeFeatureExtractor(config)
+    indicator_builder = IndicatorBuilder()
+    print(f"📋 IndicatorBuilder signal_names: {indicator_builder.get_signal_names()}")
+    extractor = MultiTimeframeFeatureExtractor(config, indicator_builder)
 
     # Test feature extraction
     timeframes = ['5m', '15m', '1h', '1d']

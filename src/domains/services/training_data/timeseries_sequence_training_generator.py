@@ -37,25 +37,19 @@ class TrainingDataConfig:
 
     def __init__(self,
                  base_interval_minutes: int = 1,
-                 feature_types: Optional[List[str]] = None,
-                 signal_names: Optional[List[str]] = None):
+                 feature_types: Optional[List[str]] = None):
         """
         Initialize training data configuration.
 
         Args:
             base_interval_minutes: Base data collection interval (1 minute)
-            feature_types: Types of features to extract
-            signal_names: List of technical indicator signal names to retrieve from UniverseStateManager
+            feature_types: Types of features to extract (ohlcv, returns, volatility, etc.)
         """
         self.base_interval_minutes = base_interval_minutes
 
         self.feature_types = feature_types
         if self.feature_types is None:
             raise ValueError("feature_types parameter is required. Please configure via gin config or pass as parameter.")
-
-        self.signal_names = signal_names
-        if self.signal_names is None:
-            raise ValueError("signal_names parameter is required. Please configure via gin config or pass as parameter.")
         
         # Note: timeframes will be obtained from UniverseStateIntervalBuilder at runtime
 
@@ -64,8 +58,9 @@ class TrainingDataConfig:
 class MultiTimeframeFeatureExtractor:
     """Extract features across multiple timeframes."""
 
-    def __init__(self, config: TrainingDataConfig):
+    def __init__(self, config: TrainingDataConfig, indicator_builder=None):
         self.config = config
+        self.indicator_builder = indicator_builder
         self.logger = logging.getLogger(__name__)
 
         # Initialize S/R feature extractor if support_resistance is in feature_types
@@ -113,14 +108,16 @@ class MultiTimeframeFeatureExtractor:
         latest = data.iloc[-1]
         features = {}
 
-        # Use configured signal names from config instead of hardcoded lists
-        for indicator in self.config.signal_names:
-            if indicator in latest:
-                value = latest.get(indicator)
-                if pd.notna(value):
-                    features[f'{timeframe}_{indicator}'] = float(value)
-                else:
-                    features[f'{timeframe}_{indicator}'] = np.nan
+        # Use configured signal names from indicator builder
+        if self.indicator_builder:
+            signal_names = self.indicator_builder.get_signal_names()
+            for indicator in signal_names:
+                if indicator in latest:
+                    value = latest.get(indicator)
+                    if pd.notna(value):
+                        features[f'{timeframe}_{indicator}'] = float(value)
+                    else:
+                        features[f'{timeframe}_{indicator}'] = np.nan
 
         return features
 
@@ -641,21 +638,12 @@ class TimeSeriesSequenceTrainingGenerator:
         Plus buffer for calculation stability.
         """
         try:
-            # Parse signal names to find maximum period requirements
-            max_period = 20  # Default minimum for basic indicators
-            
-            if hasattr(self.config, 'signal_names') and self.config.signal_names:
-                for signal_name in self.config.signal_names:
-                    # Extract period from signal names like 'sma_20', 'ema_12', 'rsi_14'
-                    if '_' in signal_name:
-                        parts = signal_name.split('_')
-                        for part in parts:
-                            if part.isdigit():
-                                period = int(part)
-                                max_period = max(max_period, period)
-            
-            # Add 50% buffer for calculation stability and ensure minimum viable amount
-            lookback_periods = max(int(max_period * 1.5), 60)  # At least 60 periods
+            # Use indicator builder to calculate required lookback periods
+            if self.indicator_builder:
+                lookback_periods = self.indicator_builder.get_max_lookback_period()
+            else:
+                # Fallback if no indicator builder provided
+                lookback_periods = 60  # Safe default for most technical indicators
             
             # Cap at reasonable maximum to avoid excessive data retrieval
             return min(lookback_periods, 200)

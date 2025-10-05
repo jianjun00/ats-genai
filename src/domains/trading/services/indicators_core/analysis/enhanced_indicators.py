@@ -8,7 +8,7 @@ import numpy as np
 import pytz
 from datetime import time, datetime, timedelta
 from typing import Dict, Any, Optional
-from .indicator import Indicator
+from ..indicator import Indicator
 
 
 class EMAIndicator(Indicator):

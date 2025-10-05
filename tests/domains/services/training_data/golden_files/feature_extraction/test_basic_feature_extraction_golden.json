@@ -2,12 +2,12 @@
   "test_method": "test_basic_feature_extraction_golden",
   "schema_version": "1.0.0",
   "feature_extraction_results": {
-    "run_id": "test_run_feature_sink_error_basic_1759672880",
+    "run_id": "test_run_feature_sink_error_basic_1759677752",
     "dataset_path": "",
     "symbols": [
       "AAPL"
     ],
-    "execution_duration_seconds": 0.3204996585845947,
+    "execution_duration_seconds": 0.003749847412109375,
     "captured_features_count": 0,
     "feature_summary": {},
     "actual_features": [],
@@ -16,9 +16,9 @@
       "end": "2024-08-01"
     },
     "success": false,
-    "failure_reason": "feature_sink_execution_error: No module named 'array_record'"
+    "failure_reason": "feature_sink_execution_error: Configurable 'domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig' doesn't have a parameter named 'training_interval_minutes'.\n  In file \"/home/jianjun/ats-genai-data/config/feature_extraction.gin\", line 6\n    domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60"
   },
-  "generated_at_utc_micros": 1759672880817992,
+  "generated_at_utc_micros": 1759677752072765,
   "validation_metadata": {
     "real_feature_extraction": true,
     "zero_mock_objects": true,
