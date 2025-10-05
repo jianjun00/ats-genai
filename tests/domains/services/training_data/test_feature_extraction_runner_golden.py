@@ -146,7 +146,6 @@ class TestFeatureExtractionRunnerGolden:
     @pytest.mark.asyncio
     async def test_basic_feature_extraction_golden(self, isolated_test_db, real_market_data_manager):
         """Test basic feature extraction using real runner with minimal dataset."""
-        import subprocess
         import tempfile
         import os
         import asyncpg
@@ -415,43 +414,40 @@ class TestFeatureExtractionRunnerGolden:
 
     async def _run_real_feature_extraction(self, isolated_test_db, symbols, start_date, end_date, test_name_suffix=""):
         """Run the REAL feature extraction runner and capture results - NO MOCK OBJECTS."""
-        import subprocess
         import tempfile
         import os
+        import sys
         from pathlib import Path
+        from unittest.mock import patch
         
         with tempfile.TemporaryDirectory() as temp_dir:
             print(f"🔍 REAL EXECUTION: Running feature extraction for {symbols}")
             
-            # Build real command for real runner
-            cmd = [
-                "python3", "src/domains/services/training_data/feature_extraction_runner.py",
-                "--start-date", start_date,
-                "--end-date", end_date,
-                "--symbols"] + symbols + [
-                "--output-dir", temp_dir,
-                "--environment", "dev", 
-                "--gin-config", "config/feature_extraction.gin",
-                "--debug"
-            ]
-            
-            # Set up real environment for real subprocess
-            env = os.environ.copy()
-            env["PYTHONPATH"] = "src"
-            env["DATABASE_URL"] = isolated_test_db
-            
             start_time = time.time()
             
+            # Set up environment for direct execution
+            original_database_url = os.environ.get("DATABASE_URL")
+            os.environ["DATABASE_URL"] = isolated_test_db
+            
             try:
-                # Execute REAL feature extraction runner
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    cwd="/home/jianjun/ats-genai-data",
-                    env=env,
-                    timeout=300
-                )
+                # Import and run the feature extraction main function directly
+                from domains.services.training_data.feature_extraction_runner import main
+                
+                # Mock sys.argv to simulate command line arguments
+                test_args = [
+                    "feature_extraction_runner.py",
+                    "--start-date", start_date,
+                    "--end-date", end_date,
+                    "--symbols"] + symbols + [
+                    "--output-dir", temp_dir,
+                    "--environment", "test",  # Use test environment with isolated DB
+                    "--gin-config", "config/feature_extraction.gin",
+                    "--debug"
+                ]
+                
+                with patch.object(sys, 'argv', test_args):
+                    # Run the main function directly
+                    exit_code = await main()
                 
                 execution_time = time.time() - start_time
                 
@@ -467,13 +463,12 @@ class TestFeatureExtractionRunnerGolden:
                     "start_date": start_date,
                     "end_date": end_date,
                     "execution_duration_seconds": round(execution_time, 2),
-                    "return_code": result.returncode,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "command_executed": " ".join(cmd)
+                    "return_code": exit_code,
+                    "command_executed": " ".join(test_args),
+                    "execution_method": "direct_method_call"
                 }
                 
-                if result.returncode == 0:
+                if exit_code == 0:
                     # Success case - analyze REAL outputs by reading ArrayRecord files
                     feature_analysis = await self._analyze_arrayrecord_files(arrayrecord_files)
                     
@@ -494,33 +489,33 @@ class TestFeatureExtractionRunnerGolden:
                         "arrayrecord_files": {},
                         "total_features_generated": 0,
                         "success": False,
-                        "failure_reason": "real_execution_failed"
+                        "failure_reason": f"real_execution_failed_exit_code_{exit_code}"
                     })
                 
                 return extraction_results
                 
-            except subprocess.TimeoutExpired:
-                return {
-                    "run_id": f"test_run_real_timeout_{test_name_suffix}_{int(start_time)}",
-                    "symbols": symbols,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "execution_duration_seconds": 300,
-                    "success": False,
-                    "failure_reason": "real_execution_timeout",
-                    "command_executed": " ".join(cmd)
-                }
             except Exception as e:
+                execution_time = time.time() - start_time
                 return {
                     "run_id": f"test_run_real_error_{test_name_suffix}_{int(start_time)}",
+                    "dataset_path": temp_dir,
                     "symbols": symbols,
                     "start_date": start_date,
                     "end_date": end_date,
-                    "execution_duration_seconds": time.time() - start_time,
+                    "execution_duration_seconds": round(execution_time, 2),
+                    "return_code": -1,
                     "success": False,
-                    "failure_reason": f"real_execution_error: {str(e)}",
-                    "command_executed": " ".join(cmd)
+                    "failure_reason": f"direct_execution_exception: {str(e)}",
+                    "command_executed": " ".join(test_args),
+                    "execution_method": "direct_method_call"
                 }
+            finally:
+                # Restore original DATABASE_URL
+                if original_database_url is not None:
+                    os.environ["DATABASE_URL"] = original_database_url
+                elif "DATABASE_URL" in os.environ:
+                    del os.environ["DATABASE_URL"]
+                
 
     @pytest.mark.asyncio
     async def test_multi_symbol_real_feature_extraction_golden(self, isolated_test_db):
