@@ -133,16 +133,53 @@ class TestFeatureExtractionRunnerGolden:
         from datetime import date
         
         print("🔍 STEP 1: Setting up basic feature extraction test")
+        print("🔍 DEBUG: Test started - checking if debug output appears")
         
         # STEP 1.5: Set up minimal test data using shared utilities
         print("🔍 STEP 1.5: Setting up minimal test data using shared fixtures")
+        from core.shared.utils_core.test_database import load_test_fixtures, STANDARD_TEST_FIXTURES
+        
+        # Debug: Check what fixtures we're trying to load
+        print(f"🔍 DEBUG: STANDARD_TEST_FIXTURES keys: {list(STANDARD_TEST_FIXTURES.keys())}")
+        print(f"🔍 DEBUG: AAPL in instrument fixtures: {'AAPL' in str(STANDARD_TEST_FIXTURES.get('test_instrument', []))}")
+        
         try:
-            from core.shared.utils_core.test_database import load_test_fixtures, STANDARD_TEST_FIXTURES
             await load_test_fixtures(isolated_test_db, STANDARD_TEST_FIXTURES)
             print("✅ STEP 1.5: Test data setup completed using shared fixtures")
         except Exception as e:
-            print(f"⚠️ STEP 1.5: Test data setup failed (will continue): {e}")
-            # Continue anyway - the failure case is also valuable for golden files
+            print(f"❌ STEP 1.5: Test fixture loading failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+        
+        # Verify AAPL was loaded correctly
+        import asyncpg
+        conn = await asyncpg.connect(isolated_test_db)
+        
+        # Check table existence
+        tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'test_%'")
+        print(f"🔍 DEBUG: Test tables found: {[row['tablename'] for row in tables]}")
+        
+        # Check AAPL data
+        aapl_count = await conn.fetchval("SELECT COUNT(*) FROM test_instrument WHERE symbol = 'AAPL'")
+        xref_count = await conn.fetchval("SELECT COUNT(*) FROM test_instrument_xrefs WHERE symbol = 'AAPL'")
+        
+        # If no AAPL found, check what symbols exist
+        if aapl_count == 0:
+            existing_symbols = await conn.fetch("SELECT symbol FROM test_instrument")
+            print(f"🔍 DEBUG: Existing symbols in test_instrument: {[row['symbol'] for row in existing_symbols]}")
+            
+            # Check if vendors exist (required for xrefs)
+            vendor_count = await conn.fetchval("SELECT COUNT(*) FROM test_vendors")
+            print(f"🔍 DEBUG: Vendor count: {vendor_count}")
+        
+        await conn.close()
+        print(f"🔍 STEP 1.6: Verification - AAPL instruments: {aapl_count}, xrefs: {xref_count}")
+        
+        # CRITICAL: If no AAPL found, fail fast with clear error
+        if aapl_count == 0:
+            raise ValueError(f"Test fixture loading failed: AAPL not found in test_instrument table. "
+                           f"This will cause 'No valid instrument_ids found' error later.")
         
         # Use a very small date range for fast test execution
         start_date = "2024-08-01"
@@ -285,10 +322,14 @@ class TestFeatureExtractionRunnerGolden:
             # Create feature sink to capture actual features during generation
             feature_sink = FeatureSink()
             
-            # Set up environment with test database
+            # Set up environment with test database (same pattern as universe state golden tests)
             os.environ["DATABASE_URL"] = isolated_test_db
-            os.environ["ENVIRONMENT"] = "dev"  # Set required environment variable
-            env = Environment()
+            os.environ["ENVIRONMENT"] = "test"  # Use TEST environment like universe state tests
+            from core.platform.config_env.environment import EnvironmentType
+            env = Environment(
+                env_type=EnvironmentType.TEST,
+                db_url=isolated_test_db  # Use the real test database connection
+            )
             
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Use existing gin configuration 
