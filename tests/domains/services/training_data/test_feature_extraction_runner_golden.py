@@ -242,11 +242,12 @@ class TestFeatureExtractionRunnerGolden:
             from domains.trading.services.state.universe_state_manager import UniverseStateManager
             universe_state_manager = UniverseStateManager(env)
             
-            # Create universe state builder using gin configuration (no hardcoded values)
+            # Create universe state builder with explicit parameters (gin config removed)
             universe_builder = UniverseStateIntervalBuilder(
                 env=env,
-                universe_state_manager=universe_state_manager
-                # gin configuration will provide base_duration and target_durations
+                universe_state_manager=universe_state_manager,
+                base_duration='5m',
+                target_durations='5m,15m,60m,1d'
             )
             
             # CRITICAL: Add IndicatorBuilder that reads signal_names from gin config
