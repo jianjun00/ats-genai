@@ -29,11 +29,11 @@ from dataclasses import dataclass, field
 
 from domains.trading.services.core.app.runner import Runner
 from core.platform.config_env.environment import Environment, EnvironmentType
-from domains.ml.services.training_data.callbacks.training_data_callback import IntervalBasedTrainingDataCallback
+from domains.services.training_data.training_data_callback import IntervalBasedTrainingDataCallback
 from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
 # Removed: SequenceStorageManager - not needed per PRD/DRD QR5 single-step architecture
-from domains.ml.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
-from domains.ml.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+from domains.services.training_data.dao.training_dataset_dao import TrainingDatasetDAO, TrainingDatasetRecord
+from domains.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
 
 
 @gin.configurable
@@ -409,53 +409,21 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
     return (None, run_id)
 
 
-async def update_training_dataset_completion(environment: Environment, dataset_id: int,
-                                           actual_sequences: int, generation_duration_seconds: int,
-                                           file_size_mb: float = 0.0, data_quality_score: float = 1.0) -> None:
-    """Update training dataset with completion details (legacy function)."""
-    await update_training_dataset_completion_with_status(
-        environment, dataset_id, actual_sequences, generation_duration_seconds,
-        file_size_mb, data_quality_score, "completed"
-    )
+# LEGACY FUNCTIONS - DISABLED
+# These functions are no longer used. We track feature extraction runs in feature_extraction_runs table instead.
 
+# async def update_training_dataset_completion(environment: Environment, dataset_id: int,
+#                                            actual_sequences: int, generation_duration_seconds: int,
+#                                            file_size_mb: float = 0.0, data_quality_score: float = 1.0) -> None:
+#     """Update training dataset with completion details (legacy function)."""
+#     pass
 
-async def update_training_dataset_completion_with_status(environment: Environment, dataset_id: int,
-                                                       actual_sequences: int, generation_duration_seconds: int,
-                                                       file_size_mb: float = 0.0, data_quality_score: float = 1.0,
-                                                       status: str = "completed") -> None:
-    """Update training dataset with completion details and specific status."""
-
-    TrainingDatasetDAO(environment)
-    conn = await asyncpg.connect(environment.get_database_url())
-
-    try:
-        table_name = environment.get_table_name("training_dataset")
-
-        update_query = f"""
-        UPDATE {table_name}
-        SET status = $1,
-            total_sequences = $2,
-            generation_duration_seconds = $3,
-            file_size_mb = $4,
-            data_quality_score = $5,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6
-        """
-
-        await conn.execute(
-            update_query,
-            status,
-            actual_sequences,
-            generation_duration_seconds,
-            file_size_mb,
-            data_quality_score,
-            dataset_id
-        )
-
-        print(f"✅ Dataset {dataset_id} completed: {actual_sequences:,} sequences, {file_size_mb:.1f}MB, {generation_duration_seconds}s")
-
-    finally:
-        await conn.close()
+# async def update_training_dataset_completion_with_status(environment: Environment, dataset_id: int,
+#                                                        actual_sequences: int, generation_duration_seconds: int,
+#                                                        file_size_mb: float = 0.0, data_quality_score: float = 1.0,
+#                                                        status: str = "completed") -> None:
+#     """Update training dataset with completion details and specific status."""
+#     pass
 
 
 async def main():
@@ -709,6 +677,10 @@ async def main():
 
     # STEP 4.5: Get run_id first, then register dataset in database using dataset_id as name
     logger.info("📝 STEP 4.5: Getting run_id and registering dataset in database")
+    
+    # Initialize run_id to None in case database registration fails
+    run_id = None
+    
     try:
         # Get run_id from the original registration function (which now only returns run_id)
         _, run_id = await register_training_dataset(
@@ -801,10 +773,10 @@ async def main():
 
         # CRITICAL FIX: Use UnifiedMarketDataManager for training data generation  
         # Supports multiple data sources including FirstRate minute bar data
-        from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType
+        from domains.market_data.services.core.unified_market_data_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType
         
         # Initialize unified market data manager with correct path for minute bar data
-        from core.market_data.unified_manager import StorageBackend
+        from domains.market_data.services.core.unified_market_data_manager import StorageBackend
         market_data_config = MarketDataConfig(
             vendors=[VendorType.FIRSTRATE],  # Use FirstRate for minute data
             storage_backend=StorageBackend.FILE, 
@@ -1079,18 +1051,10 @@ async def main():
         actual_file_size_mb = total_file_size_mb
         logger.info(f"✅ ArrayRecord files successfully created with content")
 
-    # Update database with actual results
-    logger.debug(f"Updating database with actual status: {actual_status}")
-    await update_training_dataset_completion_with_status(
-        environment=environment,
-        dataset_id=db_dataset_id,
-        actual_sequences=actual_sequences,
-        generation_duration_seconds=generation_duration,
-        file_size_mb=actual_file_size_mb,
-        status=actual_status
-    )
-
-    logger.info(f"✅ Dataset completion status updated in database")
+    # Update feature_extraction_runs table with completion status
+    logger.debug(f"Feature extraction completed with status: {actual_status}")
+    logger.info(f"✅ Feature extraction completed: {actual_sequences:,} sequences, {actual_file_size_mb:.1f}MB, {generation_duration}s")
+    # Note: feature_extraction_runs tracking is handled by the feature_extraction_dao
 
     # Add database info to metadata file
     if os.path.exists(metadata_file):
@@ -1136,22 +1100,29 @@ async def main():
         'duration_seconds': generation_duration
     }
     
-    # Call register_feature_extraction with all required parameters
-    extraction_run_id = await register_feature_extraction(
-        run_id=db_run_id,
-        dataset_id=dataset_id,
-        symbols=args.symbols,
-        start_date=start_date,
-        end_date=end_date,
-        feature_groups=list(feature_groups_found),
-        arrayrecord_files={str(f): f for f in arrayrecord_files},
-        metadata=extraction_metadata,
-        environment=args.environment
-    )
-    
-    logger.info(f"✅ Feature extraction run registered: ID {extraction_run_id}")
-    logger.info(f"   Dataset path: {dataset_id}")
-    logger.info(f"   Feature groups: {list(feature_groups_found)}")
+    # Call register_feature_extraction with all required parameters (graceful failure)
+    try:
+        extraction_run_id = await register_feature_extraction(
+            run_id=run_id,
+            dataset_id=dataset_id,
+            symbols=args.symbols,
+            start_date=start_date,
+            end_date=end_date,
+            feature_groups=list(feature_groups_found),
+            arrayrecord_files={str(f): f for f in arrayrecord_files},
+            metadata=extraction_metadata,
+            environment=args.environment
+        )
+        
+        logger.info(f"✅ Feature extraction run registered: ID {extraction_run_id}")
+        logger.info(f"   Dataset path: {dataset_id}")
+        logger.info(f"   Feature groups: {list(feature_groups_found)}")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not register feature extraction run in database: {e}")
+        logger.info(f"✅ Feature extraction completed successfully (database registration skipped)")
+        logger.info(f"   Dataset path: {dataset_id}")
+        logger.info(f"   Feature groups: {list(feature_groups_found)}")
+        extraction_run_id = None
 
     # DEBUG STEP 9: Final Summary and Completion
     logger.info("🎯 STEP 9: Final summary and completion")

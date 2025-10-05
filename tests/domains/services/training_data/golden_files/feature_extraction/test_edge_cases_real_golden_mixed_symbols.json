@@ -1,0 +1,41 @@
+{
+  "test_method": "test_edge_cases_real_golden_mixed_symbols",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_edge_case_mixed_symbols_1759556591",
+    "dataset_path": "/tmp/tmp8v_muhyt",
+    "symbols": [
+      "AAPL",
+      "NONEXISTENT"
+    ],
+    "feature_groups": [],
+    "arrayrecord_files": {},
+    "execution_duration_seconds": 4.11,
+    "total_features_generated": 0,
+    "date_range": {
+      "start": "2024-08-01",
+      "end": "2024-08-01"
+    },
+    "command_executed": "python3 src/domains/services/training_data/feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-01 --symbols AAPL NONEXISTENT --output-dir /tmp/tmp8v_muhyt --environment dev --gin-config config/feature_extraction.gin --debug",
+    "return_code": 1,
+    "stdout": "[GIN DEBUG] Using Gin config: config/feature_extraction.gin, env_type=EnvironmentType.DEV\n[GIN DEBUG] Registered basic config classes as gin configurables\n[GIN DEBUG] Parsed config file with skip_unknown=True\n[DEBUG] POLYGON_API_KEY after Gin load: None\n[GIN DEBUG] Environment auto-discovered db_url from DATABASE_URL env: postgresql://test_user:dummy@localhost:52663/test_db\n[ENV DEBUG] Setting database host to timescaledb.ats-dev.svc.cluster.local for DEV environment\n[ENV DEBUG] Using database credentials from environment variables: host=timescaledb.ats-dev.svc.cluster.local, port=None, user=None, password=None, database=None\n[GIN DEBUG] Environment.__init__ received db_url: postgresql://test_user:dummy@localhost:52663/test_db\n[ENV DEBUG] Constructing Database: host=localhost, port=52663, user=test_user, password=***, database=test_db, base_database=test_db, pool_min_size=1, pool_max_size=10, command_timeout=60\n[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db\n[UniverseManager] Initializing with symbols: ['AAPL', 'NONEXISTENT']\n[DEBUG][resolve_instrument_id_by_symbol] Using ticker vendor_id: 4\n[DEBUG][resolve_instrument_id_by_symbol] Executing: SELECT instrument_id FROM test_instrument_xrefs WHERE symbol = $1 AND vendor_id = $2 with params ['AAPL', 4]\n[DEBUG][resolve_instrument_id_by_symbol] Fetched row: None\n[UniverseManager] \u26a0\ufe0f  WARNING: Could not resolve symbol AAPL to instrument_id\n[DEBUG][resolve_instrument_id_by_symbol] Using ticker vendor_id: 4\n[DEBUG][resolve_instrument_id_by_symbol] Executing: SELECT instrument_id FROM test_instrument_xrefs WHERE symbol = $1 AND vendor_id = $2 with params ['NONEXISTENT', 4]\n[DEBUG][resolve_instrument_id_by_symbol] Fetched row: None\n[UniverseManager] \u26a0\ufe0f  WARNING: Could not resolve symbol NONEXISTENT to instrument_id\n",
+    "stderr": "WARNING:root:LoggingConfig not found in expected locations, using emergency implementation\nWARNING:core.platform.config_core.feature_flags:Feature enable_portfolio_agents dependency enable_agent_networks not satisfied\nWARNING:core.platform.config_core.feature_flags:Feature enable_adaptive_selection dependency enable_llm_events not satisfied\nWARNING:core.platform.config_core.feature_flags:Feature enable_event_reflection dependency enable_llm_events not satisfied\n2025-10-03 22:43:12.994978: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.\n2025-10-03 22:43:13.039532: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.\nTo enable the following instructions: AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.\n2025-10-03 22:43:13.734304: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.\nWARNING:__main__:\u26a0\ufe0f Failed to use gin configurable constructor: Could not find domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig in the Gin registry.\nERROR:__main__:\u274c Failed to register dataset in database: null value in column \"run_id\" of relation \"test_runs\" violates not-null constraint\nDETAIL:  Failing row contains (2, null, training_data_generation, running, 2025-10-03 22:43:14.640245-07, null, null, null, null, 2025-10-03 22:43:14.640334-07, 2025-10-03 22:43:14.640334-07, , , , dev, {}, , , , training_data_callback_runner, {\"symbols\": [\"AAPL\", \"NONEXISTENT\"], \"end_date\": \"2024-08-01\", \"...).\nERROR:__main__:\u274c Failed to create runner: No valid instrument_ids found for symbols: ['AAPL', 'NONEXISTENT']\nTraceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/src/domains/services/training_data/feature_extraction_runner.py\", line 1186, in <module>\n    exit_code = asyncio.run(main())\n                ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/home/jianjun/ats-genai-data/src/domains/services/training_data/feature_extraction_runner.py\", line 853, in main\n    await universe_manager.initialize()\n  File \"/home/jianjun/ats-genai-data/src/domains/trading/services/universe/universe_manager.py\", line 46, in initialize\n    raise ValueError(f\"No valid instrument_ids found for symbols: {self.symbols}\")\nValueError: No valid instrument_ids found for symbols: ['AAPL', 'NONEXISTENT']\n",
+    "success": false,
+    "failure_reason": "real_execution_failed",
+    "test_scenario": "edge_case_mixed_symbols",
+    "edge_case_config": {
+      "name": "mixed_symbols",
+      "symbols": [
+        "AAPL",
+        "NONEXISTENT"
+      ],
+      "description": "Mix of valid and invalid symbols"
+    }
+  },
+  "generated_at_utc_micros": 1759556595539863,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

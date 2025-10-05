@@ -2,8 +2,8 @@
 # Uses 1-minute base intervals with multi-timeframe sequences
 
 # Training Data Configuration - Using full module path
-domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
-domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
+domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.base_interval_minutes = 1
+domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.training_interval_minutes = 60
 
 # Note: Timeframes are automatically obtained from UniverseStateIntervalBuilder.target_durations
 # This ensures consistency between universe state building and training data generation
@@ -12,7 +12,7 @@ domains.ml.services.training_data.timeseries_sequence_training_generator.Trainin
 # domains.trading.services.indicators.smart_money_zones.MultiTimeframeAnalysis.timeframes = ['5m', '15m', '1h', '4h']
 
 # Technical Indicators Signal Names Configuration
-domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
+domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = [
     "etop", "ebot", "pldot",           # Envelope indicators
     "envelope_top", "envelope_bot",    # Alternative envelope names
     "z1b", "z2b", "z5t", "z6t",       # Z-level indicators
@@ -22,7 +22,7 @@ domains.ml.services.training_data.timeseries_sequence_training_generator.Trainin
 ]
 
 # Feature Types Configuration
-domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = [
+domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = [
     "ohlcv",           # Open, High, Low, Close, Volume
     "returns",         # Price returns
     "volatility",      # Volatility measures

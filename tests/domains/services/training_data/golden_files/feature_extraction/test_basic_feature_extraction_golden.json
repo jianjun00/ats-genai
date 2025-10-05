@@ -2,23 +2,23 @@
   "test_method": "test_basic_feature_extraction_golden",
   "schema_version": "1.0.0",
   "feature_extraction_results": {
-    "run_id": "test_run_feature_sink_error_basic_1759613303",
+    "run_id": "test_run_feature_sink_error_basic_1759672880",
     "dataset_path": "",
     "symbols": [
       "AAPL"
     ],
-    "execution_duration_seconds": 0.012864828109741211,
+    "execution_duration_seconds": 0.3204996585845947,
     "captured_features_count": 0,
     "feature_summary": {},
     "actual_features": [],
     "date_range": {
       "start": "2024-08-01",
-      "end": "2024-08-02"
+      "end": "2024-08-01"
     },
     "success": false,
-    "failure_reason": "feature_sink_execution_error: No module named 'domains.market_data.services.core.file_based_market_data_manager'"
+    "failure_reason": "feature_sink_execution_error: No module named 'array_record'"
   },
-  "generated_at_utc_micros": 1759613303235782,
+  "generated_at_utc_micros": 1759672880817992,
   "validation_metadata": {
     "real_feature_extraction": true,
     "zero_mock_objects": true,

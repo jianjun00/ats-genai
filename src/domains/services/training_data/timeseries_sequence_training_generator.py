@@ -71,7 +71,7 @@ class MultiTimeframeFeatureExtractor:
         # Initialize S/R feature extractor if support_resistance is in feature_types
         if hasattr(config, 'feature_types') and 'support_resistance' in config.feature_types:
             try:
-                from domains.ml.services.training_data.features.support_resistance_features import (
+                from domains.services.training_data.support_resistance_features import (
                     SupportResistanceFeatureExtractor
                 )
                 self.sr_extractor = SupportResistanceFeatureExtractor()
