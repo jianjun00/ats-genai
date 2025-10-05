@@ -255,12 +255,12 @@ class TestFeatureExtractionRunnerGolden:
             universe_builder.indicator_builder = IndicatorBuilder()  # Will read gin signal_names automatically
             logger.debug(f"🔍 DEBUG: Added IndicatorBuilder with signal names: {universe_builder.indicator_builder.get_signal_names()}")
             
-            # Create runner with gin configuration (no manual dependency injection)
+            # Create runner with explicit parameters
             runner = Runner(
                 environment=env,
-                # gin configuration will provide base_duration
-                start_date=datetime.strptime(start_date, '%Y-%m-%d'),
-                end_date=datetime.strptime(end_date, '%Y-%m-%d'),
+                base_duration='5m',  # Match the universe_builder base_duration
+                start_date=start_date,  # Runner expects string format
+                end_date=end_date,      # Runner expects string format 
                 universe_id=1,
                 callbacks=[universe_builder, callback]
             )
