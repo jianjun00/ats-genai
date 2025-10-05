@@ -26,7 +26,7 @@ import shutil
 from dataclasses import asdict
 
 from .universe_state_manager import UniverseStateManager, UniverseStateMetadata
-from core.shared.run_context import RunContext, get_current_run_context
+from core.run_context import RunContext, get_current_run_context
 
 import gin
 from core.dao.trading.universe_state_interval_dao import UniverseStateIntervalDAO

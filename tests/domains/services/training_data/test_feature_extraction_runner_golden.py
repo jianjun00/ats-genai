@@ -33,6 +33,26 @@ class TestFeatureExtractionRunnerGolden:
     Following the same pattern as universe state golden tests but for feature extraction.
     """
     
+    @pytest.fixture
+    def real_market_data_manager(self):
+        """Set up real market data manager using test data directory (like universe_state_builder test)."""
+        from domains.market_data.services.core.unified_market_data_manager import (
+            UnifiedMarketDataManager, MarketDataConfig, VendorType, StorageBackend
+        )
+        from pathlib import Path
+        
+        # Use relative path to test data directory
+        test_data_path = str(Path(__file__).parent.parent.parent.parent / "test_data" / "minute-bars" / "firstrate")
+        
+        config = MarketDataConfig(
+            vendors=[VendorType.FIRSTRATE],
+            storage_backend=StorageBackend.FILE,
+            file_storage_path=test_data_path,
+            enable_cache=True,
+            enable_validation=True
+        )
+        return UnifiedMarketDataManager(config)
+    
     def _save_feature_extraction_golden_file(self, test_method_name, extraction_results):
         """Save feature extraction results as golden file using existing infrastructure pattern."""
         import os
@@ -124,7 +144,7 @@ class TestFeatureExtractionRunnerGolden:
             return False
     
     @pytest.mark.asyncio
-    async def test_basic_feature_extraction_golden(self, isolated_test_db):
+    async def test_basic_feature_extraction_golden(self, isolated_test_db, real_market_data_manager):
         """Test basic feature extraction using real runner with minimal dataset."""
         import subprocess
         import tempfile
@@ -132,177 +152,31 @@ class TestFeatureExtractionRunnerGolden:
         import asyncpg
         from datetime import date
         
-        print("🔍 STEP 1: Setting up basic feature extraction test")
-        print("🔍 DEBUG: Test started - checking if debug output appears")
-        
-        # STEP 1.5: Set up minimal test data using shared utilities
-        print("🔍 STEP 1.5: Setting up minimal test data using shared fixtures")
         from core.shared.utils_core.test_database import load_test_fixtures, STANDARD_TEST_FIXTURES
         
-        # Debug: Check what fixtures we're trying to load
-        print(f"🔍 DEBUG: STANDARD_TEST_FIXTURES keys: {list(STANDARD_TEST_FIXTURES.keys())}")
-        print(f"🔍 DEBUG: AAPL in instrument fixtures: {'AAPL' in str(STANDARD_TEST_FIXTURES.get('test_instrument', []))}")
+        await load_test_fixtures(isolated_test_db, STANDARD_TEST_FIXTURES)
         
-        try:
-            await load_test_fixtures(isolated_test_db, STANDARD_TEST_FIXTURES)
-            print("✅ STEP 1.5: Test data setup completed using shared fixtures")
-        except Exception as e:
-            print(f"❌ STEP 1.5: Test fixture loading failed: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
-        
-        # Verify AAPL was loaded correctly
-        import asyncpg
-        conn = await asyncpg.connect(isolated_test_db)
-        
-        # Check table existence
-        tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'test_%'")
-        print(f"🔍 DEBUG: Test tables found: {[row['tablename'] for row in tables]}")
-        
-        # Check AAPL data
-        aapl_count = await conn.fetchval("SELECT COUNT(*) FROM test_instrument WHERE symbol = 'AAPL'")
-        xref_count = await conn.fetchval("SELECT COUNT(*) FROM test_instrument_xrefs WHERE symbol = 'AAPL'")
-        
-        # If no AAPL found, check what symbols exist
-        if aapl_count == 0:
-            existing_symbols = await conn.fetch("SELECT symbol FROM test_instrument")
-            print(f"🔍 DEBUG: Existing symbols in test_instrument: {[row['symbol'] for row in existing_symbols]}")
-            
-            # Check if vendors exist (required for xrefs)
-            vendor_count = await conn.fetchval("SELECT COUNT(*) FROM test_vendors")
-            print(f"🔍 DEBUG: Vendor count: {vendor_count}")
-        
-        await conn.close()
-        print(f"🔍 STEP 1.6: Verification - AAPL instruments: {aapl_count}, xrefs: {xref_count}")
-        
-        # CRITICAL: If no AAPL found, fail fast with clear error
-        if aapl_count == 0:
-            raise ValueError(f"Test fixture loading failed: AAPL not found in test_instrument table. "
-                           f"This will cause 'No valid instrument_ids found' error later.")
-        
-        # Use a very small date range for fast test execution
-        start_date = "2024-08-01"
-        end_date = "2024-08-01"  # Single day only
+                
+        # Use shorter date range for debugging IndicatorBuilder
+        start_date = "2024-08-01"  # Single day for faster debugging
+        end_date = "2024-08-01"  # Single day for faster debugging  
         symbols = ["AAPL"]  # Single symbol only
         
-        # Create temporary output directory
-        with tempfile.TemporaryDirectory() as temp_dir:
-            print(f"🔍 STEP 2: Running feature extraction runner with real objects")
-            
-            # Run the actual feature extraction runner
-            cmd = [
-                "python3", "src/domains/services/training_data/feature_extraction_runner.py",
-                "--start-date", start_date,
-                "--end-date", end_date,
-                "--symbols"] + symbols + [
-                "--output-dir", temp_dir,
-                "--environment", "dev",
-                "--gin-config", "config/feature_extraction.gin",
-                "--debug"  # Enable debug logging for test
-            ]
-            
-            # Set up environment for the subprocess
-            env = os.environ.copy()
-            env["PYTHONPATH"] = "src"
-            env["DATABASE_URL"] = isolated_test_db  # Pass test database URL
-            print(f"🔍 STEP 2.5: Using test database: {isolated_test_db}")
-            
-            try:
-                print(f"🔍 STEP 3: Executing command: {' '.join(cmd)}")
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    cwd="/home/jianjun/ats-genai-data",
-                    env=env,
-                    timeout=300  # 5 minute timeout
-                )
-                
-                print(f"✅ STEP 3: Command completed with return code: {result.returncode}")
-                if result.stdout:
-                    print(f"📝 STDOUT: {result.stdout}")
-                if result.stderr:
-                    print(f"⚠️ STDERR: {result.stderr}")
-                
-                # Check if execution was successful
-                if result.returncode == 0:
-                    print("✅ STEP 4: Feature extraction completed successfully")
-                    
-                    # Parse output to extract results
-                    extraction_results = {
-                        "run_id": "test_run_001",
-                        "dataset_path": temp_dir,
-                        "symbols": symbols,
-                        "feature_groups": ["technical_indicators", "price_features"],
-                        "arrayrecord_files": {},
-                        "execution_duration_seconds": 10,
-                        "total_features_generated": 50,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "stdout": result.stdout,
-                        "stderr": result.stderr,
-                        "return_code": result.returncode
-                    }
-                    
-                    # Look for actual ArrayRecord files created
-                    output_path = Path(temp_dir)
-                    arrayrecord_files = list(output_path.glob("**/*.arrayrecord"))
-                    if arrayrecord_files:
-                        extraction_results["arrayrecord_files"] = {
-                            f"file_{i}": str(f) for i, f in enumerate(arrayrecord_files)
-                        }
-                        print(f"📁 Found {len(arrayrecord_files)} ArrayRecord files")
-                    
-                    # Save golden file
-                    success = self._save_feature_extraction_golden_file(
-                        test_method_name="test_basic_feature_extraction_golden",
-                        extraction_results=extraction_results
-                    )
-                    
-                    assert success, "Failed to save feature extraction golden file"
-                    print("🎯 BASIC FEATURE EXTRACTION: Golden file test completed successfully")
-                    
-                else:
-                    print(f"❌ STEP 4: Feature extraction failed with return code: {result.returncode}")
-                    print(f"❌ STDERR: {result.stderr}")
-                    
-                    # Still save the failure results for debugging
-                    extraction_results = {
-                        "run_id": "test_run_001_failed",
-                        "symbols": symbols,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "stdout": result.stdout,
-                        "stderr": result.stderr,
-                        "return_code": result.returncode,
-                        "command_executed": " ".join(cmd),
-                        "execution_duration_seconds": 0,
-                        "total_features_generated": 0,
-                        "failure_reason": "subprocess_failed",
-                        "success": False
-                    }
-                    
-                    # Save failure golden file for debugging
-                    self._save_feature_extraction_golden_file(
-                        test_method_name="test_basic_feature_extraction_golden_failure",
-                        extraction_results=extraction_results
-                    )
-                    
-                    # Fail the test but with useful info
-                    pytest.fail(f"Feature extraction subprocess failed: {result.stderr}")
-                    
-            except subprocess.TimeoutExpired:
-                print("❌ STEP 3: Feature extraction timed out after 5 minutes")
-                pytest.fail("Feature extraction runner timed out")
-                
-            except Exception as e:
-                print(f"❌ STEP 3: Failed to run feature extraction: {e}")
-                import traceback
-                traceback.print_exc()
-                pytest.fail(f"Failed to execute feature extraction runner: {e}")
+        # Execute REAL feature extraction with feature sink
+        result = await self._run_real_feature_extraction_with_feature_sink(
+            isolated_test_db, symbols, start_date, end_date, "basic", real_market_data_manager
+        )
+        
+        # Save golden file with actual captured features
+        success = self._save_feature_extraction_golden_file(
+            test_method_name="test_basic_feature_extraction_golden",
+            extraction_results=result
+        )
+        
+        assert success, "Failed to save feature extraction golden file with actual features"
+
     
-    async def _run_real_feature_extraction_with_feature_sink(self, isolated_test_db, symbols, start_date, end_date, test_name_suffix=""):
+    async def _run_real_feature_extraction_with_feature_sink(self, isolated_test_db, symbols, start_date, end_date, test_name_suffix="", real_market_data_manager=None):
         """Run REAL feature extraction using the actual runner framework with feature sink to capture actual features."""
         import tempfile
         import os
@@ -318,6 +192,7 @@ class TestFeatureExtractionRunnerGolden:
         
         try:
             print(f"🔍 REAL FEATURE SINK EXECUTION: Running feature extraction for {symbols}")
+            print(f"🔍 DEBUG: Method started with db_url: {isolated_test_db}")
             
             # Create feature sink to capture actual features during generation
             feature_sink = FeatureSink()
@@ -339,16 +214,8 @@ class TestFeatureExtractionRunnerGolden:
                 # Load existing feature extraction configuration
                 gin.parse_config_file('/home/jianjun/ats-genai-data/config/feature_extraction.gin')
                 
-                # Add test-specific overrides
-                gin.parse_config("""
-                    # Use minimal feature set for testing
-                    domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.feature_types = ['ohlcv']
-                    domains.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig.signal_names = ['sma_20']
-                    
-                    # Single timeframe for testing
-                    domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '5m'
-                    domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '5m'
-                """)
+                # No overrides - use gin config exactly as-is to avoid mismatches
+                print(f"🔍 DEBUG: Using gin config as-is without overrides")
                 
                 # Create training data callback with feature sink
                 callback = IntervalBasedTrainingDataCallback(
@@ -359,25 +226,47 @@ class TestFeatureExtractionRunnerGolden:
                     feature_sink=feature_sink  # Inject feature sink to capture actual features
                 )
                 
-                # Create universe state builder
+                # Create universe state manager first
+                from domains.trading.services.state.universe_state_manager import UniverseStateManager
+                universe_state_manager = UniverseStateManager(env)
+                
+                # Create universe state builder using gin configuration (no hardcoded values)
                 universe_builder = UniverseStateIntervalBuilder(
                     env=env,
-                    base_duration='5m',
-                    target_durations='5m'
+                    universe_state_manager=universe_state_manager
+                    # gin configuration will provide base_duration and target_durations
                 )
+                
+                # CRITICAL: Add IndicatorBuilder that reads signal_names from gin config
+                from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+                universe_builder.indicator_builder = IndicatorBuilder()  # Will read gin signal_names automatically
+                print(f"🔍 DEBUG: Added IndicatorBuilder with {len(universe_builder.indicator_builder.indicator_config.get_indicator_names())} indicators: {universe_builder.indicator_builder.indicator_config.get_indicator_names()}")
                 
                 # Create runner with gin configuration (no manual dependency injection)
                 runner = Runner(
                     environment=env,
-                    base_duration='5m',
+                    # gin configuration will provide base_duration
                     start_date=datetime.strptime(start_date, '%Y-%m-%d'),
                     end_date=datetime.strptime(end_date, '%Y-%m-%d'),
                     universe_id=1,
                     callbacks=[universe_builder, callback]
                 )
                 
+                # CRITICAL: Replace with test market data manager using test data files
+                if real_market_data_manager:
+                    runner.market_data_manager = real_market_data_manager
+                    universe_builder.market_data_manager = real_market_data_manager
+                    print(f"🔍 DEBUG: Using test market data manager with path: {real_market_data_manager.config.file_storage_path}")
+                
                 # Initialize universe with test data before running
                 universe_manager = runner.get_universe_manager()
+                
+                # DEBUG: Check what database URL the universe manager is using
+                print(f"🔍 DEBUG: Test database URL: {isolated_test_db}")
+                print(f"🔍 DEBUG: Environment database URL: {env.get_database_url()}")
+                print(f"🔍 DEBUG: UniverseManager environment: {universe_manager.env}")
+                print(f"🔍 DEBUG: UniverseManager db_url: {getattr(universe_manager._instrument_xrefs_dao, 'db_url', 'NOT_SET')}")
+                
                 universe_manager.symbols = symbols  # Set symbols for the universe
                 await universe_manager.initialize()  # Initialize with database lookup
                 
@@ -868,34 +757,6 @@ class TestFeatureExtractionRunnerGolden:
         print("✅ COMPREHENSIVE REAL: Golden file saved successfully")
 
 
-    @pytest.mark.asyncio
-    async def test_basic_feature_extraction_golden(self, isolated_test_db):
-        """Test basic feature extraction with feature sink to capture actual features."""
-        # Test configuration
-        symbols = ["AAPL"]
-        start_date = "2024-08-01"
-        end_date = "2024-08-02"
-        
-        print(f"🎯 BASIC FEATURE EXTRACTION: Starting test with actual feature capture")
-        print(f"   Symbols: {symbols}")
-        print(f"   Date range: {start_date} to {end_date}")
-        
-        # Execute REAL feature extraction with feature sink
-        result = await self._run_real_feature_extraction_with_feature_sink(
-            isolated_test_db, symbols, start_date, end_date, "basic"
-        )
-        
-        print(f"🎯 FEATURE EXTRACTION COMPLETED: Success={result.get('success', False)}")
-        print(f"   Captured features: {result.get('captured_features_count', 0)}")
-        
-        # Save golden file with actual captured features
-        success = self._save_feature_extraction_golden_file(
-            test_method_name="test_basic_feature_extraction_golden",
-            extraction_results=result
-        )
-        
-        assert success, "Failed to save feature extraction golden file with actual features"
-        print("🎯 BASIC FEATURE EXTRACTION: Golden file test completed successfully with real features")
 
 
 # Test runner configuration

@@ -56,7 +56,7 @@
       "object_type": "universe_state_interval",
       "schema_version": "1.0.0",
       "interval_index": 0,
-      "generated_at_utc_micros": 1759546327083238,
+      "generated_at_utc_micros": 1759672707670285,
       "validation_metadata": {
         "instrument_count": 1,
         "timeframe_alignment": true,
@@ -108,7 +108,7 @@
       "object_type": "universe_state_interval",
       "schema_version": "1.0.0",
       "interval_index": 1,
-      "generated_at_utc_micros": 1759546327083253,
+      "generated_at_utc_micros": 1759672707670300,
       "validation_metadata": {
         "instrument_count": 1,
         "timeframe_alignment": true,
@@ -160,7 +160,7 @@
       "object_type": "universe_state_interval",
       "schema_version": "1.0.0",
       "interval_index": 2,
-      "generated_at_utc_micros": 1759546327083261,
+      "generated_at_utc_micros": 1759672707670308,
       "validation_metadata": {
         "instrument_count": 1,
         "timeframe_alignment": true,
@@ -171,7 +171,7 @@
       }
     }
   ],
-  "generated_at_utc_micros": 1759546327083270,
+  "generated_at_utc_micros": 1759672707670315,
   "sequence_validation": {
     "consecutive_intervals": true,
     "consistent_timeframe": "1m",

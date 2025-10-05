@@ -1,5 +1,6 @@
+import gin
 from dataclasses import dataclass, field
-from typing import Dict, List, Type
+from typing import Dict, List, Type, Optional
 from .indicators_core.indicator import Indicator, PL, OneOneHigh, OneOneLow, OneOneDot, EnvelopeBot, EnvelopeTop
 
 

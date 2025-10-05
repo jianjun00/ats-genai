@@ -76,8 +76,8 @@ class FeatureSink:
             'symbols': sorted(symbols),
             'timeframes': sorted(list(timeframes)),
             'feature_counts': feature_counts,
-            'sample_feature_names': {
-                tf: list(self.captured_features[0]['timeframe_features'][tf].keys())[:10] 
+            'all_feature_names': {
+                tf: list(self.captured_features[0]['timeframe_features'][tf].keys())
                 for tf in timeframes
                 if tf in self.captured_features[0]['timeframe_features']
             } if self.captured_features else {}

@@ -8,7 +8,9 @@ DECLARE
     table_name TEXT;
 BEGIN
     -- Determine correct table name based on current database
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE information_schema.tables.table_name = 'intg_runs') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE information_schema.tables.table_name = 'test_runs') THEN
+        table_name := 'test_runs';
+    ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE information_schema.tables.table_name = 'intg_runs') THEN
         table_name := 'intg_runs';
     ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE information_schema.tables.table_name = 'dev_runs') THEN
         table_name := 'dev_runs';
@@ -16,7 +18,7 @@ BEGIN
         table_name := 'runs';
     ELSE
         -- No runs table exists, skip this migration
-        RAISE NOTICE 'Migration 007 skipped: No runs table found (intg_runs, dev_runs, or runs)';
+        RAISE NOTICE 'Migration 007 skipped: No runs table found (test_runs, intg_runs, dev_runs, or runs)';
         RETURN;
     END IF;
     
@@ -31,9 +33,10 @@ BEGIN
     EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS python_version VARCHAR(50) DEFAULT ''''', table_name);
     EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS dependencies_hash VARCHAR(64) DEFAULT ''''', table_name);
     
-    -- Update existing columns to match RunMetadataTracker expectations
-    EXECUTE format('ALTER TABLE %I ALTER COLUMN created_by SET DEFAULT ''system''', table_name);
+    -- Add created_by column if it doesn't exist, then set default
     EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS created_by VARCHAR(100) DEFAULT ''system''', table_name);
+    -- Update existing columns to match RunMetadataTracker expectations (only if column exists)
+    EXECUTE format('ALTER TABLE %I ALTER COLUMN created_by SET DEFAULT ''system''', table_name);
     EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS parameters JSONB DEFAULT ''{}''', table_name);
     
     -- Add indexes for performance on new columns
