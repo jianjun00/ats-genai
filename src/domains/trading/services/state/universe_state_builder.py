@@ -573,15 +573,17 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         }
 
         # Check if we have enough history for indicators
-        has_enough_history = all(len(hist) >= 3 for hist in instrument_histories.values())
+        has_enough_history = all(len(hist) >= 1 for hist in instrument_histories.values())
 
         if has_enough_history and self.indicator_builder is not None:
             # Normal indicator calculation
-            instrument_indicator_intervals['default'] = self.indicator_builder.build_indicator_intervals(
+            built_intervals = self.indicator_builder.build_indicator_intervals(
                 instrument_histories,
                 start_date_time=current_time,
                 end_date_time=d_end_time
             )
+            
+            instrument_indicator_intervals['default'] = built_intervals
         else:
             # Create synthetic indicators with default values
             self.logger.warning(f"[INDICATORS] Using default values for {duration.get_duration_string()}")
@@ -625,6 +627,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             instrument_intervals=interval_map,
             instrument_indicator_intervals=instrument_indicator_intervals
         )
+        
         
         # Optional: augment with forecasts via forecast callback
         if hasattr(self, 'forecast_callback') and self.forecast_callback is not None:

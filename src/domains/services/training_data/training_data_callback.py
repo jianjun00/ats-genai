@@ -158,10 +158,24 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
     def handleStart(self, runner: Any, current_time: datetime):
         """Initialize training generator."""
+        
+        # Get indicator_builder from UniverseStateIntervalBuilder callback
+        indicator_builder = None
+        if hasattr(runner, 'callbacks'):
+            for callback in runner.callbacks:
+                if hasattr(callback, 'indicator_builder'):
+                    indicator_builder = callback.indicator_builder
+                    print(f"🔧 FOUND IndicatorBuilder in callback: {type(callback).__name__}")
+                    break
+        
+        if indicator_builder is None:
+            print(f"🔧 WARNING: No IndicatorBuilder found in runner callbacks")
+        
         self.training_generator = TimeSeriesSequenceTrainingGenerator(
             env=runner.get_environment(),
             config=self.config,
-            universe_manager=runner.get_universe_state_manager()
+            universe_manager=runner.get_universe_state_manager(),
+            indicator_builder=indicator_builder
         )
 
         # Create output directory
@@ -185,56 +199,53 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         - At 00m: Generate 5m, 15m, and 60m timeframes
         - At Monday 00:00: Generate all timeframes including 1d and 1w
         """
+        self.logger.info(f"[CALLBACK DEBUG] handleInterval CALLED at {current_time}")
+        self.logger.info(f"[CALLBACK DEBUG] Training generator available: {self.training_generator is not None}")
+        
         if not self.training_generator:
+            self.logger.info(f"[CALLBACK DEBUG] EXITING - No training generator")
             return
 
         # Determine which timeframes to generate based on current time
         target_timeframes = self._get_target_timeframes_for_interval(current_time)
+        self.logger.info(f"[CALLBACK DEBUG] Target timeframes: {target_timeframes}")
         
         if not target_timeframes:
+            self.logger.info(f"[CALLBACK DEBUG] EXITING - No target timeframes")
             return
 
-
+        self.logger.info(f"[CALLBACK DEBUG] PROCEEDING with feature generation")
         self.interval_counter += 1
         examples_generated = []
 
-        try:
-            # Generate examples for each symbol and timeframe combination
-            for symbol in self.symbols:
-                for timeframe in target_timeframes:
-                    print(f"🔍 GENERATE: {symbol} {timeframe} at {current_time}")
-                    example = await self.training_generator.generate_training_example(
+        # Generate examples for each symbol and timeframe combination - NO EXCEPTION CATCHING
+        for symbol in self.symbols:
+            for timeframe in target_timeframes:
+                print(f"🔍 GENERATE: {symbol} {timeframe} at {current_time}")
+                example = await self.training_generator.generate_training_example(
+                    symbol=symbol,
+                    prediction_timestamp=current_time,
+                    target_timeframes=[timeframe]  # Generate for single timeframe only
+                )
+                print(f"🔍 EXAMPLE: {example is not None}, keys={list(example.keys()) if example else 'NONE'}")
+                examples_generated.append(example)
+                
+                # Capture features for golden file testing if feature_sink is provided
+                if self.feature_sink and example:
+                    self.feature_sink.capture_training_example(
                         symbol=symbol,
                         prediction_timestamp=current_time,
-                        target_timeframes=[timeframe]  # Generate for single timeframe only
+                        base_features=example.get('base_features', {}),
+                        timeframe_features=example.get('timeframe_features', {}),
+                        prediction_targets=example.get('prediction_targets', {})
                     )
-                    print(f"🔍 EXAMPLE: {example is not None}, keys={list(example.keys()) if example else 'NONE'}")
-                    examples_generated.append(example)
-                    
-                    # Capture features for golden file testing if feature_sink is provided
-                    if self.feature_sink and example:
-                        self.feature_sink.capture_training_example(
-                            symbol=symbol,
-                            prediction_timestamp=current_time,
-                            base_features=example.get('base_features', {}),
-                            timeframe_features=example.get('timeframe_features', {}),
-                            prediction_targets=example.get('prediction_targets', {})
-                        )
 
-            # Save immediately if we have examples
-            if examples_generated:
-                print(f"🔍 SAVE: {len(examples_generated)} examples")
-                await self._save_simple_arrayrecord(examples_generated, current_time, runner)
-            else:
-                print(f"⚠️ NO EXAMPLES GENERATED at {current_time}")
-
-        except Exception as e:
-            self.logger.error(f"CRITICAL ERROR in handleInterval: {e}")
-            import traceback
-            traceback.print_exc()
-            # Ensure cleanup even on critical errors
-            self._ensure_writers_closed()
-            raise  # Re-raise to maintain error propagation
+        # Save immediately if we have examples
+        if examples_generated:
+            print(f"🔍 SAVE: {len(examples_generated)} examples")
+            await self._save_simple_arrayrecord(examples_generated, current_time, runner)
+        else:
+            print(f"⚠️ NO EXAMPLES GENERATED at {current_time}")
 
     async def _save_simple_arrayrecord(self, examples: List[Dict], current_time: datetime, runner: Any):
         """

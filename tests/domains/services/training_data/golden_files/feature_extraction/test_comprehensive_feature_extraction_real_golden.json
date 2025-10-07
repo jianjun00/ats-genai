@@ -2,27 +2,25 @@
   "test_method": "test_comprehensive_feature_extraction_real_golden",
   "schema_version": "1.0.0",
   "feature_extraction_results": {
-    "run_id": "test_run_real_comprehensive_1759556601",
-    "dataset_path": "/tmp/tmpd7suif13",
+    "run_id": "test_run_real_error_comprehensive_1759754756",
+    "dataset_path": "/tmp/tmp2hsmndpw",
     "symbols": [
       "AAPL",
       "TSLA",
       "MSFT"
     ],
-    "feature_groups": [],
-    "arrayrecord_files": {},
-    "execution_duration_seconds": 4.1,
-    "total_features_generated": 0,
+    "execution_duration_seconds": 0.08,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
     "date_range": {
       "start": "2024-08-01",
       "end": "2024-08-02"
     },
-    "command_executed": "python3 src/domains/services/training_data/feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-02 --symbols AAPL TSLA MSFT --output-dir /tmp/tmpd7suif13 --environment dev --gin-config config/feature_extraction.gin --debug",
-    "return_code": 1,
-    "stdout": "[GIN DEBUG] Using Gin config: config/feature_extraction.gin, env_type=EnvironmentType.DEV\n[GIN DEBUG] Registered basic config classes as gin configurables\n[GIN DEBUG] Parsed config file with skip_unknown=True\n[DEBUG] POLYGON_API_KEY after Gin load: None\n[GIN DEBUG] Environment auto-discovered db_url from DATABASE_URL env: postgresql://test_user:dummy@localhost:44237/test_db\n[ENV DEBUG] Setting database host to timescaledb.ats-dev.svc.cluster.local for DEV environment\n[ENV DEBUG] Using database credentials from environment variables: host=timescaledb.ats-dev.svc.cluster.local, port=None, user=None, password=None, database=None\n[GIN DEBUG] Environment.__init__ received db_url: postgresql://test_user:dummy@localhost:44237/test_db\n[ENV DEBUG] Constructing Database: host=localhost, port=44237, user=test_user, password=***, database=test_db, base_database=test_db, pool_min_size=1, pool_max_size=10, command_timeout=60\n[GIN DEBUG] Loaded database config from Gin: host=localhost, db=test_db\n[UniverseManager] Initializing with symbols: ['AAPL', 'TSLA', 'MSFT']\n[DEBUG][resolve_instrument_id_by_symbol] Using ticker vendor_id: 4\n[DEBUG][resolve_instrument_id_by_symbol] Executing: SELECT instrument_id FROM test_instrument_xrefs WHERE symbol = $1 AND vendor_id = $2 with params ['AAPL', 4]\n[DEBUG][resolve_instrument_id_by_symbol] Fetched row: None\n[UniverseManager] \u26a0\ufe0f  WARNING: Could not resolve symbol AAPL to instrument_id\n[DEBUG][resolve_instrument_id_by_symbol] Using ticker vendor_id: 4\n[DEBUG][resolve_instrument_id_by_symbol] Executing: SELECT instrument_id FROM test_instrument_xrefs WHERE symbol = $1 AND vendor_id = $2 with params ['TSLA', 4]\n[DEBUG][resolve_instrument_id_by_symbol] Fetched row: None\n[UniverseManager] \u26a0\ufe0f  WARNING: Could not resolve symbol TSLA to instrument_id\n[DEBUG][resolve_instrument_id_by_symbol] Using ticker vendor_id: 4\n[DEBUG][resolve_instrument_id_by_symbol] Executing: SELECT instrument_id FROM test_instrument_xrefs WHERE symbol = $1 AND vendor_id = $2 with params ['MSFT', 4]\n[DEBUG][resolve_instrument_id_by_symbol] Fetched row: None\n[UniverseManager] \u26a0\ufe0f  WARNING: Could not resolve symbol MSFT to instrument_id\n",
-    "stderr": "WARNING:root:LoggingConfig not found in expected locations, using emergency implementation\nWARNING:core.platform.config_core.feature_flags:Feature enable_portfolio_agents dependency enable_agent_networks not satisfied\nWARNING:core.platform.config_core.feature_flags:Feature enable_adaptive_selection dependency enable_llm_events not satisfied\nWARNING:core.platform.config_core.feature_flags:Feature enable_event_reflection dependency enable_llm_events not satisfied\n2025-10-03 22:43:23.498910: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.\n2025-10-03 22:43:23.541464: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.\nTo enable the following instructions: AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.\n2025-10-03 22:43:24.250354: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.\nWARNING:__main__:\u26a0\ufe0f Failed to use gin configurable constructor: Could not find domains.ml.services.training_data.timeseries_sequence_training_generator.TrainingDataConfig in the Gin registry.\nERROR:__main__:\u274c Failed to register dataset in database: null value in column \"run_id\" of relation \"test_runs\" violates not-null constraint\nDETAIL:  Failing row contains (1, null, training_data_generation, running, 2025-10-03 22:43:25.143174-07, null, null, null, null, 2025-10-03 22:43:25.143256-07, 2025-10-03 22:43:25.143256-07, , , , dev, {}, , , , training_data_callback_runner, {\"symbols\": [\"AAPL\", \"TSLA\", \"MSFT\"], \"end_date\": \"2024-08-02\", ...).\nERROR:__main__:\u274c Failed to create runner: No valid instrument_ids found for symbols: ['AAPL', 'TSLA', 'MSFT']\nTraceback (most recent call last):\n  File \"/home/jianjun/ats-genai-data/src/domains/services/training_data/feature_extraction_runner.py\", line 1186, in <module>\n    exit_code = asyncio.run(main())\n                ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/home/jianjun/ats-genai-data/src/domains/services/training_data/feature_extraction_runner.py\", line 853, in main\n    await universe_manager.initialize()\n  File \"/home/jianjun/ats-genai-data/src/domains/trading/services/universe/universe_manager.py\", line 46, in initialize\n    raise ValueError(f\"No valid instrument_ids found for symbols: {self.symbols}\")\nValueError: No valid instrument_ids found for symbols: ['AAPL', 'TSLA', 'MSFT']\n",
+    "command_executed": "feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-02 --symbols AAPL TSLA MSFT --output-dir /tmp/tmp2hsmndpw --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
     "success": false,
-    "failure_reason": "real_execution_failed",
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['AAPL', 'TSLA', 'MSFT']",
     "test_scenario": "comprehensive_real",
     "comprehensive_config": {
       "symbols_count": 3,
@@ -34,7 +32,7 @@
       ]
     }
   },
-  "generated_at_utc_micros": 1759556606037777,
+  "generated_at_utc_micros": 1759754756608473,
   "validation_metadata": {
     "real_feature_extraction": true,
     "zero_mock_objects": true,

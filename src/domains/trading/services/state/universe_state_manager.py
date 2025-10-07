@@ -299,6 +299,8 @@ class UniverseStateManager:
         # Rolling cache for InstrumentInterval objects (shared with UniverseStateBuilder)
         # Format: Dict[timeframe_str, Dict[instrument_id, List[InstrumentInterval]]]
         self._rolling_instrument_history: Dict[str, Dict[int, List]] = {}
+        # Format: Dict[timeframe_str, Dict[indicator_type, Dict[instrument_id, List[IndicatorInterval]]]]
+        self._rolling_indicator_history: Dict[str, Dict[str, Dict[int, List]]] = {}
         # Rolling window size for interval cache
         self.rolling_window = 20
         self.logger = logging.getLogger(__name__)
@@ -544,9 +546,11 @@ class UniverseStateManager:
                 # Add InstrumentInterval objects to rolling cache so universe_state_builder can aggregate them
                 self.logger.info(f"🔄 [USM.addUniverseState] Adding to rolling cache: timeframe={duration_str}, inst_id={inst_id}")
                 self.add_interval_to_rolling_cache(inst_id, duration_str, inst_interval)
-            # Output indicator values in long format
+            # Cache indicator intervals in rolling cache AND output indicator values in long format
             for indicator_type, inst_dict in universe_state.instrument_indicator_intervals.items():
                 for inst_id, indicator_interval in inst_dict.items():
+                    # Cache indicator interval for fast retrieval
+                    self.add_indicator_interval_to_rolling_cache(inst_id, duration_str, indicator_type, indicator_interval)
                     key = (indicator_interval.instrument_id, indicator_interval.start_date_time, indicator_interval.end_date_time, duration_str)
                     if key not in instrument_rows:
                         continue
@@ -725,6 +729,39 @@ class UniverseStateManager:
         # Maintain rolling window size
         if len(cache_list) > self.rolling_window:
             self._rolling_instrument_history[timeframe_str][inst_id] = cache_list[-self.rolling_window:]
+    
+    def add_indicator_interval_to_rolling_cache(self, inst_id: int, timeframe_str: str, indicator_type: str, indicator_interval) -> None:
+        """Add indicator interval to rolling cache with window management and duplicate prevention."""
+        
+        # Initialize timeframe cache if needed
+        if timeframe_str not in self._rolling_indicator_history:
+            self._rolling_indicator_history[timeframe_str] = {}
+        
+        # Initialize indicator type cache if needed
+        if indicator_type not in self._rolling_indicator_history[timeframe_str]:
+            self._rolling_indicator_history[timeframe_str][indicator_type] = {}
+        
+        # Initialize instrument list if needed
+        if inst_id not in self._rolling_indicator_history[timeframe_str][indicator_type]:
+            self._rolling_indicator_history[timeframe_str][indicator_type][inst_id] = []
+        
+        cache_list = self._rolling_indicator_history[timeframe_str][indicator_type][inst_id]
+        
+        # Check for duplicates using timestamp
+        interval_timestamp = getattr(indicator_interval, 'start_date_time', getattr(indicator_interval, 'timestamp', None))
+        if interval_timestamp is not None:
+            # Check for existing interval with same timestamp
+            for existing_interval in cache_list:
+                existing_timestamp = getattr(existing_interval, 'start_date_time', getattr(existing_interval, 'timestamp', None))
+                if existing_timestamp is not None and existing_timestamp == interval_timestamp:
+                    return
+        
+        # Add new interval (no duplicate found)
+        cache_list.append(indicator_interval)
+        
+        # Maintain rolling window size
+        if len(cache_list) > self.rolling_window:
+            self._rolling_indicator_history[timeframe_str][indicator_type][inst_id] = cache_list[-self.rolling_window:]
         
     
     def get_rolling_cache_debug_info(self) -> Dict[str, Any]:
@@ -967,6 +1004,31 @@ class UniverseStateManager:
                 self.logger.warning(f"No cached instrument intervals found for {timeframe} at {interval_start}")
                 return None
             
+            # Collect indicator intervals from cache
+            instrument_indicator_intervals = {}
+            if timeframe in self._rolling_indicator_history:
+                for indicator_type, inst_dict in self._rolling_indicator_history[timeframe].items():
+                    indicator_intervals_for_type = {}
+                    for instrument_id in instrument_intervals.keys():  # Only for instruments that have OHLCV data
+                        if instrument_id in inst_dict:
+                            # Find indicator interval that matches the target time range
+                            for indicator_interval in inst_dict[instrument_id]:
+                                indicator_start_time = getattr(indicator_interval, 'start_date_time', None)
+                                if indicator_start_time:
+                                    indicator_end_time = indicator_start_time + timedelta(minutes=interval_minutes)
+                                    
+                                    # Check if current_time falls within this interval OR is the end time
+                                    is_within_interval = indicator_start_time <= current_time <= indicator_end_time
+                                    is_end_time_match = abs((indicator_end_time - current_time).total_seconds()) < 60
+                                                            
+                                    if is_within_interval or is_end_time_match:
+                                        # Found matching indicator interval for this instrument
+                                        indicator_intervals_for_type[instrument_id] = indicator_interval
+                                        break
+                    
+                    if indicator_intervals_for_type:
+                        instrument_indicator_intervals[indicator_type] = indicator_intervals_for_type
+            
             # Create UniverseStateInterval from cached InstrumentInterval objects
             from core.business.calendars.time_duration import TimeDuration
             
@@ -979,7 +1041,8 @@ class UniverseStateManager:
                 start_date_time=interval_start,
                 end_date_time=end_time,
                 factor_intervals=[],  # Empty for now, not needed by training generator
-                instrument_intervals=instrument_intervals
+                instrument_intervals=instrument_intervals,
+                instrument_indicator_intervals=instrument_indicator_intervals
             )
             
             return universe_interval

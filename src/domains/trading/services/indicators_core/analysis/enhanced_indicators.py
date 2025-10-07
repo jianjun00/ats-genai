@@ -819,7 +819,7 @@ class CumulativeDollarsIndicator(Indicator):
 
 
 # Enhanced configuration for comprehensive technical analysis
-from .indicator_config import IndicatorConfig
+from ...indicator_config import IndicatorConfig
 from dataclasses import dataclass
 
 

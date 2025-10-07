@@ -427,6 +427,107 @@ async def register_training_dataset(environment: Environment, symbols: List[str]
 #     pass
 
 
+async def extract_features_to_sink(
+    symbols: List[str],
+    start_date: str,
+    end_date: str,
+    feature_sink,
+    start_day_offset: int = 5,
+    end_day_offset: int = 0,
+    environment=None,
+    market_data_manager=None
+):
+    """
+    Clean API to extract features for given symbols and date range.
+    
+    Args:
+        symbols: List of symbols to extract features for
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format  
+        feature_sink: Feature sink to capture generated features
+        start_day_offset: Days backward for indicator warm-up (default: 5)
+        end_day_offset: Days forward extension (default: 0)
+        environment: Environment to use (default: auto-detect)
+    """
+    from datetime import date, timedelta
+    from pathlib import Path
+    import tempfile
+    import gin
+    
+    # Import required classes
+    from domains.services.training_data.timeseries_sequence_training_generator import TrainingDataConfig
+    from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+    from domains.services.training_data.training_data_callback import IntervalBasedTrainingDataCallback
+    from domains.trading.services.state.universe_state_builder import UniverseStateIntervalBuilder
+    from domains.trading.services.core.app.runner import Runner
+    from domains.trading.services.state.universe_state_manager import UniverseStateManager
+    from core.platform.config_env.environment import Environment, EnvironmentType
+    
+    # Setup environment
+    if environment is None:
+        environment = Environment(EnvironmentType.DEV)
+    
+    # Load gin configuration
+    gin.clear_config()
+    config_path = Path(__file__).parent.parent.parent.parent.parent / "config" / "feature_extraction.gin"
+    print(f"🎯 LOADING GIN CONFIG: {config_path}")
+    gin.parse_config_file(str(config_path))
+    print(f"🎯 GIN CONFIG LOADED")
+    
+    # Calculate collection window for warm-up
+    target_start_date = date.fromisoformat(start_date)
+    target_end_date = date.fromisoformat(end_date)
+    collection_start_date = target_start_date - timedelta(days=start_day_offset)
+    collection_end_date = target_end_date + timedelta(days=end_day_offset)
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create training data callback with feature sink
+        callback = IntervalBasedTrainingDataCallback(
+            symbols=symbols,
+            start_date=start_date,
+            end_date=end_date,
+            collection_start_date=collection_start_date,
+            collection_end_date=collection_end_date,
+            output_dir=temp_dir,
+            feature_sink=feature_sink
+        )
+        
+        # Create universe state manager
+        universe_state_manager = UniverseStateManager(environment)
+        
+        # Create universe state builder
+        universe_builder = UniverseStateIntervalBuilder(
+            env=environment,
+            universe_state_manager=universe_state_manager,
+            base_duration='5m',
+            target_durations='5m,15m,60m,1d'
+        )
+        
+        # Add indicator builder
+        universe_builder.indicator_builder = IndicatorBuilder()
+        
+        # Create runner with collection window
+        runner = Runner(
+            environment=environment,
+            base_duration='5m',
+            start_date=collection_start_date.strftime('%Y-%m-%d'),
+            end_date=collection_end_date.strftime('%Y-%m-%d'),
+            universe_id=1,
+            callbacks=[universe_builder, callback],
+            market_data_manager=market_data_manager  # Use provided market data manager
+        )
+        
+        # Initialize universe
+        universe_manager = runner.get_universe_manager()
+        universe_manager.symbols = symbols
+        await universe_manager.initialize()
+        
+        # Run feature extraction
+        print(f"🔍 [RUNNER DEBUG] Starting runner.run() for date range {collection_start_date} to {collection_end_date}")
+        await runner.run()
+        print(f"🔍 [RUNNER DEBUG] Completed runner.run()")
+
+
 async def main():
     """
     Main entry point - PURE CALLBACK APPROACH.

@@ -100,24 +100,47 @@ class MultiTimeframeFeatureExtractor:
 
         return features
 
-    def extract_technical_indicators(self, data: pd.DataFrame, timeframe: str) -> Dict[str, float]:
-        """Extract technical indicators computed by IndicatorBuilder."""
-        if data.empty:
-            return {}
-
-        latest = data.iloc[-1]
+    def extract_technical_indicators(self, data: pd.DataFrame, timeframe: str, universe_state=None, instrument_id=None) -> Dict[str, float]:
+        """Extract technical indicators from UniverseStateInterval (not DataFrame)."""
         features = {}
 
-        # Use configured signal names from indicator builder
         if self.indicator_builder:
             signal_names = self.indicator_builder.get_signal_names()
-            for indicator in signal_names:
-                if indicator in latest:
-                    value = latest.get(indicator)
-                    if pd.notna(value):
-                        features[f'{timeframe}_{indicator}'] = float(value)
-                    else:
-                        features[f'{timeframe}_{indicator}'] = np.nan
+            
+            # NEW APPROACH: Get indicators from UniverseStateInterval
+            if universe_state and instrument_id:
+                # Check if indicators exist in universe state
+                if 'default' in universe_state.instrument_indicator_intervals:
+                    indicator_data = universe_state.instrument_indicator_intervals['default']
+                    
+                    if instrument_id in indicator_data:
+                        indicator_interval = indicator_data[instrument_id]
+                        
+                        if hasattr(indicator_interval, 'indicators'):
+                            indicators = indicator_interval.indicators
+                            
+                            for indicator_name in signal_names:
+                                if indicator_name in indicators:
+                                    indicator_value = indicators[indicator_name]
+                                    
+                                    # Handle different indicator value formats
+                                    if isinstance(indicator_value, dict):
+                                        value = indicator_value.get('value')
+                                    else:
+                                        value = indicator_value
+                                    
+                                    if pd.notna(value) and value is not None:
+                                        features[f'{timeframe}_{indicator_name}'] = float(value)
+            else:
+                
+                # FALLBACK: Check DataFrame (legacy approach)
+                if not data.empty:
+                    latest = data.iloc[-1]
+                    for indicator in signal_names:
+                        if indicator in latest:
+                            value = latest.get(indicator)
+                            if pd.notna(value):
+                                features[f'{timeframe}_{indicator}'] = float(value)
 
         return features
 
@@ -295,7 +318,7 @@ class MultiTimeframeFeatureExtractor:
                 f'{timeframe}_near_resistance': 0.0,
             }
 
-    def extract_all_features(self, data: pd.DataFrame, timeframe: str) -> Dict[str, float]:
+    def extract_all_features(self, data: pd.DataFrame, timeframe: str, universe_state=None, instrument_id=None) -> Dict[str, float]:
         """Extract all configured feature types for a timeframe."""
         all_features = {}
 
@@ -313,14 +336,14 @@ class MultiTimeframeFeatureExtractor:
                 technical_features = self.extract_technical_features(data, timeframe)
                 all_features.update(technical_features)
             elif feature_type == 'indicators':
-                indicator_features = self.extract_technical_indicators(data, timeframe)
+                indicator_features = self.extract_technical_indicators(data, timeframe, universe_state, instrument_id)
                 all_features.update(indicator_features)
             elif feature_type == 'support_resistance':
                 sr_features = self.extract_support_resistance_features(data, timeframe)
                 all_features.update(sr_features)
 
         # Always include technical indicators from UniverseStateManager if available
-        additional_indicators = self.extract_technical_indicators(data, timeframe)
+        additional_indicators = self.extract_technical_indicators(data, timeframe, universe_state, instrument_id)
         all_features.update(additional_indicators)
 
         return all_features
@@ -330,11 +353,12 @@ class MultiTimeframeFeatureExtractor:
 class SequenceWindowBuilder:
     """Build sequence windows with lag/lead capabilities."""
 
-    def __init__(self, config: TrainingDataConfig, universe_manager: UniverseStateManager, timeframes: List[str]):
+    def __init__(self, config: TrainingDataConfig, universe_manager: UniverseStateManager, timeframes: List[str], indicator_builder=None):
         self.config = config
         self.universe_manager = universe_manager
         self.timeframes = timeframes
-        self.feature_extractor = MultiTimeframeFeatureExtractor(config)
+        self.indicator_builder = indicator_builder
+        self.feature_extractor = MultiTimeframeFeatureExtractor(config, indicator_builder)
         self.logger = logging.getLogger(__name__)
 
     async def get_timeframe_data(self, instrument_id: int, center_datetime: datetime,
@@ -445,9 +469,14 @@ class SequenceWindowBuilder:
 
 
         # Extract features for the single data point
-        
+        # Pass the UniverseStateInterval and instrument_id to access technical indicators
+        if is_future:
+            universe_state = future_universe_state_interval
+        else:
+            universe_state = universe_state_interval
+            
         single_point_features = self.feature_extractor.extract_all_features(
-            data_df, timeframe
+            data_df, timeframe, universe_state, instrument_id
         )
 
         
@@ -506,7 +535,8 @@ class TimeSeriesSequenceTrainingGenerator:
                  env: Optional[Environment] = None,
                  config: Optional[TrainingDataConfig] = None,
                  universe_manager: Optional[UniverseStateManager] = None,
-                 timeframes_from_gin: Optional[str] = None):
+                 timeframes_from_gin: Optional[str] = None,
+                 indicator_builder=None):
         """
         Initialize the training data generator.
 
@@ -523,6 +553,7 @@ class TimeSeriesSequenceTrainingGenerator:
             self.env = env
 
         self.config = config or TrainingDataConfig()
+        self.indicator_builder = indicator_builder
 
         # Get timeframes from UniverseStateIntervalBuilder gin configuration
         try:
@@ -551,11 +582,11 @@ class TimeSeriesSequenceTrainingGenerator:
 
         # Initialize components only if dependencies are available
         if self.universe_manager is not None:
-            self.sequence_builder = SequenceWindowBuilder(self.config, self.universe_manager, self.timeframes)
+            self.sequence_builder = SequenceWindowBuilder(self.config, self.universe_manager, self.timeframes, self.indicator_builder)
         else:
             self.sequence_builder = None
 
-        self.feature_extractor = MultiTimeframeFeatureExtractor(self.config)
+        self.feature_extractor = MultiTimeframeFeatureExtractor(self.config, self.indicator_builder)
 
         self.logger = logging.getLogger(__name__)
 
@@ -619,7 +650,9 @@ class TimeSeriesSequenceTrainingGenerator:
             
             # Extract features using the cleaned historical data
             if not recent_data.empty:
-                base_features = self.feature_extractor.extract_all_features(recent_data, 'base')
+                # Note: This path uses get_lag_prices which only returns OHLCV data
+                # Technical indicators will fallback to legacy DataFrame-based extraction (may be empty)
+                base_features = self.feature_extractor.extract_all_features(recent_data, 'base', None, instrument_id)
             else:
                 self.logger.warning(f"No historical data available for instrument {instrument_id} before {prediction_timestamp}")
                 base_features = {}
@@ -670,7 +703,9 @@ class TimeSeriesSequenceTrainingGenerator:
                 }.get(timeframe, 10)
 
                 recent_data = self.universe_manager.get_lag_prices(instrument_id, prediction_date, window_size)
-                features = self.feature_extractor.extract_all_features(recent_data, timeframe)
+                # Note: This path uses get_lag_prices which only returns OHLCV data
+                # Technical indicators will fallback to legacy DataFrame-based extraction (may be empty)
+                features = self.feature_extractor.extract_all_features(recent_data, timeframe, None, instrument_id)
                 timeframe_features[timeframe] = features
 
             except Exception as e:

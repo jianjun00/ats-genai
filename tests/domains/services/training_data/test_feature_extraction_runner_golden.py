@@ -156,14 +156,17 @@ class TestFeatureExtractionRunnerGolden:
         await load_test_fixtures(isolated_test_db, STANDARD_TEST_FIXTURES)
         
                 
-        # Use shorter date range for debugging IndicatorBuilder
-        start_date = "2024-08-01"  # Single day for faster debugging
-        end_date = "2024-08-01"  # Single day for faster debugging  
-        symbols = ["AAPL"]  # Single symbol only
+        # Use proper offset approach for technical indicator warm-up
+        start_date = "2024-08-01"  # Target start date for training data
+        end_date = "2024-08-01"    # Target end date for training data  
+        start_day_offset = 5       # Days backward for indicator warm-up
+        end_day_offset = 0         # No forward extension needed
+        symbols = ["AAPL"]         # Single symbol only
         
         # Execute REAL feature extraction with feature sink
         result = await self._run_real_feature_extraction_with_feature_sink(
-            isolated_test_db, symbols, start_date, end_date, "basic", real_market_data_manager
+            isolated_test_db, symbols, start_date, end_date, "basic", real_market_data_manager,
+            start_day_offset, end_day_offset
         )
         
         # Check if feature extraction was successful
@@ -181,7 +184,7 @@ class TestFeatureExtractionRunnerGolden:
         assert success, "Failed to save feature extraction golden file with actual features"
 
     
-    async def _run_real_feature_extraction_with_feature_sink(self, isolated_test_db, symbols, start_date, end_date, test_name_suffix="", real_market_data_manager=None):
+    async def _run_real_feature_extraction_with_feature_sink(self, isolated_test_db, symbols, start_date, end_date, test_name_suffix="", real_market_data_manager=None, start_day_offset=5, end_day_offset=0):
         """Run REAL feature extraction using the actual runner framework with feature sink to capture actual features."""
         import tempfile
         import os
@@ -228,11 +231,23 @@ class TestFeatureExtractionRunnerGolden:
             # No overrides - use gin config exactly as-is to avoid mismatches
             print(f"🔍 DEBUG: Using gin config as-is without overrides")
                 
-            # Create training data callback with feature sink
+            # Calculate collection window for proper warm-up
+            from datetime import date, timedelta
+            target_start_date = date.fromisoformat(start_date)
+            target_end_date = date.fromisoformat(end_date)
+            collection_start_date = target_start_date - timedelta(days=start_day_offset)
+            collection_end_date = target_end_date + timedelta(days=end_day_offset)
+            
+            print(f"🔍 DEBUG: Target range: {target_start_date} to {target_end_date}")
+            print(f"🔍 DEBUG: Collection window: {collection_start_date} to {collection_end_date}")
+
+            # Create training data callback with feature sink and proper collection window
             callback = IntervalBasedTrainingDataCallback(
                 symbols=symbols,
-                start_date=start_date,
-                end_date=end_date,
+                start_date=start_date,                    # Target range for saving
+                end_date=end_date,                        # Target range for saving
+                collection_start_date=collection_start_date,  # Extended range for warm-up
+                collection_end_date=collection_end_date,      # Extended range
                 output_dir=temp_dir,
                 feature_sink=feature_sink  # Inject feature sink to capture actual features
             )
@@ -254,12 +269,12 @@ class TestFeatureExtractionRunnerGolden:
             universe_builder.indicator_builder = IndicatorBuilder()  # Will read gin signal_names automatically
             logger.debug(f"🔍 DEBUG: Added IndicatorBuilder with signal names: {universe_builder.indicator_builder.get_signal_names()}")
             
-            # Create runner with explicit parameters
+            # Create runner with collection window for proper warm-up
             runner = Runner(
                 environment=env,
                 base_duration='5m',  # Match the universe_builder base_duration
-                start_date=start_date,  # Runner expects string format
-                end_date=end_date,      # Runner expects string format 
+                start_date=collection_start_date.strftime('%Y-%m-%d'),  # Use collection window for processing
+                end_date=collection_end_date.strftime('%Y-%m-%d'),      # Use collection window for processing
                 universe_id=1,
                 callbacks=[universe_builder, callback]
             )
@@ -282,10 +297,22 @@ class TestFeatureExtractionRunnerGolden:
             universe_manager.symbols = symbols  # Set symbols for the universe
             await universe_manager.initialize()  # Initialize with database lookup
             
-            # Run real feature extraction
-            print("🔍 FEATURE SINK: Starting real runner execution...")
-            await runner.run()
-            print("🔍 FEATURE SINK: Runner execution completed")
+            # Run real feature extraction - call the clean API
+            print("🔍 FEATURE SINK: Starting feature generation...")
+            
+            # Import and use the clean API
+            from domains.services.training_data.feature_extraction_runner import extract_features_to_sink
+            
+            await extract_features_to_sink(
+                symbols=symbols,
+                start_date=start_date,
+                end_date=end_date,
+                feature_sink=feature_sink,
+                start_day_offset=start_day_offset,
+                end_day_offset=end_day_offset,
+                environment=env,
+                market_data_manager=real_market_data_manager  # Pass test market data manager
+            )
             
             # Get captured features from feature sink
             captured_features = feature_sink.get_captured_features()
