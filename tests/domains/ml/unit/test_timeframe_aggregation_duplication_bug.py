@@ -106,7 +106,7 @@ class TestTimeframeAggregationDuplicationBug:
         mock_universe_manager = Mock()
         mock_universe_manager_class.return_value = mock_universe_manager
         
-        # Configure with multiple timeframes like in training_data.gin
+        # Configure with multiple timeframes like in feature_extraction.gin
         target_durations_str = '5m,15m,30m,60m,1d'
         
         # Create UniverseStateIntervalBuilder with multi-timeframe config

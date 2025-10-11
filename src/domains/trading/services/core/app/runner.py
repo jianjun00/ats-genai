@@ -5,15 +5,15 @@ import pytz
 
 from core.platform.config_env.environment import Environment, EnvironmentType
 from domains.market_data.services.core.market_data_manager import MarketDataManager
-from core.market_data.unified_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, LegacyMarketDataManager
+from domains.market_data.services.core.unified_market_data_manager import UnifiedMarketDataManager, MarketDataConfig, VendorType, LegacyMarketDataManager
 from domains.instruments.services.secmaster.security_master import SecurityMaster
 from domains.trading.services.state.universe_state_manager import UniverseStateManager
 from core.business.calendars.time_duration import TimeDuration
 from domains.trading.services.universe.universe_manager import UniverseManager
-from core.shared.run_context import RunContext, create_run_context
-from core.shared.run_aware_logging import setup_run_aware_logging, get_run_aware_logger
+from core.run_context import RunContext, create_run_context
+from core.run_aware_logging import setup_run_aware_logging, get_run_aware_logger
 
-from domains.trading.services.state.runner_callback import RunnerCallback
+from domains.trading.services.state_core.runner_callback import RunnerCallback
 
 import gin
 
@@ -162,6 +162,12 @@ class Runner:
         exchange = getattr(self.market_data_manager, 'exchange', 'NYSE')
         cal = ExchangeCalendar(exchange)
         trading_days = list(cal.all_trading_days(self.start_date.date(), self.end_date.date()))
+        logging.info(f"[ITER_EVENTS DEBUG] Exchange: {exchange}")
+        logging.info(f"[ITER_EVENTS DEBUG] Start date: {self.start_date}")
+        logging.info(f"[ITER_EVENTS DEBUG] End date: {self.end_date}")
+        logging.info(f"[ITER_EVENTS DEBUG] Trading days: {trading_days}")
+        logging.info(f"[ITER_EVENTS DEBUG] Duration: {self.duration}")
+        logging.info(f"[ITER_EVENTS DEBUG] Duration minutes: {self.duration.get_duration_minutes()}")
         if not trading_days:
             logging.warning(f"[Runner.iter_events] No trading days found for {exchange} between {self.start_date} and {self.end_date}")
             return
@@ -175,24 +181,38 @@ class Runner:
         last_trading_week_end_date = None
         
         for day in trading_days:
+            # Start from market open time instead of midnight to avoid timezone issues
+            market_tz = pytz.timezone(self.timezone)
+            market_open_local = market_tz.localize(datetime.combine(day, datetime.min.time().replace(
+                hour=self.trading_start_hour, 
+                minute=self.trading_start_minute
+            )))
+            market_open_utc = market_open_local.astimezone(pytz.UTC)
+            
             sod_time = datetime.combine(day, datetime.min.time()).replace(tzinfo=pytz.UTC)
             logging.debug(f"[Runner.iter_events] Yielding sod: {sod_time}")
             if last_sod_date != day:
                 yield (sod_time, "sod")
                 last_sod_date = day
+            
             # Yield multiple interval events throughout the day based on base_duration
-            # Apply trading hours filter if enabled
-            current_interval_time = sod_time
-            next_day = sod_time + timedelta(days=1)
+            # Start from market open time to ensure proper timezone handling
+            current_interval_time = market_open_utc
+            
+            # Calculate market close time for this day
+            market_close_local = market_tz.localize(datetime.combine(day, datetime.min.time().replace(
+                hour=self.trading_end_hour,
+                minute=self.trading_end_minute
+            )))
+            market_close_utc = market_close_local.astimezone(pytz.UTC)
+            
+            logging.info(f"[ITER_EVENTS DEBUG] Trading day {day}: Market open {market_open_utc} to close {market_close_utc}")
 
-            while current_interval_time < next_day:
-                # Check if within trading hours before yielding interval
-                if self._is_within_trading_hours(current_interval_time):
-                    logging.debug(f"[Runner.iter_events] Yielding interval: {current_interval_time}")
-                    print(f"[PRINT][Runner.iter_events] Yielding interval: {current_interval_time}")
-                    yield (current_interval_time, "interval")
-                else:
-                    logging.debug(f"[Runner.iter_events] Skipping interval outside trading hours: {current_interval_time}")
+            while current_interval_time <= market_close_utc:
+                # No need to check trading hours since we're already within market hours
+                logging.debug(f"[Runner.iter_events] Yielding interval: {current_interval_time}")
+                print(f"[PRINT][Runner.iter_events] Yielding interval: {current_interval_time}")
+                yield (current_interval_time, "interval")
 
                 current_interval_time = self._advance_time(current_interval_time)
             # Trading day end event (at market close, not midnight)
@@ -384,7 +404,7 @@ class Runner:
     def _is_within_trading_hours(self, dt: datetime) -> bool:
         """
         Check if a datetime is within configured trading hours.
-        Handles timezone conversion to ensure accurate market hours checking.
+        Uses ExchangeCalendar to get correct trading session for the date.
 
         Args:
             dt: Datetime to check (assumed to be UTC)
@@ -395,33 +415,64 @@ class Runner:
         if not self.enable_trading_hours_filter:
             return True
 
-        # Convert UTC time to market timezone
         try:
-            market_tz = pytz.timezone(self.timezone)
+            from core.business.calendars.exchange_calendar import ExchangeCalendar
+            
+            # Get the correct trading date for this UTC datetime
             utc_dt = dt.replace(tzinfo=pytz.UTC) if dt.tzinfo is None else dt
+            market_tz = pytz.timezone(self.timezone)
             local_dt = utc_dt.astimezone(market_tz)
-
-            # Create trading start and end times for the same date
-            trading_start = local_dt.replace(
-                hour=self.trading_start_hour,
-                minute=self.trading_start_minute,
-                second=0,
-                microsecond=0
-            )
-            trading_end = local_dt.replace(
-                hour=self.trading_end_hour,
-                minute=self.trading_end_minute,
-                second=0,
-                microsecond=0
-            )
-
-            # Check if time is within trading hours
-            is_within = trading_start <= local_dt <= trading_end
-
-            logging.debug(f"Trading hours check: {dt} UTC -> {local_dt} {self.timezone} | "
-                         f"Market: {trading_start.time()}-{trading_end.time()} | Within: {is_within}")
-
-            return is_within
+            trading_date = local_dt.date()
+            
+            # Use exchange calendar to check if this is a trading day
+            exchange = getattr(self.market_data_manager, 'exchange', 'NYSE')
+            cal = ExchangeCalendar(exchange)
+            
+            # Get trading session for this date using pandas_market_calendars
+            try:
+                import pandas_market_calendars as mcal
+                market_cal = mcal.get_calendar(exchange)
+                schedule = market_cal.schedule(str(trading_date), str(trading_date))
+                
+                if schedule.empty:
+                    # Not a trading day
+                    logging.info(f"[TRADING_HOURS DEBUG] {trading_date} is not a trading day")
+                    return False
+                
+                # Get market open/close times for this specific date
+                market_open = schedule.iloc[0]['market_open']
+                market_close = schedule.iloc[0]['market_close']
+                
+                # Check if current time is within market hours
+                is_within = market_open <= utc_dt <= market_close
+                
+                logging.info(f"[TRADING_HOURS DEBUG] Input time: {dt} UTC")
+                logging.info(f"[TRADING_HOURS DEBUG] Local time: {local_dt} {self.timezone}")
+                logging.info(f"[TRADING_HOURS DEBUG] Trading date: {trading_date}")
+                logging.info(f"[TRADING_HOURS DEBUG] Market open: {market_open}")
+                logging.info(f"[TRADING_HOURS DEBUG] Market close: {market_close}")
+                logging.info(f"[TRADING_HOURS DEBUG] Is within hours: {is_within}")
+                
+                return is_within
+                
+            except Exception as e:
+                logging.warning(f"[TRADING_HOURS DEBUG] Could not get market calendar for {exchange}: {e}")
+                # Fallback to manual calculation if calendar lookup fails
+                trading_start = local_dt.replace(
+                    hour=self.trading_start_hour,
+                    minute=self.trading_start_minute,
+                    second=0,
+                    microsecond=0
+                )
+                trading_end = local_dt.replace(
+                    hour=self.trading_end_hour,
+                    minute=self.trading_end_minute,
+                    second=0,
+                    microsecond=0
+                )
+                is_within = trading_start <= local_dt <= trading_end
+                logging.info(f"[TRADING_HOURS DEBUG] Fallback calculation: {is_within}")
+                return is_within
 
         except Exception as e:
             logging.warning(f"Error checking trading hours for {dt}: {e}. Defaulting to True.")

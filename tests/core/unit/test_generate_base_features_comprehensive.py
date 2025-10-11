@@ -27,7 +27,7 @@ class TestGenerateBaseFeaturesComprehensive:
         """Create a mock config with realistic feature requirements."""
         config = MagicMock(spec=TrainingDataConfig)
         config.feature_types = ['ohlcv', 'technical', 'indicators', 'support_resistance']
-        config.signal_names = ['sma_20', 'ema_12', 'rsi_14', 'macd_line']
+        # signal_names now handled by IndicatorBuilder, not TrainingDataConfig
         config.base_interval_minutes = 5
         config.training_interval_minutes = 60
         return config
@@ -246,7 +246,7 @@ class TestGenerateBaseFeaturesComprehensive:
         prediction_timestamp = datetime(2025, 7, 1, 13, 30)
         
         # Mock config with specific signal requirements
-        generator.config.signal_names = ['sma_20', 'sma_50', 'ema_12', 'rsi_14']
+        # signal_names now handled by IndicatorBuilder, not TrainingDataConfig
         
         generator.universe_manager.get_lag_prices.return_value = sample_historical_data
         generator.feature_extractor = MagicMock()

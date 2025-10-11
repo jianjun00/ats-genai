@@ -82,7 +82,7 @@ Integrate Volume Profile indicators into the training dataset generation pipelin
 ### Files to Modify
 - `src/signals/enhanced_indicators.py`
 - `src/ml/training_data/runners/training_data_callback_runner.py`
-- `config/training_data.gin`
+- `config/feature_extraction.gin`
 
 ---
 

@@ -1,0 +1,35 @@
+{
+  "test_method": "test_different_date_ranges_real_golden_weekend",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_error_date_range_weekend_1759754751",
+    "dataset_path": "/tmp/tmpg2d5nqvu",
+    "symbols": [
+      "AAPL"
+    ],
+    "execution_duration_seconds": 0.04,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
+    "date_range": {
+      "start": "2024-08-03",
+      "end": "2024-08-04"
+    },
+    "command_executed": "feature_extraction_runner.py --start-date 2024-08-03 --end-date 2024-08-04 --symbols AAPL --output-dir /tmp/tmpg2d5nqvu --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
+    "success": false,
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['AAPL']",
+    "test_scenario": "weekend",
+    "date_scenario": {
+      "name": "weekend",
+      "start": "2024-08-03",
+      "end": "2024-08-04"
+    }
+  },
+  "generated_at_utc_micros": 1759754751715589,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

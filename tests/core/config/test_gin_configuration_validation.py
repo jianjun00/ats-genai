@@ -508,7 +508,7 @@ class TestConfigurationIntegration:
         os.chdir(project_root)
 
         # Use the consolidated training configuration
-        gin.parse_config_file('config/training_data.gin')
+        gin.parse_config_file('config/feature_extraction.gin')
 
         # Create test data
         dates = pd.date_range('2023-01-01', periods=30, freq='D')
@@ -561,7 +561,7 @@ class TestConfigurationIntegration:
 
         # Test consolidated configuration
         config_files = [
-            'config/training_data.gin',
+            'config/feature_extraction.gin',
             # Using single consolidated config file
         ]
 
@@ -589,7 +589,7 @@ class TestConfigurationIntegration:
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         os.chdir(project_root)
 
-        gin.parse_config_file('config/training_data.gin')
+        gin.parse_config_file('config/feature_extraction.gin')
 
         # Create deterministic test data
         np.random.seed(42)

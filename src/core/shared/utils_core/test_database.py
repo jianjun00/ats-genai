@@ -36,7 +36,7 @@ from urllib.parse import urlparse
 
 from core.platform.config_env.environment import Environment, EnvironmentType
 from core.shared.database import Database
-from infrastructure.database.migration_manager import MigrationManager
+from src.infrastructure.database.migration_manager import MigrationManager
 
 import logging
 logger = logging.getLogger(__name__)
@@ -347,8 +347,9 @@ async def load_test_fixtures(db_url: str, fixtures: Dict[str, List[Dict[str, Any
                 columns_str = ', '.join(f'"{col}"' for col in columns)
                 values = [row[col] for col in columns]
                 
+                # Use ON CONFLICT DO NOTHING to avoid duplicate key errors
                 await conn.execute(
-                    f'INSERT INTO "{table}" ({columns_str}) VALUES ({placeholders})',
+                    f'INSERT INTO "{table}" ({columns_str}) VALUES ({placeholders}) ON CONFLICT DO NOTHING',
                     *values
                 )
     
@@ -359,25 +360,58 @@ async def load_test_fixtures(db_url: str, fixtures: Dict[str, List[Dict[str, Any
 STANDARD_TEST_FIXTURES = {
     "test_instrument": [
         {
-            "instrument_id": 363996,
+            "id": 363996,
             "symbol": "AAPL", 
             "name": "Apple Inc",
             "exchange": "NASDAQ",
             "active": True
         },
         {
-            "instrument_id": 465844,
+            "id": 465844,
             "symbol": "TSLA",
             "name": "Tesla Inc", 
+            "exchange": "NASDAQ",
+            "active": True
+        },
+        {
+            "id": 123456,
+            "symbol": "MSFT",
+            "name": "Microsoft Corp", 
             "exchange": "NASDAQ",
             "active": True
         }
     ],
     "test_universe": [
         {
-            "universe_id": 1,
+            "id": 1,
             "name": "Test Universe",
             "description": "Universe for testing"
+        }
+    ],
+    "test_instrument_xrefs": [
+        {
+            "id": 1,
+            "instrument_id": 363996,
+            "vendor_id": 4,
+            "symbol": "AAPL",
+            "type": "ticker",
+            "active": True
+        },
+        {
+            "id": 2, 
+            "instrument_id": 465844,
+            "vendor_id": 4,
+            "symbol": "TSLA", 
+            "type": "ticker",
+            "active": True
+        },
+        {
+            "id": 3,
+            "instrument_id": 123456,
+            "vendor_id": 4,
+            "symbol": "MSFT",
+            "type": "ticker", 
+            "active": True
         }
     ]
 }

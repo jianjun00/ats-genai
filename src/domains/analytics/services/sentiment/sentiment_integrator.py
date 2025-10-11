@@ -15,8 +15,8 @@ import asyncpg
 import pandas as pd
 import numpy as np
 
-from sentiment.news_sentiment_analyzer import NewsSentimentAnalyzer, SentimentSignal
-from sentiment.social_media_analyzer import SocialSentimentAnalyzer, SocialTradingSignal
+from .news_sentiment_analyzer import NewsSentimentAnalyzer, SentimentSignal
+from .social_media_analyzer import SocialSentimentAnalyzer, SocialTradingSignal
 from domains.ml.modeling.features.factor_models import ResidualReturnCalculator
 
 

@@ -20,7 +20,7 @@ from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional, Tuple
 import aiohttp
 
-from core.shared.run_aware_logging import setup_run_aware_logging
+from core.run_aware_logging import setup_run_aware_logging
 
 class DailyPriceBackfiller:
     """Backfills daily price data for multiple vendors."""

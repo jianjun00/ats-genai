@@ -1,0 +1,30 @@
+{
+  "test_method": "test_multi_symbol_real_feature_extraction_golden",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_error_multi_symbol_1759754749",
+    "dataset_path": "/tmp/tmp5msepk1x",
+    "symbols": [
+      "AAPL",
+      "TSLA"
+    ],
+    "execution_duration_seconds": 0.06,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
+    "date_range": {
+      "start": "2024-08-01",
+      "end": "2024-08-01"
+    },
+    "command_executed": "feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-01 --symbols AAPL TSLA --output-dir /tmp/tmp5msepk1x --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
+    "success": false,
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['AAPL', 'TSLA']"
+  },
+  "generated_at_utc_micros": 1759754749297150,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

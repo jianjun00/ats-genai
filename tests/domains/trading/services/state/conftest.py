@@ -62,9 +62,9 @@ def gin_test_setup(request):
     # Clear any existing configuration first
     gin.clear_config()
 
-    # Load training_data.gin configuration for realistic universe state testing
+    # Load feature_extraction.gin configuration for realistic universe state testing
     project_root = Path(__file__).parent.parent.parent.parent.parent
-    training_config_path = project_root / "config" / "training_data.gin"
+    training_config_path = project_root / "config" / "feature_extraction.gin"
     
     if training_config_path.exists():
         gin.parse_config_file(str(training_config_path))
@@ -75,7 +75,7 @@ def gin_test_setup(request):
         gin.parse_config([
             "domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.base_duration = '1m'",
             "domains.trading.services.state.universe_state_builder.UniverseStateIntervalBuilder.target_durations = '1m,5m,15m,1h'",
-            "# Universe state test configuration using training_data.gin format",
+            "# Universe state test configuration using feature_extraction.gin format",
             "# Use test database and minimal dependencies"
         ])
     

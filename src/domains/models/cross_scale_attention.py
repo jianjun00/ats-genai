@@ -23,7 +23,7 @@ from dataclasses import dataclass
 import logging
 import gin
 
-from ...storage.multi_scale_sequence import TimeScale
+from infrastructure.storage.multi_scale_sequence import TimeScale
 
 logger = logging.getLogger(__name__)
 

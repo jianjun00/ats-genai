@@ -1,0 +1,39 @@
+{
+  "test_method": "test_edge_cases_real_golden_mixed_symbols",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_error_edge_case_mixed_symbols_1759754754",
+    "dataset_path": "/tmp/tmpg1398_ui",
+    "symbols": [
+      "AAPL",
+      "NONEXISTENT"
+    ],
+    "execution_duration_seconds": 0.06,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
+    "date_range": {
+      "start": "2024-08-01",
+      "end": "2024-08-01"
+    },
+    "command_executed": "feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-01 --symbols AAPL NONEXISTENT --output-dir /tmp/tmpg1398_ui --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
+    "success": false,
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['AAPL', 'NONEXISTENT']",
+    "test_scenario": "edge_case_mixed_symbols",
+    "edge_case_config": {
+      "name": "mixed_symbols",
+      "symbols": [
+        "AAPL",
+        "NONEXISTENT"
+      ],
+      "description": "Mix of valid and invalid symbols"
+    }
+  },
+  "generated_at_utc_micros": 1759754754196214,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

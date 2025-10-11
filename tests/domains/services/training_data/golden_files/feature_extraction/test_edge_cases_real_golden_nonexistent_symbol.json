@@ -1,0 +1,37 @@
+{
+  "test_method": "test_edge_cases_real_golden_nonexistent_symbol",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_error_edge_case_nonexistent_symbol_1759754754",
+    "dataset_path": "/tmp/tmp6jsjucgk",
+    "symbols": [
+      "NONEXISTENT"
+    ],
+    "execution_duration_seconds": 0.03,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
+    "date_range": {
+      "start": "2024-08-01",
+      "end": "2024-08-01"
+    },
+    "command_executed": "feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-01 --symbols NONEXISTENT --output-dir /tmp/tmp6jsjucgk --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
+    "success": false,
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['NONEXISTENT']",
+    "test_scenario": "edge_case_nonexistent_symbol",
+    "edge_case_config": {
+      "name": "nonexistent_symbol",
+      "symbols": [
+        "NONEXISTENT"
+      ],
+      "description": "Symbol not in database"
+    }
+  },
+  "generated_at_utc_micros": 1759754754138668,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

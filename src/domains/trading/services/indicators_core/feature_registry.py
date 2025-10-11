@@ -11,7 +11,7 @@ import numpy as np
 from typing import Dict, Any, List, Callable
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from .enhanced_indicators import EMAIndicator, ATRIndicator
+from .analysis.enhanced_indicators import EMAIndicator, ATRIndicator
 
 @dataclass
 class FeatureConfig:

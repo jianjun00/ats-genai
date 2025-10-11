@@ -17,7 +17,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import asyncpg
 
-from sentiment.sentiment_integrator import SentimentIntegrator, analyze_unified_sentiment
+from domains.analytics.services.sentiment.sentiment_integrator import SentimentIntegrator, analyze_unified_sentiment
 
 logger = logging.getLogger(__name__)
 
