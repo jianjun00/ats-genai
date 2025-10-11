@@ -63,19 +63,6 @@ class MultiTimeframeFeatureExtractor:
         self.indicator_builder = indicator_builder
         self.logger = logging.getLogger(__name__)
 
-        # Initialize S/R feature extractor if support_resistance is in feature_types
-        if hasattr(config, 'feature_types') and 'support_resistance' in config.feature_types:
-            try:
-                from domains.services.training_data.support_resistance_features import (
-                    SupportResistanceFeatureExtractor
-                )
-                self.sr_extractor = SupportResistanceFeatureExtractor()
-                self.logger.info("S/R feature extractor initialized")
-            except ImportError as e:
-                self.logger.warning(f"Could not import S/R feature extractor: {e}")
-                self.sr_extractor = None
-        else:
-            self.sr_extractor = None
 
     def extract_ohlcv_features(self, data: pd.DataFrame, timeframe: str) -> Dict[str, float]:
         """Extract OHLCV features for a given timeframe."""
@@ -278,45 +265,6 @@ class MultiTimeframeFeatureExtractor:
 
         return features
 
-    def extract_support_resistance_features(self, data: pd.DataFrame, timeframe: str) -> Dict[str, float]:
-        """Extract support/resistance features using post-facto analysis."""
-        if not self.sr_extractor or data.empty:
-            # Return empty features if no S/R extractor or no data
-            return {
-                f'{timeframe}_support_distance': 0.1,
-                f'{timeframe}_support_strength': 0.0,
-                f'{timeframe}_resistance_distance': 0.1,
-                f'{timeframe}_resistance_strength': 0.0,
-                f'{timeframe}_recent_tests': 0,
-                f'{timeframe}_tests_confidence': 0.0,
-                f'{timeframe}_tests_volume_spike': 1.0,
-                f'{timeframe}_hold_strong_tests': 0,
-                f'{timeframe}_break_clean_tests': 0,
-                f'{timeframe}_penetration_tests': 0,
-                f'{timeframe}_sr_level_density': 0,
-                f'{timeframe}_near_support': 0.0,
-                f'{timeframe}_near_resistance': 0.0,
-            }
-
-        try:
-            return self.sr_extractor.extract_sr_features(data, timeframe)
-        except Exception as e:
-            self.logger.warning(f"Error extracting S/R features for {timeframe}: {e}")
-            return {
-                f'{timeframe}_support_distance': 0.1,
-                f'{timeframe}_support_strength': 0.0,
-                f'{timeframe}_resistance_distance': 0.1,
-                f'{timeframe}_resistance_strength': 0.0,
-                f'{timeframe}_recent_tests': 0,
-                f'{timeframe}_tests_confidence': 0.0,
-                f'{timeframe}_tests_volume_spike': 1.0,
-                f'{timeframe}_hold_strong_tests': 0,
-                f'{timeframe}_break_clean_tests': 0,
-                f'{timeframe}_penetration_tests': 0,
-                f'{timeframe}_sr_level_density': 0,
-                f'{timeframe}_near_support': 0.0,
-                f'{timeframe}_near_resistance': 0.0,
-            }
 
     def extract_all_features(self, data: pd.DataFrame, timeframe: str, universe_state=None, instrument_id=None) -> Dict[str, float]:
         """Extract all configured feature types for a timeframe."""
@@ -338,9 +286,6 @@ class MultiTimeframeFeatureExtractor:
             elif feature_type == 'indicators':
                 indicator_features = self.extract_technical_indicators(data, timeframe, universe_state, instrument_id)
                 all_features.update(indicator_features)
-            elif feature_type == 'support_resistance':
-                sr_features = self.extract_support_resistance_features(data, timeframe)
-                all_features.update(sr_features)
 
         # Always include technical indicators from UniverseStateManager if available
         additional_indicators = self.extract_technical_indicators(data, timeframe, universe_state, instrument_id)

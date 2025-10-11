@@ -28,7 +28,6 @@ domains.services.training_data.timeseries_sequence_training_generator.TrainingDa
     "volume_profile",  # Volume-based features
     "technical",       # Technical indicators (computed locally)
     "indicators",      # Pre-computed indicators from IndicatorBuilder
-    "support_resistance", # Support/resistance level analysis
     "market_structure"    # Support/resistance, trends
 ]
 
