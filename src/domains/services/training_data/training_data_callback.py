@@ -222,12 +222,20 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         for symbol in self.symbols:
             for timeframe in target_timeframes:
                 print(f"🔍 GENERATE: {symbol} {timeframe} at {current_time}")
-                example = await self.training_generator.generate_training_example(
-                    symbol=symbol,
-                    prediction_timestamp=current_time,
-                    target_timeframes=[timeframe]  # Generate for single timeframe only
-                )
-                print(f"🔍 EXAMPLE: {example is not None}, keys={list(example.keys()) if example else 'NONE'}")
+                example = None
+                try:
+                    example = await self.training_generator.generate_training_example(
+                        symbol=symbol,
+                        prediction_timestamp=current_time,
+                        target_timeframes=[timeframe]  # Generate for single timeframe only
+                    )
+                    print(f"🔍 EXAMPLE: {example is not None}, keys={list(example.keys()) if example else 'NONE'}")
+                except Exception as e:
+                    print(f"❌ EXCEPTION in generate_training_example: {e}")
+                    self.logger.error(f"❌ Exception generating example for {symbol} {timeframe}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
                 examples_generated.append(example)
                 
                 # Capture features for golden file testing if feature_sink is provided
@@ -332,13 +340,19 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                     if monthly_file_key in self.array_record_writers:
                         writer = self.array_record_writers[monthly_file_key]
                         print(f"🔧       Writer found, calling _write_interval_to_writer")
-                        await self._write_interval_to_writer(writer, symbol, interval_record)
+                        try:
+                            await self._write_interval_to_writer(writer, symbol, interval_record)
+                            print(f"🔧       _write_interval_to_writer completed successfully")
 
-                        # Track record count for database storage
-                        if monthly_file_key not in self.monthly_record_counts:
-                            self.monthly_record_counts[monthly_file_key] = 0
-                        self.monthly_record_counts[monthly_file_key] += 1
-                        print(f"✅       Written successfully, count: {self.monthly_record_counts[monthly_file_key]}")
+                            # Track record count for database storage
+                            if monthly_file_key not in self.monthly_record_counts:
+                                self.monthly_record_counts[monthly_file_key] = 0
+                            self.monthly_record_counts[monthly_file_key] += 1
+                            print(f"✅       Written successfully, count: {self.monthly_record_counts[monthly_file_key]}")
+                        except Exception as e:
+                            print(f"❌       Exception in _write_interval_to_writer: {e}")
+                            import traceback
+                            traceback.print_exc()
 
                     else:
                         print(f"❌       NO WRITER FOUND for key: {monthly_file_key}")
