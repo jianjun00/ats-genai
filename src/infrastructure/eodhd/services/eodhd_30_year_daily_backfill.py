@@ -246,8 +246,8 @@ class EODHD30YearBackfiller:
                 logger.debug(f"⚠️ Unexpected response format for {symbol}")
                 raise ValueError(f"EODHD API returned unexpected response format for {symbol}")
         elif response.status_code == 404:
-            logger.debug(f"⚠️ No data available for {symbol}")
-            raise ValueError(f"No data available for symbol {symbol} from EODHD API (404)")
+            logger.warning(f"⚠️ No data available for {symbol}")
+            return None
         elif response.status_code == 429:
             logger.warning(f"⚠️ Rate limit hit for {symbol}, waiting...")
             time.sleep(60)  # Wait 1 minute
