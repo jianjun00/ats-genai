@@ -25,15 +25,20 @@ from typing import List, Dict, Optional
 import aiohttp
 import time
 
-# OpenTelemetry imports for SigNoz integration
-from opentelemetry import trace, metrics
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import Resource
+# OpenTelemetry imports for SigNoz integration (optional)
+try:
+    from opentelemetry import trace, metrics
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource
+    TELEMETRY_AVAILABLE = True
+except ImportError:
+    print("OpenTelemetry not available - running without telemetry")
+    TELEMETRY_AVAILABLE = False
 
 OTEL_AVAILABLE = True
 sys.path.insert(0, '/workspace/src' if os.path.exists('/workspace/src') else 'src')
@@ -44,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 def setup_observability(service_name: str = "realtime-minute-collector"):
     """Setup OpenTelemetry for SigNoz integration."""
-    if not OTEL_AVAILABLE:
+    if not TELEMETRY_AVAILABLE:
         # Setup simple HTTP logging to SigNoz when OpenTelemetry unavailable
         signoz_endpoint = os.getenv("SIGNOZ_ENDPOINT", "http://10.0.0.79:4000")
         if signoz_endpoint:

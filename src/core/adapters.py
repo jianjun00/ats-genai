@@ -451,6 +451,121 @@ class FirstRateAdapter(BaseVendorAdapter):
             return False
         except:
             return False
+    
+    def get_symbol_inventory(self, asset_type: str = 'stock') -> Dict[str, Dict]:
+        """Build inventory of all available symbols from zip files"""
+        import zipfile
+        from collections import defaultdict
+        
+        inventory = {}
+        
+        if not self.data_path.exists():
+            logger.warning(f"FirstRate data path does not exist: {self.data_path}")
+            return inventory
+        
+        # Find all zip files
+        zip_files = list(self.data_path.glob("*.zip"))
+        logger.debug(f"Found {len(zip_files)} zip files in {self.data_path}")
+        
+        for zip_file_path in zip_files:
+            try:
+                with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
+                    for file_name in zip_file.namelist():
+                        if file_name.endswith('.txt') or file_name.endswith('.csv'):
+                            # Extract symbol from filename (before first underscore or dot)
+                            symbol = file_name.split('_')[0].split('.')[0].upper()
+                            
+                            if symbol not in inventory:
+                                inventory[symbol] = {
+                                    'symbol': symbol,
+                                    'zip_files': [],
+                                    'min_date': None,
+                                    'max_date': None
+                                }
+                            
+                            if zip_file_path not in inventory[symbol]['zip_files']:
+                                inventory[symbol]['zip_files'].append(str(zip_file_path))
+                            
+                            # Try to get date range from a sample of the data
+                            try:
+                                with zip_file.open(file_name) as csv_file:
+                                    # Read first few lines to get start date
+                                    lines = csv_file.read().decode('utf-8').split('\n')[:10]
+                                    for line in lines:
+                                        if line.strip() and ',' in line:
+                                            timestamp_str = line.split(',')[0]
+                                            timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                                            file_date = timestamp.date()
+                                            
+                                            if inventory[symbol]['min_date'] is None or file_date < inventory[symbol]['min_date']:
+                                                inventory[symbol]['min_date'] = file_date
+                                            if inventory[symbol]['max_date'] is None or file_date > inventory[symbol]['max_date']:
+                                                inventory[symbol]['max_date'] = file_date
+                                            break
+                            except Exception as e:
+                                logger.debug(f"Could not extract date from {file_name}: {e}")
+                                
+            except Exception as e:
+                logger.warning(f"Error processing zip file {zip_file_path}: {e}")
+        
+        logger.info(f"Built inventory: {len(inventory)} symbols from {len(zip_files)} zip files")
+        return inventory
+    
+    def process_minute_data_from_zip(self, zip_file_path, symbol, start_date, end_date):
+        """Process minute data from zip file for a specific symbol and date range"""
+        import zipfile
+        import csv
+        import io
+        from datetime import datetime
+        
+        # Create a simple tick-like object
+        class Tick:
+            def __init__(self, symbol, timestamp, open_price, high, low, close, volume):
+                self.symbol = symbol
+                self.timestamp = timestamp
+                self.open = open_price
+                self.high = high
+                self.low = low
+                self.close = close
+                self.volume = volume
+        
+        try:
+            with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
+                # Look for symbol file in zip - FirstRate uses different naming conventions
+                symbol_files = [f for f in zip_file.namelist() 
+                               if f.startswith(symbol) and (f.endswith('.txt') or f.endswith('.csv'))]
+                
+                for symbol_file in symbol_files:
+                    with zip_file.open(symbol_file) as csv_file:
+                        csv_content = csv_file.read().decode('utf-8')
+                        csv_reader = csv.reader(io.StringIO(csv_content))
+                        
+                        for row in csv_reader:
+                            if len(row) >= 6:
+                                try:
+                                    # Parse timestamp (expecting YYYY-MM-DD HH:MM:SS format)
+                                    timestamp = datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S')
+                                    
+                                    # Filter by date range
+                                    if start_date <= timestamp.date() <= end_date:
+                                        tick = Tick(
+                                            symbol=symbol,
+                                            timestamp=timestamp,
+                                            open_price=float(row[1]),
+                                            high=float(row[2]),
+                                            low=float(row[3]),
+                                            close=float(row[4]),
+                                            volume=int(float(row[5]))
+                                        )
+                                        yield tick
+                                        
+                                except (ValueError, IndexError) as e:
+                                    # Skip invalid rows
+                                    logger.debug(f"Skipping invalid row for {symbol}: {row[:2]} - {e}")
+                                    continue
+                                    
+        except Exception as e:
+            logger.error(f"Error processing zip file {zip_file_path} for symbol {symbol}: {e}")
 
 # =============================================================================
 # POLYGON ADAPTER (consolidates both implementations)

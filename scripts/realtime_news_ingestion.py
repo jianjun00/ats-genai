@@ -37,17 +37,22 @@ import time
 from pathlib import Path
 
 # OpenTelemetry imports for SigNoz integration (optional)
-from opentelemetry import trace, metrics
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
-from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import Resource
+try:
+    from opentelemetry import trace, metrics
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+    from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
+    from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
+    from opentelemetry.instrumentation.logging import LoggingInstrumentor
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource
+    TELEMETRY_AVAILABLE = True
+except ImportError:
+    print("OpenTelemetry not available - running without telemetry")
+    TELEMETRY_AVAILABLE = False
 OTEL_AVAILABLE = True
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from multi_vendor_news_backfill import (
@@ -103,9 +108,9 @@ logger = logging.getLogger(__name__)
 
 def setup_telemetry():
     """Initialize OpenTelemetry for SigNoz monitoring."""
-    if not OTEL_AVAILABLE:
+    if not TELEMETRY_AVAILABLE:
         logger.warning("📊 OpenTelemetry not available - using no-op implementations")
-        return NoOpTracer(), NoOpMeter()
+        return None, None
 
     # Get configuration from environment
     otel_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://signoz-otel-collector:4318')
@@ -426,11 +431,17 @@ class RealTimeNewsIngestion:
 
     async def fetch_vendor_news(self, vendor: str) -> List[NewsArticle]:
         """Fetch latest news from a specific vendor."""
-        with self.tracer.start_as_current_span("fetch_vendor_news") as span:
-            span.set_attributes({
-                "vendor": vendor,
-                "environment": "intg"
-            })
+        if self.tracer:
+            span = self.tracer.start_as_current_span("fetch_vendor_news")
+        else:
+            span = None
+        
+        try:
+            if span:
+                span.set_attributes({
+                    "vendor": vendor,
+                    "environment": "intg"
+                })
 
             config = self.vendor_configs[vendor]
             articles = []
@@ -526,11 +537,17 @@ class RealTimeNewsIngestion:
 
     async def run_ingestion_cycle(self):
         """Run a single ingestion cycle for all vendors."""
-        with self.tracer.start_as_current_span("news_ingestion_cycle") as span:
-            span.set_attributes({
-                "vendors": ",".join(self.collectors.keys()),
-                "environment": "intg"
-            })
+        if self.tracer:
+            span = self.tracer.start_as_current_span("news_ingestion_cycle")
+        else:
+            span = None
+            
+        try:
+            if span:
+                span.set_attributes({
+                    "vendors": ",".join(self.collectors.keys()),
+                    "environment": "intg"
+                })
 
             logger.debug("🔄 Starting ingestion cycle...")
 

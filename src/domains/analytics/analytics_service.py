@@ -72,7 +72,7 @@ except ImportError as e:
 
 # Import core components
 try:
-    from core.platform.database.connection_manager import get_connection_manager
+    from core.platform.connection_manager import get_connection_manager
     CORE_PLATFORM_AVAILABLE = True
 except ImportError:
     try:
@@ -326,7 +326,7 @@ class UnifiedAnalyticsService:
     def get_training_datasets(self):
         """Get training datasets from database for dual-tab functionality."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
 
             environment = os.getenv('ENVIRONMENT', 'dev')
             table_name = f"{environment}_training_dataset"
@@ -385,7 +385,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_sequence(self, dataset_id: int, row_index: int, timeframe: str = "5m") -> Dict[str, Any]:
         """Get training dataset sequence data for OHLC visualization."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             import numpy as np
             from pathlib import Path
@@ -600,7 +600,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_sequences(self, dataset_id: int) -> Dict[str, Any]:
         """Get available sequences for a training dataset."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             import os
 
@@ -743,7 +743,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_visualization_data(self, dataset_id: int, start_idx: int = 0, sequence_id: str = None, target_symbol: str = None) -> Dict[str, Any]:
         """Get visualization data for training dataset sequences (OHLC + indicators for Plotly charts)."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
             import os
@@ -996,7 +996,7 @@ class UnifiedAnalyticsService:
     def get_training_dataset_sequence_multi_timeframe(self, dataset_id: int, sequence_id: str, row_index: int = 50, timeframe: str = "60m") -> Dict[str, Any]:
         """Get multi-timeframe OHLC data for a specific sequence using the new feature service."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime
             import os
@@ -1077,7 +1077,7 @@ class UnifiedAnalyticsService:
     def _get_training_dataset_sequence_multi_timeframe_legacy(self, dataset_id: int, sequence_id: str, row_index: int = 50) -> Dict[str, Any]:
         """Legacy method for getting multi-timeframe data (fallback)."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             from pathlib import Path
             import os
@@ -1493,7 +1493,7 @@ class UnifiedAnalyticsService:
     def get_bar_collection_metrics(self) -> Dict[str, Any]:
         """Get metrics about bars collected organized by collection time and bar time."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
 
             with get_raw_connection() as conn:
@@ -1640,7 +1640,7 @@ class UnifiedAnalyticsService:
     def get_news_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
         """Get recent news events from Polygon and Tiingo sources with optional filters."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime
 
@@ -1807,7 +1807,7 @@ class UnifiedAnalyticsService:
     def get_earnings_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
         """Get recent earnings events from environment-specific earnings_events table with optional filters."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime
             import os
@@ -1935,7 +1935,7 @@ class UnifiedAnalyticsService:
     def get_gap_events(self, limit: int = 100, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
         """Get gap events from environment-specific gap_events table with optional filters."""
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             from datetime import datetime
             import os
@@ -2085,7 +2085,7 @@ class UnifiedAnalyticsService:
         """Get consolidated economic events from multiple event tables."""
         logger.info(f"NEW get_economic_events method called with limit={limit}, vendor={vendor}")
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             from core.platform.config_env.environment import Environment
             import psycopg2.extras
             from datetime import datetime
@@ -2462,7 +2462,7 @@ class UnifiedAnalyticsService:
         logger.info(f"🔍 Validating environment setup for: {environment}")
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
 
             # Get expected configuration
@@ -6107,7 +6107,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             import os
 
@@ -6152,7 +6152,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             from psycopg2 import sql
 
@@ -6203,7 +6203,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
 
             with get_raw_connection() as conn:
@@ -6245,7 +6245,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
             from psycopg2 import sql
 
@@ -6349,7 +6349,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         try:
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             import psycopg2.extras
             from psycopg2 import sql
 
@@ -9114,7 +9114,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
 
         try:
             import os
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             # Get environment-aware table name
@@ -9163,7 +9163,7 @@ class UnifiedAnalyticsRequestHandler(BaseHTTPRequestHandler):
         try:
             import os
             from urllib.parse import urlparse, parse_qs
-            from core.platform.database.connection_manager import get_raw_connection
+            from core.platform.connection_manager import get_raw_connection
             from psycopg2.extras import RealDictCursor
 
             # Get environment-aware table names

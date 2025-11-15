@@ -33,7 +33,7 @@ import time
 
 # Module is now part of src package - no path manipulation needed
 
-from core.vendor.adapters import create_firstrate_adapter, FirstRateAdapter
+from core.adapters import create_firstrate_adapter, FirstRateAdapter
 from dataclasses import dataclass
 
 @dataclass
@@ -201,38 +201,38 @@ class FirstRateBackfillProcessor:
         for tick in tick_generator:
             ticks.append(tick)
 
-<<<<<<< Updated upstream:src/domains/workflow/firstrate/backfill/minute_bars.py
-            if not ticks:
-                logger.debug(f"   No data for {symbol} {month_key}")
-                return 0
+        if not ticks:
+            logger.debug(f"   No data for {symbol} {month_key}")
+            return 0
 
-            # Store using FileBasedMinuteManager
-            if ticks:
-                # Convert ticks to parquet and store
-                if ticks:
-                    import pandas as pd
-                    records = []
-                    for tick in ticks:
-                        records.append({
-                            'symbol': tick.symbol,
-                            'timestamp': tick.timestamp,
-                            'open': float(tick.open),
-                            'high': float(tick.high),
-                            'low': float(tick.low),
-                            'close': float(tick.close),
-                            'volume': int(tick.volume),
-                            'vendor': 'firstrate'
-                        })
-                    
-                    df = pd.DataFrame(records)
-                    
-                    # Store as monthly parquet: {symbol}/{year}/{month}.parquet
-                    symbol_dir = self.storage_path / symbol[0] / symbol / str(year) / f"{month:02d}"
-                    symbol_dir.mkdir(parents=True, exist_ok=True)
-                    
-                    parquet_path = symbol_dir / f"{symbol}_{year}_{month:02d}.parquet"
-                    df.to_parquet(parquet_path, engine='pyarrow', compression='snappy', index=False)
-                records_written = len(minute_bars)
+        try:
+            # Convert ticks to parquet and store
+            import pandas as pd
+            records = []
+            for tick in ticks:
+                records.append({
+                    'symbol': tick.symbol,
+                    'timestamp': tick.timestamp,
+                    'open': float(tick.open),
+                    'high': float(tick.high),
+                    'low': float(tick.low),
+                    'close': float(tick.close),
+                    'volume': int(tick.volume),
+                    'vendor': 'firstrate',
+                    'vwap': float(tick.close),
+                    'trade_count': 0,
+                    'quality_score': 1.0
+                })
+            
+            df = pd.DataFrame(records)
+            
+            # Store as monthly parquet: {symbol}/{year}/{month}.parquet
+            symbol_dir = self.storage_path / symbol[0] / symbol / str(year) / f"{month:02d}"
+            symbol_dir.mkdir(parents=True, exist_ok=True)
+            
+            parquet_path = symbol_dir / f"{symbol}_{year}_{month:02d}.parquet"
+            df.to_parquet(parquet_path, engine='pyarrow', compression='snappy', index=False)
+            records_written = len(records)
 
             # Mark month as completed
             if symbol not in self.checkpoint_data['completed_months']:
@@ -255,32 +255,6 @@ class FirstRateBackfillProcessor:
             self.checkpoint_data['failed_months'][symbol].append(month_key)
 
             self.checkpoint_data['processing_stats']['errors'] += 1
-=======
-        if not ticks:
-            logger.debug(f"   No data for {symbol} {month_key}")
->>>>>>> Stashed changes:scripts/populate_firstrate_minute_bars.py
-            return 0
-
-        # Store using FileBasedMinuteManager
-        if ticks:
-            from storage.file_based_minute_manager import MinuteBar
-
-            minute_bars = []
-            for tick in ticks:
-                bar = MinuteBar(
-                    symbol=tick.symbol,
-                    timestamp=tick.timestamp,
-                    open=tick.open,
-                    high=tick.high,
-                    low=tick.low,
-                    close=tick.close,
-                    volume=tick.volume,
-                    vendor="firstrate"
-                )
-                minute_bars.append(bar)
-
-            await self.minute_manager.store_minute_data(symbol, minute_bars)
-            records_written = len(minute_bars)
 
         # Mark month as completed
         if symbol not in self.checkpoint_data['completed_months']:
