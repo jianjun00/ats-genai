@@ -5,5 +5,5 @@ message IndicatorInterval {
     int32 instrument_id = 1;
     string start_date_time = 2;
     string end_date_time = 3;
-    map<string, string> indicators = 4;
+    map<string, double> indicators = 4;  // Changed from string to double to support NaN/inf natively
 }

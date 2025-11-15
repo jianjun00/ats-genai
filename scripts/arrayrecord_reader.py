@@ -46,10 +46,10 @@ def read_arrayrecord_file(file_path, limit=10):
         print(f"   📈 Volume: {ohlcv_data[4]:,.0f}")
         print(f"   🔧 Indicators: {indicator_count}")
 
-        # Parse first few indicators
+        # Parse all indicators
         indicator_offset = 14 + symbol_len + 20
         indicators_shown = 0
-        for _ in range(min(3, indicator_count)):
+        for _ in range(indicator_count):
             if indicator_offset + 6 < len(record):
                 key_len = struct.unpack('>H', record[indicator_offset:indicator_offset+2])[0]
                 if indicator_offset + 2 + key_len + 4 <= len(record):
@@ -63,8 +63,8 @@ def read_arrayrecord_file(file_path, limit=10):
             else:
                 break
 
-        if indicator_count > indicators_shown:
-            print(f"        ... and {indicator_count - indicators_shown} more")
+        # All indicators are now shown
+        # No need to show truncation message
 
     if total_records > display_count:
         print(f"\n... and {total_records - display_count} more records")

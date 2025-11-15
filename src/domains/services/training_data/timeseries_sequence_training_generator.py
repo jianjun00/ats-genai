@@ -318,6 +318,8 @@ class SequenceWindowBuilder:
             is_future: Whether to get future data (lead) or current data (lag)
         """
 
+        self.logger.info(f"🔍 [GET TIMEFRAME] START: instrument_id={instrument_id}, timeframe={timeframe}, datetime={center_datetime}, is_future={is_future}")
+
         # 🚨 CRITICAL ARCHITECTURAL CHANGE: Fail-fast error handling with UniverseStateInterval
         # PREVIOUS: Initialized empty DataFrame and handled missing data gracefully
         # NEW: Fail immediately if UniverseStateInterval or instrument data is missing
@@ -368,16 +370,20 @@ class SequenceWindowBuilder:
             # OLD APPROACH: Called get_lag_prices() to rebuild data that was already computed
             # NEW APPROACH: Retrieve pre-computed UniverseStateInterval from UniverseStateBuilder
             # BENEFIT: Uses the same OHLCV and indicator data that was already computed
+            self.logger.info(f"🔍 [GET TIMEFRAME] Calling universe_manager.get_universe_state_interval")
             universe_state_interval = self.universe_manager.get_universe_state_interval(
                 timeframe=timeframe,
                 current_time=center_datetime
             )
+            self.logger.info(f"🔍 [GET TIMEFRAME] universe_state_interval result: {universe_state_interval is not None}")
             
             if universe_state_interval is None:
+                self.logger.error(f"❌ [GET TIMEFRAME] No UniverseStateInterval found for {timeframe} at {center_datetime}")
                 raise RuntimeError(f"No UniverseStateInterval found for {timeframe} at {center_datetime}. "
                                  f"This indicates UniverseStateBuilder hasn't computed intervals yet. "
                                  f"System must fail fast - cannot generate training data without pre-computed intervals.")
             else:
+                self.logger.info(f"🔍 [GET TIMEFRAME] UniverseStateInterval found, checking for instrument {instrument_id}")
                 # Extract InstrumentInterval for the target instrument
                 if instrument_id in universe_state_interval.instrument_intervals:
                     instrument_interval = universe_state_interval.instrument_intervals[instrument_id]
@@ -438,19 +444,27 @@ class SequenceWindowBuilder:
         Returns:
             Dict mapping timeframe to features
         """
+        self.logger.info(f"🔍 [SEQUENCE BUILDER] build_timeframe_features START: instrument_id={instrument_id}, timestamp={prediction_timestamp}")
+        self.logger.info(f"🔍 [SEQUENCE BUILDER] target_timeframes: {target_timeframes}")
+        
         timeframe_features = {}
 
         # Use target timeframes if specified, otherwise use all configured timeframes
         timeframes_to_build = target_timeframes if target_timeframes is not None else self.timeframes
-        
+        self.logger.info(f"🔍 [SEQUENCE BUILDER] timeframes_to_build: {timeframes_to_build}")
 
         # Build current features for each specified timeframe
         for timeframe in timeframes_to_build:
+            self.logger.info(f"🔍 [SEQUENCE BUILDER] Processing timeframe: {timeframe}")
             features = await self.get_timeframe_data(
                 instrument_id, prediction_timestamp, timeframe, is_future=False
             )
+            feature_count = len(features) if features else 0
+            self.logger.info(f"🔍 [SEQUENCE BUILDER] get_timeframe_data returned {feature_count} features for {timeframe}")
             timeframe_features[timeframe] = features
 
+        total_timeframes = len(timeframe_features)
+        self.logger.info(f"🔍 [SEQUENCE BUILDER] build_timeframe_features COMPLETE: {total_timeframes} timeframes processed")
         return timeframe_features
 
     async def build_prediction_targets(self, instrument_id: int, prediction_timestamp: datetime) -> Dict[str, Dict[str, float]]:
@@ -676,7 +690,10 @@ class TimeSeriesSequenceTrainingGenerator:
             Dict with single-point features per timeframe or None if insufficient data
         """
         
+        self.logger.info(f"🔍 [TRAINING GEN] generate_training_example START: {symbol} at {prediction_timestamp}")
+        
         instrument_id = await self.get_instrument_id(symbol)
+        self.logger.info(f"🔍 [TRAINING GEN] instrument_id: {instrument_id}")
         
         if not instrument_id:
             self.logger.warning(f"Could not find instrument_id for symbol {symbol}")
@@ -684,25 +701,36 @@ class TimeSeriesSequenceTrainingGenerator:
 
         # Generate base features
         base_features = self.generate_base_features(instrument_id, prediction_timestamp)
+        self.logger.info(f"🔍 [TRAINING GEN] base_features: {len(base_features)} features")
 
         # Build single-point timeframe features for specific timeframes
+        self.logger.info(f"🔍 [TRAINING GEN] Calling build_timeframe_features with target_timeframes: {target_timeframes}")
         timeframe_features = await self.sequence_builder.build_timeframe_features(
             instrument_id, 
             prediction_timestamp,
             target_timeframes=target_timeframes
         )
+        self.logger.info(f"🔍 [TRAINING GEN] timeframe_features returned: {list(timeframe_features.keys()) if timeframe_features else 'NONE'}")
+        
+        # Log details about each timeframe
+        if timeframe_features:
+            for tf, features in timeframe_features.items():
+                feature_count = len(features) if features else 0
+                self.logger.info(f"🔍 [TRAINING GEN] Timeframe {tf}: {feature_count} features")
 
         # Build single-point prediction targets
         targets = await self.sequence_builder.build_prediction_targets(instrument_id, prediction_timestamp)
+        self.logger.info(f"🔍 [TRAINING GEN] prediction_targets: {len(targets) if targets else 0} targets")
 
         # Count available timeframes (more flexible validation)
         available_timeframes = [tf for tf, features in timeframe_features.items() if features]
         available_count = len(available_timeframes)
+        self.logger.info(f"🔍 [TRAINING GEN] Available timeframes: {available_timeframes} (count: {available_count})")
         
         # More flexible validation: Allow partial timeframe data
         # Only require at least one timeframe to have data (much more permissive)
         if available_count == 0:
-            self.logger.warning(f"No timeframe data available for {symbol} at {prediction_timestamp}")
+            self.logger.warning(f"❌ [TRAINING GEN] No timeframe data available for {symbol} at {prediction_timestamp}")
             return None
 
         # Create simple training example dict
@@ -715,6 +743,7 @@ class TimeSeriesSequenceTrainingGenerator:
             'prediction_targets': targets
         }
         
+        self.logger.info(f"✅ [TRAINING GEN] Example created successfully with {available_count} timeframes")
         return example
 
 

@@ -33,7 +33,7 @@ domains.services.training_data.timeseries_sequence_training_generator.TrainingDa
 
 # Universe State Builder Configuration - Multi-timeframe processing
 # Note: UniverseStateIntervalBuilder configured programmatically in feature_extraction_runner.py
-# target_durations: '5m,15m,60m,1d' (passed programmatically)
+# target_durations: '5m,15m,60m,1d,1w' (passed programmatically)
 # base_duration: '5m' (passed programmatically)
 
 # Note: Trading hours configuration would be configured when that module is available

@@ -144,6 +144,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         This method is called by Runner at market close time (e.g., 4 PM ET for NYSE)
         and is responsible for building daily timeframe universe state.
         """
+        print(f"🔍 [1D_DEBUG] handleTradingDayEnd called at {current_time}")
         self.logger.debug(f"handleTradingDayEnd called at {current_time}")
         
         try:
@@ -159,14 +160,18 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                         break
                 
                 if duration_1d:
+                    print(f"🔍 [1D_DEBUG] Building 1d universe state for {len(instrument_ids)} instruments at {current_time}")
                     self.logger.info(f"Building 1d universe state for {len(instrument_ids)} instruments at {current_time}")
                     duration_to_state = await self._build_universe_state_for_duration(
                         duration_1d, current_time, instrument_ids, runner
                     )
+                    print(f"🔍 [1D_DEBUG] Built duration_to_state: {list(duration_to_state.keys()) if duration_to_state else 'None'}")
                     
                     # Save the 1d universe state
                     if duration_to_state and hasattr(runner, 'universe_state_manager'):
+                        print(f"🔍 [1D_DEBUG] Saving 1d universe state to database at {current_time}")
                         await runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
+                        print(f"🔍 [1D_DEBUG] ✅ Saved 1d universe state for {len(instrument_ids)} instruments")
                         self.logger.info(f"✅ Saved 1d universe state for {len(instrument_ids)} instruments")
                     else:
                         self.logger.warning(f"No 1d universe state to save at {current_time}")
@@ -187,6 +192,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         This method is called by Runner at the end of the last trading day of each week
         and is responsible for building weekly timeframe universe state.
         """
+        print(f"🔍 [1W_DEBUG] handleTradingWeekEnd called at {current_time}")
         self.logger.debug(f"handleTradingWeekEnd called at {current_time}")
         
         try:
@@ -202,14 +208,18 @@ class UniverseStateIntervalBuilder(RunnerCallback):
                         break
                 
                 if duration_1w:
+                    print(f"🔍 [1W_DEBUG] Building 1w universe state for {len(instrument_ids)} instruments at {current_time}")
                     self.logger.info(f"Building 1w universe state for {len(instrument_ids)} instruments at {current_time}")
                     duration_to_state = await self._build_universe_state_for_duration(
                         duration_1w, current_time, instrument_ids, runner
                     )
+                    print(f"🔍 [1W_DEBUG] Built duration_to_state: {list(duration_to_state.keys()) if duration_to_state else 'None'}")
                     
                     # Save the 1w universe state
                     if duration_to_state and hasattr(runner, 'universe_state_manager'):
+                        print(f"🔍 [1W_DEBUG] Saving 1w universe state to database at {current_time}")
                         await runner.universe_state_manager.addUniverseState(duration_to_state, current_time)
+                        print(f"🔍 [1W_DEBUG] ✅ Saved 1w universe state for {len(instrument_ids)} instruments")
                         self.logger.info(f"✅ Saved 1w universe state for {len(instrument_ids)} instruments")
                     else:
                         self.logger.warning(f"No 1w universe state to save at {current_time}")
@@ -385,9 +395,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             return minute == 0
         elif duration_str == '1d':
             # 1d intervals now handled by handleTradingDayEnd event, not clock time
+            print(f"🔍 [SHOULD_PROCESS_DEBUG] Skipping 1d at {current_time} - should only be handled by handleTradingDayEnd")
             return False  # Remove clock-based 1d generation
         elif duration_str == '1w':
             # 1w intervals now handled by handleTradingWeekEnd event, not clock time
+            print(f"🔍 [SHOULD_PROCESS_DEBUG] Skipping 1w at {current_time} - should only be handled by handleTradingWeekEnd")
             return False  # Remove clock-based 1w generation
         else:
             # Default: process every interval for unknown durations
@@ -525,10 +537,20 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         # Use market cap from latest interval
         market_cap = last_interval.market_cap
         
+        # Calculate interval timestamps
+        start_time = duration.get_start_time(current_time)
+        end_time = current_time
+        
+        print(f"🔍 [INTERVAL_DEBUG] Creating {duration.get_duration_string()} interval:")
+        print(f"🔍 [INTERVAL_DEBUG]   current_time: {current_time}")
+        print(f"🔍 [INTERVAL_DEBUG]   start_time: {start_time}")
+        print(f"🔍 [INTERVAL_DEBUG]   end_time: {end_time}")
+        print(f"🔍 [INTERVAL_DEBUG]   OHLCV: O={open_price}, H={high_price}, L={low_price}, C={close_price}, V={total_volume}")
+        
         return InstrumentInterval(
             instrument_id=first_interval.instrument_id,
-            start_date_time=duration.get_start_time(current_time),
-            end_date_time=current_time,
+            start_date_time=start_time,
+            end_date_time=end_time,
             open=open_price,
             high=high_price,
             low=low_price,

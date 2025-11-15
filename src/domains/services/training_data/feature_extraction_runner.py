@@ -500,7 +500,7 @@ async def extract_features_to_sink(
             env=environment,
             universe_state_manager=universe_state_manager,
             base_duration='5m',
-            target_durations='5m,15m,60m,1d'
+            target_durations='5m,15m,60m,1d,1w'
         )
         
         # Add indicator builder
@@ -909,7 +909,7 @@ async def main():
         universe_state_builder = UniverseStateIntervalBuilder(
             env=environment,
             base_duration=args.base_duration,  # Use same base_duration as the runner
-            target_durations='5m,15m,60m,1d',  # Multi-timeframe processing
+            target_durations='5m,15m,60m,1d,1w',  # Multi-timeframe processing
             # universe_state_manager will be set from Runner's properly configured manager
         )
         
