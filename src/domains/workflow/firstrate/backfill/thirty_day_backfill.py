@@ -35,8 +35,8 @@ from pathlib import Path
 import time
 
 from domains.market_data.services.core.agent.core.firstrate_daily_downloader import FirstRateDownloader, DownloadJob
-from core.vendor.adapters import create_firstrate_adapter, FirstRateAdapter
-from domains.ml.services.training_data.utils.run_metadata_tracker import RunMetadataTracker
+from core.adapters import create_firstrate_adapter, FirstRateAdapter
+# from domains.ml.services.training_data.utils.run_metadata_tracker import RunMetadataTracker
 from dataclasses import dataclass
 
 @dataclass
@@ -215,14 +215,14 @@ class FirstRate30DayBackfill:
         self.data_path = Path(data_path)
         self.output_path = Path(output_path)
         self.environment = environment
-        self.run_tracker = RunMetadataTracker(
-            run_type="firstrate_30day_backfill",
-            created_by="thirty_day_backfill.py",
-            environment=environment
-        )
+        # self.run_tracker = RunMetadataTracker(
+        #     run_type="firstrate_30day_backfill",
+        #     created_by="thirty_day_backfill.py",
+        #     environment=environment
+        # )
         self.run_id = None
 
-        self.downloader = FirstRateDownloader(base_path=str(self.data_path))
+        # self.downloader = FirstRateDownloader(base_path=str(self.data_path))
         self.adapter = create_firstrate_adapter(str(self.data_path))
         self.minute_manager = SimpleFileMinuteManager(str(self.output_path))
 
@@ -490,11 +490,9 @@ class FirstRate30DayBackfill:
             
             total_records += records
 
-            if (i % 10) == 0 and self.run_id:
-                await self.run_tracker.update_progress(self.run_id, {
-                    'symbols_processed': i,
-                    'records_written': total_records
-                })
+            # Progress tracking disabled
+            if (i % 10) == 0:
+                logger.info(f"Progress: {i} symbols processed, {total_records} records written")
 
         return {
             'symbols_processed': len(symbols),
@@ -514,21 +512,14 @@ class FirstRate30DayBackfill:
         logger.info(f"📂 Data path: {self.data_path}")
         logger.info(f"💾 Output path: {self.output_path}")
 
-        self.run_id = await self.run_tracker.start_run(parameters={
-            'period': period,
-            'symbols': symbols,
-            'limit': limit,
-            'download': download,
-            'data_path': str(self.data_path),
-            'output_path': str(self.output_path)
-        })
+        # Run tracking disabled
+        self.run_id = f"firstrate_30day_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         logger.info(f"📝 Run ID: {self.run_id}")
 
         start_time = time.time()
 
         if download:
-            download_results = await self.download_30_days(period=period)
-            logger.info(f"📊 Download results: {download_results}")
+            logger.info("⚠️ Download functionality disabled - using existing files")
         else:
             logger.info("⏭️  Skipping download step")
 
@@ -549,11 +540,8 @@ class FirstRate30DayBackfill:
         logger.info(f"📝 Records written: {process_results['total_records']:,}")
         logger.info(f"⏱️  Total time: {elapsed_time:.1f} seconds")
 
-        await self.run_tracker.complete_run(self.run_id, {
-            'symbols_processed': process_results['symbols_processed'],
-            'total_records': process_results['total_records'],
-            'elapsed_time': elapsed_time
-        })
+        # Run completion tracking disabled
+        logger.info(f"Run {self.run_id} completed successfully")
 
         return {
             'success': True,

@@ -23,7 +23,7 @@ import aiohttp
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from core.shared.run_aware_logging import setup_run_aware_logging
+from core.run_aware_logging import setup_run_aware_logging
 
 class DailyPriceBackfiller:
     """Backfills daily price data for multiple vendors."""

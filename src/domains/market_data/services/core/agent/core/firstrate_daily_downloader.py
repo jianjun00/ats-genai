@@ -191,52 +191,71 @@ class FirstRateDownloader:
         logger.error(f"❌ Failed to download after {self.max_retries + 1} attempts: {url}")
         return False
 
-    async def download_daily_data(
+    async def download_monthly_data(
         self,
-        jobs: List[DownloadJob],
-        date_override: Optional[date] = None
+        jobs: List[DownloadJob]
     ) -> Dict[str, bool]:
-        """Download daily data for all specified asset types."""
-        download_date = date_override or date.today()
-        date_str = download_date.strftime('%Y%m%d')
-
-        logger.info(f"🚀 Starting FirstRate daily download for {date_str}")
+        """Download monthly data (past 30 days) for all specified asset types."""
+        current_month = date.today().strftime('%Y%m')
+        
+        logger.info(f"🚀 Starting FirstRate monthly download for {current_month}")
         logger.info(f"📊 Asset types: {[job.asset_type for job in jobs]}")
 
         results = {}
 
         for job in jobs:
-            logger.info(f"📥 Downloading {job.asset_type} data...")
+            logger.info(f"📥 Downloading {job.asset_type} monthly data...")
 
+            # Force period to 'month' for 30-day data
+            job.period = 'month'
             url = self.build_download_url(job)
-            output_path = self.get_output_path(job, date_str)
+            
+            # Use monthly filename format
+            filename = f"{job.asset_type}_{current_month}_month_{job.timeframe}_{job.adjustment}.zip"
+            if job.output_dir:
+                output_dir = Path(job.output_dir)
+            else:
+                output_dir = self.base_path / "monthly" / job.asset_type
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / filename
 
-            # Skip if file already exists and is valid
+            # Check if we already have recent data (downloaded today)
             if output_path.exists():
-                if self.verify_zip_file(output_path):
-                    logger.info(f"✅ {job.asset_type} data already exists and is valid: {output_path.name}")
-                    results[job.asset_type] = True
-                    continue
-                else:
-                    logger.warning(f"⚠️ Existing file is invalid, re-downloading: {output_path.name}")
-                    output_path.unlink()
+                file_age = datetime.now() - datetime.fromtimestamp(output_path.stat().st_mtime)
+                if file_age.total_seconds() < 3600:  # Less than 1 hour old
+                    if self.verify_zip_file(output_path):
+                        logger.info(f"✅ {job.asset_type} monthly data is recent and valid: {output_path.name}")
+                        results[job.asset_type] = True
+                        continue
+                    else:
+                        logger.warning(f"⚠️ Existing monthly file is invalid, re-downloading: {output_path.name}")
+                        output_path.unlink()
 
-            # Download the data
+            # Download the monthly data
             success = await self.download_with_retries(url, output_path)
             results[job.asset_type] = success
 
             if success:
-                logger.info(f"✅ {job.asset_type} download completed successfully")
+                logger.info(f"✅ {job.asset_type} monthly download completed successfully")
             else:
-                logger.error(f"❌ {job.asset_type} download failed")
+                logger.error(f"❌ {job.asset_type} monthly download failed")
 
         # Summary
         successful = sum(1 for success in results.values() if success)
         total = len(results)
 
-        logger.info(f"🎉 Daily download completed: {successful}/{total} successful")
+        logger.info(f"🎉 Monthly download completed: {successful}/{total} successful")
 
         return results
+        
+    async def download_daily_data(
+        self,
+        jobs: List[DownloadJob],
+        date_override: Optional[date] = None
+    ) -> Dict[str, bool]:
+        """Legacy method - redirects to monthly download for 30-day data."""
+        logger.warning("download_daily_data is deprecated for 30-day data. Use download_monthly_data instead.")
+        return await self.download_monthly_data(jobs)
 
     def cleanup_old_files(self, asset_type: str, keep_days: int = 7) -> int:
         """Clean up old daily files, keeping only the last N days."""
