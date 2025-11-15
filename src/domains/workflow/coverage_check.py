@@ -66,8 +66,8 @@ class FirstRateQuickValidator:
         latest_date = None
         symbol_dates = set()
         
-        # Check 2025 data for August and September
-        for month in ['08', '09']:
+        # Check 2025 data for August, September, and October
+        for month in ['08', '09', '10']:
             month_path = symbol_path / f'2025/{month}' / f'{symbol}_2025_{month}.parquet'
             if month_path.exists():
                 months_available.append(f'2025-{month}')
@@ -103,6 +103,40 @@ class FirstRateQuickValidator:
             'latest_date': latest_date
         }
     
+    def check_daily_coverage(self, trading_days: List[date]) -> Dict:
+        """Check symbol count per day across all available symbols"""
+        from collections import defaultdict
+        import glob
+        
+        daily_counts = defaultdict(int)
+        symbols_per_day = defaultdict(set)
+        
+        # Check October 2025 files 
+        october_pattern = str(self.data_path / "*" / "*" / "2025" / "10" / "*.parquet")
+        october_files = glob.glob(october_pattern)
+        
+        logger.info(f"📊 Found {len(october_files)} October 2025 parquet files")
+        
+        for file_path in october_files:
+            try:
+                df = pd.read_parquet(file_path)
+                if not df.empty:
+                    df['date'] = pd.to_datetime(df['timestamp']).dt.date
+                    symbol = os.path.basename(file_path).split('_')[0]
+                    
+                    for trade_date in df['date'].unique():
+                        if trade_date in trading_days:
+                            daily_counts[trade_date] += len(df[df['date'] == trade_date])
+                            symbols_per_day[trade_date].add(symbol)
+            except Exception as e:
+                logger.warning(f"Error reading {file_path}: {e}")
+        
+        return {
+            'daily_counts': dict(daily_counts),
+            'symbols_per_day': {d: len(symbols) for d, symbols in symbols_per_day.items()},
+            'total_files': len(october_files)
+        }
+
     def run_quick_validation(self) -> Dict:
         """Run quick validation on key symbols"""
         logger.info("🚀 Starting FirstRate quick coverage check")
@@ -123,6 +157,9 @@ class FirstRateQuickValidator:
                        f"{coverage['total_records']:,} records, "
                        f"latest: {coverage['latest_date']}")
         
+        # Check daily coverage across all symbols
+        daily_coverage = self.check_daily_coverage(trading_days)
+        
         # Summary
         symbols_with_data = sum(1 for r in results if r['exists'])
         symbols_with_recent = sum(1 for r in results if r['recent_data'])
@@ -134,7 +171,8 @@ class FirstRateQuickValidator:
             'symbols_with_recent_data': symbols_with_recent,
             'total_recent_records': total_records,
             'coverage_percentage': (symbols_with_recent / len(self.key_symbols)) * 100,
-            'details': results
+            'details': results,
+            'daily_coverage': daily_coverage
         }
         
         logger.info("📊 FirstRate Coverage Summary:")
@@ -157,6 +195,18 @@ def main():
     
     print(f"Coverage: {summary['symbols_with_recent_data']}/{summary['total_symbols_checked']} symbols ({summary['coverage_percentage']:.1f}%)")
     print(f"Total Records: {summary['total_recent_records']:,}")
+    
+    # Show daily coverage breakdown
+    if 'daily_coverage' in summary:
+        daily_coverage = summary['daily_coverage']
+        print(f"\nDaily Symbol Coverage ({daily_coverage['total_files']} total parquet files):")
+        
+        trading_days = validator.get_trading_days(30)
+        for day in sorted(trading_days, reverse=True):
+            symbol_count = daily_coverage['symbols_per_day'].get(day, 0)
+            record_count = daily_coverage['daily_counts'].get(day, 0)
+            status = "✅" if symbol_count > 0 else "❌"
+            print(f"  {status} {day}: {symbol_count:4} symbols, {record_count:7,} records")
     
     print("\nPer-Symbol Details:")
     for detail in summary['details']:
