@@ -43,42 +43,25 @@ def read_daily_job_results():
     return job_data, symbols_by_letter
 
 def calculate_daily_stats(job_data, symbols_by_letter, target_date):
-    """Calculate daily statistics based on actual job execution."""
+    """Only return actual job execution data - no extrapolation."""
     
     job_date = datetime.strptime(job_data['execution_date'], '%Y-%m-%d').date()
     
-    # If this is the execution date, use actual data
+    # Only return data for the actual execution date
     if target_date == job_date:
         return {
             'files': job_data['stock_files'] + job_data['etf_files'],
             'symbols': sum(symbols_by_letter.values()),
             'records': job_data['records_written'],
-            'size_mb': round(job_data['records_written'] * 0.0001, 1),  # Estimated size
             'letters': len([k for k, v in symbols_by_letter.items() if v > 0]),
             'data_source': 'ACTUAL_JOB'
         }
     
-    # For recent dates (within 30 days), assume good coverage
-    days_ago = (job_date - target_date).days
-    if 0 < days_ago <= 30:
-        # Scale down based on age (older data might be less complete)
-        coverage_factor = max(0.7, 1.0 - (days_ago * 0.01))  # 70% minimum
-        
-        return {
-            'files': round((job_data['stock_files'] + job_data['etf_files']) * coverage_factor),
-            'symbols': round(sum(symbols_by_letter.values()) * coverage_factor),
-            'records': round(job_data['records_written'] * coverage_factor),
-            'size_mb': round(job_data['records_written'] * coverage_factor * 0.0001, 1),
-            'letters': round(len(symbols_by_letter) * coverage_factor),
-            'data_source': 'EXTRAPOLATED'
-        }
-    
-    # For very old dates or future dates, no data
+    # For all other dates, return no data (no fake extrapolation)
     return {
         'files': 0,
         'symbols': 0,
         'records': 0,
-        'size_mb': 0.0,
         'letters': 0,
         'data_source': 'NO_DATA'
     }
