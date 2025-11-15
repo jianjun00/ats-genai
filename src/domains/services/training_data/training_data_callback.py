@@ -11,9 +11,9 @@ from datetime import datetime, date
 from typing import Any, Optional, List, Dict, Union
 from pathlib import Path
 
-from domains.trading.services.state.runner_callback import RunnerCallback
+from domains.trading.services.state_core.runner_callback import RunnerCallback
 # TrainingDataConfig is imported from the specific runner that uses this callback
-from domains.ml.services.training_data.timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator
+from .timeseries_sequence_training_generator import TimeSeriesSequenceTrainingGenerator
 # Removed: SequenceStorageManager - using simple ArrayRecord storage per PRD/DRD QR5
 
 
@@ -35,7 +35,8 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
                  start_day_offset: int = 0,
                  end_day_offset: int = 0,
                  collection_start_date: Optional[Union[str, date]] = None,
-                 collection_end_date: Optional[Union[str, date]] = None):
+                 collection_end_date: Optional[Union[str, date]] = None,
+                 feature_sink: Optional[Any] = None):
         """Initialize interval-based callback.
 
         Args:
@@ -64,6 +65,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         self.logger = logging.getLogger(__name__)
         self.training_generator = None
         self.interval_counter = 0
+        self.feature_sink = feature_sink  # For capturing features during golden file testing
 
         # 🚨 CRITICAL: Store ArrayRecord writers to append intervals over time
         # NEW: Track monthly file metadata for database storage
@@ -78,7 +80,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
         # 🚨 NEW: Dynamic Binary Record Schema System
         # Replaces hardcoded OHLCV format with configurable technical indicators
-        from domains.ml.services.training_data.schemas.binary_record_schema import SchemaTemplates
+        from .binary_record_schema import SchemaTemplates
 
         # Default to auto-detect mode for maximum flexibility
         # Users can override by passing schema_config in config
@@ -156,10 +158,24 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
 
     def handleStart(self, runner: Any, current_time: datetime):
         """Initialize training generator."""
+        
+        # Get indicator_builder from UniverseStateIntervalBuilder callback
+        indicator_builder = None
+        if hasattr(runner, 'callbacks'):
+            for callback in runner.callbacks:
+                if hasattr(callback, 'indicator_builder'):
+                    indicator_builder = callback.indicator_builder
+                    print(f"🔧 FOUND IndicatorBuilder in callback: {type(callback).__name__}")
+                    break
+        
+        if indicator_builder is None:
+            print(f"🔧 WARNING: No IndicatorBuilder found in runner callbacks")
+        
         self.training_generator = TimeSeriesSequenceTrainingGenerator(
             env=runner.get_environment(),
             config=self.config,
-            universe_manager=runner.get_universe_state_manager()
+            universe_manager=runner.get_universe_state_manager(),
+            indicator_builder=indicator_builder
         )
 
         # Create output directory
@@ -183,46 +199,53 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         - At 00m: Generate 5m, 15m, and 60m timeframes
         - At Monday 00:00: Generate all timeframes including 1d and 1w
         """
+        self.logger.info(f"[CALLBACK DEBUG] handleInterval CALLED at {current_time}")
+        self.logger.info(f"[CALLBACK DEBUG] Training generator available: {self.training_generator is not None}")
+        
         if not self.training_generator:
+            self.logger.info(f"[CALLBACK DEBUG] EXITING - No training generator")
             return
 
         # Determine which timeframes to generate based on current time
         target_timeframes = self._get_target_timeframes_for_interval(current_time)
+        self.logger.info(f"[CALLBACK DEBUG] Target timeframes: {target_timeframes}")
         
         if not target_timeframes:
+            self.logger.info(f"[CALLBACK DEBUG] EXITING - No target timeframes")
             return
 
-
+        self.logger.info(f"[CALLBACK DEBUG] PROCEEDING with feature generation")
         self.interval_counter += 1
         examples_generated = []
 
-        try:
-            # Generate examples for each symbol and timeframe combination
-            for symbol in self.symbols:
-                for timeframe in target_timeframes:
-                    print(f"🔍 GENERATE: {symbol} {timeframe} at {current_time}")
-                    example = await self.training_generator.generate_training_example(
+        # Generate examples for each symbol and timeframe combination - NO EXCEPTION CATCHING
+        for symbol in self.symbols:
+            for timeframe in target_timeframes:
+                print(f"🔍 GENERATE: {symbol} {timeframe} at {current_time}")
+                example = await self.training_generator.generate_training_example(
+                    symbol=symbol,
+                    prediction_timestamp=current_time,
+                    target_timeframes=[timeframe]  # Generate for single timeframe only
+                )
+                print(f"🔍 EXAMPLE: {example is not None}, keys={list(example.keys()) if example else 'NONE'}")
+                examples_generated.append(example)
+                
+                # Capture features for golden file testing if feature_sink is provided
+                if self.feature_sink and example:
+                    self.feature_sink.capture_training_example(
                         symbol=symbol,
                         prediction_timestamp=current_time,
-                        target_timeframes=[timeframe]  # Generate for single timeframe only
+                        base_features=example.get('base_features', {}),
+                        timeframe_features=example.get('timeframe_features', {}),
+                        prediction_targets=example.get('prediction_targets', {})
                     )
-                    print(f"🔍 EXAMPLE: {example is not None}, keys={list(example.keys()) if example else 'NONE'}")
-                    examples_generated.append(example)
 
-            # Save immediately if we have examples
-            if examples_generated:
-                print(f"🔍 SAVE: {len(examples_generated)} examples")
-                await self._save_simple_arrayrecord(examples_generated, current_time, runner)
-            else:
-                print(f"⚠️ NO EXAMPLES GENERATED at {current_time}")
-
-        except Exception as e:
-            self.logger.error(f"CRITICAL ERROR in handleInterval: {e}")
-            import traceback
-            traceback.print_exc()
-            # Ensure cleanup even on critical errors
-            self._ensure_writers_closed()
-            raise  # Re-raise to maintain error propagation
+        # Save immediately if we have examples
+        if examples_generated:
+            print(f"🔍 SAVE: {len(examples_generated)} examples")
+            await self._save_simple_arrayrecord(examples_generated, current_time, runner)
+        else:
+            print(f"⚠️ NO EXAMPLES GENERATED at {current_time}")
 
     async def _save_simple_arrayrecord(self, examples: List[Dict], current_time: datetime, runner: Any):
         """
@@ -439,7 +462,7 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
     async def _get_feature_dao(self, runner) -> Any:
         """Get or initialize FeatureExtractionDAO lazily."""
         if self._feature_dao is None:
-            from domains.ml.services.training_data.dao.feature_extraction_dao import FeatureExtractionDAO
+            from domains.services.training_data.dao.feature_extraction_dao import FeatureExtractionDAO
             environment = runner.get_environment()
             self._feature_dao = FeatureExtractionDAO(environment)
         return self._feature_dao
@@ -546,149 +569,6 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
             current_month += relativedelta(months=1)
 
         return months
-
-    async def _save_monthly_training_data_records(self, runner: Any):
-        """
-        Save monthly training data records to database using MonthlyTrainingDataDAO.
-        Called at the end of processing to register all generated monthly files.
-        """
-        from domains.ml.services.training_data.dao.monthly_training_data_dao import MonthlyTrainingDataDAO, MonthlyTrainingDataRecord
-        from domains.ml.services.training_data.dao.feature_extraction_dao import FeatureExtractionDAO, FeatureMappingResult
-        from domains.ml.services.training_data.utils.run_metadata_tracker import RunMetadataTracker
-
-        # Get environment 
-        environment = runner.get_environment()
-        
-        # Create a proper database run entry using RunMetadataTracker
-        # This returns an integer run_id that's compatible with the database schema
-        tracker = RunMetadataTracker(
-            run_type="training_data_generation",
-            created_by="IntervalBasedTrainingDataCallback"
-        )
-        
-        # Get runner context for metadata
-        runner_run_id = None
-        if hasattr(runner, 'run_context') and runner.run_context:
-            runner_run_id = runner.run_context.run_id
-            print(f"📋 Runner context run_id: {runner_run_id}")
-
-        # Create database run entry with comprehensive metadata
-        parameters = {
-            "symbols": self.symbols,
-            "start_date": str(self.start_date),
-            "end_date": str(self.end_date),
-            "timeframes": ['5m', '15m', '60m', '1d', '1w'],
-            "storage_format": self.storage_format,
-            "output_dir": str(self.output_dir),
-            "runner_context_id": runner_run_id  # Link to runner's string ID
-        }
-        
-        database_run_id = await tracker.start_run(parameters)
-        print(f"✅ Created database run entry: {database_run_id}")
-
-        dao = MonthlyTrainingDataDAO(environment)
-        feature_dao = FeatureExtractionDAO(environment)
-
-        # Group files by symbol and month for database records
-        symbol_month_records = {}  # {(symbol, year_month): {timeframe: file_path}}
-
-        for file_key, file_path in self.monthly_file_paths.items():
-            # Parse file_key with robust year/month detection
-            # Expected format: various_components_YYYY_MM (year and month are always last 2 parts)
-            parts = file_key.split('_')
-            if len(parts) < 4:
-                continue
-            
-            # The year and month are always the last two parts
-            try:
-                month_str = parts[-1]
-                year_str = parts[-2]
-                
-                # Validate that these look like year/month
-                year = int(year_str)
-                month = int(month_str)
-                
-                # Basic validation
-                if year < 2000 or year > 2100 or month < 1 or month > 12:
-                    continue
-                
-                year_month = f"{year_str}_{month_str}"
-                
-                # Extract symbol (always first part)
-                symbol = parts[0]
-                
-                # Find timeframe by looking for specific patterns like '5m', '15m', '60m', '1h', '1d', '1w'
-                timeframe = None
-                import re
-                timeframe_pattern = re.compile(r'^\d+[mhdw]$')  # digit(s) followed by m/h/d/w
-                for part in parts[1:-2]:  # Exclude symbol and year/month
-                    if timeframe_pattern.match(part):
-                        timeframe = part
-                        break
-                
-                if not timeframe:
-                    # Fallback: assume second part is timeframe (legacy behavior)
-                    timeframe = parts[1] if len(parts) > 1 else 'unknown'
-                
-            except (ValueError, IndexError) as e:
-                # Skip files that don't match expected format
-                continue
-            month_date = date(year, month, 1)
-
-            # Group by symbol and month
-            key = (symbol, year_month)
-            if key not in symbol_month_records:
-                symbol_month_records[key] = {
-                    'symbol': symbol,
-                    'year_month': month_date,
-                    'timeframe_paths': {},
-                    'total_records': 0,
-                    'file_size_mb': 0.0
-                }
-
-            # Add timeframe path
-            symbol_month_records[key]['timeframe_paths'][timeframe] = file_path
-
-            # Add record count and file size
-            record_count = self.monthly_record_counts.get(file_key, 0)
-            symbol_month_records[key]['total_records'] += record_count
-
-            # Calculate file size
-            file_size_bytes = Path(file_path).stat().st_size
-            file_size_mb = file_size_bytes / (1024 * 1024)
-            symbol_month_records[key]['file_size_mb'] += file_size_mb
-
-        # Create database records
-        for (symbol, year_month), record_data in symbol_month_records.items():
-            # Create monthly training data record
-            monthly_record = MonthlyTrainingDataRecord(
-                run_id=database_run_id,  # Use integer database run_id, not string
-                symbol=symbol,
-                instrument_id=None,  # Could be filled later with instrument lookup
-                year_month=record_data['year_month'],
-                timeframe_paths=record_data['timeframe_paths'],
-                total_records=record_data['total_records'],
-                file_size_mb=record_data['file_size_mb'],
-                data_quality_score=1.0,  # Default quality score
-                status="completed"
-            )
-
-            record_id = await dao.create_monthly_record(monthly_record)
-            print(f"✅ Saved monthly training data record: {symbol} {year_month} (ID: {record_id})")
-
-        print(f"✅ Saved {len(symbol_month_records)} monthly training data records to database")
-
-        # Complete the run tracking
-        results = {
-            "total_months_processed": len(symbol_month_records),
-            "symbols": self.symbols,
-            "timeframes": ['5m', '15m', '60m', '1d', '1w'],
-            "total_intervals": self.interval_counter
-        }
-        await tracker.complete_run(database_run_id, results)
-        await tracker.close()
-
-
 
 
 
@@ -832,10 +712,6 @@ class IntervalBasedTrainingDataCallback(RunnerCallback):
         print(f"✅ Writer closure complete")
 
         try:
-            # Save monthly training data records to database
-            print(f"\n💾 SAVING MONTHLY TRAINING DATA RECORDS TO DATABASE")
-            await self._save_monthly_training_data_records(runner)
-
             # Clear writers dict
             self.array_record_writers.clear()
 

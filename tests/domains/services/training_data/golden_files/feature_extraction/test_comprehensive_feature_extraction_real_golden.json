@@ -1,0 +1,41 @@
+{
+  "test_method": "test_comprehensive_feature_extraction_real_golden",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_error_comprehensive_1759754756",
+    "dataset_path": "/tmp/tmp2hsmndpw",
+    "symbols": [
+      "AAPL",
+      "TSLA",
+      "MSFT"
+    ],
+    "execution_duration_seconds": 0.08,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
+    "date_range": {
+      "start": "2024-08-01",
+      "end": "2024-08-02"
+    },
+    "command_executed": "feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-02 --symbols AAPL TSLA MSFT --output-dir /tmp/tmp2hsmndpw --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
+    "success": false,
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['AAPL', 'TSLA', 'MSFT']",
+    "test_scenario": "comprehensive_real",
+    "comprehensive_config": {
+      "symbols_count": 3,
+      "date_range_days": 2,
+      "expected_features": [
+        "technical_indicators",
+        "price_features",
+        "volume_features"
+      ]
+    }
+  },
+  "generated_at_utc_micros": 1759754756608473,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

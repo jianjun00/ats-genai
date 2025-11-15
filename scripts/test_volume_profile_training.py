@@ -11,6 +11,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from domains.ml.legacy.training_data.timeseries_sequence_training_generator import MultiTimeframeFeatureExtractor, TrainingDataConfig
+from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
 
 def test_volume_profile_features():
     """Test Volume Profile feature extraction."""
@@ -19,7 +20,8 @@ def test_volume_profile_features():
 
     # Create test configuration
     config = TrainingDataConfig()
-    extractor = MultiTimeframeFeatureExtractor(config)
+    indicator_builder = IndicatorBuilder()
+    extractor = MultiTimeframeFeatureExtractor(config, indicator_builder)
 
     # Generate realistic AAPL-like data
     np.random.seed(42)

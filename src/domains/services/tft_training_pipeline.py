@@ -21,11 +21,11 @@ from torch.optim import Adam, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 import asyncpg
 
-from models.temporal_fusion_transformer import (
+from domains.models.temporal_fusion_transformer import (
     TemporalFusionTransformer,
     TFTConfig
 )
-from models.data_loader import (
+from domains.models.data_loader import (
     TFTDataLoader,
     TFTDataConfig
 )

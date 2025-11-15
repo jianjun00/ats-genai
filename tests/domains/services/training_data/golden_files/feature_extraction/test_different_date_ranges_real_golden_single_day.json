@@ -1,0 +1,35 @@
+{
+  "test_method": "test_different_date_ranges_real_golden_single_day",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_error_date_range_single_day_1759754751",
+    "dataset_path": "/tmp/tmpxd24ur84",
+    "symbols": [
+      "AAPL"
+    ],
+    "execution_duration_seconds": 0.03,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
+    "date_range": {
+      "start": "2024-08-01",
+      "end": "2024-08-01"
+    },
+    "command_executed": "feature_extraction_runner.py --start-date 2024-08-01 --end-date 2024-08-01 --symbols AAPL --output-dir /tmp/tmpxd24ur84 --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
+    "success": false,
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['AAPL']",
+    "test_scenario": "single_day",
+    "date_scenario": {
+      "name": "single_day",
+      "start": "2024-08-01",
+      "end": "2024-08-01"
+    }
+  },
+  "generated_at_utc_micros": 1759754751677167,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

@@ -809,6 +809,20 @@ class LegacyMarketDataManager:
                 'close': latest['close']
             }
         return None
+    
+    async def get_minute_ohlc_batch(
+        self,
+        symbols: List[str],
+        start: datetime,
+        end: datetime,
+        timeframe_minutes: int = 1
+    ) -> Dict[str, Optional[Dict[str, float]]]:
+        """
+        Legacy compatibility method for get_minute_ohlc_batch.
+        
+        Forwards to the UnifiedMarketDataManager's get_minute_ohlc_batch method.
+        """
+        return await self.unified_manager.get_minute_ohlc_batch(symbols, start, end)
 
 # ==============================================
 # EXPORTS

@@ -8,7 +8,7 @@ import numpy as np
 import pytz
 from datetime import time, datetime, timedelta
 from typing import Dict, Any, Optional
-from .indicator import Indicator
+from ..indicator import Indicator
 
 
 class EMAIndicator(Indicator):
@@ -819,7 +819,7 @@ class CumulativeDollarsIndicator(Indicator):
 
 
 # Enhanced configuration for comprehensive technical analysis
-from .indicator_config import IndicatorConfig
+from ...indicator_config import IndicatorConfig
 from dataclasses import dataclass
 
 

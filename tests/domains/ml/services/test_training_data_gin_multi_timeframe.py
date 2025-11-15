@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Test coverage for multi-timeframe training data generation using training_data.gin configuration.
+Test coverage for multi-timeframe training data generation using feature_extraction.gin configuration.
 
 This test validates that training data generation produces hourly rows with features from
-multiple timeframes (5m, 15m, 1h, 1d, 1w) as specified in training_data.gin.
+multiple timeframes (5m, 15m, 1h, 1d, 1w) as specified in feature_extraction.gin.
 """
 
 import pytest
@@ -35,9 +35,9 @@ class TestMultiTimeframeTrainingData:
         ]
 
     def test_gin_config_parsing(self):
-        """Test that training_data.gin configuration can be parsed correctly."""
-        gin_config_path = Path("config/training_data.gin")
-        assert gin_config_path.exists(), "training_data.gin file must exist"
+        """Test that feature_extraction.gin configuration can be parsed correctly."""
+        gin_config_path = Path("config/feature_extraction.gin")
+        assert gin_config_path.exists(), "feature_extraction.gin file must exist"
 
         # Parse gin file content to verify structure
         with open(gin_config_path, 'r') as f:
@@ -175,7 +175,7 @@ class TestMultiTimeframeTrainingData:
         """Test function to check if training data generation complies with gin config."""
 
         def check_gin_compliance(generated_features, generated_labels, metadata):
-            """Check if generated training data complies with training_data.gin."""
+            """Check if generated training data complies with feature_extraction.gin."""
 
             compliance_issues = []
 
@@ -222,7 +222,7 @@ class TestMultiTimeframeTrainingData:
 
         # This test should FAIL to highlight the compliance issues
         assert len(issues) == 0, \
-            f"Training data generation is not compliant with training_data.gin: {issues}"
+            f"Training data generation is not compliant with feature_extraction.gin: {issues}"
 
     def test_specific_timeframe_feature_requirements(self):
         """Test specific requirements for each timeframe's features."""

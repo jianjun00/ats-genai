@@ -1,0 +1,39 @@
+{
+  "test_method": "test_edge_cases_real_golden_future_dates",
+  "schema_version": "1.0.0",
+  "feature_extraction_results": {
+    "run_id": "test_run_real_error_edge_case_future_dates_1759754754",
+    "dataset_path": "/tmp/tmpd_ue1as6",
+    "symbols": [
+      "AAPL"
+    ],
+    "execution_duration_seconds": 0.03,
+    "captured_features_count": 0,
+    "feature_summary": {},
+    "actual_features": [],
+    "date_range": {
+      "start": "2025-01-01",
+      "end": "2025-01-01"
+    },
+    "command_executed": "feature_extraction_runner.py --start-date 2025-01-01 --end-date 2025-01-01 --symbols AAPL --output-dir /tmp/tmpd_ue1as6 --environment test --gin-config config/feature_extraction.gin --debug",
+    "return_code": -1,
+    "success": false,
+    "failure_reason": "direct_execution_exception: No valid instrument_ids found for symbols: ['AAPL']",
+    "test_scenario": "edge_case_future_dates",
+    "edge_case_config": {
+      "name": "future_dates",
+      "symbols": [
+        "AAPL"
+      ],
+      "start": "2025-01-01",
+      "end": "2025-01-01",
+      "description": "Future date range"
+    }
+  },
+  "generated_at_utc_micros": 1759754754229662,
+  "validation_metadata": {
+    "real_feature_extraction": true,
+    "zero_mock_objects": true,
+    "arrayrecord_format": true
+  }
+}

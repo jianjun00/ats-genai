@@ -211,7 +211,7 @@ class TestMultiTimeframeFeatures:
         sample = data_samples[0]
         actual_feature_count = len([k for k in sample.keys() if k not in ['sequence_id', 'datetime']])
 
-        # From training_data.gin: Expected ~1036 multi-timeframe features
+        # From feature_extraction.gin: Expected ~1036 multi-timeframe features
         # 5m(364) + 15m(364) + 1h(168) + 1d(140) = 1036 features per training row
         expected_min_features = 100  # Conservative minimum
         expected_full_features = 1000  # Full multi-timeframe expectation
@@ -305,7 +305,7 @@ class TestTrainingDataGeneration:
         # Check for key configuration files
         required_configs = [
             "hourly_training.gin",
-            "training_data.gin",
+            "feature_extraction.gin",
             "app_dev.gin"
         ]
 

@@ -43,8 +43,9 @@ from domains.trading.services.state_core.indicator_interval import IndicatorInte
 from core.dao.market_data.daily_market_cap_dao import DailyMarketCapDAO
 
 try:
-    from domains.trading.services.indicators.indicator_builder import IndicatorBuilder
-    from domains.trading.services.indicators.indicator_config import IndicatorConfig
+    from domains.trading.services.indicators_core.indicator_builder import IndicatorBuilder
+    # Note: IndicatorConfig not needed - IndicatorBuilder uses gin configuration directly
+    IndicatorConfig = None  # Not using old config system
 except ImportError:
     # Fallback - these may not be available in all environments
     IndicatorBuilder = None
@@ -572,15 +573,17 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         }
 
         # Check if we have enough history for indicators
-        has_enough_history = all(len(hist) >= 3 for hist in instrument_histories.values())
+        has_enough_history = all(len(hist) >= 1 for hist in instrument_histories.values())
 
         if has_enough_history and self.indicator_builder is not None:
             # Normal indicator calculation
-            instrument_indicator_intervals['default'] = self.indicator_builder.build_indicator_intervals(
+            built_intervals = self.indicator_builder.build_indicator_intervals(
                 instrument_histories,
                 start_date_time=current_time,
                 end_date_time=d_end_time
             )
+            
+            instrument_indicator_intervals['default'] = built_intervals
         else:
             # Create synthetic indicators with default values
             self.logger.warning(f"[INDICATORS] Using default values for {duration.get_duration_string()}")
@@ -624,6 +627,7 @@ class UniverseStateIntervalBuilder(RunnerCallback):
             instrument_intervals=interval_map,
             instrument_indicator_intervals=instrument_indicator_intervals
         )
+        
         
         # Optional: augment with forecasts via forecast callback
         if hasattr(self, 'forecast_callback') and self.forecast_callback is not None:
@@ -671,11 +675,11 @@ class UniverseStateIntervalBuilder(RunnerCallback):
         self.universe_state_manager = universe_state_manager
         
         # Load indicator config from env with proper fallbacks
-        if IndicatorConfig is not None:
-            indicator_config = getattr(self.env, 'get_indicator_config', lambda: IndicatorConfig.empty_config())()
-            self.indicator_builder = IndicatorBuilder(indicator_config) if IndicatorBuilder is not None else None
+        if IndicatorBuilder is not None:
+            # Create gin-configured IndicatorBuilder (no config needed - uses gin)
+            self.indicator_builder = IndicatorBuilder()
         else:
-            # Fallback when IndicatorBuilder/IndicatorConfig are not available
+            # Fallback when IndicatorBuilder is not available
             self.indicator_builder = None
 
         # Durations

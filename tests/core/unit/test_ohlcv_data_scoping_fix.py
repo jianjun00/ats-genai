@@ -27,7 +27,7 @@ class TestOHLCVDataScopingFix:
         config = Mock()
         config.timeframes = ['5m', '15m', '1h', '1d']
         config.feature_types = ['ohlcv', 'returns', 'support_resistance']
-        config.signal_names = ['etop', 'ebot', 'sma_20']
+        # signal_names now handled by IndicatorBuilder, not TrainingDataConfig
         return config
 
     @pytest.fixture
