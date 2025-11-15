@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x18indicator_interval.proto\x12\x05state\"\xcb\x01\n\x11IndicatorInterval\x12\x15\n\rinstrument_id\x18\x01 \x01(\x05\x12\x17\n\x0fstart_date_time\x18\x02 \x01(\t\x12\x15\n\rend_date_time\x18\x03 \x01(\t\x12<\n\nindicators\x18\x04 \x03(\x0b\x32(.state.IndicatorInterval.IndicatorsEntry\x1a\x31\n\x0fIndicatorsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x18indicator_interval.proto\x12\x05state\"\xcb\x01\n\x11IndicatorInterval\x12\x15\n\rinstrument_id\x18\x01 \x01(\x05\x12\x17\n\x0fstart_date_time\x18\x02 \x01(\t\x12\x15\n\rend_date_time\x18\x03 \x01(\t\x12<\n\nindicators\x18\x04 \x03(\x0b\x32(.state.IndicatorInterval.IndicatorsEntry\x1a\x31\n\x0fIndicatorsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'indicator_interval_pb2', globals())

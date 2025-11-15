@@ -134,17 +134,102 @@ class UniverseStateIntervalDAO:
         elif effective_run_id is None:
             print(f"[UUID DEBUG] UniverseStateIntervalDAO: No UUID available in Environment or parameters")
         
-        # Convert state_data to JSON if provided
-        import json
-        from datetime import datetime
+        # Convert state_data to protobuf binary format with NaN support
+        def serialize_to_protobuf_binary(state_data):
+            """
+            Serialize state_data using protobuf format that natively supports NaN/inf.
+            
+            This provides:
+            - Native NaN/inf support through IEEE 754 double precision
+            - Compact binary format
+            - Type safety and schema validation
+            """
+            if not state_data:
+                return None
+                
+            # Import protobuf dependencies in correct order to build descriptor pool
+            from domains.trading.services.state.proto.time_duration_pb2 import TimeDuration as TimeDurationProto
+            from domains.trading.services.state.proto.instrument_interval_pb2 import InstrumentInterval as InstrumentIntervalProto
+            from domains.trading.services.state.proto.indicator_interval_pb2 import IndicatorInterval as IndicatorIntervalProto
+            from domains.trading.services.state.proto.factor_interval_pb2 import FactorInterval as FactorIntervalProto
+            from domains.trading.services.state.proto.universe_state_interval_pb2 import UniverseStateInterval as UniverseStateIntervalProto, IndicatorIntervalMap
+            import math
+            
+            def safe_float(value, default=0.0):
+                """Safely convert value to float, handling None and invalid values."""
+                if value is None:
+                    return default
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    return default
+            
+            # Create the main UniverseStateInterval protobuf message
+            universe_state_proto = UniverseStateIntervalProto()
+            
+            # Set basic fields
+            if 'universe_id' in state_data:
+                universe_state_proto.universe_id = state_data['universe_id']
+            if 'duration' in state_data:
+                universe_state_proto.duration.value = state_data['duration']
+            if 'start_date_time' in state_data:
+                universe_state_proto.start_date_time = state_data['start_date_time']
+            if 'end_date_time' in state_data:
+                universe_state_proto.end_date_time = state_data['end_date_time']
+            
+            # Add instrument intervals
+            if 'instruments' in state_data:
+                for inst_id_str, inst_data in state_data['instruments'].items():
+                    inst_id = int(inst_id_str)
+                    instrument_proto = universe_state_proto.instrument_intervals[inst_id]
+                    instrument_proto.instrument_id = inst_id
+                    instrument_proto.start_date_time = state_data.get('start_date_time', '')
+                    instrument_proto.end_date_time = state_data.get('end_date_time', '')
+                    
+                    # Set OHLCV data with NaN support
+                    instrument_proto.open = safe_float(inst_data.get('open'))
+                    instrument_proto.high = safe_float(inst_data.get('high'))
+                    instrument_proto.low = safe_float(inst_data.get('low'))
+                    instrument_proto.close = safe_float(inst_data.get('close'))
+                    instrument_proto.traded_volume = safe_float(inst_data.get('volume'))
+                    instrument_proto.traded_dollar = safe_float(inst_data.get('traded_dollar'))
+                    instrument_proto.market_cap = safe_float(inst_data.get('market_cap'))
+                    instrument_proto.status = inst_data.get('status', '')
+            
+            # Add indicator intervals with native NaN support
+            if 'indicators' in state_data:
+                for inst_id_str, timeframe_data in state_data['indicators'].items():
+                    inst_id = int(inst_id_str)
+                    for timeframe, indicators in timeframe_data.items():
+                        # Use timeframe as the key for instrument_indicator_intervals
+                        # This maps timeframe -> IndicatorIntervalMap -> instrument_id -> IndicatorInterval
+                        indicator_map = universe_state_proto.instrument_indicator_intervals[timeframe]
+                        indicator_proto = indicator_map.value[inst_id]
+                        indicator_proto.instrument_id = inst_id
+                        indicator_proto.start_date_time = state_data.get('start_date_time', '')
+                        indicator_proto.end_date_time = state_data.get('end_date_time', '')
+                        
+                        # Add all indicators with NaN support through IEEE 754 double
+                        for indicator_name, indicator_value in indicators.items():
+                            # Use NaN as default for invalid indicator values
+                            value = safe_float(indicator_value, default=math.nan)
+                            
+                            # Protobuf double field natively supports NaN/infinity
+                            indicator_proto.indicators[indicator_name] = value
+            
+            # Add factor intervals
+            if 'factors' in state_data:
+                for i, factor_data in enumerate(state_data['factors']):
+                    factor_proto = universe_state_proto.factor_intervals.add()
+                    factor_proto.id = i
+                    factor_proto.name = factor_data.get('name', '')
+                    factor_proto.start_date_time = state_data.get('start_date_time', '')
+                    factor_proto.end_date_time = state_data.get('end_date_time', '')
+            
+            # Serialize to binary format
+            return universe_state_proto.SerializeToString()
         
-        def json_serializer(obj):
-            """Custom JSON serializer for datetime objects"""
-            if isinstance(obj, datetime):
-                return obj.isoformat()
-            raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-        
-        state_data_json = json.dumps(state_data, default=json_serializer) if state_data else None
+        state_data_binary = serialize_to_protobuf_binary(state_data)
         
         # FAIL FAST: Require timezone-naive datetime objects for PostgreSQL consistency
         if hasattr(start_date_time, 'tzinfo') and start_date_time.tzinfo is not None:
@@ -162,7 +247,7 @@ class UniverseStateIntervalDAO:
                     ) VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING id
                     """,
-                    universe_id, duration, start_date_time, end_date_time, effective_run_id, state_data_json
+                    universe_id, duration, start_date_time, end_date_time, effective_run_id, state_data_binary
                 )
                 return row['id']
             except asyncpg.UndefinedColumnError:
@@ -173,7 +258,7 @@ class UniverseStateIntervalDAO:
                     ) VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING interval_id
                     """,
-                    universe_id, duration, start_date_time, end_date_time, effective_run_id, state_data_json
+                    universe_id, duration, start_date_time, end_date_time, effective_run_id, state_data_binary
                 )
                 return row['interval_id']
         finally:

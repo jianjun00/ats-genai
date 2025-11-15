@@ -59,6 +59,7 @@ dependencies = [
   "beautifulsoup4",
   "requests-html",
   "aiofiles",
+  "grpcio-tools",
 ]
 
 [tool.uv]

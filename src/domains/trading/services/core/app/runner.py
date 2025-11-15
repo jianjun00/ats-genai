@@ -216,17 +216,20 @@ class Runner:
 
                 current_interval_time = self._advance_time(current_interval_time)
             # Trading day end event (at market close, not midnight)
-            trading_day_end_time = sod_time.replace(
-                hour=self.trading_end_hour, 
-                minute=self.trading_end_minute, 
-                second=0, 
+            # ✅ FIX: Use proper timezone conversion instead of direct hour replacement
+            market_tz = pytz.timezone(self.timezone)
+            market_close_local = market_tz.localize(datetime.combine(day, datetime.min.time().replace(
+                hour=self.trading_end_hour,
+                minute=self.trading_end_minute,
+                second=0,
                 microsecond=0
-            )
-            # Ensure timezone is preserved
-            if trading_day_end_time.tzinfo is None:
-                trading_day_end_time = trading_day_end_time.replace(tzinfo=pytz.UTC)
+            )))
+            trading_day_end_time = market_close_local.astimezone(pytz.UTC)
+            # timezone is now properly handled above
+            print(f"🔍 [TRADING_DAY_END_DEBUG] Generated trading_day_end event at {trading_day_end_time} (trading_end_hour={self.trading_end_hour}, trading_end_minute={self.trading_end_minute})")
             logging.debug(f"[Runner.iter_events] Yielding trading_day_end: {trading_day_end_time}")
             if last_eod_date != day:
+                print(f"🔍 [TRADING_DAY_END_DEBUG] Yielding trading_day_end event for day {day}")
                 yield (trading_day_end_time, "trading_day_end")
                 
                 # Check if this is the last trading day of the week
@@ -245,7 +248,9 @@ class Runner:
                 # Yield trading week end event
                 if is_last_trading_day_of_week and last_trading_week_end_date != day:
                     trading_week_end_time = trading_day_end_time  # Same time as trading day end
+                    print(f"🔍 [TRADING_WEEK_END_DEBUG] Generated trading_week_end event at {trading_week_end_time} for day {day}")
                     logging.debug(f"[Runner.iter_events] Yielding trading_week_end: {trading_week_end_time}")
+                    print(f"🔍 [TRADING_WEEK_END_DEBUG] Yielding trading_week_end event")
                     yield (trading_week_end_time, "trading_week_end")
                     last_trading_week_end_date = day
                 
@@ -294,15 +299,19 @@ class Runner:
                         print(f"[PRINT][Runner.run] Callback {cb} has no handleInterval")
             elif event_type == "trading_day_end":
                 # Handle trading day end (market close) - for 1d data generation
+                print(f"🔍 [TRADING_DAY_END_DEBUG] Processing trading_day_end event at {event_time}")
                 for cb in self.callbacks:
                     if hasattr(cb, 'handleTradingDayEnd'):
+                        print(f"🔍 [TRADING_DAY_END_DEBUG] Calling handleTradingDayEnd on {type(cb).__name__}")
                         result = cb.handleTradingDayEnd(self, event_time)
                         if hasattr(result, '__await__'):
                             await result
             elif event_type == "trading_week_end":
                 # Handle trading week end (last trading day of week) - for 1w data generation
+                print(f"🔍 [TRADING_WEEK_END_DEBUG] Processing trading_week_end event at {event_time}")
                 for cb in self.callbacks:
                     if hasattr(cb, 'handleTradingWeekEnd'):
+                        print(f"🔍 [TRADING_WEEK_END_DEBUG] Calling handleTradingWeekEnd on {type(cb).__name__}")
                         result = cb.handleTradingWeekEnd(self, event_time)
                         if hasattr(result, '__await__'):
                             await result
