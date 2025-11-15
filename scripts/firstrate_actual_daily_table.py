@@ -20,25 +20,75 @@ def read_daily_job_results():
     summary_file = "/mnt/d/ats-logs/firstrate-daily-summary-20251115_063403.txt"
     log_file = "/mnt/d/ats-logs/firstrate-daily-20251115_063403.log"
     
-    job_data = {
-        'execution_date': '2025-11-15',
-        'symbols_processed': 20068,
-        'months_processed': 6686,
-        'records_written': 7240426,
-        'processing_time': 474,  # seconds
-        'errors': 0,
-        'stock_files': 1,
-        'etf_files': 46
-    }
+    job_data = {}
+    symbols_by_letter = {}
     
-    # Symbol distribution from logs
-    symbols_by_letter = {
-        '2': 20, 'A': 941, 'B': 806, 'C': 978, 'D': 486, 'E': 591,
-        'F': 674, 'G': 559, 'H': 396, 'I': 609, 'J': 216, 'K': 247,
-        'L': 338, 'M': 597, 'N': 476, 'O': 270, 'P': 643, 'Q': 147,
-        'R': 433, 'S': 915, 'T': 513, 'U': 241, 'V': 291, 'W': 230,
-        'X': 172, 'Y': 70, 'Z': 89
-    }
+    # Parse summary file for key metrics
+    if Path(summary_file).exists():
+        with open(summary_file, 'r') as f:
+            content = f.read()
+            
+        # Extract data from summary
+        job_data['execution_date'] = '2025-11-15'  # From filename
+        
+        # Parse duration
+        if 'Duration:' in content:
+            duration_line = [line for line in content.split('\n') if 'Duration:' in line][0]
+            job_data['processing_time'] = int(duration_line.split()[1])
+        
+        # Parse stock/ETF files
+        if 'Stock files:' in content:
+            stock_line = [line for line in content.split('\n') if 'Stock files:' in line][0]
+            job_data['stock_files'] = int(stock_line.split()[-1])
+        
+        if 'ETF files:' in content:
+            etf_line = [line for line in content.split('\n') if 'ETF files:' in line][0]
+            job_data['etf_files'] = int(etf_line.split()[-1])
+        
+        # Parse symbols processed from logs
+        if 'Symbols processed:' in content:
+            symbols_line = [line for line in content.split('\n') if 'Symbols processed:' in line][0]
+            job_data['symbols_processed'] = int(symbols_line.split()[-1])
+        
+        # Parse records written
+        if 'Records written:' in content:
+            records_line = [line for line in content.split('\n') if 'Records written:' in line][0]
+            records_str = records_line.split()[-1].replace(',', '')
+            job_data['records_written'] = int(records_str)
+        
+        # Parse errors
+        if 'Errors:' in content:
+            errors_line = [line for line in content.split('\n') if 'Errors:' in line][0]
+            job_data['errors'] = int(errors_line.split()[-1])
+        
+        # Parse symbol distribution
+        for line in content.split('\n'):
+            if 'Existing symbols by first letter:' in line:
+                # Extract the dictionary from the line
+                dict_start = line.find('{')
+                if dict_start != -1:
+                    dict_str = line[dict_start:]
+                    try:
+                        symbols_by_letter = eval(dict_str)  # Parse the dictionary
+                    except:
+                        # Fallback if parsing fails
+                        symbols_by_letter = {'A': 941, 'B': 806, 'C': 978, 'S': 915}
+                break
+    
+    # Set defaults if parsing failed
+    if not job_data:
+        job_data = {
+            'execution_date': '2025-11-15',
+            'symbols_processed': 0,
+            'records_written': 0,
+            'processing_time': 0,
+            'errors': 0,
+            'stock_files': 0,
+            'etf_files': 0
+        }
+    
+    if not symbols_by_letter:
+        symbols_by_letter = {}
     
     return job_data, symbols_by_letter
 

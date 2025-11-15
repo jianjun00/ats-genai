@@ -28,25 +28,56 @@ def create_summary_from_daily_logs():
         print(f"📅 Based on successful daily job: {datetime.now().strftime('%Y-%m-%d')}")
         print("="*80)
         
-        print(f"\n📊 LATEST JOB RESULTS (2025-11-15):")
-        print(f"  • Job Duration: 474 seconds (7.9 minutes)")
-        print(f"  • Stock files processed: 1")
-        print(f"  • ETF files processed: 46")
-        print(f"  • Total symbols processed: 20,068")
-        print(f"  • Total months processed: 6,686")
-        print(f"  • Total records written: 7,240,426")
-        print(f"  • Errors encountered: 0")
-        print(f"  • Processing rate: ~387.5 seconds total")
+        # Parse actual data from log content
+        duration = "Unknown"
+        stock_files = 0
+        etf_files = 0
+        symbols_processed = 0
+        months_processed = 0
+        records_written = 0
+        errors = 0
+        symbols_by_letter = {}
         
-        # Extract symbols by letter from logs
-        print(f"\n📝 SYMBOL DISTRIBUTION BY LETTER (from logs):")
-        symbols_by_letter = {
-            '2': 20, 'A': 941, 'B': 806, 'C': 978, 'D': 486, 'E': 591, 
-            'F': 674, 'G': 559, 'H': 396, 'I': 609, 'J': 216, 'K': 247, 
-            'L': 338, 'M': 597, 'N': 476, 'O': 270, 'P': 643, 'Q': 147, 
-            'R': 433, 'S': 915, 'T': 513, 'U': 241, 'V': 291, 'W': 230, 
-            'X': 172, 'Y': 70, 'Z': 89
-        }
+        # Parse each line for data
+        for line in content.split('\n'):
+            if 'Duration:' in line:
+                duration = line.split('Duration:')[1].strip().split()[0] + " seconds"
+            elif 'Stock files:' in line:
+                stock_files = int(line.split()[-1])
+            elif 'ETF files:' in line:
+                etf_files = int(line.split()[-1])
+            elif 'Symbols processed:' in line:
+                symbols_processed = int(line.split()[-1])
+            elif 'Months processed:' in line:
+                months_processed = int(line.split()[-1])
+            elif 'Records written:' in line:
+                records_written = int(line.split()[-1].replace(',', ''))
+            elif 'Errors:' in line:
+                errors = int(line.split()[-1])
+            elif 'Existing symbols by first letter:' in line:
+                dict_start = line.find('{')
+                if dict_start != -1:
+                    dict_str = line[dict_start:]
+                    try:
+                        symbols_by_letter = eval(dict_str)
+                    except:
+                        pass
+        
+        print(f"\n📊 LATEST JOB RESULTS (from actual logs):")
+        print(f"  • Job Duration: {duration}")
+        print(f"  • Stock files processed: {stock_files}")
+        print(f"  • ETF files processed: {etf_files}")
+        print(f"  • Total symbols processed: {symbols_processed:,}")
+        print(f"  • Total months processed: {months_processed:,}")
+        print(f"  • Total records written: {records_written:,}")
+        print(f"  • Errors encountered: {errors}")
+        
+        # Show symbols by letter from parsed logs
+        if symbols_by_letter:
+            print(f"\n📝 SYMBOL DISTRIBUTION BY LETTER (parsed from logs):")
+        else:
+            print(f"\n📝 SYMBOL DISTRIBUTION: Could not parse from logs")
+            symbols_by_letter = {}
         
         total_symbols = sum(symbols_by_letter.values())
         
