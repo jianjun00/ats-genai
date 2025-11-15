@@ -88,28 +88,15 @@ class FirstRateCoverageAnalyzer:
         return check_date in self.trading_calendar
     
     def _get_symbols_for_date(self, check_date: date) -> Tuple[List[str], int, Dict[str, int]]:
-        """Get symbols and record counts for a specific date."""
-        year = check_date.year
-        month = check_date.month
-        
+        """Get symbols and record counts for a specific date using file metadata."""
         symbols_found = []
         total_records = 0
         symbols_by_letter = defaultdict(int)
         
-        # Only check a sample of letter directories for performance
-        key_letters = ['A', 'B', 'C', 'M', 'S', 'T']  # Major symbols
-        
-        # Search through letter directories
+        # Search through all letter directories
         for letter_dir in self.data_path.iterdir():
             if letter_dir.is_dir() and len(letter_dir.name) == 1:
                 letter = letter_dir.name
-                
-                # Skip non-key letters for faster processing
-                if letter not in key_letters:
-                    continue
-                
-                # Count symbols in this letter directory
-                symbol_count = 0
                 
                 # Search through symbol directories within each letter
                 for symbol_dir in letter_dir.iterdir():
@@ -117,40 +104,79 @@ class FirstRateCoverageAnalyzer:
                         symbol = symbol_dir.name
                         
                         # Look for year/month structure: {symbol}/{year}/{month}/
-                        year_dir = symbol_dir / str(year)
+                        year_dir = symbol_dir / str(check_date.year)
                         if year_dir.exists():
-                            month_dir = year_dir / f"{month:02d}"
+                            month_dir = year_dir / f"{check_date.month:02d}"
                             if month_dir.exists():
-                                # Look for parquet files in month directory
-                                parquet_files = list(month_dir.glob("*.parquet"))
+                                symbol_file = month_dir / f"{symbol}_{check_date.year}_{check_date.month:02d}.parquet"
                                 
-                                for parquet_file in parquet_files:
-                                    try:
-                                        # Check file size first to skip empty files
-                                        if parquet_file.stat().st_size == 0:
-                                            continue
-                                            
-                                        # Read parquet file and filter for this date
-                                        df = pd.read_parquet(parquet_file)
-                                        if not df.empty and 'timestamp' in df.columns and 'symbol' in df.columns:
-                                            # Convert timestamp to date and filter
-                                            df['date'] = pd.to_datetime(df['timestamp']).dt.date
-                                            day_data = df[df['date'] == check_date]
-                                            
-                                            if not day_data.empty:
-                                                day_symbols = day_data['symbol'].unique()
-                                                symbols_found.extend(day_symbols)
-                                                total_records += len(day_data)
-                                                symbol_count += len(day_symbols)
+                                if symbol_file.exists():
+                                    # Get or generate metadata for this file
+                                    metadata = self._get_file_metadata(symbol_file)
+                                    if metadata:
+                                        # Check if this file contains data for the specific date
+                                        if metadata.get('date_range'):
+                                            try:
+                                                start_date = datetime.strptime(metadata['date_range']['start'], '%Y-%m-%d').date()
+                                                end_date = datetime.strptime(metadata['date_range']['end'], '%Y-%m-%d').date()
                                                 
-                                    except Exception as e:
-                                        # Skip problematic files silently for performance
-                                        continue
-                
-                if symbol_count > 0:
-                    symbols_by_letter[letter] = symbol_count
+                                                if start_date <= check_date <= end_date:
+                                                    file_symbols = metadata.get('symbols', [])
+                                                    symbols_found.extend(file_symbols)
+                                                    symbols_by_letter[letter] += len(file_symbols)
+                                                    
+                                                    # Estimate records for this specific date
+                                                    total_days = (end_date - start_date).days + 1
+                                                    daily_records = metadata['records_count'] // total_days
+                                                    total_records += daily_records
+                                            except:
+                                                continue
         
         return symbols_found, total_records, dict(symbols_by_letter)
+    
+    def _get_file_metadata(self, parquet_file):
+        """Get or generate metadata for a parquet file."""
+        metadata_file = parquet_file.parent / f"{parquet_file.name}.metadata.json"
+        
+        # Read existing metadata if it exists
+        if metadata_file.exists():
+            try:
+                with open(metadata_file, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+        
+        # Generate new metadata
+        try:
+            df = pd.read_parquet(parquet_file)
+            if df.empty:
+                return None
+                
+            metadata = {
+                "file_path": str(parquet_file.name),
+                "created_at": datetime.now().isoformat(),
+                "file_size_bytes": parquet_file.stat().st_size,
+                "records_count": len(df),
+                "symbols": [],
+                "date_range": {"start": None, "end": None}
+            }
+            
+            # Extract symbols and date range if columns exist
+            if 'symbol' in df.columns:
+                metadata['symbols'] = df['symbol'].unique().tolist()
+            
+            if 'timestamp' in df.columns:
+                df['date'] = pd.to_datetime(df['timestamp']).dt.date
+                metadata['date_range']['start'] = str(df['date'].min())
+                metadata['date_range']['end'] = str(df['date'].max())
+            
+            # Save metadata
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+                
+            return metadata
+        except Exception:
+            return None
     
     def _get_all_available_symbols(self) -> set:
         """Get all symbols that have any data."""
