@@ -17,7 +17,7 @@ try:
     ARRAYRECORD_AVAILABLE = True
 except ImportError:
     ARRAYRECORD_AVAILABLE = False
-    print("Warning: array_record not available, using mock data")
+    print("Warning: array_record not available, training will fail")
 
 
 @dataclass
@@ -189,11 +189,11 @@ class FeatureService:
             return best_dataset['dataset_id']
             
         except Exception as e:
-            # If database query fails, do not fall back to unvalidated files
+            # If database query fails, let it fail - no unvalidated data allowed
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Database query failed and no filesystem fallback allowed: {e}")
-            return None
+            logger.error(f"Database query failed for production datasets: {e}")
+            raise
         
     async def _locate_arrayrecord_files(self, dataset_id: str, request: FeatureRequest) -> List[str]:
         """Locate ArrayRecord files for the requested features."""
@@ -305,7 +305,7 @@ class FeatureService:
                                             print(f"   ✅ Parsed record {i}: {symbol} {dt.strftime('%Y-%m-%d %H:%M')} O:{open_price:.2f} H:{high_price:.2f} L:{low_price:.2f} C:{close_price:.2f}")
                                             
                                         except Exception as parse_error:
-                                            # Fallback to raw data for debugging
+                                            # Log parse error for debugging
                                             print(f"   ⚠️  Binary parse error for record {i}: {parse_error}")
                                             records.append({
                                                 'raw_bytes_length': len(record_bytes),
@@ -331,15 +331,8 @@ class FeatureService:
                         feature_data[feature_group]['sample_data'] = self._extract_ohlc_from_record(sample_record)
                             
                 else:
-                    # Fallback to mock data
-                    if feature_group == 'ohlcv_basic':
-                        feature_data[feature_group]['sample_data'] = {
-                            'open': 250.0,
-                            'high': 255.0,
-                            'low': 248.0,
-                            'close': 252.0,
-                            'volume': 1000000
-                        }
+                    # No valid records available - let caller handle the missing data
+                    raise ValueError(f"No valid {feature_group} records found for {request.symbol} at {request.target_datetime}")
                     
             except Exception as e:
                 print(f"❌ Error reading {file_path}: {e}")
@@ -427,38 +420,13 @@ class FeatureService:
                         'volume': record.get('volume', 0)
                     }
                 else:
-                    # Fallback for unparsed records
-                    bar_data = {
-                        'index': i,
-                        'timestamp': request.target_datetime.isoformat(),
-                        'symbol': request.symbol,
-                        'timeframe': request.timeframe,
-                        'open': 0.0,
-                        'high': 0.0, 
-                        'low': 0.0,
-                        'close': 0.0,
-                        'volume': 0,
-                        'error': 'Could not parse record'
-                    }
+                    # Record parsing failed - raise error instead of providing defaults
+                    raise ValueError(f"Could not parse record {i} for {request.symbol} at {request.target_datetime}")
                 
                 sequence.append(bar_data)
         else:
-            # Fallback to mock data if no real records available
-            print(f"   ⚠️  No real OHLC records found, using fallback data")
-            for i in range(10):  # ±10 bars as requested
-                bar_data = {
-                    'index': i - 5,  # -5 to +4 around target
-                    'timestamp': request.target_datetime.isoformat(),
-                    'symbol': request.symbol,
-                    'timeframe': request.timeframe,
-                    'open': 250.0 + i,  # Some variation
-                    'high': 255.0 + i,
-                    'low': 248.0 + i,
-                    'close': 252.0 + i,
-                    'volume': 1000000,
-                    'source': 'fallback'
-                }
-                sequence.append(bar_data)
+            # No real OHLC records available - let caller handle the missing data
+            raise ValueError(f"No OHLC records found for {request.symbol} at {request.target_datetime}")
             
         return sequence
 
