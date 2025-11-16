@@ -88,45 +88,27 @@ download_daily_data() {
     local download_date=$(date -d "1 day ago" +%Y-%m-%d)
     log "Download date: $download_date"
     
-    # First, try to download ETFs (our priority from the backfill)
-    log "Downloading ETF data..."
-    if PYTHONPATH=src python3 scripts/firstrate_etf_backfill.py --download-only >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
-        success "ETF download completed"
+    # Download and backfill data using the correct 30-day backfill script
+    log "Running FirstRate 30-day backfill (includes download and processing)..."
+    if PYTHONPATH=src python3 -m domains.workflow.firstrate.backfill.thirty_day_backfill --full --environment intg >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
+        success "FirstRate 30-day backfill completed"
     else
-        error "ETF download failed"
-        return 1
-    fi
-    
-    # Then download stock data using the comprehensive backfill script
-    log "Downloading stock data for all instruments..."
-    if PYTHONPATH=src python3 scripts/firstrate_30day_backfill.py --download-only --limit 1000 >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
-        success "Stock download completed"
-    else
-        warning "Stock download had issues, but continuing..."
+        warning "FirstRate backfill had issues, but continuing..."
     fi
     
     return 0
 }
 
-# Process downloaded zip files into parquet format
+# Process existing zip files into parquet format (if needed)
 process_downloaded_data() {
-    log "Step 2: Processing downloaded zip files"
+    log "Step 2: Additional processing (if needed)"
     
-    # Process ETF zip files first (priority)
-    log "Processing ETF zip files..."
-    if PYTHONPATH=src python3 scripts/process_firstrate_etf_zips.py >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
-        success "ETF processing completed"
+    # Process any remaining data using the minute bars workflow
+    log "Processing existing FirstRate data into parquet format..."
+    if PYTHONPATH=src python3 -m domains.workflow.firstrate.backfill.minute_bars --data-path /mnt/d/ats-data/firstrate-data/daily/stock >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
+        success "Additional processing completed"
     else
-        error "ETF processing failed"
-        return 1
-    fi
-    
-    # Process stock data using the original processor
-    log "Processing stock minute bar files..."
-    if PYTHONPATH=src python3 scripts/populate_firstrate_minute_bars.py --symbols AAPL,MSFT,GOOGL,AMZN,TSLA,META,NVDA,NFLX --limit 100 --debug >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
-        success "Stock processing completed"
-    else
-        warning "Stock processing had issues, but continuing..."
+        warning "Additional processing had issues, but continuing..."
     fi
     
     return 0
@@ -136,8 +118,8 @@ process_downloaded_data() {
 validate_coverage() {
     log "Step 3: Validating data coverage"
     
-    # Run our coverage check script
-    if PYTHONPATH=src python3 scripts/firstrate_quick_coverage_check.py >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
+    # Run existing coverage validation script
+    if PYTHONPATH=src python3 scripts/test_firstrate_processing.py >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
         success "Coverage validation completed"
         
         # Extract coverage percentage from the output
