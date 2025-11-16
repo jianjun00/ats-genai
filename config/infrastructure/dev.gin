@@ -34,6 +34,13 @@ database.pool.min_connections = 2
 database.pool.max_connections = 10
 database.pool.connection_timeout = 15
 
+# Development Database Connection
+DatabaseConfig.host = "localhost"
+DatabaseConfig.port = 3432
+DatabaseConfig.user = "postgres"
+DatabaseConfig.password = "dev_password"
+DatabaseConfig.database = "dev_db"
+
 # Development Cache (Shorter TTL for fresh data during development)
 cache.default_ttl = 60             # 1 minute (shorter for fresh data)
 cache.memory_limit_mb = 256        # Smaller cache for dev
