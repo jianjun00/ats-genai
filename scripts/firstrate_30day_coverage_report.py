@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-FirstRate 30-Day Minute Bar Coverage Report Generator
+FirstRate Minute Bar Coverage Report Generator
 
 Generates comprehensive coverage reports for FirstRate minute bar data showing:
-- Daily symbol counts and minute bar record counts for past 30 days
+- Daily symbol counts and minute bar record counts for specified date range
 - Trading day vs non-trading day analysis
 - Symbol coverage by first letter
 - Missing data identification and recommendations
@@ -12,8 +12,11 @@ Usage:
     # Generate full 30-day report
     PYTHONPATH=src python3 scripts/firstrate_30day_coverage_report.py
 
-    # Custom date range
-    PYTHONPATH=src python3 scripts/firstrate_30day_coverage_report.py --start-date 2025-10-15 --end-date 2025-11-15
+    # Custom date range (60 days)
+    PYTHONPATH=src python3 scripts/firstrate_30day_coverage_report.py --start-date 2025-09-15 --end-date 2025-11-15
+
+    # Specific symbols for 60 days
+    PYTHONPATH=src python3 scripts/firstrate_30day_coverage_report.py --symbols SPY QQQ --start-date 2025-09-15 --end-date 2025-11-15
 
     # Export to file
     PYTHONPATH=src python3 scripts/firstrate_30day_coverage_report.py --output-file firstrate_coverage_report.json
@@ -62,8 +65,9 @@ class CoverageReport:
 class FirstRateCoverageAnalyzer:
     """Analyzes FirstRate minute bar coverage across date ranges."""
     
-    def __init__(self, data_path: str = "/mnt/d/ats-data/minute-bars/firstrate"):
+    def __init__(self, data_path: str = "/mnt/d/ats-data/minute-bars/firstrate", symbols: Optional[List[str]] = None):
         self.data_path = Path(data_path)
+        self.symbols_filter = set(symbols) if symbols else None
         self.trading_calendar = self._build_trading_calendar()
         
     def _build_trading_calendar(self) -> set:
@@ -93,46 +97,94 @@ class FirstRateCoverageAnalyzer:
         total_records = 0
         symbols_by_letter = defaultdict(int)
         
-        # Search through all letter directories
-        for letter_dir in self.data_path.iterdir():
-            if letter_dir.is_dir() and len(letter_dir.name) == 1:
-                letter = letter_dir.name
+        # If symbols filter is provided, only check those specific symbols
+        if self.symbols_filter:
+            for symbol in self.symbols_filter:
+                letter = symbol[0].upper()
+                symbol_dir = self.data_path / letter / symbol
                 
-                # Search through symbol directories within each letter
-                for symbol_dir in letter_dir.iterdir():
-                    if symbol_dir.is_dir():
-                        symbol = symbol_dir.name
-                        
-                        # Look for year/month structure: {symbol}/{year}/{month}/
-                        year_dir = symbol_dir / str(check_date.year)
-                        if year_dir.exists():
-                            month_dir = year_dir / f"{check_date.month:02d}"
-                            if month_dir.exists():
-                                symbol_file = month_dir / f"{symbol}_{check_date.year}_{check_date.month:02d}.parquet"
-                                
-                                if symbol_file.exists():
-                                    # Get or generate metadata for this file
-                                    metadata = self._get_file_metadata(symbol_file)
-                                    if metadata:
-                                        # Check if this file contains data for the specific date
-                                        if metadata.get('date_range'):
-                                            try:
-                                                start_date = datetime.strptime(metadata['date_range']['start'], '%Y-%m-%d').date()
-                                                end_date = datetime.strptime(metadata['date_range']['end'], '%Y-%m-%d').date()
-                                                
-                                                if start_date <= check_date <= end_date:
-                                                    file_symbols = metadata.get('symbols', [])
-                                                    symbols_found.extend(file_symbols)
-                                                    symbols_by_letter[letter] += len(file_symbols)
+                if symbol_dir.exists():
+                    # Look for year/month structure: {symbol}/{year}/{month}/
+                    year_dir = symbol_dir / str(check_date.year)
+                    if year_dir.exists():
+                        month_dir = year_dir / f"{check_date.month:02d}"
+                        if month_dir.exists():
+                            symbol_file = month_dir / f"{symbol}_{check_date.year}_{check_date.month:02d}.parquet"
+                            
+                            if symbol_file.exists():
+                                # Get or generate metadata for this file
+                                metadata = self._get_file_metadata(symbol_file)
+                                if metadata:
+                                    # Check if this file contains data for the specific date
+                                    if metadata.get('date_range'):
+                                        try:
+                                            start_date = datetime.strptime(metadata['date_range']['start'], '%Y-%m-%d').date()
+                                            end_date = datetime.strptime(metadata['date_range']['end'], '%Y-%m-%d').date()
+                                            
+                                            if start_date <= check_date <= end_date:
+                                                # Count records for this symbol on this specific date
+                                                symbol_daily_records = self._get_symbol_daily_records(symbol_file, check_date)
+                                                if symbol_daily_records > 0:
+                                                    symbols_found.append(symbol)
+                                                    symbols_by_letter[letter] += 1
+                                                    total_records += symbol_daily_records
+                                        except:
+                                            continue
+        else:
+            # Search through all letter directories (original logic)
+            for letter_dir in self.data_path.iterdir():
+                if letter_dir.is_dir() and len(letter_dir.name) == 1:
+                    letter = letter_dir.name
+                    
+                    # Search through symbol directories within each letter
+                    for symbol_dir in letter_dir.iterdir():
+                        if symbol_dir.is_dir():
+                            symbol = symbol_dir.name
+                            
+                            # Look for year/month structure: {symbol}/{year}/{month}/
+                            year_dir = symbol_dir / str(check_date.year)
+                            if year_dir.exists():
+                                month_dir = year_dir / f"{check_date.month:02d}"
+                                if month_dir.exists():
+                                    symbol_file = month_dir / f"{symbol}_{check_date.year}_{check_date.month:02d}.parquet"
+                                    
+                                    if symbol_file.exists():
+                                        # Get or generate metadata for this file
+                                        metadata = self._get_file_metadata(symbol_file)
+                                        if metadata:
+                                            # Check if this file contains data for the specific date
+                                            if metadata.get('date_range'):
+                                                try:
+                                                    start_date = datetime.strptime(metadata['date_range']['start'], '%Y-%m-%d').date()
+                                                    end_date = datetime.strptime(metadata['date_range']['end'], '%Y-%m-%d').date()
                                                     
-                                                    # Estimate records for this specific date
-                                                    total_days = (end_date - start_date).days + 1
-                                                    daily_records = metadata['records_count'] // total_days
-                                                    total_records += daily_records
-                                            except:
-                                                continue
+                                                    if start_date <= check_date <= end_date:
+                                                        file_symbols = metadata.get('symbols', [])
+                                                        symbols_found.extend(file_symbols)
+                                                        symbols_by_letter[letter] += len(file_symbols)
+                                                        
+                                                        # Estimate records for this specific date
+                                                        total_days = (end_date - start_date).days + 1
+                                                        daily_records = metadata['records_count'] // total_days
+                                                        total_records += daily_records
+                                                except:
+                                                    continue
         
         return symbols_found, total_records, dict(symbols_by_letter)
+    
+    def _get_symbol_daily_records(self, symbol_file: Path, target_date: date) -> int:
+        """Get actual record count for a specific symbol on a specific date."""
+        try:
+            df = pd.read_parquet(symbol_file)
+            if df.empty:
+                return 0
+                
+            # Filter for the specific date
+            df['date'] = pd.to_datetime(df['timestamp']).dt.date
+            daily_data = df[df['date'] == target_date]
+            return len(daily_data)
+        except:
+            return 0
     
     def _get_file_metadata(self, parquet_file):
         """Get or generate metadata for a parquet file."""
@@ -180,6 +232,9 @@ class FirstRateCoverageAnalyzer:
     
     def _get_all_available_symbols(self) -> set:
         """Get all symbols that have any data."""
+        if self.symbols_filter:
+            return self.symbols_filter
+            
         all_symbols = set()
         
         for letter_dir in self.data_path.iterdir():
@@ -372,6 +427,7 @@ def main():
     parser.add_argument("--output-file", type=str, help="Output JSON file path")
     parser.add_argument("--data-path", type=str, default="/mnt/d/ats-data/minute-bars/firstrate",
                        help="Path to FirstRate minute bar data")
+    parser.add_argument("--symbols", nargs="+", help="Specific symbols to analyze (e.g., --symbols SPY QQQ)")
     
     args = parser.parse_args()
     
@@ -387,7 +443,7 @@ def main():
         start_date = end_date - timedelta(days=30)
     
     # Generate report
-    analyzer = FirstRateCoverageAnalyzer(data_path=args.data_path)
+    analyzer = FirstRateCoverageAnalyzer(data_path=args.data_path, symbols=args.symbols)
     report = analyzer.analyze_date_range(start_date, end_date)
     
     # Print to console

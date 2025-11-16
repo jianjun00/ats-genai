@@ -88,12 +88,12 @@ download_daily_data() {
     local download_date=$(date -d "1 day ago" +%Y-%m-%d)
     log "Download date: $download_date"
     
-    # Download and backfill data using the working daily backfill script
-    log "Running daily minute bars backfill (includes download and processing)..."
-    if PYTHONPATH=src python3 scripts/daily_minute_bars_backfill.py --production --days 7 >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
-        success "Daily minute bars backfill completed"
+    # Download and backfill data using the correct 30-day backfill script
+    log "Running FirstRate 30-day backfill (includes download and processing)..."
+    if PYTHONPATH=src python3 -m domains.workflow.firstrate.backfill.thirty_day_backfill --full --environment intg >> "$LOG_FILE" 2>> "$ERROR_LOG"; then
+        success "FirstRate 30-day backfill completed"
     else
-        warning "Daily backfill had issues, but continuing..."
+        warning "FirstRate backfill had issues, but continuing..."
     fi
     
     return 0

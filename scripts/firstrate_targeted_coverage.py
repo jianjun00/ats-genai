@@ -69,6 +69,8 @@ def analyze_targeted_coverage(days=30, data_path="/mnt/d/ats-data/minute-bars/fi
     data_path = Path(data_path)
     available_letters = [d.name for d in data_path.iterdir() if d.is_dir() and len(d.name) == 1][:3]  # First 3 letters only
     
+    print(f"Checking data path: {data_path}")
+    print(f"Available letters found: {available_letters}")
     print(f"Date         Symbols    Records    Status")
     print("-" * 45)
     
@@ -90,8 +92,10 @@ def analyze_targeted_coverage(days=30, data_path="/mnt/d/ats-data/minute-bars/fi
                     
                     # Pattern 1: {letter}/{year}/{month}
                     year_dir = letter_dir / str(current_date.year)
+                    print(f"  Checking Pattern 1: {year_dir}")
                     if year_dir.exists():
                         month_dir = year_dir / f"{current_date.month:02d}"
+                        print(f"    Checking month: {month_dir}")
                         if month_dir.exists():
                             for parquet_file in month_dir.glob("*.parquet"):
                                 if parquet_file.stat().st_size > 1000:
