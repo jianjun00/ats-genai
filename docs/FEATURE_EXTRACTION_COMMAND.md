@@ -51,6 +51,28 @@ python3 src/domains/services/training_data/feature_extraction_runner.py \
 - `--debug`
   - Enables debug logging for detailed output
 
+## Ray Parallelized Execution (Recommended)
+
+For faster processing, use Ray to parallelize across symbols:
+
+```bash
+DATABASE_URL=postgresql://postgres:intg_password@localhost:4432/intg_db \
+PYTHONPATH=src \
+python3 scripts/feature_extraction_ray.py \
+    --symbols AAPL MSFT GOOGL NVDA TSLA \
+    --start-date 2024-01-01 \
+    --end-date 2025-11-14 \
+    --environment intg \
+    --gin-config config/feature_extraction.gin \
+    --debug
+```
+
+### Ray Parallelization Benefits
+- **5x speedup**: Each symbol processed on separate CPU core
+- **Fault tolerance**: Individual symbol failures don't stop other symbols
+- **Resource management**: Automatic CPU and memory allocation
+- **Progress tracking**: Real-time status of each symbol's progress
+
 ## Background Execution
 
 To run in background with logging:
