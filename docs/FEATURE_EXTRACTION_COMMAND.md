@@ -143,6 +143,27 @@ find /data/training_data -name "*.arrayrecord" -newer /some/reference/file
 - Consider reducing date range for large datasets
 - Check available disk space for output files
 
+## Production Tag Backfill
+
+After feature extraction completes, ArrayRecord files must be tagged for production use:
+
+```bash
+# Tag all datasets from today's feature extraction
+PYTHONPATH=src python3 scripts/production_tag_backfill.py --dataset-pattern "dataset_20251116_*"
+
+# Tag a specific dataset
+PYTHONPATH=src python3 scripts/production_tag_backfill.py --dataset-pattern "dataset_20251116_154500"
+
+# Tag all datasets (use with caution) 
+PYTHONPATH=src python3 scripts/production_tag_backfill.py --dataset-pattern "dataset_*"
+```
+
+### Production Tag Requirements
+- Files must contain >0 ArrayRecord entries to be considered valid
+- Files are validated using ArrayRecord reader to check actual record count
+- Only valid files are tagged with `status = 'production'` in integration database
+- Invalid files (empty records, corrupted, unreadable) are skipped and won't be available for training
+
 ## Integration with Multi-Time Horizon DataLoader
 
 The generated ArrayRecord files are designed to work with the MultiTimeHorizonDataLoader:
@@ -167,4 +188,4 @@ dataloader = create_multi_horizon_dataloader(
 ```
 
 Last Updated: 2025-11-16
-Status: Feature extraction running for symbols TSLA, MSFT, GOOGL, NVDA (2025-08-01 to 2025-11-14)
+Status: Feature extraction running for symbols AAPL, MSFT, GOOGL, NVDA, TSLA (2024-01-01 to 2025-11-14)
