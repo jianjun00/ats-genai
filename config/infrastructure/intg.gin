@@ -34,6 +34,13 @@ database.pool.min_connections = 5
 database.pool.max_connections = 15
 database.pool.connection_timeout = 30
 
+# Integration Database Connection
+DatabaseConfig.host = "localhost"
+DatabaseConfig.port = 4432
+DatabaseConfig.user = "postgres"
+DatabaseConfig.password = "intg_password"
+DatabaseConfig.database = "intg_db"
+
 # Integration Cache (Moderate TTL for testing)
 cache.default_ttl = 300            # 5 minutes (standard)
 cache.memory_limit_mb = 512        # Standard cache size

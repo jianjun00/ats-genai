@@ -17,7 +17,7 @@ try:
     ARRAYRECORD_AVAILABLE = True
 except ImportError:
     ARRAYRECORD_AVAILABLE = False
-    print("Warning: array_record not available, using mock data")
+    print("Warning: array_record not available, training will fail")
 
 
 @dataclass
@@ -93,43 +93,107 @@ class FeatureService:
         )
         
     async def _find_best_dataset(self, symbol: str, target_datetime: datetime) -> Optional[str]:
-        """Find the latest dataset that contains data for symbol around target_datetime."""
+        """Find the latest production dataset that contains data for symbol around target_datetime."""
         
         # Convert datetime to year_month format for matching
         year_month = target_datetime.strftime("%Y_%m")
+        target_year = int(year_month[:4])
         
-        # Check available datasets that might contain this symbol/date
-        available_datasets = []
-        
-        for dataset_dir in self.base_path.iterdir():
-            if dataset_dir.is_dir() and dataset_dir.name.startswith("dataset_"):
-                # Check if this dataset has the symbol data
-                symbol_pattern = f"{symbol}_{year_month[:4]}_{year_month[5:]}"  # TSLA_2025_07
-                
-                # Look for symbol directories in any feature group
-                for feature_group in ["ohlcv_basic", "technical_momentum", "fundamental_quarterly", "technical_volatility"]:
-                    feature_dir = dataset_dir / feature_group
-                    if feature_dir.exists():
-                        symbol_dirs = list(feature_dir.glob(f"{symbol}_*"))
-                        if symbol_dirs:
-                            # Check if any symbol directory matches our date
-                            for symbol_dir in symbol_dirs:
-                                if year_month[:4] in symbol_dir.name:  # Check year
-                                    available_datasets.append({
-                                        'dataset_id': dataset_dir.name,
-                                        'path': dataset_dir,
-                                        'symbol_dir': symbol_dir.name,
-                                        'created': dataset_dir.stat().st_mtime
-                                    })
-                                    break
-                        break
-        
-        if not available_datasets:
-            return None
+        try:
+            # Query database for production datasets that might contain this symbol/date
+            import asyncpg
+            import os
             
-        # Return the most recently created dataset
-        best_dataset = max(available_datasets, key=lambda x: x['created'])
-        return best_dataset['dataset_id']
+            # Determine environment from base_path
+            if "/data/training_data" in str(self.base_path):
+                # Container environment - try integration first
+                environments = [
+                    ('intg', "postgresql://postgres:intg_password@localhost:4432/intg_db"),
+                    ('dev', "postgresql://postgres:dev_password@localhost:3432/dev_db")
+                ]
+            else:
+                # Host environment
+                environments = [
+                    ('dev', "postgresql://postgres:dev_password@localhost:5432/dev_db"),
+                    ('intg', "postgresql://postgres:intg_password@localhost:5432/intg_db")
+                ]
+            
+            available_datasets = []
+            
+            for env_name, db_url in environments:
+                try:
+                    conn = await asyncpg.connect(db_url)
+                    try:
+                        # Query for production feature group files
+                        query = f"""
+                        SELECT fgf.dataset_id, fgf.symbol, fgf.year_month, fgf.feature_group,
+                               fgf.timeframes, fgf.file_paths, fgf.created_at, fgf.status
+                        FROM {env_name}_feature_group_files fgf
+                        WHERE fgf.status = 'prod'
+                          AND fgf.symbol = $1
+                          AND fgf.year_month = $2
+                        ORDER BY fgf.created_at DESC
+                        """
+                        
+                        target_year_month = f"{target_year}_{target_datetime.month:02d}"
+                        rows = await conn.fetch(query, symbol, target_year_month)
+                        
+                        for row in rows:
+                            dataset_id = row['dataset_id']
+                            feature_group = row['feature_group']
+                            symbol_from_db = row['symbol']
+                            year_month = row['year_month']
+                            
+                            # Verify the dataset directory exists
+                            dataset_dir = self.base_path / dataset_id
+                            if dataset_dir.exists() and dataset_dir.is_dir():
+                                # Check if the specific symbol directory exists
+                                symbol_period = f"{symbol_from_db}_{year_month}"
+                                feature_dir = dataset_dir / feature_group / symbol_period
+                                if feature_dir.exists():
+                                    available_datasets.append({
+                                        'dataset_id': dataset_id,
+                                        'path': dataset_dir,
+                                        'symbol_dir': symbol_period,
+                                        'feature_group': feature_group,
+                                        'created': row['created_at'],
+                                        'status': row['status'],
+                                        'environment': env_name
+                                    })
+                    
+                    finally:
+                        await conn.close()
+                        
+                except Exception as e:
+                    # Log database connection error but continue with other environments
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Could not connect to {env_name} database: {e}")
+                    continue
+            
+            if not available_datasets:
+                # No production datasets found - fail rather than using unvalidated data
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"No production datasets found in database for {symbol} {year_month}. Only production-tagged datasets are allowed.")
+                return None
+                
+            # Return the most recently created production dataset
+            best_dataset = max(available_datasets, key=lambda x: x['created'])
+            
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"✅ Using production dataset: {best_dataset['dataset_id']} "
+                       f"(status: {best_dataset['status']}, env: {best_dataset['environment']})")
+            
+            return best_dataset['dataset_id']
+            
+        except Exception as e:
+            # If database query fails, let it fail - no unvalidated data allowed
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Database query failed for production datasets: {e}")
+            raise
         
     async def _locate_arrayrecord_files(self, dataset_id: str, request: FeatureRequest) -> List[str]:
         """Locate ArrayRecord files for the requested features."""
@@ -241,7 +305,7 @@ class FeatureService:
                                             print(f"   ✅ Parsed record {i}: {symbol} {dt.strftime('%Y-%m-%d %H:%M')} O:{open_price:.2f} H:{high_price:.2f} L:{low_price:.2f} C:{close_price:.2f}")
                                             
                                         except Exception as parse_error:
-                                            # Fallback to raw data for debugging
+                                            # Log parse error for debugging
                                             print(f"   ⚠️  Binary parse error for record {i}: {parse_error}")
                                             records.append({
                                                 'raw_bytes_length': len(record_bytes),
@@ -267,15 +331,8 @@ class FeatureService:
                         feature_data[feature_group]['sample_data'] = self._extract_ohlc_from_record(sample_record)
                             
                 else:
-                    # Fallback to mock data
-                    if feature_group == 'ohlcv_basic':
-                        feature_data[feature_group]['sample_data'] = {
-                            'open': 250.0,
-                            'high': 255.0,
-                            'low': 248.0,
-                            'close': 252.0,
-                            'volume': 1000000
-                        }
+                    # No valid records available - let caller handle the missing data
+                    raise ValueError(f"No valid {feature_group} records found for {request.symbol} at {request.target_datetime}")
                     
             except Exception as e:
                 print(f"❌ Error reading {file_path}: {e}")
@@ -363,38 +420,13 @@ class FeatureService:
                         'volume': record.get('volume', 0)
                     }
                 else:
-                    # Fallback for unparsed records
-                    bar_data = {
-                        'index': i,
-                        'timestamp': request.target_datetime.isoformat(),
-                        'symbol': request.symbol,
-                        'timeframe': request.timeframe,
-                        'open': 0.0,
-                        'high': 0.0, 
-                        'low': 0.0,
-                        'close': 0.0,
-                        'volume': 0,
-                        'error': 'Could not parse record'
-                    }
+                    # Record parsing failed - raise error instead of providing defaults
+                    raise ValueError(f"Could not parse record {i} for {request.symbol} at {request.target_datetime}")
                 
                 sequence.append(bar_data)
         else:
-            # Fallback to mock data if no real records available
-            print(f"   ⚠️  No real OHLC records found, using fallback data")
-            for i in range(10):  # ±10 bars as requested
-                bar_data = {
-                    'index': i - 5,  # -5 to +4 around target
-                    'timestamp': request.target_datetime.isoformat(),
-                    'symbol': request.symbol,
-                    'timeframe': request.timeframe,
-                    'open': 250.0 + i,  # Some variation
-                    'high': 255.0 + i,
-                    'low': 248.0 + i,
-                    'close': 252.0 + i,
-                    'volume': 1000000,
-                    'source': 'fallback'
-                }
-                sequence.append(bar_data)
+            # No real OHLC records available - let caller handle the missing data
+            raise ValueError(f"No OHLC records found for {request.symbol} at {request.target_datetime}")
             
         return sequence
 
