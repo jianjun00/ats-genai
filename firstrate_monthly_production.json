@@ -20060,10 +20060,10 @@
     ]
   },
   "failed_months": {},
-  "last_processed": "2025-11-15T06:41:17.165729",
+  "last_processed": "2025-11-20T06:06:10.766559",
   "total_symbols": 7112,
   "processing_stats": {
-    "symbols_processed": 20068,
+    "symbols_processed": 46812,
     "months_processed": 6686,
     "records_written": 7240426,
     "errors": 0

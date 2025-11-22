@@ -20,6 +20,7 @@ import asyncpg
 import gin
 import json
 import logging
+import os
 import time
 import pandas as pd
 from datetime import datetime, date
@@ -247,6 +248,271 @@ async def register_feature_extraction(run_id: int, dataset_id: str, symbols: Lis
 
         logger.info(f"✅ Feature extraction registration completed: {len(symbols)} instruments, {len(feature_groups)} feature groups")
         return extraction_run_id
+
+    finally:
+        await conn.close()
+
+
+async def register_feature_group_files(dataset_id: str, arrayrecord_files: Dict[str, Path], environment: str = 'dev') -> List[int]:
+    """Register individual feature group files for granular production tracking."""
+    logger = logging.getLogger(__name__)
+    
+    # Connect directly to database
+    if environment == 'dev':
+        db_url = "postgresql://postgres:dev_password@localhost:3432/dev_db"
+    elif environment == 'intg':
+        db_url = "postgresql://postgres:intg_password@localhost:4432/intg_db"
+    else:
+        raise ValueError(f"Unsupported environment: {environment}")
+
+    conn = await asyncpg.connect(db_url)
+    registered_ids = []
+    
+    try:
+        # Group files by symbol, year_month, feature_group
+        file_groups = {}
+        
+        for file_path_str, file_path in arrayrecord_files.items():
+            # Parse path: dataset_id/feature_group/symbol_year_month/timeframe/filename
+            parts = file_path.parts
+            if len(parts) >= 4:
+                feature_group = parts[-4]  # ohlcv_basic
+                symbol_period = parts[-3]  # AAPL_2025_07
+                timeframe = parts[-2]      # 5m
+                
+                # Extract symbol and year_month from symbol_period
+                if '_' in symbol_period:
+                    symbol_parts = symbol_period.split('_')
+                    if len(symbol_parts) >= 3:
+                        symbol = symbol_parts[0]
+                        year = symbol_parts[1]
+                        month = symbol_parts[2]
+                        year_month = f"{year}_{month}"
+                        
+                        key = (symbol, year_month, feature_group)
+                        
+                        if key not in file_groups:
+                            file_groups[key] = {
+                                'timeframes': [],
+                                'file_paths': {},
+                                'file_sizes': {}
+                            }
+                        
+                        file_groups[key]['timeframes'].append(timeframe)
+                        file_groups[key]['file_paths'][timeframe] = str(file_path)
+                        file_groups[key]['file_sizes'][timeframe] = file_path.stat().st_size if file_path.exists() else 0
+        
+        # Insert each group into database
+        for (symbol, year_month, feature_group), group_data in file_groups.items():
+            insert_query = f"""
+            INSERT INTO {environment}_feature_group_files (
+                dataset_id, feature_group, symbol, year_month, 
+                timeframes, file_paths, file_sizes, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (dataset_id, feature_group, symbol, year_month) 
+            DO UPDATE SET
+                timeframes = EXCLUDED.timeframes,
+                file_paths = EXCLUDED.file_paths,
+                file_sizes = EXCLUDED.file_sizes,
+                updated_at = NOW()
+            RETURNING id
+            """
+            
+            file_group_id = await conn.fetchval(
+                insert_query,
+                dataset_id,
+                feature_group,
+                symbol,
+                year_month,
+                group_data['timeframes'],
+                json.dumps(group_data['file_paths']),
+                json.dumps(group_data['file_sizes']),
+                'generated'
+            )
+            
+            registered_ids.append(file_group_id)
+            logger.debug(f"Registered feature group file: {symbol}_{year_month}/{feature_group} (ID: {file_group_id})")
+        
+        logger.info(f"✅ Registered {len(registered_ids)} feature group file combinations")
+        return registered_ids
+
+    finally:
+        await conn.close()
+
+
+async def validate_and_tag_feature_group_files(dataset_id: str, environment: str = 'dev') -> Dict[str, Any]:
+    """Validate and tag individual feature group files as production ready."""
+    logger = logging.getLogger(__name__)
+    
+    # Connect directly to database
+    if environment == 'dev':
+        db_url = "postgresql://postgres:dev_password@localhost:3432/dev_db"
+    elif environment == 'intg':
+        db_url = "postgresql://postgres:intg_password@localhost:4432/intg_db"
+    else:
+        raise ValueError(f"Unsupported environment: {environment}")
+
+    conn = await asyncpg.connect(db_url)
+    validation_results = {
+        'total_files': 0,
+        'validated': 0,
+        'failed': 0,
+        'prod_tagged': 0,
+        'errors': []
+    }
+    
+    try:
+        # Get all feature group files for this dataset
+        select_query = f"""
+        SELECT id, symbol, year_month, feature_group, timeframes, file_paths, file_sizes
+        FROM {environment}_feature_group_files
+        WHERE dataset_id = $1 AND status = 'generated'
+        """
+        
+        rows = await conn.fetch(select_query, dataset_id)
+        validation_results['total_files'] = len(rows)
+        
+        for row in rows:
+            file_id = row['id']
+            symbol = row['symbol']
+            year_month = row['year_month']
+            feature_group = row['feature_group']
+            timeframes = row['timeframes']
+            file_paths = json.loads(row['file_paths']) if row['file_paths'] else {}
+            file_sizes = json.loads(row['file_sizes']) if row['file_sizes'] else {}
+            
+            validation_errors = []
+            
+            # Validation 1: Minimum timeframes check
+            min_timeframes = 3  # Require at least 3 timeframes
+            if len(timeframes) < min_timeframes:
+                validation_errors.append(f"Insufficient timeframes: {len(timeframes)} < {min_timeframes} required")
+            
+            # Validation 2: ACTUAL ArrayRecord content validation (NOT file size)
+            content_timeframes = 0
+            total_records = 0
+            
+            # Import ArrayRecord module if available
+            try:
+                from array_record.python import array_record_module
+                ARRAYRECORD_AVAILABLE = True
+            except Exception:
+                ARRAYRECORD_AVAILABLE = False
+            
+            if ARRAYRECORD_AVAILABLE:
+                for timeframe in timeframes:
+                    file_path = file_paths.get(timeframe)
+                    if not file_path or not Path(file_path).exists():
+                        continue
+                    
+                    try:
+                        # Read actual ArrayRecord content
+                        reader = array_record_module.ArrayRecordReader(file_path)
+                        num_records = reader.num_records()
+                        
+                        # Verify records are actually readable
+                        readable_records = 0
+                        for i in range(min(num_records, 5)):  # Sample first 5 to verify
+                            try:
+                                reader.seek(i)
+                                record_bytes = reader.read()
+                                if record_bytes and len(record_bytes) > 0:
+                                    readable_records += 1
+                            except Exception:
+                                break
+                        
+                        if readable_records > 0:
+                            content_timeframes += 1
+                            total_records += num_records
+                            
+                    except Exception as e:
+                        validation_errors.append(f"Error reading {timeframe} ArrayRecord: {str(e)}")
+                
+                # Content ratio check - at least 60% of timeframes must have readable records
+                content_ratio = content_timeframes / len(timeframes) if timeframes else 0
+                if content_ratio < 0.6:
+                    validation_errors.append(f"Too few timeframes with content: {content_timeframes}/{len(timeframes)} ({content_ratio:.1%} < 60% minimum)")
+                
+                # Minimum total records check
+                min_total_records = 10
+                if total_records < min_total_records:
+                    validation_errors.append(f"Insufficient total records: {total_records} < {min_total_records} required")
+            else:
+                # Fallback to file size if ArrayRecord not available
+                content_files = 0
+                total_size = 0
+                for timeframe in timeframes:
+                    size = file_sizes.get(timeframe, 0)
+                    total_size += size
+                    if size > 50 * 1024:  # Lowered threshold since we know 128KB files can have content
+                        content_files += 1
+                
+                if content_files == 0:
+                    validation_errors.append(f"No files with content (all files < 50KB)")
+                elif content_files / len(timeframes) < 0.6:
+                    validation_errors.append(f"Too few files with content: {content_files}/{len(timeframes)} (60% minimum)")
+                
+                # Total size check
+                min_size_kb = 200  # Lowered minimum since 128KB files can be valid
+                if total_size < min_size_kb * 1024:
+                    validation_errors.append(f"Insufficient total size: {total_size/1024:.0f}KB < {min_size_kb}KB required")
+            
+            # Update status based on validation
+            if validation_errors:
+                new_status = 'failed'
+                validation_results['failed'] += 1
+                logger.warning(f"Validation failed for {symbol}_{year_month}/{feature_group}: {validation_errors}")
+            else:
+                new_status = 'prod'
+                validation_results['validated'] += 1
+                validation_results['prod_tagged'] += 1
+                logger.info(f"✅ Validated and tagged as prod: {symbol}_{year_month}/{feature_group}")
+            
+            # Update database
+            update_query = f"""
+            UPDATE {environment}_feature_group_files 
+            SET status = $1, validation_errors = $2, updated_at = NOW()
+            WHERE id = $3
+            """
+            
+            await conn.execute(update_query, new_status, validation_errors, file_id)
+        
+        logger.info(f"✅ Feature group validation complete: {validation_results['prod_tagged']} prod, {validation_results['failed']} failed")
+        return validation_results
+
+    finally:
+        await conn.close()
+
+
+async def update_feature_extraction_status(extraction_run_id: int, status: str, environment: str = 'dev') -> bool:
+    """Update the status of a feature extraction run."""
+    logger = logging.getLogger(__name__)
+    
+    # Connect directly to database
+    if environment == 'dev':
+        db_url = "postgresql://postgres:dev_password@localhost:3432/dev_db"
+    elif environment == 'intg':
+        db_url = "postgresql://postgres:intg_password@localhost:4432/intg_db"
+    else:
+        raise ValueError(f"Unsupported environment: {environment}")
+
+    conn = await asyncpg.connect(db_url)
+    try:
+        update_query = f"""
+        UPDATE {environment}_feature_extraction_runs 
+        SET status = $1, updated_at = NOW() 
+        WHERE id = $2
+        """
+        
+        result = await conn.execute(update_query, status, extraction_run_id)
+        success = "UPDATE 1" in result
+        
+        if success:
+            logger.info(f"✅ Updated feature extraction run {extraction_run_id} status to '{status}'")
+        else:
+            logger.warning(f"⚠️ Failed to update feature extraction run {extraction_run_id} status")
+            
+        return success
 
     finally:
         await conn.close()
@@ -1230,12 +1496,63 @@ async def main():
         logger.info(f"   Feature groups: {list(feature_groups_found)}")
         extraction_run_id = None
 
-    # DEBUG STEP 9: Final Summary and Completion
-    logger.info("🎯 STEP 9: Final summary and completion")
+    # DEBUG STEP 9: Feature Group File Registration and Validation
+    logger.info("✅ STEP 9: Feature group file registration and validation")
+    
+    # Register individual feature group files for granular tracking
+    try:
+        registered_file_ids = await register_feature_group_files(dataset_id, arrayrecord_files, args.environment)
+        logger.info(f"✅ Registered {len(registered_file_ids)} feature group file combinations")
+    except Exception as e:
+        logger.error(f"❌ Error registering feature group files: {e}")
+        registered_file_ids = []
+    
+    # Validate and tag feature group files individually
+    validation_results = None
+    try:
+        validation_results = await validate_and_tag_feature_group_files(dataset_id, args.environment)
+        logger.info(f"✅ Feature group validation complete:")
+        logger.info(f"   Total files: {validation_results['total_files']}")
+        logger.info(f"   Production tagged: {validation_results['prod_tagged']}")
+        logger.info(f"   Failed validation: {validation_results['failed']}")
+        
+        validation_passed = validation_results['prod_tagged'] > 0
+        
+    except Exception as e:
+        logger.error(f"❌ Error validating feature group files: {e}")
+        validation_passed = False
+        validation_results = {'total_files': 0, 'prod_tagged': 0, 'failed': 0}
+    
+    # Update feature extraction run status based on validation
+    if validation_passed:
+        final_status = "completed"  # Keep run status as completed (individual files have prod status)
+        logger.info(f"✅ Feature extraction completed with {validation_results['prod_tagged']} production files")
+    else:
+        final_status = "failed_validation"
+        logger.warning(f"⚠️ Feature extraction failed validation - no production files generated")
+    
+    # Update feature extraction run status in database
+    if 'extraction_run_id' in locals() and extraction_run_id:
+        try:
+            success = await update_feature_extraction_status(extraction_run_id, final_status, args.environment)
+            if success:
+                logger.info(f"✅ Feature extraction run status updated to '{final_status}'")
+            else:
+                logger.warning(f"⚠️ Failed to update feature extraction run status")
+        except Exception as e:
+            logger.error(f"❌ Error updating feature extraction run status: {e}")
+    else:
+        logger.warning(f"⚠️ No extraction run ID available - cannot update status")
+    
+    logger.info("✅ STEP 9 COMPLETE: Feature group file validation and tagging finished")
+
+    # DEBUG STEP 10: Final Summary and Completion
+    logger.info("🎯 STEP 10: Final summary and completion")
 
     # Create completion summary
     completion_summary = {
-        'status': 'completed',
+        'status': final_status,
+        'validation_passed': validation_passed,
         'dataset_directory': args.output_dir,
         'dataset_id': dataset_id,
         'metadata_file': metadata_file,
@@ -1244,17 +1561,28 @@ async def main():
         'generation_duration': f"{generation_duration} seconds ({generation_duration/60:.1f} minutes)",
         'estimated_sequences': estimated_actual_sequences,
         'symbols_processed': len(args.symbols),
-        'date_range': f"{start_date} to {end_date}"
+        'date_range': f"{start_date} to {end_date}",
+        'feature_files_registered': len(registered_file_ids) if 'registered_file_ids' in locals() else 0,
+        'feature_files_prod': validation_results['prod_tagged'] if validation_results else 0,
+        'feature_files_failed': validation_results['failed'] if validation_results else 0
     }
 
-    logger.info("🎉 TRAINING DATA GENERATION COMPLETED SUCCESSFULLY!")
+    if validation_passed:
+        logger.info("🎉 TRAINING DATA GENERATION COMPLETED SUCCESSFULLY!")
+        logger.info(f"   {validation_results['prod_tagged']} feature group files tagged as PRODUCTION")
+    else:
+        logger.warning("⚠️ TRAINING DATA GENERATION COMPLETED WITH VALIDATION ISSUES")
+        logger.warning("   No feature group files passed validation for production use")
+        
     for key, value in completion_summary.items():
         logger.info(f"   {key}: {value}")
 
     if 'db_dataset_id' in locals():
         logger.info(f"   Database table: {environment.get_table_name('training_dataset')}")
+    if 'registered_file_ids' in locals():
+        logger.info(f"   Feature group files table: {environment.get_table_name('feature_group_files')}")
 
-    logger.info("✅ STEP 9 COMPLETE: All training data generation steps finished successfully")
+    logger.info("✅ STEP 10 COMPLETE: All training data generation steps finished successfully")
 
     return 0
 
