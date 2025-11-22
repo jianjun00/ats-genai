@@ -197,6 +197,27 @@ class TrainingDatasetDAO:
         finally:
             await conn.close()
 
+    async def update_status(self, dataset_id: int, status: str) -> bool:
+        """Update the status of a dataset."""
+        if not self.env:
+            raise ValueError("Environment is required for database operations")
+
+        conn = await asyncpg.connect(self.env.get_database_url())
+        try:
+            table_name = self.env.get_table_name("training_dataset")
+
+            query = f"""
+            UPDATE {table_name}
+            SET status = $1, updated_at = NOW()
+            WHERE id = $2
+            """
+
+            result = await conn.execute(query, status, dataset_id)
+            return "UPDATE 1" in result
+
+        finally:
+            await conn.close()
+
     def _row_to_record(self, row) -> TrainingDatasetRecord:
         """Convert database row to TrainingDatasetRecord."""
         return TrainingDatasetRecord(
