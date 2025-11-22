@@ -181,10 +181,6 @@ class FeatureService:
             # Return the most recently created production dataset
             best_dataset = max(available_datasets, key=lambda x: x['created'])
             
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"✅ Using production dataset: {best_dataset['dataset_id']} "
-                       f"(status: {best_dataset['status']}, env: {best_dataset['environment']})")
             
             return best_dataset['dataset_id']
             
@@ -239,8 +235,6 @@ class FeatureService:
                 
                 # Read actual ArrayRecord data
                 if ARRAYRECORD_AVAILABLE:
-                    print(f"📖 Reading ArrayRecord: {file_path}")
-                    
                     # Read ArrayRecord file
                     reader = array_record_module.ArrayRecordReader(file_path)
                     records = []
@@ -248,7 +242,6 @@ class FeatureService:
                     try:
                         # Get number of records first
                         num_records = reader.num_records()
-                        print(f"   📊 File contains {num_records} records")
                         
                         if num_records > 0:
                             # Read all records (or first few for testing)
@@ -302,7 +295,6 @@ class FeatureService:
                                             
                                             # TODO: Parse indicators if needed
                                             records.append(record_data)
-                                            print(f"   ✅ Parsed record {i}: {symbol} {dt.strftime('%Y-%m-%d %H:%M')} O:{open_price:.2f} H:{high_price:.2f} L:{low_price:.2f} C:{close_price:.2f}")
                                             
                                         except Exception as parse_error:
                                             # Log parse error for debugging
@@ -323,7 +315,6 @@ class FeatureService:
                     feature_data[feature_group]['records'] = records
                     feature_data[feature_group]['record_count'] = len(records)
                     
-                    print(f"   ✅ Read {len(records)} records from {feature_group}")
                     
                     # Extract sample data for OHLC if available
                     if records and feature_group == 'ohlcv_basic':
@@ -403,7 +394,6 @@ class FeatureService:
         
         if ohlcv_records:
             # Use real data from ArrayRecord files
-            print(f"   📊 Building sequence from {len(ohlcv_records)} real OHLC records")
             
             for i, record in enumerate(ohlcv_records):
                 if isinstance(record, dict) and 'timestamp' in record:

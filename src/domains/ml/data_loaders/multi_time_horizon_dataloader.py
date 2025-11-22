@@ -133,12 +133,16 @@ class TemporalFeatureAligner:
             
         df = pd.DataFrame(result.sequence_data)
         
-        # Ensure datetime column exists and is datetime type
-        if 'datetime' not in df.columns:
-            self.logger.error(f"No datetime column in {timeframe} data")
+        # Ensure datetime or timestamp column exists and convert to datetime type
+        if 'datetime' in df.columns:
+            datetime_col = 'datetime'
+        elif 'timestamp' in df.columns:
+            datetime_col = 'timestamp'
+        else:
+            self.logger.error(f"No datetime/timestamp column in {timeframe} data. Columns: {list(df.columns)}")
             return self._create_empty_features(target_timestamps, result.ohlc)
             
-        df['datetime'] = pd.to_datetime(df['datetime'])
+        df['datetime'] = pd.to_datetime(df[datetime_col])
         df.set_index('datetime', inplace=True)
         df.sort_index(inplace=True)
         
@@ -153,6 +157,10 @@ class TemporalFeatureAligner:
             
         # Fill remaining NaNs with zeros
         aligned_df = aligned_df.fillna(0.0)
+        
+        # Calculate returns if close price is available
+        if 'close' in aligned_df.columns:
+            aligned_df['returns'] = aligned_df['close'].pct_change().fillna(0.0)
         
         # Convert to tensors
         feature_tensors = {}
@@ -335,8 +343,8 @@ class MultiScaleSequenceBuilder:
                 
             targets.append(target_value)
             
-        # Stack targets [num_horizons, 1]
-        return torch.cat(targets, dim=0)
+        # Stack targets [num_horizons]  
+        return torch.cat(targets, dim=0).squeeze(-1)
 
 
 class MultiTimeHorizonDataset(Dataset):

@@ -312,14 +312,15 @@ def train_multi_horizon_model():
     )
     
     # Data configuration
-    symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL', 'NVDA']
+    #symbols = ['AAPL', 'TSLA', 'MSFT', 'GOOGL', 'NVDA']
+    symbols = ['TSLA']
     train_date_range = (
-        datetime(2024, 1, 1),
-        datetime(2024, 10, 31)
+        datetime(2025, 7, 1),
+        datetime(2025, 10, 31)
     )
     val_date_range = (
-        datetime(2024, 11, 1),
-        datetime(2024, 12, 31)
+        datetime(2025, 11, 1),
+        datetime(2025, 11, 14)
     )
     
     # Create data loaders
