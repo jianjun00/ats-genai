@@ -155,6 +155,13 @@ def backfill_production_tags(dataset_pattern):
             print(f"❌ {symbol}_{year:04d}_{month:02d} {feature_group} {timeframe}: {message}")
             continue
         
+        # Extract record count from validation message
+        try:
+            # Message format: "Valid ArrayRecord: {num_records} records ({file_size} bytes)"
+            num_records = int(message.split(': ')[1].split(' records')[0])
+        except:
+            num_records = 0
+        
         # File is valid, add production tag
         # Convert dict to JSON string for PostgreSQL JSONB
         generation_params = {
@@ -187,6 +194,31 @@ def backfill_production_tags(dataset_pattern):
                 json.dumps(generation_params),
                 'production',  # status  
                 os.path.getsize(file_path) / (1024 * 1024)  # file_size_mb
+            ))
+            
+            # Insert or update record in intg_feature_group_files table
+            year_month_str = f"{year}_{month:02d}"
+            cursor.execute("""
+                INSERT INTO intg_feature_group_files (
+                    dataset_id, feature_group, symbol, year_month,
+                    timeframes, file_paths, file_sizes, record_count,
+                    status, created_at, updated_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, 'prod', NOW(), NOW()
+                ) ON CONFLICT (dataset_id, feature_group, symbol, year_month)
+                DO UPDATE SET 
+                    record_count = EXCLUDED.record_count,
+                    status = EXCLUDED.status,
+                    updated_at = NOW()
+            """, (
+                dataset_id,
+                feature_group,
+                symbol,
+                year_month_str,
+                [timeframe],  # timeframes array
+                json.dumps({timeframe: [file_path]}),  # file_paths jsonb
+                json.dumps({timeframe: {os.path.basename(file_path): os.path.getsize(file_path)}}),  # file_sizes jsonb
+                num_records  # record count from ArrayRecord validation
             ))
             
             valid_files_tagged += 1
